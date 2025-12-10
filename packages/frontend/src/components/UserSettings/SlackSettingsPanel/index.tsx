@@ -1,5 +1,6 @@
 import {
     CommercialFeatureFlags,
+    SchedulerJobStatus,
     type SlackAppCustomSettings,
 } from '@lightdash/common';
 import {
@@ -35,6 +36,8 @@ import useHealth from '../../../hooks/health/useHealth';
 import {
     useDeleteSlack,
     useGetSlack,
+    useSyncSlackChannels,
+    useSyncSlackChannelsJob,
     useUpdateSlackAppCustomSettingsMutation,
 } from '../../../hooks/slack/useSlack';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
@@ -84,6 +87,23 @@ const SlackSettingsPanel: FC = () => {
     const { mutate: deleteSlack } = useDeleteSlack();
     const { mutate: updateCustomSettings } =
         useUpdateSlackAppCustomSettingsMutation();
+    const {
+        mutate: syncSlackChannels,
+        data: syncJobData,
+        isLoading: isSyncMutationLoading,
+        reset: resetSyncMutation,
+    } = useSyncSlackChannels();
+    // Poll job status when we have a jobId - the hook handles success/error toasts
+    useSyncSlackChannelsJob(
+        syncJobData?.jobId,
+        resetSyncMutation, // Reset the mutation when job completes to allow re-triggering
+    );
+    // Check if a sync job is already running (from backend status)
+    const isSyncAlreadyRunning =
+        slackInstallation?.channelsSyncStatus === SchedulerJobStatus.STARTED;
+    // Syncing is true while mutation is loading OR while we have a jobId (job in progress) OR backend says sync is running
+    const isSyncing =
+        isSyncMutationLoading || !!syncJobData?.jobId || isSyncAlreadyRunning;
 
     const form = useForm<SlackAppCustomSettings>({
         initialValues: {
@@ -389,6 +409,27 @@ const SlackSettingsPanel: FC = () => {
                                     >
                                         Reinstall
                                     </Button>
+                                    <Tooltip
+                                        multiline
+                                        variant="xs"
+                                        maw={250}
+                                        label="Refresh the list of available Slack channels from your workspace. This runs automatically every day at 6am UTC."
+                                    >
+                                        <Button
+                                            size="xs"
+                                            variant="default"
+                                            loading={isSyncing}
+                                            disabled={isSyncing}
+                                            onClick={() => syncSlackChannels()}
+                                            leftIcon={
+                                                <MantineIcon
+                                                    icon={IconRefresh}
+                                                />
+                                            }
+                                        >
+                                            Sync channels
+                                        </Button>
+                                    </Tooltip>
                                 </Group>
                                 <Button
                                     size="xs"

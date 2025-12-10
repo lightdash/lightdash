@@ -131,6 +131,7 @@ export class SlackAuthenticationModel {
             scopes: row.installation?.bot?.scopes || [],
             notificationChannel: row.notification_channel ?? undefined,
             appProfilePhotoUrl: row.app_profile_photo_url ?? undefined,
+            channelsSyncStatus: row.channels_sync_status ?? null,
         };
     }
 

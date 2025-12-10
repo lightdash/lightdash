@@ -30,3 +30,5 @@ export type SlackAppCustomSettings = {
 export type ApiSlackGetInstallationResponse = ApiSuccess<
     SlackSettings | undefined
 >;
+
+export type ApiSlackSyncChannelsResponse = ApiSuccess<{ jobId: string }>;

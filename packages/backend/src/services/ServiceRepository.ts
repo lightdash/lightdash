@@ -697,6 +697,7 @@ export class ServiceRepository
                     slackAuthenticationModel:
                         this.models.getSlackAuthenticationModel(),
                     slackClient: this.clients.getSlackClient(),
+                    schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );
     }

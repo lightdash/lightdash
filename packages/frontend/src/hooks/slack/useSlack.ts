@@ -1,5 +1,7 @@
 import {
+    SchedulerJobStatus,
     type ApiError,
+    type ApiJobStatusResponse,
     type SlackAppCustomSettings,
     type SlackChannel,
     type SlackSettings,
@@ -12,6 +14,7 @@ import {
 } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import { lightdashApi } from '../../api';
+import { getSchedulerJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useToaster from '../toaster/useToaster';
 
 const getSlack = async () =>
@@ -222,4 +225,120 @@ export const useUpdateSlackAppCustomSettingsMutation = () => {
             },
         },
     );
+};
+
+const syncSlackChannels = async () =>
+    lightdashApi<{ jobId: string }>({
+        url: `/slack/sync-channels`,
+        method: 'POST',
+        body: undefined,
+    });
+
+// Recursively poll the job status until it is completed or errored
+const getSyncSlackChannelsCompleteJob = async (
+    jobId: string,
+): Promise<ApiJobStatusResponse['results']> => {
+    const job = await getSchedulerJobStatus<ApiJobStatusResponse['results']>(
+        jobId,
+    );
+
+    if (job.status === SchedulerJobStatus.COMPLETED) {
+        return job;
+    }
+
+    if (job.status === SchedulerJobStatus.ERROR) {
+        throw <ApiError>{
+            status: SchedulerJobStatus.ERROR,
+            error: {
+                name: 'Error',
+                statusCode: 500,
+                message: job.details?.error ?? 'Slack channel sync failed',
+                data: job.details,
+            },
+        };
+    }
+
+    return new Promise((resolve) => {
+        setTimeout(async () => {
+            resolve(await getSyncSlackChannelsCompleteJob(jobId));
+        }, 2000); // retry after 2 seconds
+    });
+};
+
+/**
+ * Hook to poll the Slack channel sync job status.
+ * Shows loading state while syncing, success when done, error on failure.
+ */
+export const useSyncSlackChannelsJob = (
+    jobId: string | undefined,
+    onComplete?: () => void,
+) => {
+    const { showToastApiError, showToastSuccess } = useToaster();
+    const queryClient = useQueryClient();
+
+    const query = useQuery<ApiJobStatusResponse['results'], ApiError>({
+        queryKey: ['sync-slack-channels-job', jobId],
+        queryFn: () => getSyncSlackChannelsCompleteJob(jobId || ''),
+        enabled: !!jobId,
+        staleTime: 0,
+        onSuccess: async (job) => {
+            if (job.status === SchedulerJobStatus.COMPLETED) {
+                // Invalidate channels queries to refresh the cached data
+                await queryClient.invalidateQueries({
+                    queryKey: ['slack_channels'],
+                });
+                // Also invalidate the slack installation query to refresh the sync status
+                await queryClient.invalidateQueries({
+                    queryKey: ['slack'],
+                });
+
+                showToastSuccess({
+                    title: 'Slack channels synced successfully',
+                    subtitle: `${
+                        job.details?.totalChannels ?? 'All'
+                    } channels updated.`,
+                });
+
+                onComplete?.();
+            }
+        },
+        onError: async ({ error }: ApiError) => {
+            // Invalidate the slack installation query to refresh the sync status (now ERROR)
+            await queryClient.invalidateQueries({
+                queryKey: ['slack'],
+            });
+
+            showToastApiError({
+                title: 'Failed to sync Slack channels',
+                apiError: error,
+            });
+
+            onComplete?.();
+        },
+    });
+
+    return {
+        ...query,
+        // Use isFetching instead of isLoading - isLoading is only true on initial load
+        // isFetching is true whenever a fetch is in progress
+        isPolling: query.isFetching,
+    };
+};
+
+/**
+ * Hook to trigger a manual Slack channel sync.
+ * This queues a background job to fetch all channels from Slack and update the cache.
+ * Use with useSyncSlackChannelsJob to poll for completion.
+ */
+export const useSyncSlackChannels = () => {
+    const { showToastApiError } = useToaster();
+    return useMutation<{ jobId: string }, ApiError>({
+        mutationFn: syncSlackChannels,
+        onError: ({ error }) => {
+            showToastApiError({
+                title: `Failed to start Slack channel sync`,
+                apiError: error,
+            });
+        },
+    });
 };
