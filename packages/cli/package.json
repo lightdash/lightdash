@@ -65,6 +65,6 @@
         "fix-format": "pnpm run formatter ./src --write",
         "preinstall": "bash track.sh started || echo 'skipping preinstall'",
         "postinstall": "bash track.sh completed || echo 'skipping postinstall'",
-        "release": "pnpm publish --no-git-checks"
+        "release": "pnpm publish --no-git-checks --provenance --access public"
     }
 }

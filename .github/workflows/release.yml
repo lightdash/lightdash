@@ -32,6 +32,7 @@ jobs:
     concurrency: ${{ github.ref }}
     permissions:
       contents: read
+      id-token: write  # Required for OIDC authentication with npm
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,13 +46,9 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
+          registry-url: 'https://registry.npmjs.org'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline --prod=false
-
-      - name: Set publishing config
-        run: pnpm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
-        env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
 
       - name: Semantic Release
         # Config is on release.config.js
@@ -60,7 +57,6 @@ jobs:
         env:
           HUSKY: 0
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         with:
           semantic_version: 19
           extra_plugins: |
