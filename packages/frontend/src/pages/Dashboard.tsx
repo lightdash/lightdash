@@ -614,6 +614,8 @@ const Dashboard: FC = () => {
 
             <Page
                 title={dashboard.name}
+                noContentPadding={isDashboardRedesignEnabled}
+                withFullHeight
                 header={
                     <DashboardHeader
                         dashboard={dashboard}
@@ -686,12 +688,10 @@ const Dashboard: FC = () => {
                         onEditClicked={handleEnterEditMode}
                     />
                 }
-                withFullHeight={true}
             >
                 {isDashboardRedesignEnabled ? (
                     <DashboardHeaderV2
                         isEditMode={isEditMode}
-                        hasDashboardTiles={hasDashboardTiles}
                         hasTilesThatSupportFilters={hasTilesThatSupportFilters}
                         // parameters
                         parameters={referencedParameters}
