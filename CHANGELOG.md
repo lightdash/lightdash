@@ -1,3 +1,10 @@
+## [0.2240.5](https://github.com/lightdash/lightdash/compare/0.2240.4...0.2240.5) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** add repo to package.json ([#18734](https://github.com/lightdash/lightdash/issues/18734)) ([7113656](https://github.com/lightdash/lightdash/commit/71136564be528b0576a1bf35d56c09cb61f555fc))
+
 ## [0.2240.4](https://github.com/lightdash/lightdash/compare/0.2240.3...0.2240.4) (2025-12-10)
 
 
