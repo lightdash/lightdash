@@ -390,6 +390,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
+                    slackChannelCacheModel: models.getSlackChannelCacheModel(),
                 }),
         },
     };

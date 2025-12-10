@@ -23,6 +23,7 @@ import {
     type SchedulerCreateProjectWithCompilePayload,
     type SlackBatchNotificationPayload,
     type SlackNotificationPayload,
+    type SyncSlackChannelsPayload,
     type TraceTaskBase,
     type ValidateProjectPayload,
 } from './scheduler';
@@ -64,6 +65,8 @@ export const SCHEDULER_TASKS = {
     RENAME_RESOURCES: 'renameResources',
     CLEAN_QUERY_HISTORY: 'cleanQueryHistory',
     DOWNLOAD_ASYNC_QUERY_RESULTS: 'downloadAsyncQueryResults',
+    SYNC_SLACK_CHANNELS: 'syncSlackChannels',
+    GENERATE_SLACK_CHANNEL_SYNC_JOBS: 'generateSlackChannelSyncJobs',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -98,6 +101,8 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.RENAME_RESOURCES]: RenameResourcesPayload;
     [SCHEDULER_TASKS.CLEAN_QUERY_HISTORY]: TraceTaskBase;
     [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: DownloadAsyncQueryResultsPayload;
+    [SCHEDULER_TASKS.SYNC_SLACK_CHANNELS]: SyncSlackChannelsPayload;
+    [SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
