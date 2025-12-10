@@ -1,3 +1,10 @@
+# [0.2241.0](https://github.com/lightdash/lightdash/compare/0.2240.5...0.2241.0) (2025-12-10)
+
+
+### Features
+
+* use db cache for slack channel fetching ([#18660](https://github.com/lightdash/lightdash/issues/18660)) ([290d991](https://github.com/lightdash/lightdash/commit/290d99173713ef3e19f421f5c3ff6be20e638a0e))
+
 ## [0.2240.5](https://github.com/lightdash/lightdash/compare/0.2240.4...0.2240.5) (2025-12-10)
 
 
