@@ -51,6 +51,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
             aiThreadAccessConsent: row.ai_thread_access_consent ?? false,
             aiRequireOAuth: row.ai_require_oauth,
             aiMultiAgentChannelId: row.ai_multi_agent_channel_id ?? undefined,
+            channelsSyncStatus: row.channels_sync_status ?? null,
         };
 
         const slackChannelProjectMappingRows = await this.database(

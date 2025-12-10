@@ -4,6 +4,7 @@ import {
     ApiSlackChannelsResponse,
     ApiSlackCustomSettingsResponse,
     ApiSlackGetInstallationResponse,
+    ApiSlackSyncChannelsResponse,
     ApiSuccessEmpty,
     NotFoundError,
     OpenIdIdentityIssuerType,
@@ -17,6 +18,7 @@ import {
     Middlewares,
     OperationId,
     Path,
+    Post,
     Put,
     Query,
     Request,
@@ -123,6 +125,33 @@ export class SlackController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Trigger a manual Slack channels sync for the organization.
+     * This queues a background job to fetch all channels from Slack and update the cache.
+     * @param req express request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/sync-channels')
+    @OperationId('syncSlackChannels')
+    async syncChannels(
+        @Request() req: express.Request,
+    ): Promise<ApiSlackSyncChannelsResponse> {
+        const result = await this.services
+            .getSlackIntegrationService()
+            .triggerSlackChannelSync(req.user!);
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: result,
         };
     }
 

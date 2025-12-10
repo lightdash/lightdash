@@ -1,3 +1,4 @@
+import { type SchedulerJobStatus } from './scheduler';
 import { type SlackChannelProjectMapping } from './slack';
 
 export type SlackSettings = {
@@ -14,4 +15,6 @@ export type SlackSettings = {
     hasRequiredScopes: boolean;
     aiRequireOAuth?: boolean;
     aiMultiAgentChannelId?: string;
+    /** Current status of the Slack channels cache sync job */
+    channelsSyncStatus?: SchedulerJobStatus | null;
 };

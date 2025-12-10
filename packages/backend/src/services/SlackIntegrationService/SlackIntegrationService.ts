@@ -1,6 +1,8 @@
 import {
+    AlreadyExistsError,
     ForbiddenError,
     NotFoundError,
+    SchedulerJobStatus,
     SessionUser,
     SlackAppCustomSettings,
     SlackChannel,
@@ -9,6 +11,7 @@ import {
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
+import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 
 export type SlackIntegrationServiceArguments<
@@ -17,6 +20,7 @@ export type SlackIntegrationServiceArguments<
     analytics: LightdashAnalytics;
     slackAuthenticationModel: T;
     slackClient: SlackClient;
+    schedulerClient: SchedulerClient;
 };
 
 export class SlackIntegrationService<
@@ -28,11 +32,14 @@ export class SlackIntegrationService<
 
     protected readonly slackClient: SlackClient;
 
+    protected readonly schedulerClient: SchedulerClient;
+
     constructor(args: SlackIntegrationServiceArguments<T>) {
         super();
         this.analytics = args.analytics;
         this.slackAuthenticationModel = args.slackAuthenticationModel;
         this.slackClient = args.slackClient;
+        this.schedulerClient = args.schedulerClient;
     }
 
     async getSlackInstallOptions(user: SessionUser) {
@@ -172,5 +179,53 @@ export class SlackIntegrationService<
             organizationUuid,
             body,
         );
+    }
+
+    /**
+     * Trigger a Slack channel sync job for the user's organization.
+     * This queues a background job to fetch all channels from Slack and update the cache.
+     */
+    async triggerSlackChannelSync(
+        user: SessionUser,
+    ): Promise<{ jobId: string }> {
+        const organizationUuid = user?.organizationUuid;
+        if (!organizationUuid) throw new ForbiddenError();
+
+        if (user.ability.cannot('manage', 'Organization')) {
+            throw new ForbiddenError();
+        }
+
+        // Verify organization has Slack installation
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        if (!installation) {
+            throw new NotFoundError('Slack installation not found');
+        }
+
+        // Check if a sync is already in progress
+        if (installation.channelsSyncStatus === SchedulerJobStatus.STARTED) {
+            throw new AlreadyExistsError(
+                'A Slack channel sync is already in progress',
+            );
+        }
+
+        const jobId = await this.schedulerClient.syncSlackChannelsJob({
+            organizationUuid,
+            userUuid: undefined,
+            projectUuid: undefined,
+        });
+
+        this.analytics.track({
+            event: 'share_slack.sync_channels_triggered',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+            },
+        });
+
+        return { jobId };
     }
 }
