@@ -61,8 +61,6 @@ type TileWithTargetColumns = {
 type Props = {
     tiles: DashboardTile[];
     tabs: DashboardTab[];
-    // TODO: unused, remove
-    activeTabUuid: string | undefined;
     availableTileFilters: Record<string, Field[] | undefined>;
     field?: Field;
     filterRule: DashboardFilterRule;
