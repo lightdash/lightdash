@@ -7,7 +7,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../../features/explorer/store';
-import { getMantineFieldColor } from '../../../../utils/fieldColors';
+import { getFieldColor } from '../../../../utils/fieldColors';
 import FieldIcon from '../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../common/MantineIcon';
 import { ItemDetailMarkdown } from './ItemDetailPreview';
@@ -33,9 +33,7 @@ export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
                         {itemDetail.fieldItem && (
                             <FieldIcon
                                 item={itemDetail.fieldItem}
-                                color={getMantineFieldColor(
-                                    itemDetail.fieldItem,
-                                )}
+                                color={getFieldColor(itemDetail.fieldItem)}
                                 size="md"
                             />
                         )}

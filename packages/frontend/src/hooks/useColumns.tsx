@@ -449,12 +449,15 @@ export const useColumns = (): TableColumn[] => {
         >((acc, [fieldId, item]) => {
             const sortIndex = sorts.findIndex((sf) => fieldId === sf.fieldId);
             const isFieldSorted = sortIndex !== -1;
+            const isFieldDimension =
+                isCustomDimension(item) || isDimension(item);
+            const fieldColors = isFieldDimension ? null : getFieldColors(item);
             const column: TableColumn = columnHelper.accessor(
                 (row) => row[fieldId],
                 {
                     id: fieldId,
                     header: () => (
-                        <TableHeaderLabelContainer>
+                        <TableHeaderLabelContainer color={fieldColors?.color}>
                             {isField(item) ? (
                                 <>
                                     {hasJoins && (
@@ -520,7 +523,7 @@ export const useColumns = (): TableColumn[] => {
                         item,
                         draggable: true,
                         frozen: false,
-                        bgColor: getFieldColors(item).bg,
+                        bgColor: fieldColors?.bg,
                         sort: isFieldSorted
                             ? {
                                   sortIndex,
@@ -544,13 +547,13 @@ export const useColumns = (): TableColumn[] => {
                 // Use the base item's label with "(previous period)" suffix
                 const baseLabel = isField(popItem) ? popItem.label : popFieldId;
                 const popLabel = `${baseLabel} (previous period)`;
-
+                const popColors = getFieldColors(popItem);
                 const popColumn: TableColumn = columnHelper.accessor(
                     (row) => row[popFieldId],
                     {
                         id: popFieldId,
                         header: () => (
-                            <TableHeaderLabelContainer>
+                            <TableHeaderLabelContainer color={popColors.color}>
                                 {isField(popItem) && hasJoins && (
                                     <TableHeaderRegularLabel>
                                         {popItem.tableLabel}{' '}
@@ -583,7 +586,7 @@ export const useColumns = (): TableColumn[] => {
                             item: popItem,
                             draggable: false,
                             frozen: false,
-                            bgColor: getFieldColors(popItem).bg, // Light gray background to indicate PoP column
+                            bgColor: popColors.bg,
                             isReadOnly: true, // Computed column, not editable
                         },
                     },

@@ -19,7 +19,7 @@ import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import toPairs from 'lodash/toPairs';
 import FieldIcon from '../../../../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
-import { getMantineFieldColor } from '../../../../../../../utils/fieldColors';
+import { getFieldColor } from '../../../../../../../utils/fieldColors';
 import { OperationRenderer } from './OperationRenderer';
 import { FieldBreadcrumb, TableBreadcrumb } from './SupportElements';
 import type {
@@ -77,7 +77,7 @@ const CreateMetricFromChangeData = ({
     }
 
     const metric = changeData.payload.value;
-    const color = getMantineFieldColor(metric);
+    const color = getFieldColor(metric);
 
     return (
         <Box mx="xs">

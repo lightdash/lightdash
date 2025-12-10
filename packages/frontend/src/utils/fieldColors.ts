@@ -36,6 +36,6 @@ export const getFieldColors = (
 /**
  * Returns color token for a field's icon or component styling.
  */
-export const getMantineFieldColor = (
+export const getFieldColor = (
     field: Item | AdditionalMetric,
 ): LightdashFieldColors['color'] => getFieldColors(field).color;
