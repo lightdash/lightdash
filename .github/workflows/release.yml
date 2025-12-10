@@ -27,7 +27,7 @@ jobs:
         run: pnpm turbo:build
 
   release:
-    runs-on: depot-ubuntu-24.04-4
+    runs-on: ubuntu-latest
     needs: build-and-test
     concurrency: ${{ github.ref }}
     permissions:
