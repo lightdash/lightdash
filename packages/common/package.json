@@ -54,6 +54,6 @@
         "fix-format": "pnpm run formatter ./src --write",
         "test": "TZ=UTC jest",
         "test:dev": "TZ=UTC jest --config jest.config.dev.js --onlyChanged --watch",
-        "release": "pnpm publish --no-git-checks --provenance --access public"
+        "release": "pnpm publish --no-git-checks --access public"
     }
 }
