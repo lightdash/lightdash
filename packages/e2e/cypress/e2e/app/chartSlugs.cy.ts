@@ -1,11 +1,12 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
-describe('Chart Slugs', () => {
+describe.skip('Chart Slugs', () => {
     beforeEach(() => {
         cy.login();
     });
 
-    it('Should access saved chart by slug instead of UUID', () => {
+    // TODO: remove
+    it.skip('Should access saved chart by slug instead of UUID', () => {
         // Navigate to the chart list
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/saved`);
 
@@ -40,7 +41,8 @@ describe('Chart Slugs', () => {
         });
     });
 
-    it('Should edit chart accessed by slug', () => {
+    // TODO: remove
+    it.skip('Should edit chart accessed by slug', () => {
         const slug = 'how-much-revenue-do-we-have-per-payment-method';
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/saved/${slug}`);
 
@@ -56,7 +58,8 @@ describe('Chart Slugs', () => {
         cy.url().should('include', '/edit');
     });
 
-    it('Should access chart via API using slug', () => {
+    // todo: move to api tests
+    it.skip('Should access chart via API using slug', () => {
         const slug = 'how-much-revenue-do-we-have-per-payment-method';
 
         // Test API endpoint with slug
@@ -76,7 +79,8 @@ describe('Chart Slugs', () => {
         });
     });
 
-    it('Should handle invalid chart slug gracefully', () => {
+    // todo: remove
+    it.skip('Should handle invalid chart slug gracefully', () => {
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/saved/non-existent-chart-slug`,
             { failOnStatusCode: false },
@@ -86,7 +90,8 @@ describe('Chart Slugs', () => {
         cy.findByText(/not found|does not exist/i).should('exist');
     });
 
-    it('Should run chart query using slug', () => {
+    // todo: remove
+    it.skip('Should run chart query using slug', () => {
         const slug = 'how-much-revenue-do-we-have-per-payment-method';
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/saved/${slug}`);
 

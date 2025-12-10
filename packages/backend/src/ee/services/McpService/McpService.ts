@@ -485,10 +485,14 @@ export class McpService extends BaseService {
                     McpToolName.LIST_PROJECTS,
                 );
 
-                const projects =
-                    await this.projectModel.getAllByOrganizationUuid(
-                        organizationUuid,
-                    );
+                const projects = await wrapSentryTransaction(
+                    'McpService.listProjects.getAllByOrganizationUuid',
+                    { organizationUuid },
+                    async () =>
+                        this.projectModel.getAllByOrganizationUuid(
+                            organizationUuid,
+                        ),
+                );
 
                 const projectList = projects.map((project) => ({
                     name: project.name,

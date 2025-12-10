@@ -1,3 +1,84 @@
+## [0.2236.2](https://github.com/lightdash/lightdash/compare/0.2236.1...0.2236.2) (2025-12-09)
+
+
+### Bug Fixes
+
+* get right aggregate on date zoom + subttotals ([#18654](https://github.com/lightdash/lightdash/issues/18654)) ([4ab85d8](https://github.com/lightdash/lightdash/commit/4ab85d81f03c8af833929a3cb49c3cb77b177303))
+
+## [0.2236.1](https://github.com/lightdash/lightdash/compare/0.2236.0...0.2236.1) (2025-12-09)
+
+
+### Bug Fixes
+
+* show dashboard scheduled deliveries partial failures in scheduler logs ([#18682](https://github.com/lightdash/lightdash/issues/18682)) ([6846ef3](https://github.com/lightdash/lightdash/commit/6846ef359756f6d088166064cd19439f3abb4ba5))
+
+# [0.2236.0](https://github.com/lightdash/lightdash/compare/0.2235.0...0.2236.0) (2025-12-09)
+
+
+### Bug Fixes
+
+* handle API call errors during agent response streaming ([#18701](https://github.com/lightdash/lightdash/issues/18701)) ([2a74820](https://github.com/lightdash/lightdash/commit/2a74820e33cd91a86e9e1c44a3b657bf9f2ed1ed))
+* headway styles for dark mode ([#18702](https://github.com/lightdash/lightdash/issues/18702)) ([3714866](https://github.com/lightdash/lightdash/commit/3714866605e4b851a56b7cd240b73d298072375e))
+
+
+### Features
+
+* add AI embedding and provider configuration environment variables to docker compose ([#18700](https://github.com/lightdash/lightdash/issues/18700)) ([bb544a1](https://github.com/lightdash/lightdash/commit/bb544a14b662157504d3fe8b5e397c01f52446a2))
+
+# [0.2235.0](https://github.com/lightdash/lightdash/compare/0.2234.3...0.2235.0) (2025-12-09)
+
+
+### Features
+
+* add SQL charts as code API endpoints ([#18643](https://github.com/lightdash/lightdash/issues/18643)) ([dfdb26f](https://github.com/lightdash/lightdash/commit/dfdb26fdba349483444bd3df87435773d9807ae0))
+
+## [0.2234.3](https://github.com/lightdash/lightdash/compare/0.2234.2...0.2234.3) (2025-12-08)
+
+
+### Bug Fixes
+
+* tooltip shows incorrect date when using datezoom (timezone related) ([#18664](https://github.com/lightdash/lightdash/issues/18664)) ([f92cd97](https://github.com/lightdash/lightdash/commit/f92cd973aef84a5dbc961ced4a683eac7c790c42))
+
+## [0.2234.2](https://github.com/lightdash/lightdash/compare/0.2234.1...0.2234.2) (2025-12-08)
+
+
+### Bug Fixes
+
+* auto-scroll when reasoning parts change in AI chat ([#18673](https://github.com/lightdash/lightdash/issues/18673)) ([8f124e4](https://github.com/lightdash/lightdash/commit/8f124e46bd201d4b6d56a185f5112bcc9b4b6ba9))
+
+## [0.2234.1](https://github.com/lightdash/lightdash/compare/0.2234.0...0.2234.1) (2025-12-08)
+
+
+### Performance Improvements
+
+* wrap getAllByOrganizationUuid calls with Sentry transactions ([#18652](https://github.com/lightdash/lightdash/issues/18652)) ([83acbda](https://github.com/lightdash/lightdash/commit/83acbda277958ea20c4735273c40b3ba6fe20045))
+
+# [0.2234.0](https://github.com/lightdash/lightdash/compare/0.2233.2...0.2234.0) (2025-12-08)
+
+
+### Bug Fixes
+
+* map AWS region to correct Bedrock inference profile prefix ([#18637](https://github.com/lightdash/lightdash/issues/18637)) ([ee772ff](https://github.com/lightdash/lightdash/commit/ee772ff99cb9b720f89df9d544d562306cd381c8))
+
+
+### Features
+
+* add bedrock support for reasoning UI parts ([#18653](https://github.com/lightdash/lightdash/issues/18653)) ([d96c0da](https://github.com/lightdash/lightdash/commit/d96c0da38214d09b0620dc28b8065abe182edea7))
+
+## [0.2233.2](https://github.com/lightdash/lightdash/compare/0.2233.1...0.2233.2) (2025-12-08)
+
+
+### Bug Fixes
+
+* attach claude code agent on vite.config ([#18625](https://github.com/lightdash/lightdash/issues/18625)) ([5596cb8](https://github.com/lightdash/lightdash/commit/5596cb8ce4549b676100906a2bcd37bef6047684))
+
+## [0.2233.1](https://github.com/lightdash/lightdash/compare/0.2233.0...0.2233.1) (2025-12-08)
+
+
+### Bug Fixes
+
+* light grey axis labels on 100% stacked bar charts ([#18552](https://github.com/lightdash/lightdash/issues/18552)) ([017c71f](https://github.com/lightdash/lightdash/commit/017c71f762621cfb8b808699549952c9c35aa2f0))
+
 # [0.2233.0](https://github.com/lightdash/lightdash/compare/0.2232.0...0.2233.0) (2025-12-05)
 
 

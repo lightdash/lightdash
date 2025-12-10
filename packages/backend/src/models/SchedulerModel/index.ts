@@ -1439,9 +1439,14 @@ export class SchedulerModel {
                         -- Parent not started
                         WHEN distinct_runs.status = '${SchedulerJobStatus.SCHEDULED}' THEN '${SchedulerRunStatus.SCHEDULED}'
 
-                        -- Parent completed with errors
+                        -- Parent completed with child job errors
                         WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}'
                              AND COALESCE(child_counts.error_count, 0) > 0 THEN '${SchedulerRunStatus.PARTIAL_FAILURE}'
+
+                        -- Parent completed with partial failures (e.g., some charts failed in dashboard export)
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}'
+                             AND distinct_runs.details IS NOT NULL
+                             AND jsonb_array_length(COALESCE(distinct_runs.details::jsonb->'partialFailures', '[]'::jsonb)) > 0 THEN '${SchedulerRunStatus.PARTIAL_FAILURE}'
 
                         -- Parent completed, no errors
                         WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}' THEN '${SchedulerRunStatus.COMPLETED}'

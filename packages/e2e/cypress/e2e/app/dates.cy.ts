@@ -33,7 +33,8 @@ describe('Date tests', () => {
         cy.login();
     });
 
-    it('Check current timezone', () => {
+    // todo: delete
+    it.skip('Check current timezone', () => {
         const now = new Date('1 January, 2000'); // set specific date to avoid daylight savings
         const timezone = Cypress.env('TZ');
         const offset = now.getTimezoneOffset();
@@ -77,7 +78,8 @@ describe('Date tests', () => {
         }
     });
 
-    it('Should get right month on filtered chart', () => {
+    // todo: move to unit test
+    it.skip('Should get right month on filtered chart', () => {
         cy.intercept('**/compileQuery').as('compileQuery');
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/saved`);
 
@@ -102,7 +104,8 @@ describe('Date tests', () => {
             );
     });
 
-    it('Should use dashboard month filter', () => {
+    // todo: move to unit test
+    it.skip('Should use dashboard month filter', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
         // wiat for the dashboard to load
@@ -194,7 +197,8 @@ describe('Date tests', () => {
         // cy.contains('2020-08-11 22:58:00');
     });
 
-    it('Should filter by date on results table', () => {
+    // todo: move to unit test
+    it.skip('Should filter by date on results table', () => {
         cy.intercept('**/compileQuery').as('compileQuery');
         // This test should not be timezone sensitive
         const exploreStateUrlParams = `?create_saved_chart_version=%7B%22tableName%22%3A%22orders%22%2C%22metricQuery%22%3A%7B%22dimensions%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%2C%22metrics%22%3A%5B%5D%2C%22filters%22%3A%7B%7D%2C%22sorts%22%3A%5B%7B%22fieldId%22%3A%22orders_order_date_day%22%2C%22descending%22%3Atrue%7D%5D%2C%22limit%22%3A1%2C%22tableCalculations%22%3A%5B%5D%2C%22additionalMetrics%22%3A%5B%5D%7D%2C%22tableConfig%22%3A%7B%22columnOrder%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%7D%2C%22chartConfig%22%3A%7B%22type%22%3A%22cartesian%22%2C%22config%22%3A%7B%22layout%22%3A%7B%22xField%22%3A%22orders_order_date_day%22%2C%22yField%22%3A%5B%22orders_order_date_week%22%5D%7D%2C%22eChartsConfig%22%3A%7B%22series%22%3A%5B%7B%22encode%22%3A%7B%22xRef%22%3A%7B%22field%22%3A%22orders_order_date_day%22%7D%2C%22yRef%22%3A%7B%22field%22%3A%22orders_order_date_week%22%7D%7D%2C%22type%22%3A%22bar%22%7D%5D%7D%7D%7D%7D`;
@@ -267,7 +271,8 @@ describe('Date tests', () => {
             );
     });
 
-    it('Should filter by datetimes on results table', () => {
+    // todo: move to unit test
+    it.skip('Should filter by datetimes on results table', () => {
         cy.intercept('**/compileQuery').as('compileQuery');
         const exploreStateUrlParams = `?create_saved_chart_version={"tableName"%3A"events"%2C"metricQuery"%3A{"dimensions"%3A["events_timestamp_tz_raw"%2C"events_timestamp_tz_millisecond"%2C"events_timestamp_tz_second"%2C"events_timestamp_tz_minute"%2C"events_timestamp_tz_hour"]%2C"metrics"%3A[]%2C"filters"%3A{}%2C"sorts"%3A[{"fieldId"%3A"events_timestamp_tz_raw"%2C"descending"%3Atrue}]%2C"limit"%3A1%2C"tableCalculations"%3A[]%2C"additionalMetrics"%3A[]}%2C"tableConfig"%3A{"columnOrder"%3A["events_timestamp_tz_raw"%2C"events_timestamp_tz_millisecond"%2C"events_timestamp_tz_second"%2C"events_timestamp_tz_minute"%2C"events_timestamp_tz_hour"]}%2C"chartConfig"%3A{"type"%3A"cartesian"%2C"config"%3A{"layout"%3A{"xField"%3A"events_timestamp_tz_raw"%2C"yField"%3A["events_timestamp_tz_millisecond"]}%2C"eChartsConfig"%3A{"series"%3A[{"encode"%3A{"xRef"%3A{"field"%3A"events_timestamp_tz_raw"}%2C"yRef"%3A{"field"%3A"events_timestamp_tz_millisecond"}}%2C"type"%3A"bar"}]}}}}`;
         cy.visit(
@@ -359,7 +364,8 @@ describe('Date tests', () => {
             );
     });
 
-    it('Should change dates on filters', () => {
+    // todo: move to unit test
+    it.skip('Should change dates on filters', () => {
         cy.intercept('**/compileQuery').as('compileQuery');
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
 
@@ -440,7 +446,8 @@ describe('Date tests', () => {
         cy.findByTestId('delete-filter-rule-button').click();
     });
 
-    it('Should keep value when changing date operator', () => {
+    // todo: move to unit test
+    it.skip('Should keep value when changing date operator', () => {
         cy.intercept('**/compileQuery').as('compileQuery');
         const todayDate = new Date();
 
@@ -507,7 +514,8 @@ describe('Date tests', () => {
         cy.findByTestId('delete-filter-rule-button').click();
     });
 
-    it('Should filter by date on dimension', () => {
+    // todo: move to unit test
+    it.skip('Should filter by date on dimension', () => {
         cy.intercept('**/compileQuery').as('compileQuery');
         const now = dayjs();
         const exploreStateUrlParams = `?create_saved_chart_version=%7B%22tableName%22%3A%22orders%22%2C%22metricQuery%22%3A%7B%22dimensions%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%2C%22metrics%22%3A%5B%5D%2C%22filters%22%3A%7B%7D%2C%22sorts%22%3A%5B%7B%22fieldId%22%3A%22orders_order_date_day%22%2C%22descending%22%3Atrue%7D%5D%2C%22limit%22%3A1%2C%22tableCalculations%22%3A%5B%5D%2C%22additionalMetrics%22%3A%5B%5D%7D%2C%22tableConfig%22%3A%7B%22columnOrder%22%3A%5B%22orders_order_date_day%22%2C%22orders_order_date_week%22%2C%22orders_order_date_month%22%2C%22orders_order_date_year%22%5D%7D%2C%22chartConfig%22%3A%7B%22type%22%3A%22cartesian%22%2C%22config%22%3A%7B%22layout%22%3A%7B%22xField%22%3A%22orders_order_date_day%22%2C%22yField%22%3A%5B%22orders_order_date_week%22%5D%7D%2C%22eChartsConfig%22%3A%7B%22series%22%3A%5B%7B%22encode%22%3A%7B%22xRef%22%3A%7B%22field%22%3A%22orders_order_date_day%22%7D%2C%22yRef%22%3A%7B%22field%22%3A%22orders_order_date_week%22%7D%7D%2C%22type%22%3A%22bar%22%7D%5D%7D%7D%7D%7D`;

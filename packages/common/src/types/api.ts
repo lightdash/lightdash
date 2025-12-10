@@ -52,6 +52,7 @@ import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
     type ApiDashboardAsCodeListResponse,
+    type ApiSqlChartAsCodeListResponse,
 } from './coder';
 import {
     type ApiChartContentResponse,
@@ -786,6 +787,7 @@ type ApiResults =
     | ApiGroupListResponse['results']
     | ApiCreateTagResponse['results']
     | ApiChartAsCodeListResponse['results']
+    | ApiSqlChartAsCodeListResponse['results']
     | ApiDashboardAsCodeListResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']

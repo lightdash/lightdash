@@ -12,6 +12,7 @@ import {
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
     type DashboardFilters,
+    type DateZoom,
     type ItemsMap,
     type MetricQuery,
     type ParametersValuesMap,
@@ -48,6 +49,7 @@ const useTableConfig = (
     dashboardFilters?: DashboardFilters,
     invalidateCache?: boolean,
     parameters?: ParametersValuesMap,
+    dateZoom?: DateZoom,
 ) => {
     const { embedToken } = useEmbed();
 
@@ -236,6 +238,7 @@ const useTableConfig = (
                   columnOrder,
                   pivotDimensions,
                   embedToken,
+                  dateZoom,
               }
             : {
                   metricQuery: resultsData?.metricQuery,
@@ -245,6 +248,7 @@ const useTableConfig = (
                   pivotDimensions,
                   embedToken: undefined,
                   parameters,
+                  dateZoom,
               },
     );
 

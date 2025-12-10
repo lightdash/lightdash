@@ -1,14 +1,11 @@
 import { AgentToolOutput, assertUnreachable, Explore } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
-    generateObject,
+    APICallError,
     generateText,
-    NoSuchToolError,
     smoothStream,
     stepCountIs,
     streamText,
-    ToolCallRepairFunction,
-    ToolSet,
 } from 'ai';
 import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
@@ -575,7 +572,7 @@ export const streamAgentResponse = async ({
                 delayInMs: 20,
                 chunking: 'line',
             }),
-            onError: (error) => {
+            onError: ({ error }) => {
                 console.error(error);
                 Logger.error(
                     `[AiAgent][Stream Agent Response] Error during streaming: ${
@@ -587,6 +584,13 @@ export const streamAgentResponse = async ({
                         errorType: 'AiAgentStreamError',
                     },
                 });
+                if (APICallError.isInstance(error)) {
+                    void dependencies.updatePrompt({
+                        promptUuid: args.promptUuid,
+                        response:
+                            'Something went wrong while streaming the response. Please try again.',
+                    });
+                }
             },
             experimental_telemetry: getAgentTelemetryConfig(
                 'streamAgentResponse',

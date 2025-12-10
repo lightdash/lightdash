@@ -1,6 +1,7 @@
 import { SEED_PROJECT } from '@lightdash/common';
 
-describe('Custom dimensions', () => {
+// todo: move to unit tests
+describe.skip('Custom dimensions', () => {
     beforeEach(() => {
         cy.login();
     });

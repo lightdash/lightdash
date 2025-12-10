@@ -1,8 +1,6 @@
-import { AnyType } from '@lightdash/common';
 import { defineConfig } from 'cypress';
 import cypressSplit from 'cypress-split';
-import { mkdirSync, unlinkSync, writeFileSync } from 'fs';
-import path from 'node:path';
+import { unlinkSync } from 'fs';
 
 // If running natively, we want to use environment variables from the host machine
 // to be added to Cypress.env()
@@ -64,37 +62,6 @@ export default defineConfig({
                         unlinkSync(results.video);
                     }
                 }
-            });
-
-            on('task', {
-                writeArtifact({
-                    filename,
-                    data,
-                }: {
-                    filename: string;
-                    data: AnyType;
-                }) {
-                    const dir = path.join(
-                        process.cwd(),
-                        'cypress',
-                        'artifacts',
-                    );
-                    try {
-                        mkdirSync(dir, { recursive: true });
-                    } catch {
-                        // ignore
-                    }
-                    const file = path.join(
-                        dir,
-                        filename.endsWith('.json')
-                            ? filename
-                            : `${filename}.json`,
-                    );
-                    writeFileSync(file, JSON.stringify(data, null, 2), 'utf-8');
-                    // Log so it shows in CI output
-                    console.log('[perf] wrote', file);
-                    return null;
-                },
             });
 
             // IMPORTANT: return the config object

@@ -49,6 +49,7 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../../models/RolesModel';
 import { UserModel } from '../../../models/UserModel';
 import { BaseService } from '../../../services/BaseService';
+import { wrapSentryTransaction } from '../../../utils';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
 
@@ -1628,8 +1629,11 @@ export class ScimService extends BaseService {
         );
 
         // Get all projects for the organization, ignoring preview projects
-        const allProjects = await this.projectModel.getAllByOrganizationUuid(
-            organizationUuid,
+        const allProjects = await wrapSentryTransaction(
+            'ScimService.getAllRoles.getAllByOrganizationUuid',
+            { organizationUuid },
+            async () =>
+                this.projectModel.getAllByOrganizationUuid(organizationUuid),
         );
         const nonPreviewProjects = allProjects.filter(
             (project) => project.type !== ProjectType.PREVIEW,

@@ -103,4 +103,153 @@ describe('Content as Code CLI', () => {
             cy.wrap(result.code).should('eq', 0);
         });
     });
+
+    it('should create a new SQL chart using CLI upload', () => {
+        // First download to create the directory structure
+        cy.exec('lightdash download').then((result) => {
+            cy.wrap(result.code).should('eq', 0);
+        });
+
+        // Create a new SQL chart YAML file
+        const sqlChartSlug = `sql-chart-cli-test-${new Date().getTime()}`;
+        const sqlChartContent = `
+name: SQL Chart CLI Test
+description: A SQL chart created via CLI test
+slug: ${sqlChartSlug}
+sql: SELECT * FROM "postgres"."jaffle"."orders" LIMIT 5
+limit: 500
+config:
+  type: table
+  display: {}
+  metadata:
+    version: 1
+  columns: {}
+chartKind: table
+spaceSlug: jaffle-shop
+version: 1
+updatedAt: "${new Date().toISOString()}"
+downloadedAt: "${new Date(Date.now() - 60000).toISOString()}"
+`;
+
+        cy.exec(
+            `echo '${sqlChartContent}' > ${lightdashDir}/charts/${sqlChartSlug}.sql.yml`,
+        ).then((result) => {
+            cy.wrap(result.code).should('eq', 0);
+        });
+
+        cy.exec('lightdash upload --verbose').then((result) => {
+            cy.wrap(result.stdout).should('contain', 'charts created: 1');
+            cy.wrap(result.code).should('eq', 0);
+        });
+    });
+
+    it('should download SQL chart by slug using CLI', () => {
+        // First create a SQL chart to download
+        const sqlChartSlug = `sql-chart-cli-download-${new Date().getTime()}`;
+        const sqlChartContent = `
+name: SQL Chart CLI Download Test
+description: A SQL chart for download test
+slug: ${sqlChartSlug}
+sql: SELECT * FROM "postgres"."jaffle"."payments" LIMIT 10
+limit: 500
+config:
+  type: table
+  display: {}
+  metadata:
+    version: 1
+  columns: {}
+chartKind: table
+spaceSlug: jaffle-shop
+version: 1
+updatedAt: "${new Date().toISOString()}"
+downloadedAt: "${new Date(Date.now() - 60000).toISOString()}"
+`;
+
+        // Download first to create dir structure
+        cy.exec('lightdash download').then((result) => {
+            cy.wrap(result.code).should('eq', 0);
+        });
+
+        // Create the SQL chart file (using .sql.yml extension)
+        cy.exec(
+            `echo '${sqlChartContent}' > ${lightdashDir}/charts/${sqlChartSlug}.sql.yml`,
+        ).then((result) => {
+            cy.wrap(result.code).should('eq', 0);
+        });
+
+        // Upload to create it on the server
+        cy.exec('lightdash upload --verbose').then((result) => {
+            cy.wrap(result.code).should('eq', 0);
+        });
+
+        // Clean up and download only that SQL chart by slug
+        cy.exec(`rm -rf ${lightdashDir}`);
+        cy.exec(`lightdash download -c "${sqlChartSlug}"`).then((result) => {
+            cy.wrap(result.code).should('eq', 0);
+        });
+
+        // Verify the SQL chart was downloaded (with .sql.yml extension)
+        cy.exec(`ls ${lightdashDir}/charts/${sqlChartSlug}.sql.yml`).then(
+            (result) => {
+                cy.wrap(result.code).should('eq', 0);
+            },
+        );
+    });
+
+    it('should update an existing SQL chart using CLI upload', () => {
+        // First create a SQL chart
+        const sqlChartSlug = `sql-chart-cli-update-${new Date().getTime()}`;
+        const sqlChartContent = `
+name: SQL Chart CLI Update Test
+description: Original description
+slug: ${sqlChartSlug}
+sql: SELECT * FROM "postgres"."jaffle"."orders" LIMIT 5
+limit: 500
+config:
+  type: table
+  display: {}
+  metadata:
+    version: 1
+  columns: {}
+chartKind: table
+spaceSlug: jaffle-shop
+version: 1
+updatedAt: "${new Date().toISOString()}"
+downloadedAt: "${new Date(Date.now() - 60000).toISOString()}"
+`;
+
+        // Download first to create dir structure
+        cy.exec('lightdash download').then((result) => {
+            cy.wrap(result.code).should('eq', 0);
+        });
+
+        // Create the SQL chart file (using .sql.yml extension)
+        cy.exec(
+            `echo '${sqlChartContent}' > ${lightdashDir}/charts/${sqlChartSlug}.sql.yml`,
+        ).then((result) => {
+            cy.wrap(result.code).should('eq', 0);
+        });
+
+        // Upload to create it on the server
+        cy.exec('lightdash upload --verbose').then((result) => {
+            cy.wrap(result.stdout).should('contain', 'charts created: 1');
+            cy.wrap(result.code).should('eq', 0);
+        });
+
+        // Now update the description
+        const date1MinuteAgo = new Date(Date.now() - 60000).toISOString();
+        const updateSedDescription = `s/description: .*/description: Updated description from CLI test/`;
+        const updateSedDownloadedAt = `s/downloadedAt: .*/downloadedAt: ${date1MinuteAgo}/`;
+        cy.exec(
+            `sed -i "${updateSedDescription}" ${lightdashDir}/charts/${sqlChartSlug}.sql.yml && sed -i "${updateSedDownloadedAt}" ${lightdashDir}/charts/${sqlChartSlug}.sql.yml`,
+        ).then((result) => {
+            cy.wrap(result.code).should('eq', 0);
+        });
+
+        // Upload the update
+        cy.exec('lightdash upload --verbose').then((result) => {
+            cy.wrap(result.stdout).should('contain', 'charts updated: 1');
+            cy.wrap(result.code).should('eq', 0);
+        });
+    });
 });

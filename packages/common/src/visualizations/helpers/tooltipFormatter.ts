@@ -100,6 +100,29 @@ type TooltipCtx = {
 };
 
 /**
+ * ECharts tooltip parameter types
+ * These represent the structure of params passed to tooltip formatters
+ */
+export interface TooltipParam {
+    seriesName?: string;
+    marker?: string;
+    encode?: {
+        x?: string | number | (string | number)[];
+        y?: string | number | (string | number)[];
+    };
+    dimensionNames?: string[];
+    data?: Record<string, unknown>;
+    value?: Record<string, unknown> | unknown[];
+    axisValue?: string | number;
+    axisValueLabel?: string | number;
+    name?: string;
+}
+
+type TooltipParams = TooltipParam | TooltipParam[];
+
+type GetDimensionNameFn = (param: TooltipParam) => string | undefined;
+
+/**
  * Get the tooltip context
  * When series are bar stacked, then it's tuple mode(@reference to applyRoundedCornersToStackData), otherwise it's dataset mode.
  * @param params - The params
@@ -108,7 +131,7 @@ type TooltipCtx = {
  * @returns The tooltip context
  */
 const getTooltipCtx = (
-    params: (TooltipFormatterParams | TooltipFormatterParams)[],
+    params: (TooltipFormatterParams | TooltipParam)[],
     stackValue: string | boolean | undefined,
     flipAxes: boolean | undefined,
 ): TooltipCtx => {
@@ -154,15 +177,21 @@ const getRawVal = (
 
 /**
  * Get the header from the params
- * @param params - The params
+ * @param params - The params (accepts both TooltipFormatterParams and TooltipParam arrays)
+ * @param itemsMap - Map of field IDs to field metadata (optional)
+ * @param xFieldId - The x-axis field ID to get timeInterval from (optional)
  * @returns The header
  */
 const getHeader = (
-    params: (TooltipFormatterParams | TooltipFormatterParams)[],
+    params: (TooltipFormatterParams | TooltipParam)[],
+    itemsMap?: ItemsMap,
+    xFieldId?: string,
 ): string => {
     // First try the standard axisValueLabel or name
     const standardHeader = params[0]?.axisValueLabel ?? params[0]?.name;
-    if (standardHeader) return standardHeader;
+    if (standardHeader) {
+        return String(standardHeader);
+    }
 
     // For tuple mode (stacked bars) with time axis, extract x-value from data array
     const firstParam = params[0];
@@ -170,20 +199,9 @@ const getHeader = (
         // In tuple mode, first element is typically the x-axis value
         const xValue = firstParam.value[0];
         if (xValue !== undefined && xValue !== null) {
-            // Format date strings nicely
-            if (
-                typeof xValue === 'string' &&
-                xValue.match(/^\d{4}-\d{2}-\d{2}/)
-            ) {
-                try {
-                    return new Date(xValue).toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                    });
-                } catch {
-                    return String(xValue);
-                }
+            // Use getFormattedValue for consistent formatting with axis labels
+            if (itemsMap && xFieldId) {
+                return getFormattedValue(xValue, xFieldId, itemsMap, true);
             }
             return String(xValue);
         }
@@ -303,11 +321,12 @@ export function createStack100TooltipFormatter(
     originalValues: Map<string, Map<string, number>>,
     getDimensionName: GetDimensionNameFn,
     xAxisField: string,
+    itemsMap?: ItemsMap,
 ) {
     return (params: TooltipParams) => {
         if (!Array.isArray(params)) return '';
 
-        const header = getHeader(params as TooltipFormatterParams[]);
+        const header = getHeader(params, itemsMap, xAxisField);
 
         const rowsHtml = params
             .map((param) => {
@@ -461,10 +480,11 @@ export const buildSqlRunnerCartesianTooltipFormatter =
                         : undefined;
                 },
                 xFieldId,
+                undefined, // No itemsMap available in SQL Runner
             )(params as TooltipParam[]);
         }
 
-        const header = getHeader(params);
+        const header = getHeader(params, undefined, xFieldId);
 
         // Build tooltip rows
         const rowsHtml = params
@@ -552,10 +572,11 @@ export const buildCartesianTooltipFormatter =
                         : undefined;
                 },
                 xFieldId,
+                itemsMap,
             )(params as TooltipParam[]);
         }
 
-        const header = getHeader(params);
+        const header = getHeader(params, itemsMap, xFieldId);
 
         // rows
         const rowsHtml = params
@@ -894,25 +915,3 @@ export const buildCartesianTooltipFormatter =
             header,
         )}${divider}${tooltipHtml}${rowsHtml}`;
     };
-
-/**
- * ECharts tooltip parameter types
- * These represent the structure of params passed to tooltip formatters
- */
-export interface TooltipParam {
-    seriesName?: string;
-    marker?: string;
-    encode?: {
-        x?: string | number | (string | number)[];
-        y?: string | number | (string | number)[];
-    };
-    dimensionNames?: string[];
-    data?: Record<string, unknown>;
-    value?: Record<string, unknown> | unknown[];
-    axisValue?: string | number;
-    axisValueLabel?: string | number;
-}
-
-type TooltipParams = TooltipParam | TooltipParam[];
-
-type GetDimensionNameFn = (param: TooltipParam) => string | undefined;

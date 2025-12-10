@@ -1,5 +1,11 @@
 # This is used by the action https://github.com/dorny/paths-filter
 
+# Triggers preview environment deployment
+preview:
+  - "packages/**/*"
+  - "docker/**/*"
+  - "okteto.preview.yaml"
+
 cli:
   - "packages/cli/**/*"
   - "packages/e2e/cypress/cli/**/*"
@@ -15,9 +21,6 @@ backend:
   - "packages/warehouses/**/*"
   - "packages/e2e/cypress/e2e/api/**/*"
   - "packages/common/**/*"
-
-perf:
-  - "packages/e2e/cypress/e2e/perf/**/*"
 
 timezone:
   - "packages/frontend/src/components/common/TimeZonePicker/index.tsx"

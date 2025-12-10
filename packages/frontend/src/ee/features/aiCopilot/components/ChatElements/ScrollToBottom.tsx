@@ -68,6 +68,10 @@ const ThreadScrollToBottom = ({
     }, [thread.data?.messages.length, threadUuid, scrollToBottom]);
 
     // Scroll to bottom when the thread is streaming, if user has manually scrolled up do not autoscroll
+    const totalReasoningPartsCount = streamingState?.reasoning?.flatMap(
+        (r) => r.parts,
+    ).length;
+
     useLayoutEffect(() => {
         return scrollToBottom({
             checkCurrentScrollPosition: true,
@@ -76,6 +80,7 @@ const ThreadScrollToBottom = ({
     }, [
         streamingState?.content,
         streamingState?.toolCalls?.length,
+        totalReasoningPartsCount,
         streamingState?.error,
         scrollToBottom,
     ]);
