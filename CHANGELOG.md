@@ -1,3 +1,15 @@
+# [0.2238.0](https://github.com/lightdash/lightdash/compare/0.2237.1...0.2238.0) (2025-12-10)
+
+
+### Bug Fixes
+
+* disable scheduled deliveries with broken warehouse credentials (dont retry them) ([#18720](https://github.com/lightdash/lightdash/issues/18720)) ([480f2ba](https://github.com/lightdash/lightdash/commit/480f2ba51ee937fc793f40dd0f5bb33b4188b8a1))
+
+
+### Features
+
+* add email notifications for scheduled delivery failures ([#18677](https://github.com/lightdash/lightdash/issues/18677)) ([30db081](https://github.com/lightdash/lightdash/commit/30db081b19a2b7b9774982c153ec23cf9874e69c))
+
 ## [0.2237.1](https://github.com/lightdash/lightdash/compare/0.2237.0...0.2237.1) (2025-12-10)
 
 
