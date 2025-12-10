@@ -15,7 +15,8 @@ export const getDataFromChartClick = (
     itemsMap: ItemsMap,
     series: EChartsSeries[],
 ): UnderlyingDataConfig => {
-    const pivotReference = series[e.seriesIndex]?.pivotReference;
+    const currentSeries = series[e.seriesIndex];
+    const pivotReference = currentSeries?.pivotReference;
     const selectedFields = Object.values(itemsMap).filter((item) => {
         if (
             !isDimension(item) &&
@@ -48,6 +49,33 @@ export const getDataFromChartClick = (
         const raw = val === '∅' ? null : val; // convert ∅ values back to null. Echarts doesn't support null formatting https://github.com/apache/echarts/issues/15821
         return { ...acc, [key]: { raw, formatted: val } };
     }, {});
+
+    // Fix: For stacked bar charts, e.data may not include the x-axis dimension value
+    // when using tuple/array mode. The x-axis value is available in e.name.
+    // We need to add it to fieldValues to ensure proper filtering in underlying data.
+    if (currentSeries?.encode) {
+        const xFieldHash = currentSeries.encode.x;
+        const yFieldHash = currentSeries.encode.y;
+
+        // Check if the x-axis dimension is missing from fieldValues
+        if (xFieldHash && !fieldValues[xFieldHash]) {
+            // e.name contains the x-axis category value
+            const xAxisValue = e.name;
+            fieldValues[xFieldHash] = {
+                raw: xAxisValue,
+                formatted: xAxisValue,
+            };
+        }
+
+        // Similarly, check if the y-axis dimension is missing (for horizontal bar charts)
+        if (yFieldHash && !fieldValues[yFieldHash]) {
+            const yAxisValue = e.name;
+            fieldValues[yFieldHash] = {
+                raw: yAxisValue,
+                formatted: yAxisValue,
+            };
+        }
+    }
 
     return {
         item: selectedField,
