@@ -1,3 +1,10 @@
+## [0.2237.1](https://github.com/lightdash/lightdash/compare/0.2237.0...0.2237.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* set headers for js chunks and return correct status code ([#18717](https://github.com/lightdash/lightdash/issues/18717)) ([956fa0a](https://github.com/lightdash/lightdash/commit/956fa0ac7250fdb8276ba1da8d827da63922bf53))
+
 # [0.2237.0](https://github.com/lightdash/lightdash/compare/0.2236.2...0.2237.0) (2025-12-10)
 
 
