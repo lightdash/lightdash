@@ -6,21 +6,14 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { Flex, Group } from '@mantine/core';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { type Layout } from 'react-grid-layout';
-import PinnedParameters from '../../components/PinnedParameters';
-import DashboardFilter from '../dashboardFilters';
-import DashboardTabs from '../dashboardTabs';
-import { DateZoom } from '../dateZoom';
-import { Parameters } from '../parameters';
+import DashboardTabsV2 from '../dashboardTabsV2';
 
 type Props = {
-    hasTilesThatSupportFilters: boolean;
     isEditMode: boolean;
-    hasDashboardTiles: boolean | undefined;
-
     // parameters
+    hasTilesThatSupportFilters: boolean;
     parameterValues: ParametersValuesMap;
     parameters: {
         [k: string]: LightdashProjectParameter;
@@ -47,10 +40,9 @@ type Props = {
 };
 
 const DashboardHeaderV2: FC<Props> = ({
-    hasTilesThatSupportFilters,
     isEditMode,
-    hasDashboardTiles,
     // parameters
+    hasTilesThatSupportFilters,
     isParameterLoading,
     missingRequiredParameters,
     onParameterChange,
@@ -73,68 +65,29 @@ const DashboardHeaderV2: FC<Props> = ({
     setAddingTab,
 }) => {
     return (
-        <>
-            <Group position="apart" align="flex-start" noWrap px={'lg'}>
-                {/* This Group will take up remaining space (and not push DateZoom) */}
-                <Group
-                    position="apart"
-                    align="flex-start"
-                    noWrap
-                    grow
-                    sx={{
-                        overflow: 'auto',
-                    }}
-                >
-                    {hasTilesThatSupportFilters && (
-                        <DashboardFilter
-                            isEditMode={isEditMode}
-                            activeTabUuid={activeTab?.uuid}
-                        />
-                    )}
-                </Group>
-                {/* DateZoom section will adjust width dynamically */}
-                {hasDashboardTiles && (
-                    <Group spacing="xs" style={{ marginLeft: 'auto' }}>
-                        <DateZoom isEditMode={isEditMode} />
-                    </Group>
-                )}
-            </Group>
-            {hasDashboardTiles && (
-                <Group spacing="xs" align="flex-start" noWrap px={'lg'}>
-                    <Parameters
-                        isEditMode={isEditMode}
-                        parameterValues={parameterValues}
-                        onParameterChange={onParameterChange}
-                        onClearAll={onParameterClearAll}
-                        parameters={parameters}
-                        isLoading={isParameterLoading}
-                        missingRequiredParameters={missingRequiredParameters}
-                        pinnedParameters={pinnedParameters}
-                        onParameterPin={onParameterPin}
-                    />
-                    <PinnedParameters isEditMode={isEditMode} />
-                </Group>
-            )}
-
-            <Flex style={{ flexGrow: 1, flexDirection: 'column' }}>
-                <DashboardTabs
-                    isEditMode={isEditMode}
-                    hasRequiredDashboardFiltersToSet={
-                        hasRequiredDashboardFiltersToSet
-                    }
-                    addingTab={addingTab}
-                    dashboardTiles={dashboardTiles}
-                    handleAddTiles={onAddTiles}
-                    handleUpdateTiles={onUpdateTiles}
-                    handleDeleteTile={onDeleteTile}
-                    handleBatchDeleteTiles={onBatchDeleteTiles}
-                    handleEditTile={onEditTile}
-                    setGridWidth={setGridWidth}
-                    activeTab={activeTab}
-                    setAddingTab={setAddingTab}
-                />
-            </Flex>
-        </>
+        <DashboardTabsV2
+            isEditMode={isEditMode}
+            hasRequiredDashboardFiltersToSet={hasRequiredDashboardFiltersToSet}
+            addingTab={addingTab}
+            dashboardTiles={dashboardTiles}
+            handleAddTiles={onAddTiles}
+            handleUpdateTiles={onUpdateTiles}
+            handleDeleteTile={onDeleteTile}
+            handleBatchDeleteTiles={onBatchDeleteTiles}
+            handleEditTile={onEditTile}
+            setGridWidth={setGridWidth}
+            activeTab={activeTab}
+            setAddingTab={setAddingTab}
+            hasTilesThatSupportFilters={hasTilesThatSupportFilters}
+            isParameterLoading={isParameterLoading}
+            missingRequiredParameters={missingRequiredParameters}
+            onParameterChange={onParameterChange}
+            onParameterClearAll={onParameterClearAll}
+            onParameterPin={onParameterPin}
+            parameterValues={parameterValues}
+            parameters={parameters}
+            pinnedParameters={pinnedParameters}
+        />
     );
 };
 
