@@ -1,3 +1,10 @@
+## [0.2240.3](https://github.com/lightdash/lightdash/compare/0.2240.2...0.2240.3) (2025-12-10)
+
+
+### Bug Fixes
+
+* value labels on horizontal charts stacked ([#18726](https://github.com/lightdash/lightdash/issues/18726)) ([216b0b1](https://github.com/lightdash/lightdash/commit/216b0b1fb500f806fa54d454ea0bf22b9490d528)), closes [#18727](https://github.com/lightdash/lightdash/issues/18727)
+
 ## [0.2240.2](https://github.com/lightdash/lightdash/compare/0.2240.1...0.2240.2) (2025-12-10)
 
 
