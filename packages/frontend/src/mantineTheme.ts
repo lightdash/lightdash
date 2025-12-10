@@ -5,6 +5,8 @@ import {
     type MantineThemeOverride,
     type Tuple,
 } from '@mantine/core';
+// eslint-disable-next-line css-modules/no-unused-class
+import styles from './styles/mantine-overrides/tooltip.module.css';
 
 type ColorTuple = Tuple<string, 10>;
 
@@ -170,6 +172,9 @@ export const getMantineThemeOverride = (
             },
 
             Tooltip: {
+                classNames: {
+                    tooltip: styles.tooltipMantine6,
+                },
                 defaultProps: {
                     withArrow: true,
                 },
