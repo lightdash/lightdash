@@ -266,8 +266,24 @@ export class UnfurlService extends BaseService {
             page.on('response', responseHandler);
         });
 
-        // This is needed because tables are lazy loaded so we have no way of knowing when the chart is displayed
+        // Wait for dashboard/chart to be ready for screenshot
+        const self = this;
         async function waitForAllLoaded() {
+            if (self.lightdashConfig.scheduler.useScreenshotReadyIndicator) {
+                self.logger.info(
+                    'Waiting for screenshot ready indicator (SCHEDULER_USE_SCREENSHOT_READY_INDICATOR=true)',
+                );
+                await page.waitForSelector('#lightdash-ready-indicator', {
+                    state: 'attached',
+                    timeout,
+                });
+                self.logger.info(
+                    'Screenshot ready indicator found - dashboard is ready',
+                );
+                return;
+            }
+
+            // Legacy approach: wait for loading overlays
             // Wait for all the loading overlays to be in the DOM
             await page.waitForSelector('.loading_chart_overlay', {
                 state: 'attached',
@@ -1023,42 +1039,62 @@ export class UnfurlService extends BaseService {
                         );
                     }
 
-                    if (lightdashPage === LightdashPage.DASHBOARD) {
-                        // Wait for markdown tiles specifically
-                        const markdownTiles = await page
-                            .locator('.markdown-tile')
-                            .all();
-                        await Promise.all(
-                            markdownTiles.map((tile) =>
-                                tile.waitFor({ state: 'attached' }),
-                            ),
+                    if (
+                        this.lightdashConfig.scheduler
+                            .useScreenshotReadyIndicator
+                    ) {
+                        this.logger.info(
+                            'Waiting for screenshot ready indicator (SCHEDULER_USE_SCREENSHOT_READY_INDICATOR=true)',
                         );
-                        const loadingChartOverlays = await page
-                            .locator('.loading_chart_overlay')
+                        await page.waitForSelector(
+                            '#lightdash-ready-indicator',
+                            {
+                                state: 'attached',
+                                timeout: RESPONSE_TIMEOUT_MS,
+                            },
+                        );
+                        this.logger.info(
+                            'Screenshot ready indicator found - dashboard is ready',
+                        );
+                    } else {
+                        if (lightdashPage === LightdashPage.DASHBOARD) {
+                            // Wait for markdown tiles specifically
+                            const markdownTiles = await page
+                                .locator('.markdown-tile')
+                                .all();
+                            await Promise.all(
+                                markdownTiles.map((tile) =>
+                                    tile.waitFor({ state: 'attached' }),
+                                ),
+                            );
+                            const loadingChartOverlays = await page
+                                .locator('.loading_chart_overlay')
+                                .all();
+                            await Promise.all(
+                                loadingChartOverlays.map(
+                                    (loadingChartOverlay) =>
+                                        loadingChartOverlay.waitFor({
+                                            state: 'hidden',
+                                            timeout: RESPONSE_TIMEOUT_MS,
+                                        }),
+                                ),
+                            );
+                        }
+
+                        // If some charts are still loading even though their API requests have finished(or past the timeout), we wait for them to finish
+                        // Reference: https://playwright.dev/docs/api/class-locator#locator-all
+                        const loadingCharts = await page
+                            .locator('.loading_chart')
                             .all();
                         await Promise.all(
-                            loadingChartOverlays.map((loadingChartOverlay) =>
-                                loadingChartOverlay.waitFor({
+                            loadingCharts.map((loadingChart) =>
+                                loadingChart.waitFor({
                                     state: 'hidden',
                                     timeout: RESPONSE_TIMEOUT_MS,
                                 }),
                             ),
                         );
                     }
-
-                    // If some charts are still loading even though their API requests have finished(or past the timeout), we wait for them to finish
-                    // Reference: https://playwright.dev/docs/api/class-locator#locator-all
-                    const loadingCharts = await page
-                        .locator('.loading_chart')
-                        .all();
-                    await Promise.all(
-                        loadingCharts.map((loadingChart) =>
-                            loadingChart.waitFor({
-                                state: 'hidden',
-                                timeout: RESPONSE_TIMEOUT_MS,
-                            }),
-                        ),
-                    );
 
                     const path = `/tmp/${imageId}.png`;
 

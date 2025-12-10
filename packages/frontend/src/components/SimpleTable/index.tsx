@@ -2,7 +2,7 @@ import { FeatureFlags } from '@lightdash/common';
 import { Box, Button, Flex, Text } from '@mantine/core';
 import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
-import { type FC, useCallback, useEffect, useMemo } from 'react';
+import { type FC, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
     isChunkLoadError,
     triggerChunkErrorReload,
@@ -30,6 +30,8 @@ type SimpleTableProps = {
     className?: string;
     $shouldExpand?: boolean;
     minimal?: boolean;
+    onScreenshotReady?: () => void;
+    onScreenshotError?: () => void;
 };
 
 const SimpleTable: FC<SimpleTableProps> = ({
@@ -38,6 +40,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
     className,
     $shouldExpand,
     minimal = false,
+    onScreenshotReady,
+    onScreenshotError,
     ...rest
 }) => {
     const isDashboardRedesignEnabled = useFeatureFlagEnabled(
@@ -50,6 +54,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
         resultsData,
         isLoading,
     } = useVisualizationContext();
+
+    const hasSignaledScreenshotReady = useRef(false);
 
     const shouldPaginateResults = useMemo(() => {
         return Boolean(
@@ -82,6 +88,39 @@ const SimpleTable: FC<SimpleTableProps> = ({
 
         return isSuccess ? 'success' : 'loading';
     }, [resultsData, shouldPaginateResults, isLoading]);
+
+    useEffect(() => {
+        if (hasSignaledScreenshotReady.current) return;
+        if (!onScreenshotReady && !onScreenshotError) return;
+        if (!isTableVisualizationConfig(visualizationConfig)) return;
+
+        const { pivotTableData } = visualizationConfig.chartConfig;
+
+        if (pivotTableData.error) {
+            onScreenshotError?.();
+            hasSignaledScreenshotReady.current = true;
+            return;
+        }
+
+        if (pivotTableData.loading || pivotTableData.data) {
+            if (pivotTableData.data && resultsData?.hasFetchedAllRows) {
+                onScreenshotReady?.();
+                hasSignaledScreenshotReady.current = true;
+            }
+            return;
+        }
+
+        if (loadResultsStatus === 'success') {
+            onScreenshotReady?.();
+            hasSignaledScreenshotReady.current = true;
+        }
+    }, [
+        visualizationConfig,
+        loadResultsStatus,
+        resultsData?.hasFetchedAllRows,
+        onScreenshotReady,
+        onScreenshotError,
+    ]);
 
     const showColumnCalculation = useMemo(() => {
         if (!isTableVisualizationConfig(visualizationConfig)) {

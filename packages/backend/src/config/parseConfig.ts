@@ -848,6 +848,7 @@ export type LightdashConfig = {
         concurrency: number;
         jobTimeout: number;
         screenshotTimeout?: number;
+        useScreenshotReadyIndicator: boolean;
         tasks: Array<SchedulerTaskName>;
         queryHistory: {
             cleanup: {
@@ -1589,6 +1590,8 @@ export const parseConfig = (): LightdashConfig => {
             screenshotTimeout: process.env.SCHEDULER_SCREENSHOT_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
+            useScreenshotReadyIndicator:
+                process.env.SCHEDULER_USE_SCREENSHOT_READY_INDICATOR === 'true',
             tasks: parseAndSanitizeSchedulerTasks(),
             queryHistory: {
                 cleanup: {
