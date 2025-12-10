@@ -25,7 +25,11 @@ export type CreateDbSlackChannel = Pick<
 export type UpdateDbSlackChannel = Partial<
     Pick<
         DbSlackChannel,
-        'channel_name' | 'is_archived' | 'deleted_at' | 'updated_at'
+        | 'channel_name'
+        | 'is_archived'
+        | 'deleted_at'
+        | 'updated_at'
+        | 'channel_type'
     >
 >;
 
