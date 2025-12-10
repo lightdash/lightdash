@@ -1,6 +1,6 @@
 import { IconChartTreemap } from '@tabler/icons-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
-import { memo, useEffect, type FC } from 'react';
+import { memo, useEffect, useRef, type FC } from 'react';
 import useEchartsTreemapConfig from '../../hooks/echarts/useEchartsTreemapConfig';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
@@ -31,55 +31,71 @@ type SimpleTreemapProps = Omit<EChartsReactProps, 'option'> & {
     $shouldExpand?: boolean;
     className?: string;
     'data-testid'?: string;
+    onScreenshotReady?: () => void;
+    onScreenshotError?: () => void;
 };
 
 const EchartOptions: Opts = { renderer: 'svg' };
 
-const SimpleTreemap: FC<SimpleTreemapProps> = memo((props) => {
-    const { chartRef, isLoading, resultsData } = useVisualizationContext();
+const SimpleTreemap: FC<SimpleTreemapProps> = memo(
+    ({ onScreenshotReady, onScreenshotError, ...props }) => {
+        const { chartRef, isLoading, resultsData } = useVisualizationContext();
 
-    const treemapOptions = useEchartsTreemapConfig(props.isInDashboard);
+        const treemapOptions = useEchartsTreemapConfig(props.isInDashboard);
 
-    useEffect(() => {
-        // Load all the rows
-        resultsData?.setFetchAll(true);
-    }, [resultsData]);
+        const hasSignaledScreenshotReady = useRef(false);
 
-    useEffect(() => {
-        const listener = () => chartRef.current?.getEchartsInstance().resize();
-        window.addEventListener('resize', listener);
-        return () => window.removeEventListener('resize', listener);
-    });
+        useEffect(() => {
+            if (hasSignaledScreenshotReady.current) return;
+            if (!onScreenshotReady && !onScreenshotError) return;
 
-    if (isLoading) return <LoadingChart />;
-    if (!treemapOptions) return <EmptyChart />;
+            if (!isLoading) {
+                onScreenshotReady?.();
+                hasSignaledScreenshotReady.current = true;
+            }
+        }, [isLoading, treemapOptions, onScreenshotReady, onScreenshotError]);
 
-    return (
-        <>
-            <EChartsReact
-                ref={chartRef}
-                data-testid={props['data-testid']}
-                className={props.className}
-                style={
-                    props.$shouldExpand
-                        ? {
-                              minHeight: 'inherit',
-                              height: '100%',
-                              width: '100%',
-                          }
-                        : {
-                              minHeight: 'inherit',
-                              // height defaults to 300px
-                              width: '100%',
-                          }
-                }
-                opts={EchartOptions}
-                option={treemapOptions.eChartsOption}
-                notMerge
-                {...props}
-            />
-        </>
-    );
-});
+        useEffect(() => {
+            resultsData?.setFetchAll(true);
+        }, [resultsData]);
+
+        useEffect(() => {
+            const listener = () =>
+                chartRef.current?.getEchartsInstance().resize();
+            window.addEventListener('resize', listener);
+            return () => window.removeEventListener('resize', listener);
+        });
+
+        if (isLoading) return <LoadingChart />;
+        if (!treemapOptions) return <EmptyChart />;
+
+        return (
+            <>
+                <EChartsReact
+                    ref={chartRef}
+                    data-testid={props['data-testid']}
+                    className={props.className}
+                    style={
+                        props.$shouldExpand
+                            ? {
+                                  minHeight: 'inherit',
+                                  height: '100%',
+                                  width: '100%',
+                              }
+                            : {
+                                  minHeight: 'inherit',
+                                  // height defaults to 300px
+                                  width: '100%',
+                              }
+                    }
+                    opts={EchartOptions}
+                    option={treemapOptions.eChartsOption}
+                    notMerge
+                    {...props}
+                />
+            </>
+        );
+    },
+);
 
 export default SimpleTreemap;
