@@ -1,8 +1,8 @@
-import { Field } from '@lightdash/common';
+import { Field, Filters } from '@lightdash/common';
 import { generateObject, LanguageModel } from 'ai';
 import { z } from 'zod';
 
-const TITLE_MAX_LENGTH_CHARS = 120;
+const TITLE_MAX_LENGTH_CHARS = 140;
 const DESCRIPTION_MAX_LENGTH_CHARS = 500;
 
 const ChartMetadataSchema = z.object({
@@ -34,7 +34,7 @@ export type ChartMetadataContext = {
     chartType: string;
     dimensions: string[];
     metrics: string[];
-    filters?: string;
+    filters?: Filters;
     fieldsContext: FieldInfo[];
     /** Raw chart configuration as JSON string */
     chartConfigJson?: string;
@@ -69,18 +69,20 @@ export async function generateChartMetadata(
                 role: 'system',
                 content: `Generate a concise title (max ${TITLE_MAX_LENGTH_CHARS} chars) and description (max ${DESCRIPTION_MAX_LENGTH_CHARS} chars) for a data chart.
 
-Title: Be specific. Represent the title as a data question that it answers. 
+Title: Be specific. Represent the title as a data question that it answers.
 Description: Explain what insights the chart provides in one sentence.
 
 IMPORTANT: Use the human-readable field labels provided, NOT the technical field IDs.
 ALWAYS look at the chart type and its configuration so you know how to best represent the title and description.
-Be direct - avoid phrases like "This chart shows..." and also avoid mentioning what the chart type is, but what what the chart is about.`,
+Be direct - avoid phrases like "This chart shows..." and also avoid mentioning what the chart type is, but what the chart is about.
+Reference filters in the title if there is a maximum of 2 filters applied. For example, date filters are super relevant on chart titles. If there are more than 2 filters, reference them in the description.
+`,
             },
             {
                 role: 'user',
                 content: `Chart type: ${context.chartType}
 Data source: "${context.tableName}"
-${context.filters ? `Filters: ${context.filters}\n` : ''}
+${context.filters ? `Filters: ${JSON.stringify(context.filters)}\n` : ''}
 Field labels (use these instead of IDs):
 ${fieldLabelMap}
 ${
