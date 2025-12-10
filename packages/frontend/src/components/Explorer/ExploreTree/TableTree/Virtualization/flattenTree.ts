@@ -8,6 +8,7 @@ import {
     type CustomDimension,
     type Explore,
 } from '@lightdash/common';
+import { LD_FIELD_COLORS } from '../../../../../mantineTheme';
 import { sortNodes } from '../Tree/sortNodes';
 import {
     isGroupNode,
@@ -301,7 +302,7 @@ function flattenTable(
                 tableName,
                 treeSection: TreeSection.Dimensions,
                 label: 'Dimensions',
-                color: 'blue.9',
+                color: LD_FIELD_COLORS.dimension.color,
                 depth: baseDepth,
             },
         } satisfies SectionHeaderItem);
@@ -312,7 +313,7 @@ function flattenTable(
             {
                 type: TreeSection.Dimensions,
                 label: 'Dimensions',
-                color: 'blue.9',
+                color: LD_FIELD_COLORS.dimension.color,
                 itemsMap: dimensionsMap,
                 orderFieldsBy: table.orderFieldsBy,
             },
@@ -361,7 +362,7 @@ function flattenTable(
                 tableName,
                 treeSection: TreeSection.Metrics,
                 label: 'Metrics',
-                color: 'yellow.9',
+                color: LD_FIELD_COLORS.metric.color,
                 depth: baseDepth,
                 helpButton: !hasMetrics
                     ? {
@@ -379,7 +380,7 @@ function flattenTable(
             {
                 type: TreeSection.Metrics,
                 label: 'Metrics',
-                color: 'yellow.9',
+                color: LD_FIELD_COLORS.metric.color,
                 itemsMap: metricsMap,
                 orderFieldsBy: table.orderFieldsBy,
             },
@@ -415,7 +416,7 @@ function flattenTable(
                 tableName,
                 treeSection: TreeSection.CustomMetrics,
                 label: 'Custom metrics',
-                color: 'yellow.9',
+                color: LD_FIELD_COLORS.metric.color,
                 depth: baseDepth,
                 helpButton: {
                     href: 'https://docs.lightdash.com/guides/how-to-create-metrics#-adding-custom-metrics-in-the-explore-view',
@@ -452,7 +453,7 @@ function flattenTable(
             {
                 type: TreeSection.CustomMetrics,
                 label: 'Custom metrics',
-                color: 'yellow.9',
+                color: LD_FIELD_COLORS.metric.color,
                 itemsMap: customMetricsMap,
                 missingItems: options.missingCustomMetrics.filter(
                     (m) => m.table === tableName,
@@ -490,7 +491,7 @@ function flattenTable(
                 tableName,
                 treeSection: TreeSection.CustomDimensions,
                 label: 'Custom dimensions',
-                color: 'blue.9',
+                color: LD_FIELD_COLORS.dimension.color,
                 depth: baseDepth,
             },
         } satisfies SectionHeaderItem);
@@ -499,7 +500,7 @@ function flattenTable(
             {
                 type: TreeSection.CustomDimensions,
                 label: 'Custom dimensions',
-                color: 'blue.9',
+                color: LD_FIELD_COLORS.dimension.color,
                 itemsMap: customDimensionsMap,
                 missingItems: options.missingCustomDimensions.filter(
                     (d) => d.table === tableName,
