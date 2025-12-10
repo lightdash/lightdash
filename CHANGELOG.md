@@ -1,3 +1,10 @@
+## [0.2242.1](https://github.com/lightdash/lightdash/compare/0.2242.0...0.2242.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* changeset conflicts on created field causes explore failures ([#18705](https://github.com/lightdash/lightdash/issues/18705)) ([5a9814a](https://github.com/lightdash/lightdash/commit/5a9814a6e8ac8b9005f041ad49f9c1c27ae6dfb6)), closes [#18627](https://github.com/lightdash/lightdash/issues/18627)
+
 # [0.2242.0](https://github.com/lightdash/lightdash/compare/0.2241.0...0.2242.0) (2025-12-10)
 
 
