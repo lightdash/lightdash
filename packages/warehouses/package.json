@@ -2,6 +2,10 @@
     "name": "@lightdash/warehouses",
     "version": "0.2240.4",
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/lightdash/lightdash.git"
+    },
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [

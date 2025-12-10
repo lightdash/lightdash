@@ -8,6 +8,10 @@
         "dist/**/*"
     ],
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/lightdash/lightdash.git"
+    },
     "devDependencies": {
         "@types/handlebars": "^4.1.0",
         "@types/js-yaml": "^4.0.9",
