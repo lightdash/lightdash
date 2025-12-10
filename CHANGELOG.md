@@ -1,3 +1,10 @@
+## [0.2239.1](https://github.com/lightdash/lightdash/compare/0.2239.0...0.2239.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* github client creating branch against wrong source branch ([#18711](https://github.com/lightdash/lightdash/issues/18711)) ([9b4eadd](https://github.com/lightdash/lightdash/commit/9b4eadd1082f620bdb7e55ae6edec709d2544c58))
+
 # [0.2239.0](https://github.com/lightdash/lightdash/compare/0.2238.0...0.2239.0) (2025-12-10)
 
 
