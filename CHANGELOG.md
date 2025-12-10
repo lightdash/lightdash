@@ -1,3 +1,10 @@
+# [0.2237.0](https://github.com/lightdash/lightdash/compare/0.2236.2...0.2237.0) (2025-12-10)
+
+
+### Features
+
+* support dark mode for explore image ([#18708](https://github.com/lightdash/lightdash/issues/18708)) ([ec428c1](https://github.com/lightdash/lightdash/commit/ec428c1c68afd930c54f2bd85e6e60ca596d111d))
+
 ## [0.2236.2](https://github.com/lightdash/lightdash/compare/0.2236.1...0.2236.2) (2025-12-09)
 
 
