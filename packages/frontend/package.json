@@ -20,7 +20,7 @@
         "unused-exports": "ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles='build/.*' --ignoreFiles='sdk/dist/.*' --ignoreFiles='.*/__mocks__/.*' --ignoreFiles='src/stories/.*'",
         "storybook": "storybook dev -p 6006 --no-open",
         "build-storybook": "storybook build",
-        "release": "(cd sdk && pnpm publish --no-git-checks --provenance --access public)"
+        "release": "(cd sdk && pnpm publish --no-git-checks --access public)"
     },
     "dependencies": {
         "@casl/ability": "^5.4.4",
