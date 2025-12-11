@@ -1,9 +1,7 @@
 import { type DashboardFilterRule } from '@lightdash/common';
 import { Button, Popover, Text, Tooltip } from '@mantine/core';
 import { useDisclosure, useId } from '@mantine/hooks';
-import { IconFilter } from '@tabler/icons-react';
 import { type FC, useCallback, useMemo } from 'react';
-import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import FilterConfiguration from './FilterConfiguration';
 
@@ -105,9 +103,6 @@ const AddFilterButton: FC<Props> = ({
                             size="xs"
                             variant="default"
                             radius="md"
-                            leftIcon={
-                                <MantineIcon color="blue" icon={IconFilter} />
-                            }
                             disabled={disabled}
                             loading={
                                 isLoadingDashboardFilters ||

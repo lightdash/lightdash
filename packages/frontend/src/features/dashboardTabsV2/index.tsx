@@ -7,8 +7,13 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { Button, Group, Tabs } from '@mantine-8/core';
-import { IconPlus } from '@tabler/icons-react';
+import { Button, Divider, Group, Tabs, Text } from '@mantine-8/core';
+import {
+    IconAdjustmentsHorizontal,
+    IconCalendar,
+    IconFilter,
+    IconPlus,
+} from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
 import { useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
@@ -23,6 +28,7 @@ import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
 import DashboardFiltersV2 from '../dashboardFiltersV2';
+import FilterGroupSeparator from '../dashboardHeader/FilterGroupSeparator';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import { TabAddModal } from './AddTabModal';
@@ -436,57 +442,135 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                             }}
                                         >
                                             {hasTilesThatSupportFilters && (
-                                                <DashboardFiltersV2
-                                                    isEditMode={isEditMode}
-                                                    activeTabUuid={
-                                                        activeTab?.uuid
-                                                    }
-                                                />
+                                                <Group
+                                                    align="flex-start"
+                                                    gap="xs"
+                                                >
+                                                    <FilterGroupSeparator
+                                                        icon={IconFilter}
+                                                        tooltipLabel={
+                                                            <div>
+                                                                <Text
+                                                                    fw={500}
+                                                                    fz="xs"
+                                                                >
+                                                                    Filters
+                                                                </Text>
+
+                                                                <Text fz="xs">
+                                                                    Refine your
+                                                                    dashboard by
+                                                                    choosing
+                                                                    which data
+                                                                    to see.
+                                                                </Text>
+                                                            </div>
+                                                        }
+                                                    />
+                                                    <DashboardFiltersV2
+                                                        isEditMode={isEditMode}
+                                                        activeTabUuid={
+                                                            activeTab?.uuid
+                                                        }
+                                                    />
+                                                </Group>
                                             )}
                                         </Group>
+
+                                        {hasDashboardTiles && (
+                                            <Group gap="xs">
+                                                <Divider orientation="vertical" />
+
+                                                <FilterGroupSeparator
+                                                    icon={
+                                                        IconAdjustmentsHorizontal
+                                                    }
+                                                    tooltipLabel={
+                                                        <div>
+                                                            <Text
+                                                                fw={500}
+                                                                fz="xs"
+                                                            >
+                                                                Parameters
+                                                            </Text>
+
+                                                            <Text fz="xs">
+                                                                Adjust preset
+                                                                inputs that
+                                                                change how the
+                                                                dashboard's
+                                                                numbers are
+                                                                calculated.
+                                                            </Text>
+                                                        </div>
+                                                    }
+                                                />
+
+                                                <Parameters
+                                                    isEditMode={isEditMode}
+                                                    parameterValues={
+                                                        parameterValues
+                                                    }
+                                                    onParameterChange={
+                                                        onParameterChange
+                                                    }
+                                                    onClearAll={
+                                                        onParameterClearAll
+                                                    }
+                                                    parameters={parameters}
+                                                    isLoading={
+                                                        isParameterLoading
+                                                    }
+                                                    missingRequiredParameters={
+                                                        missingRequiredParameters
+                                                    }
+                                                    pinnedParameters={
+                                                        pinnedParameters
+                                                    }
+                                                    onParameterPin={
+                                                        onParameterPin
+                                                    }
+                                                />
+                                                <PinnedParameters
+                                                    isEditMode={isEditMode}
+                                                />
+                                            </Group>
+                                        )}
+
                                         {/* DateZoom section will adjust width dynamically */}
                                         {hasDashboardTiles && (
                                             <Group
                                                 gap="xs"
                                                 style={{ marginLeft: 'auto' }}
                                             >
+                                                <Divider orientation="vertical" />
+
+                                                <FilterGroupSeparator
+                                                    icon={IconCalendar}
+                                                    tooltipLabel={
+                                                        <div>
+                                                            <Text
+                                                                fw={500}
+                                                                fz="xs"
+                                                            >
+                                                                Date Zoom
+                                                            </Text>
+
+                                                            <Text fz="xs">
+                                                                Quickly change
+                                                                the date
+                                                                granularity of
+                                                                charts.
+                                                            </Text>
+                                                        </div>
+                                                    }
+                                                />
                                                 <DateZoom
                                                     isEditMode={isEditMode}
                                                 />
                                             </Group>
                                         )}
                                     </Group>
-                                    {hasDashboardTiles && (
-                                        <Group
-                                            gap="xs"
-                                            align="flex-start"
-                                            wrap="nowrap"
-                                            px={'lg'}
-                                        >
-                                            <Parameters
-                                                isEditMode={isEditMode}
-                                                parameterValues={
-                                                    parameterValues
-                                                }
-                                                onParameterChange={
-                                                    onParameterChange
-                                                }
-                                                onClearAll={onParameterClearAll}
-                                                parameters={parameters}
-                                                isLoading={isParameterLoading}
-                                                missingRequiredParameters={
-                                                    missingRequiredParameters
-                                                }
-                                                pinnedParameters={
-                                                    pinnedParameters
-                                                }
-                                                onParameterPin={onParameterPin}
-                                            />
-                                            <PinnedParameters
-                                                isEditMode={isEditMode}
-                                            />
-                                        </Group>
-                                    )}
                                 </div>
 
                                 <Group
