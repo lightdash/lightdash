@@ -6440,6 +6440,93 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "GeneratedChartMetadata": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description", "title"],
+                "type": "object"
+            },
+            "ApiAiGenerateChartMetadataResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/GeneratedChartMetadata"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_Field.name-or-label-or-description-or-type_": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "type", "label"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "GenerateChartMetadataRequest": {
+                "properties": {
+                    "chartConfigJson": {
+                        "type": "string"
+                    },
+                    "fieldsContext": {
+                        "items": {
+                            "$ref": "#/components/schemas/Pick_Field.name-or-label-or-description-or-type_"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "type": "string"
+                    },
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "chartType": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "fieldsContext",
+                    "metrics",
+                    "dimensions",
+                    "chartType",
+                    "tableName"
+                ],
+                "type": "object"
+            },
             "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_": {
                 "properties": {
                     "description": {
@@ -7584,8 +7671,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },

@@ -88,6 +88,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardModel: models.getDashboardModel(),
                     dashboardSummaryModel: models.getDashboardSummaryModel(),
                     projectService: repository.getProjectService(),
+                    featureFlagService: repository.getFeatureFlagService(),
                     openAi: new OpenAi(), // TODO This should go in client repository as soon as it is available
                 }),
             aiAgentService: ({
