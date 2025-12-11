@@ -1,3 +1,10 @@
+# [0.2246.0](https://github.com/lightdash/lightdash/compare/0.2245.0...0.2246.0) (2025-12-11)
+
+
+### Features
+
+* remove ff for dark mode ([#18712](https://github.com/lightdash/lightdash/issues/18712)) ([c133640](https://github.com/lightdash/lightdash/commit/c1336403eae6f21a401a3c2f029902871c18b612))
+
 # [0.2245.0](https://github.com/lightdash/lightdash/compare/0.2244.0...0.2245.0) (2025-12-11)
 
 
