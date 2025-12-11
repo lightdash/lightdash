@@ -61,7 +61,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                             ref={ref}
                             key={idx}
                             value={tab.uuid}
-                            maw={`calc(${100 / (sortedTabs?.length || 1)}vw)`}
+                            maw={`${100 / (sortedTabs.length || 1)}vw`}
                             styles={{
                                 tabSection: {
                                     flexShrink: 0,
