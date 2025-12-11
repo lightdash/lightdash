@@ -33,6 +33,8 @@ const isMinimalPage = window.location.pathname.startsWith('/minimal');
 const sentryCreateBrowserRouter =
     wrapCreateBrowserRouterV7(createBrowserRouter);
 
+console.log('Hello Jose');
+
 const router = sentryCreateBrowserRouter([
     {
         path: '/',
