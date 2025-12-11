@@ -275,7 +275,7 @@ export const getMantineThemeOverride = (
             'html, body': {
                 backgroundColor:
                     theme.colorScheme === 'dark'
-                        ? theme.colors.ldDark[1]
+                        ? theme.colors.ldDark[0]
                         : theme.colors.ldGray[0],
             },
 
