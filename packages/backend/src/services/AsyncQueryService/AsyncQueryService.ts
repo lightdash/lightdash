@@ -2688,7 +2688,7 @@ export class AsyncQueryService extends ProjectService {
             filters,
             metrics: availableMetrics.map(getItemId),
             sorts: [],
-            limit: limit ?? 500,
+            limit: Math.min(limit ?? 500, 500),
             tableCalculations: [],
             additionalMetrics: [],
         };
