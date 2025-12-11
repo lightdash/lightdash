@@ -142,11 +142,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                     form.setFieldValue('prompt', value)
                                 }
                                 onSearchItemSelect={handleSearchItemSelect}
-                                placeholder={
-                                    selectedAgent
-                                        ? `Ask ${selectedAgent.name} or search your data`
-                                        : 'Search your data'
-                                }
+                                placeholder="Ask your AI Agent anything"
                                 onHeaderClick={handleSubmit}
                                 header={
                                     <PolymorphicGroupButton
