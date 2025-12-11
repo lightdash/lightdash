@@ -1,3 +1,10 @@
+# [0.2247.0](https://github.com/lightdash/lightdash/compare/0.2246.0...0.2247.0) (2025-12-11)
+
+
+### Features
+
+* generate chart metadata for new charts ([#18723](https://github.com/lightdash/lightdash/issues/18723)) ([a67616a](https://github.com/lightdash/lightdash/commit/a67616a4d0854d94086e86eaee263e721ee980b3))
+
 # [0.2246.0](https://github.com/lightdash/lightdash/compare/0.2245.0...0.2246.0) (2025-12-11)
 
 
