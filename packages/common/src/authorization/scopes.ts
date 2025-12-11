@@ -229,18 +229,16 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
-        name: 'create:Project',
-        description: 'Create new projects',
+        name: 'create:Project@preview',
+        description: 'Create new preview projects',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
-        getConditions: (context) =>
-            // Allow creating preview projects by default
-            [
-                {
-                    upstreamProjectUuid: context.projectUuid,
-                    type: ProjectType.PREVIEW,
-                },
-            ],
+        getConditions: (context) => [
+            {
+                upstreamProjectUuid: context.projectUuid,
+                type: ProjectType.PREVIEW,
+            },
+        ],
     },
     {
         name: 'update:Project',
