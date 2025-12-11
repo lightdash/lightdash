@@ -1,3 +1,15 @@
+# [0.2244.0](https://github.com/lightdash/lightdash/compare/0.2243.1...0.2244.0) (2025-12-11)
+
+
+### Bug Fixes
+
+* default AI_DEFAULT_EMBEDDING_PROVIDER to openai and return undefined on empty strings for float and integer parsing ([#18762](https://github.com/lightdash/lightdash/issues/18762)) ([b16a165](https://github.com/lightdash/lightdash/commit/b16a165183f6f292cf3d34a425dba73dc76b1c7a))
+
+
+### Features
+
+* simplify colors in useColumns hook + new custom field colors ([#18737](https://github.com/lightdash/lightdash/issues/18737)) ([0c1543e](https://github.com/lightdash/lightdash/commit/0c1543e907570fa04ed9ae9d2f9e98bbd6048738))
+
 ## [0.2243.1](https://github.com/lightdash/lightdash/compare/0.2243.0...0.2243.1) (2025-12-11)
 
 
