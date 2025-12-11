@@ -145,7 +145,9 @@ const getMockedAsyncQueryService = (
         s3CacheClient: {} as S3CacheClient,
         analyticsModel: {} as AnalyticsModel,
         dashboardModel: {} as DashboardModel,
-        userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
+        userWarehouseCredentialsModel: {
+            findForProjectWithSecrets: jest.fn(async () => undefined),
+        } as unknown as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         emailModel: {
             getPrimaryEmailStatus: () => ({
