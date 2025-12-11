@@ -1,3 +1,10 @@
+# [0.2245.0](https://github.com/lightdash/lightdash/compare/0.2244.0...0.2245.0) (2025-12-11)
+
+
+### Features
+
+* add Databricks OAuth authentication support ([#18622](https://github.com/lightdash/lightdash/issues/18622)) ([e42a6da](https://github.com/lightdash/lightdash/commit/e42a6daa6777b5161229ce3c36de798e602a9224))
+
 # [0.2244.0](https://github.com/lightdash/lightdash/compare/0.2243.1...0.2244.0) (2025-12-11)
 
 
