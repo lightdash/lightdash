@@ -86,8 +86,8 @@ export const EmbedJwtSchema = z
         userAttributes: z.record(z.unknown()).optional(),
         user: z
             .object({
-                externalId: z.string().optional(),
-                email: z.string().optional(),
+                externalId: z.string().nullish(),
+                email: z.string().nullish(),
             })
             .optional(),
         content: z.union([
