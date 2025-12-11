@@ -690,7 +690,7 @@ export type GenerateChartMetadataRequest = {
     chartType: string;
     dimensions: string[];
     metrics: string[];
-    filters?: string;
+    filters?: MetricQuery['filters'];
     fieldsContext: Array<
         Pick<Field, 'name' | 'label' | 'description' | 'type'>
     >;

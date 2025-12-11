@@ -5723,7 +5723,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
-                filters: { dataType: 'string' },
+                filters: { ref: 'Filters' },
                 metrics: {
                     dataType: 'array',
                     array: { dataType: 'string' },

@@ -6497,7 +6497,7 @@
                         "type": "array"
                     },
                     "filters": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/Filters"
                     },
                     "metrics": {
                         "items": {
@@ -7661,19 +7661,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
