@@ -780,12 +780,23 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 e.dimensionNames.includes(getItemId(dimension)),
             );
 
+            // Helper to extract value from click event data
+            // For stacked bars: e.value is an array, e.dimensionNames maps indices to field names
+            // For other charts: e.data is an object with field names as keys
+            const getValueFromClickData = (fieldId: string) => {
+                if (Array.isArray(e.value) && e.dimensionNames) {
+                    const index = e.dimensionNames.indexOf(fieldId);
+                    return index >= 0 ? e.value[index] : undefined;
+                }
+                return (e.data as Record<string, unknown>)[fieldId];
+            };
+
             const dimensionOptions = dimensions.map((dimension) =>
                 createDashboardFilterRuleFromField({
                     field: dimension,
                     availableTileFilters: {},
                     isTemporary: true,
-                    value: e.data[getItemId(dimension)],
+                    value: getValueFromClickData(getItemId(dimension)),
                 }),
             );
             const serie = series[e.seriesIndex];
