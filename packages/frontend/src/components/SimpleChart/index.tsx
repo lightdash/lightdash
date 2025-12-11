@@ -42,9 +42,14 @@ type EchartsBaseClickEvent = {
 
 export type EchartsSeriesClickEvent = EchartsBaseClickEvent & {
     componentType: 'series';
-    data: Record<string, any>;
+    // data can be either:
+    // - Object format: { fieldName: value, ... } - for most dataset mode charts
+    // - Tuple format: { value: [...] } - for stacked bar charts
+    data: Record<string, any> | any[];
     seriesIndex: number;
     dimensionNames: string[];
+    // encode maps x/y axes to indices in dimensionNames (e.g., {x: [0], y: [1]})
+    encode?: { x?: number[]; y?: number[] };
     pivotReference?: PivotReference;
 };
 
