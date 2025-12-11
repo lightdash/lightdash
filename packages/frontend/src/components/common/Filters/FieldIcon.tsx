@@ -21,7 +21,7 @@ import {
     IconToggleLeft,
 } from '@tabler/icons-react';
 import { forwardRef } from 'react';
-import { getMantineFieldColor } from '../../../utils/fieldColors';
+import { getFieldColor } from '../../../utils/fieldColors';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 import { getItemIconName } from './utils/fieldIconUtils';
 
@@ -53,7 +53,7 @@ const FieldIcon = forwardRef<SVGSVGElement, Props>(
     ({ item, size = 'lg', selected, ...iconProps }, ref) => {
         const iconColor = selected
             ? 'white'
-            : iconProps.color ?? getMantineFieldColor(item);
+            : iconProps.color ?? getFieldColor(item);
 
         const props = {
             ...iconProps,

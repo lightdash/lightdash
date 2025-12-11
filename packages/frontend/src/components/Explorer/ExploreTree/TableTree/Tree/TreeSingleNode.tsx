@@ -41,8 +41,8 @@ import { useAddFilter } from '../../../../../hooks/useFilters';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import {
+    getFieldColor,
     getFieldColors,
-    getMantineFieldColor,
 } from '../../../../../utils/fieldColors';
 import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
@@ -61,7 +61,7 @@ const NavItemIcon = ({
     return isMissing ? (
         <MantineIcon icon={IconAlertTriangle} color="ldGray.7" />
     ) : (
-        <FieldIcon item={item} color={getMantineFieldColor(item)} size="md" />
+        <FieldIcon item={item} color={getFieldColor(item)} size="md" />
     );
 };
 

@@ -295,8 +295,10 @@ export const ThActionsContainer = styled.div`
     }
 `;
 
-export const TableHeaderLabelContainer = styled.div`
+export const TableHeaderLabelContainer = styled.div<{ color?: string }>`
     ${FontSyles}
+    color: ${({ color }) =>
+        color || 'var(--table-header-color, var(--mantine-color-text))'};
 `;
 
 export const TableHeaderRegularLabel = styled.span`

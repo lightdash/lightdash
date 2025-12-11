@@ -92,8 +92,8 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                     // TODO: Add icon for field type and for subtype
                     color={
                         field.fieldType === FieldType.DIMENSION
-                            ? LD_FIELD_COLORS.dimension.mantineColor
-                            : LD_FIELD_COLORS.metric.mantineColor
+                            ? LD_FIELD_COLORS.dimension.color
+                            : LD_FIELD_COLORS.metric.color
                     }
                 />
             </Grid.Col>
