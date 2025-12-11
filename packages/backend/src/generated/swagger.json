@@ -22385,7 +22385,8 @@
                         "properties": {
                             "limit": {
                                 "type": "number",
-                                "format": "double"
+                                "format": "double",
+                                "nullable": true
                             },
                             "dateZoom": {
                                 "$ref": "#/components/schemas/DateZoom"

@@ -56,7 +56,6 @@ import {
     isMetric,
     isVizTableConfig,
     ItemsMap,
-    MAX_SAFE_INTEGER,
     MetricQuery,
     normalizeIndexColumns,
     NotFoundError,
@@ -102,6 +101,7 @@ import PrometheusMetrics from '../../prometheus';
 import { compileMetricQuery } from '../../queryCompiler';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { wrapSentryTransaction } from '../../utils';
+import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
@@ -2194,15 +2194,12 @@ export class AsyncQueryService extends ProjectService {
             limit,
         };
 
-        // Apply limit override if provided in the request
-        // For unlimited results (null), use Number.MAX_SAFE_INTEGER
-        const metricQueryWithLimit =
-            limit !== undefined
-                ? {
-                      ...metricQuery,
-                      limit: limit ?? MAX_SAFE_INTEGER,
-                  }
-                : metricQuery;
+        const metricQueryWithLimit = applyMetricQueryLimit(
+            metricQuery,
+            limit,
+            this.lightdashConfig.query?.csvCellsLimit,
+            this.lightdashConfig.query?.maxLimit,
+        );
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
@@ -2412,15 +2409,12 @@ export class AsyncQueryService extends ProjectService {
                     : savedChart.metricQuery.sorts,
         };
 
-        // Apply limit override if provided in the request
-        // For unlimited results (null), use Number.MAX_SAFE_INTEGER
-        const metricQueryWithLimit =
-            limit !== undefined
-                ? {
-                      ...metricQueryWithDashboardOverrides,
-                      limit: limit ?? MAX_SAFE_INTEGER,
-                  }
-                : metricQueryWithDashboardOverrides;
+        const metricQueryWithLimit = applyMetricQueryLimit(
+            metricQueryWithDashboardOverrides,
+            limit,
+            this.lightdashConfig.query?.csvCellsLimit,
+            this.lightdashConfig.query?.maxLimit,
+        );
 
         const exploreDimensions = getDimensions(explore);
 
@@ -2688,10 +2682,17 @@ export class AsyncQueryService extends ProjectService {
             filters,
             metrics: availableMetrics.map(getItemId),
             sorts: [],
-            limit: limit ?? 500,
+            limit: 500,
             tableCalculations: [],
             additionalMetrics: [],
         };
+
+        const underlyingDataMetricQueryWithLimit = applyMetricQueryLimit(
+            underlyingDataMetricQuery,
+            limit,
+            this.lightdashConfig.query?.csvCellsLimit,
+            this.lightdashConfig.query?.maxLimit,
+        );
 
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
@@ -2720,7 +2721,7 @@ export class AsyncQueryService extends ProjectService {
             usedParameters,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
-            metricQuery: underlyingDataMetricQuery,
+            metricQuery: underlyingDataMetricQueryWithLimit,
             explore,
             dateZoom,
             warehouseSqlBuilder,
@@ -2732,7 +2733,7 @@ export class AsyncQueryService extends ProjectService {
             await this.executeAsyncQuery(
                 {
                     account,
-                    metricQuery: underlyingDataMetricQuery,
+                    metricQuery: underlyingDataMetricQueryWithLimit,
                     projectUuid,
                     explore,
                     context,
@@ -2750,7 +2751,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid: underlyingDataQueryUuid,
             cacheMetadata,
-            metricQuery: underlyingDataMetricQuery,
+            metricQuery: underlyingDataMetricQueryWithLimit,
             fields,
             warnings,
             parameterReferences,

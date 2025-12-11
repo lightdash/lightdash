@@ -41,6 +41,7 @@ import {
     METRIC_QUERY,
     warehouseClientMock,
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -523,26 +524,45 @@ describe('ProjectService', () => {
         });
 
         test('should limit CSV results', async () => {
+            const csvCellsLimit = 100000;
+            const maxLimit = 5000;
+
             expect(
-                // @ts-ignore
-                service.metricQueryWithLimit(METRIC_QUERY, undefined),
+                metricQueryWithLimit(
+                    METRIC_QUERY,
+                    undefined,
+                    csvCellsLimit,
+                    maxLimit,
+                ),
             ).toEqual(METRIC_QUERY); // Returns same metricquery
 
             expect(
-                // @ts-ignore
-                service.metricQueryWithLimit(METRIC_QUERY, 5).limit,
+                metricQueryWithLimit(METRIC_QUERY, 5, csvCellsLimit, maxLimit)
+                    .limit,
             ).toEqual(5);
             expect(
-                // @ts-ignore
-                service.metricQueryWithLimit(METRIC_QUERY, null).limit,
+                metricQueryWithLimit(
+                    METRIC_QUERY,
+                    null,
+                    csvCellsLimit,
+                    maxLimit,
+                ).limit,
             ).toEqual(33333);
             expect(
-                // @ts-ignore
-                service.metricQueryWithLimit(METRIC_QUERY, 9999).limit,
+                metricQueryWithLimit(
+                    METRIC_QUERY,
+                    9999,
+                    csvCellsLimit,
+                    maxLimit,
+                ).limit,
             ).toEqual(9999);
             expect(
-                // @ts-ignore
-                service.metricQueryWithLimit(METRIC_QUERY, 9999999).limit,
+                metricQueryWithLimit(
+                    METRIC_QUERY,
+                    9999999,
+                    csvCellsLimit,
+                    maxLimit,
+                ).limit,
             ).toEqual(33333);
 
             const metricWithoutRows = {
@@ -552,14 +572,22 @@ describe('ProjectService', () => {
                 tableCalculations: [],
             };
             expect(() =>
-                // @ts-ignore
-                service.metricQueryWithLimit(metricWithoutRows, null),
+                metricQueryWithLimit(
+                    metricWithoutRows,
+                    null,
+                    csvCellsLimit,
+                    maxLimit,
+                ),
             ).toThrowError(ParameterError);
 
             const metricWithDimension = { ...METRIC_QUERY, metrics: [] };
             expect(
-                // @ts-ignore
-                service.metricQueryWithLimit(metricWithDimension, null).limit,
+                metricQueryWithLimit(
+                    metricWithDimension,
+                    null,
+                    csvCellsLimit,
+                    maxLimit,
+                ).limit,
             ).toEqual(50000);
         });
     });
