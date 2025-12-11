@@ -46,6 +46,19 @@ export const MODEL_PRESETS: {
                 parallelToolCalls: false,
             },
         },
+        {
+            name: 'gpt-4o-mini',
+            provider: 'openai',
+            modelId: 'gpt-4o-mini',
+            displayName: 'GPT-4o Mini',
+            description: 'Fast and cost-effective model for simple tasks',
+            supportsReasoning: false,
+            callOptions: { temperature: 0.3 },
+            providerOptions: {
+                strictJsonSchema: true,
+                parallelToolCalls: false,
+            },
+        },
     ],
     anthropic: [
         {

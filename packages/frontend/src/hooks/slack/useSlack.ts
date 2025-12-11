@@ -164,6 +164,33 @@ export const useSlackChannels = (
     };
 };
 
+const getSlackChannelById = async (channelId: string) =>
+    lightdashApi<SlackChannel | null>({
+        url: `/slack/channels/${encodeURIComponent(channelId)}`,
+        method: 'GET',
+        body: undefined,
+    });
+
+/**
+ * Hook for on-demand channel lookup when user pastes a channel ID
+ */
+export const useSlackChannelLookup = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation<SlackChannel | null, ApiError, string>({
+        mutationFn: getSlackChannelById,
+        onSuccess: async (channel) => {
+            if (channel) {
+                // Invalidate channels queries to include the new channel
+                await queryClient.invalidateQueries({
+                    queryKey: ['slack_channels'],
+                    refetchType: 'none', // Don't refetch, just mark as stale
+                });
+            }
+        },
+    });
+};
+
 const updateSlackCustomSettings = async (opts: SlackAppCustomSettings) =>
     lightdashApi<null>({
         url: `/slack/custom-settings`,

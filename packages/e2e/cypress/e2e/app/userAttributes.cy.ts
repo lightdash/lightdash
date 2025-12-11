@@ -2,7 +2,7 @@ import { SEED_PROJECT } from '@lightdash/common';
 
 const apiUrl = '/api/v1';
 
-// todo: combine into 1 test
+// todo: just have 1 test to cover list/create/edit/delete and don't run queries
 describe('User attributes sql_filter', () => {
     beforeEach(() => {
         cy.login();

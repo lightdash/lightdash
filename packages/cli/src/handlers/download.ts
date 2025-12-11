@@ -4,6 +4,7 @@ import {
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
     ApiDashboardAsCodeListResponse,
+    ApiSqlChartAsCodeListResponse,
     assertUnreachable,
     AuthorizationError,
     ChartAsCode,
@@ -14,6 +15,7 @@ import {
     Project,
     PromotionAction,
     PromotionChanges,
+    SqlChartAsCode,
 } from '@lightdash/common';
 import { Dirent, promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
@@ -78,6 +80,11 @@ type ContentAsCodeType =
           translationMap: object | undefined;
       }
     | {
+          type: 'sqlChart';
+          content: SqlChartAsCode;
+          translationMap: object | undefined;
+      }
+    | {
           type: 'dashboard';
           content: DashboardAsCode;
           translationMap: object | undefined;
@@ -107,12 +114,32 @@ const createDirForContent = async (
     return outputDir;
 };
 
+/**
+ * Get file extension for content-as-code files.
+ * SQL charts use '.sql.yml' extension to avoid filename conflicts with regular charts
+ * that may have the same slug, since both chart types share the same output directory.
+ */
+const getFileExtension = (contentType: ContentAsCodeType['type']): string => {
+    switch (contentType) {
+        case 'sqlChart':
+            return '.sql.yml';
+        case 'chart':
+        case 'dashboard':
+        default:
+            return '.yml';
+    }
+};
+
 const writeContent = async (
     contentAsCode: ContentAsCodeType,
     outputDir: string,
     languageMap: boolean,
 ) => {
-    const itemPath = path.join(outputDir, `${contentAsCode.content.slug}.yml`);
+    const extension = getFileExtension(contentAsCode.type);
+    const itemPath = path.join(
+        outputDir,
+        `${contentAsCode.content.slug}${extension}`,
+    );
     const chartYml = yaml.dump(contentAsCode.content, {
         quotingType: '"',
     });
@@ -205,17 +232,20 @@ const readCodeFiles = async <T extends ChartAsCode | DashboardAsCode>(
     }
 };
 
-const groupBySpace = <T extends ChartAsCode | DashboardAsCode>(
+const groupBySpace = <T extends ChartAsCode | DashboardAsCode | SqlChartAsCode>(
     items: T[],
 ): Record<string, Array<{ item: T; index: number }>> => {
     const itemsWithIndex = items.map((item, index) => ({ item, index }));
     return groupBy(itemsWithIndex, (entry) => entry.item.spaceSlug);
 };
 
-const writeSpaceContent = async <T extends ChartAsCode | DashboardAsCode>({
+const writeSpaceContent = async <
+    T extends ChartAsCode | DashboardAsCode | SqlChartAsCode,
+>({
     projectName,
     spaceSlug,
     folder,
+    contentType,
     contentInSpace,
     contentAsCode,
     customPath,
@@ -225,10 +255,12 @@ const writeSpaceContent = async <T extends ChartAsCode | DashboardAsCode>({
     projectName: string;
     spaceSlug: string;
     folder: 'charts' | 'dashboards';
+    contentType: ContentAsCodeType['type'];
     contentInSpace: Array<{ item: T; index: number }>;
     contentAsCode:
         | ApiDashboardAsCodeListResponse['results']
-        | ApiChartAsCodeListResponse['results'];
+        | ApiChartAsCodeListResponse['results']
+        | ApiSqlChartAsCodeListResponse['results'];
     customPath?: string;
     languageMap: boolean;
     folderScheme: FolderScheme;
@@ -241,14 +273,16 @@ const writeSpaceContent = async <T extends ChartAsCode | DashboardAsCode>({
         folderScheme,
     );
 
-    const contentType = folder === 'charts' ? 'chart' : 'dashboard';
-
     for (const { item, index } of contentInSpace) {
+        const translationMap =
+            'languageMap' in contentAsCode
+                ? contentAsCode.languageMap?.[index]
+                : undefined;
         await writeContent(
             {
                 type: contentType,
                 content: item,
-                translationMap: contentAsCode.languageMap?.[index],
+                translationMap,
             } as ContentAsCodeType,
             outputDir,
             languageMap,
@@ -256,9 +290,59 @@ const writeSpaceContent = async <T extends ChartAsCode | DashboardAsCode>({
     }
 };
 
+type DownloadContentType = 'charts' | 'dashboards' | 'sqlCharts';
+
+type ContentTypeConfig = {
+    endpoint: string;
+    displayName: string;
+    supportsLanguageMap: boolean;
+};
+
+const getContentTypeConfig = (
+    type: DownloadContentType,
+    projectId: string,
+): ContentTypeConfig => {
+    switch (type) {
+        case 'charts':
+            return {
+                endpoint: `/api/v1/projects/${projectId}/charts/code`,
+                displayName: 'charts',
+                supportsLanguageMap: true,
+            };
+        case 'dashboards':
+            return {
+                endpoint: `/api/v1/projects/${projectId}/dashboards/code`,
+                displayName: 'dashboards',
+                supportsLanguageMap: true,
+            };
+        case 'sqlCharts':
+            return {
+                endpoint: `/api/v1/projects/${projectId}/sqlCharts/code`,
+                displayName: 'SQL charts',
+                supportsLanguageMap: false,
+            };
+        default:
+            return assertUnreachable(type, `Unknown content type: ${type}`);
+    }
+};
+
+const extractChartSlugsFromDashboards = (
+    dashboards: DashboardAsCode[],
+): string[] =>
+    dashboards.reduce<string[]>((acc, dashboard) => {
+        const slugs = dashboard.tiles
+            .map((tile) =>
+                'chartSlug' in tile.properties
+                    ? (tile.properties.chartSlug as string)
+                    : undefined,
+            )
+            .filter((slug): slug is string => slug !== undefined);
+        return [...acc, ...slugs];
+    }, []);
+
 export const downloadContent = async (
-    ids: string[], // slug, uuid or url
-    type: 'charts' | 'dashboards',
+    ids: string[],
+    type: DownloadContentType,
     projectId: string,
     projectName: string,
     customPath?: string,
@@ -267,42 +351,67 @@ export const downloadContent = async (
 ): Promise<[number, string[]]> => {
     const spinner = GlobalState.getActiveSpinner();
     const contentFilters = parseContentFilters(ids);
-
-    // Convert boolean flag to FolderScheme type
     const folderScheme: FolderScheme = nested ? 'nested' : 'flat';
+    const config = getContentTypeConfig(type, projectId);
 
-    let contentAsCode:
-        | ApiChartAsCodeListResponse['results']
-        | ApiDashboardAsCodeListResponse['results'];
     let offset = 0;
+    let total = 0;
     let chartSlugs: string[] = [];
+
     do {
         GlobalState.debug(
-            `Downloading ${type} with offset "${offset}" and filters "${contentFilters}"`,
+            `Downloading ${config.displayName} with offset "${offset}" and filters "${contentFilters}"`,
         );
 
-        const commonParams = `offset=${offset}&languageMap=${languageMap}`;
-
+        const commonParams = config.supportsLanguageMap
+            ? `offset=${offset}&languageMap=${languageMap}`
+            : `offset=${offset}`;
         const queryParams = contentFilters
             ? `${contentFilters}&${commonParams}`
             : `?${commonParams}`;
-        contentAsCode = await lightdashApi({
+
+        const results = await lightdashApi<
+            | ApiChartAsCodeListResponse['results']
+            | ApiDashboardAsCodeListResponse['results']
+            | ApiSqlChartAsCodeListResponse['results']
+        >({
             method: 'GET',
-            url: `/api/v1/projects/${projectId}/${type}/code${queryParams}`,
+            url: `${config.endpoint}${queryParams}`,
             body: undefined,
         });
+
         spinner?.start(
-            `Downloaded ${contentAsCode.offset} of ${contentAsCode.total} ${type}`,
+            `Downloaded ${results.offset} of ${results.total} ${config.displayName}`,
         );
-        contentAsCode.missingIds.forEach((missingId) => {
-            console.warn(styles.warning(`\nNo ${type} with id "${missingId}"`));
+
+        // For the same chart slug, we run the code for saved charts and sql chart
+        // so we are going to get more false positives here, so we keep it on the debug log
+        results.missingIds.forEach((missingId) => {
+            GlobalState.debug(
+                `\nNo ${config.displayName} with id "${missingId}"`,
+            );
         });
 
-        if ('dashboards' in contentAsCode) {
-            // Group dashboards by spaceSlug
-            const dashboardsBySpace = groupBySpace(contentAsCode.dashboards);
-
-            // Create directory and write content for each space
+        // Write content based on type
+        if ('sqlCharts' in results) {
+            const sqlChartsBySpace = groupBySpace(results.sqlCharts);
+            for (const [spaceSlug, sqlChartsInSpace] of Object.entries(
+                sqlChartsBySpace,
+            )) {
+                await writeSpaceContent({
+                    projectName,
+                    spaceSlug,
+                    folder: 'charts',
+                    contentType: 'sqlChart',
+                    contentInSpace: sqlChartsInSpace,
+                    contentAsCode: results,
+                    customPath,
+                    languageMap,
+                    folderScheme,
+                });
+            }
+        } else if ('dashboards' in results) {
+            const dashboardsBySpace = groupBySpace(results.dashboards);
             for (const [spaceSlug, dashboardsInSpace] of Object.entries(
                 dashboardsBySpace,
             )) {
@@ -310,33 +419,20 @@ export const downloadContent = async (
                     projectName,
                     spaceSlug,
                     folder: 'dashboards',
+                    contentType: 'dashboard',
                     contentInSpace: dashboardsInSpace,
-                    contentAsCode,
+                    contentAsCode: results,
                     customPath,
                     languageMap,
                     folderScheme,
                 });
             }
-
-            // Extract chart slugs from dashboards
-            chartSlugs = contentAsCode.dashboards.reduce<string[]>(
-                (acc, dashboard) => {
-                    const slugs = dashboard.tiles.map((chart) =>
-                        'chartSlug' in chart.properties
-                            ? (chart.properties.chartSlug as string)
-                            : undefined,
-                    );
-                    return [
-                        ...acc,
-                        ...slugs.filter(
-                            (slug): slug is string => slug !== undefined,
-                        ),
-                    ];
-                },
-                [],
-            );
+            chartSlugs = [
+                ...chartSlugs,
+                ...extractChartSlugsFromDashboards(results.dashboards),
+            ];
         } else {
-            const chartsBySpace = groupBySpace(contentAsCode.charts);
+            const chartsBySpace = groupBySpace(results.charts);
             for (const [spaceSlug, chartsInSpace] of Object.entries(
                 chartsBySpace,
             )) {
@@ -344,18 +440,21 @@ export const downloadContent = async (
                     projectName,
                     spaceSlug,
                     folder: 'charts',
+                    contentType: 'chart',
                     contentInSpace: chartsInSpace,
-                    contentAsCode,
+                    contentAsCode: results,
                     customPath,
                     languageMap,
                     folderScheme,
                 });
             }
         }
-        offset = contentAsCode.offset;
-    } while (contentAsCode.offset < contentAsCode.total);
 
-    return [contentAsCode.total, [...new Set(chartSlugs)]];
+        offset = results.offset;
+        total = results.total;
+    } while (offset < total);
+
+    return [total, [...new Set(chartSlugs)]];
 };
 
 export const downloadHandler = async (
@@ -424,13 +523,13 @@ export const downloadHandler = async (
         const hasFilters =
             options.charts.length > 0 || options.dashboards.length > 0;
 
-        // Download charts
+        // Download regular charts
         if (hasFilters && options.charts.length === 0) {
             console.info(
                 styles.warning(`No charts filters provided, skipping`),
             );
         } else {
-            [chartTotal] = await downloadContent(
+            const [regularChartTotal] = await downloadContent(
                 options.charts,
                 'charts',
                 projectId,
@@ -439,8 +538,24 @@ export const downloadHandler = async (
                 options.languageMap,
                 options.nested,
             );
-            spinner.succeed(`Downloaded ${chartTotal} charts`);
+            spinner.succeed(`Downloaded ${regularChartTotal} charts`);
+
+            // Download SQL charts
+            spinner.start(`Downloading SQL charts`);
+            const [sqlChartTotal] = await downloadContent(
+                options.charts,
+                'sqlCharts',
+                projectId,
+                projectName,
+                options.path,
+                options.languageMap,
+                options.nested,
+            );
+            spinner.succeed(`Downloaded ${sqlChartTotal} SQL charts`);
+
+            chartTotal = regularChartTotal + sqlChartTotal;
         }
+
         // Download dashboards
         if (hasFilters && options.dashboards.length === 0) {
             console.info(
@@ -461,14 +576,15 @@ export const downloadHandler = async (
 
             spinner.succeed(`Downloaded ${dashboardTotal} dashboards`);
 
-            // If any filter is provided, we download all charts for these dashboard
+            // If any filter is provided, we download all charts linked to these dashboards
             // We don't need to do this if we download everything (no filters)
             if (hasFilters && chartSlugs.length > 0) {
                 spinner.start(
                     `Downloading ${chartSlugs.length} charts linked to dashboards`,
                 );
 
-                const [totalCharts] = await downloadContent(
+                // Download both regular charts and SQL charts linked to dashboards
+                const [regularCharts] = await downloadContent(
                     chartSlugs,
                     'charts',
                     projectId,
@@ -478,8 +594,20 @@ export const downloadHandler = async (
                     options.nested,
                 );
 
+                const [sqlCharts] = await downloadContent(
+                    chartSlugs,
+                    'sqlCharts',
+                    projectId,
+                    projectName,
+                    options.path,
+                    options.languageMap,
+                    options.nested,
+                );
+
                 spinner.succeed(
-                    `Downloaded ${totalCharts} charts linked to dashboards`,
+                    `Downloaded ${
+                        regularCharts + sqlCharts
+                    } charts linked to dashboards`,
                 );
             }
         }
@@ -569,6 +697,11 @@ const logUploadChanges = (changes: Record<string, number>) => {
     });
 };
 
+// SQL charts have 'sql' field instead of 'tableName'/'metricQuery'
+const isSqlChart = (
+    item: ChartAsCode | DashboardAsCode | SqlChartAsCode,
+): item is SqlChartAsCode => 'sql' in item && !('tableName' in item);
+
 /**
  *
  * @param slugs if slugs are provided, we only force upsert the charts/dashboards that match the slugs, if slugs are empty, we upload files that were locally updated
@@ -627,11 +760,18 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                 continue;
             }
             GlobalState.debug(`Upserting ${type} ${item.slug}`);
+
+            // SQL charts use a different endpoint
+            const isSqlChartItem = type === 'charts' && isSqlChart(item);
+            const endpoint = isSqlChartItem
+                ? `/api/v1/projects/${projectId}/sqlCharts/${item.slug}/code`
+                : `/api/v1/projects/${projectId}/${type}/${item.slug}/code`;
+
             const upsertData = await lightdashApi<
                 ApiChartAsCodeUpsertResponse['results']
             >({
                 method: 'POST',
-                url: `/api/v1/projects/${projectId}/${type}/${item.slug}/code`,
+                url: endpoint,
                 body: JSON.stringify({
                     ...item,
                     skipSpaceCreate,

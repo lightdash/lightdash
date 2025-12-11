@@ -1,8 +1,4 @@
-import {
-    ProjectType,
-    type ApiError,
-    type OrganizationProject,
-} from '@lightdash/common';
+import { type ApiError, type OrganizationProject } from '@lightdash/common';
 import {
     useMutation,
     useQuery,
@@ -10,7 +6,6 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
-import { useOrganization } from './organization/useOrganization';
 import useToaster from './toaster/useToaster';
 
 const getProjectsQuery = async () =>
@@ -21,38 +16,12 @@ const getProjectsQuery = async () =>
 
 export const useProjects = (
     useQueryOptions?: UseQueryOptions<OrganizationProject[], ApiError>,
-) => {
-    return useQuery<OrganizationProject[], ApiError>({
+) =>
+    useQuery<OrganizationProject[], ApiError>({
         queryKey: ['projects'],
         queryFn: getProjectsQuery,
         ...useQueryOptions,
     });
-};
-
-export const useDefaultProject = (useQueryOptions?: {
-    refetchOnMount: boolean;
-}): {
-    isLoading: boolean;
-    data: OrganizationProject | undefined;
-} => {
-    const { isInitialLoading: isOrganizationLoading, data: org } =
-        useOrganization(useQueryOptions);
-    const { isInitialLoading: isLoadingProjects, data: projects = [] } =
-        useProjects(useQueryOptions);
-
-    const defaultProject = projects?.find(
-        (project) => project.projectUuid === org?.defaultProjectUuid,
-    );
-
-    const fallbackProject = projects?.find(
-        ({ type }) => type === ProjectType.DEFAULT,
-    );
-
-    return {
-        isLoading: isOrganizationLoading || isLoadingProjects,
-        data: defaultProject || fallbackProject || projects?.[0],
-    };
-};
 
 const deleteProjectQuery = async (id: string) =>
     lightdashApi<null>({

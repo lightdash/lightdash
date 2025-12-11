@@ -2,6 +2,7 @@ import { type ApiErrorDetail } from '@lightdash/common';
 import { Anchor, createStyles, keyframes, Loader, Text } from '@mantine/core';
 import { IconTableOff } from '@tabler/icons-react';
 import { Fragment, type FC } from 'react';
+import { LD_FIELD_COLORS } from '../../../mantineTheme';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import NoTableIcon from '../../../svgs/emptystate-no-table.svg?react';
 import { SectionName } from '../../../types/Events';
@@ -90,11 +91,11 @@ export const EmptyStateNoColumns = () => {
             description={
                 <>
                     What’s your data question? Select the{' '}
-                    <Text span color="yellow.9">
+                    <Text span color={LD_FIELD_COLORS.metric.color}>
                         metric
                     </Text>{' '}
                     you want to calculate and the{' '}
-                    <Text span color="blue.9">
+                    <Text span color={LD_FIELD_COLORS.dimension.color}>
                         dimension(s)
                     </Text>{' '}
                     you want to split it by.
@@ -104,11 +105,11 @@ export const EmptyStateNoColumns = () => {
             <Text className={classes.root} color="dimmed">
                 <Text span>
                     eg. How many{' '}
-                    <Text span color="yellow.9">
+                    <Text span color={LD_FIELD_COLORS.metric.color}>
                         total signups
                     </Text>{' '}
                     per{' '}
-                    <Text span color="blue.9">
+                    <Text span color={LD_FIELD_COLORS.dimension.color}>
                         day
                     </Text>
                     ?
@@ -116,11 +117,11 @@ export const EmptyStateNoColumns = () => {
 
                 <Text span>
                     eg. What is the{' '}
-                    <Text span color="yellow.9">
+                    <Text span color={LD_FIELD_COLORS.metric.color}>
                         total order count
                     </Text>{' '}
                     by{' '}
-                    <Text span color="blue.9">
+                    <Text span color={LD_FIELD_COLORS.dimension.color}>
                         location
                     </Text>
                     ?
@@ -128,11 +129,11 @@ export const EmptyStateNoColumns = () => {
 
                 <Text span>
                     eg. How many{' '}
-                    <Text span color="yellow.9">
+                    <Text span color={LD_FIELD_COLORS.metric.color}>
                         new followers
                     </Text>{' '}
                     every{' '}
-                    <Text span color="blue.9">
+                    <Text span color={LD_FIELD_COLORS.dimension.color}>
                         week
                     </Text>
                     ?
@@ -140,11 +141,11 @@ export const EmptyStateNoColumns = () => {
 
                 <Text span>
                     eg. What is the{' '}
-                    <Text span color="yellow.9">
+                    <Text span color={LD_FIELD_COLORS.metric.color}>
                         total order count
                     </Text>{' '}
                     split by{' '}
-                    <Text span color="blue.9">
+                    <Text span color={LD_FIELD_COLORS.dimension.color}>
                         status
                     </Text>
                     ?

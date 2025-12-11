@@ -335,7 +335,6 @@ export const defaultProject: OrganizationProject = {
     createdAt: new Date('2024-01-01T00:00:00Z'),
     upstreamProjectUuid: null,
     warehouseType: WarehouseTypes.POSTGRES,
-    requireUserCredentials: false,
 };
 
 export const spacesWithSavedCharts: Space[] = [

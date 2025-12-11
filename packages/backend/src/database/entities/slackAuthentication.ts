@@ -1,3 +1,4 @@
+import { SchedulerJobStatus } from '@lightdash/common';
 import { Installation } from '@slack/bolt';
 import { Knex } from 'knex';
 
@@ -14,6 +15,12 @@ export type DbSlackAuthTokens = {
     ai_thread_access_consent: boolean;
     ai_require_oauth: boolean;
     ai_multi_agent_channel_id: string | null;
+    // Channel sync status
+    channels_last_sync_at: Date | null;
+    channels_sync_started_at: Date | null;
+    channels_sync_status: SchedulerJobStatus | null;
+    channels_sync_error: string | null;
+    channels_count: number | null;
 };
 
 export type CreateDbSlackAuthTokens = Pick<
@@ -21,18 +28,21 @@ export type CreateDbSlackAuthTokens = Pick<
     'installation' | 'organization_id' | 'slack_team_id' | 'created_by_user_id'
 >;
 
-export type UpdateDbSlackAuthTokens = Pick<
-    DbSlackAuthTokens,
-    'notification_channel' | 'app_profile_photo_url'
-> &
-    Partial<
-        Pick<
-            DbSlackAuthTokens,
-            | 'ai_thread_access_consent'
-            | 'ai_require_oauth'
-            | 'ai_multi_agent_channel_id'
-        >
-    >;
+export type UpdateDbSlackAuthTokens = Partial<
+    Pick<
+        DbSlackAuthTokens,
+        | 'notification_channel'
+        | 'app_profile_photo_url'
+        | 'ai_thread_access_consent'
+        | 'ai_require_oauth'
+        | 'ai_multi_agent_channel_id'
+        | 'channels_last_sync_at'
+        | 'channels_sync_started_at'
+        | 'channels_sync_status'
+        | 'channels_sync_error'
+        | 'channels_count'
+    >
+>;
 
 export type SlackAuthTokensTable = Knex.CompositeTableType<
     DbSlackAuthTokens,

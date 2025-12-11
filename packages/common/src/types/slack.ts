@@ -8,6 +8,8 @@ export type SlackChannel = {
 
 export type ApiSlackChannelsResponse = ApiSuccess<SlackChannel[] | undefined>;
 
+export type ApiSlackChannelResponse = ApiSuccess<SlackChannel | null>;
+
 export type ApiSlackCustomSettingsResponse = ApiSuccessEmpty;
 
 export type SlackChannelProjectMapping = {

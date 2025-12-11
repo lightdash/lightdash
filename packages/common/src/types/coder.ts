@@ -11,6 +11,7 @@ import type {
     DashboardTile,
     PromotionChanges,
     SavedChart,
+    SqlChart,
 } from '..';
 
 export const currentVersion = 1;
@@ -35,6 +36,18 @@ export type ChartAsCode = Pick<
     downloadedAt?: Date; // Not modifiable by user, but useful to know if it has been updated
 };
 
+// SQL Charts are stored separately from regular saved charts
+// They have SQL queries instead of metricQuery/tableName
+export type SqlChartAsCode = Pick<
+    SqlChart,
+    'name' | 'description' | 'slug' | 'sql' | 'limit' | 'config' | 'chartKind'
+> & {
+    version: number;
+    spaceSlug: string;
+    updatedAt: Date;
+    downloadedAt?: Date;
+};
+
 export type ApiChartAsCodeListResponse = {
     status: 'ok';
     results: {
@@ -57,6 +70,21 @@ export type ApiChartAsCodeListResponse = {
 export type ApiChartAsCodeUpsertResponse = {
     status: 'ok';
     results: PromotionChanges;
+};
+
+export type ApiSqlChartAsCodeUpsertResponse = {
+    status: 'ok';
+    results: PromotionChanges;
+};
+
+export type ApiSqlChartAsCodeListResponse = {
+    status: 'ok';
+    results: {
+        sqlCharts: SqlChartAsCode[];
+        missingIds: string[];
+        total: number;
+        offset: number;
+    };
 };
 
 export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {

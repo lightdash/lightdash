@@ -111,6 +111,10 @@ import {
     SlackAuthTokensTableName,
 } from '../database/entities/slackAuthentication';
 import {
+    SlackChannelsTable,
+    SlackChannelsTableName,
+} from '../database/entities/slackChannels';
+import {
     SpaceTable,
     SpaceTableName,
     SpaceUserAccessTable,
@@ -360,6 +364,7 @@ declare module 'knex/types/tables' {
         [ShareTableName]: ShareTable;
         [SpaceUserAccessTableName]: SpaceUserAccessTable;
         [SlackAuthTokensTableName]: SlackAuthTokensTable;
+        [SlackChannelsTableName]: SlackChannelsTable;
         [AnalyticsChartViewsTableName]: AnalyticsChartViews;
         [AnalyticsDashboardViewsTableName]: AnalyticsDashboardViews;
         [PinnedListTableName]: PinnedListTable;

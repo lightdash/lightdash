@@ -1,6 +1,8 @@
 import {
     SchedulerFormat,
     SchedulerJobStatus,
+    type BatchDeliveryResult,
+    type PartialFailure,
     type SchedulerRun,
     type SchedulerRunLog,
 } from '@lightdash/common';
@@ -21,6 +23,7 @@ import {
     IconAlertTriangleFilled,
     IconChartBar,
     IconLayoutDashboard,
+    IconX,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
@@ -41,6 +44,7 @@ type JobSummary = {
     completedAt: Date | null;
     finalStatus: SchedulerRunLog['status'];
     errorDetails: string | null;
+    batchResult: BatchDeliveryResult | null;
 };
 
 type RunDetailsModalProps = {
@@ -55,6 +59,47 @@ type RunDetailsModalProps = {
 // Helper to format time only (no date)
 const formatTimeOnly = (date: Date): string => {
     return dayjs(date).format('hh:mm A');
+};
+
+// Helper to pluralize a word based on count
+const pluralize = (count: number, singular: string, plural?: string): string =>
+    count === 1 ? singular : plural ?? `${singular}s`;
+
+// Helper to build job status summary text
+const buildJobStatusSummary = (
+    completedCount: number,
+    errorCount: number,
+    partialFailureCount: number,
+    batchPartialFailureCount: number,
+): string => {
+    const parts: string[] = [];
+
+    if (completedCount > 0) {
+        parts.push(
+            `${completedCount} ${pluralize(completedCount, 'job')} completed`,
+        );
+    }
+    if (errorCount > 0) {
+        parts.push(`${errorCount} ${pluralize(errorCount, 'job')} failed`);
+    }
+    if (batchPartialFailureCount > 0) {
+        parts.push(
+            `${batchPartialFailureCount} ${pluralize(
+                batchPartialFailureCount,
+                'job',
+            )} partially failed`,
+        );
+    }
+    if (partialFailureCount > 0) {
+        parts.push(
+            `${partialFailureCount} ${pluralize(
+                partialFailureCount,
+                'chart',
+            )} failed to export`,
+        );
+    }
+
+    return parts.join(', ');
 };
 
 // Helper to format duration between two dates
@@ -84,7 +129,7 @@ const JobTimingInfo: FC<{
     return (
         <Group gap="md" wrap="nowrap" w={240}>
             <Stack gap={4}>
-                <Text fz="xs" c="gray.6">
+                <Text fz="xs" c="ldGray.6">
                     started
                 </Text>
                 <Text fz="xs" style={{ whiteSpace: 'nowrap' }}>
@@ -92,7 +137,7 @@ const JobTimingInfo: FC<{
                 </Text>
             </Stack>
             <Stack gap={4}>
-                <Text fz="xs" c="gray.6">
+                <Text fz="xs" c="ldGray.6">
                     {endLabel}
                 </Text>
                 <Text fz="xs" style={{ whiteSpace: 'nowrap' }}>
@@ -100,7 +145,7 @@ const JobTimingInfo: FC<{
                 </Text>
             </Stack>
             <Stack gap={4}>
-                <Text fz="xs" c="gray.6">
+                <Text fz="xs" c="ldGray.6">
                     duration
                 </Text>
                 <Text fz="xs" style={{ whiteSpace: 'nowrap' }}>
@@ -113,111 +158,310 @@ const JobTimingInfo: FC<{
     );
 };
 
-// Component for successful job row
-const SuccessfulJobRow: FC<{
+// Unified component for job rows (success, failure, partial failure)
+const JobRow: FC<{
     job: JobSummary;
     run: SchedulerRun;
     theme: MantineTheme;
+    partialFailures?: PartialFailure[];
     getTargetDisplayName: (
         target: string | null,
         targetType: SchedulerRunLog['targetType'],
     ) => string | null;
     getFormatDisplayName: (format: SchedulerFormat) => string;
-}> = ({ job, run, theme, getTargetDisplayName, getFormatDisplayName }) => {
-    return (
+}> = ({
+    job,
+    run,
+    theme,
+    partialFailures = [],
+    getTargetDisplayName,
+    getFormatDisplayName,
+}) => {
+    const isError = job.finalStatus === SchedulerJobStatus.ERROR;
+    const isPartialFailure =
+        job.task === 'handleScheduledDelivery' &&
+        job.finalStatus === SchedulerJobStatus.COMPLETED &&
+        partialFailures.length > 0;
+    const hasDetails = isError || isPartialFailure;
+
+    // Determine status icon
+    const statusIcon = isPartialFailure ? (
+        <MantineIcon
+            icon={IconAlertTriangleFilled}
+            color="orange.6"
+            style={{ color: theme.colors.orange[6] }}
+        />
+    ) : (
+        getLogStatusIconWithoutTooltip(job.finalStatus, theme)
+    );
+
+    // Determine status message
+    const statusMessage = isError ? (
+        <Text fz="xs" c="red.7">
+            Job failed
+        </Text>
+    ) : isPartialFailure ? (
+        <Text fz="xs" c="orange.7">
+            Completed with {partialFailures.length} failing chart
+            {partialFailures.length > 1 ? 's' : ''}
+        </Text>
+    ) : (
+        <Text fz="xs" c="green.7">
+            Completed successfully
+        </Text>
+    );
+
+    // Subtitle: format for handleScheduledDelivery, target for others
+    const subtitle =
+        job.task === 'handleScheduledDelivery'
+            ? run && (
+                  <Text fz="xs" c="ldGray.6">
+                      {`Generate ${getFormatDisplayName(run.format)}`}
+                  </Text>
+              )
+            : job.target && (
+                  <Text fz="xs" c="ldGray.6">
+                      {getTargetDisplayName(job.target, job.targetType)}
+                  </Text>
+              );
+
+    const mainContent = (
         <Group
             gap="md"
-            p="sm"
             wrap="nowrap"
-            style={{
-                borderRadius: theme.radius.sm,
-                border: `1px solid ${theme.colors.gray[2]}`,
-            }}
+            align={hasDetails ? 'flex-start' : undefined}
         >
-            {getLogStatusIconWithoutTooltip(job.finalStatus, theme)}
+            {statusIcon}
             <Stack gap={4} style={{ flex: 1 }}>
                 <Box>
                     <Text fz="sm" fw={500}>
                         {formatTaskName(job.task)}
                     </Text>
-                    {job.task === 'handleScheduledDelivery'
-                        ? run && (
-                              <Text fz="xs" c="gray.6">
-                                  {`Generate ${getFormatDisplayName(
-                                      run.format,
-                                  )}`}
-                              </Text>
-                          )
-                        : job.target && (
-                              <Text fz="xs" c="gray.6">
-                                  {getTargetDisplayName(
-                                      job.target,
-                                      job.targetType,
-                                  )}
-                              </Text>
-                          )}
+                    {subtitle}
                 </Box>
-                <Text fz="xs" c="green.7">
-                    Completed successfully
-                </Text>
+                {statusMessage}
             </Stack>
-            <Box style={{ alignSelf: 'flex-start' }}>
-                <JobTimingInfo
-                    startedAt={job.startedAt}
-                    completedAt={job.completedAt}
-                    status={job.finalStatus}
-                />
-            </Box>
+            <JobTimingInfo
+                startedAt={job.startedAt}
+                completedAt={job.completedAt}
+                status={job.finalStatus}
+            />
         </Group>
     );
-};
 
-// Component for failed job row
-const FailedJobRow: FC<{
-    job: JobSummary;
-    run: SchedulerRun;
-    theme: MantineTheme;
-    getTargetDisplayName: (
-        target: string | null,
-        targetType: SchedulerRunLog['targetType'],
-    ) => string | null;
-    getFormatDisplayName: (format: SchedulerFormat) => string;
-}> = ({ job, run, theme, getTargetDisplayName, getFormatDisplayName }) => {
+    // Simple row for success case (no details below)
+    if (!hasDetails) {
+        return (
+            <Box
+                p="sm"
+                style={{
+                    borderRadius: theme.radius.sm,
+                    border: `1px solid ${theme.colors.ldGray[2]}`,
+                }}
+            >
+                {mainContent}
+            </Box>
+        );
+    }
+
+    // Stack layout for error/partial failure cases (with details below)
     return (
         <Stack
             gap="sm"
             p="sm"
             style={{
                 borderRadius: theme.radius.sm,
-                border: `1px solid ${theme.colors.gray[2]}`,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
+            }}
+        >
+            {mainContent}
+            {isError && job.errorDetails && (
+                <Code block c="red.9" bg="red.0" style={{ fontSize: '11px' }}>
+                    {job.errorDetails}
+                </Code>
+            )}
+            {isPartialFailure && (
+                <Stack gap="xs">
+                    {partialFailures.map((failure) => (
+                        <Stack
+                            key={failure.tileUuid}
+                            gap={4}
+                            p="xs"
+                            style={{
+                                borderRadius: theme.radius.sm,
+                                backgroundColor: theme.colors.orange[0],
+                            }}
+                        >
+                            <Text fz="xs" fw={500} c="orange.9">
+                                {failure.chartName}
+                            </Text>
+                            <Code
+                                c="orange.9"
+                                bg="transparent"
+                                style={{ fontSize: '11px', padding: 0 }}
+                            >
+                                {failure.error}
+                            </Code>
+                        </Stack>
+                    ))}
+                </Stack>
+            )}
+        </Stack>
+    );
+};
+
+// Component for job status summary header
+const JobStatusSummaryHeader: FC<{
+    completedCount: number;
+    errorCount: number;
+    totalCount: number;
+    partialFailureCount: number;
+    batchPartialFailureCount: number;
+    theme: MantineTheme;
+}> = ({
+    completedCount,
+    errorCount,
+    totalCount,
+    partialFailureCount,
+    batchPartialFailureCount,
+    theme,
+}) => {
+    const allSuccessful =
+        errorCount === 0 &&
+        completedCount > 0 &&
+        partialFailureCount === 0 &&
+        batchPartialFailureCount === 0;
+    const allFailed =
+        completedCount === 0 &&
+        errorCount > 0 &&
+        batchPartialFailureCount === 0;
+    const hasPartialIssues =
+        errorCount > 0 ||
+        partialFailureCount > 0 ||
+        batchPartialFailureCount > 0;
+
+    if (allSuccessful) {
+        return (
+            <>
+                {getLogStatusIconWithoutTooltip(
+                    SchedulerJobStatus.COMPLETED,
+                    theme,
+                )}
+                <Text fz="sm" fw={600}>
+                    {completedCount} {pluralize(completedCount, 'job')}{' '}
+                    completed successfully
+                </Text>
+            </>
+        );
+    }
+
+    if (allFailed) {
+        return (
+            <>
+                {getLogStatusIconWithoutTooltip(
+                    SchedulerJobStatus.ERROR,
+                    theme,
+                )}
+                <Text fz="sm" fw={600}>
+                    All jobs failed
+                </Text>
+            </>
+        );
+    }
+
+    if (hasPartialIssues) {
+        return (
+            <>
+                <MantineIcon
+                    icon={IconAlertTriangleFilled}
+                    color="orange.6"
+                    style={{ color: theme.colors.orange[6] }}
+                />
+                <Text fz="sm" fw={600}>
+                    {buildJobStatusSummary(
+                        completedCount,
+                        errorCount,
+                        partialFailureCount,
+                        batchPartialFailureCount,
+                    )}
+                </Text>
+            </>
+        );
+    }
+
+    return (
+        <Text fz="sm" fw={600}>
+            Jobs ({totalCount})
+        </Text>
+    );
+};
+
+const BatchJobRow: FC<{
+    job: JobSummary;
+    theme: MantineTheme;
+    getSlackChannelName: (channelId: string) => string | null;
+}> = ({ job, theme, getSlackChannelName }) => {
+    const { batchResult } = job;
+    if (!batchResult) return null;
+
+    const isPartialFailure =
+        batchResult.failed > 0 && batchResult.succeeded > 0;
+    const isTotalFailure =
+        batchResult.succeeded === 0 && batchResult.failed > 0;
+
+    const getStatusIcon = () => {
+        if (isTotalFailure) {
+            return getLogStatusIconWithoutTooltip(
+                SchedulerJobStatus.ERROR,
+                theme,
+            );
+        }
+        if (isPartialFailure) {
+            return (
+                <MantineIcon
+                    icon={IconAlertTriangleFilled}
+                    color="orange.6"
+                    style={{ color: theme.colors.orange[6] }}
+                />
+            );
+        }
+        return getLogStatusIconWithoutTooltip(
+            SchedulerJobStatus.COMPLETED,
+            theme,
+        );
+    };
+
+    const getStatusColor = () => {
+        if (isTotalFailure) return 'red.7';
+        if (isPartialFailure) return 'orange.7';
+        return 'green.7';
+    };
+
+    const getTargetName = (target: string): string => {
+        if (batchResult.type === 'slack') {
+            return getSlackChannelName(target) || target;
+        }
+        return target;
+    };
+
+    return (
+        <Stack
+            gap="sm"
+            p="sm"
+            style={{
+                borderRadius: theme.radius.sm,
+                border: `1px solid ${theme.colors.ldGray[2]}`,
             }}
         >
             <Group gap="md" wrap="nowrap" align="flex-start">
-                {getLogStatusIconWithoutTooltip(job.finalStatus, theme)}
+                {getStatusIcon()}
                 <Stack gap={4} style={{ flex: 1 }}>
-                    <Box>
-                        <Text fz="sm" fw={500}>
-                            {formatTaskName(job.task)}
-                        </Text>
-                        {job.task === 'handleScheduledDelivery'
-                            ? run && (
-                                  <Text fz="xs" c="gray.6">
-                                      {`Generate ${getFormatDisplayName(
-                                          run.format,
-                                      )}`}
-                                  </Text>
-                              )
-                            : job.target && (
-                                  <Text fz="xs" c="gray.6">
-                                      {getTargetDisplayName(
-                                          job.target,
-                                          job.targetType,
-                                      )}
-                                  </Text>
-                              )}
-                    </Box>
-                    <Text fz="xs" c="red.7">
-                        Job failed
+                    <Text fz="sm" fw={500}>
+                        {formatTaskName(job.task, batchResult.total)}
+                    </Text>
+                    <Text fz="xs" c={getStatusColor()}>
+                        {batchResult.succeeded}/{batchResult.total} delivered
+                        successfully
                     </Text>
                 </Stack>
                 <JobTimingInfo
@@ -226,10 +470,34 @@ const FailedJobRow: FC<{
                     status={job.finalStatus}
                 />
             </Group>
-            {job.errorDetails && (
-                <Code block c="red.9" bg="red.0" style={{ fontSize: '11px' }}>
-                    {job.errorDetails}
-                </Code>
+
+            {batchResult.failed > 0 && (
+                <Stack gap={4} ml={28}>
+                    {batchResult.results
+                        .filter((r) => !r.success)
+                        .map((r) => (
+                            <Group key={r.targetUuid || r.target} gap="xs">
+                                <MantineIcon
+                                    icon={IconX}
+                                    size="sm"
+                                    style={{ color: theme.colors.red[6] }}
+                                />
+                                <Text fz="xs" c="ldGray.7">
+                                    {getTargetName(r.target)}
+                                </Text>
+                                {r.error && (
+                                    <Code
+                                        block
+                                        c="red.9"
+                                        bg="red.0"
+                                        style={{ fontSize: '11px' }}
+                                    >
+                                        {r.error}
+                                    </Code>
+                                )}
+                            </Group>
+                        ))}
+                </Stack>
             )}
         </Stack>
     );
@@ -311,6 +579,11 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                     logs.find((log) => log.target !== null) ||
                     logs[0];
 
+                // Extract batchResult from completed log details if present
+                const batchResult =
+                    (completedLog?.details
+                        ?.batchResult as BatchDeliveryResult) ?? null;
+
                 return {
                     jobId,
                     task: logWithTarget.task,
@@ -329,6 +602,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                         completedLog?.status === SchedulerJobStatus.ERROR
                             ? (completedLog.details?.error as string) || null
                             : null,
+                    batchResult,
                 };
             })
             .sort((a, b) => {
@@ -341,15 +615,54 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
 
     // Calculate job status summary based on jobSummaries
     const jobStatusSummary = useMemo(() => {
-        const completedCount = jobSummaries.filter(
-            (job) => job.finalStatus === SchedulerJobStatus.COMPLETED,
-        ).length;
-        const errorCount = jobSummaries.filter(
-            (job) => job.finalStatus === SchedulerJobStatus.ERROR,
+        // Count batch jobs with partial delivery failures separately
+        const batchPartialFailureCount = jobSummaries.filter(
+            (job) =>
+                job.batchResult &&
+                job.batchResult.failed > 0 &&
+                job.batchResult.succeeded > 0,
         ).length;
 
-        return { completedCount, errorCount, totalCount: jobSummaries.length };
+        // Count fully completed jobs (excluding batch partial failures and batch total failures)
+        const completedCount = jobSummaries.filter(
+            (job) =>
+                job.finalStatus === SchedulerJobStatus.COMPLETED &&
+                !(job.batchResult && job.batchResult.failed > 0),
+        ).length;
+
+        // Count failed jobs (including batch jobs where all targets failed)
+        const errorCount = jobSummaries.filter(
+            (job) =>
+                job.finalStatus === SchedulerJobStatus.ERROR ||
+                (job.batchResult &&
+                    job.batchResult.succeeded === 0 &&
+                    job.batchResult.failed > 0),
+        ).length;
+
+        return {
+            completedCount,
+            errorCount,
+            totalCount: jobSummaries.length,
+            batchPartialFailureCount,
+        };
     }, [jobSummaries]);
+
+    // Extract partial failures from the parent job's completed log details
+    const partialFailures = useMemo<PartialFailure[]>(() => {
+        if (!childLogs) return [];
+
+        // Find the parent job's completed log (handleScheduledDelivery task)
+        const parentCompletedLog = childLogs.find(
+            (log) =>
+                log.isParent &&
+                log.task === 'handleScheduledDelivery' &&
+                log.status === SchedulerJobStatus.COMPLETED,
+        );
+
+        if (!parentCompletedLog?.details?.partialFailures) return [];
+
+        return parentCompletedLog.details.partialFailures as PartialFailure[];
+    }, [childLogs]);
 
     if (!run) return null;
 
@@ -378,9 +691,9 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                                             : IconLayoutDashboard
                                     }
                                     size="sm"
-                                    color="gray.6"
+                                    color="ldGray.6"
                                 />
-                                <Text fz="xs" c="gray.6">
+                                <Text fz="xs" c="ldGray.6">
                                     {run.resourceType === 'chart'
                                         ? 'Chart'
                                         : 'Dashboard'}
@@ -391,7 +704,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                             </Text>
                         </Box>
                         <Box>
-                            <Text fz="xs" c="gray.6">
+                            <Text fz="xs" c="ldGray.6">
                                 Created by
                             </Text>
                             <Text fz="sm" fw={500}>
@@ -401,7 +714,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                     </Group>
                     <Group gap="xl">
                         <Box>
-                            <Text fz="xs" c="gray.6">
+                            <Text fz="xs" c="ldGray.6">
                                 Scheduled
                             </Text>
                             <Text fz="sm" fw={500}>
@@ -409,7 +722,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                             </Text>
                         </Box>
                         <Box>
-                            <Text fz="xs" c="gray.6">
+                            <Text fz="xs" c="ldGray.6">
                                 Started
                             </Text>
                             <Text fz="sm" fw={500}>
@@ -424,50 +737,16 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                 {/* Jobs */}
                 <Box>
                     <Group gap="xs" mb="md">
-                        {jobStatusSummary.errorCount === 0 &&
-                        jobStatusSummary.completedCount > 0 ? (
-                            <>
-                                {getLogStatusIconWithoutTooltip(
-                                    SchedulerJobStatus.COMPLETED,
-                                    theme,
-                                )}
-                                <Text fz="sm" fw={600}>
-                                    {jobStatusSummary.completedCount} job
-                                    {jobStatusSummary.completedCount > 1
-                                        ? 's'
-                                        : ''}{' '}
-                                    completed successfully
-                                </Text>
-                            </>
-                        ) : jobStatusSummary.completedCount === 0 &&
-                          jobStatusSummary.errorCount > 0 ? (
-                            <>
-                                {getLogStatusIconWithoutTooltip(
-                                    SchedulerJobStatus.ERROR,
-                                    theme,
-                                )}
-                                <Text fz="sm" fw={600}>
-                                    All jobs failed
-                                </Text>
-                            </>
-                        ) : jobStatusSummary.completedCount > 0 &&
-                          jobStatusSummary.errorCount > 0 ? (
-                            <>
-                                <MantineIcon
-                                    icon={IconAlertTriangleFilled}
-                                    color="orange.6"
-                                    style={{ color: theme.colors.orange[6] }}
-                                />
-                                <Text fz="sm" fw={600}>
-                                    {jobStatusSummary.completedCount} completed,{' '}
-                                    {jobStatusSummary.errorCount} failed
-                                </Text>
-                            </>
-                        ) : (
-                            <Text fz="sm" fw={600}>
-                                Jobs ({jobStatusSummary.totalCount})
-                            </Text>
-                        )}
+                        <JobStatusSummaryHeader
+                            completedCount={jobStatusSummary.completedCount}
+                            errorCount={jobStatusSummary.errorCount}
+                            totalCount={jobStatusSummary.totalCount}
+                            partialFailureCount={partialFailures.length}
+                            batchPartialFailureCount={
+                                jobStatusSummary.batchPartialFailureCount
+                            }
+                            theme={theme}
+                        />
                     </Group>
                     {isLoading ? (
                         <Center p="xl">
@@ -476,25 +755,22 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                     ) : jobSummaries.length > 0 ? (
                         <Stack gap="xs">
                             {jobSummaries.map((job) =>
-                                job.finalStatus === SchedulerJobStatus.ERROR ? (
-                                    <FailedJobRow
+                                job.batchResult ? (
+                                    <BatchJobRow
                                         key={job.jobId}
                                         job={job}
-                                        run={run}
                                         theme={theme}
-                                        getTargetDisplayName={
-                                            getTargetDisplayName
-                                        }
-                                        getFormatDisplayName={
-                                            getFormatDisplayName
+                                        getSlackChannelName={
+                                            getSlackChannelName
                                         }
                                     />
                                 ) : (
-                                    <SuccessfulJobRow
+                                    <JobRow
                                         key={job.jobId}
                                         job={job}
                                         run={run}
                                         theme={theme}
+                                        partialFailures={partialFailures}
                                         getTargetDisplayName={
                                             getTargetDisplayName
                                         }
@@ -506,7 +782,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                             )}
                         </Stack>
                     ) : (
-                        <Text fz="sm" c="gray.6">
+                        <Text fz="sm" c="ldGray.6">
                             No jobs found
                         </Text>
                     )}

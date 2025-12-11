@@ -1338,6 +1338,7 @@ export class SchedulerModel {
                 'job_id',
                 'job_group',
                 'status',
+                'details',
                 this.database.raw(
                     'ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY created_at DESC) as rn',
                 ),
@@ -1362,6 +1363,23 @@ export class SchedulerModel {
                 ),
                 this.database.raw(
                     `COUNT(CASE WHEN status = '${SchedulerJobStatus.ERROR}' THEN 1 END) as error_count`,
+                ),
+                // Count batch jobs with partial delivery failures (some succeeded, some failed)
+                this.database.raw(
+                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.COMPLETED}' AND (
+                        (details::jsonb->>'partialFailure')::boolean = true
+                        OR (
+                            COALESCE((details::jsonb->'batchResult'->>'failed')::int, 0) > 0
+                            AND COALESCE((details::jsonb->'batchResult'->>'succeeded')::int, 0) > 0
+                        )
+                    ) THEN 1 END) as batch_partial_failure_count`,
+                ),
+                // Count batch jobs with total delivery failures (none succeeded, all failed)
+                this.database.raw(
+                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.COMPLETED}' AND (
+                        COALESCE((details::jsonb->'batchResult'->>'failed')::int, 0) > 0
+                        AND COALESCE((details::jsonb->'batchResult'->>'succeeded')::int, 0) = 0
+                    ) THEN 1 END) as batch_total_failure_count`,
                 ),
             )
             .where('rn', 1)
@@ -1439,9 +1457,22 @@ export class SchedulerModel {
                         -- Parent not started
                         WHEN distinct_runs.status = '${SchedulerJobStatus.SCHEDULED}' THEN '${SchedulerRunStatus.SCHEDULED}'
 
-                        -- Parent completed with errors
+                        -- Parent completed with child job errors
                         WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}'
                              AND COALESCE(child_counts.error_count, 0) > 0 THEN '${SchedulerRunStatus.PARTIAL_FAILURE}'
+
+                        -- Parent completed with batch delivery total failures (all targets failed)
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}'
+                             AND COALESCE(child_counts.batch_total_failure_count, 0) > 0 THEN '${SchedulerRunStatus.FAILED}'
+
+                        -- Parent completed with partial failures (e.g., some charts failed in dashboard export)
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}'
+                             AND distinct_runs.details IS NOT NULL
+                             AND jsonb_array_length(COALESCE(distinct_runs.details::jsonb->'partialFailures', '[]'::jsonb)) > 0 THEN '${SchedulerRunStatus.PARTIAL_FAILURE}'
+
+                        -- Parent completed with batch delivery partial failures (e.g., some email targets failed)
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}'
+                             AND COALESCE(child_counts.batch_partial_failure_count, 0) > 0 THEN '${SchedulerRunStatus.PARTIAL_FAILURE}'
 
                         -- Parent completed, no errors
                         WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}' THEN '${SchedulerRunStatus.COMPLETED}'

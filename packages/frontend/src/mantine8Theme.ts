@@ -10,6 +10,7 @@ import {
     TagsInput,
     Textarea,
     TextInput,
+    Tooltip,
     type ButtonVariant,
     type DefaultMantineColor,
     type MantineColorsTuple,
@@ -19,6 +20,8 @@ import {
 import { type ColorScheme } from '@mantine/styles';
 import { DotsLoader } from './ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
 import { getMantineThemeOverride as getMantine6ThemeOverride } from './mantineTheme';
+// eslint-disable-next-line css-modules/no-unused-class
+import styles from './styles/mantine-overrides/tooltip.module.css';
 
 declare module '@mantine-8/core' {
     export interface ButtonProps {
@@ -160,7 +163,10 @@ export const getMantine8ThemeOverride = (
                     },
                 }),
             }),
-            Tooltip: {
+            Tooltip: Tooltip.extend({
+                classNames: {
+                    tooltip: styles.tooltip,
+                },
                 defaultProps: {
                     openDelay: 200,
                     withinPortal: true,
@@ -169,7 +175,7 @@ export const getMantine8ThemeOverride = (
                     maw: 250,
                     fz: 'xs',
                 },
-            },
+            }),
             Popover: {
                 defaultProps: {
                     withinPortal: true,

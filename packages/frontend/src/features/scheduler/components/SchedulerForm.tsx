@@ -1172,6 +1172,7 @@ const SchedulerForm: FC<Props> = ({
                                                         disabled={
                                                             isAddSlackDisabled
                                                         }
+                                                        includeDms
                                                         onChange={(val) => {
                                                             form.setFieldValue(
                                                                 'slackTargets',

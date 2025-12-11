@@ -17,6 +17,7 @@ import {
     DashboardAvailableFilters,
     DashboardFilters,
     DateGranularity,
+    DateZoom,
     DecodedEmbed,
     EmbedUrl,
     ExecuteAsyncDashboardChartRequestParams,
@@ -375,6 +376,7 @@ export class EmbedController extends BaseController {
             columnOrder: string[];
             pivotDimensions?: string[];
             invalidateCache?: boolean;
+            dateZoom?: DateZoom;
         },
     ): Promise<ApiCalculateSubtotalsResponse> {
         this.setStatus(200);
@@ -393,6 +395,7 @@ export class EmbedController extends BaseController {
                     body.columnOrder,
                     body.pivotDimensions,
                     body.invalidateCache,
+                    body.dateZoom,
                 ),
         };
     }

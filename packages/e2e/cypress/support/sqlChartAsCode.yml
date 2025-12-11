@@ -1,0 +1,15 @@
+name: SQL Chart for E2E Testing
+description: A SQL chart used for content-as-code e2e tests
+slug: sql-chart-as-code-e2e
+sql: SELECT * FROM "postgres"."jaffle"."orders" LIMIT 10
+limit: 500
+config:
+    type: table
+    display: {}
+    metadata:
+        version: 1
+    columns: {}
+chartKind: table
+spaceSlug: jaffle-shop
+version: 1
+updatedAt: '2024-12-17T11:04:43.216Z'

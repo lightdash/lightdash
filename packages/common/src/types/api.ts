@@ -52,6 +52,7 @@ import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
     type ApiDashboardAsCodeListResponse,
+    type ApiSqlChartAsCodeListResponse,
 } from './coder';
 import {
     type ApiChartContentResponse,
@@ -68,6 +69,7 @@ import { type EmailStatusExpiring } from './email';
 import { type Explore, type SummaryExplore } from './explore';
 import {
     type DimensionType,
+    type Field,
     type FilterableField,
     type ItemsMap,
 } from './field';
@@ -683,6 +685,28 @@ export type ApiAiGenerateCustomVizResponse = {
     results: string;
 };
 
+export type GenerateChartMetadataRequest = {
+    tableName: string;
+    chartType: string;
+    dimensions: string[];
+    metrics: string[];
+    filters?: MetricQuery['filters'];
+    fieldsContext: Array<
+        Pick<Field, 'name' | 'label' | 'description' | 'type'>
+    >;
+    chartConfigJson?: string;
+};
+
+export type GeneratedChartMetadata = {
+    title: string;
+    description: string;
+};
+
+export type ApiAiGenerateChartMetadataResponse = {
+    status: 'ok';
+    results: GeneratedChartMetadata;
+};
+
 type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
@@ -767,6 +791,7 @@ type ApiResults =
     | ApiCreateProjectResults
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
+    | ApiAiGenerateChartMetadataResponse['results']
     | ApiCatalogMetadataResults
     | ApiCatalogAnalyticsResults
     | ApiPromotionChangesResponse['results']
@@ -786,6 +811,7 @@ type ApiResults =
     | ApiGroupListResponse['results']
     | ApiCreateTagResponse['results']
     | ApiChartAsCodeListResponse['results']
+    | ApiSqlChartAsCodeListResponse['results']
     | ApiDashboardAsCodeListResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']

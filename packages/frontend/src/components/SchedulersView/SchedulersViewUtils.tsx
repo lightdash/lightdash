@@ -142,7 +142,30 @@ export const getItemLink = (item: SchedulerItem, projectUuid: string) => {
 export const formatTime = (date: Date) =>
     dayjs(date).format('YYYY/MM/DD hh:mm A');
 
-export const formatTaskName = (task: string): string => {
+export const formatTaskName = (task: string, targetCount?: number): string => {
+    const taskLower = task.toLowerCase();
+    if (taskLower.includes('slackbatch')) {
+        return targetCount
+            ? `Slack (${targetCount} ${
+                  targetCount === 1 ? 'target' : 'targets'
+              })`
+            : 'Slack Notifications';
+    }
+    if (taskLower.includes('emailbatch')) {
+        return targetCount
+            ? `Email (${targetCount} ${
+                  targetCount === 1 ? 'target' : 'targets'
+              })`
+            : 'Email Notifications';
+    }
+    if (taskLower.includes('msteamsbatch')) {
+        return targetCount
+            ? `MS Teams (${targetCount} ${
+                  targetCount === 1 ? 'target' : 'targets'
+              })`
+            : 'MS Teams Notifications';
+    }
+
     // Convert camelCase to Title Case with spaces
     // e.g., "sendSlackNotification" → "Send Slack Notification"
     return task

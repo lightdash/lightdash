@@ -6,6 +6,7 @@ import {
     type ApiErrorDetail,
     type ChartConfig,
     type DashboardFilters,
+    type DateZoom,
     type EChartsSeries,
     type ItemsMap,
     type MetricQuery,
@@ -78,12 +79,13 @@ export type VisualizationProviderProps = {
     invalidateCache?: boolean;
     colorPalette: string[];
     tableCalculationsMetadata?: TableCalculationMetadata[];
-    setEchartsRef?: (ref: RefObject<EChartsReact | null>) => void;
+    setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
     computedSeries?: Series[];
     apiErrorDetail?: ApiErrorDetail | null;
     containerWidth?: number;
     containerHeight?: number;
     isDashboard?: boolean;
+    dateZoom?: DateZoom;
 };
 
 const VisualizationProvider: FC<
@@ -114,6 +116,7 @@ const VisualizationProvider: FC<
     containerWidth,
     containerHeight,
     isDashboard,
+    dateZoom,
 }) => {
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -121,10 +124,23 @@ const VisualizationProvider: FC<
 
     const chartRef = useRef<EChartsReact | null>(null);
     const leafletMapRef = useRef<LeafletMap | null>(null);
+
     useEffect(() => {
         if (setEchartsRef)
             setEchartsRef(chartRef as RefObject<EChartsReact | null>);
-    }, [chartRef, setEchartsRef]);
+
+        // Cleanup: dispose ECharts instance and clear parent reference on unmount
+        return () => {
+            // Dispose the ECharts instance to free up canvas memory
+            if (chartRef.current) {
+                const echartsInstance = chartRef.current.getEchartsInstance();
+                if (echartsInstance && !echartsInstance.isDisposed()) {
+                    echartsInstance.dispose();
+                }
+                chartRef.current = null;
+            }
+        };
+    }, [setEchartsRef]);
     const [lastValidResultsData, setLastValidResultsData] = useState<
         InfiniteQueryResults & { metricQuery?: MetricQuery; fields?: ItemsMap }
     >();
@@ -485,6 +501,7 @@ const VisualizationProvider: FC<
                     dashboardFilters={dashboardFilters}
                     invalidateCache={invalidateCache}
                     parameters={parameters}
+                    dateZoom={dateZoom}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

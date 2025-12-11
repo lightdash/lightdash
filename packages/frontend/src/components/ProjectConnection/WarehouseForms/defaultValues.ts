@@ -1,4 +1,8 @@
-import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
+import {
+    BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
+    WarehouseTypes,
+} from '@lightdash/common';
 
 import type {
     CreateBigqueryCredentials,
@@ -30,15 +34,17 @@ export const BigQueryDefaultValues: CreateBigqueryCredentials = {
     startOfWeek: undefined,
 };
 
-const DatabricksDefaultValues: CreateDatabricksCredentials = {
+export const DatabricksDefaultValues: CreateDatabricksCredentials = {
     type: WarehouseTypes.DATABRICKS,
     database: '',
     serverHostName: '',
     httpPath: '',
+    authenticationType: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
     personalAccessToken: '',
     catalog: '',
     compute: [],
     startOfWeek: undefined,
+    requireUserCredentials: false,
 };
 
 export const PostgresDefaultValues: CreatePostgresCredentials = {
