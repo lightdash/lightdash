@@ -1,3 +1,10 @@
+# [0.2243.0](https://github.com/lightdash/lightdash/compare/0.2242.2...0.2243.0) (2025-12-11)
+
+
+### Features
+
+* introduce field colors utility ([#18728](https://github.com/lightdash/lightdash/issues/18728)) ([1960f0c](https://github.com/lightdash/lightdash/commit/1960f0cabb19954e55f18525fac0baaf46cd2583))
+
 ## [0.2242.2](https://github.com/lightdash/lightdash/compare/0.2242.1...0.2242.2) (2025-12-11)
 
 
