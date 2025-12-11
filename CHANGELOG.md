@@ -1,3 +1,10 @@
+## [0.2242.2](https://github.com/lightdash/lightdash/compare/0.2242.1...0.2242.2) (2025-12-11)
+
+
+### Bug Fixes
+
+* swap field order in routes and remove requireUserCredentials ([#18624](https://github.com/lightdash/lightdash/issues/18624)) ([88ff7ae](https://github.com/lightdash/lightdash/commit/88ff7aee6277712c07e0393889d3ebfcd706be1f))
+
 ## [0.2242.1](https://github.com/lightdash/lightdash/compare/0.2242.0...0.2242.1) (2025-12-10)
 
 
