@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     friendlyName,
-    getItemColor,
     type Change,
 } from '@lightdash/common';
 import {
@@ -20,6 +19,7 @@ import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import toPairs from 'lodash/toPairs';
 import FieldIcon from '../../../../../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
+import { getMantineFieldColor } from '../../../../../../../utils/fieldColors';
 import { OperationRenderer } from './OperationRenderer';
 import { FieldBreadcrumb, TableBreadcrumb } from './SupportElements';
 import type {
@@ -77,7 +77,7 @@ const CreateMetricFromChangeData = ({
     }
 
     const metric = changeData.payload.value;
-    const color = getItemColor(metric);
+    const color = getMantineFieldColor(metric);
 
     return (
         <Box mx="xs">

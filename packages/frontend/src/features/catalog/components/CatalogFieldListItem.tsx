@@ -8,6 +8,7 @@ import {
     DEFAULT_EMPTY_EXPLORE_CONFIG,
     getExplorerUrlFromCreateSavedChartVersion,
 } from '../../../hooks/useExplorerRoute';
+import { LD_FIELD_COLORS } from '../../../mantineTheme';
 import { useCatalogContext } from '../context/useCatalogContext';
 
 type Props = {
@@ -91,8 +92,8 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                     // TODO: Add icon for field type and for subtype
                     color={
                         field.fieldType === FieldType.DIMENSION
-                            ? 'blue'
-                            : 'orange'
+                            ? LD_FIELD_COLORS.dimension.mantineColor
+                            : LD_FIELD_COLORS.metric.mantineColor
                     }
                 />
             </Grid.Col>

@@ -7,10 +7,10 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../../features/explorer/store';
+import { getMantineFieldColor } from '../../../../utils/fieldColors';
 import FieldIcon from '../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../common/MantineIcon';
 import { ItemDetailMarkdown } from './ItemDetailPreview';
-import { getFieldIconColor } from './utils';
 
 /**
  * Provider for a shared modal to display details about tree items
@@ -33,7 +33,9 @@ export const ItemDetailProvider: FC<PropsWithChildren<{}>> = ({ children }) => {
                         {itemDetail.fieldItem && (
                             <FieldIcon
                                 item={itemDetail.fieldItem}
-                                color={getFieldIconColor(itemDetail.fieldItem)}
+                                color={getMantineFieldColor(
+                                    itemDetail.fieldItem,
+                                )}
                                 size="md"
                             />
                         )}

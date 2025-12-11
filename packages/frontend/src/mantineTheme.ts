@@ -77,6 +77,48 @@ export const DARK_MODE_COLORS = {
     CONTRAST_GRAY: darkModeColors.ldDark[6],
 } as const;
 
+export interface LightdashFieldColors {
+    /** CSS variable for background color (auto-switches for dark/light modes) */
+    bg: string;
+    /** CSS variable for hover background color */
+    bgHover: string;
+    /** CSS variable for text color */
+    color: string;
+    /** Mantine color token for component color property */
+    mantineColor: string;
+}
+export const LD_FIELD_COLORS = {
+    dimension: {
+        bg: 'var(--mantine-color-blue-light)',
+        bgHover: 'var(--mantine-color-blue-light-hover)',
+        color: 'var(--mantine-color-blue-light-color)',
+        mantineColor: 'blue',
+    },
+    metric: {
+        bg: 'var(--mantine-color-orange-light)',
+        bgHover: 'var(--mantine-color-orange-light-hover)',
+        color: 'var(--mantine-color-orange-light-color)',
+        mantineColor: 'orange',
+    },
+    calculation: {
+        bg: 'var(--mantine-color-green-light)',
+        bgHover: 'var(--mantine-color-green-light-hover)',
+        color: 'var(--mantine-color-green-light-color)',
+        mantineColor: 'green',
+    },
+    DEFAULT: {
+        bg: 'var(--mantine-color-gray-light)',
+        bgHover: 'var(--mantine-color-gray-light-hover)',
+        color: 'var(--mantine-color-gray-light-color)',
+        mantineColor: 'ldGray',
+    },
+} satisfies {
+    dimension: LightdashFieldColors;
+    metric: LightdashFieldColors;
+    calculation: LightdashFieldColors;
+    DEFAULT: LightdashFieldColors;
+};
+
 export const getMantineThemeOverride = (
     colorScheme: ColorScheme,
     overrides?: {
@@ -244,6 +286,7 @@ export const getMantineThemeOverride = (
             transitionTimingFunction: 'ease-in-out',
             transitionDuration: 200, // in ms
             chartFont: 'Inter, sans-serif',
+            ldField: LD_FIELD_COLORS,
             explorerItemBg: {
                 dimension: {
                     light: '#d2dbe9',
