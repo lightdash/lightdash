@@ -18,6 +18,8 @@ export default defineConfig({
         target: 'es2020',
         // minify: 'esbuild',
         sourcemap: true,
+        // Disable CSS code splitting to bundle all CSS into a single file
+        cssCodeSplit: false,
         lib: {
             entry: resolve(__dirname, 'sdk', 'index.tsx'),
             name: 'LightdashSDK',
@@ -37,7 +39,16 @@ export default defineConfig({
                     react: 'React',
                     'react-dom': 'ReactDOM',
                 },
+                assetFileNames: (assetInfo) => {
+                    // Ensure CSS is named consistently
+                    if (assetInfo.name === 'style.css') return 'sdk.css';
+                    return assetInfo.name || '';
+                },
             },
         },
+    },
+    css: {
+        // Ensure CSS from node_modules is processed
+        postcss: {},
     },
 });
