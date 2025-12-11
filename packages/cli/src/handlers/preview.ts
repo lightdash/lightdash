@@ -262,10 +262,54 @@ export const previewHandler = async (
 
         await setPreviewProject(project.projectUuid, name);
 
-        process.on('SIGINT', async () => {
-            await cleanupProject(executionId, project!.projectUuid);
+        // Cleanup handler with duplicate-call protection
+        let isCleaningUp = false;
+        const performCleanup = async (signal: string) => {
+            if (isCleaningUp) {
+                GlobalState.debug(
+                    `Cleanup already in progress, skipping duplicate cleanup from ${signal}`,
+                );
+                return;
+            }
+            isCleaningUp = true;
 
+            GlobalState.debug(
+                `Received ${signal}, cleaning up preview project...`,
+            );
+            await cleanupProject(executionId, project!.projectUuid);
+            await unsetPreviewProject();
+        };
+
+        // Handle Ctrl+C (existing behavior)
+        process.on('SIGINT', async () => {
+            await performCleanup('SIGINT');
             process.exit(0);
+        });
+
+        // Handle terminal window close (Unix/Linux/macOS)
+        process.on('SIGHUP', async () => {
+            await performCleanup('SIGHUP');
+            process.exit(0);
+        });
+
+        // Handle graceful termination
+        process.on('SIGTERM', async () => {
+            await performCleanup('SIGTERM');
+            process.exit(0);
+        });
+
+        // Handle uncaught exceptions
+        process.on('uncaughtException', async (error) => {
+            console.error('Uncaught exception:', error);
+            await performCleanup('uncaughtException');
+            process.exit(1);
+        });
+
+        // Handle unhandled promise rejections
+        process.on('unhandledRejection', async (reason, promise) => {
+            console.error('Unhandled rejection at:', promise, 'reason:', reason);
+            await performCleanup('unhandledRejection');
+            process.exit(1);
         });
 
         if (!hasContentCopy) {
@@ -337,6 +381,9 @@ export const previewHandler = async (
             },
         ]);
         pressToShutdown.clear();
+
+        // Close the watcher before cleanup
+        watcher.close();
     } catch (e) {
         spinner.fail('Error creating developer preview');
 
@@ -355,6 +402,7 @@ export const previewHandler = async (
     }
 
     await cleanupProject(executionId, project.projectUuid);
+    await unsetPreviewProject();
 };
 
 export const startPreviewHandler = async (
