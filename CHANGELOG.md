@@ -1,3 +1,10 @@
+## [0.2243.1](https://github.com/lightdash/lightdash/compare/0.2243.0...0.2243.1) (2025-12-11)
+
+
+### Bug Fixes
+
+* apply right filters to stacked bar underlying data ([#18754](https://github.com/lightdash/lightdash/issues/18754)) ([12fc1dc](https://github.com/lightdash/lightdash/commit/12fc1dc69fc59c6df867d8b115286270cabf39ab))
+
 # [0.2243.0](https://github.com/lightdash/lightdash/compare/0.2242.2...0.2243.0) (2025-12-11)
 
 
