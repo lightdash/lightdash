@@ -505,7 +505,7 @@ const TileFilterConfiguration: FC<Props> = ({
     );
 
     const tileList =
-        tabs.length > 0 ? (
+        tabs.length > 1 ? (
             tabs.map((tab, index) => {
                 const tabTiles = filteredTileTargetList(tab.uuid);
                 return (
