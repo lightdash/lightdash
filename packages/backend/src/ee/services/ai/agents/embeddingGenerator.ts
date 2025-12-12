@@ -1,6 +1,7 @@
 import { ParameterError } from '@lightdash/common';
 import { embed, EmbeddingModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import { getAzureProvider } from '../models/azure-openai-gpt-4.1';
 import { getBedrockEmbeddingModel } from '../models/bedrock';
 import { getOpenAIEmbeddingModel } from '../models/openai-embedding';
 
@@ -35,6 +36,17 @@ function getEmbeddingModelConfig(config: LightdashConfig):
             model: getBedrockEmbeddingModel(bedrockConfig),
             provider: 'bedrock',
             modelName: bedrockConfig.embeddingModelName,
+        };
+    }
+
+    const azureConfig = config.ai.copilot.providers.azure;
+    if (embeddingProvider === 'azure' && azureConfig) {
+        const azure = getAzureProvider(azureConfig);
+
+        return {
+            model: azure.textEmbedding(azureConfig.embeddingDeploymentName),
+            provider: 'azure',
+            modelName: azureConfig.embeddingDeploymentName,
         };
     }
 
