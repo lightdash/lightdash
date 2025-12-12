@@ -66,10 +66,21 @@ const MinimalExplorerContent = memo(() => {
 
     useEffect(() => {
         if (hasSignaledReady.current) return;
-        if (!savedChart || isLoadingQueryResults) return;
+        if (
+            !savedChart ||
+            isLoadingQueryResults ||
+            health.isInitialLoading ||
+            !health.data
+        )
+            return;
         setIsScreenshotReady(true);
         hasSignaledReady.current = true;
-    }, [savedChart, isLoadingQueryResults]);
+    }, [
+        savedChart,
+        isLoadingQueryResults,
+        health.isInitialLoading,
+        health.data,
+    ]);
 
     if (!savedChart || health.isInitialLoading || !health.data) {
         return null;
