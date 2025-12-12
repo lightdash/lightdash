@@ -1,3 +1,10 @@
+## [0.2248.3](https://github.com/lightdash/lightdash/compare/0.2248.2...0.2248.3) (2025-12-12)
+
+
+### Bug Fixes
+
+* extract and improve CSV limit handling logic ([#18757](https://github.com/lightdash/lightdash/issues/18757)) ([da7b9b5](https://github.com/lightdash/lightdash/commit/da7b9b5b244ee1be5d36908d341dc62218548262))
+
 ## [0.2248.2](https://github.com/lightdash/lightdash/compare/0.2248.1...0.2248.2) (2025-12-12)
 
 
