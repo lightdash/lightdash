@@ -240,6 +240,7 @@ import {
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
+import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
@@ -2387,39 +2388,6 @@ export class ProjectService extends BaseService {
         };
     }
 
-    private metricQueryWithLimit(
-        metricQuery: MetricQuery,
-        csvLimit: number | null | undefined,
-    ): MetricQuery {
-        if (csvLimit === undefined) {
-            if (metricQuery.limit > this.lightdashConfig.query?.maxLimit) {
-                throw new ParameterError(
-                    `Query limit can not exceed ${this.lightdashConfig.query.maxLimit}`,
-                );
-            }
-            return metricQuery;
-        }
-
-        const numberColumns =
-            metricQuery.dimensions.length +
-            metricQuery.metrics.length +
-            metricQuery.tableCalculations.length;
-        if (numberColumns === 0)
-            throw new ParameterError(
-                'Query must have at least one dimension or metric',
-            );
-
-        const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
-        const maxRows = Math.floor(cellsLimit / numberColumns);
-        const csvRowLimit =
-            csvLimit === null ? maxRows : Math.min(csvLimit, maxRows);
-
-        return {
-            ...metricQuery,
-            limit: csvRowLimit,
-        };
-    }
-
     async runUnderlyingDataQuery(
         account: Account,
         metricQuery: MetricQuery,
@@ -3194,9 +3162,11 @@ export class ProjectService extends BaseService {
                         throw new ForbiddenError();
                     }
 
-                    const metricQueryWithLimit = this.metricQueryWithLimit(
+                    const metricQueryWithLimit = applyMetricQueryLimit(
                         metricQuery,
                         csvLimit,
+                        this.lightdashConfig.query?.csvCellsLimit,
+                        this.lightdashConfig.query?.maxLimit,
                     );
 
                     const explore =

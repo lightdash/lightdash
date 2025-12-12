@@ -1,16 +1,19 @@
 import { ParameterError } from '@lightdash/common';
 import { embed, EmbeddingModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import { getAzureProvider } from '../models/azure-openai-gpt-4.1';
 import { getBedrockEmbeddingModel } from '../models/bedrock';
 import { getOpenAIEmbeddingModel } from '../models/openai-embedding';
 
 const EMBEDDING_DIMENSIONS = 1536;
 
-function getEmbeddingModelConfig(config: LightdashConfig): {
-    model: EmbeddingModel<string>;
-    provider: string;
-    modelName: string;
-} {
+function getEmbeddingModelConfig(config: LightdashConfig):
+    | {
+          model: EmbeddingModel<string>;
+          provider: string;
+          modelName: string;
+      }
+    | undefined {
     const {
         defaultEmbeddingModelProvider,
         defaultProvider,
@@ -36,7 +39,18 @@ function getEmbeddingModelConfig(config: LightdashConfig): {
         };
     }
 
-    throw new ParameterError('No valid embedding provider configuration found');
+    const azureConfig = config.ai.copilot.providers.azure;
+    if (embeddingProvider === 'azure' && azureConfig) {
+        const azure = getAzureProvider(azureConfig);
+
+        return {
+            model: azure.textEmbedding(azureConfig.embeddingDeploymentName),
+            provider: 'azure',
+            modelName: azureConfig.embeddingDeploymentName,
+        };
+    }
+
+    return undefined;
 }
 
 export async function generateEmbedding(
@@ -47,8 +61,12 @@ export async function generateEmbedding(
     embedding: number[];
     provider: string;
     modelName: string;
-}> {
-    const { model, provider, modelName } = getEmbeddingModelConfig(config);
+} | null> {
+    const embeddingModelConfig = getEmbeddingModelConfig(config);
+    if (!embeddingModelConfig) {
+        return null;
+    }
+    const { model, provider, modelName } = embeddingModelConfig;
 
     let { embedding } = await embed({
         model,

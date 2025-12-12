@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.2247.0",
+    "version": "0.2249.0",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
@@ -41,7 +41,7 @@
     "dependencies": {
         "@ai-sdk/amazon-bedrock": "^3.0.66",
         "@ai-sdk/anthropic": "^2.0.53",
-        "@ai-sdk/azure": "^2.0.66",
+        "@ai-sdk/azure": "^2.0.87",
         "@ai-sdk/openai": "^2.0.64",
         "@aws-sdk/client-s3": "^3.529.0",
         "@aws-sdk/credential-providers": "^3.529.0",

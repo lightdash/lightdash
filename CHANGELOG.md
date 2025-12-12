@@ -1,3 +1,49 @@
+# [0.2249.0](https://github.com/lightdash/lightdash/compare/0.2248.3...0.2249.0) (2025-12-12)
+
+
+### Bug Fixes
+
+* default to maxQueryLimit if agent provided limit is over it ([#18777](https://github.com/lightdash/lightdash/issues/18777)) ([d02ef5b](https://github.com/lightdash/lightdash/commit/d02ef5b153c6c7d061bffeea4cf5daf233a82587)), closes [#18776](https://github.com/lightdash/lightdash/issues/18776)
+* use AiAgentValidatorError instead of generic Error and ignore from Sentry ([#18774](https://github.com/lightdash/lightdash/issues/18774)) ([2f3efb8](https://github.com/lightdash/lightdash/commit/2f3efb8c1b04b279d50f9466895cd71d075ed5ad))
+
+
+### Features
+
+* add Azure embedding model support ([#18771](https://github.com/lightdash/lightdash/issues/18771)) ([21d192e](https://github.com/lightdash/lightdash/commit/21d192eab75e24e01db29dd2be98167513325616))
+
+## [0.2248.3](https://github.com/lightdash/lightdash/compare/0.2248.2...0.2248.3) (2025-12-12)
+
+
+### Bug Fixes
+
+* extract and improve CSV limit handling logic ([#18757](https://github.com/lightdash/lightdash/issues/18757)) ([da7b9b5](https://github.com/lightdash/lightdash/commit/da7b9b5b244ee1be5d36908d341dc62218548262))
+
+## [0.2248.2](https://github.com/lightdash/lightdash/compare/0.2248.1...0.2248.2) (2025-12-12)
+
+
+### Bug Fixes
+
+* allow nullish externalId and email from embed user ([#18751](https://github.com/lightdash/lightdash/issues/18751)) ([17b6a6f](https://github.com/lightdash/lightdash/commit/17b6a6fe960e345c25bdd7a8e753573dde86449c)), closes [/github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts#L35](https://github.com//github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts/issues/L35) [/github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts#L35](https://github.com//github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts/issues/L35) [/github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts#L35](https://github.com//github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts/issues/L35)
+
+## [0.2248.1](https://github.com/lightdash/lightdash/compare/0.2248.0...0.2248.1) (2025-12-12)
+
+
+### Bug Fixes
+
+* only attempt fetching projects when user is logged in ([#18769](https://github.com/lightdash/lightdash/issues/18769)) ([2c92bcf](https://github.com/lightdash/lightdash/commit/2c92bcf22d9650801ee61341842d78f7c2808ed2))
+
+# [0.2248.0](https://github.com/lightdash/lightdash/compare/0.2247.0...0.2248.0) (2025-12-12)
+
+
+### Bug Fixes
+
+* handle missing embedding provider configuration gracefully ([#18767](https://github.com/lightdash/lightdash/issues/18767)) ([6a68ebc](https://github.com/lightdash/lightdash/commit/6a68ebcc39677c8524e24ba213a2368607115ad7))
+
+
+### Features
+
+* add GPT-5.2 model preset ([#18770](https://github.com/lightdash/lightdash/issues/18770)) ([177c6b3](https://github.com/lightdash/lightdash/commit/177c6b32125f9bb2468b848ee44248a82c499891))
+
 # [0.2247.0](https://github.com/lightdash/lightdash/compare/0.2246.0...0.2247.0) (2025-12-11)
 
 
