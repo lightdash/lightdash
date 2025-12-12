@@ -1,3 +1,10 @@
+## [0.2248.2](https://github.com/lightdash/lightdash/compare/0.2248.1...0.2248.2) (2025-12-12)
+
+
+### Bug Fixes
+
+* allow nullish externalId and email from embed user ([#18751](https://github.com/lightdash/lightdash/issues/18751)) ([17b6a6f](https://github.com/lightdash/lightdash/commit/17b6a6fe960e345c25bdd7a8e753573dde86449c)), closes [/github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts#L35](https://github.com//github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts/issues/L35) [/github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts#L35](https://github.com//github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts/issues/L35) [/github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts#L35](https://github.com//github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts/issues/L35)
+
 ## [0.2248.1](https://github.com/lightdash/lightdash/compare/0.2248.0...0.2248.1) (2025-12-12)
 
 
