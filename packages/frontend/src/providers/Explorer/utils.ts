@@ -12,6 +12,7 @@ const DEFAULTS = {
     [ChartType.TREEMAP]: () => ({}),
     [ChartType.GAUGE]: () => ({}),
     [ChartType.MAP]: () => ({}),
+    [ChartType.SANKEY]: () => ({}),
     [ChartType.CUSTOM]: () => ({}),
 };
 

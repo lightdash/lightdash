@@ -25,6 +25,7 @@ export enum ChartKind {
     CUSTOM = 'custom',
     TREEMAP = 'treemap',
     GAUGE = 'gauge',
+    SANKEY = 'sankey',
     MAP = 'map',
 }
 
@@ -36,6 +37,7 @@ export enum ChartType {
     FUNNEL = 'funnel',
     TREEMAP = 'treemap',
     GAUGE = 'gauge',
+    SANKEY = 'sankey',
     CUSTOM = 'custom',
     MAP = 'map',
 }
@@ -139,6 +141,31 @@ export type GaugeChart = {
     maxFieldId?: string;
     showAxisLabels?: boolean;
     sections?: GaugeSection[];
+    customLabel?: string;
+};
+
+export enum SankeyOrientationType {
+    HORIZONTAL = 'horizontal',
+    VERTICAL = 'vertical',
+}
+
+export enum SankeyNodeAlign {
+    LEFT = 'left',
+    RIGHT = 'right',
+    JUSTIFY = 'justify',
+}
+
+export type SankeyChart = {
+    sourceFieldId: string | null;
+    targetFieldId: string | null;
+    valueFieldId: string | null;
+    orientation?: SankeyOrientationType;
+    nodeAlign?: SankeyNodeAlign;
+    nodeGap?: number;
+    nodeWidth?: number;
+    showLabels?: boolean;
+    labelOverrides?: Record<string, string>;
+    colorOverrides?: Record<string, string>;
     customLabel?: string;
 };
 
@@ -476,6 +503,11 @@ export type GaugeChartConfig = {
     config?: GaugeChart;
 };
 
+export type SankeyChartConfig = {
+    type: ChartType.SANKEY;
+    config?: SankeyChart;
+};
+
 export type MapChartConfig = {
     type: ChartType.MAP;
     config?: MapChart;
@@ -490,6 +522,7 @@ export type ChartConfig =
     | TableChartConfig
     | TreemapChartConfig
     | GaugeChartConfig
+    | SankeyChartConfig
     | MapChartConfig;
 
 export type SavedChartType = ChartType;
@@ -686,6 +719,8 @@ export const getChartType = (chartKind: ChartKind | undefined): ChartType => {
             return ChartType.TREEMAP;
         case ChartKind.GAUGE:
             return ChartType.GAUGE;
+        case ChartKind.SANKEY:
+            return ChartType.SANKEY;
         default:
             return ChartType.CARTESIAN;
     }
@@ -742,6 +777,8 @@ export const getChartKind = (
             return ChartKind.TREEMAP;
         case ChartType.GAUGE:
             return ChartKind.GAUGE;
+        case ChartType.SANKEY:
+            return ChartKind.SANKEY;
         case ChartType.MAP:
             return ChartKind.MAP;
         default:
