@@ -5,7 +5,6 @@ import {
     Button,
     Group,
     Modal,
-    Paper,
     SegmentedControl,
     Stack,
     Text,
@@ -138,23 +137,20 @@ export const AiAgentsAdminLayout = () => {
                     </Group>
 
                     {settings?.aiAgentsVisible === false && (
-                        <Paper my="md">
-                            <Alert
-                                icon={<IconInfoCircle />}
-                                radius="md"
-                                variant="outline"
-                                color="orange.6"
-                                bg="orange.0"
-                                title="AI Features Currently Disabled for All Users"
-                            >
-                                <Text c="ldGray.7" size="xs">
-                                    AI features on the homepage and navbar are
-                                    turned off. Users cannot interact with AI
-                                    Agents until you re-enable this feature
-                                    using the toggle above.
-                                </Text>
-                            </Alert>
-                        </Paper>
+                        <Alert
+                            icon={<IconInfoCircle />}
+                            radius="md"
+                            color="orange"
+                            variant="light"
+                            title="AI features are currently disabled for all users"
+                        >
+                            <Text c="ldGray.7" size="xs">
+                                AI features on the homepage and navbar are
+                                turned off. Users cannot interact with AI Agents
+                                until you re-enable this feature using the
+                                toggle above.
+                            </Text>
+                        </Alert>
                     )}
 
                     <Group justify="space-between" my="sm">
