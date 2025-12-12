@@ -41,6 +41,11 @@ export type CompileHandlerOptions = DbtCompileOptions & {
     startOfWeek?: number;
     warehouseCredentials?: boolean;
     disableTimestampConversion?: boolean;
+    /**
+     * Skip creating a new Snowflake PAT when using externalbrowser auth.
+     * Use this when updating a preview where credentials are already stored.
+     */
+    skipPatCreation?: boolean;
 };
 
 const getExploresFromLightdashYmlProject = async (
@@ -188,6 +193,7 @@ export const compile = async (options: CompileHandlerOptions) => {
                 profile: options.profile || context.profileName,
                 target: options.target,
                 startOfWeek: options.startOfWeek,
+                skipPatCreation: options.skipPatCreation,
             });
             GlobalState.debug('> Fetching warehouse catalog');
             catalog = await warehouseClient.getCatalog(

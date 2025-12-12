@@ -316,10 +316,14 @@ export const previewHandler = async (
                 watcher.unwatch(manifestFilePath);
                 // Deploying will change manifest.json too, so we need to stop watching the file until it is deployed
                 if (project) {
-                    await deploy(await compile(options), {
-                        ...options,
-                        projectUuid: project.projectUuid,
-                    });
+                    // Skip PAT creation on updates - credentials are already stored from initial preview
+                    await deploy(
+                        await compile({ ...options, skipPatCreation: true }),
+                        {
+                            ...options,
+                            projectUuid: project.projectUuid,
+                        },
+                    );
                 }
 
                 console.error(`${styles.success('✔')}   Preview updated \n`);
@@ -382,9 +386,9 @@ export const startPreviewHandler = async (
             },
         });
 
-        // Update
+        // Update - skip PAT creation since credentials are already stored from initial preview
         console.error(`Updating project preview ${projectName}`);
-        const explores = await compile(options);
+        const explores = await compile({ ...options, skipPatCreation: true });
         await deploy(explores, {
             ...options,
             projectUuid: previewProject.projectUuid,

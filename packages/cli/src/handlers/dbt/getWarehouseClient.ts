@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    CreateSnowflakeCredentials,
     CreateWarehouseCredentials,
     DatabricksAuthenticationType,
     getErrorMessage,
@@ -13,6 +14,7 @@ import {
 } from '@lightdash/common';
 import {
     exchangeDatabricksOAuthCredentials,
+    SnowflakeWarehouseClient,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import crypto from 'crypto';
@@ -203,11 +205,49 @@ type GetWarehouseClientOptions = {
     profile: string;
     target?: string;
     startOfWeek?: number;
+    /**
+     * Skip creating a new Snowflake PAT when using externalbrowser auth.
+     * Use this when updating a preview where credentials are already stored.
+     */
+    skipPatCreation?: boolean;
 };
 
 type GetWarehouseClientReturn = {
     warehouseClient: ReturnType<typeof warehouseClientFromCredentials>;
     credentials: CreateWarehouseCredentials;
+};
+
+export const createProgramaticallySnowflakePat = async (
+    credentials: CreateSnowflakeCredentials,
+): Promise<string> => {
+    const tempClient = new SnowflakeWarehouseClient({
+        ...credentials,
+    });
+
+    try {
+        console.error(`\n- Creating Snowflake Programmatic Access Token\n`);
+
+        // Snowflake PAT limitations and error messages:
+        // - 15 PATs per user: Exceeded maximum of 15 programmatic access tokens.
+        // - Must be unique: Programmatic access token LIGHTDASH_CLI already exists.
+        // - Can't include "-" in the name : SQL compilation error: syntax error line 1 at position 37 unexpected '-'
+        const { tokenSecret, tokenName } =
+            await tempClient.createProgrammaticAccessToken(
+                `lightdash_cli_${Date.now()}`,
+                1, // 1 day expiry
+            );
+
+        console.error(`\n✓ Successfully created Snowflake PAT: ${tokenName}\n`);
+        return tokenSecret;
+    } catch (e) {
+        console.error(
+            styles.error(
+                `\nFailed to create Snowflake PAT: ${getErrorMessage(e)}`,
+            ),
+        );
+        process.exit(1);
+    }
+    return '';
 };
 
 export default async function getWarehouseClient(
@@ -299,6 +339,22 @@ export default async function getWarehouseClient(
         GlobalState.debug(`> Using target ${target.type}`);
         credentials = await warehouseCredentialsFromDbtTarget(target);
 
+        // Compute cache key BEFORE any credential modifications (OAuth token exchange, PAT creation, etc.)
+        // This ensures we can reuse cached clients even after credentials are modified
+        const cacheKey = getWarehouseClientCacheKey(credentials);
+
+        // Check cache first - if we have a cached client, return it immediately
+        // This avoids re-running OAuth flows or creating new PATs
+        if (warehouseClientCache.has(cacheKey)) {
+            GlobalState.debug(
+                `> Reusing cached warehouse client (${credentials.type})`,
+            );
+            return {
+                warehouseClient: warehouseClientCache.get(cacheKey)!,
+                credentials,
+            };
+        }
+
         // Exchange Databricks OAuth M2M credentials for access token if needed
         if (
             credentials.type === WarehouseTypes.DATABRICKS &&
@@ -360,28 +416,20 @@ export default async function getWarehouseClient(
             console.error(`\n✓ Successfully authenticated with Databricks\n`);
         }
 
-        // Check if we should use cached client (e.g., for auth methods requiring user interaction)
-        const cacheKey = getWarehouseClientCacheKey(credentials);
+        // Create and cache the warehouse client using the original cache key
+        // (before any credential modifications like OAuth token exchange or PAT creation)
+        GlobalState.debug(
+            `> Creating new warehouse client to cache (${credentials.type})`,
+        );
 
-        if (warehouseClientCache.has(cacheKey)) {
-            GlobalState.debug(
-                `> Reusing cached warehouse client (${credentials.type})`,
-            );
-            warehouseClient = warehouseClientCache.get(cacheKey)!;
-        } else {
-            GlobalState.debug(
-                `> Creating new warehouse client to cache (${credentials.type})`,
-            );
+        warehouseClient = warehouseClientFromCredentials({
+            ...credentials,
+            startOfWeek: isWeekDay(options.startOfWeek)
+                ? options.startOfWeek
+                : undefined,
+        });
 
-            warehouseClient = warehouseClientFromCredentials({
-                ...credentials,
-                startOfWeek: isWeekDay(options.startOfWeek)
-                    ? options.startOfWeek
-                    : undefined,
-            });
-
-            warehouseClientCache.set(cacheKey, warehouseClient);
-        }
+        warehouseClientCache.set(cacheKey, warehouseClient);
     }
     return {
         warehouseClient,
