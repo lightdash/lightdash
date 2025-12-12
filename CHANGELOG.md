@@ -1,3 +1,15 @@
+# [0.2248.0](https://github.com/lightdash/lightdash/compare/0.2247.0...0.2248.0) (2025-12-12)
+
+
+### Bug Fixes
+
+* handle missing embedding provider configuration gracefully ([#18767](https://github.com/lightdash/lightdash/issues/18767)) ([6a68ebc](https://github.com/lightdash/lightdash/commit/6a68ebcc39677c8524e24ba213a2368607115ad7))
+
+
+### Features
+
+* add GPT-5.2 model preset ([#18770](https://github.com/lightdash/lightdash/issues/18770)) ([177c6b3](https://github.com/lightdash/lightdash/commit/177c6b32125f9bb2468b848ee44248a82c499891))
+
 # [0.2247.0](https://github.com/lightdash/lightdash/compare/0.2246.0...0.2247.0) (2025-12-11)
 
 
