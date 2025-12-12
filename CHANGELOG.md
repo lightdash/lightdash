@@ -1,3 +1,10 @@
+## [0.2248.1](https://github.com/lightdash/lightdash/compare/0.2248.0...0.2248.1) (2025-12-12)
+
+
+### Bug Fixes
+
+* only attempt fetching projects when user is logged in ([#18769](https://github.com/lightdash/lightdash/issues/18769)) ([2c92bcf](https://github.com/lightdash/lightdash/commit/2c92bcf22d9650801ee61341842d78f7c2808ed2))
+
 # [0.2248.0](https://github.com/lightdash/lightdash/compare/0.2247.0...0.2248.0) (2025-12-12)
 
 
