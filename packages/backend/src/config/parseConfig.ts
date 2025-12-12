@@ -999,6 +999,8 @@ export type HeadlessBrowserConfig = {
     port?: string;
     internalLightdashHost: string;
     browserEndpoint: string;
+    maxConcurrentSessions: number;
+    concurrencyLimitEnabled: boolean;
 };
 export type S3Config = {
     region: string;
@@ -1536,6 +1538,13 @@ export const parseConfig = (): LightdashConfig => {
             internalLightdashHost:
                 process.env.INTERNAL_LIGHTDASH_HOST || siteUrl,
             browserEndpoint,
+            maxConcurrentSessions:
+                getIntegerFromEnvironmentVariable(
+                    'HEADLESS_BROWSER_MAX_CONCURRENT_SESSIONS',
+                ) || 5,
+            concurrencyLimitEnabled:
+                process.env.HEADLESS_BROWSER_CONCURRENCY_LIMIT_ENABLED ===
+                'true',
         },
         s3: parseBaseS3Config(),
         results: {

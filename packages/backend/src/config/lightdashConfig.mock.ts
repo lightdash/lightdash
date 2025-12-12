@@ -254,6 +254,8 @@ export const lightdashConfigMock: LightdashConfig = {
     headlessBrowser: {
         internalLightdashHost: 'https://test.lightdash.cloud',
         browserEndpoint: 'ws://headless-browser:3000',
+        maxConcurrentSessions: 5,
+        concurrencyLimitEnabled: false,
     },
     contentAsCode: {
         maxDownloads: 100,

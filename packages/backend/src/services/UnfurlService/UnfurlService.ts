@@ -57,6 +57,7 @@ import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel'
 import { SpaceModel } from '../../models/SpaceModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { BaseService } from '../BaseService';
+import { Semaphore } from './Semaphore';
 
 const RESPONSE_TIMEOUT_MS = 180000;
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
@@ -159,6 +160,8 @@ export class UnfurlService extends BaseService {
 
     slackAuthenticationModel: SlackAuthenticationModel;
 
+    private browserSemaphore: Semaphore;
+
     constructor({
         lightdashConfig,
         dashboardModel,
@@ -184,6 +187,9 @@ export class UnfurlService extends BaseService {
         this.downloadFileModel = downloadFileModel;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
+        this.browserSemaphore = new Semaphore(
+            this.lightdashConfig.headlessBrowser.maxConcurrentSessions,
+        );
     }
 
     private async waitForAllPaginatedResultsResponse(
@@ -691,6 +697,22 @@ export class UnfurlService extends BaseService {
                 });
                 let browser: playwright.Browser | undefined;
                 let page: playwright.Page | undefined;
+                let semaphoreReleased = false;
+
+                const useSemaphore =
+                    this.lightdashConfig.headlessBrowser
+                        .concurrencyLimitEnabled;
+
+                // Acquire semaphore to limit concurrent browser connections
+                if (useSemaphore) {
+                    this.logger.info(
+                        `Waiting for browser slot (available: ${this.browserSemaphore.availablePermits}, queued: ${this.browserSemaphore.queueLength})`,
+                    );
+                    await this.browserSemaphore.acquire();
+                    this.logger.info(
+                        `Acquired browser slot (available: ${this.browserSemaphore.availablePermits}, queued: ${this.browserSemaphore.queueLength})`,
+                    );
+                }
 
                 try {
                     const { browserEndpoint } =
@@ -1103,6 +1125,20 @@ export class UnfurlService extends BaseService {
                         span.setAttributes({
                             is_retrying: true,
                         });
+
+                        // Clean up resources before retry
+                        if (page) await page.close().catch(() => {});
+                        if (browser) await browser.close().catch(() => {});
+
+                        // Release semaphore before retry to prevent deadlock
+                        if (useSemaphore) {
+                            this.browserSemaphore.release();
+                            semaphoreReleased = true;
+                            this.logger.info(
+                                `Released browser slot before retry (available: ${this.browserSemaphore.availablePermits}, queued: ${this.browserSemaphore.queueLength})`,
+                            );
+                        }
+
                         return await this.saveScreenshot({
                             authUserUuid,
                             imageId,
@@ -1167,6 +1203,14 @@ export class UnfurlService extends BaseService {
                 } finally {
                     if (page) await page.close();
                     if (browser) await browser.close(); // clears all created contexts belonging to this browser and disconnects from the browser server.
+
+                    // Release semaphore if not already released (during retry)
+                    if (useSemaphore && !semaphoreReleased) {
+                        this.browserSemaphore.release();
+                        this.logger.info(
+                            `Released browser slot (available: ${this.browserSemaphore.availablePermits}, queued: ${this.browserSemaphore.queueLength})`,
+                        );
+                    }
 
                     span.end();
 
