@@ -6,11 +6,13 @@ import { getOpenAIEmbeddingModel } from '../models/openai-embedding';
 
 const EMBEDDING_DIMENSIONS = 1536;
 
-function getEmbeddingModelConfig(config: LightdashConfig): {
-    model: EmbeddingModel<string>;
-    provider: string;
-    modelName: string;
-} {
+function getEmbeddingModelConfig(config: LightdashConfig):
+    | {
+          model: EmbeddingModel<string>;
+          provider: string;
+          modelName: string;
+      }
+    | undefined {
     const {
         defaultEmbeddingModelProvider,
         defaultProvider,
@@ -36,7 +38,7 @@ function getEmbeddingModelConfig(config: LightdashConfig): {
         };
     }
 
-    throw new ParameterError('No valid embedding provider configuration found');
+    return undefined;
 }
 
 export async function generateEmbedding(
@@ -47,8 +49,12 @@ export async function generateEmbedding(
     embedding: number[];
     provider: string;
     modelName: string;
-}> {
-    const { model, provider, modelName } = getEmbeddingModelConfig(config);
+} | null> {
+    const embeddingModelConfig = getEmbeddingModelConfig(config);
+    if (!embeddingModelConfig) {
+        return null;
+    }
+    const { model, provider, modelName } = embeddingModelConfig;
 
     let { embedding } = await embed({
         model,

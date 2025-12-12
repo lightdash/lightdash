@@ -1930,11 +1930,17 @@ export class AiAgentService {
                 return;
             }
 
-            const { embedding, provider, modelName } = await generateEmbedding(
+            const embeddingResult = await generateEmbedding(
                 text,
                 this.lightdashConfig,
                 { artifactVersionUuid: payload.artifactVersionUuid },
             );
+
+            if (!embeddingResult) {
+                return;
+            }
+
+            const { embedding, provider, modelName } = embeddingResult;
 
             await this.aiAgentModel.updateArtifactEmbedding(
                 payload.artifactVersionUuid,
@@ -2239,11 +2245,18 @@ export class AiAgentService {
             return this.aiAgentModel.getArtifactVersionsByUuids(existingRefs);
         }
 
+        const embeddingResult = await generateEmbedding(
+            searchQuery,
+            this.lightdashConfig,
+        );
+        if (!embeddingResult) {
+            return [];
+        }
         const {
             embedding: queryEmbedding,
             provider,
             modelName,
-        } = await generateEmbedding(searchQuery, this.lightdashConfig);
+        } = embeddingResult;
 
         const verifiedArtifacts =
             await this.aiAgentModel.searchArtifactsBySimilarity({
