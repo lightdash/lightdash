@@ -70,19 +70,23 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
     const { data: organization, isInitialLoading: isLoadingOrg } =
         useOrganization(useQueryFetchOptions);
 
+    const isLoggedIn = !!organization;
+
     // Priority 1: Project UUID from URL params
     const { data: paramProject, isInitialLoading: isLoadingParamProject } =
         useProject(params.projectUuid);
 
     // Priority 2: Last used project from localStorage
     // Only fetch if no param project and we have a lastProjectUuid
-    const shouldFetchLastProject = !params.projectUuid && !!lastProjectUuid;
+    const shouldFetchLastProject =
+        isLoggedIn && !params.projectUuid && !!lastProjectUuid;
     const { data: lastProject, isInitialLoading: isLoadingLastProject } =
         useProject(shouldFetchLastProject ? lastProjectUuid : undefined);
 
     // Priority 3: Organization's default project
     // Only fetch if no param project, no last project, and org has a default
     const shouldFetchDefaultProject =
+        isLoggedIn &&
         !params.projectUuid &&
         isLastProjectUuidFetched &&
         !lastProjectUuid &&
@@ -97,6 +101,7 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
     // Priority 4: Fallback to any project (when org has no defaultProjectUuid)
     // Only fetch projects list if we have no other option AND localStorage check is complete
     const shouldFetchFallbackProjects =
+        isLoggedIn &&
         !params.projectUuid &&
         isLastProjectUuidFetched &&
         !lastProjectUuid &&
