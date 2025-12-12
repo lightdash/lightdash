@@ -545,6 +545,17 @@ export class AiAgentNotFoundError extends LightdashError {
     }
 }
 
+export class AiAgentValidatorError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'AiAgentValidatorError',
+            statusCode: 400,
+            data: {},
+        });
+    }
+}
+
 /* This specific error will be used in the frontend
 to show a "reauthenticate" button in the UI
 */

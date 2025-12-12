@@ -1,5 +1,6 @@
 import {
     AdditionalMetric,
+    AiAgentValidatorError,
     assertUnreachable,
     booleanFilterSchema,
     CompiledField,
@@ -75,7 +76,7 @@ ${nonExploreFields.join('\n')}
             `[AiAgent][Validate Selected Fields Existence] ${errorMessage}`,
         );
 
-        throw new Error(errorMessage);
+        throw new AiAgentValidatorError(errorMessage);
     }
 }
 
@@ -152,7 +153,7 @@ export function validateCustomMetricsDefinition(
         Logger.error(
             `[AiAgent][Validate Custom Metric Definition] ${errorMessage}`,
         );
-        throw new Error(errorMessage);
+        throw new AiAgentValidatorError(errorMessage);
     }
 }
 
@@ -161,7 +162,7 @@ function validateFilterRule(
     field: CompiledField | AdditionalMetric | TableCalculation,
 ) {
     if (!field.type) {
-        throw new Error('Field type is required');
+        throw new AiAgentValidatorError('Field type is required');
     }
 
     const filterType = getFilterTypeFromItemType(field.type);
@@ -177,7 +178,7 @@ function validateFilterRule(
             });
 
             if (!parsedBooleanFilterRule.success) {
-                throw new Error(
+                throw new AiAgentValidatorError(
                     `Expected boolean filter rule for field ${filterRule.target.fieldId}. Error: ${parsedBooleanFilterRule.error.message}`,
                 );
             }
@@ -194,7 +195,7 @@ function validateFilterRule(
             });
 
             if (!parsedDateFilterRule.success) {
-                throw new Error(
+                throw new AiAgentValidatorError(
                     `Expected date filter rule for field ${filterRule.target.fieldId}. Error: ${parsedDateFilterRule.error.message}`,
                 );
             }
@@ -210,7 +211,7 @@ function validateFilterRule(
             });
 
             if (!parsedNumberFilterRule.success) {
-                throw new Error(
+                throw new AiAgentValidatorError(
                     `Expected number filter rule for field ${filterRule.target.fieldId}. Error: ${parsedNumberFilterRule.error.message}`,
                 );
             }
@@ -226,7 +227,7 @@ function validateFilterRule(
             });
 
             if (!parsedStringFilterRule.success) {
-                throw new Error(
+                throw new AiAgentValidatorError(
                     `Expected string filter rule for field ${filterRule.target.fieldId}. Error: ${parsedStringFilterRule.error.message}`,
                 );
             }
@@ -279,7 +280,7 @@ ${serializeData(filterRule, 'json')}`;
 
         Logger.error(`[AiAgent][Validate Filter Rule] ${errorMessage}`);
 
-        throw new Error(errorMessage);
+        throw new AiAgentValidatorError(errorMessage);
     }
 }
 
@@ -339,7 +340,7 @@ ${filterRuleErrorStrings}`;
 
         Logger.error(`[AiAgent][Validate Filter Rules] ${errorMessage}`);
 
-        throw new Error(errorMessage);
+        throw new AiAgentValidatorError(errorMessage);
     }
 }
 
@@ -521,7 +522,7 @@ Remember:
             `[AiAgent][Validate Metric/Dimension Filter Placement] ${errorMessage}`,
         );
 
-        throw new Error(errorMessage);
+        throw new AiAgentValidatorError(errorMessage);
     }
 }
 
@@ -575,7 +576,7 @@ ${errors.join('\n\n')}`;
             `[AiAgent][Validate Sort Fields Are Selected] ${errorMessage}`,
         );
 
-        throw new Error(errorMessage);
+        throw new AiAgentValidatorError(errorMessage);
     }
 }
 
@@ -649,7 +650,7 @@ ${customMetricFields
 
         Logger.error(`[AiAgent][Validate Field Entity Type] ${errorMessage}`);
 
-        throw new Error(errorMessage);
+        throw new AiAgentValidatorError(errorMessage);
     }
 }
 
@@ -680,7 +681,7 @@ ${availableTableNames.map((t) => `- ${t}`).join('\n')}`;
 
         Logger.error(`[AiAgent][Validate Table Names] ${errorMessage}`);
 
-        throw new Error(errorMessage);
+        throw new AiAgentValidatorError(errorMessage);
     }
 }
 
@@ -702,7 +703,7 @@ ${availableExplores.map((e) => `- ${e.name}`).join('\n')}`;
 
     Logger.error(`[AiAgent][Validate Explore Name Exists] ${errorMessage}`);
 
-    throw new Error(errorMessage);
+    throw new AiAgentValidatorError(errorMessage);
 }
 
 // Numeric metric types that support most table calculations
@@ -782,7 +783,9 @@ export function validateTableCalculations(
     try {
         detectCircularDependencies(dependencies, 'table calculations');
     } catch (e) {
-        throw new Error(getTableCalcValidationError(getErrorMessage(e)));
+        throw new AiAgentValidatorError(
+            getTableCalcValidationError(getErrorMessage(e)),
+        );
     }
 
     // Collect orderBy fields with their calc names for validation
@@ -952,7 +955,7 @@ export function validateTableCalculations(
     if (errors.length > 0) {
         const errorMessage = getTableCalcValidationError(errors);
         Logger.error(`[AiAgent][Validate Table Calculations] ${errorMessage}`);
-        throw new Error(errorMessage);
+        throw new AiAgentValidatorError(errorMessage);
     }
 }
 
@@ -1031,7 +1034,7 @@ ${exploreFields
 
         Logger.error(`[AiAgent][Validate GroupBy Fields] ${errorMessage}`);
 
-        throw new Error(errorMessage);
+        throw new AiAgentValidatorError(errorMessage);
     }
 }
 
@@ -1148,6 +1151,6 @@ Remember:
 
         Logger.error(`[AiAgent][Validate Axis Fields] ${errorMessage}`);
 
-        throw new Error(errorMessage);
+        throw new AiAgentValidatorError(errorMessage);
     }
 }
