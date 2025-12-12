@@ -45,6 +45,8 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
                     return 'Custom visualization';
                 case ChartKind.MAP:
                     return 'Map';
+                case ChartKind.SANKEY:
+                    return 'Sankey chart';
                 default:
                     return assertUnreachable(
                         item.data.chartKind,

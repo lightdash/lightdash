@@ -6,6 +6,7 @@ import {
     IconChartDots,
     IconChartLine,
     IconChartPie,
+    IconChartSankey,
     IconChartTreemap,
     IconCode,
     IconFilter,
@@ -38,6 +39,8 @@ export const getChartIcon = (chartKind: ChartKind | undefined) => {
             return IconChartTreemap;
         case ChartKind.GAUGE:
             return IconGauge;
+        case ChartKind.SANKEY:
+            return IconChartSankey;
         case ChartKind.TABLE:
             return IconTable;
         case ChartKind.BIG_NUMBER:
