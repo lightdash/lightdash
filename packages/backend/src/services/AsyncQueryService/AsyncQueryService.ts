@@ -12,7 +12,9 @@ import {
     type ApiGetAsyncQueryResults,
     assertIsAccountWithOrg,
     assertUnreachable,
+    type CompiledCustomSqlDimension,
     CompiledDimension,
+    type CompiledMetric,
     convertCustomFormatToFormatExpression,
     convertFieldRefToFieldId,
     createVirtualView as createVirtualViewObject,
@@ -32,6 +34,8 @@ import {
     type ExecuteAsyncUnderlyingDataRequestParams,
     ExpiredError,
     Explore,
+    ExploreCompiler,
+    type Field,
     FieldType,
     ForbiddenError,
     formatItemValue,
@@ -41,12 +45,15 @@ import {
     getDashboardFilterRulesForTileAndReferences,
     getDashboardFiltersForTileAndTables,
     getDimensions,
+    getDimensionsWithValidParameters,
     getErrorMessage,
     getFieldsFromMetricQuery,
     getItemId,
     getItemMap,
     getMetrics,
+    getMetricsWithValidParameters,
     isCartesianChartConfig,
+    isCompiledCustomSqlDimension,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -2582,6 +2589,17 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
+        const warehouseCredentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+        });
+
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
+        );
+
         const { metricQuery, fields: metricQueryFields } =
             await this.queryHistoryModel.get(
                 underlyingDataSourceQueryUuid,
@@ -2596,6 +2614,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             exploreName,
             organizationUuid,
+        );
+
+        // Combine parameters early so we can filter dimensions by parameter availability
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            explore,
+            parameters,
         );
 
         const underlyingDataItem = underlyingDataItemId
@@ -2622,11 +2647,48 @@ export class AsyncQueryService extends ProjectService {
             ? underlyingDataItem.table
             : undefined;
 
+        const hasMissingParameters = (
+            field:
+                | CompiledDimension
+                | CompiledCustomSqlDimension
+                | CompiledMetric,
+        ) =>
+            field.parameterReferences?.some(
+                (paramRef) => !combinedParameters[paramRef],
+            ) ?? false;
+
+        // Compile custom sql dimensions early so we can filter dimensions by parameter availability
+        const compiler = new ExploreCompiler(warehouseSqlBuilder);
+        const availableCustomDimensions =
+            metricQuery.customDimensions?.reduce<CompiledCustomSqlDimension[]>(
+                (acc, dimension) => {
+                    try {
+                        const compiledCustomDimension =
+                            compiler.compileCustomDimension(
+                                dimension,
+                                explore.tables,
+                                Object.keys(combinedParameters),
+                            );
+
+                        if (
+                            !isCustomBinDimension(compiledCustomDimension) &&
+                            !hasMissingParameters(compiledCustomDimension)
+                        ) {
+                            acc.push(compiledCustomDimension);
+                        }
+                    } catch (error) {
+                        // when custom sql dimension has missing parameters it will fail compilation and we will ignore it
+                        // no-op
+                    }
+
+                    return acc;
+                },
+                [],
+            ) || [];
+
         const allDimensions = [
-            ...(metricQuery.customDimensions?.filter(
-                (dimension) => !isCustomBinDimension(dimension),
-            ) || []),
-            ...getDimensions(explore),
+            ...availableCustomDimensions,
+            ...getDimensionsWithValidParameters(explore, combinedParameters),
         ];
 
         const isValidNonCustomDimension = (
@@ -2646,7 +2708,11 @@ export class AsyncQueryService extends ProjectService {
                       )
                     : true),
         );
-        const availableMetrics = getMetrics(explore).filter(
+
+        const availableMetrics = getMetricsWithValidParameters(
+            explore,
+            combinedParameters,
+        ).filter(
             (metric) =>
                 availableTables.has(metric.table) &&
                 !metric.hidden &&
@@ -2675,10 +2741,7 @@ export class AsyncQueryService extends ProjectService {
         const underlyingDataMetricQuery: MetricQuery = {
             exploreName,
             dimensions: availableDimensions.map(getItemId),
-            // Remove custom bin dimensions from underlying data query
-            customDimensions: metricQuery.customDimensions?.filter(
-                (dimension) => !isCustomBinDimension(dimension),
-            ),
+            customDimensions: availableCustomDimensions,
             filters,
             metrics: availableMetrics.map(getItemId),
             sorts: [],
@@ -2692,24 +2755,6 @@ export class AsyncQueryService extends ProjectService {
             limit,
             this.lightdashConfig.query?.csvCellsLimit,
             this.lightdashConfig.query?.maxLimit,
-        );
-
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-        });
-
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
-        );
-
-        // Combine default parameter values with request parameters first
-        const combinedParameters = await this.combineParameters(
-            projectUuid,
-            explore,
-            parameters,
         );
 
         const {

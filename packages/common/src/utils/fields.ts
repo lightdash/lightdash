@@ -11,6 +11,7 @@ import {
 } from '../types/field';
 import { isDateFilterRule, type DateFilterSettings } from '../types/filter';
 import { type AdditionalMetric, type MetricQuery } from '../types/metricQuery';
+import type { ParametersValuesMap } from '../types/parameters';
 import {
     type ReplaceCustomFields,
     type ReplaceableCustomFields,
@@ -20,13 +21,80 @@ import { convertAdditionalMetric } from './additionalMetrics';
 import { getFormatExpression } from './formatting';
 import { getItemId } from './item';
 
+// Helper function to get a list of all tables in an explore with valid parameters
+const getTablesWithValidParameters = (
+    explore: Explore,
+    combinedParameters: ParametersValuesMap,
+) => {
+    const joinedTablesNames = explore.joinedTables.map((j) => j.table);
+    const joinedTablesWithValidParameters = explore.joinedTables.reduce<
+        string[]
+    >((acc, join) => {
+        const joinHasValidParameters =
+            join.parameterReferences?.every(
+                (paramRef) => combinedParameters[paramRef],
+            ) ?? true;
+
+        if (joinHasValidParameters) {
+            acc.push(join.table);
+        }
+
+        return acc;
+    }, []);
+
+    const tablesWithValidParameters = Object.values(explore.tables).filter(
+        (table) => {
+            const tableHasValidParameters =
+                table.parameterReferences?.every(
+                    (paramRef) => combinedParameters[paramRef],
+                ) ?? true;
+
+            const tableIsJoined = joinedTablesNames.includes(table.name);
+            const tableIsJoinedWithValidParameters =
+                joinedTablesWithValidParameters.includes(table.name);
+
+            if (tableIsJoined && !tableIsJoinedWithValidParameters) {
+                return false;
+            }
+
+            return tableHasValidParameters;
+        },
+    );
+
+    return tablesWithValidParameters;
+};
+
 // Helper function to get a list of all dimensions in an explore
 export const getDimensions = (explore: Explore): CompiledDimension[] =>
     Object.values(explore.tables).flatMap((t) => Object.values(t.dimensions));
 
+export const getDimensionsWithValidParameters = (
+    explore: Explore,
+    combinedParameters: ParametersValuesMap,
+): CompiledDimension[] =>
+    getTablesWithValidParameters(explore, combinedParameters).flatMap((t) =>
+        Object.values(t.dimensions).filter(
+            (d) =>
+                d.parameterReferences?.every((p) => combinedParameters[p]) ??
+                true,
+        ),
+    );
+
 // Helper function to get a list of all metrics in an explore
 export const getMetrics = (explore: Explore): CompiledMetric[] =>
     Object.values(explore.tables).flatMap((t) => Object.values(t.metrics));
+
+export const getMetricsWithValidParameters = (
+    explore: Explore,
+    combinedParameters: ParametersValuesMap,
+): CompiledMetric[] =>
+    getTablesWithValidParameters(explore, combinedParameters).flatMap((t) =>
+        Object.values(t.metrics).filter(
+            (m) =>
+                m.parameterReferences?.every((p) => combinedParameters[p]) ??
+                true,
+        ),
+    );
 
 export const getFields = (explore: Explore): CompiledField[] => [
     ...getDimensions(explore),
