@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.2234.3",
+    "version": "0.2247.0",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -20,7 +20,7 @@
         "unused-exports": "ts-unused-exports ./tsconfig.json --allowUnusedEnums --allowUnusedTypes --showLineNumber --ignoreFiles='build/.*' --ignoreFiles='sdk/dist/.*' --ignoreFiles='.*/__mocks__/.*' --ignoreFiles='src/stories/.*'",
         "storybook": "storybook dev -p 6006 --no-open",
         "build-storybook": "storybook build",
-        "release": "(cd sdk && pnpm publish --no-git-checks)"
+        "release": "(cd sdk && pnpm publish --no-git-checks --access public)"
     },
     "dependencies": {
         "@casl/ability": "^5.4.4",
@@ -55,6 +55,7 @@
         "@tanstack/react-query-devtools": "^4.36.1",
         "@tanstack/react-table": "^8.15.3",
         "@tanstack/react-virtual": "^3.10.7",
+        "@theme-toggles/react": "^4.1.0",
         "@tiptap/extension-link": "^2.2.4",
         "@tiptap/extension-mention": "^2.2.4",
         "@tiptap/extension-placeholder": "^2.2.4",
@@ -142,6 +143,7 @@
     "devDependencies": {
         "@chromatic-com/storybook": "^3",
         "@mantine/styles": "6.0.21",
+        "@react-grab/claude-code": "^0.0.70",
         "@storybook/addon-essentials": "^8.6.6",
         "@storybook/addon-interactions": "^8.6.6",
         "@storybook/addon-onboarding": "^8.6.6",
@@ -181,7 +183,6 @@
         "jsdom": "^24.0.0",
         "nock": "^13.5.1",
         "react-grab": "^0.0.70",
-        "@react-grab/claude-code": "^0.0.70",
         "react-test-renderer": "^19.0.0",
         "storybook": "^8.6.6",
         "ts-unused-exports": "^9.0.4",

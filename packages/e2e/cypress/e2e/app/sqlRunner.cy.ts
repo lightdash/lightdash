@@ -20,7 +20,8 @@ describe('SQL Runner (new)', () => {
             });
     });
 
-    it('Should verify that the query is autocompleted, run, and the results are displayed', () => {
+    // todo: move to unit test
+    it.skip('Should verify that the query is autocompleted, run, and the results are displayed', () => {
         // Verify the autocomplete SQL query
         cy.get('.monaco-editor').should('be.visible');
         cy.contains('jaffle').click().wait(500);

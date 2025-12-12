@@ -2,6 +2,7 @@ import {
     ChartType,
     type CustomDimension,
     type DashboardFilters,
+    type DateZoom,
     type Dimension,
     type ItemsMap,
     type MapChart,
@@ -154,6 +155,7 @@ export type VisualizationTableConfigProps =
         dashboardFilters: DashboardFilters | undefined;
         invalidateCache: boolean | undefined;
         parameters?: ParametersValuesMap;
+        dateZoom?: DateZoom;
     };
 
 // Treemap

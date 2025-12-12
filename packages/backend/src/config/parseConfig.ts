@@ -72,7 +72,7 @@ export const getIntegerFromEnvironmentVariable = (
     name: string,
 ): number | undefined => {
     const raw = process.env[name];
-    if (raw === undefined) {
+    if (!raw) {
         return undefined;
     }
     const parsed = Number.parseInt(raw, 10);
@@ -88,7 +88,7 @@ export const getFloatFromEnvironmentVariable = (
     name: string,
 ): number | undefined => {
     const raw = process.env[name];
-    if (raw === undefined) {
+    if (!raw) {
         return undefined;
     }
     const parsed = Number.parseFloat(raw);
@@ -679,7 +679,9 @@ export const getAiConfig = () => ({
     embeddingEnabled: process.env.AI_EMBEDDING_ENABLED === 'true',
     defaultProvider:
         process.env.AI_DEFAULT_PROVIDER || DEFAULT_DEFAULT_AI_PROVIDER,
-    defaultEmbeddingModelProvider: process.env.AI_DEFAULT_EMBEDDING_PROVIDER,
+    defaultEmbeddingModelProvider:
+        process.env.AI_DEFAULT_EMBEDDING_PROVIDER ||
+        DEFAULT_DEFAULT_AI_PROVIDER,
     providers: {
         azure: process.env.AZURE_AI_API_KEY
             ? {
@@ -1453,10 +1455,7 @@ export const parseConfig = (): LightdashConfig => {
             },
         },
         intercom: {
-            appId:
-                process.env.INTERCOM_APP_ID === undefined
-                    ? 'zppxyjpp'
-                    : process.env.INTERCOM_APP_ID,
+            appId: process.env.INTERCOM_APP_ID || '',
             apiBase:
                 process.env.INTERCOM_APP_BASE || 'https://api-iam.intercom.io',
         },

@@ -88,6 +88,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardModel: models.getDashboardModel(),
                     dashboardSummaryModel: models.getDashboardSummaryModel(),
                     projectService: repository.getProjectService(),
+                    featureFlagService: repository.getFeatureFlagService(),
                     openAi: new OpenAi(), // TODO This should go in client repository as soon as it is available
                 }),
             aiAgentService: ({
@@ -384,12 +385,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     schedulerModel: models.getSchedulerModel(),
                 }),
-            slackClient: ({ context, models }) =>
+            slackClient: ({ context, models, repository }) =>
                 new CommercialSlackClient({
                     analytics: context.lightdashAnalytics,
                     lightdashConfig: context.lightdashConfig,
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
+                    slackChannelCacheModel: models.getSlackChannelCacheModel(),
+                    schedulerClient: repository.getSchedulerClient(),
                 }),
         },
     };

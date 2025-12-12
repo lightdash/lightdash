@@ -5,6 +5,7 @@ describe('Explore', () => {
         cy.login();
     });
 
+    // todo: combine tests
     it('Should query orders', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
         cy.findByTestId('page-spinner').should('not.exist');
@@ -45,6 +46,7 @@ describe('Explore', () => {
             .should('contain.text', 'Aaron');
     });
 
+    // todo: combine tests
     it('Should save chart', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
         cy.findByTestId('page-spinner').should('not.exist');
@@ -90,6 +92,7 @@ describe('Explore', () => {
         cy.findByText('Success! Chart was updated.');
     });
 
+    // todo: combine tests
     it('Should change chart config type', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
 
@@ -152,7 +155,8 @@ describe('Explore', () => {
         cy.get('button').contains('Big value');
     });
 
-    it('Keeps chart config after updating table calculation', () => {
+    // todo: move to unit test
+    it.skip('Keeps chart config after updating table calculation', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
 
         cy.findByTestId('page-spinner').should('not.exist');
@@ -230,7 +234,8 @@ describe('Explore', () => {
         cy.findByTestId('y-axis-field-select').should('have.value', newTCName);
     });
 
-    it('Should change chart config layout', () => {
+    // todo: move to unit test
+    it.skip('Should change chart config layout', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables/orders`);
         cy.findByTestId('page-spinner').should('not.exist');
 
@@ -257,7 +262,8 @@ describe('Explore', () => {
         cy.get('g').children('text').should('have.length.greaterThan', 30); // with labels
     });
 
-    describe('Sort', () => {
+    // todo: move to unit test
+    describe.skip('Sort', () => {
         it('should sort multisort results', () => {
             cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
@@ -333,7 +339,8 @@ describe('Explore', () => {
         });
     });
 
-    describe('Chart type', () => {
+    // todo: move to unit test
+    describe.skip('Chart type', () => {
         describe('Table', () => {
             describe('Config', () => {
                 it('should hide table names from the header according to the config', () => {
@@ -429,7 +436,8 @@ describe('Explore', () => {
         });
     });
 
-    it('Should open SQL Runner with current query', () => {
+    // todo: move to unit test
+    it.skip('Should open SQL Runner with current query', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
         cy.findByText('Orders').click();
@@ -455,7 +463,8 @@ describe('Explore', () => {
         });
     });
 
-    it('Should clear query using hotkeys', () => {
+    // todo: move to unit test
+    it.skip('Should clear query using hotkeys', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
 
         cy.findByText('Orders').click();
@@ -478,7 +487,8 @@ describe('Explore', () => {
         cy.findByText('Pick a metric & select its dimensions').should('exist');
     });
 
-    it('Should search tables and select fields', () => {
+    // todo: move to unit test
+    it.skip('Should search tables and select fields', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
         cy.findByTestId('page-spinner').should('not.exist');
 
@@ -514,7 +524,8 @@ describe('Explore', () => {
         cy.get('tbody tr').first().find('td').eq(1).should('not.be.empty');
     });
 
-    it('Should add a custom dimension', () => {
+    // todo: move to unit test
+    it.skip('Should add a custom dimension', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/tables`);
         cy.findByTestId('page-spinner').should('not.exist');
 

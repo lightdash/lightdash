@@ -1,3 +1,4 @@
+import { SLACK_ID_REGEX } from '@lightdash/common';
 import {
     ActionIcon,
     Loader,
@@ -7,9 +8,13 @@ import {
     type MultiSelectProps,
     type SelectProps,
 } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import { IconRefresh } from '@tabler/icons-react';
-import { useEffect, useMemo, useRef, useState, type FC } from 'react';
-import { useSlackChannels } from '../../../hooks/slack/useSlack';
+import { useEffect, useMemo, useState, type FC } from 'react';
+import {
+    useSlackChannelLookup,
+    useSlackChannels,
+} from '../../../hooks/slack/useSlack';
 import MantineIcon from '../MantineIcon';
 
 type CommonProps = {
@@ -19,6 +24,8 @@ type CommonProps = {
     size?: SelectProps['size'];
     /** Show refresh button to force re-fetch channels from Slack */
     withRefresh?: boolean;
+    /** Include direct messages in the channel list */
+    includeDms?: boolean;
 };
 
 type SingleSelectProps = CommonProps & {
@@ -42,12 +49,20 @@ export const SlackChannelSelect: FC<
         label,
         size = 'xs',
         withRefresh = false,
+        includeDms = false,
     } = props;
 
     const [search, setSearch] = useState<string | undefined>(undefined);
+    const [debouncedSearch] = useDebouncedValue(search, 300);
 
-    // Accumulate channels across searches so selected channels remain in options
-    const channelCacheRef = useRef<Map<string, string>>(new Map());
+    // Track looked-up channels (ID -> name) that aren't in the cached list yet
+    const [lookedUpChannels, setLookedUpChannels] = useState<
+        Map<string, string>
+    >(new Map());
+
+    // On-demand lookup for pasted channel IDs not in DB cache
+    const { mutate: lookupChannel, isLoading: isLookingUp } =
+        useSlackChannelLookup();
 
     const includeChannelIds = useMemo(() => {
         if (props.multiple) {
@@ -65,29 +80,36 @@ export const SlackChannelSelect: FC<
         search || '',
         {
             excludeArchived: true,
-            excludeDms: true,
+            excludeDms: !includeDms,
             excludeGroups: true,
             includeChannelIds,
         },
         { enabled: !disabled },
     );
 
-    // Add fetched channels to cache
+    // On-demand lookup when user pastes a Slack channel ID
     useEffect(() => {
-        slackChannels?.forEach((channel) => {
-            channelCacheRef.current.set(channel.id, channel.name);
-        });
-    }, [slackChannels]);
+        if (!debouncedSearch || !SLACK_ID_REGEX.test(debouncedSearch)) return;
+
+        // Check if already in fetched channels
+        const alreadyHaveChannel = slackChannels?.some(
+            (c) => c.id === debouncedSearch,
+        );
+        if (alreadyHaveChannel) return;
+
+        // Lookup the channel by ID
+        lookupChannel(debouncedSearch);
+    }, [debouncedSearch, slackChannels, lookupChannel]);
 
     const options = useMemo(() => {
         const optionsMap = new Map<string, string>();
 
-        // Add all cached channels first
-        channelCacheRef.current.forEach((name, id) => {
+        // Add looked-up channels first
+        lookedUpChannels.forEach((name, id) => {
             optionsMap.set(id, name);
         });
 
-        // Add/update with current search results
+        // Add channels from API (will override looked-up if same ID)
         slackChannels?.forEach((channel) => {
             optionsMap.set(channel.id, channel.name);
         });
@@ -96,9 +118,9 @@ export const SlackChannelSelect: FC<
             value: id,
             label: name,
         }));
-    }, [slackChannels]);
+    }, [slackChannels, lookedUpChannels]);
 
-    const isBusy = isLoading || isRefreshing;
+    const isBusy = isLoading || isRefreshing || isLookingUp;
 
     const rightSection = withRefresh ? (
         isBusy ? (
@@ -127,15 +149,40 @@ export const SlackChannelSelect: FC<
         onSearchChange: setSearch,
     };
 
+    // Only allow creating items that look like Slack channel IDs
+    const shouldAllowCreate = (query: string) => SLACK_ID_REGEX.test(query);
+
     return props.multiple ? (
         <MultiSelect
             {...(commonProps as MultiSelectProps)}
             creatable
-            getCreateLabel={(query) => `Send to private channel #${query}`}
+            shouldCreate={shouldAllowCreate}
+            getCreateLabel={(query) =>
+                SLACK_ID_REGEX.test(query)
+                    ? `Look up channel ID: ${query}`
+                    : 'Paste a Slack channel ID (e.g., C01234567)'
+            }
             onCreate={(newItem) => {
-                // Add private channel to cache with # prefix for display
-                channelCacheRef.current.set(newItem, `#${newItem}`);
-                return newItem;
+                if (SLACK_ID_REGEX.test(newItem)) {
+                    // Trigger lookup to get channel info
+                    lookupChannel(newItem, {
+                        onSuccess: (channel) => {
+                            if (channel) {
+                                // Add to looked-up channels so it appears in options
+                                setLookedUpChannels((prev) => {
+                                    const next = new Map(prev);
+                                    next.set(channel.id, channel.name);
+                                    return next;
+                                });
+                                // Add the channel ID to the selection
+                                props.onChange([...props.value, channel.id]);
+                            }
+                        },
+                    });
+                    // Don't add anything yet - wait for lookup to complete
+                    return undefined;
+                }
+                return undefined;
             }}
             value={props.value}
             onChange={(newValue) => {

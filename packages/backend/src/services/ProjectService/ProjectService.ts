@@ -171,6 +171,7 @@ import {
 } from '@lightdash/common';
 import {
     BigqueryWarehouseClient,
+    DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     exchangeDatabricksOAuthCredentials,
     refreshDatabricksOAuthToken,
     SshTunnel,
@@ -832,10 +833,17 @@ export class ProjectService extends BaseService {
                     `Refreshing databricks U2M OAuth token for user ${userUuid}`,
                 );
 
+                // Use client ID from config (same as used during OAuth authorization)
+                // Default to pre-registered Databricks public client
+                const clientId =
+                    this.lightdashConfig.auth.databricks.clientId ||
+                    args.oauthClientId ||
+                    DATABRICKS_DEFAULT_OAUTH_CLIENT_ID;
+
                 const { accessToken, refreshToken: newRefreshToken } =
                     await refreshDatabricksOAuthToken(
                         args.serverHostName,
-                        args.oauthClientId || 'databricks-cli',
+                        clientId,
                         refreshToken,
                     );
 
@@ -1081,48 +1089,65 @@ export class ProjectService extends BaseService {
             );
         }
 
-        // If requireUserCredentials is true, we need to override the existing credentials with the user credentials
-        // even if we use organization credentials
-        if (credentials.requireUserCredentials) {
-            if (!isRegisteredUser) {
-                throw new ForbiddenError(
-                    'Embedded users cannot use personal warehouse credentials',
-                );
-            }
+        // Check if user has their own credentials for this project's warehouse type
+        // Only fetch user credentials when:
+        // 1. requireUserCredentials is enabled (user credentials are mandatory)
+        // 2. Databricks warehouse (supports optional user OAuth credentials)
+        const shouldFetchUserCredentials =
+            credentials.requireUserCredentials ||
+            credentials.type === WarehouseTypes.DATABRICKS;
 
-            const userWarehouseCredentials =
-                await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
-                    projectUuid,
+        if (isRegisteredUser) {
+            // Fetch user credentials only when needed (for performance)
+            const userWarehouseCredentials = shouldFetchUserCredentials
+                ? await this.userWarehouseCredentialsModel.findForProjectWithSecrets(
+                      projectUuid,
+                      userId,
+                      credentials.type,
+                  )
+                : undefined;
+
+            if (userWarehouseCredentials) {
+                // User has credentials - use them
+                if (
+                    credentials.type ===
+                    userWarehouseCredentials.credentials.type
+                ) {
+                    credentials = {
+                        ...credentials,
+                        ...userWarehouseCredentials.credentials,
+                    } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
+                } else {
+                    throw new UnexpectedServerError(
+                        'User warehouse credentials are not compatible',
+                    );
+                }
+                this.logger.debug(
+                    `Using user warehouse credentials for user ${userId}`,
+                );
+                credentials = await this.refreshCredentials(
+                    credentials,
                     userId,
-                    credentials.type,
                 );
-            if (userWarehouseCredentials === undefined) {
+                userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
+            } else if (credentials.requireUserCredentials) {
+                // User credentials are required but not found
                 throw new NotFoundError('User warehouse credentials not found');
-            }
-
-            if (
-                credentials.type === userWarehouseCredentials.credentials.type
-            ) {
-                credentials = {
-                    ...credentials,
-                    ...userWarehouseCredentials.credentials,
-                } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
-            } else {
-                throw new UnexpectedServerError(
-                    'User warehouse credentials are not compatible',
+            } else if (!organizationWarehouseCredentialsUuid) {
+                // No user credentials, no org credentials, refresh project credentials
+                this.logger.debug(
+                    `Refreshing warehouse credentials for session user ${userId}`,
+                );
+                credentials = await this.refreshCredentials(
+                    credentials,
+                    userId,
                 );
             }
-            this.logger.debug(
-                `Refreshing warehouse credentials for user ${userId} with requireUserCredentials`,
+        } else if (credentials.requireUserCredentials) {
+            // Embedded users cannot use personal warehouse credentials
+            throw new ForbiddenError(
+                'Embedded users cannot use personal warehouse credentials',
             );
-            credentials = await this.refreshCredentials(credentials, userId);
-
-            userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
-        } else if (isRegisteredUser && !organizationWarehouseCredentialsUuid) {
-            this.logger.debug(
-                `Refreshing warehouse credentials for session user ${userId}`,
-            );
-            credentials = await this.refreshCredentials(credentials, userId);
         }
 
         return {
@@ -2112,7 +2137,7 @@ export class ProjectService extends BaseService {
                     await refreshDatabricksOAuthToken(
                         project.warehouseConnection.serverHostName,
                         project.warehouseConnection.oauthClientId ||
-                            'databricks-cli',
+                            DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
                         project.warehouseConnection.refreshToken,
                     );
                 project.warehouseConnection.token = accessToken;
@@ -5929,6 +5954,7 @@ export class ProjectService extends BaseService {
             metricQuery,
             columnOrder,
             pivotDimensions,
+            dateZoom,
         } = data;
 
         // Use the shared utility to prepare dimension groups
@@ -5973,6 +5999,7 @@ export class ProjectService extends BaseService {
                 csvLimit: null,
                 chartUuid: undefined,
                 parameters,
+                dateZoom,
             });
 
             return formatRawRows(rows, fields);

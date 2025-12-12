@@ -4,7 +4,6 @@ import {
     getErrorMessage,
     getItemId,
     getItemMap,
-    isAdditionalMetric,
     isCustomDimension,
     isDimension,
     isField,
@@ -13,7 +12,6 @@ import {
     itemsInMetricQuery,
     renderTemplatedUrl,
     type AdditionalMetric,
-    type AnyType,
     type CustomDimension,
     type Dimension,
     type Field,
@@ -24,12 +22,7 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import {
-    Group,
-    Tooltip,
-    useMantineTheme,
-    type MantineTheme,
-} from '@mantine/core';
+import { Group, Tooltip } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
 import omit from 'lodash/omit';
@@ -61,33 +54,11 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { getFieldColors } from '../utils/fieldColors';
 import { TableCellBar } from './TableCellBar';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
 import { useExplorerQuery } from './useExplorerQuery';
-
-export const getItemBgColor = (
-    item: Field | AdditionalMetric | TableCalculation | CustomDimension,
-    // Accept both Mantine v6 and v8 themes during migration
-    theme: MantineTheme | { colorScheme?: string; other?: AnyType },
-): string => {
-    const colorScheme = theme.colorScheme || 'light';
-    const bgColors = theme.other?.explorerItemBg || {
-        dimension: { light: '#d2dbe9', dark: '#2a3f5f' },
-        metric: { light: '#e4dad0', dark: '#4a3929' },
-        calculation: { light: '#d2dfd7', dark: '#2a4a2f' },
-    };
-
-    if (isCustomDimension(item)) {
-        return bgColors.dimension[colorScheme];
-    }
-    if (isField(item) || isAdditionalMetric(item)) {
-        return isDimension(item)
-            ? bgColors.dimension[colorScheme]
-            : bgColors.metric[colorScheme];
-    }
-    return bgColors.calculation[colorScheme];
-};
 
 export const formatCellContent = (
     data?: { value: ResultValue },
@@ -313,7 +284,6 @@ export const getValueCell = (
 };
 
 export const useColumns = (): TableColumn[] => {
-    const theme = useMantineTheme();
     const tableName = useExplorerSelector(selectTableName);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
@@ -479,12 +449,15 @@ export const useColumns = (): TableColumn[] => {
         >((acc, [fieldId, item]) => {
             const sortIndex = sorts.findIndex((sf) => fieldId === sf.fieldId);
             const isFieldSorted = sortIndex !== -1;
+            const fieldColors = getFieldColors(item);
             const column: TableColumn = columnHelper.accessor(
                 (row) => row[fieldId],
                 {
                     id: fieldId,
                     header: () => (
-                        <TableHeaderLabelContainer>
+                        <TableHeaderLabelContainer
+                            color={fieldColors.columnHeaderColor}
+                        >
                             {isField(item) ? (
                                 <>
                                     {hasJoins && (
@@ -550,7 +523,7 @@ export const useColumns = (): TableColumn[] => {
                         item,
                         draggable: true,
                         frozen: false,
-                        bgColor: getItemBgColor(item, theme),
+                        bgColor: fieldColors.bg,
                         sort: isFieldSorted
                             ? {
                                   sortIndex,
@@ -574,13 +547,15 @@ export const useColumns = (): TableColumn[] => {
                 // Use the base item's label with "(previous period)" suffix
                 const baseLabel = isField(popItem) ? popItem.label : popFieldId;
                 const popLabel = `${baseLabel} (previous period)`;
-
+                const popColors = getFieldColors(popItem);
                 const popColumn: TableColumn = columnHelper.accessor(
                     (row) => row[popFieldId],
                     {
                         id: popFieldId,
                         header: () => (
-                            <TableHeaderLabelContainer>
+                            <TableHeaderLabelContainer
+                                color={popColors.columnHeaderColor}
+                            >
                                 {isField(popItem) && hasJoins && (
                                     <TableHeaderRegularLabel>
                                         {popItem.tableLabel}{' '}
@@ -613,7 +588,7 @@ export const useColumns = (): TableColumn[] => {
                             item: popItem,
                             draggable: false,
                             frozen: false,
-                            bgColor: getItemBgColor(popItem, theme), // Light gray background to indicate PoP column
+                            bgColor: popColors.bg,
                             isReadOnly: true, // Computed column, not editable
                         },
                     },
@@ -672,6 +647,5 @@ export const useColumns = (): TableColumn[] => {
         exploreData,
         parameters,
         popPreviousFields,
-        theme,
     ]);
 };

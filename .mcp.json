@@ -5,8 +5,12 @@
       "args": ["chrome-devtools-mcp@latest"]
     },
     "lightdash-docs": {
-      "type": "url",
+      "type": "http",
       "url": "https://docs.lightdash.com/mcp"
+    },
+    "sentry": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp"
     }
   }
 }

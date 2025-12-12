@@ -293,6 +293,11 @@ ${styles.bold('Examples:')}
         'dbt property. Do not resolve unselected nodes by deferring to the manifest within the --state directory.',
         undefined,
     )
+    .option(
+        '--favor-state',
+        'dbt property. When deferring, prioritize node definitions from the --state directory.',
+        undefined,
+    )
     .option('--full-refresh')
     .option(
         '--exclude-meta',
@@ -370,6 +375,11 @@ program
         undefined,
     )
     .option(
+        '--favor-state',
+        'dbt property. When deferring, prioritize node definitions from the --state directory.',
+        undefined,
+    )
+    .option(
         '--no-warehouse-credentials',
         'Compile without any warehouse credentials. Skips dbt compile + warehouse catalog',
     )
@@ -418,6 +428,11 @@ program
     .option(
         '--no-defer',
         'dbt property. Do not resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
+    .option(
+        '--favor-state',
+        'dbt property. When deferring, prioritize node definitions from the --state directory.',
         undefined,
     )
     .option('--threads <number>')
@@ -522,6 +537,11 @@ program
     .option(
         '--no-defer',
         'dbt property. Do not resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
+    .option(
+        '--favor-state',
+        'dbt property. When deferring, prioritize node definitions from the --state directory.',
         undefined,
     )
     .option('--threads <number>')
@@ -708,6 +728,21 @@ program
     .option('--selector <selector_name>')
     .option('--state <state>')
     .option('--full-refresh')
+    .option(
+        '--defer',
+        'dbt property. Resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
+    .option(
+        '--no-defer',
+        'dbt property. Do not resolve unselected nodes by deferring to the manifest within the --state directory.',
+        undefined,
+    )
+    .option(
+        '--favor-state',
+        'dbt property. When deferring, prioritize node definitions from the --state directory.',
+        undefined,
+    )
     .option('--verbose', undefined, false)
 
     .option(

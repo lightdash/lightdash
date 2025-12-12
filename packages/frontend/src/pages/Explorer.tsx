@@ -22,7 +22,6 @@ import {
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
-import { ProfilerWrapper } from '../perf/ProfilerWrapper';
 import useApp from '../providers/App/useApp';
 import { defaultState } from '../providers/Explorer/defaultState';
 
@@ -60,9 +59,7 @@ const ExplorerContent = memo(() => {
             withFullHeight
             withPaddedContent
         >
-            <ProfilerWrapper id="Explorer">
-                <Explorer />
-            </ProfilerWrapper>
+            <Explorer />
         </Page>
     );
 });

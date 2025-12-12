@@ -15,6 +15,7 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import React, { type FC } from 'react';
+import useHealth from '../../../hooks/health/useHealth';
 import { useUserWarehouseCredentialsCreateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
@@ -75,6 +76,8 @@ export const CreateCredentialsModal: FC<Props> = ({
     warehouseType,
     onSuccess,
 }) => {
+    const health = useHealth();
+    const isDatabricksEnabled = health.data?.auth.databricks.enabled ?? false;
     const { mutateAsync, isLoading: isSaving } =
         useUserWarehouseCredentialsCreateMutation({
             onSuccess,
@@ -121,19 +124,13 @@ export const CreateCredentialsModal: FC<Props> = ({
                             size="xs"
                             disabled={isSaving}
                             data={Object.values(WarehouseTypes).map((type) => {
-                                const isNotSupportedYet = [
-                                    WarehouseTypes.DATABRICKS,
-                                ].includes(type);
+                                const isDisabled =
+                                    type === WarehouseTypes.DATABRICKS &&
+                                    !isDatabricksEnabled;
                                 return {
                                     value: type,
-                                    label: `${
-                                        getWarehouseLabel(type) || type
-                                    } ${
-                                        isNotSupportedYet
-                                            ? ' (coming soon)'
-                                            : ''
-                                    }`,
-                                    disabled: isNotSupportedYet,
+                                    label: getWarehouseLabel(type) || type,
+                                    disabled: isDisabled,
                                 };
                             })}
                             withinPortal
@@ -157,20 +154,20 @@ export const CreateCredentialsModal: FC<Props> = ({
                         >
                             Cancel
                         </Button>
-                        {warehouseType !== WarehouseTypes.BIGQUERY &&
-                            warehouseType !== WarehouseTypes.SNOWFLAKE && (
-                                /* On bigquery, we login using google oauth, 
-                            on snowflake, we also use oauth
-                            those warehouse credentials will be saved during the oauth process (googleStratey.ts)
-                            so we don't need the save button */
-                                <Button
-                                    size="xs"
-                                    type="submit"
-                                    disabled={isSaving}
-                                >
-                                    Save
-                                </Button>
-                            )}
+                        {/* On bigquery, snowflake, and databricks, we login using oauth
+                            those warehouse credentials will be saved during the oauth process
+                            so we don't need the save button */}
+                        {![
+                            WarehouseTypes.BIGQUERY,
+                            WarehouseTypes.SNOWFLAKE,
+                            WarehouseTypes.DATABRICKS,
+                        ].includes(
+                            warehouseType ?? form.values.credentials.type,
+                        ) && (
+                            <Button size="xs" type="submit" disabled={isSaving}>
+                                Save
+                            </Button>
+                        )}
                     </Group>
                 </Stack>
             </form>

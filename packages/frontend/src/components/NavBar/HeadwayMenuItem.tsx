@@ -6,7 +6,6 @@ import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
-import './HeadwayMenuItem.module.css';
 
 type Props = {
     projectUuid?: string;

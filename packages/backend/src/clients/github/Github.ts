@@ -122,10 +122,12 @@ export const getLastCommit = async ({
     token: string;
 }) => {
     const { octokit, headers } = getOctokitRestForUser(token);
+    // GitHub API uses `sha` param to filter by branch
+    // @see https://docs.github.com/en/rest/commits/commits#list-commits
     const response = await octokit.rest.repos.listCommits({
         owner,
         repo,
-        ref: branch,
+        sha: branch,
         headers,
     });
 
@@ -149,6 +151,8 @@ export const getFileContent = async ({
 }) => {
     const { octokit, headers } = getOctokitRestForUser(token);
     try {
+        // GitHub API uses `ref` param for branch/tag/commit
+        // @see https://docs.github.com/en/rest/repos/contents#get-repository-content
         const response = await octokit.rest.repos.getContent({
             owner,
             repo,
@@ -196,6 +200,8 @@ export const createBranch = async ({
     const { octokit, headers } = getOctokitRestForUser(token);
 
     try {
+        // GitHub API uses `ref` as fully qualified reference (refs/heads/...)
+        // @see https://docs.github.com/en/rest/git/refs#create-a-reference
         const response = await octokit.rest.git.createRef({
             owner,
             repo,
@@ -247,6 +253,8 @@ export const updateFile = async ({
 > => {
     const { octokit, headers } = getOctokitRestForUser(token);
     try {
+        // GitHub API uses `branch` param for target branch
+        // @see https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents
         const response = await octokit.rest.repos.createOrUpdateFileContents({
             owner,
             repo,
@@ -295,6 +303,8 @@ export const createFile = async ({
     const { octokit, headers } = getOctokitRestForUser(token);
 
     try {
+        // GitHub API uses `branch` param for target branch
+        // @see https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents
         const response = await octokit.rest.repos.createOrUpdateFileContents({
             owner,
             repo,
@@ -364,11 +374,13 @@ export const checkFileDoesNotExist = async ({
     const { octokit, headers } = getOctokitRestForUser(token);
 
     try {
+        // GitHub API uses `ref` param for branch/tag/commit
+        // @see https://docs.github.com/en/rest/repos/contents#get-repository-content
         await octokit.rest.repos.getContent({
             owner,
             repo,
             path,
-            branch,
+            ref: branch,
             headers,
         });
         throw new AlreadyExistsError(`File "${path}" already exists in Github`);
