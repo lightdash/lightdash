@@ -366,15 +366,6 @@ export const getMantineThemeOverride = (
                       '[class*="mantine-"][data-with-border]': {
                           borderColor: theme.colors.ldDark[4],
                       },
-                      '.HW_frame_cont': {
-                          background: `${theme.colors.ldDark[2]} !important`,
-                          boxShadow: `var(--mantine-shadow-md) !important`,
-                          border: `1px solid ${theme.colors.ldDark[3]}!important`,
-                      },
-                      '.HW_frame': {
-                          background: `${theme.colors.ldDark[2]} !important`,
-                          filter: `invert(0.9) hue-rotate(180deg)`,
-                      },
                   }
                 : undefined),
         }),
