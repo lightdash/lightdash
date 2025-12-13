@@ -1,4 +1,4 @@
-import '@mantine-8/core/styles.css';
+import './styles.css';
 
 import { type LanguageMap, type SavedChart } from '@lightdash/common';
 import { type FC, type PropsWithChildren, useEffect, useState } from 'react';
