@@ -21,6 +21,7 @@ import {
     SchedulerTaskName,
     SchedulerWithLogs,
     UpdateSchedulerAndTargets,
+    UnexpectedDatabaseError,
     isChartScheduler,
     isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
@@ -36,6 +37,7 @@ import {
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { DashboardsTableName } from '../../database/entities/dashboards';
+import Logger from '../../logging/logger';
 import { ProjectTableName } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import {
@@ -1125,13 +1127,19 @@ export class SchedulerModel {
             const FOREIGN_KEY_VIOLATION_ERROR_CODE = '23503';
 
             if (
-                !(
-                    error instanceof DatabaseError &&
-                    error.code === FOREIGN_KEY_VIOLATION_ERROR_CODE &&
-                    error.constraint === 'scheduler_log_scheduler_uuid_foreign'
-                )
-            )
-                throw error;
+                error instanceof DatabaseError &&
+                error.code === FOREIGN_KEY_VIOLATION_ERROR_CODE &&
+                error.constraint === 'scheduler_log_scheduler_uuid_foreign'
+            ) {
+                Logger.error(
+                    `Failed to log scheduler job: scheduler ${log.schedulerUuid} does not exist`,
+                    error,
+                );
+                throw new NotFoundError(
+                    `Scheduler ${log.schedulerUuid} not found`,
+                );
+            }
+            throw error;
         }
     }
 
