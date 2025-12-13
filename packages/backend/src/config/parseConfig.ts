@@ -980,6 +980,9 @@ export type LightdashConfig = {
     echarts6: {
         enabled: boolean;
     };
+    editYamlInUi: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1730,6 +1733,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         echarts6: {
             enabled: process.env.ECHARTS_V6_ENABLED === 'true',
+        },
+        editYamlInUi: {
+            enabled: process.env.EDIT_YAML_IN_UI_ENABLED === 'true',
         },
     };
 };

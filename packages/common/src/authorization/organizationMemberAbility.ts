@@ -234,6 +234,12 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'Validation', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'SourceCode', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'SourceCode', {
+            organizationUuid: member.organizationUuid,
+        });
         can('promote', 'SavedChart', {
             organizationUuid: member.organizationUuid,
             access: {

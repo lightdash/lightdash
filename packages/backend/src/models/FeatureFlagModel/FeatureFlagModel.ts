@@ -38,6 +38,7 @@ export class FeatureFlagModel {
                 this.getUseSqlPivotResults.bind(this),
             [FeatureFlags.DashboardComments]:
                 this.getDashboardComments.bind(this),
+            [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
         };
     }
 
@@ -154,6 +155,15 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled,
+        };
+    }
+
+    private async getEditYamlInUiEnabled({
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        return {
+            id: featureFlagId,
+            enabled: this.lightdashConfig.editYamlInUi.enabled,
         };
     }
 }

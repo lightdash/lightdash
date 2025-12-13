@@ -196,6 +196,12 @@ export const projectMemberAbilities: Record<
         can('manage', 'Validation', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'SourceCode', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'SourceCode', {
+            projectUuid: member.projectUuid,
+        });
 
         can('manage', 'CompileProject', {
             projectUuid: member.projectUuid,

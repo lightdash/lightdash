@@ -283,4 +283,7 @@ export const lightdashConfigMock: LightdashConfig = {
     echarts6: {
         enabled: false,
     },
+    editYamlInUi: {
+        enabled: false,
+    },
 };

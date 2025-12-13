@@ -885,4 +885,184 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
 
         return branches.map((branch) => branch.name);
     }
+
+    /**
+     * Get the YAML file for an explore's base table
+     */
+    async getFileForExplore(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<{ content: string; sha: string; filePath: string }> {
+        if (
+            user.ability.cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            exploreName,
+        );
+
+        if (!explore.ymlPath) {
+            throw new ParameterError(
+                'Your project needs to be compiled before accessing model files. Please refresh your project to fix this issue.',
+            );
+        }
+
+        const { owner, repo, branch, path, type, hostDomain } =
+            await this.getProjectRepo(projectUuid);
+
+        const gitProps = await this.getGitProps(user, projectUuid, '"');
+
+        const fullPath = GitIntegrationService.removeExtraSlashes(
+            `${path}/${explore.ymlPath}`,
+        );
+
+        const getFileContent =
+            type === DbtProjectType.GITHUB
+                ? GithubClient.getFileContent
+                : GitlabClient.getFileContent;
+
+        const { content, sha } = await getFileContent({
+            fileName: fullPath,
+            owner,
+            repo,
+            branch,
+            token: gitProps.token,
+            hostDomain,
+        });
+
+        this.analytics.track({
+            event: 'source_code.viewed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                exploreName,
+                filePath: fullPath,
+                fileSize: content.length,
+                gitProvider: type,
+            },
+        });
+
+        return { content, sha, filePath: fullPath };
+    }
+
+    /**
+     * Create a pull request with arbitrary file changes
+     */
+    async createPullRequestWithFileChange(
+        user: SessionUser,
+        projectUuid: string,
+        filePath: string,
+        newContent: string,
+        originalSha: string,
+        prTitle: string,
+        prDescription: string,
+    ): Promise<PullRequestCreated> {
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('SourceCode', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const gitProps = await this.getGitProps(user, projectUuid, '"');
+
+        // 1. Create branch
+        await GitIntegrationService.createBranch(gitProps);
+
+        Logger.debug(
+            `Updating file ${filePath} on branch ${gitProps.branch} in ${gitProps.owner}/${gitProps.repo}`,
+        );
+
+        // 2. Update file on new branch
+        const updateFile =
+            gitProps.type === DbtProjectType.GITHUB
+                ? GithubClient.updateFile
+                : GitlabClient.updateFile;
+
+        await updateFile({
+            owner: gitProps.owner,
+            repo: gitProps.repo,
+            fileName: filePath,
+            content: newContent,
+            fileSha: originalSha,
+            branch: gitProps.branch,
+            token: gitProps.token,
+            hostDomain: gitProps.hostDomain,
+            message: `Update ${filePath}`,
+        });
+
+        Logger.debug(
+            `Creating pull request from branch ${gitProps.branch} to ${gitProps.mainBranch}`,
+        );
+
+        // 3. Create PR
+        const createPullRequest =
+            gitProps.type === DbtProjectType.GITHUB
+                ? GithubClient.createPullRequest
+                : GitlabClient.createPullRequest;
+
+        const fullDescription = `${prDescription}
+
+Triggered by user ${user.firstName} ${user.lastName} (${user.email})
+
+🤖 Created with Lightdash`;
+
+        const pullRequest = await createPullRequest({
+            ...gitProps,
+            title: prTitle,
+            body: fullDescription,
+            head: gitProps.branch,
+            base: gitProps.mainBranch,
+        });
+
+        Logger.debug(
+            `Successfully created pull request #${pullRequest.number} in ${gitProps.owner}/${gitProps.repo}`,
+        );
+
+        // Keep backwards compatible event for existing analytics
+        this.analytics.track({
+            event: 'write_back.created',
+            userId: user.userUuid,
+            properties: {
+                name: filePath,
+                projectId: projectUuid,
+                organizationId: user.organizationUuid!,
+                context: QueryExecutionContext.EXPLORE,
+            },
+        });
+
+        // New event with additional details
+        this.analytics.track({
+            event: 'source_code.pull_request_created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                filePath,
+                fileSize: newContent.length,
+                gitProvider: gitProps.type,
+            },
+        });
+
+        return {
+            prTitle: pullRequest.title,
+            prUrl: pullRequest.html_url,
+        };
+    }
 }

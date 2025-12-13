@@ -76,6 +76,7 @@ import {
 import { type FieldValueSearchResult } from './fieldMatch';
 import { type DashboardFilters } from './filter';
 import {
+    type ApiGitFileContent,
     type GitIntegrationConfiguration,
     type GitRepo,
     type PullRequestCreated,
@@ -776,6 +777,7 @@ type ApiResults =
     | DecodedEmbed
     | Array<GitRepo>
     | PullRequestCreated
+    | ApiGitFileContent
     | GitIntegrationConfiguration
     | UserWarehouseCredentials
     | ApiJobStatusResponse['results']
