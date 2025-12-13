@@ -18,13 +18,13 @@ import {
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
     getConditionalRuleLabel,
     getConditionalRuleLabelFromItem,
     getFilterRuleTables,
-} from '../../common/Filters/FilterInputs/utils';
-import MantineIcon from '../../common/MantineIcon';
+} from '../../../components/common/Filters/FilterInputs/utils';
+import MantineIcon from '../../../components/common/MantineIcon';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import FilterConfiguration from '../FilterConfiguration';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 
@@ -160,6 +160,7 @@ const Filter: FC<Props> = ({
                     }'`;
                 })
                 .join(', ');
+
             return appliedTabList
                 ? `This filter only applies to tab${
                       appliesToTabs.length === 1 ? '' : 's'

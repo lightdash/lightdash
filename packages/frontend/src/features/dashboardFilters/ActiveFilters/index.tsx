@@ -21,8 +21,8 @@ import {
 } from '@mantine/core';
 import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import MantineIcon from '../../common/MantineIcon';
 import InvalidFilter from '../InvalidFilter';
 import Filter from './Filter';
 

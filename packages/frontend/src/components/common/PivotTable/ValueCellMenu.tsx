@@ -11,10 +11,10 @@ import { Menu, Text, type MenuProps } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation, useParams } from 'react-router';
+import { FilterDashboardTo } from '../../../features/dashboardFilters/FilterDashboardTo';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { FilterDashboardTo } from '../../DashboardFilter/FilterDashboardTo';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import MantineIcon from '../MantineIcon';
 
