@@ -3,7 +3,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconFilterOff } from '@tabler/icons-react';
 import { type ECElementEvent } from 'echarts';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
-import { memo, useCallback, useEffect, useState, type FC } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type FC } from 'react';
 import useEchartsFunnelConfig, {
     type FunnelSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsFunnelConfig';
@@ -41,108 +41,130 @@ type FunnelChartProps = Omit<EChartsReactProps, 'option'> & {
     $shouldExpand?: boolean;
     className?: string;
     'data-testid'?: string;
+    onScreenshotReady?: () => void;
+    onScreenshotError?: () => void;
 };
 
 const EchartOptions: Opts = { renderer: 'svg' };
 
-const FunnelChart: FC<FunnelChartProps> = memo((props) => {
-    const { chartRef, isLoading, resultsData } = useVisualizationContext();
-    const { selectedLegends, onLegendChange } = useLegendDoubleClickSelection();
+const FunnelChart: FC<FunnelChartProps> = memo(
+    ({ onScreenshotReady, onScreenshotError, ...props }) => {
+        const { chartRef, isLoading, resultsData } = useVisualizationContext();
+        const { selectedLegends, onLegendChange } =
+            useLegendDoubleClickSelection();
 
-    const funnelChartOptions = useEchartsFunnelConfig(
-        selectedLegends,
-        props.isInDashboard,
-    );
+        const funnelChartOptions = useEchartsFunnelConfig(
+            selectedLegends,
+            props.isInDashboard,
+        );
 
-    const { user } = useApp();
+        const { user } = useApp();
 
-    const [isOpen, { open, close }] = useDisclosure();
+        const [isOpen, { open, close }] = useDisclosure();
 
-    const [menuProps, setMenuProps] = useState<{
-        position: FunnelChartContextMenuProps['menuPosition'];
-        value: FunnelChartContextMenuProps['value'];
-        rows: FunnelChartContextMenuProps['rows'];
-    }>();
+        const [menuProps, setMenuProps] = useState<{
+            position: FunnelChartContextMenuProps['menuPosition'];
+            value: FunnelChartContextMenuProps['value'];
+            rows: FunnelChartContextMenuProps['rows'];
+        }>();
 
-    useEffect(() => {
-        // Load all the rows
-        resultsData?.setFetchAll(true);
-    }, [resultsData]);
+        const hasSignaledScreenshotReady = useRef(false);
 
-    useEffect(() => {
-        const listener = () => chartRef.current?.getEchartsInstance().resize();
-        window.addEventListener('resize', listener);
-        return () => window.removeEventListener('resize', listener);
-    });
+        useEffect(() => {
+            if (hasSignaledScreenshotReady.current) return;
+            if (!onScreenshotReady && !onScreenshotError) return;
+            if (!isLoading) {
+                onScreenshotReady?.();
+                hasSignaledScreenshotReady.current = true;
+            }
+        }, [
+            isLoading,
+            funnelChartOptions,
+            onScreenshotReady,
+            onScreenshotError,
+        ]);
 
-    const handleOpenContextMenu = useCallback(
-        (e: ECElementEvent) => {
-            const event = e.event?.event as unknown as PointerEvent;
-            const data = e.data as FunnelSeriesDataPoint;
+        useEffect(() => {
+            // Load all the rows
+            resultsData?.setFetchAll(true);
+        }, [resultsData]);
 
-            setMenuProps({
-                value: data.meta.value,
-                position: {
-                    left: event.clientX,
-                    top: event.clientY,
-                },
-                rows: data.meta.rows,
-            });
+        useEffect(() => {
+            const listener = () =>
+                chartRef.current?.getEchartsInstance().resize();
+            window.addEventListener('resize', listener);
+            return () => window.removeEventListener('resize', listener);
+        });
 
-            open();
-        },
-        [open],
-    );
+        const handleOpenContextMenu = useCallback(
+            (e: ECElementEvent) => {
+                const event = e.event?.event as unknown as PointerEvent;
+                const data = e.data as FunnelSeriesDataPoint;
 
-    const handleCloseContextMenu = useCallback(() => {
-        setMenuProps(undefined);
-        close();
-    }, [close]);
+                setMenuProps({
+                    value: data.meta.value,
+                    position: {
+                        left: event.clientX,
+                        top: event.clientY,
+                    },
+                    rows: data.meta.rows,
+                });
 
-    if (isLoading) return <LoadingChart />;
-    if (!funnelChartOptions) return <EmptyChart />;
+                open();
+            },
+            [open],
+        );
 
-    return (
-        <>
-            <EChartsReact
-                ref={chartRef}
-                data-testid={props['data-testid']}
-                className={props.className}
-                style={
-                    props.$shouldExpand
-                        ? {
-                              minHeight: 'inherit',
-                              height: '100%',
-                              width: '100%',
-                          }
-                        : {
-                              minHeight: 'inherit',
-                              // height defaults to 300px
-                              width: '100%',
-                          }
-                }
-                opts={EchartOptions}
-                option={funnelChartOptions}
-                notMerge
-                {...props}
-                onEvents={{
-                    click: handleOpenContextMenu,
-                    oncontextmenu: handleOpenContextMenu,
-                    legendselectchanged: onLegendChange,
-                }}
-            />
+        const handleCloseContextMenu = useCallback(() => {
+            setMenuProps(undefined);
+            close();
+        }, [close]);
 
-            {user.data && (
-                <FunnelChartContextMenu
-                    value={menuProps?.value}
-                    menuPosition={menuProps?.position}
-                    rows={menuProps?.rows}
-                    opened={isOpen}
-                    onClose={handleCloseContextMenu}
+        if (isLoading) return <LoadingChart />;
+        if (!funnelChartOptions) return <EmptyChart />;
+
+        return (
+            <>
+                <EChartsReact
+                    ref={chartRef}
+                    data-testid={props['data-testid']}
+                    className={props.className}
+                    style={
+                        props.$shouldExpand
+                            ? {
+                                  minHeight: 'inherit',
+                                  height: '100%',
+                                  width: '100%',
+                              }
+                            : {
+                                  minHeight: 'inherit',
+                                  // height defaults to 300px
+                                  width: '100%',
+                              }
+                    }
+                    opts={EchartOptions}
+                    option={funnelChartOptions}
+                    notMerge
+                    {...props}
+                    onEvents={{
+                        click: handleOpenContextMenu,
+                        oncontextmenu: handleOpenContextMenu,
+                        legendselectchanged: onLegendChange,
+                    }}
                 />
-            )}
-        </>
-    );
-});
+
+                {user.data && (
+                    <FunnelChartContextMenu
+                        value={menuProps?.value}
+                        menuPosition={menuProps?.position}
+                        rows={menuProps?.rows}
+                        opened={isOpen}
+                        onClose={handleCloseContextMenu}
+                    />
+                )}
+            </>
+        );
+    },
+);
 
 export default FunnelChart;
