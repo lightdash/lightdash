@@ -664,8 +664,14 @@ export class SchedulerService extends BaseService {
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
 
+        // Round scheduled time to nearest minute to enable job deduplication
+        // This ensures multiple API calls within the same minute produce the same job key,
+        // allowing Graphile Worker's REPLACE mode to work correctly and prevent duplicate jobs
+        const sendNowTime = new Date();
+        sendNowTime.setSeconds(0, 0);
+
         return this.schedulerClient.addScheduledDeliveryJob(
-            new Date(),
+            sendNowTime,
             {
                 ...scheduler,
                 organizationUuid,
