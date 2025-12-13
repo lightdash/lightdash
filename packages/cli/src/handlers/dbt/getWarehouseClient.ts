@@ -6,6 +6,7 @@ import {
     isSupportedDbtAdapterType,
     isWeekDay,
     ParseError,
+    SnowflakeAuthenticationType,
     SupportedDbtAdapter,
     WarehouseCatalog,
     WarehouseTableSchema,
@@ -13,6 +14,7 @@ import {
 } from '@lightdash/common';
 import {
     exchangeDatabricksOAuthCredentials,
+    SnowflakeWarehouseClient,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import crypto from 'crypto';
@@ -358,6 +360,57 @@ export default async function getWarehouseClient(
             credentials.refreshToken = tokens.refreshToken;
 
             console.error(`\n✓ Successfully authenticated with Databricks\n`);
+        }
+
+        // Handle Snowflake External Browser authentication
+        // We authenticate via browser, create a PAT, and use that for subsequent operations
+        if (
+            credentials.type === WarehouseTypes.SNOWFLAKE &&
+            credentials.authenticationType ===
+                SnowflakeAuthenticationType.EXTERNAL_BROWSER
+        ) {
+            console.error(
+                `\nSnowflake external browser authentication required for ${credentials.account}`,
+            );
+            console.error(
+                `A browser window will open for authentication, then a Programmatic Access Token (PAT) will be created.\n`,
+            );
+
+            // Create a temporary client with externalbrowser auth to authenticate and create PAT
+            const tempClient = new SnowflakeWarehouseClient({
+                ...credentials,
+                startOfWeek: isWeekDay(options.startOfWeek)
+                    ? options.startOfWeek
+                    : undefined,
+            });
+
+            try {
+                const { tokenSecret, tokenName } =
+                    await tempClient.createProgrammaticAccessToken(
+                        `lightdash_cli_${Date.now()}`,
+                        1, // 1 day expiry
+                    );
+
+                // Update credentials to use password auth with the PAT
+                credentials = {
+                    ...credentials,
+                    authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                    password: tokenSecret,
+                };
+
+                console.error(
+                    `\n✓ Successfully authenticated with Snowflake (PAT: ${tokenName})\n`,
+                );
+            } catch (e) {
+                console.error(
+                    styles.error(
+                        `\nFailed to create Snowflake PAT: ${getErrorMessage(
+                            e,
+                        )}`,
+                    ),
+                );
+                process.exit(1);
+            }
         }
 
         // Check if we should use cached client (e.g., for auth methods requiring user interaction)
