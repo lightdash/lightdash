@@ -17,6 +17,7 @@ import {
     type ReplaceableFieldMatchMap,
 } from '../types/savedCharts';
 import { convertAdditionalMetric } from './additionalMetrics';
+import { getFilterRulesFromGroup } from './filters';
 import { getFormatExpression } from './formatting';
 import { getItemId } from './item';
 
@@ -38,7 +39,18 @@ export const getFieldsFromMetricQuery = (
     explore: Explore,
 ): ItemsMap => {
     const exploreFields = getFields(explore);
-    const fields = [...metricQuery.dimensions, ...metricQuery.metrics].reduce<
+
+    // Extract metric IDs from filters
+    const metricIdsFromFilters = getFilterRulesFromGroup(
+        metricQuery.filters.metrics,
+    ).map((filter) => filter.target.fieldId);
+
+    // Combine selected metrics with filter-only metrics (removing duplicates)
+    const allMetricIds = Array.from(
+        new Set([...metricQuery.metrics, ...metricIdsFromFilters]),
+    );
+
+    const fields = [...metricQuery.dimensions, ...allMetricIds].reduce<
         Record<string, Dimension | Metric>
     >((acc, metricField) => {
         const field = exploreFields.find((f) => metricField === getItemId(f));
