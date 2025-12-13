@@ -103,18 +103,46 @@ export function getRegexFromUserQuery(query: string) {
     return new RegExp(splitQuery.join('|'), 'ig');
 }
 
+/**
+ * Creates a regex pattern for user search that matches words at word boundaries.
+ * This prevents partial substring matches (e.g., "Don" won't match "Brandon" or "Gordon").
+ *
+ * For single words: uses word boundary at start (\m) to match word prefixes
+ * For multiple words: requires ALL words to match (AND logic) in at least one column
+ *
+ * Examples:
+ * - "Don" matches: "Don", "Don Smith", "McDonald Don" (word boundary match)
+ * - "Don" won't match: "Brandon", "Gordon", "McDonald" (no word boundary)
+ * - "Don Smith" matches only if BOTH "Don" AND "Smith" appear in at least one column
+ */
 export function getColumnMatchRegexQuery(
     queryBuilder: Knex.QueryBuilder,
     searchQuery: string,
     columns: string[],
 ) {
-    const regex = getRegexFromUserQuery(searchQuery).source;
+    const words = searchQuery
+        .trim()
+        .split(/\s+/)
+        .filter((word) => word.length > 0)
+        .map((word) => escapeRegExp(word));
 
-    // use regexp_matches
+    if (words.length === 0) {
+        return queryBuilder;
+    }
+
+    // For each word, require it to match at least one column at a word boundary
     return queryBuilder.where((builder) => {
-        columns.forEach((column) =>
-            builder.orWhereRaw(`:column: ~* :regex`, { column, regex }),
-        );
+        words.forEach((word) => {
+            // Use \m for word boundary at start (PostgreSQL regex)
+            // This makes "Don" match "Don" or "Don Smith" but not "Brandon"
+            const regex = `\\m${word}`;
+
+            builder.andWhere((subBuilder) => {
+                columns.forEach((column) =>
+                    subBuilder.orWhereRaw(`${column} ~* ?`, [regex]),
+                );
+            });
+        });
     });
 }
 
