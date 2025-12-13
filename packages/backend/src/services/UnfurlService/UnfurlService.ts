@@ -83,6 +83,14 @@ export enum ScreenshotContext {
 }
 
 const SCREENSHOT_RETRIES = 3;
+const BROWSER_POOL_SIZE = 5;
+const BROWSER_POOL_ACQUIRE_TIMEOUT_MS = 30000; // 30 seconds
+
+type BrowserPoolConnection = {
+    browser: playwright.Browser;
+    inUse: boolean;
+    lastUsed: number;
+};
 
 export type ParsedUrl = {
     isValid: boolean;
@@ -159,6 +167,12 @@ export class UnfurlService extends BaseService {
 
     slackAuthenticationModel: SlackAuthenticationModel;
 
+    private browserPool: BrowserPoolConnection[] = [];
+
+    private browserPoolInitialized = false;
+
+    private browserPoolInitPromise: Promise<void> | null = null;
+
     constructor({
         lightdashConfig,
         dashboardModel,
@@ -184,6 +198,238 @@ export class UnfurlService extends BaseService {
         this.downloadFileModel = downloadFileModel;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
+    }
+
+    private async initializeBrowserPool(): Promise<void> {
+        if (this.browserPoolInitialized) return;
+
+        // If initialization is already in progress, wait for it
+        if (this.browserPoolInitPromise) {
+            return this.browserPoolInitPromise;
+        }
+
+        this.browserPoolInitPromise = (async () => {
+            if (this.lightdashConfig.headlessBrowser?.host === undefined) {
+                this.logger.warn(
+                    'Cannot initialize browser pool: HEADLESS_BROWSER_HOST is not defined',
+                );
+                return;
+            }
+
+            const { browserEndpoint } = this.lightdashConfig.headlessBrowser;
+            this.logger.info(
+                `Initializing browser pool with ${BROWSER_POOL_SIZE} connections`,
+            );
+
+            const poolPromises = Array.from(
+                { length: BROWSER_POOL_SIZE },
+                async (_, i) => {
+                    try {
+                        const browser =
+                            await playwright.chromium.connectOverCDP(
+                                browserEndpoint,
+                                {
+                                    timeout: 1000 * 60 * 5, // 5 minutes for initial connection
+                                    logger: {
+                                        isEnabled() {
+                                            return true;
+                                        },
+                                        log: (
+                                            name,
+                                            severity,
+                                            message,
+                                            args,
+                                        ): void => {
+                                            const logMessage = `[Browser Pool ${i}] [${name}] ${message} ${JSON.stringify(
+                                                args,
+                                            )}`;
+                                            switch (severity) {
+                                                case 'warning':
+                                                    this.logger.warn(logMessage);
+                                                    break;
+                                                case 'error':
+                                                    this.logger.error(
+                                                        logMessage,
+                                                    );
+                                                    break;
+                                                default:
+                                                    this.logger.debug(
+                                                        logMessage,
+                                                    );
+                                                    break;
+                                            }
+                                        },
+                                    },
+                                },
+                            );
+
+                        this.browserPool.push({
+                            browser,
+                            inUse: false,
+                            lastUsed: Date.now(),
+                        });
+
+                        this.logger.info(
+                            `Browser pool connection ${i} initialized successfully`,
+                        );
+                    } catch (error) {
+                        this.logger.error(
+                            `Failed to initialize browser pool connection ${i}: ${getErrorMessage(
+                                error,
+                            )}`,
+                        );
+                    }
+                },
+            );
+
+            await Promise.allSettled(poolPromises);
+
+            this.browserPoolInitialized = true;
+            this.logger.info(
+                `Browser pool initialized with ${this.browserPool.length} connections`,
+            );
+        })();
+
+        return this.browserPoolInitPromise;
+    }
+
+    private async acquireBrowser(): Promise<playwright.Browser> {
+        // Ensure pool is initialized
+        await this.initializeBrowserPool();
+
+        const startTime = Date.now();
+        const timeoutMs = BROWSER_POOL_ACQUIRE_TIMEOUT_MS;
+
+        while (Date.now() - startTime < timeoutMs) {
+            // Try to find an available connection
+            const availableConnection = this.browserPool.find(
+                (conn) => !conn.inUse,
+            );
+
+            if (availableConnection) {
+                // Check if the browser is still connected
+                try {
+                    await availableConnection.browser
+                        .contexts()[0]
+                        ?.pages()[0]
+                        ?.evaluate(() => true)
+                        .catch(() => {
+                            // Context might not exist yet, that's ok
+                        });
+
+                    availableConnection.inUse = true;
+                    availableConnection.lastUsed = Date.now();
+                    this.logger.debug('Acquired browser from pool');
+                    return availableConnection.browser;
+                } catch (error) {
+                    // Browser connection is dead, remove it and create a new one
+                    this.logger.warn(
+                        `Browser connection is dead, removing from pool: ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+
+                    const index = this.browserPool.indexOf(availableConnection);
+                    if (index > -1) {
+                        this.browserPool.splice(index, 1);
+                    }
+
+                    // Try to create a new connection
+                    try {
+                        await availableConnection.browser.close();
+                    } catch (closeError) {
+                        // Ignore close errors for dead connections
+                    }
+
+                    // Create a new connection to replace the dead one
+                    if (this.lightdashConfig.headlessBrowser?.host) {
+                        try {
+                            const { browserEndpoint } =
+                                this.lightdashConfig.headlessBrowser;
+                            const newBrowser =
+                                await playwright.chromium.connectOverCDP(
+                                    browserEndpoint,
+                                    {
+                                        timeout: 1000 * 60 * 5,
+                                    },
+                                );
+
+                            this.browserPool.push({
+                                browser: newBrowser,
+                                inUse: true,
+                                lastUsed: Date.now(),
+                            });
+
+                            this.logger.info(
+                                'Created new browser connection to replace dead one',
+                            );
+                            return newBrowser;
+                        } catch (createError) {
+                            this.logger.error(
+                                `Failed to create replacement browser connection: ${getErrorMessage(
+                                    createError,
+                                )}`,
+                            );
+                        }
+                    }
+                }
+            }
+
+            // No available connection, wait a bit and retry
+            await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+
+        // Timeout reached, fall back to creating a temporary connection
+        this.logger.warn(
+            'Browser pool acquire timeout, creating temporary connection',
+        );
+
+        const { browserEndpoint } = this.lightdashConfig.headlessBrowser;
+        return playwright.chromium.connectOverCDP(browserEndpoint, {
+            timeout: 1000 * 60 * 30, // 30 minutes
+        });
+    }
+
+    private releaseBrowser(browser: playwright.Browser): void {
+        const connection = this.browserPool.find(
+            (conn) => conn.browser === browser,
+        );
+
+        if (connection) {
+            connection.inUse = false;
+            connection.lastUsed = Date.now();
+            this.logger.debug('Released browser back to pool');
+        } else {
+            // This was a temporary connection, close it
+            this.logger.debug('Closing temporary browser connection');
+            browser.close().catch((error) => {
+                this.logger.error(
+                    `Error closing temporary browser: ${getErrorMessage(error)}`,
+                );
+            });
+        }
+    }
+
+    async closeBrowserPool(): Promise<void> {
+        this.logger.info('Closing browser pool');
+
+        const closePromises = this.browserPool.map(async (conn) => {
+            try {
+                await conn.browser.close();
+            } catch (error) {
+                this.logger.error(
+                    `Error closing browser: ${getErrorMessage(error)}`,
+                );
+            }
+        });
+
+        await Promise.allSettled(closePromises);
+
+        this.browserPool = [];
+        this.browserPoolInitialized = false;
+        this.browserPoolInitPromise = null;
+
+        this.logger.info('Browser pool closed');
     }
 
     private async waitForAllPaginatedResultsResponse(
@@ -693,36 +939,7 @@ export class UnfurlService extends BaseService {
                 let page: playwright.Page | undefined;
 
                 try {
-                    const { browserEndpoint } =
-                        this.lightdashConfig.headlessBrowser;
-
-                    browser = await playwright.chromium.connectOverCDP(
-                        browserEndpoint,
-                        {
-                            timeout: 1000 * 60 * 30, // 30 minutes
-                            logger: {
-                                isEnabled() {
-                                    return true;
-                                },
-                                log: (name, severity, message, args): void => {
-                                    const logMessage = `[${name}] ${message} ${JSON.stringify(
-                                        args,
-                                    )}`;
-                                    switch (severity) {
-                                        case 'warning':
-                                            this.logger.warn(logMessage);
-                                            break;
-                                        case 'error':
-                                            this.logger.error(logMessage);
-                                            break;
-                                        default:
-                                            this.logger.debug(logMessage);
-                                            break;
-                                    }
-                                },
-                            },
-                        },
-                    );
+                    browser = await this.acquireBrowser();
 
                     page = await browser.newPage({
                         viewport:
@@ -1094,8 +1311,14 @@ export class UnfurlService extends BaseService {
                         );
 
                     if (isRetryableError && retries) {
+                        const retryAttempt = SCREENSHOT_RETRIES - retries;
+                        const delayMs = Math.min(
+                            1000 * Math.pow(2, retryAttempt),
+                            10000,
+                        );
+
                         this.logger.info(
-                            `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${getErrorMessage(
+                            `Retrying in ${delayMs}ms: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${getErrorMessage(
                                 e,
                             )}`,
                         );
@@ -1103,6 +1326,11 @@ export class UnfurlService extends BaseService {
                         span.setAttributes({
                             is_retrying: true,
                         });
+
+                        await new Promise((resolve) =>
+                            setTimeout(resolve, delayMs),
+                        );
+
                         return await this.saveScreenshot({
                             authUserUuid,
                             imageId,
@@ -1166,7 +1394,7 @@ export class UnfurlService extends BaseService {
                     );
                 } finally {
                     if (page) await page.close();
-                    if (browser) await browser.close(); // clears all created contexts belonging to this browser and disconnects from the browser server.
+                    if (browser) this.releaseBrowser(browser);
 
                     span.end();
 
