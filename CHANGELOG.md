@@ -1,3 +1,10 @@
+# [0.2250.0](https://github.com/lightdash/lightdash/compare/0.2249.0...0.2250.0) (2025-12-14)
+
+
+### Features
+
+* add editor for yml files ([#18788](https://github.com/lightdash/lightdash/issues/18788)) ([2757f30](https://github.com/lightdash/lightdash/commit/2757f30457ec99fa0eed7734b8ee060d2f670b5c))
+
 # [0.2249.0](https://github.com/lightdash/lightdash/compare/0.2248.3...0.2249.0) (2025-12-12)
 
 
