@@ -38,6 +38,8 @@ export class FeatureFlagModel {
                 this.getUseSqlPivotResults.bind(this),
             [FeatureFlags.DashboardComments]:
                 this.getDashboardComments.bind(this),
+            [FeatureFlags.AdminChangeNotifications]:
+                this.getAdminChangeNotifications.bind(this),
         };
     }
 
@@ -151,6 +153,31 @@ export class FeatureFlagModel {
               )
             : true;
 
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getAdminChangeNotifications({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.adminChangeNotifications.enabled ||
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.AdminChangeNotifications,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
         return {
             id: featureFlagId,
             enabled,

@@ -5,6 +5,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus';
 import type { UtilRepository } from '../utils/UtilRepository';
+import { AdminNotificationService } from './AdminNotificationService/AdminNotificationService';
 import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { BaseService } from './BaseService';
@@ -58,6 +59,7 @@ import { ValidationService } from './ValidationService/ValidationService';
  * service repository correctly.
  */
 interface ServiceManifest {
+    adminNotificationService: AdminNotificationService;
     analyticsService: AnalyticsService;
     commentService: CommentService;
     csvService: CsvService;
@@ -258,6 +260,23 @@ export class ServiceRepository
      * Holds memoized instances of services after their initial instantiation:
      */
     protected serviceInstances: Partial<ServiceManifest> = {};
+
+    public getAdminNotificationService(): AdminNotificationService {
+        return this.getService(
+            'adminNotificationService',
+            () =>
+                new AdminNotificationService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    emailClient: this.clients.getEmailClient(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
+                    organizationModel: this.models.getOrganizationModel(),
+                    projectModel: this.models.getProjectModel(),
+                    userModel: this.models.getUserModel(),
+                }),
+        );
+    }
 
     public getAnalyticsService(): AnalyticsService {
         return this.getService(
@@ -967,6 +986,8 @@ export class ServiceRepository
                     groupsModel: this.models.getGroupsModel(),
                     projectModel: this.models.getProjectModel(),
                     emailClient: this.clients.getEmailClient(),
+                    adminNotificationService:
+                        this.getAdminNotificationService(),
                 }),
         );
     }
