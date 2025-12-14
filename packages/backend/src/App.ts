@@ -573,6 +573,8 @@ export default class App {
         }
 
         // frontend assets - immutable because vite appends hash to filenames
+        // browser caches for 1 year
+        // public - CDN can cache
         expressApp.use(
             '/assets',
             expressStaticGzip(
@@ -585,9 +587,23 @@ export default class App {
                             fileExtension: 'gzip',
                         },
                     ],
+                    serveStatic: {
+                        setHeaders: (res) => {
+                            res.setHeader(
+                                'Cache-Control',
+                                'public, max-age=31536000, immutable',
+                            );
+                        },
+                    },
                 },
             ),
         );
+
+        // Return 404 for missing assets (don't fall through index.html)
+        // This ensures chunks are not serving the index.html file.
+        expressApp.use('/assets/*', (req, res) => {
+            res.status(404).send('Not found');
+        });
 
         // Root-level .well-known endpoints for OAuth discovery (required by many MCP clients)
         // Use the same handlers as the API-level endpoints to ensure consistency
@@ -634,6 +650,8 @@ export default class App {
             res.status(404).json(apiErrorResponse);
         });
 
+        // no-cache - browsers revalidate on every request but can cache
+        // private - no cdn caching
         expressApp.get('*', (req, res) => {
             res.sendFile(
                 path.join(__dirname, '../../frontend/build', 'index.html'),

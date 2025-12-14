@@ -69,6 +69,15 @@ export type CustomVizGenerated = BaseTrack & {
         timeOpenAi: number;
     };
 };
+
+export type GenerateChartMetadataGenerated = BaseTrack & {
+    event: 'ai.chart_metadata.generated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        chartType: string;
+    };
+};
 // SCIM events
 
 export type ScimAccessTokenAuthenticationEvent = BaseTrack & {

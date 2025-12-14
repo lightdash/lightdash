@@ -5,6 +5,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     SessionUser,
+    WarehouseTypes,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
@@ -40,6 +41,7 @@ import {
     METRIC_QUERY,
     warehouseClientMock,
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -137,7 +139,9 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         s3CacheClient: {} as S3CacheClient,
         analyticsModel: {} as AnalyticsModel,
         dashboardModel: {} as DashboardModel,
-        userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
+        userWarehouseCredentialsModel: {
+            findForProjectWithSecrets: jest.fn(async () => undefined),
+        } as unknown as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         emailModel: {
             getPrimaryEmailStatus: (userUuid: string) => ({
@@ -242,6 +246,71 @@ describe('ProjectService', () => {
                 null,
             );
             expect(result).toEqual(expectedApiQueryResultsWith501Rows);
+        });
+
+        test('should use user warehouse credentials when available for databricks', async () => {
+            // clear in memory cache so new mock is applied
+            service.warehouseClients = {};
+
+            // Mock project credentials to be Databricks type
+            // (user credentials are only fetched for Databricks or when requireUserCredentials is true)
+            const databricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                serverHostName: 'test.databricks.com',
+                httpPath: '/sql/test',
+                database: 'test_db',
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockImplementation(async () => databricksCredentials);
+
+            // Reset mock to return 1 row results (previous test may have changed it)
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                credentials: databricksCredentials,
+                runQuery: jest.fn(async () => resultsWith1Row),
+            }));
+
+            const userCredentials = {
+                uuid: 'user-creds-uuid',
+                credentials: {
+                    type: WarehouseTypes.DATABRICKS,
+                    token: 'custom-token',
+                },
+            };
+
+            // Mock findForProjectWithSecrets to return user credentials
+            const findForProjectWithSecretsMock = jest.fn(
+                async () => userCredentials,
+            );
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: jest.Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecretsMock;
+
+            const result = await service.runExploreQuery(
+                sessionAccount,
+                metricQueryMock,
+                projectUuid,
+                'valid_explore',
+                null,
+            );
+
+            // Verify findForProjectWithSecrets was called with correct arguments
+            expect(findForProjectWithSecretsMock).toHaveBeenCalledWith(
+                projectUuid,
+                sessionAccount.user.id,
+                WarehouseTypes.DATABRICKS,
+            );
+
+            // Query should still execute successfully with user credentials
+            expect(result).toEqual(expectedApiQueryResultsWith1Row);
         });
     });
     describe('getAllExploresSummary', () => {
@@ -455,26 +524,45 @@ describe('ProjectService', () => {
         });
 
         test('should limit CSV results', async () => {
+            const csvCellsLimit = 100000;
+            const maxLimit = 5000;
+
             expect(
-                // @ts-ignore
-                service.metricQueryWithLimit(METRIC_QUERY, undefined),
+                metricQueryWithLimit(
+                    METRIC_QUERY,
+                    undefined,
+                    csvCellsLimit,
+                    maxLimit,
+                ),
             ).toEqual(METRIC_QUERY); // Returns same metricquery
 
             expect(
-                // @ts-ignore
-                service.metricQueryWithLimit(METRIC_QUERY, 5).limit,
+                metricQueryWithLimit(METRIC_QUERY, 5, csvCellsLimit, maxLimit)
+                    .limit,
             ).toEqual(5);
             expect(
-                // @ts-ignore
-                service.metricQueryWithLimit(METRIC_QUERY, null).limit,
+                metricQueryWithLimit(
+                    METRIC_QUERY,
+                    null,
+                    csvCellsLimit,
+                    maxLimit,
+                ).limit,
             ).toEqual(33333);
             expect(
-                // @ts-ignore
-                service.metricQueryWithLimit(METRIC_QUERY, 9999).limit,
+                metricQueryWithLimit(
+                    METRIC_QUERY,
+                    9999,
+                    csvCellsLimit,
+                    maxLimit,
+                ).limit,
             ).toEqual(9999);
             expect(
-                // @ts-ignore
-                service.metricQueryWithLimit(METRIC_QUERY, 9999999).limit,
+                metricQueryWithLimit(
+                    METRIC_QUERY,
+                    9999999,
+                    csvCellsLimit,
+                    maxLimit,
+                ).limit,
             ).toEqual(33333);
 
             const metricWithoutRows = {
@@ -484,14 +572,22 @@ describe('ProjectService', () => {
                 tableCalculations: [],
             };
             expect(() =>
-                // @ts-ignore
-                service.metricQueryWithLimit(metricWithoutRows, null),
+                metricQueryWithLimit(
+                    metricWithoutRows,
+                    null,
+                    csvCellsLimit,
+                    maxLimit,
+                ),
             ).toThrowError(ParameterError);
 
             const metricWithDimension = { ...METRIC_QUERY, metrics: [] };
             expect(
-                // @ts-ignore
-                service.metricQueryWithLimit(metricWithDimension, null).limit,
+                metricQueryWithLimit(
+                    metricWithDimension,
+                    null,
+                    csvCellsLimit,
+                    maxLimit,
+                ).limit,
             ).toEqual(50000);
         });
     });

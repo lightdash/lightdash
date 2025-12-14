@@ -5,6 +5,8 @@ import {
     type MantineThemeOverride,
     type Tuple,
 } from '@mantine/core';
+// eslint-disable-next-line css-modules/no-unused-class
+import styles from './styles/mantine-overrides/tooltip.module.css';
 
 type ColorTuple = Tuple<string, 10>;
 
@@ -74,6 +76,55 @@ export const DARK_MODE_COLORS = {
     SUBTLE_GRAY: darkModeColors.ldDark[4],
     CONTRAST_GRAY: darkModeColors.ldDark[6],
 } as const;
+
+export interface LightdashFieldColors {
+    /** CSS variable for background color (auto-switches for dark/light modes) */
+    bg: string;
+    /** CSS variable for hover background color */
+    bgHover: string;
+    /** CSS variable for text color */
+    color: string;
+    /** CSS variable for column header text color */
+    columnHeaderColor: string;
+    /** Mantine color token for component color property */
+    mantineColor: string;
+}
+
+export const LD_FIELD_COLORS = {
+    dimension: {
+        bg: 'light-dark(#4b69ef18, #4b69ef21)',
+        bgHover: 'light-dark(#4b69ef28, #4b69ef35)',
+        color: 'light-dark(#3b5bdb, #95aaf0)',
+        columnHeaderColor: 'light-dark(#1c2b67, #93acff)',
+        mantineColor: 'dimension',
+    },
+    metric: {
+        bg: 'light-dark(#e8590c20, #7b50135e)',
+        bgHover: 'light-dark(#e8590c30, #81510d75)',
+        color: 'light-dark(#de7f0b, #e08a20)',
+        columnHeaderColor: 'light-dark(#502e06, #de7f0b)',
+        mantineColor: 'metric',
+    },
+    calculation: {
+        bg: 'light-dark(#2f9e4418, #2375354b)',
+        bgHover: 'light-dark(#2f9e4428, #23753565)',
+        color: 'light-dark(#2b8a3e, #38af4d)',
+        columnHeaderColor: 'light-dark(#1b5326, #48b95d)',
+        mantineColor: 'calculation',
+    },
+    DEFAULT: {
+        bg: 'var(--mantine-color-gray-light)',
+        bgHover: 'var(--mantine-color-gray-light-hover)',
+        color: 'var(--mantine-color-gray-light-color)',
+        columnHeaderColor: 'var(--mantine-color-gray-light-color)',
+        mantineColor: 'ldGray',
+    },
+} satisfies {
+    dimension: LightdashFieldColors;
+    metric: LightdashFieldColors;
+    calculation: LightdashFieldColors;
+    DEFAULT: LightdashFieldColors;
+};
 
 export const getMantineThemeOverride = (
     colorScheme: ColorScheme,
@@ -170,6 +221,9 @@ export const getMantineThemeOverride = (
             },
 
             Tooltip: {
+                classNames: {
+                    tooltip: styles.tooltipMantine6,
+                },
                 defaultProps: {
                     withArrow: true,
                 },
@@ -239,6 +293,7 @@ export const getMantineThemeOverride = (
             transitionTimingFunction: 'ease-in-out',
             transitionDuration: 200, // in ms
             chartFont: 'Inter, sans-serif',
+            ldField: LD_FIELD_COLORS,
             explorerItemBg: {
                 dimension: {
                     light: '#d2dbe9',
@@ -270,7 +325,7 @@ export const getMantineThemeOverride = (
             'html, body': {
                 backgroundColor:
                     theme.colorScheme === 'dark'
-                        ? theme.colors.ldDark[1]
+                        ? theme.colors.ldDark[0]
                         : theme.colors.ldGray[0],
             },
 
@@ -310,15 +365,6 @@ export const getMantineThemeOverride = (
                 ? {
                       '[class*="mantine-"][data-with-border]': {
                           borderColor: theme.colors.ldDark[4],
-                      },
-                      '.HW_frame_cont': {
-                          background: `${theme.colors.ldDark[2]} !important`,
-                          boxShadow: `var(--mantine-shadow-md) !important`,
-                          border: `1px solid ${theme.colors.ldDark[3]}!important`,
-                      },
-                      '.HW_frame': {
-                          background: `${theme.colors.ldDark[2]} !important`,
-                          filter: `invert(0.9) hue-rotate(180deg)`,
                       },
                   }
                 : undefined),

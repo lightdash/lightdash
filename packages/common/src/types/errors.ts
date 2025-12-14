@@ -545,6 +545,17 @@ export class AiAgentNotFoundError extends LightdashError {
     }
 }
 
+export class AiAgentValidatorError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'AiAgentValidatorError',
+            statusCode: 400,
+            data: {},
+        });
+    }
+}
+
 /* This specific error will be used in the frontend
 to show a "reauthenticate" button in the UI
 */
@@ -639,6 +650,23 @@ export class CorruptedExploreError extends LightdashError {
             message,
             name: 'CorruptedExploreError',
             statusCode: 500,
+            data,
+        });
+    }
+}
+
+export class ChangesetConflictError extends LightdashError {
+    constructor(
+        message: string,
+        data: {
+            entityName: string;
+            entityTableName: string;
+        },
+    ) {
+        super({
+            message,
+            name: 'ChangesetConflictError',
+            statusCode: 409,
             data,
         });
     }

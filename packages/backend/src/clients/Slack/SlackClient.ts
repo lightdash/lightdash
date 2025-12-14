@@ -1,12 +1,15 @@
 import {
     AnyType,
     friendlyName,
+    getErrorMessage,
     MissingConfigError,
+    SLACK_ID_REGEX,
     SlackAppCustomSettings,
     SlackChannel,
     SlackError,
     SlackInstallationNotFoundError,
     SlackSettings,
+    sleep,
     UnexpectedServerError,
 } from '@lightdash/common';
 import {
@@ -20,23 +23,115 @@ import { InstallProvider } from '@slack/oauth';
 import {
     ChatPostMessageArguments,
     ChatUpdateArguments,
-    ConversationsListResponse,
     FilesCompleteUploadExternalResponse,
-    UsersListResponse,
     WebAPICallResult,
     WebClient,
     type FilesUploadV2Arguments,
 } from '@slack/web-api';
 import { Express } from 'express';
-import { without } from 'lodash';
+import { throttle, without } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig, LoggingLevel } from '../../config/parseConfig';
+import { SlackChannelType } from '../../database/entities/slackChannels';
 import { slackErrorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
+import { SlackChannelCacheModel } from '../../models/SlackChannelCacheModel';
+import { SchedulerClient } from '../../scheduler/SchedulerClient';
 
 const DEFAULT_CACHE_TIME = 1000 * 60 * 10; // 10 minutes
 const CHANNELS_LIMIT = 200;
+// Maximum time to wait for initial sync when there's no cached data
+const INITIAL_SYNC_TIMEOUT_MS = 60000; // 60 seconds
+// Poll interval when waiting for sync to complete
+const SYNC_POLL_INTERVAL_MS = 1000; // 1 second
+
+// Slack Tier 2 rate limit throttling configuration
+// Tier 2 allows 20+ requests/minute - we use only 20% to be a good API citizen
+const TIER_2_REQUESTS_PER_MIN = 20;
+const RATE_LIMIT_USAGE_PERCENT = 0.2; // Use only 20% of the rate limit
+const THROTTLE_MIN_DELAY_MS = Math.ceil(
+    60000 / (TIER_2_REQUESTS_PER_MIN * RATE_LIMIT_USAGE_PERCENT),
+); // 15000ms = 15 seconds between requests
+
+/**
+ * Creates a throttled executor for Slack API calls.
+ * Uses lodash throttle pattern to proactively stay within 20% of Tier 2 rate limits.
+ * This prevents rate limit errors instead of reacting to them.
+ * Includes a simple retry as safety net for unexpected rate limits (e.g., from other integrations).
+ */
+const createThrottledSlackExecutor = () => {
+    let lastCallTime = 0;
+
+    // Throttled function to track timing - ensures we don't call more than once per THROTTLE_MIN_DELAY_MS
+    const trackCall = throttle(
+        () => {
+            lastCallTime = Date.now();
+        },
+        THROTTLE_MIN_DELAY_MS,
+        { leading: true, trailing: false },
+    );
+
+    return async <T>(
+        operation: () => Promise<T>,
+        context: string,
+    ): Promise<T> => {
+        // Calculate wait time based on last call
+        const now = Date.now();
+        const timeSinceLastCall = now - lastCallTime;
+
+        if (lastCallTime > 0 && timeSinceLastCall < THROTTLE_MIN_DELAY_MS) {
+            const waitTime = THROTTLE_MIN_DELAY_MS - timeSinceLastCall;
+            Logger.debug(
+                `Throttling ${context}: waiting ${waitTime}ms to stay within 20% of Tier 2 rate limit`,
+            );
+            // eslint-disable-next-line no-await-in-loop
+            await sleep(waitTime);
+        }
+
+        // Track this call
+        trackCall();
+
+        // Execute with simple retry as safety net for unexpected rate limits
+        try {
+            return await operation();
+        } catch (error: unknown) {
+            const isRateLimited =
+                error instanceof Error &&
+                'code' in error &&
+                error.code === 'slack_webapi_rate_limited_error';
+
+            if (!isRateLimited) {
+                throw error;
+            }
+
+            // Unexpected rate limit - wait for retry_after and try once more
+            let retryAfter = THROTTLE_MIN_DELAY_MS;
+            if (
+                error instanceof Error &&
+                'retryAfter' in error &&
+                typeof error.retryAfter === 'number'
+            ) {
+                retryAfter = error.retryAfter * 1000;
+            }
+
+            Logger.warn(
+                `Unexpected rate limit during ${context} despite throttling. Waiting ${retryAfter}ms before retry.`,
+            );
+            await sleep(retryAfter);
+            trackCall(); // Reset timing after waiting
+
+            return operation();
+        }
+    };
+};
+
+export type SlackChannelForCache = {
+    channelId: string;
+    channelName: string;
+    channelType: SlackChannelType;
+    isArchived: boolean;
+};
 
 export type PostSlackFile = {
     organizationUuid: string;
@@ -51,8 +146,10 @@ export type PostSlackFile = {
 
 export type SlackClientArguments = {
     slackAuthenticationModel: SlackAuthenticationModel;
+    slackChannelCacheModel: SlackChannelCacheModel;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
+    schedulerClient: SchedulerClient;
 };
 
 const lightdashLogLevelToSlackLogLevel = (
@@ -75,6 +172,8 @@ const lightdashLogLevelToSlackLogLevel = (
 export class SlackClient {
     slackAuthenticationModel: SlackAuthenticationModel;
 
+    slackChannelCacheModel: SlackChannelCacheModel;
+
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -83,19 +182,20 @@ export class SlackClient {
 
     private slackApp: App | undefined;
 
-    private channelsCache: Map<
-        string,
-        { lastCached: Date; channels: SlackChannel[] }
-    > = new Map();
+    private schedulerClient: SchedulerClient;
 
     constructor({
         slackAuthenticationModel,
+        slackChannelCacheModel,
         lightdashConfig,
         analytics,
+        schedulerClient,
     }: SlackClientArguments) {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
+        this.slackChannelCacheModel = slackChannelCacheModel;
+        this.schedulerClient = schedulerClient;
 
         if (this.lightdashConfig.slack?.clientId) {
             this.isEnabled = true;
@@ -146,7 +246,7 @@ export class SlackClient {
         return without(requiredScopes, ...installationScopes).length === 0;
     }
 
-    private async getWebClient(organizationUuid: string): Promise<WebClient> {
+    async getWebClient(organizationUuid: string): Promise<WebClient> {
         if (!this.isEnabled) {
             throw new MissingConfigError('Slack is not configured');
         }
@@ -177,72 +277,7 @@ export class SlackClient {
             excludeGroups: false,
         },
     ): Promise<SlackChannel[] | undefined> {
-        // Create cache key that includes filters that affect API calls
-        const cacheKey = `${organizationUuid}:${JSON.stringify({
-            excludeArchived: filter.excludeArchived,
-            excludeDms: filter.excludeDms,
-            excludeGroups: filter.excludeGroups,
-        })}`;
-
-        const getCachedChannels = () => {
-            const cached = this.channelsCache.get(cacheKey);
-            if (!cached) return undefined;
-
-            let finalResults = cached.channels;
-
-            if (search) {
-                finalResults = finalResults.filter((channel) =>
-                    channel.name.toLowerCase().includes(search.toLowerCase()),
-                );
-            }
-
-            // Always include specified channel IDs (e.g., currently selected channels)
-            const includeIds = filter.includeChannelIds ?? [];
-            const includedChannels =
-                includeIds.length > 0
-                    ? cached.channels.filter((channel) =>
-                          includeIds.includes(channel.id),
-                      )
-                    : [];
-
-            if (finalResults.length > CHANNELS_LIMIT) {
-                Logger.debug(
-                    `Limiting Slack channels response to ${CHANNELS_LIMIT} (total: ${finalResults.length}). Use search to find specific channels.`,
-                );
-                const limited = finalResults.slice(0, CHANNELS_LIMIT);
-                // Merge included channels that aren't already in the limited results
-                const limitedIds = new Set(limited.map((c) => c.id));
-                const missingIncluded = includedChannels.filter(
-                    (c) => !limitedIds.has(c.id),
-                );
-                return [...limited, ...missingIncluded];
-            }
-
-            return finalResults;
-        };
-
-        const isCacheValid = () => {
-            if (filter.forceRefresh) return false;
-            const cached = this.channelsCache.get(cacheKey);
-            if (!cached) return false;
-
-            const cacheAge = new Date().getTime() - cached.lastCached.getTime();
-            return (
-                cacheAge <
-                (this.lightdashConfig.slack?.channelsCachedTime ||
-                    DEFAULT_CACHE_TIME)
-            );
-        };
-
-        if (isCacheValid()) {
-            return getCachedChannels();
-        }
-
-        Logger.debug('Fetching channels from Slack API');
-
-        let nextCursor: string | undefined;
-        let allChannels: ConversationsListResponse['channels'] = [];
-
+        // Check if organization has Slack installation
         const installation =
             await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
                 organizationUuid,
@@ -250,85 +285,395 @@ export class SlackClient {
 
         if (!installation) return undefined;
 
-        const webClient = await this.getWebClient(organizationUuid);
+        const organizationId =
+            await this.slackChannelCacheModel.getOrganizationId(
+                organizationUuid,
+            );
 
-        do {
-            try {
-                Logger.debug(
-                    `Fetching slack channels with cursor ${nextCursor}`,
-                );
+        const cacheMaxAge =
+            this.lightdashConfig.slack?.channelsCachedTime ||
+            DEFAULT_CACHE_TIME;
 
-                const conversations: ConversationsListResponse =
+        // Get channels from DB cache
+        const getCachedChannels = async (): Promise<SlackChannel[]> =>
+            this.slackChannelCacheModel.getChannels(organizationId, {
+                search,
+                excludeArchived: filter.excludeArchived,
+                excludeDms: filter.excludeDms,
+                excludeGroups: filter.excludeGroups,
+                includeChannelIds: filter.includeChannelIds,
+                limit: CHANNELS_LIMIT,
+            });
+
+        // Check if we have any cached channels
+        const hasChannels = await this.slackChannelCacheModel.hasAnyChannels(
+            organizationId,
+        );
+
+        // Check if cache is stale
+        const isStale =
+            filter.forceRefresh ||
+            (await this.slackChannelCacheModel.isCacheStale(
+                organizationId,
+                cacheMaxAge,
+            ));
+
+        if (!hasChannels) {
+            // No cached data - we need to wait for sync to complete
+            Logger.info(
+                `No cached Slack channels for organization ${organizationUuid}, triggering sync and waiting`,
+            );
+
+            // Queue sync job
+            await this.schedulerClient.syncSlackChannelsJob({
+                organizationUuid,
+                projectUuid: undefined,
+                userUuid: undefined,
+            });
+
+            // Wait for sync to complete with timeout
+            const startTime = Date.now();
+
+            while (Date.now() - startTime < INITIAL_SYNC_TIMEOUT_MS) {
+                // eslint-disable-next-line no-await-in-loop
+                await sleep(SYNC_POLL_INTERVAL_MS);
+
+                const syncStatus =
                     // eslint-disable-next-line no-await-in-loop
-                    await webClient.conversations.list({
-                        types: 'public_channel,private_channel',
-                        exclude_archived: filter?.excludeArchived,
-                        limit: 900,
-                        cursor: nextCursor,
-                    });
-
-                nextCursor = conversations.response_metadata?.next_cursor;
-                allChannels = conversations.channels
-                    ? [...allChannels, ...conversations.channels]
-                    : allChannels;
-            } catch (e) {
-                slackErrorHandler(e, 'Unable to fetch slack channels');
-                break;
-            }
-        } while (nextCursor);
-        Logger.debug(`Total slack channels ${allChannels.length}`);
-
-        let allUsers: UsersListResponse['members'] = [];
-        if (!filter.excludeDms) {
-            nextCursor = undefined;
-            do {
-                try {
-                    Logger.debug(
-                        `Fetching slack users with cursor ${nextCursor}`,
+                    await this.slackChannelCacheModel.getSyncStatus(
+                        organizationId,
                     );
 
-                    const users: UsersListResponse =
-                        // eslint-disable-next-line no-await-in-loop
-                        await webClient.users.list({
-                            limit: 900,
-                            cursor: nextCursor,
-                        });
-                    nextCursor = users.response_metadata?.next_cursor;
-                    allUsers = users.members
-                        ? [...allUsers, ...users.members]
-                        : allUsers;
-                } catch (e) {
-                    slackErrorHandler(e, 'Unable to fetch slack users');
-                    break;
+                if (syncStatus?.channels_sync_status === 'completed') {
+                    Logger.info(
+                        `Slack channel sync completed for organization ${organizationUuid}`,
+                    );
+                    return getCachedChannels();
                 }
-            } while (nextCursor);
-            Logger.debug(`Total slack users ${allUsers.length}`);
+
+                if (syncStatus?.channels_sync_status === 'error') {
+                    Logger.error(
+                        `Slack channel sync failed for organization ${organizationUuid}: ${syncStatus.channels_sync_error}`,
+                    );
+                    // Return empty array instead of throwing to not break the UI
+                    return [];
+                }
+            }
+
+            // Timeout - return whatever we have (might be empty)
+            Logger.warn(
+                `Slack channel sync timed out for organization ${organizationUuid}`,
+            );
+            return getCachedChannels();
         }
 
-        const sortedChannels = allChannels
-            .filter(({ id, name }) => id && name)
-            .filter(({ id }) => !filter.excludeGroups || !id!.startsWith('G'))
-            .map<SlackChannel>(({ id, name }) => ({
-                id: id!,
-                name: `#${name!}`,
-            }))
-            .sort((a, b) => a.name.localeCompare(b.name));
+        // We have cached data
+        if (isStale) {
+            // Trigger background refresh (fire and forget)
+            Logger.debug(
+                `Triggering background Slack channel sync for organization ${organizationUuid}`,
+            );
+            this.schedulerClient
+                .syncSlackChannelsJob({
+                    organizationUuid,
+                    projectUuid: undefined,
+                    userUuid: undefined,
+                })
+                .catch((e) => {
+                    Logger.warn(
+                        `Failed to queue Slack channel sync job: ${e.message}`,
+                    );
+                });
+        }
 
-        const sortedUsers = allUsers
-            .filter(({ id, name }) => id && name)
-            .map<SlackChannel>(({ id, name }) => ({
-                id: id!,
-                name: `@${name!}`,
-            }))
-            .sort((a, b) => a.name.localeCompare(b.name));
-
-        const channels = [...sortedChannels, ...sortedUsers];
-        this.channelsCache.set(cacheKey, {
-            lastCached: new Date(),
-            channels,
-        });
-
+        // Return cached data immediately
         return getCachedChannels();
+    }
+
+    /**
+     * Fetch all channels and users from Slack for background cache sync.
+     * This method uses throttling to stay within 20% of Slack's Tier 2 rate limits.
+     * Used by the scheduler task to populate the slack_channels cache table.
+     */
+    async fetchAllChannelsForCache(
+        organizationUuid: string,
+    ): Promise<SlackChannelForCache[]> {
+        const webClient = await this.getWebClient(organizationUuid);
+
+        const allChannels: SlackChannelForCache[] = [];
+
+        // Create throttled executor - ensures we only use 20% of Tier 2 rate limit
+        const throttledExecute = createThrottledSlackExecutor();
+
+        // Fetch channels with pagination and throttling
+        let channelCursor: string | undefined;
+        do {
+            /* eslint-disable @typescript-eslint/no-loop-func */
+            // eslint-disable-next-line no-await-in-loop
+            const conversations = await throttledExecute(
+                () =>
+                    webClient.conversations.list({
+                        types: 'public_channel,private_channel',
+                        exclude_archived: false, // Fetch all, store archived status
+                        limit: 1000,
+                        cursor: channelCursor,
+                    }),
+                'conversations.list',
+            );
+            /* eslint-enable @typescript-eslint/no-loop-func */
+
+            if (conversations.channels) {
+                for (const channel of conversations.channels) {
+                    if (channel.id && channel.name) {
+                        const isPrivate =
+                            channel.id.startsWith('G') ||
+                            channel.is_private === true;
+                        allChannels.push({
+                            channelId: channel.id,
+                            channelName: `#${channel.name}`,
+                            channelType: isPrivate
+                                ? 'private_channel'
+                                : 'channel',
+                            isArchived: channel.is_archived ?? false,
+                        });
+                    }
+                }
+            }
+
+            channelCursor = conversations.response_metadata?.next_cursor;
+
+            if (channelCursor) {
+                Logger.debug(
+                    `Fetched ${allChannels.length} channels so far, continuing to next page`,
+                );
+            }
+        } while (channelCursor);
+
+        Logger.info(
+            `Fetched ${allChannels.length} channels from Slack for organization ${organizationUuid}`,
+        );
+
+        // Fetch users for DMs with pagination and throttling
+        let userCursor: string | undefined;
+        do {
+            /* eslint-disable @typescript-eslint/no-loop-func */
+            // eslint-disable-next-line no-await-in-loop
+            const users = await throttledExecute(
+                () =>
+                    webClient.users.list({
+                        limit: 1000,
+                        cursor: userCursor,
+                    }),
+                'users.list',
+            );
+            /* eslint-enable @typescript-eslint/no-loop-func */
+
+            if (users.members) {
+                for (const user of users.members) {
+                    if (user.id && user.name && !user.is_bot) {
+                        allChannels.push({
+                            channelId: user.id,
+                            channelName: `@${user.name}`,
+                            channelType: 'dm',
+                            isArchived: user.deleted ?? false,
+                        });
+                    }
+                }
+            }
+
+            userCursor = users.response_metadata?.next_cursor;
+
+            if (userCursor) {
+                Logger.debug(
+                    `Fetched ${allChannels.length} channels/users so far, continuing to next page`,
+                );
+            }
+        } while (userCursor);
+
+        Logger.info(
+            `Fetched ${allChannels.length} total channels and users from Slack for organization ${organizationUuid}`,
+        );
+
+        return allChannels;
+    }
+
+    /**
+     * Get all organization UUIDs that have Slack installations.
+     * Used by the daily sync cron job to schedule sync jobs.
+     */
+    async getAllOrganizationsWithSlack(): Promise<string[]> {
+        return this.slackChannelCacheModel.getAllOrganizationsWithSlack();
+    }
+
+    /**
+     * Sync all Slack channels to the cache database.
+     * Handles the full workflow: locking, fetching, upserting, and cleanup.
+     * Returns sync result with status and channel count.
+     */
+    async syncChannelsToCache(organizationUuid: string): Promise<{
+        status: 'completed' | 'skipped';
+        reason: string;
+        totalChannels: number;
+    }> {
+        const organizationId =
+            await this.slackChannelCacheModel.getOrganizationId(
+                organizationUuid,
+            );
+
+        if (!organizationId) {
+            throw new Error(`Organization ${organizationUuid} not found`);
+        }
+        // Mark sync as started (for monitoring/UI purposes)
+        // Note: Concurrency is handled by Graphile's jobKey deduplication
+        await this.slackChannelCacheModel.startSync(organizationId);
+
+        try {
+            // Fetch all channels from Slack (handles rate limiting and pagination)
+            const allChannels = await this.fetchAllChannelsForCache(
+                organizationUuid,
+            );
+
+            // Upsert all channels to database
+            await this.slackChannelCacheModel.upsertChannels(
+                organizationId,
+                allChannels,
+            );
+
+            // Soft delete channels that are no longer in Slack
+            const channelIds = allChannels.map((c) => c.channelId);
+            await this.slackChannelCacheModel.softDeleteChannelsNotInList(
+                organizationId,
+                channelIds,
+            );
+
+            // Mark sync as complete
+            await this.slackChannelCacheModel.completeSync(
+                organizationId,
+                allChannels.length,
+            );
+
+            return {
+                status: 'completed',
+                reason: '',
+                totalChannels: allChannels.length,
+            };
+        } catch (error) {
+            const errorMessage = getErrorMessage(error);
+            Logger.error(
+                `Slack channel sync failed for organization ${organizationUuid}: ${errorMessage}`,
+            );
+            await this.slackChannelCacheModel.failSync(
+                organizationId,
+                errorMessage,
+            );
+            throw error;
+        }
+    }
+
+    /**
+     * Look up a channel by ID or name.
+     * - If input looks like a Slack ID (C/G/U/W + alphanumerics), look up by ID
+     * - If input looks like a name (#channel-name), search by name
+     *
+     * Used for on-demand fetching when user pastes a channel ID not in the cache.
+     * 1. First checks the cache
+     * 2. If not found (and ID), fetches directly from Slack API
+     * 3. Caches the result for future lookups
+     *
+     * @returns SlackChannel if found, null if not found or no access
+     */
+    async lookupChannelById(
+        organizationUuid: string,
+        input: string,
+    ): Promise<SlackChannel | null> {
+        const organizationId =
+            await this.slackChannelCacheModel.getOrganizationId(
+                organizationUuid,
+            );
+
+        if (!organizationId) {
+            throw new Error(`Organization ${organizationUuid} not found`);
+        }
+        // Check if input looks like a Slack ID (C, G, U, W followed by alphanumerics)
+        const isSlackId = SLACK_ID_REGEX.test(input);
+
+        if (isSlackId) {
+            return this.lookupChannelByIdInternal(
+                organizationUuid,
+                organizationId,
+                input,
+            );
+        }
+
+        // Input looks like a channel name - search by name
+        return this.lookupChannelByNameInternal(organizationId, input);
+    }
+
+    private async lookupChannelByIdInternal(
+        organizationUuid: string,
+        organizationId: number,
+        channelId: string,
+    ): Promise<SlackChannel | null> {
+        // First check the cache
+        const cachedChannel = await this.slackChannelCacheModel.getChannelById(
+            organizationId,
+            channelId,
+        );
+
+        if (cachedChannel) {
+            return cachedChannel;
+        }
+
+        const webClient = await this.getWebClient(organizationUuid);
+        try {
+            const response = await webClient.conversations.info({
+                channel: channelId,
+            });
+            if (
+                !response.ok ||
+                !response.channel?.id ||
+                !response.channel?.name
+            ) {
+                return null;
+            }
+
+            // Cache the channel for future lookups
+            const channelName = `#${response.channel.name}`;
+            await this.slackChannelCacheModel.upsertChannels(organizationId, [
+                {
+                    channelId: response.channel.id,
+                    channelName,
+                    channelType: response.channel.is_private
+                        ? 'private_channel'
+                        : 'channel',
+                },
+            ]);
+            return {
+                id: response.channel.id,
+                name: channelName,
+            };
+        } catch (error) {
+            console.error('Error fetching Slack channel info:', error);
+            return null;
+        }
+    }
+
+    private async lookupChannelByNameInternal(
+        organizationId: number,
+        channelName: string,
+    ): Promise<SlackChannel | null> {
+        // First check the cache
+        const cachedChannel =
+            await this.slackChannelCacheModel.getChannelByName(
+                organizationId,
+                channelName,
+            );
+
+        if (cachedChannel) {
+            return cachedChannel;
+        }
+
+        return null;
     }
 
     private static async isBotInChannel(

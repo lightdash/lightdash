@@ -577,3 +577,11 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     attachmentDownloadName?: string;
     encodedJwt?: string;
 };
+
+export type SyncSlackChannelsPayload = Pick<
+    TraceTaskBase,
+    'organizationUuid' | 'schedulerUuid'
+> & {
+    projectUuid: undefined;
+    userUuid: undefined;
+};

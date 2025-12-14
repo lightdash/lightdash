@@ -1,7 +1,11 @@
 {
     "name": "@lightdash/warehouses",
-    "version": "0.2236.2",
+    "version": "0.2249.0",
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/lightdash/lightdash.git"
+    },
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
@@ -40,6 +44,6 @@
         "copy-files": "copyfiles -u 1 src/warehouseClients/ca-bundle-aws-redshift.crt src/warehouseClients/ca-bundle-aws-rds-global.pem dist/",
         "build": "pnpm run copy-files && tsc --build tsconfig.json",
         "dev": "pnpm run copy-files && tsc --build --watch --preserveWatchOutput tsconfig.json",
-        "release": "pnpm publish --no-git-checks"
+        "release": "pnpm publish --no-git-checks --access public"
     }
 }

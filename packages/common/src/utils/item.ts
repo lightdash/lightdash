@@ -130,16 +130,6 @@ export const getItemIcon = (
     return 'function';
 };
 
-export const getItemColor = (
-    item: Field | TableCalculation | AdditionalMetric | CustomDimension,
-) => {
-    if (isCustomDimension(item)) return '#0E5A8A';
-    if (isField(item)) {
-        return isDimension(item) ? '#0E5A8A' : '#A66321';
-    }
-    return '#0A6640';
-};
-
 export const isDateItem = (
     item:
         | Field

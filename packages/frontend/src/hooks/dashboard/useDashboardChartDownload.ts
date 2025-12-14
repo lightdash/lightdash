@@ -1,6 +1,5 @@
 import {
     FeatureFlags,
-    MAX_SAFE_INTEGER,
     QueryExecutionContext,
     QueryHistoryStatus,
     type ApiExecuteAsyncDashboardChartQueryResults,
@@ -63,7 +62,7 @@ export const useDashboardChartDownload = (
                         dateZoom: dateZoomGranularity
                             ? { granularity: dateZoomGranularity }
                             : undefined,
-                        limit: limit ?? MAX_SAFE_INTEGER,
+                        limit,
                         invalidateCache: false,
                         parameters,
                         pivotResults: useSqlPivotResults?.enabled,

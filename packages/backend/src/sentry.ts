@@ -4,6 +4,7 @@ import { lightdashConfig } from './config/lightdashConfig';
 import { VERSION } from './version';
 
 export const IGNORE_ERRORS = [
+    'WarehouseConnectionError',
     'WarehouseQueryError',
     'FieldReferenceError',
     'NotEnoughResults',
@@ -15,6 +16,7 @@ export const IGNORE_ERRORS = [
     'AuthorizationError',
     'SshTunnelError',
     'ReadFileError',
+    'AiAgentValidatorError',
 ];
 
 Sentry.init({

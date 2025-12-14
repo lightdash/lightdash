@@ -5,8 +5,6 @@ import IDBSQLClient, {
 import IDBSQLSession from '@databricks/sql/dist/contracts/IDBSQLSession';
 import IOperation from '@databricks/sql/dist/contracts/IOperation';
 import { TTypeId as DatabricksDataTypes } from '@databricks/sql/thrift/TCLIService_types';
-import fetch from 'node-fetch';
-
 import {
     AnyType,
     CreateDatabricksCredentials,
@@ -23,6 +21,7 @@ import {
     WarehouseResults,
     WarehouseTypes,
 } from '@lightdash/common';
+import fetch from 'node-fetch';
 import { WarehouseCatalog } from '../types';
 import {
     DEFAULT_BATCH_SIZE,
@@ -31,6 +30,15 @@ import {
 import { normalizeUnicode } from '../utils/sql';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
+
+/**
+ * Pre-registered Databricks public OAuth client ID for U2M authentication.
+ * This is a built-in client that doesn't require registering a custom OAuth app.
+ * This client id only works on he CLI redirect URIs. For the UI we require a custom OAuth app
+ * with a valid whitelisted redirect URI.
+ * https://docs.databricks.com/en/dev-tools/auth/oauth-u2m.html
+ */
+export const DATABRICKS_DEFAULT_OAUTH_CLIENT_ID = 'databricks-cli';
 
 type SchemaResult = {
     TABLE_CAT: string;

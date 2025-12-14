@@ -1,3 +1,221 @@
+# [0.2249.0](https://github.com/lightdash/lightdash/compare/0.2248.3...0.2249.0) (2025-12-12)
+
+
+### Bug Fixes
+
+* default to maxQueryLimit if agent provided limit is over it ([#18777](https://github.com/lightdash/lightdash/issues/18777)) ([d02ef5b](https://github.com/lightdash/lightdash/commit/d02ef5b153c6c7d061bffeea4cf5daf233a82587)), closes [#18776](https://github.com/lightdash/lightdash/issues/18776)
+* use AiAgentValidatorError instead of generic Error and ignore from Sentry ([#18774](https://github.com/lightdash/lightdash/issues/18774)) ([2f3efb8](https://github.com/lightdash/lightdash/commit/2f3efb8c1b04b279d50f9466895cd71d075ed5ad))
+
+
+### Features
+
+* add Azure embedding model support ([#18771](https://github.com/lightdash/lightdash/issues/18771)) ([21d192e](https://github.com/lightdash/lightdash/commit/21d192eab75e24e01db29dd2be98167513325616))
+
+## [0.2248.3](https://github.com/lightdash/lightdash/compare/0.2248.2...0.2248.3) (2025-12-12)
+
+
+### Bug Fixes
+
+* extract and improve CSV limit handling logic ([#18757](https://github.com/lightdash/lightdash/issues/18757)) ([da7b9b5](https://github.com/lightdash/lightdash/commit/da7b9b5b244ee1be5d36908d341dc62218548262))
+
+## [0.2248.2](https://github.com/lightdash/lightdash/compare/0.2248.1...0.2248.2) (2025-12-12)
+
+
+### Bug Fixes
+
+* allow nullish externalId and email from embed user ([#18751](https://github.com/lightdash/lightdash/issues/18751)) ([17b6a6f](https://github.com/lightdash/lightdash/commit/17b6a6fe960e345c25bdd7a8e753573dde86449c)), closes [/github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts#L35](https://github.com//github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts/issues/L35) [/github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts#L35](https://github.com//github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts/issues/L35) [/github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts#L35](https://github.com//github.com/lightdash/lightdash/blob/777ee271766d5724443faa2940a441b236799fe3/packages/backend/src/auth/account/account.ts/issues/L35)
+
+## [0.2248.1](https://github.com/lightdash/lightdash/compare/0.2248.0...0.2248.1) (2025-12-12)
+
+
+### Bug Fixes
+
+* only attempt fetching projects when user is logged in ([#18769](https://github.com/lightdash/lightdash/issues/18769)) ([2c92bcf](https://github.com/lightdash/lightdash/commit/2c92bcf22d9650801ee61341842d78f7c2808ed2))
+
+# [0.2248.0](https://github.com/lightdash/lightdash/compare/0.2247.0...0.2248.0) (2025-12-12)
+
+
+### Bug Fixes
+
+* handle missing embedding provider configuration gracefully ([#18767](https://github.com/lightdash/lightdash/issues/18767)) ([6a68ebc](https://github.com/lightdash/lightdash/commit/6a68ebcc39677c8524e24ba213a2368607115ad7))
+
+
+### Features
+
+* add GPT-5.2 model preset ([#18770](https://github.com/lightdash/lightdash/issues/18770)) ([177c6b3](https://github.com/lightdash/lightdash/commit/177c6b32125f9bb2468b848ee44248a82c499891))
+
+# [0.2247.0](https://github.com/lightdash/lightdash/compare/0.2246.0...0.2247.0) (2025-12-11)
+
+
+### Features
+
+* generate chart metadata for new charts ([#18723](https://github.com/lightdash/lightdash/issues/18723)) ([a67616a](https://github.com/lightdash/lightdash/commit/a67616a4d0854d94086e86eaee263e721ee980b3))
+
+# [0.2246.0](https://github.com/lightdash/lightdash/compare/0.2245.0...0.2246.0) (2025-12-11)
+
+
+### Features
+
+* remove ff for dark mode ([#18712](https://github.com/lightdash/lightdash/issues/18712)) ([c133640](https://github.com/lightdash/lightdash/commit/c1336403eae6f21a401a3c2f029902871c18b612))
+
+# [0.2245.0](https://github.com/lightdash/lightdash/compare/0.2244.0...0.2245.0) (2025-12-11)
+
+
+### Features
+
+* add Databricks OAuth authentication support ([#18622](https://github.com/lightdash/lightdash/issues/18622)) ([e42a6da](https://github.com/lightdash/lightdash/commit/e42a6daa6777b5161229ce3c36de798e602a9224))
+
+# [0.2244.0](https://github.com/lightdash/lightdash/compare/0.2243.1...0.2244.0) (2025-12-11)
+
+
+### Bug Fixes
+
+* default AI_DEFAULT_EMBEDDING_PROVIDER to openai and return undefined on empty strings for float and integer parsing ([#18762](https://github.com/lightdash/lightdash/issues/18762)) ([b16a165](https://github.com/lightdash/lightdash/commit/b16a165183f6f292cf3d34a425dba73dc76b1c7a))
+
+
+### Features
+
+* simplify colors in useColumns hook + new custom field colors ([#18737](https://github.com/lightdash/lightdash/issues/18737)) ([0c1543e](https://github.com/lightdash/lightdash/commit/0c1543e907570fa04ed9ae9d2f9e98bbd6048738))
+
+## [0.2243.1](https://github.com/lightdash/lightdash/compare/0.2243.0...0.2243.1) (2025-12-11)
+
+
+### Bug Fixes
+
+* apply right filters to stacked bar underlying data ([#18754](https://github.com/lightdash/lightdash/issues/18754)) ([12fc1dc](https://github.com/lightdash/lightdash/commit/12fc1dc69fc59c6df867d8b115286270cabf39ab))
+
+# [0.2243.0](https://github.com/lightdash/lightdash/compare/0.2242.2...0.2243.0) (2025-12-11)
+
+
+### Features
+
+* introduce field colors utility ([#18728](https://github.com/lightdash/lightdash/issues/18728)) ([1960f0c](https://github.com/lightdash/lightdash/commit/1960f0cabb19954e55f18525fac0baaf46cd2583))
+
+## [0.2242.2](https://github.com/lightdash/lightdash/compare/0.2242.1...0.2242.2) (2025-12-11)
+
+
+### Bug Fixes
+
+* swap field order in routes and remove requireUserCredentials ([#18624](https://github.com/lightdash/lightdash/issues/18624)) ([88ff7ae](https://github.com/lightdash/lightdash/commit/88ff7aee6277712c07e0393889d3ebfcd706be1f))
+
+## [0.2242.1](https://github.com/lightdash/lightdash/compare/0.2242.0...0.2242.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* changeset conflicts on created field causes explore failures ([#18705](https://github.com/lightdash/lightdash/issues/18705)) ([5a9814a](https://github.com/lightdash/lightdash/commit/5a9814a6e8ac8b9005f041ad49f9c1c27ae6dfb6)), closes [#18627](https://github.com/lightdash/lightdash/issues/18627)
+
+# [0.2242.0](https://github.com/lightdash/lightdash/compare/0.2241.0...0.2242.0) (2025-12-10)
+
+
+### Features
+
+* add support for dbt --favor-state flag in CLI commands ([#18722](https://github.com/lightdash/lightdash/issues/18722)) ([c626ca5](https://github.com/lightdash/lightdash/commit/c626ca509ac900f9de80d35136fe2f8a4846f71f))
+
+# [0.2241.0](https://github.com/lightdash/lightdash/compare/0.2240.5...0.2241.0) (2025-12-10)
+
+
+### Features
+
+* use db cache for slack channel fetching ([#18660](https://github.com/lightdash/lightdash/issues/18660)) ([290d991](https://github.com/lightdash/lightdash/commit/290d99173713ef3e19f421f5c3ff6be20e638a0e))
+
+## [0.2240.5](https://github.com/lightdash/lightdash/compare/0.2240.4...0.2240.5) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** add repo to package.json ([#18734](https://github.com/lightdash/lightdash/issues/18734)) ([7113656](https://github.com/lightdash/lightdash/commit/71136564be528b0576a1bf35d56c09cb61f555fc))
+
+## [0.2240.4](https://github.com/lightdash/lightdash/compare/0.2240.3...0.2240.4) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** use github runner for trusted publishing ([#18733](https://github.com/lightdash/lightdash/issues/18733)) ([9b543cf](https://github.com/lightdash/lightdash/commit/9b543cf9133d6a80b2a101ec92b78311cfdd644e))
+
+## [0.2240.3](https://github.com/lightdash/lightdash/compare/0.2240.2...0.2240.3) (2025-12-10)
+
+
+### Bug Fixes
+
+* value labels on horizontal charts stacked ([#18726](https://github.com/lightdash/lightdash/issues/18726)) ([216b0b1](https://github.com/lightdash/lightdash/commit/216b0b1fb500f806fa54d454ea0bf22b9490d528)), closes [#18727](https://github.com/lightdash/lightdash/issues/18727)
+
+## [0.2240.2](https://github.com/lightdash/lightdash/compare/0.2240.1...0.2240.2) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** upgrade npm on release to support oidc ([#18731](https://github.com/lightdash/lightdash/issues/18731)) ([ad2f746](https://github.com/lightdash/lightdash/commit/ad2f746af281346dc7cdf4fcff3820f67b747e5f)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+## [0.2240.1](https://github.com/lightdash/lightdash/compare/0.2240.0...0.2240.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* remove registry override for npm registry ([#18725](https://github.com/lightdash/lightdash/issues/18725)) ([31d3925](https://github.com/lightdash/lightdash/commit/31d3925db9f4b2bd092d547db023876eeae663a4)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Performance Improvements
+
+* optimize project loading by fetching only when needed ([#18626](https://github.com/lightdash/lightdash/issues/18626)) ([9d0000e](https://github.com/lightdash/lightdash/commit/9d0000e474cde2d1aa1cbf222f62fa4b2383c7ca))
+
+# [0.2240.0](https://github.com/lightdash/lightdash/compare/0.2239.1...0.2240.0) (2025-12-10)
+
+
+### Bug Fixes
+
+* **ci:** update ci/cd to use id-tokens for npm registry ([#18724](https://github.com/lightdash/lightdash/issues/18724)) ([e6f8b10](https://github.com/lightdash/lightdash/commit/e6f8b10fcd680cf1abe1e096ec2c2efb9690debf))
+
+
+### Features
+
+* add batch delivery failure tracking and UI for scheduler jobs ([#18714](https://github.com/lightdash/lightdash/issues/18714)) ([61e8a6a](https://github.com/lightdash/lightdash/commit/61e8a6a390cd2eba7893d7b9cf5e7c73f3691146))
+
+## [0.2239.1](https://github.com/lightdash/lightdash/compare/0.2239.0...0.2239.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* github client creating branch against wrong source branch ([#18711](https://github.com/lightdash/lightdash/issues/18711)) ([9b4eadd](https://github.com/lightdash/lightdash/commit/9b4eadd1082f620bdb7e55ae6edec709d2544c58))
+
+# [0.2239.0](https://github.com/lightdash/lightdash/compare/0.2238.0...0.2239.0) (2025-12-10)
+
+
+### Bug Fixes
+
+* ai agent admin thread table hover/selected bg color dark mode ([#18674](https://github.com/lightdash/lightdash/issues/18674)) ([c0be8d6](https://github.com/lightdash/lightdash/commit/c0be8d641c8059e488432d934874ff51cfe3125d))
+
+
+### Features
+
+* softer contrast in tooltips for dark mode ([#18698](https://github.com/lightdash/lightdash/issues/18698)) ([c0e1e7a](https://github.com/lightdash/lightdash/commit/c0e1e7a58310a724eb9c8dc709bf0b0ad3d0a0d5))
+
+# [0.2238.0](https://github.com/lightdash/lightdash/compare/0.2237.1...0.2238.0) (2025-12-10)
+
+
+### Bug Fixes
+
+* disable scheduled deliveries with broken warehouse credentials (dont retry them) ([#18720](https://github.com/lightdash/lightdash/issues/18720)) ([480f2ba](https://github.com/lightdash/lightdash/commit/480f2ba51ee937fc793f40dd0f5bb33b4188b8a1))
+
+
+### Features
+
+* add email notifications for scheduled delivery failures ([#18677](https://github.com/lightdash/lightdash/issues/18677)) ([30db081](https://github.com/lightdash/lightdash/commit/30db081b19a2b7b9774982c153ec23cf9874e69c))
+
+## [0.2237.1](https://github.com/lightdash/lightdash/compare/0.2237.0...0.2237.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* set headers for js chunks and return correct status code ([#18717](https://github.com/lightdash/lightdash/issues/18717)) ([956fa0a](https://github.com/lightdash/lightdash/commit/956fa0ac7250fdb8276ba1da8d827da63922bf53))
+
+# [0.2237.0](https://github.com/lightdash/lightdash/compare/0.2236.2...0.2237.0) (2025-12-10)
+
+
+### Features
+
+* support dark mode for explore image ([#18708](https://github.com/lightdash/lightdash/issues/18708)) ([ec428c1](https://github.com/lightdash/lightdash/commit/ec428c1c68afd930c54f2bd85e6e60ca596d111d))
+
 ## [0.2236.2](https://github.com/lightdash/lightdash/compare/0.2236.1...0.2236.2) (2025-12-09)
 
 

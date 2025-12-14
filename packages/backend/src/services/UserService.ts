@@ -1779,15 +1779,14 @@ export class UserService extends BaseService {
             WarehouseTypes.DATABRICKS,
         );
 
+        // Only store authentication fields - connection details (database, serverHostName, httpPath)
+        // come from the project configuration and shouldn't be stored in user credentials
         const databricksCredentials: UpsertUserWarehouseCredentials = {
             name: 'Default',
             credentials: {
                 type: WarehouseTypes.DATABRICKS,
-                authenticationType: DatabricksAuthenticationType.OAUTH_M2M,
+                authenticationType: DatabricksAuthenticationType.OAUTH_U2M,
                 refreshToken,
-                database: '', // Will be set when connecting to a project
-                serverHostName: '', // Will be set when connecting to a project
-                httpPath: '', // Will be set when connecting to a project
             },
         };
         await this.createWarehouseCredentials(user, databricksCredentials);

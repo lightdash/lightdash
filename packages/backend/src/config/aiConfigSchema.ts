@@ -7,6 +7,7 @@ export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-4.1-2025-04-14';
 export const DEFAULT_BEDROCK_MODEL_NAME = 'claude-sonnet-4-5';
 
 export const DEFAULT_OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
+export const DEFAULT_AZURE_EMBEDDING_MODEL = 'text-embedding-3-small';
 export const DEFAULT_BEDROCK_EMBEDDING_MODEL = 'cohere.embed-english-v3';
 
 export const aiCopilotConfigSchema = z
@@ -15,7 +16,7 @@ export const aiCopilotConfigSchema = z
             .enum(['openai', 'azure', 'anthropic', 'openrouter', 'bedrock'])
             .default(DEFAULT_DEFAULT_AI_PROVIDER),
         defaultEmbeddingModelProvider: z
-            .enum(['openai', 'bedrock'])
+            .enum(['openai', 'bedrock', 'azure'])
             .default(DEFAULT_DEFAULT_AI_PROVIDER),
         providers: z.object({
             openai: z
@@ -35,6 +36,10 @@ export const aiCopilotConfigSchema = z
                     apiKey: z.string(),
                     apiVersion: z.string(),
                     deploymentName: z.string(),
+                    embeddingDeploymentName: z
+                        .string()
+                        .default(DEFAULT_AZURE_EMBEDDING_MODEL),
+                    useDeploymentBasedUrls: z.boolean().default(true),
                 })
                 .optional(),
             anthropic: z

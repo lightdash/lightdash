@@ -118,7 +118,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 bg="background"
                 shadow={isEditMode ? 'xs' : undefined}
                 sx={(theme) => {
-                    let border = `1px solid ${theme.colors.ldGray[1]}`;
+                    let border = `1px solid ${
+                        theme.colorScheme === 'dark'
+                            ? theme.fn.lighten(theme.colors.ldDark[1], 0.05)
+                            : theme.colors.ldGray[1]
+                    }`;
                     if (isEditMode) {
                         border = `1px dashed ${theme.colors.blue[5]}`;
                     }

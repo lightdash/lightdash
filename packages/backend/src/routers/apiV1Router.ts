@@ -8,6 +8,7 @@ import {
     storeOIDCRedirect,
     storeSlackContext,
 } from '../controllers/authentication';
+import { databricksPassportStrategy } from '../controllers/authentication/strategies/databricksStrategy';
 import { UserModel } from '../models/UserModel';
 import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
@@ -233,21 +234,35 @@ apiV1Router.get(
     },
 );
 
-apiV1Router.get(
-    lightdashConfig.auth.databricks.loginPath,
-    storeOIDCRedirect,
-    passport.authenticate('databricks'),
-);
+// Databricks OAuth routes - only register if strategy is configured
+// (requires DATABRICKS_OAUTH_CLIENT_ID, DATABRICKS_OAUTH_AUTHORIZATION_ENDPOINT, DATABRICKS_OAUTH_TOKEN_ENDPOINT)
+if (databricksPassportStrategy) {
+    apiV1Router.get(
+        lightdashConfig.auth.databricks.loginPath,
+        storeOIDCRedirect,
+        passport.authenticate('databricks'),
+    );
 
-apiV1Router.get(
-    lightdashConfig.auth.databricks.callbackPath,
-    (req, res, next) => {
-        passport.authenticate('databricks', {
-            failureRedirect: getOidcRedirectURL(false)(req),
-            successRedirect: getOidcRedirectURL(true)(req),
-        })(req, res, next);
-    },
-);
+    apiV1Router.get(
+        lightdashConfig.auth.databricks.callbackPath,
+        (req, res, next) => {
+            passport.authenticate('databricks', {
+                failureRedirect: getOidcRedirectURL(false)(req),
+                successRedirect: getOidcRedirectURL(true)(req),
+            })(req, res, next);
+        },
+    );
+} else {
+    apiV1Router.get(
+        lightdashConfig.auth.databricks.loginPath,
+        (req, res, next) => {
+            res.status(404).json({
+                status: 'error',
+                message: 'Databricks OAuth is not configured',
+            });
+        },
+    );
+}
 
 apiV1Router.get('/logout', (req, res, next) => {
     req.logout((err) => {

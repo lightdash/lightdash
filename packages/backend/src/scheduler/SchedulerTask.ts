@@ -7,8 +7,6 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     CreateSchedulerTarget,
-    DashboardFilterRule,
-    DashboardParameterValue,
     type DeliveryResult,
     type DownloadAsyncQueryResultsPayload,
     DownloadCsvPayload,
@@ -54,6 +52,7 @@ import {
     SlackNotificationPayload,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
+    SyncSlackChannelsPayload,
     ThresholdOperator,
     ThresholdOptions,
     UnexpectedGoogleSheetsError,
@@ -61,6 +60,7 @@ import {
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     VizColumn,
+    WarehouseConnectionError,
     applyDimensionOverrides,
     assertUnreachable,
     convertReplaceableFieldMatchMapToReplaceCustomFields,
@@ -69,9 +69,7 @@ import {
     getColumnOrderFromVizTableConfig,
     getCustomLabelsFromTableConfig,
     getCustomLabelsFromVizTableConfig,
-    getDashboardFiltersForTile,
     getErrorMessage,
-    getFulfilledValues,
     getHiddenFieldsFromVizTableConfig,
     getHiddenTableFields,
     getHumanReadableCronExpression,
@@ -2717,7 +2715,8 @@ export default class SchedulerTask {
                 e instanceof NotFoundError ||
                 e instanceof ForbiddenError ||
                 e instanceof MissingConfigError ||
-                e instanceof UnexpectedGoogleSheetsError;
+                e instanceof UnexpectedGoogleSheetsError ||
+                e instanceof WarehouseConnectionError;
 
             if (
                 this.slackClient.isEnabled &&
@@ -3083,8 +3082,12 @@ export default class SchedulerTask {
                 return; // Do not cascade error
             }
 
-            if (e instanceof FieldReferenceError) {
+            if (
+                e instanceof FieldReferenceError ||
+                e instanceof WarehouseConnectionError
+            ) {
                 // This captures both the error from thresholdAlert and metricQuery
+                // WarehouseConnectionError indicates misconfigured credentials (wrong password, unreachable host, etc.)
                 Logger.warn(
                     `Disabling scheduler with non-retryable error: ${e}`,
                 );
@@ -3281,6 +3284,62 @@ export default class SchedulerTask {
     // ==================== Batch Notification Methods ====================
     // These methods handle multiple targets of the same type in a single job,
     // providing aggregated result reporting for better failure notification handling.
+    private async sendDeliveryFailureNotification(
+        scheduler: SchedulerAndTargets,
+        batchResult: BatchDeliveryResult,
+        projectUuid: string | undefined,
+    ): Promise<void> {
+        if (batchResult.failed === 0) return; // No failures, nothing to send
+
+        try {
+            const user = await this.userService.getSessionByUserUuid(
+                scheduler.createdBy,
+            );
+            if (!user.email) {
+                Logger.warn(
+                    `Cannot send failure notification - scheduler creator has no email`,
+                );
+                return;
+            }
+
+            const schedulerUrlParam = setUuidParam(
+                'scheduler_uuid',
+                scheduler.schedulerUuid,
+            );
+
+            const resourceUuid =
+                scheduler.savedChartUuid || scheduler.dashboardUuid;
+            const resourceType = scheduler.savedChartUuid
+                ? 'saved'
+                : 'dashboards';
+
+            let schedulerUrl = this.lightdashConfig.siteUrl;
+            if (resourceUuid && projectUuid) {
+                schedulerUrl = `${this.lightdashConfig.siteUrl}/projects/${projectUuid}/${resourceType}/${resourceUuid}/view?${schedulerUrlParam}`;
+            }
+
+            const failedTargets = batchResult.results
+                .filter((r) => !r.success)
+                .map((r) => ({ target: r.target, error: r.error }));
+
+            await this.emailClient.sendScheduledDeliveryTargetFailureEmail(
+                user.email,
+                scheduler.name,
+                schedulerUrl,
+                batchResult.type,
+                failedTargets,
+                batchResult.total,
+            );
+
+            Logger.info(
+                `Sent delivery failure notification for scheduler ${scheduler.schedulerUuid} to ${user.email}`,
+            );
+        } catch (emailError) {
+            Logger.error(
+                `Failed to send delivery failure notification: ${emailError}`,
+            );
+        }
+    }
 
     protected async sendSlackBatchNotification(
         jobId: string,
@@ -3428,6 +3487,11 @@ export default class SchedulerTask {
                     batchResult,
                 },
             });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
             throw new Error(
                 `All Slack deliveries failed: ${results
                     .map((r) => r.error)
@@ -3466,6 +3530,11 @@ export default class SchedulerTask {
                     batchResult,
                 },
             });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
         }
 
         return batchResult;
@@ -3617,6 +3686,11 @@ export default class SchedulerTask {
                     batchResult,
                 },
             });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
             throw new Error(
                 `All email deliveries failed: ${results
                     .map((r) => r.error)
@@ -3655,6 +3729,11 @@ export default class SchedulerTask {
                     batchResult,
                 },
             });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
         }
 
         return batchResult;
@@ -3807,6 +3886,11 @@ export default class SchedulerTask {
                     batchResult,
                 },
             });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
             throw new Error(
                 `All MS Teams deliveries failed: ${results
                     .map((r) => r.error)
@@ -3845,8 +3929,32 @@ export default class SchedulerTask {
                     batchResult,
                 },
             });
+            await this.sendDeliveryFailureNotification(
+                scheduler,
+                batchResult,
+                notification.projectUuid,
+            );
         }
 
         return batchResult;
+    }
+
+    protected async syncSlackChannels(
+        jobId: string,
+        payload: SyncSlackChannelsPayload,
+    ) {
+        const { organizationUuid } = payload;
+
+        await this.logWrapper(
+            {
+                task: SCHEDULER_TASKS.SYNC_SLACK_CHANNELS,
+                jobId,
+                scheduledTime: new Date(),
+                details: {
+                    organizationUuid,
+                },
+            },
+            async () => this.slackClient.syncChannelsToCache(organizationUuid),
+        );
     }
 }

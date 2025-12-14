@@ -63,7 +63,7 @@ export type ExecuteAsyncUnderlyingDataRequestParams =
         underlyingDataItemId?: string;
         filters: Filters;
         dateZoom?: DateZoom;
-        limit?: number;
+        limit?: number | null;
     };
 
 export type ExecuteAsyncSqlChartByUuidRequestParams =

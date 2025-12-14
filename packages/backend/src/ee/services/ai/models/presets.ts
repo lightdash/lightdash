@@ -21,6 +21,19 @@ export const MODEL_PRESETS: {
 } = {
     openai: [
         {
+            name: 'gpt-5.2',
+            provider: 'openai',
+            modelId: 'gpt-5.2-2025-12-11',
+            displayName: 'GPT-5.2',
+            description: 'Flagship reasoning model for agentic tasks',
+            supportsReasoning: true,
+            callOptions: { temperature: 0.2 },
+            providerOptions: {
+                strictJsonSchema: true,
+                parallelToolCalls: false,
+            },
+        },
+        {
             name: 'gpt-5.1',
             provider: 'openai',
             modelId: 'gpt-5.1-2025-11-13',
@@ -41,6 +54,19 @@ export const MODEL_PRESETS: {
             description: 'Smartest non-reasoning model',
             supportsReasoning: false,
             callOptions: { temperature: 0.2 },
+            providerOptions: {
+                strictJsonSchema: true,
+                parallelToolCalls: false,
+            },
+        },
+        {
+            name: 'gpt-4o-mini',
+            provider: 'openai',
+            modelId: 'gpt-4o-mini',
+            displayName: 'GPT-4o Mini',
+            description: 'Fast and cost-effective model for simple tasks',
+            supportsReasoning: false,
+            callOptions: { temperature: 0.3 },
             providerOptions: {
                 strictJsonSchema: true,
                 parallelToolCalls: false,

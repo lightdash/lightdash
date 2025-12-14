@@ -69,11 +69,6 @@ export enum FeatureFlags {
      * Enable period-over-period comparisons option
      */
     PeriodOverPeriod = 'pop',
-
-    /**
-     * Dark mode
-     */
-    DarkMode = 'dark-mode',
 }
 
 export type FeatureFlag = {

@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/common",
-    "version": "0.2236.2",
+    "version": "0.2249.0",
     "main": "dist/cjs/index.js",
     "module": "dist/esm/index.js",
     "types": "dist/types/index.d.ts",
@@ -8,6 +8,10 @@
         "dist/**/*"
     ],
     "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/lightdash/lightdash.git"
+    },
     "devDependencies": {
         "@types/handlebars": "^4.1.0",
         "@types/js-yaml": "^4.0.9",
@@ -54,6 +58,6 @@
         "fix-format": "pnpm run formatter ./src --write",
         "test": "TZ=UTC jest",
         "test:dev": "TZ=UTC jest --config jest.config.dev.js --onlyChanged --watch",
-        "release": "pnpm publish --no-git-checks"
+        "release": "pnpm publish --no-git-checks --access public"
     }
 }

@@ -604,16 +604,13 @@ const AiAgentAdminThreadsTable = ({
                     cursor: 'pointer',
                     '&:hover': {
                         td: {
-                            backgroundColor: isSelected
-                                ? theme.colors.indigo[0]
-                                : theme.colors.ldGray[0],
-
+                            backgroundColor: theme.colors.ldGray[0],
                             transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                         },
                     },
                     ...(isSelected && {
                         td: {
-                            backgroundColor: theme.colors.indigo[0],
+                            backgroundColor: theme.colors.ldGray[1],
                         },
                     }),
                 },

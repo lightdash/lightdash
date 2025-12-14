@@ -1,9 +1,11 @@
 import {
     ApiAiDashboardSummaryResponse,
+    ApiAiGenerateChartMetadataResponse,
     ApiAiGenerateCustomVizResponse,
     ApiAiGetDashboardSummaryResponse,
     ApiErrorPayload,
     DashboardSummary,
+    GenerateChartMetadataRequest,
     ItemsMap,
 } from '@lightdash/common';
 import {
@@ -98,6 +100,26 @@ export class AiController extends BaseController {
                 projectUuid,
                 ...body,
             }),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/chart/generate-metadata')
+    @OperationId('generateChartMetadata')
+    async generateChartMetadata(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: GenerateChartMetadataRequest,
+    ): Promise<ApiAiGenerateChartMetadataResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiService().generateChartMetadata(
+                req.user!,
+                projectUuid,
+                body,
+            ),
         };
     }
 
