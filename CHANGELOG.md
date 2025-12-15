@@ -1,3 +1,10 @@
+## [0.2251.1](https://github.com/lightdash/lightdash/compare/0.2251.0...0.2251.1) (2025-12-15)
+
+
+### Bug Fixes
+
+* missing borders on pivot tables ([#18799](https://github.com/lightdash/lightdash/issues/18799)) ([45c0660](https://github.com/lightdash/lightdash/commit/45c06604057f1d20a439a93e0db5a2cd71b05e81)), closes [#18644](https://github.com/lightdash/lightdash/issues/18644)
+
 # [0.2251.0](https://github.com/lightdash/lightdash/compare/0.2250.0...0.2251.0) (2025-12-15)
 
 
