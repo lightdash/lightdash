@@ -6,6 +6,7 @@ import type {
     DashboardChartTileProperties,
     DashboardFilterRule,
     DashboardFilters,
+    DashboardHeadingTileProperties,
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
     DashboardTile,
@@ -96,7 +97,8 @@ export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {
               'title' | 'hideTitle' | 'chartSlug' | 'chartName'
           >
         | DashboardMarkdownTileProperties['properties']
-        | DashboardLoomTileProperties['properties'];
+        | DashboardLoomTileProperties['properties']
+        | DashboardHeadingTileProperties['properties'];
 };
 
 export type DashboardTileWithSlug = DashboardTile & {

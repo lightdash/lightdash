@@ -67,7 +67,13 @@
                     "type": {
                         "type": "string",
                         "description": "Type of dashboard tile",
-                        "enum": ["saved_chart", "sql_chart", "markdown", "loom"]
+                        "enum": [
+                            "saved_chart",
+                            "sql_chart",
+                            "markdown",
+                            "loom",
+                            "heading"
+                        ]
                     },
                     "x": {
                         "type": "number",
@@ -211,6 +217,17 @@
                                     }
                                 },
                                 "required": ["title", "url"]
+                            },
+                            {
+                                "description": "Properties for a heading tile",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "text": {
+                                        "type": "string",
+                                        "description": "Heading text to display"
+                                    }
+                                },
+                                "required": ["text"]
                             }
                         ]
                     }
