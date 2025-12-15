@@ -11,7 +11,7 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { type DashboardFilterRule } from '@lightdash/common';
+import { getItemId, type DashboardFilterRule } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -109,6 +109,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
     const isLoadingDashboardFilters = useDashboardContext(
         (c) => c.isLoadingDashboardFilters,
     );
@@ -151,7 +154,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     // skips disabled filters, but required filters ARE disabled until a value is set
     const getTabsUsingFilter = useCallback(
         (filterRule: DashboardFilterRule) => {
-            const { tileTargets } = filterRule;
+            const { tileTargets, target } = filterRule;
 
             // If no tileTargets configuration, filter applies to all tiles/tabs
             if (!tileTargets) {
@@ -159,10 +162,35 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             }
 
             // Find which tabs have tiles targeted by this filter
+            // tileTargets[uuid] can be:
+            // - undefined (not in object): applies by default IF tile has the field
+            // - false: explicitly excluded
+            // - config object: explicitly included with field mapping
             const tabsWithTargetedTiles = new Set<string>();
             dashboardTiles?.forEach((tile) => {
-                if (tile.tabUuid && !!tileTargets[tile.uuid]) {
+                if (!tile.tabUuid) return;
+
+                const tileConfig = tileTargets[tile.uuid];
+
+                // Explicitly excluded
+                if (tileConfig === false) return;
+
+                // Explicitly included with field mapping
+                if (tileConfig) {
                     tabsWithTargetedTiles.add(tile.tabUuid);
+                    return;
+                }
+
+                // Not in tileTargets (undefined) - check if filter can apply by default
+                // The filter can apply if the tile has the filter's target field
+                if (filterableFieldsByTileUuid) {
+                    const tileFields = filterableFieldsByTileUuid[tile.uuid];
+                    const canApplyByDefault = tileFields?.some(
+                        (field) => getItemId(field) === target.fieldId,
+                    );
+                    if (canApplyByDefault) {
+                        tabsWithTargetedTiles.add(tile.tabUuid);
+                    }
                 }
             });
 
@@ -170,7 +198,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 tabsWithTargetedTiles.has(tabUuid),
             );
         },
-        [dashboardTiles, sortedTabUuids],
+        [dashboardTiles, sortedTabUuids, filterableFieldsByTileUuid],
     );
 
     if (isLoadingDashboardFilters || isFetchingDashboardFilters) {

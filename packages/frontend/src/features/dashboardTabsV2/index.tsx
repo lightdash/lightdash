@@ -1,5 +1,6 @@
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import {
+    getItemId,
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
@@ -142,6 +143,9 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
     const requiredDashboardFilters = useDashboardContext(
         (c) => c.requiredDashboardFilters,
     );
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
@@ -183,7 +187,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
             );
             if (!filterRule) return false;
 
-            const { tileTargets } = filterRule;
+            const { tileTargets, target } = filterRule;
 
             // If no tileTargets configuration, filter applies to all tiles
             // So it applies to the current tab
@@ -192,13 +196,34 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
             }
 
             // Check if any tile on the current tab is targeted by this filter
+            // tileTargets[uuid] can be:
+            // - undefined (not in object): applies by default IF tile has the field
+            // - false: explicitly excluded
+            // - config object: explicitly included with field mapping
             return (
                 dashboardTiles?.some((tile) => {
                     // Check if tile is on current tab
                     if (tile.tabUuid !== activeTab?.uuid) return false;
 
-                    // Check if filter targets this tile (tileConfig is truthy, not false/undefined)
-                    return !!tileTargets[tile.uuid];
+                    const tileConfig = tileTargets[tile.uuid];
+
+                    // Explicitly excluded
+                    if (tileConfig === false) return false;
+
+                    // Explicitly included with field mapping
+                    if (tileConfig) return true;
+
+                    // Not in tileTargets (undefined) - check if filter can apply by default
+                    // The filter can apply if the tile has the filter's target field
+                    if (filterableFieldsByTileUuid) {
+                        const tileFields =
+                            filterableFieldsByTileUuid[tile.uuid];
+                        return tileFields?.some(
+                            (field) => getItemId(field) === target.fieldId,
+                        );
+                    }
+
+                    return false;
                 }) ?? false
             );
         });
@@ -208,6 +233,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
         dashboardTiles,
         dashboardFilters.dimensions,
         activeTab?.uuid,
+        filterableFieldsByTileUuid,
     ]);
 
     const sortedTiles = dashboardTiles?.sort((a, b) => {
