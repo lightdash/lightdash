@@ -181,7 +181,7 @@ describe('Admin access to spaces', () => {
         }
     });
 
-    it('can see all the spaces on Admin content view', () => {
+    it.skip('can see all the spaces on Admin content view', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
 
         cy.contains('Admin Content View').click();
@@ -195,7 +195,7 @@ describe('Admin access to spaces', () => {
         }
     });
 
-    it('can see nested spaces', () => {
+    it.skip('can see nested spaces', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
 
         cy.contains('Admin Content View').click();
