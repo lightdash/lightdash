@@ -11,6 +11,36 @@ import {
 import { Block, KnownBlock } from '@slack/bolt';
 import { partition } from 'lodash';
 
+/**
+ * Returns compact Slack blocks showing a "thinking" animation with a GIF.
+ * Uses context block for smaller, dimmed text appearance.
+ * Used while the AI agent is processing a request.
+ *
+ * @param text - Custom progress text to display (e.g., "Running your query...")
+ * @param siteUrl - The base URL of the Lightdash instance
+ */
+export function getThinkingBlocks(
+    text: string,
+    siteUrl: string,
+): (Block | KnownBlock)[] {
+    return [
+        {
+            type: 'context',
+            elements: [
+                {
+                    type: 'image',
+                    image_url: `${siteUrl}/lightdash-bolt-pixelating.gif`,
+                    alt_text: text,
+                },
+                {
+                    type: 'mrkdwn',
+                    text: `_${text}_`,
+                },
+            ],
+        },
+    ];
+}
+
 export function getReferencedArtifactsBlocks(
     agentUuid: string,
     projectUuid: string,

@@ -143,7 +143,7 @@ export const getRunQuery = ({
         outputSchema: toolRunQueryOutputSchema,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
-                await updateProgress('📊 Running your query...');
+                await updateProgress('Running your query...');
 
                 const queryTool =
                     toolRunQueryArgsSchemaTransformed.parse(toolArgs);
