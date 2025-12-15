@@ -1002,6 +1002,8 @@ export type HeadlessBrowserConfig = {
     port?: string;
     internalLightdashHost: string;
     browserEndpoint: string;
+    maxScreenshotRetries: number;
+    retryBaseDelayMs: number;
 };
 export type S3Config = {
     region: string;
@@ -1539,6 +1541,14 @@ export const parseConfig = (): LightdashConfig => {
             internalLightdashHost:
                 process.env.INTERNAL_LIGHTDASH_HOST || siteUrl,
             browserEndpoint,
+            maxScreenshotRetries: parseInt(
+                process.env.HEADLESS_BROWSER_MAX_SCREENSHOT_RETRIES || '5',
+                10,
+            ),
+            retryBaseDelayMs: parseInt(
+                process.env.HEADLESS_BROWSER_RETRY_BASE_DELAY_MS || '3000',
+                10,
+            ),
         },
         s3: parseBaseS3Config(),
         results: {
