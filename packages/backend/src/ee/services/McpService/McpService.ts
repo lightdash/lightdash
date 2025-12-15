@@ -166,6 +166,23 @@ export class McpService extends BaseService {
                 new McpServer({
                     name: 'Lightdash MCP Server',
                     version: VERSION,
+                    websiteUrl: this.lightdashConfig.siteUrl,
+                    icons: [
+                        {
+                            src: `${this.lightdashConfig.siteUrl}/logo-icon.svg`,
+                            mimeType: 'image/svg+xml',
+                        },
+                        {
+                            src: `${this.lightdashConfig.siteUrl}/favicon-32x32.png`,
+                            mimeType: 'image/png',
+                            sizes: ['32x32'],
+                        },
+                        {
+                            src: `${this.lightdashConfig.siteUrl}/apple-touch-icon.png`,
+                            mimeType: 'image/png',
+                            sizes: ['152x152'],
+                        },
+                    ],
                 }),
             );
             this.setupHandlers();
