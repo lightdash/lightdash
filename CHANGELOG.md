@@ -1,3 +1,10 @@
+## [0.2251.2](https://github.com/lightdash/lightdash/compare/0.2251.1...0.2251.2) (2025-12-15)
+
+
+### Bug Fixes
+
+* conditional formatting not updating correctly when toggling metrics as row ([#18802](https://github.com/lightdash/lightdash/issues/18802)) ([5d8c8be](https://github.com/lightdash/lightdash/commit/5d8c8be82ad9734d8318dcf6dd70604cc9e6fa09)), closes [#18801](https://github.com/lightdash/lightdash/issues/18801)
+
 ## [0.2251.1](https://github.com/lightdash/lightdash/compare/0.2251.0...0.2251.1) (2025-12-15)
 
 
