@@ -1,3 +1,10 @@
+## [0.2251.4](https://github.com/lightdash/lightdash/compare/0.2251.3...0.2251.4) (2025-12-15)
+
+
+### Bug Fixes
+
+* treemap section name unreadable due to background color ([#18803](https://github.com/lightdash/lightdash/issues/18803)) ([4b96f20](https://github.com/lightdash/lightdash/commit/4b96f203f38f1afb6ee99123dcb385d940598f71)), closes [#18795](https://github.com/lightdash/lightdash/issues/18795)
+
 ## [0.2251.3](https://github.com/lightdash/lightdash/compare/0.2251.2...0.2251.3) (2025-12-15)
 
 
