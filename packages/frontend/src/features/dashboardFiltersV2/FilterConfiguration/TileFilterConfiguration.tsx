@@ -31,6 +31,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { FilterActions } from './constants';
+import { getFilterTileRelation } from './utils';
 
 type TileWithTargetFields = {
     key: string;
@@ -133,16 +134,19 @@ const TileFilterConfiguration: FC<Props> = ({
                     const tile = tiles.find((t) => t.uuid === tileUuid);
                     const tabUuidFromTile = tile?.tabUuid;
 
-                    // tileConfig overrides the default filter state for a tile
-                    // if it is a field, we use that field for the filter.
-                    // If it is the empty string, the filter is disabled.
-                    const tileConfig = filterRule.tileTargets?.[tileUuid];
+                    // Use shared utility to determine filter-tile relationship
+                    const { relation, tileConfig } = getFilterTileRelation(
+                        filterRule,
+                        tileUuid,
+                    );
 
                     let selectedField;
                     let invalidField: string | undefined;
-                    if (tileConfig !== false) {
+                    if (relation !== 'excluded') {
                         selectedField =
-                            tileConfig && isDashboardFieldTarget(tileConfig)
+                            relation === 'explicit' &&
+                            tileConfig &&
+                            isDashboardFieldTarget(tileConfig)
                                 ? filters?.find(
                                       (f) =>
                                           tileConfig?.fieldId === getItemId(f),
@@ -155,6 +159,7 @@ const TileFilterConfiguration: FC<Props> = ({
 
                         // If tileConfig?.fieldId is set, but the field is not found in the filters, we mark it as invalid filter (missing dimension in model)
                         invalidField =
+                            relation === 'explicit' &&
                             tileConfig &&
                             isDashboardFieldTarget(tileConfig) &&
                             tileConfig?.fieldId !== undefined &&
@@ -228,21 +233,25 @@ const TileFilterConfiguration: FC<Props> = ({
                     return acc;
                 }
 
-                // tileConfig overrides the default filter state for a tile
-                // if it is a field, we use that field for the filter.
-                // If it is the empty string, the filter is disabled.
-                const tileConfig = filterRule.tileTargets?.[tileUuid];
+                // Use shared utility to determine filter-tile relationship
+                const { relation, tileConfig } = getFilterTileRelation(
+                    filterRule,
+                    tileUuid,
+                );
 
                 let selectedField;
                 let invalidField: string | undefined;
-                if (tileConfig !== false) {
+                if (relation !== 'excluded') {
                     selectedField =
-                        tileConfig && isDashboardFieldTarget(tileConfig)
+                        relation === 'explicit' &&
+                        tileConfig &&
+                        isDashboardFieldTarget(tileConfig)
                             ? columns?.find((f) => tileConfig?.fieldId === f)
                             : undefined;
 
                     // If tileConfig?.fieldId is set, but the field is not found in the filters, we mark it as invalid filter (missing dimension in model)
                     invalidField =
+                        relation === 'explicit' &&
                         tileConfig &&
                         isDashboardFieldTarget(tileConfig) &&
                         tileConfig?.fieldId !== undefined &&
@@ -282,7 +291,7 @@ const TileFilterConfiguration: FC<Props> = ({
         sortedTileWithFilters,
         sqlChartTilesMetadata,
         tiles,
-        filterRule.tileTargets,
+        filterRule,
         field,
         sortFieldsByMatch,
     ]);

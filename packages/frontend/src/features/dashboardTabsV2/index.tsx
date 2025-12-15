@@ -1,6 +1,5 @@
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import {
-    getItemId,
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
@@ -29,6 +28,7 @@ import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
 import DashboardFiltersV2 from '../dashboardFiltersV2';
+import { doesFilterApplyToTile } from '../dashboardFiltersV2/FilterConfiguration/utils';
 import FilterGroupSeparator from '../dashboardHeader/FilterGroupSeparator';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
@@ -166,7 +166,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
     const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
 
     // Compute whether there are required filters that apply to the current tab
-    // Note: We compute this directly from tileTargets because getTabUuidsForFilterRules
+    // Note: We use doesFilterApplyToTile because getTabUuidsForFilterRules from common
     // skips disabled filters, but required filters ARE disabled until a value is set
     const hasRequiredFiltersForCurrentTab = useMemo(() => {
         // If no required filters, no locking needed
@@ -187,43 +187,24 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
             );
             if (!filterRule) return false;
 
-            const { tileTargets, target } = filterRule;
-
             // If no tileTargets configuration, filter applies to all tiles
             // So it applies to the current tab
-            if (!tileTargets) {
+            if (!filterRule.tileTargets) {
                 return true;
             }
 
             // Check if any tile on the current tab is targeted by this filter
-            // tileTargets[uuid] can be:
-            // - undefined (not in object): applies by default IF tile has the field
-            // - false: explicitly excluded
-            // - config object: explicitly included with field mapping
             return (
                 dashboardTiles?.some((tile) => {
                     // Check if tile is on current tab
                     if (tile.tabUuid !== activeTab?.uuid) return false;
 
-                    const tileConfig = tileTargets[tile.uuid];
-
-                    // Explicitly excluded
-                    if (tileConfig === false) return false;
-
-                    // Explicitly included with field mapping
-                    if (tileConfig) return true;
-
-                    // Not in tileTargets (undefined) - check if filter can apply by default
-                    // The filter can apply if the tile has the filter's target field
-                    if (filterableFieldsByTileUuid) {
-                        const tileFields =
-                            filterableFieldsByTileUuid[tile.uuid];
-                        return tileFields?.some(
-                            (field) => getItemId(field) === target.fieldId,
-                        );
-                    }
-
-                    return false;
+                    // Use shared utility to check if filter applies to this tile
+                    return doesFilterApplyToTile(
+                        filterRule,
+                        tile,
+                        filterableFieldsByTileUuid,
+                    );
                 }) ?? false
             );
         });

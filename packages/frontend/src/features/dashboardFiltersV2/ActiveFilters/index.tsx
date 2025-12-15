@@ -11,7 +11,7 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { getItemId, type DashboardFilterRule } from '@lightdash/common';
+import { type DashboardFilterRule } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -23,6 +23,7 @@ import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { getTabsForFilterRule } from '../FilterConfiguration/utils';
 import InvalidFilter from '../InvalidFilter';
 import Filter from './Filter';
 
@@ -150,54 +151,16 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     }, [dashboardTabs]);
 
     // Compute which tabs a filter applies to based on tileTargets
-    // Note: We compute this directly from tileTargets because getTabUuidsForFilterRules
+    // Note: We use getTabsForFilterRule because getTabUuidsForFilterRules from common
     // skips disabled filters, but required filters ARE disabled until a value is set
     const getTabsUsingFilter = useCallback(
-        (filterRule: DashboardFilterRule) => {
-            const { tileTargets, target } = filterRule;
-
-            // If no tileTargets configuration, filter applies to all tiles/tabs
-            if (!tileTargets) {
-                return sortedTabUuids;
-            }
-
-            // Find which tabs have tiles targeted by this filter
-            // tileTargets[uuid] can be:
-            // - undefined (not in object): applies by default IF tile has the field
-            // - false: explicitly excluded
-            // - config object: explicitly included with field mapping
-            const tabsWithTargetedTiles = new Set<string>();
-            dashboardTiles?.forEach((tile) => {
-                if (!tile.tabUuid) return;
-
-                const tileConfig = tileTargets[tile.uuid];
-
-                // Explicitly excluded
-                if (tileConfig === false) return;
-
-                // Explicitly included with field mapping
-                if (tileConfig) {
-                    tabsWithTargetedTiles.add(tile.tabUuid);
-                    return;
-                }
-
-                // Not in tileTargets (undefined) - check if filter can apply by default
-                // The filter can apply if the tile has the filter's target field
-                if (filterableFieldsByTileUuid) {
-                    const tileFields = filterableFieldsByTileUuid[tile.uuid];
-                    const canApplyByDefault = tileFields?.some(
-                        (field) => getItemId(field) === target.fieldId,
-                    );
-                    if (canApplyByDefault) {
-                        tabsWithTargetedTiles.add(tile.tabUuid);
-                    }
-                }
-            });
-
-            return sortedTabUuids.filter((tabUuid) =>
-                tabsWithTargetedTiles.has(tabUuid),
-            );
-        },
+        (filterRule: DashboardFilterRule) =>
+            getTabsForFilterRule(
+                filterRule,
+                dashboardTiles,
+                sortedTabUuids,
+                filterableFieldsByTileUuid,
+            ),
         [dashboardTiles, sortedTabUuids, filterableFieldsByTileUuid],
     );
 
