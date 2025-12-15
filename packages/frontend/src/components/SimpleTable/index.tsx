@@ -94,7 +94,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
         if (!onScreenshotReady && !onScreenshotError) return;
         if (!isTableVisualizationConfig(visualizationConfig)) return;
 
-        const { pivotTableData } = visualizationConfig.chartConfig;
+        const { pivotTableData, isPivotTableEnabled } =
+            visualizationConfig.chartConfig;
 
         if (pivotTableData.error) {
             onScreenshotError?.();
@@ -102,7 +103,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
             return;
         }
 
-        if (pivotTableData.loading || pivotTableData.data) {
+        if (isPivotTableEnabled) {
             if (pivotTableData.data && resultsData?.hasFetchedAllRows) {
                 onScreenshotReady?.();
                 hasSignaledScreenshotReady.current = true;
