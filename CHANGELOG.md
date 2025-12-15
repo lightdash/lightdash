@@ -1,3 +1,10 @@
+## [0.2251.6](https://github.com/lightdash/lightdash/compare/0.2251.5...0.2251.6) (2025-12-15)
+
+
+### Bug Fixes
+
+* skip channel sync on missing groups:read scope ([#18814](https://github.com/lightdash/lightdash/issues/18814)) ([065da15](https://github.com/lightdash/lightdash/commit/065da15e67dfdf0c59b51777f4b18ecbf0423ebb)), closes [#18815](https://github.com/lightdash/lightdash/issues/18815)
+
 ## [0.2251.5](https://github.com/lightdash/lightdash/compare/0.2251.4...0.2251.5) (2025-12-15)
 
 
