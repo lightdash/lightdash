@@ -150,6 +150,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
         return sortedTabs?.map((tab) => tab.uuid) || [];
     }, [dashboardTabs]);
 
+    // Tabs are only "enabled" when there's more than one tab
+    const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
+
     // Compute which tabs a filter applies to based on tileTargets
     // Note: We use getTabsForFilterRule because getTabUuidsForFilterRules from common
     // skips disabled filters, but required filters ARE disabled until a value is set
@@ -249,6 +252,8 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                         key={item.id}
                                         isEditMode={isEditMode}
                                         notAppliedToAnyTab={
+                                            // Only show "not applied to any tabs" when tabs are enabled
+                                            tabsEnabled &&
                                             appliesToTabs.length === 0
                                         }
                                         field={field}
@@ -307,7 +312,10 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 return field || item.target.isSqlColumn ? (
                     <Filter
                         key={item.id}
-                        notAppliedToAnyTab={appliesToTabs.length === 0}
+                        notAppliedToAnyTab={
+                            // Only show "not applied to any tabs" when tabs are enabled
+                            tabsEnabled && appliesToTabs.length === 0
+                        }
                         isTemporary
                         isEditMode={isEditMode}
                         field={field}
