@@ -1,3 +1,10 @@
+# [0.2253.0](https://github.com/lightdash/lightdash/compare/0.2252.1...0.2253.0) (2025-12-15)
+
+
+### Features
+
+* add custom slack thinking gif when prompting ([#18834](https://github.com/lightdash/lightdash/issues/18834)) ([e138852](https://github.com/lightdash/lightdash/commit/e1388525a1f1e9ce7e0aad1759df99890e781419))
+
 ## [0.2252.1](https://github.com/lightdash/lightdash/compare/0.2252.0...0.2252.1) (2025-12-15)
 
 
