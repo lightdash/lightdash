@@ -1,3 +1,18 @@
+# [0.2251.0](https://github.com/lightdash/lightdash/compare/0.2250.0...0.2251.0) (2025-12-15)
+
+
+### Bug Fixes
+
+* improve text wrapping in FieldSelect component ([#18755](https://github.com/lightdash/lightdash/issues/18755)) ([830163e](https://github.com/lightdash/lightdash/commit/830163e9a69b2126a92c988a2928b04e50b1706a))
+* show tabs only when multiple exist and hide parameters when empty ([#18790](https://github.com/lightdash/lightdash/issues/18790)) ([18326dd](https://github.com/lightdash/lightdash/commit/18326dd1ccec4860864f352d3eda2f4007c27c8a))
+
+
+### Features
+
+* add dashboard redesign feature flag and move components to features directory ([#18707](https://github.com/lightdash/lightdash/issues/18707)) ([3a01e6e](https://github.com/lightdash/lightdash/commit/3a01e6e2cbc78055e04faaa1638cfb9583c95ed6))
+* implement dashboard filters v2 with improved UI ([#18748](https://github.com/lightdash/lightdash/issues/18748)) ([6695a49](https://github.com/lightdash/lightdash/commit/6695a49e300a7a4aa582579e59c53768ac3ac3c9))
+* improve dashboard filter UI with group separators and tooltips ([#18764](https://github.com/lightdash/lightdash/issues/18764)) ([434ccbb](https://github.com/lightdash/lightdash/commit/434ccbb1b8424790140481c6affea11d238de08a))
+
 # [0.2250.0](https://github.com/lightdash/lightdash/compare/0.2249.0...0.2250.0) (2025-12-14)
 
 
