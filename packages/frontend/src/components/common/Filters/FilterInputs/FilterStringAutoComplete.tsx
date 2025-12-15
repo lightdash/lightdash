@@ -296,8 +296,8 @@ const FilterStringAutoComplete: FC<Props> = ({
                 }
                 getCreateLabel={(query) => (
                     <Group spacing="xxs">
-                        <MantineIcon icon={IconPlus} color="blue" size="sm" />
-                        <Text color="blue">Add "{query}"</Text>
+                        <MantineIcon icon={IconPlus} color="blue.6" size="sm" />
+                        <Text c="blue.6">Add "{query}"</Text>
                     </Group>
                 )}
                 styles={{
@@ -306,11 +306,6 @@ const FilterStringAutoComplete: FC<Props> = ({
                         '&:last-child:not([value])': {
                             position: 'sticky',
                             bottom: 4,
-                            // casts shadow on the bottom of the list to avoid transparency
-                            boxShadow: '0 4px 0 0 white',
-                        },
-                        '&:last-child:not([value]):not(:hover)': {
-                            background: 'white',
                         },
                     },
                 }}
