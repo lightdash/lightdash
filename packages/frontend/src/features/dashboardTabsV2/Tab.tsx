@@ -1,8 +1,6 @@
 import { Draggable } from '@hello-pangea/dnd';
 import type { DashboardTab } from '@lightdash/common';
-import { Tabs } from '@mantine-8/core';
-import { ActionIcon, Box, Menu, Title, Tooltip } from '@mantine/core';
-import { mergeRefs, useHover } from '@mantine/hooks';
+import { ActionIcon, Menu, Tabs, Tooltip } from '@mantine-8/core';
 import {
     IconCopy,
     IconDotsVertical,
@@ -37,14 +35,13 @@ const DraggableTab: FC<DraggableTabProps> = ({
     handleDuplicateTab,
     setDeletingTab,
 }) => {
-    const { hovered: isHovered, ref: hoverRef } = useHover();
-    const { ref, isTruncated } = useIsTruncated();
+    const { ref, isTruncated } = useIsTruncated('span');
 
     return (
         <Draggable key={tab.uuid} draggableId={tab.uuid} index={idx}>
             {(provided) => (
                 <div
-                    ref={mergeRefs(provided.innerRef, hoverRef)}
+                    ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
                 >
@@ -61,20 +58,28 @@ const DraggableTab: FC<DraggableTabProps> = ({
                         multiline
                     >
                         <Tabs.Tab
+                            ref={ref}
                             key={idx}
                             value={tab.uuid}
+                            maw={`calc(${100 / (sortedTabs?.length || 1)}vw)`}
+                            styles={{
+                                tabSection: {
+                                    flexShrink: 0,
+                                },
+                            }}
                             leftSection={
                                 isEditMode ? (
-                                    <Box {...provided.dragHandleProps} w={'sm'}>
+                                    <ActionIcon
+                                        {...provided.dragHandleProps}
+                                        variant="subtle"
+                                        size="xs"
+                                        color="gray"
+                                    >
                                         <MantineIcon
-                                            display={
-                                                isHovered ? 'block' : 'none'
-                                            }
-                                            size="sm"
-                                            color="ldGray.6"
+                                            size="md"
                                             icon={IconGripVertical}
                                         />
-                                    </Box>
+                                    </ActionIcon>
                                 ) : null
                             }
                             rightSection={
@@ -87,16 +92,12 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                     >
                                         <Menu.Target>
                                             <ActionIcon
+                                                color="gray"
                                                 variant="subtle"
                                                 size="xs"
                                             >
                                                 <MantineIcon
                                                     icon={IconDotsVertical}
-                                                    display={
-                                                        isHovered
-                                                            ? 'block'
-                                                            : 'none'
-                                                    }
                                                 />
                                             </ActionIcon>
                                         </Menu.Target>
@@ -105,7 +106,9 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                 onClick={() =>
                                                     setEditingTab(true)
                                                 }
-                                                icon={<IconPencil size={14} />}
+                                                leftSection={
+                                                    <IconPencil size={14} />
+                                                }
                                             >
                                                 Rename Tab
                                             </Menu.Item>
@@ -113,7 +116,9 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                 onClick={() =>
                                                     handleDuplicateTab(tab.uuid)
                                                 }
-                                                icon={<IconCopy size={14} />}
+                                                leftSection={
+                                                    <IconCopy size={14} />
+                                                }
                                             >
                                                 Duplicate Tab
                                             </Menu.Item>
@@ -129,7 +134,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                         e.stopPropagation();
                                                     }}
                                                     color="red"
-                                                    icon={
+                                                    leftSection={
                                                         <IconTrash size={14} />
                                                     }
                                                 >
@@ -141,7 +146,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                                         setDeletingTab(true)
                                                     }
                                                     color="red"
-                                                    icon={
+                                                    leftSection={
                                                         <IconTrash size={14} />
                                                     }
                                                 >
@@ -153,18 +158,7 @@ const DraggableTab: FC<DraggableTabProps> = ({
                                 ) : null
                             }
                         >
-                            <Title
-                                ref={ref}
-                                order={6}
-                                fw={500}
-                                color="ldGray.7"
-                                truncate
-                                maw={`calc(${
-                                    100 / (sortedTabs?.length || 1)
-                                }vw)`}
-                            >
-                                {tab.name}
-                            </Title>
+                            {tab.name}
                         </Tabs.Tab>
                     </Tooltip>
                 </div>

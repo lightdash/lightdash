@@ -7,8 +7,7 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { Tabs } from '@mantine-8/core';
-import { ActionIcon, Group, ScrollArea } from '@mantine/core';
+import { Button, Group, Tabs } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
 import { useMemo, useState, type FC } from 'react';
@@ -36,6 +35,7 @@ import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
 } from './gridUtils';
+import styles from './tabs.module.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -329,7 +329,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
         setDuplicatingTab(false);
         setTabToDuplicate(null);
     };
-    const MAGIC_SCROLL_AREA_HEIGHT = 40;
+    const MAGIC_SCROLL_AREA_HEIGHT = 100;
 
     return (
         <DragDropContext
@@ -364,103 +364,74 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                         handleChangeTab(tab);
                                     }
                                 }}
+                                classNames={{
+                                    list: styles.list,
+                                    tab: styles.tab,
+                                }}
+                                h={MAGIC_SCROLL_AREA_HEIGHT}
                                 mt={tabsEnabled ? undefined : 'xs'}
-                                // styles={{
-                                //     tabsList: {
-                                //         flexWrap: 'nowrap',
-                                //         height: MAGIC_SCROLL_AREA_HEIGHT - 1,
-                                //     },
-                                // }}
                             >
                                 {sortedTabs && sortedTabs?.length > 0 && (
                                     <Tabs.List px="lg" mb="xs">
-                                        <ScrollArea
-                                            type="hover"
-                                            offsetScrollbars
-                                            scrollHideDelay={200}
-                                            variant="primary"
-                                            scrollbarSize={6}
-                                            h={MAGIC_SCROLL_AREA_HEIGHT}
-                                            styles={{
-                                                viewport: {
-                                                    paddingBottom: 0,
-                                                },
-                                            }}
-                                        >
-                                            <Group
-                                                noWrap
-                                                styles={(theme) => ({
-                                                    root: {
-                                                        gap: theme.spacing.xl,
-                                                    },
-                                                })}
-                                            >
-                                                {sortedTabs?.map((tab, idx) => {
-                                                    return (
-                                                        <DraggableTab
-                                                            key={tab.uuid}
-                                                            idx={idx}
-                                                            tab={tab}
-                                                            isEditMode={
-                                                                isEditMode
-                                                            }
-                                                            sortedTabs={
-                                                                sortedTabs
-                                                            }
-                                                            currentTabHasTiles={
-                                                                currentTabHasTiles
-                                                            }
-                                                            setEditingTab={
-                                                                setEditingTab
-                                                            }
-                                                            handleDeleteTab={
-                                                                handleDeleteTab
-                                                            }
-                                                            handleDuplicateTab={
-                                                                handleDuplicateTab
-                                                            }
-                                                            setDeletingTab={
-                                                                setDeletingTab
-                                                            }
-                                                        />
-                                                    );
-                                                })}
-                                            </Group>
-                                        </ScrollArea>
+                                        {sortedTabs.map((tab, idx) => (
+                                            <DraggableTab
+                                                key={tab.uuid}
+                                                idx={idx}
+                                                tab={tab}
+                                                isEditMode={isEditMode}
+                                                sortedTabs={sortedTabs}
+                                                currentTabHasTiles={
+                                                    currentTabHasTiles
+                                                }
+                                                setEditingTab={setEditingTab}
+                                                handleDeleteTab={
+                                                    handleDeleteTab
+                                                }
+                                                handleDuplicateTab={
+                                                    handleDuplicateTab
+                                                }
+                                                setDeletingTab={setDeletingTab}
+                                            />
+                                        ))}
+
                                         {provided.placeholder}
+
                                         {isEditMode && (
-                                            <Group pl="md">
-                                                <ActionIcon
-                                                    size="xs"
-                                                    variant="light"
-                                                    color={'blue.6'}
-                                                    onClick={() =>
-                                                        setAddingTab(true)
-                                                    }
-                                                >
+                                            <Button
+                                                ml="sm"
+                                                size="sm"
+                                                fz={13}
+                                                variant="subtle"
+                                                flex="0 0 auto"
+                                                leftSection={
                                                     <MantineIcon
                                                         icon={IconPlus}
                                                     />
-                                                </ActionIcon>
-                                            </Group>
+                                                }
+                                                onClick={() =>
+                                                    setAddingTab(true)
+                                                }
+                                            >
+                                                New tab
+                                            </Button>
                                         )}
                                     </Tabs.List>
                                 )}
 
                                 <div>
                                     <Group
-                                        position="apart"
+                                        justify="apart"
                                         align="flex-start"
-                                        noWrap
+                                        wrap="nowrap"
                                         px="lg"
                                     >
                                         {/* This Group will take up remaining space (and not push DateZoom) */}
                                         <Group
-                                            position="apart"
+                                            justify="apart"
                                             align="flex-start"
-                                            noWrap
+                                            wrap="nowrap"
                                             grow
-                                            sx={{
+                                            style={{
                                                 overflow: 'auto',
                                             }}
                                         >
@@ -476,7 +447,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                         {/* DateZoom section will adjust width dynamically */}
                                         {hasDashboardTiles && (
                                             <Group
-                                                spacing="xs"
+                                                gap="xs"
                                                 style={{ marginLeft: 'auto' }}
                                             >
                                                 <DateZoom
@@ -487,9 +458,9 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                     </Group>
                                     {hasDashboardTiles && (
                                         <Group
-                                            spacing="xs"
+                                            gap="xs"
                                             align="flex-start"
-                                            noWrap
+                                            wrap="nowrap"
                                             px={'lg'}
                                         >
                                             <Parameters
