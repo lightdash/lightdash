@@ -573,7 +573,10 @@ const PivotTable: FC<PivotTableProps> = ({
                     const toggleExpander = row.getToggleExpandedHandler();
 
                     return (
-                        <Table.Row key={`row-${rowIndex}`} index={rowIndex}>
+                        <Table.Row
+                            key={`row-${rowIndex}-${data.pivotConfig.metricsAsRows}`}
+                            index={rowIndex}
+                        >
                             {row.getVisibleCells().map((cell, colIndex) => {
                                 const meta = cell.column.columnDef.meta;
                                 const isRowTotal = meta?.type === 'rowTotal';
@@ -677,7 +680,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     : Table.Cell;
                                 return (
                                     <TableCellComponent
-                                        key={`value-${rowIndex}-${colIndex}`}
+                                        key={`value-${rowIndex}-${colIndex}-${data.pivotConfig.metricsAsRows}`}
                                         isMinimal={isMinimal}
                                         withAlignRight={isNumericItem(item)}
                                         withColor={conditionalFormatting?.color}
