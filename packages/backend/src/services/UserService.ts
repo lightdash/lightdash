@@ -1140,6 +1140,12 @@ export class UserService extends BaseService {
                 isTrackingAnonymized: data.isTrackingAnonymized,
             },
         );
+
+        // If email was changed, send verification email
+        if (data.email && user.email !== data.email) {
+            await this.sendOneTimePasscodeToPrimaryEmail(updatedUser);
+        }
+
         this.identifyUser(updatedUser);
         this.analytics.track({
             userId: updatedUser.userUuid,
