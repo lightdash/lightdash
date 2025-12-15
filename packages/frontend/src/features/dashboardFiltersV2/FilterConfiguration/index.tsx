@@ -110,10 +110,24 @@ const FilterConfiguration: FC<Props> = ({
         const isCreatingTemporary = isCreatingNew && !isEditMode;
 
         if (newField && isField(newField) && isFilterableField(newField)) {
+            // Filter availableTileFilters to only include tiles from the active tab
+            const filteredTileFilters = activeTabUuid
+                ? Object.fromEntries(
+                      Object.entries(availableTileFilters).filter(
+                          ([tileUuid]) => {
+                              const tile = tiles.find(
+                                  (t) => t.uuid === tileUuid,
+                              );
+                              return tile?.tabUuid === activeTabUuid;
+                          },
+                      ),
+                  )
+                : availableTileFilters;
+
             setDraftFilterRule(
                 createDashboardFilterRuleFromField({
                     field: newField,
-                    availableTileFilters,
+                    availableTileFilters: filteredTileFilters,
                     isTemporary: isCreatingTemporary,
                 }),
             );
@@ -162,22 +176,36 @@ const FilterConfiguration: FC<Props> = ({
     const handleChangeColumn = useCallback(
         (newColumn: ResultColumn) => {
             const isCreatingTemporary = isCreatingNew && !isEditMode;
+
+            // Filter to only include tiles from the active tab
+            const filteredTileColumns = Object.fromEntries(
+                Object.entries(sqlChartTilesMetadata)
+                    .filter(([tileUuid]) => {
+                        if (!activeTabUuid) return true;
+                        const tile = tiles.find((t) => t.uuid === tileUuid);
+                        return tile?.tabUuid === activeTabUuid;
+                    })
+                    .map(([tileUuid, tileMetadata]) => [
+                        tileUuid,
+                        tileMetadata.columns,
+                    ]),
+            );
+
             setDraftFilterRule(
                 createDashboardFilterRuleFromSqlColumn({
                     column: newColumn,
-                    availableTileColumns: Object.fromEntries(
-                        Object.entries(sqlChartTilesMetadata).map(
-                            ([tileUuid, tileMetadata]) => [
-                                tileUuid,
-                                tileMetadata.columns,
-                            ],
-                        ),
-                    ),
+                    availableTileColumns: filteredTileColumns,
                     isTemporary: isCreatingTemporary,
                 }),
             );
         },
-        [isCreatingNew, isEditMode, sqlChartTilesMetadata],
+        [
+            isCreatingNew,
+            isEditMode,
+            sqlChartTilesMetadata,
+            activeTabUuid,
+            tiles,
+        ],
     );
 
     const filterType: FilterType = useMemo(() => {
@@ -474,7 +502,6 @@ const FilterConfiguration: FC<Props> = ({
                         <TileFilterConfiguration
                             field={selectedField}
                             tabs={tabs}
-                            activeTabUuid={activeTabUuid}
                             filterRule={draftFilterRule}
                             popoverProps={popoverProps}
                             tiles={tiles}
