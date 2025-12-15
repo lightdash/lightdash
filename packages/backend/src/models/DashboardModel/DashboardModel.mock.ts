@@ -238,6 +238,7 @@ export const markdownTileEntry = {
     type: DashboardTileTypes.MARKDOWN,
     title: 'my markdown title',
     content: 'my markdown content',
+    hide_frame: false,
 };
 
 export const dashboardChartTileEntry: GetChartTileQuery = {
@@ -291,6 +292,7 @@ export const expectedDashboard: DashboardDAO = {
                 title: markdownTileEntry.title,
                 content: markdownTileEntry.content,
                 hideTitle: false,
+                hideFrame: false,
             },
             x: dashboardTileEntry.x_offset,
             y: dashboardTileEntry.y_offset,
