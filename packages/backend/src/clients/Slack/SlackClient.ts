@@ -2,6 +2,9 @@ import {
     AnyType,
     friendlyName,
     getErrorMessage,
+    getSlackErrorCode,
+    isSlackRateLimitedError,
+    isUnrecoverableSlackError,
     MissingConfigError,
     SLACK_ID_REGEX,
     SlackAppCustomSettings,
@@ -96,13 +99,16 @@ const createThrottledSlackExecutor = () => {
         try {
             return await operation();
         } catch (error: unknown) {
-            const isRateLimited =
-                error instanceof Error &&
-                'code' in error &&
-                error.code === 'slack_webapi_rate_limited_error';
-
-            if (!isRateLimited) {
-                slackErrorHandler(error, `Slack API error during ${context}`);
+            if (!isSlackRateLimitedError(error)) {
+                // Only send unexpected errors to Sentry
+                // Unrecoverable errors (account_inactive, invalid_auth, missing_scope)
+                // are expected for orgs with broken installations - don't spam Sentry
+                if (!isUnrecoverableSlackError(error)) {
+                    slackErrorHandler(
+                        error,
+                        `Slack API error during ${context}`,
+                    );
+                }
                 throw error;
             }
 
@@ -590,6 +596,25 @@ export class SlackClient {
             };
         } catch (error) {
             const errorMessage = getErrorMessage(error);
+
+            // Handle unrecoverable Slack errors gracefully (user needs to re-install)
+            if (isUnrecoverableSlackError(error)) {
+                const slackErrorCode = getSlackErrorCode(error);
+                const reason = `Slack installation is invalid (${slackErrorCode}) - user needs to re-install`;
+                Logger.warn(
+                    `Skipping Slack channel sync for organization ${organizationUuid}: ${reason}`,
+                );
+                await this.slackChannelCacheModel.failSync(
+                    organizationId,
+                    reason,
+                );
+                return {
+                    status: 'skipped',
+                    reason,
+                    totalChannels: 0,
+                };
+            }
+
             Logger.error(
                 `Slack channel sync failed for organization ${organizationUuid}: ${errorMessage}`,
             );
