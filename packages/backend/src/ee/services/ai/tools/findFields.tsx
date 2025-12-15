@@ -108,11 +108,11 @@ export const getFindFields = ({
         execute: async (args) => {
             try {
                 const searchLabels = args.fieldSearchQueries
-                    .map((q) => `\`${q.label}\``)
+                    .map((q) => `"${q.label}"`)
                     .join(', ');
                 await updateProgress(
-                    `🔍 Searching for fields: ${searchLabels}${
-                        args.table ? ` in \`${args.table}\`` : ''
+                    `Searching for fields: ${searchLabels}${
+                        args.table ? ` in "${args.table}"` : ''
                     }...`,
                 );
 
