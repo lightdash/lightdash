@@ -8,7 +8,7 @@ import {
 } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../common/MantineIcon';
+import MantineIcon from '../../components/common/MantineIcon';
 
 type Props = {
     isEditMode: boolean;

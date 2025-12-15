@@ -18,8 +18,8 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
-import MantineIcon from '../common/MantineIcon';
 
 type DraggableTabProps = {
     idx: number;

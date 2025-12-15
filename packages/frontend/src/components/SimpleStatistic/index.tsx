@@ -18,9 +18,9 @@ import {
     type ReactNode,
 } from 'react';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
+import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabs/gridUtils';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
-import { DEFAULT_ROW_HEIGHT } from '../DashboardTabs/gridUtils';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { EmptyChart, LoadingChart } from '../SimpleChart';

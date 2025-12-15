@@ -49,6 +49,7 @@ export type CaslSubjectNames =
     | 'SavedChart'
     | 'ScheduledDeliveries'
     | 'SemanticViewer'
+    | 'SourceCode'
     | 'Space'
     | 'SpotlightTableConfig'
     | 'SqlRunner'

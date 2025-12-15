@@ -102,6 +102,7 @@ const createThrottledSlackExecutor = () => {
                 error.code === 'slack_webapi_rate_limited_error';
 
             if (!isRateLimited) {
+                slackErrorHandler(error, `Slack API error during ${context}`);
                 throw error;
             }
 
@@ -515,6 +516,36 @@ export class SlackClient {
         reason: string;
         totalChannels: number;
     }> {
+        // Check if installation has required scopes before syncing
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        if (!installation) {
+            return {
+                status: 'skipped',
+                reason: 'No Slack installation found',
+                totalChannels: 0,
+            };
+        }
+
+        if (!this.hasRequiredScopes(installation.scopes)) {
+            const currentScopes = installation.scopes.join(', ');
+            const requiredScopes = this.getRequiredScopes().join(', ');
+            slackErrorHandler(
+                new SlackError(
+                    `Missing required Slack scopes. Has: [${currentScopes}], needs: [${requiredScopes}]`,
+                ),
+                `Skipping Slack channel sync for organization ${organizationUuid}: missing required scopes. Has: [${currentScopes}], needs: [${requiredScopes}]`,
+            );
+            return {
+                status: 'skipped',
+                reason: 'Missing required Slack scopes - user needs to re-install',
+                totalChannels: 0,
+            };
+        }
+
         const organizationId =
             await this.slackChannelCacheModel.getOrganizationId(
                 organizationUuid,
@@ -594,7 +625,7 @@ export class SlackClient {
         if (!organizationId) {
             throw new Error(`Organization ${organizationUuid} not found`);
         }
-        // Check if input looks like a Slack ID (C, G, U, W followed by alphanumerics)
+
         const isSlackId = SLACK_ID_REGEX.test(input);
 
         if (isSlackId) {
@@ -653,7 +684,10 @@ export class SlackClient {
                 name: channelName,
             };
         } catch (error) {
-            console.error('Error fetching Slack channel info:', error);
+            slackErrorHandler(
+                error,
+                `Error fetching Slack channel info for channel ${channelId}`,
+            );
             return null;
         }
     }

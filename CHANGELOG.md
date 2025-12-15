@@ -1,3 +1,68 @@
+## [0.2251.6](https://github.com/lightdash/lightdash/compare/0.2251.5...0.2251.6) (2025-12-15)
+
+
+### Bug Fixes
+
+* skip channel sync on missing groups:read scope ([#18814](https://github.com/lightdash/lightdash/issues/18814)) ([065da15](https://github.com/lightdash/lightdash/commit/065da15e67dfdf0c59b51777f4b18ecbf0423ebb)), closes [#18815](https://github.com/lightdash/lightdash/issues/18815)
+
+## [0.2251.5](https://github.com/lightdash/lightdash/compare/0.2251.4...0.2251.5) (2025-12-15)
+
+
+### Bug Fixes
+
+* exported image colors don't match the app's ([#18813](https://github.com/lightdash/lightdash/issues/18813)) ([a9f1bae](https://github.com/lightdash/lightdash/commit/a9f1baea7585b629981862afbebc52730d6ddd36)), closes [#18779](https://github.com/lightdash/lightdash/issues/18779)
+* pinned parameters do not switch in dark mode ([#18806](https://github.com/lightdash/lightdash/issues/18806)) ([77902b7](https://github.com/lightdash/lightdash/commit/77902b743ef53d679ec978f8937e6cb450d589f8)), closes [#18800](https://github.com/lightdash/lightdash/issues/18800)
+
+## [0.2251.4](https://github.com/lightdash/lightdash/compare/0.2251.3...0.2251.4) (2025-12-15)
+
+
+### Bug Fixes
+
+* treemap section name unreadable due to background color ([#18803](https://github.com/lightdash/lightdash/issues/18803)) ([4b96f20](https://github.com/lightdash/lightdash/commit/4b96f203f38f1afb6ee99123dcb385d940598f71)), closes [#18795](https://github.com/lightdash/lightdash/issues/18795)
+
+## [0.2251.3](https://github.com/lightdash/lightdash/compare/0.2251.2...0.2251.3) (2025-12-15)
+
+
+### Bug Fixes
+
+* fetch fallback projects even when there is a last project ([#18805](https://github.com/lightdash/lightdash/issues/18805)) ([def1af2](https://github.com/lightdash/lightdash/commit/def1af2d85d038cc596ef371253fce14bc7ce365))
+
+## [0.2251.2](https://github.com/lightdash/lightdash/compare/0.2251.1...0.2251.2) (2025-12-15)
+
+
+### Bug Fixes
+
+* conditional formatting not updating correctly when toggling metrics as row ([#18802](https://github.com/lightdash/lightdash/issues/18802)) ([5d8c8be](https://github.com/lightdash/lightdash/commit/5d8c8be82ad9734d8318dcf6dd70604cc9e6fa09)), closes [#18801](https://github.com/lightdash/lightdash/issues/18801)
+
+## [0.2251.1](https://github.com/lightdash/lightdash/compare/0.2251.0...0.2251.1) (2025-12-15)
+
+
+### Bug Fixes
+
+* missing borders on pivot tables ([#18799](https://github.com/lightdash/lightdash/issues/18799)) ([45c0660](https://github.com/lightdash/lightdash/commit/45c06604057f1d20a439a93e0db5a2cd71b05e81)), closes [#18644](https://github.com/lightdash/lightdash/issues/18644)
+
+# [0.2251.0](https://github.com/lightdash/lightdash/compare/0.2250.0...0.2251.0) (2025-12-15)
+
+
+### Bug Fixes
+
+* improve text wrapping in FieldSelect component ([#18755](https://github.com/lightdash/lightdash/issues/18755)) ([830163e](https://github.com/lightdash/lightdash/commit/830163e9a69b2126a92c988a2928b04e50b1706a))
+* show tabs only when multiple exist and hide parameters when empty ([#18790](https://github.com/lightdash/lightdash/issues/18790)) ([18326dd](https://github.com/lightdash/lightdash/commit/18326dd1ccec4860864f352d3eda2f4007c27c8a))
+
+
+### Features
+
+* add dashboard redesign feature flag and move components to features directory ([#18707](https://github.com/lightdash/lightdash/issues/18707)) ([3a01e6e](https://github.com/lightdash/lightdash/commit/3a01e6e2cbc78055e04faaa1638cfb9583c95ed6))
+* implement dashboard filters v2 with improved UI ([#18748](https://github.com/lightdash/lightdash/issues/18748)) ([6695a49](https://github.com/lightdash/lightdash/commit/6695a49e300a7a4aa582579e59c53768ac3ac3c9))
+* improve dashboard filter UI with group separators and tooltips ([#18764](https://github.com/lightdash/lightdash/issues/18764)) ([434ccbb](https://github.com/lightdash/lightdash/commit/434ccbb1b8424790140481c6affea11d238de08a))
+
+# [0.2250.0](https://github.com/lightdash/lightdash/compare/0.2249.0...0.2250.0) (2025-12-14)
+
+
+### Features
+
+* add editor for yml files ([#18788](https://github.com/lightdash/lightdash/issues/18788)) ([2757f30](https://github.com/lightdash/lightdash/commit/2757f30457ec99fa0eed7734b8ee060d2f670b5c))
+
 # [0.2249.0](https://github.com/lightdash/lightdash/compare/0.2248.3...0.2249.0) (2025-12-12)
 
 

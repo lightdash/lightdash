@@ -3,21 +3,34 @@ import {
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
+    type LightdashProjectParameter,
+    type ParametersValuesMap,
+    type ParameterValue,
 } from '@lightdash/common';
-import { ActionIcon, Group, ScrollArea, Tabs } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import { Button, Divider, Group, Tabs, Text } from '@mantine-8/core';
+import {
+    IconAdjustmentsHorizontal,
+    IconCalendar,
+    IconFilter,
+    IconPlus,
+} from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
 import { useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
+import PinnedParameters from '../../components/PinnedParameters';
+import MantineIcon from '../../components/common/MantineIcon';
+import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
-import EmptyStateNoTiles from '../DashboardTiles/EmptyStateNoTiles';
-import MantineIcon from '../common/MantineIcon';
-import { LockedDashboardModal } from '../common/modal/LockedDashboardModal';
+import DashboardFiltersV2 from '../dashboardFiltersV2';
+import FilterGroupSeparator from '../dashboardHeader/FilterGroupSeparator';
+import { DateZoom } from '../dateZoom';
+import { Parameters } from '../parameters';
 import { TabAddModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
@@ -28,6 +41,7 @@ import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
 } from './gridUtils';
+import styles from './tabs.module.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -44,9 +58,22 @@ type DashboardTabsProps = {
     handleEditTile: (tiles: IDashboard['tiles'][number]) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     setGridWidth: (value: React.SetStateAction<number>) => void;
+
+    // parameters
+    hasTilesThatSupportFilters: boolean;
+    parameterValues: ParametersValuesMap;
+    parameters: {
+        [k: string]: LightdashProjectParameter;
+    };
+    isParameterLoading: boolean;
+    missingRequiredParameters: string[];
+    pinnedParameters: string[];
+    onParameterChange: (key: string, value: ParameterValue | null) => void;
+    onParameterClearAll: () => void;
+    onParameterPin: (parameterKey: string) => void;
 };
 
-const DashboardTabs: FC<DashboardTabsProps> = ({
+const DashboardTabsV2: FC<DashboardTabsProps> = ({
     isEditMode,
     hasRequiredDashboardFiltersToSet,
     addingTab,
@@ -59,6 +86,16 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     handleEditTile,
     setGridWidth,
     setAddingTab,
+    // parameters
+    hasTilesThatSupportFilters,
+    parameterValues,
+    parameters,
+    isParameterLoading,
+    missingRequiredParameters,
+    pinnedParameters,
+    onParameterChange,
+    onParameterClearAll,
+    onParameterPin,
 }) => {
     const gridProps = getResponsiveGridLayoutProps();
     const layouts = useMemo(
@@ -298,7 +335,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         setDuplicatingTab(false);
         setTabToDuplicate(null);
     };
-    const MAGIC_SCROLL_AREA_HEIGHT = 40;
+    const MAGIC_SCROLL_AREA_HEIGHT = 100;
 
     return (
         <DragDropContext
@@ -325,7 +362,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                         >
                             <Tabs
                                 value={activeTab?.uuid}
-                                onTabChange={(e) => {
+                                onChange={(e) => {
                                     const tab = sortedTabs?.find(
                                         (t) => t.uuid === e,
                                     );
@@ -333,93 +370,214 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         handleChangeTab(tab);
                                     }
                                 }}
-                                mt={tabsEnabled ? 'sm' : 'xs'}
-                                styles={{
-                                    tabsList: {
-                                        flexWrap: 'nowrap',
-                                        height: MAGIC_SCROLL_AREA_HEIGHT - 1,
-                                    },
+                                classNames={{
+                                    list: styles.list,
+                                    tab: styles.tab,
                                 }}
-                                variant="outline"
+                                h={MAGIC_SCROLL_AREA_HEIGHT}
+                                mt={tabsEnabled ? undefined : 'xs'}
                             >
                                 {sortedTabs && sortedTabs?.length > 0 && (
-                                    <Tabs.List bg="ldGray.0" px="lg">
-                                        <ScrollArea
-                                            type="hover"
-                                            offsetScrollbars
-                                            scrollHideDelay={200}
-                                            variant="primary"
-                                            scrollbarSize={6}
-                                            h={MAGIC_SCROLL_AREA_HEIGHT}
-                                            styles={{
-                                                viewport: {
-                                                    paddingBottom: 0,
-                                                },
-                                            }}
-                                        >
-                                            <Group
-                                                noWrap
-                                                styles={(theme) => ({
-                                                    root: {
-                                                        gap: theme.spacing.xl,
-                                                    },
-                                                })}
-                                            >
-                                                {sortedTabs?.map((tab, idx) => {
-                                                    return (
-                                                        <DraggableTab
-                                                            key={tab.uuid}
-                                                            idx={idx}
-                                                            tab={tab}
-                                                            isEditMode={
-                                                                isEditMode
-                                                            }
-                                                            sortedTabs={
-                                                                sortedTabs
-                                                            }
-                                                            currentTabHasTiles={
-                                                                currentTabHasTiles
-                                                            }
-                                                            isActive={
-                                                                activeTab?.uuid ===
-                                                                tab.uuid
-                                                            }
-                                                            setEditingTab={
-                                                                setEditingTab
-                                                            }
-                                                            handleDeleteTab={
-                                                                handleDeleteTab
-                                                            }
-                                                            handleDuplicateTab={
-                                                                handleDuplicateTab
-                                                            }
-                                                            setDeletingTab={
-                                                                setDeletingTab
-                                                            }
-                                                        />
-                                                    );
-                                                })}
-                                            </Group>
-                                        </ScrollArea>
+                                    <Tabs.List px="lg" mb="xs">
+                                        {sortedTabs.map((tab, idx) => (
+                                            <DraggableTab
+                                                key={tab.uuid}
+                                                idx={idx}
+                                                tab={tab}
+                                                isEditMode={isEditMode}
+                                                sortedTabs={sortedTabs}
+                                                currentTabHasTiles={
+                                                    currentTabHasTiles
+                                                }
+                                                setEditingTab={setEditingTab}
+                                                handleDeleteTab={
+                                                    handleDeleteTab
+                                                }
+                                                handleDuplicateTab={
+                                                    handleDuplicateTab
+                                                }
+                                                setDeletingTab={setDeletingTab}
+                                            />
+                                        ))}
+
                                         {provided.placeholder}
+
                                         {isEditMode && (
-                                            <Group pl="md">
-                                                <ActionIcon
-                                                    size="xs"
-                                                    variant="light"
-                                                    color={'blue.6'}
-                                                    onClick={() =>
-                                                        setAddingTab(true)
-                                                    }
-                                                >
+                                            <Button
+                                                ml="sm"
+                                                size="sm"
+                                                fz={13}
+                                                variant="subtle"
+                                                flex="0 0 auto"
+                                                leftSection={
                                                     <MantineIcon
                                                         icon={IconPlus}
                                                     />
-                                                </ActionIcon>
-                                            </Group>
+                                                }
+                                                onClick={() =>
+                                                    setAddingTab(true)
+                                                }
+                                            >
+                                                New tab
+                                            </Button>
                                         )}
                                     </Tabs.List>
                                 )}
+
+                                <div>
+                                    <Group
+                                        justify="apart"
+                                        align="flex-start"
+                                        wrap="nowrap"
+                                        px="lg"
+                                        pt="sm"
+                                    >
+                                        {/* This Group will take up remaining space (and not push DateZoom) */}
+                                        <Group
+                                            justify="apart"
+                                            align="flex-start"
+                                            wrap="nowrap"
+                                            grow
+                                            style={{
+                                                overflow: 'auto',
+                                            }}
+                                        >
+                                            {hasTilesThatSupportFilters && (
+                                                <Group
+                                                    align="flex-start"
+                                                    gap="xs"
+                                                >
+                                                    <FilterGroupSeparator
+                                                        icon={IconFilter}
+                                                        tooltipLabel={
+                                                            <div>
+                                                                <Text
+                                                                    fw={500}
+                                                                    fz="xs"
+                                                                >
+                                                                    Filters
+                                                                </Text>
+
+                                                                <Text fz="xs">
+                                                                    Refine your
+                                                                    dashboard by
+                                                                    choosing
+                                                                    which data
+                                                                    to see.
+                                                                </Text>
+                                                            </div>
+                                                        }
+                                                    />
+                                                    <DashboardFiltersV2
+                                                        isEditMode={isEditMode}
+                                                        activeTabUuid={
+                                                            activeTab?.uuid
+                                                        }
+                                                    />
+                                                </Group>
+                                            )}
+                                        </Group>
+
+                                        {hasDashboardTiles &&
+                                            Object.keys(parameters).length >
+                                                0 && (
+                                                <Group gap="xs">
+                                                    <Divider orientation="vertical" />
+
+                                                    <FilterGroupSeparator
+                                                        icon={
+                                                            IconAdjustmentsHorizontal
+                                                        }
+                                                        tooltipLabel={
+                                                            <div>
+                                                                <Text
+                                                                    fw={500}
+                                                                    fz="xs"
+                                                                >
+                                                                    Parameters
+                                                                </Text>
+
+                                                                <Text fz="xs">
+                                                                    Adjust
+                                                                    preset
+                                                                    inputs that
+                                                                    change how
+                                                                    the
+                                                                    dashboard's
+                                                                    numbers are
+                                                                    calculated.
+                                                                </Text>
+                                                            </div>
+                                                        }
+                                                    />
+
+                                                    <Parameters
+                                                        isEditMode={isEditMode}
+                                                        parameterValues={
+                                                            parameterValues
+                                                        }
+                                                        onParameterChange={
+                                                            onParameterChange
+                                                        }
+                                                        onClearAll={
+                                                            onParameterClearAll
+                                                        }
+                                                        parameters={parameters}
+                                                        isLoading={
+                                                            isParameterLoading
+                                                        }
+                                                        missingRequiredParameters={
+                                                            missingRequiredParameters
+                                                        }
+                                                        pinnedParameters={
+                                                            pinnedParameters
+                                                        }
+                                                        onParameterPin={
+                                                            onParameterPin
+                                                        }
+                                                    />
+                                                    <PinnedParameters
+                                                        isEditMode={isEditMode}
+                                                    />
+                                                </Group>
+                                            )}
+
+                                        {/* DateZoom section will adjust width dynamically */}
+                                        {hasDashboardTiles && (
+                                            <Group
+                                                gap="xs"
+                                                style={{ marginLeft: 'auto' }}
+                                            >
+                                                <Divider orientation="vertical" />
+
+                                                <FilterGroupSeparator
+                                                    icon={IconCalendar}
+                                                    tooltipLabel={
+                                                        <div>
+                                                            <Text
+                                                                fw={500}
+                                                                fz="xs"
+                                                            >
+                                                                Date Zoom
+                                                            </Text>
+
+                                                            <Text fz="xs">
+                                                                Quickly change
+                                                                the date
+                                                                granularity of
+                                                                charts.
+                                                            </Text>
+                                                        </div>
+                                                    }
+                                                />
+                                                <DateZoom
+                                                    isEditMode={isEditMode}
+                                                />
+                                            </Group>
+                                        )}
+                                    </Group>
+                                </div>
+
                                 <Group
                                     grow
                                     pt={tabsEnabled ? 'sm' : undefined}
@@ -560,4 +718,4 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
 };
 
-export default DashboardTabs;
+export default DashboardTabsV2;

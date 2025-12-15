@@ -18,13 +18,13 @@ import {
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
     getConditionalRuleLabel,
     getConditionalRuleLabelFromItem,
     getFilterRuleTables,
-} from '../../common/Filters/FilterInputs/utils';
-import MantineIcon from '../../common/MantineIcon';
+} from '../../../components/common/Filters/FilterInputs/utils';
+import MantineIcon from '../../../components/common/MantineIcon';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import FilterConfiguration from '../FilterConfiguration';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 
@@ -43,10 +43,10 @@ const useDashboardFilterStyles = createStyles((theme) => ({
 
 type Props = {
     isEditMode: boolean;
+    notAppliedToAnyTab: boolean;
     isTemporary?: boolean;
     field: FilterableDimension | undefined;
     filterRule: DashboardFilterRule;
-    appliesToTabs: String[];
     openPopoverId: string | undefined;
     activeTabUuid: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
@@ -57,10 +57,10 @@ type Props = {
 
 const Filter: FC<Props> = ({
     isEditMode,
+    notAppliedToAnyTab,
     isTemporary,
     field,
     filterRule,
-    appliesToTabs,
     openPopoverId,
     activeTabUuid,
     onPopoverOpen,
@@ -151,23 +151,6 @@ const Filter: FC<Props> = ({
     const hasUnsetRequiredFilter =
         filterRule.required && !hasFilterValueSet(filterRule);
 
-    const inactiveFilterInfo = useMemo(() => {
-        if (activeTabUuid && !appliesToTabs.includes(activeTabUuid)) {
-            const appliedTabList = appliesToTabs
-                .map((tabId) => {
-                    return `'${
-                        dashboardTabs.find((tab) => tab.uuid === tabId)?.name
-                    }'`;
-                })
-                .join(', ');
-            return appliedTabList
-                ? `This filter only applies to tab${
-                      appliesToTabs.length === 1 ? '' : 's'
-                  }: ${appliedTabList}`
-                : 'This filter is not currently applied to any tabs';
-        }
-    }, [activeTabUuid, appliesToTabs, dashboardTabs]);
-
     const handleClose = useCallback(() => {
         if (isPopoverOpen) onPopoverClose();
         closeSubPopover();
@@ -226,8 +209,10 @@ const Filter: FC<Props> = ({
                     >
                         <Tooltip
                             fz="xs"
-                            label={inactiveFilterInfo}
-                            disabled={!inactiveFilterInfo}
+                            label={
+                                'This filter is not currently applied to any tabs'
+                            }
+                            disabled={!notAppliedToAnyTab}
                             withinPortal
                         >
                             <Button
@@ -244,7 +229,7 @@ const Filter: FC<Props> = ({
                                         ? classes.unsetRequiredFilter
                                         : ''
                                 } ${
-                                    inactiveFilterInfo
+                                    notAppliedToAnyTab
                                         ? classes.inactiveFilter
                                         : ''
                                 }`}

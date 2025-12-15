@@ -34,11 +34,11 @@ import {
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import FieldSelect from '../../../components/common/FieldSelect';
+import FieldIcon from '../../../components/common/Filters/FieldIcon';
+import FieldLabel from '../../../components/common/Filters/FieldLabel';
+import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import FieldSelect from '../../common/FieldSelect';
-import FieldIcon from '../../common/Filters/FieldIcon';
-import FieldLabel from '../../common/Filters/FieldLabel';
-import MantineIcon from '../../common/MantineIcon';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
 import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
@@ -110,10 +110,24 @@ const FilterConfiguration: FC<Props> = ({
         const isCreatingTemporary = isCreatingNew && !isEditMode;
 
         if (newField && isField(newField) && isFilterableField(newField)) {
+            // Filter availableTileFilters to only include tiles from the active tab
+            const filteredTileFilters = activeTabUuid
+                ? Object.fromEntries(
+                      Object.entries(availableTileFilters).filter(
+                          ([tileUuid]) => {
+                              const tile = tiles.find(
+                                  (t) => t.uuid === tileUuid,
+                              );
+                              return tile?.tabUuid === activeTabUuid;
+                          },
+                      ),
+                  )
+                : availableTileFilters;
+
             setDraftFilterRule(
                 createDashboardFilterRuleFromField({
                     field: newField,
-                    availableTileFilters,
+                    availableTileFilters: filteredTileFilters,
                     isTemporary: isCreatingTemporary,
                 }),
             );
@@ -162,22 +176,36 @@ const FilterConfiguration: FC<Props> = ({
     const handleChangeColumn = useCallback(
         (newColumn: ResultColumn) => {
             const isCreatingTemporary = isCreatingNew && !isEditMode;
+
+            // Filter to only include tiles from the active tab
+            const filteredTileColumns = Object.fromEntries(
+                Object.entries(sqlChartTilesMetadata)
+                    .filter(([tileUuid]) => {
+                        if (!activeTabUuid) return true;
+                        const tile = tiles.find((t) => t.uuid === tileUuid);
+                        return tile?.tabUuid === activeTabUuid;
+                    })
+                    .map(([tileUuid, tileMetadata]) => [
+                        tileUuid,
+                        tileMetadata.columns,
+                    ]),
+            );
+
             setDraftFilterRule(
                 createDashboardFilterRuleFromSqlColumn({
                     column: newColumn,
-                    availableTileColumns: Object.fromEntries(
-                        Object.entries(sqlChartTilesMetadata).map(
-                            ([tileUuid, tileMetadata]) => [
-                                tileUuid,
-                                tileMetadata.columns,
-                            ],
-                        ),
-                    ),
+                    availableTileColumns: filteredTileColumns,
                     isTemporary: isCreatingTemporary,
                 }),
             );
         },
-        [isCreatingNew, isEditMode, sqlChartTilesMetadata],
+        [
+            isCreatingNew,
+            isEditMode,
+            sqlChartTilesMetadata,
+            activeTabUuid,
+            tiles,
+        ],
     );
 
     const filterType: FilterType = useMemo(() => {
@@ -344,14 +372,20 @@ const FilterConfiguration: FC<Props> = ({
                         </Tooltip>
 
                         <Tooltip
-                            label="Select tiles to apply filter to and which field to filter by"
+                            label={
+                                tabs.length > 1
+                                    ? 'Select which tabs and chart tiles this filter applies to'
+                                    : 'Select tiles to apply filter to and which field to filter by'
+                            }
                             position="top-start"
                         >
                             <Tabs.Tab
                                 value={FilterTabs.TILES}
                                 disabled={!draftFilterRule}
                             >
-                                Chart tiles
+                                {tabs.length > 1
+                                    ? 'Tabs & chart tiles'
+                                    : 'Chart tiles'}
                             </Tabs.Tab>
                         </Tooltip>
                     </Tabs.List>
@@ -468,7 +502,6 @@ const FilterConfiguration: FC<Props> = ({
                         <TileFilterConfiguration
                             field={selectedField}
                             tabs={tabs}
-                            activeTabUuid={activeTabUuid}
                             filterRule={draftFilterRule}
                             popoverProps={popoverProps}
                             tiles={tiles}
