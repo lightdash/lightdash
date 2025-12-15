@@ -1,3 +1,15 @@
+# [0.2252.0](https://github.com/lightdash/lightdash/compare/0.2251.6...0.2252.0) (2025-12-15)
+
+
+### Bug Fixes
+
+* add filter value not respecting dark mode ([#18829](https://github.com/lightdash/lightdash/issues/18829)) ([a2d5058](https://github.com/lightdash/lightdash/commit/a2d50582c2c9649a220796fb1fa333031b37e16e))
+
+
+### Features
+
+* add exponential backoff with jitter for screenshot retries ([#18822](https://github.com/lightdash/lightdash/issues/18822)) ([aec1a5e](https://github.com/lightdash/lightdash/commit/aec1a5e0d7d9d323640c54e0d8db81389113b46c))
+
 ## [0.2251.6](https://github.com/lightdash/lightdash/compare/0.2251.5...0.2251.6) (2025-12-15)
 
 
