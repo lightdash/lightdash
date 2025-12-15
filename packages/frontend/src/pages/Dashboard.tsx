@@ -703,9 +703,6 @@ const Dashboard: FC = () => {
                         pinnedParameters={pinnedParameters}
                         onParameterPin={toggleParameterPin}
                         // tabs
-                        hasRequiredDashboardFiltersToSet={
-                            hasRequiredDashboardFiltersToSet
-                        }
                         activeTab={activeTab}
                         addingTab={addingTab}
                         dashboardTiles={dashboardTiles}
