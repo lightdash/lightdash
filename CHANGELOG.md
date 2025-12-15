@@ -1,3 +1,11 @@
+## [0.2251.5](https://github.com/lightdash/lightdash/compare/0.2251.4...0.2251.5) (2025-12-15)
+
+
+### Bug Fixes
+
+* exported image colors don't match the app's ([#18813](https://github.com/lightdash/lightdash/issues/18813)) ([a9f1bae](https://github.com/lightdash/lightdash/commit/a9f1baea7585b629981862afbebc52730d6ddd36)), closes [#18779](https://github.com/lightdash/lightdash/issues/18779)
+* pinned parameters do not switch in dark mode ([#18806](https://github.com/lightdash/lightdash/issues/18806)) ([77902b7](https://github.com/lightdash/lightdash/commit/77902b743ef53d679ec978f8937e6cb450d589f8)), closes [#18800](https://github.com/lightdash/lightdash/issues/18800)
+
 ## [0.2251.4](https://github.com/lightdash/lightdash/compare/0.2251.3...0.2251.4) (2025-12-15)
 
 
