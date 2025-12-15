@@ -19,6 +19,7 @@ import {
     SessionStorageKeys,
     SessionUser,
     SlackInstallationNotFoundError,
+    sleep,
     snakeCaseName,
     validateSelectedTabs,
     type DashboardFilterRule,
@@ -82,7 +83,27 @@ export enum ScreenshotContext {
     EXPORT_DASHBOARD = 'export_dashboard',
 }
 
-const SCREENSHOT_RETRIES = 3;
+// Default values
+// Can be overridden via:
+// - HEADLESS_BROWSER_MAX_SCREENSHOT_RETRIES
+// - HEADLESS_BROWSER_RETRY_BASE_DELAY_MS
+const DEFAULT_SCREENSHOT_RETRIES = 5;
+const DEFAULT_BACKOFF_BASE_DELAY_MS = 3000;
+
+const getBackoffDelay = (retryCount: number, baseDelayMs: number): number => {
+    const exponentialDelay = baseDelayMs * 2 ** retryCount;
+    const jitter = exponentialDelay * 0.25 * (Math.random() * 2 - 1);
+    return Math.round(exponentialDelay + jitter);
+};
+
+const isBrowserQueueFullError = (error: unknown): boolean => {
+    const message = getErrorMessage(error);
+    return (
+        message.includes('429') ||
+        message.includes('Too Many Requests') ||
+        message.includes('queue is full')
+    );
+};
 
 export type ParsedUrl = {
     isValid: boolean;
@@ -627,7 +648,8 @@ export class UnfurlService extends BaseService {
         selector = 'body',
         chartTileUuids = undefined,
         sqlChartTileUuids = undefined,
-        retries = SCREENSHOT_RETRIES,
+        retries = this.lightdashConfig.headlessBrowser.maxScreenshotRetries ??
+            DEFAULT_SCREENSHOT_RETRIES,
         context,
         contextId,
         selectedTabs,
@@ -1083,6 +1105,7 @@ export class UnfurlService extends BaseService {
                     return imageBuffer;
                 } catch (e) {
                     const errorMessage = getErrorMessage(e);
+                    const isQueueFullError = isBrowserQueueFullError(e);
                     const isRetryableError =
                         e instanceof playwright.errors.TimeoutError ||
                         // Following error messages were taken from the Playwright source code
@@ -1091,11 +1114,26 @@ export class UnfurlService extends BaseService {
                         errorMessage.includes('Target crashed') ||
                         errorMessage.includes(
                             'Target page, context or browser has been closed',
-                        );
+                        ) ||
+                        isQueueFullError;
 
                     if (isRetryableError && retries) {
+                        const maxRetries =
+                            this.lightdashConfig.headlessBrowser
+                                .maxScreenshotRetries ??
+                            DEFAULT_SCREENSHOT_RETRIES;
+                        const baseDelayMs =
+                            this.lightdashConfig.headlessBrowser
+                                .retryBaseDelayMs ??
+                            DEFAULT_BACKOFF_BASE_DELAY_MS;
+
+                        const retryCount = maxRetries - retries - 1;
+                        const delay = getBackoffDelay(retryCount, baseDelayMs);
+
                         this.logger.info(
-                            `Retrying: unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${getErrorMessage(
+                            `Retrying screenshot (attempt ${retryCount + 2}/${
+                                maxRetries + 1
+                            }) after ${delay}ms for url ${url}, type: ${lightdashPage}. Error: ${getErrorMessage(
                                 e,
                             )}`,
                         );
@@ -1103,6 +1141,12 @@ export class UnfurlService extends BaseService {
                         span.setAttributes({
                             is_retrying: true,
                         });
+
+                        // Clean up resources and wait before retry
+                        if (page) await page.close().catch(() => {});
+                        if (browser) await browser.close().catch(() => {});
+                        await sleep(delay);
+
                         return await this.saveScreenshot({
                             authUserUuid,
                             imageId,
