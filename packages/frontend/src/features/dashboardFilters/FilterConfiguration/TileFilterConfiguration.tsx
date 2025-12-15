@@ -28,10 +28,10 @@ import {
     type PopoverProps,
 } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
+import FieldSelect from '../../../components/common/FieldSelect';
+import MantineIcon from '../../../components/common/MantineIcon';
+import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import FieldSelect from '../../common/FieldSelect';
-import MantineIcon from '../../common/MantineIcon';
-import { getChartIcon } from '../../common/ResourceIcon/utils';
 import { FilterActions } from './constants';
 
 type TileWithTargetFields = {
