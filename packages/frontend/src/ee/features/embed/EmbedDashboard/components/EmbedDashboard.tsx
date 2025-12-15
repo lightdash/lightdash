@@ -7,6 +7,7 @@ import { IconUnlink } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
+import HeadingTile from '../../../../../components/DashboardTiles/DashboardHeadingTile';
 import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile';
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -103,6 +104,14 @@ const EmbedDashboardGrid: FC<{
                             />
                         ) : tile.type === DashboardTileTypes.SQL_CHART ? (
                             <SqlChartTile
+                                key={tile.uuid}
+                                tile={tile}
+                                isEditMode={false}
+                                onDelete={() => {}}
+                                onEdit={() => {}}
+                            />
+                        ) : tile.type === DashboardTileTypes.HEADING ? (
+                            <HeadingTile
                                 key={tile.uuid}
                                 tile={tile}
                                 isEditMode={false}
