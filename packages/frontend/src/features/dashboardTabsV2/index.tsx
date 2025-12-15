@@ -430,6 +430,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                         align="flex-start"
                                         wrap="nowrap"
                                         px="lg"
+                                        pt="sm"
                                     >
                                         {/* This Group will take up remaining space (and not push DateZoom) */}
                                         <Group
@@ -477,65 +478,69 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                             )}
                                         </Group>
 
-                                        {hasDashboardTiles && (
-                                            <Group gap="xs">
-                                                <Divider orientation="vertical" />
+                                        {hasDashboardTiles &&
+                                            Object.keys(parameters).length >
+                                                0 && (
+                                                <Group gap="xs">
+                                                    <Divider orientation="vertical" />
 
-                                                <FilterGroupSeparator
-                                                    icon={
-                                                        IconAdjustmentsHorizontal
-                                                    }
-                                                    tooltipLabel={
-                                                        <div>
-                                                            <Text
-                                                                fw={500}
-                                                                fz="xs"
-                                                            >
-                                                                Parameters
-                                                            </Text>
+                                                    <FilterGroupSeparator
+                                                        icon={
+                                                            IconAdjustmentsHorizontal
+                                                        }
+                                                        tooltipLabel={
+                                                            <div>
+                                                                <Text
+                                                                    fw={500}
+                                                                    fz="xs"
+                                                                >
+                                                                    Parameters
+                                                                </Text>
 
-                                                            <Text fz="xs">
-                                                                Adjust preset
-                                                                inputs that
-                                                                change how the
-                                                                dashboard's
-                                                                numbers are
-                                                                calculated.
-                                                            </Text>
-                                                        </div>
-                                                    }
-                                                />
+                                                                <Text fz="xs">
+                                                                    Adjust
+                                                                    preset
+                                                                    inputs that
+                                                                    change how
+                                                                    the
+                                                                    dashboard's
+                                                                    numbers are
+                                                                    calculated.
+                                                                </Text>
+                                                            </div>
+                                                        }
+                                                    />
 
-                                                <Parameters
-                                                    isEditMode={isEditMode}
-                                                    parameterValues={
-                                                        parameterValues
-                                                    }
-                                                    onParameterChange={
-                                                        onParameterChange
-                                                    }
-                                                    onClearAll={
-                                                        onParameterClearAll
-                                                    }
-                                                    parameters={parameters}
-                                                    isLoading={
-                                                        isParameterLoading
-                                                    }
-                                                    missingRequiredParameters={
-                                                        missingRequiredParameters
-                                                    }
-                                                    pinnedParameters={
-                                                        pinnedParameters
-                                                    }
-                                                    onParameterPin={
-                                                        onParameterPin
-                                                    }
-                                                />
-                                                <PinnedParameters
-                                                    isEditMode={isEditMode}
-                                                />
-                                            </Group>
-                                        )}
+                                                    <Parameters
+                                                        isEditMode={isEditMode}
+                                                        parameterValues={
+                                                            parameterValues
+                                                        }
+                                                        onParameterChange={
+                                                            onParameterChange
+                                                        }
+                                                        onClearAll={
+                                                            onParameterClearAll
+                                                        }
+                                                        parameters={parameters}
+                                                        isLoading={
+                                                            isParameterLoading
+                                                        }
+                                                        missingRequiredParameters={
+                                                            missingRequiredParameters
+                                                        }
+                                                        pinnedParameters={
+                                                            pinnedParameters
+                                                        }
+                                                        onParameterPin={
+                                                            onParameterPin
+                                                        }
+                                                    />
+                                                    <PinnedParameters
+                                                        isEditMode={isEditMode}
+                                                    />
+                                                </Group>
+                                            )}
 
                                         {/* DateZoom section will adjust width dynamically */}
                                         {hasDashboardTiles && (
