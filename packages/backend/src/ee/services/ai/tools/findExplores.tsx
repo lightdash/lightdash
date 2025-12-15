@@ -109,7 +109,7 @@ export const getFindExplores = ({
         execute: async (args) => {
             try {
                 await updateProgress(
-                    `🔍 Searching explores matching query: \`${args.searchQuery}\`...`,
+                    `Searching explores matching query: "${args.searchQuery}"...`,
                 );
 
                 const { exploreSearchResults, topMatchingFields } =

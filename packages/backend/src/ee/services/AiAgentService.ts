@@ -152,6 +152,7 @@ import {
     getFollowUpToolBlocks,
     getProposeChangeBlocks,
     getReferencedArtifactsBlocks,
+    getThinkingBlocks,
 } from './ai/utils/getSlackBlocks';
 import { llmAsAJudge } from './ai/utils/llmAsAJudge';
 import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
@@ -2182,6 +2183,7 @@ export class AiAgentService {
         await this.slackClient.updateMessage({
             organizationUuid: slackPrompt.organizationUuid,
             text: progress,
+            blocks: getThinkingBlocks(progress, this.lightdashConfig.siteUrl),
             channelId: slackPrompt.slackChannelId,
             messageTs: slackPrompt.response_slack_ts,
         });
@@ -3206,10 +3208,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             throw new Error('Prompt not found');
         }
 
-        await this.updateSlackResponseWithProgress(
-            slackPrompt,
-            '🤖 Thinking...',
-        );
+        await this.updateSlackResponseWithProgress(slackPrompt, 'Thinking...');
 
         const user = await this.userModel.findSessionUserAndOrgByUuid(
             slackPrompt.createdByUserUuid,
