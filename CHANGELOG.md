@@ -1,3 +1,10 @@
+## [0.2252.1](https://github.com/lightdash/lightdash/compare/0.2252.0...0.2252.1) (2025-12-15)
+
+
+### Bug Fixes
+
+* skip channel sync on unrecoverable slack errors ([#18824](https://github.com/lightdash/lightdash/issues/18824)) ([3d6e74a](https://github.com/lightdash/lightdash/commit/3d6e74a86460c6bd539684df2f81d0809e081354))
+
 # [0.2252.0](https://github.com/lightdash/lightdash/compare/0.2251.6...0.2252.0) (2025-12-15)
 
 
