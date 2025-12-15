@@ -21,6 +21,7 @@ import {
     formatCartesianTooltipRow,
     formatColorIndicator,
     formatTooltipHeader,
+    formatTotalLabel,
     formatTooltipValue,
     getTooltipDivider,
 } from './styles/tooltipStyles';
@@ -486,6 +487,71 @@ export const buildSqlRunnerCartesianTooltipFormatter =
 
         const header = getHeader(params, undefined, xFieldId);
 
+        // Calculate stack total for stacked charts
+        let stackTotalHtml = '';
+        if (ctx.mode === 'stackRegular' || ctx.mode === 'stack100') {
+            let stackTotal = 0;
+            let hasValidValues = false;
+
+            // Sum all values in the stack
+            params.forEach((param) => {
+                const { dimensionNames, encode } = param;
+
+                const metricAxis: AxisKey = flipAxes ? 'x' : 'y';
+                const dim = getDimFromEncodeAxis(
+                    encode,
+                    dimensionNames,
+                    metricAxis,
+                );
+
+                const valueIdx = getValueIdxFromEncode(encode, ctx, !!flipAxes);
+                const rawVal = getRawVal(param, dim, valueIdx, ctx);
+
+                const valueForFormat = unwrapValue(rawVal);
+
+                // For stack100, use original values
+                if (ctx.mode === 'stack100' && xFieldId && originalValues) {
+                    const xValue =
+                        param.axisValue ??
+                        param.name ??
+                        (typeof param.value === 'object' &&
+                        param.value !== null &&
+                        !Array.isArray(param.value)
+                            ? param.value[xFieldId as keyof typeof param.value]
+                            : undefined);
+                    const rawXValue = String(xValue ?? '');
+                    const originalValue =
+                        originalValues?.get(rawXValue)?.get(dim ?? '') || 0;
+                    if (!Number.isNaN(originalValue)) {
+                        stackTotal += originalValue;
+                        hasValidValues = true;
+                    }
+                } else {
+                    // For stackRegular, use the current values
+                    const numValue = toNumber(valueForFormat);
+                    if (!Number.isNaN(numValue)) {
+                        stackTotal += numValue;
+                        hasValidValues = true;
+                    }
+                }
+            });
+
+            // Format and display the total
+            if (hasValidValues) {
+                const formattedTotal = stackTotal.toLocaleString();
+
+                const totalLabel = formatTotalLabel('Total');
+                const totalRow = formatCartesianTooltipRow(
+                    '',
+                    totalLabel,
+                    formatTooltipValue(formattedTotal),
+                );
+
+                const divider = getTooltipDivider();
+                stackTotalHtml = `${totalRow}${divider}`;
+            }
+        }
+
         // Build tooltip rows
         const rowsHtml = params
             .map((param) => {
@@ -524,7 +590,7 @@ export const buildSqlRunnerCartesianTooltipFormatter =
 
         const divider = getTooltipDivider();
 
-        return `${formatTooltipHeader(header)}${divider}${rowsHtml}`;
+        return `${formatTooltipHeader(header)}${divider}${stackTotalHtml}${rowsHtml}`;
     };
 
 export const buildCartesianTooltipFormatter =
@@ -577,6 +643,249 @@ export const buildCartesianTooltipFormatter =
         }
 
         const header = getHeader(params, itemsMap, xFieldId);
+
+        // Calculate stack total for stacked charts
+        let stackTotalHtml = '';
+        if (ctx.mode === 'stackRegular' || ctx.mode === 'stack100') {
+            let stackTotal = 0;
+            let hasValidValues = false;
+            let firstFieldId: string | undefined;
+
+            // Sum all values in the stack
+            params.forEach((param) => {
+                const { dimensionNames, encode, seriesIndex } = param;
+
+                const seriesOption =
+                    typeof seriesIndex === 'number'
+                        ? series?.[seriesIndex]
+                        : undefined;
+                const effectiveEncode =
+                    encode ?? seriesOption?.encode ?? undefined;
+                const yRefField =
+                    seriesOption?.encode?.yRef?.field ?? undefined;
+
+                const yFieldHash =
+                    seriesOption?.encode?.yRef &&
+                    typeof seriesOption.encode.yRef === 'object'
+                        ? hashFieldReference(seriesOption.encode.yRef)
+                        : undefined;
+
+                const seriesDimensionNames = Array.isArray(
+                    seriesOption?.dimensions,
+                )
+                    ? seriesOption?.dimensions.map(
+                          (dimension: { name: string }) =>
+                              typeof dimension === 'string'
+                                  ? dimension
+                                  : dimension?.name,
+                      )
+                    : undefined;
+                const metricAxis: AxisKey = flipAxes ? 'x' : 'y';
+
+                const encodeDim =
+                    getDimFromEncodeAxis(
+                        effectiveEncode,
+                        dimensionNames,
+                        metricAxis,
+                    ) ??
+                    getDimFromEncodeAxis(
+                        effectiveEncode,
+                        seriesDimensionNames,
+                        metricAxis,
+                    );
+
+                const valueIdx = getValueIdxFromEncode(
+                    effectiveEncode,
+                    ctx,
+                    !!flipAxes,
+                );
+                let rawVal = getRawVal(param, encodeDim, valueIdx, ctx);
+
+                // Handle pivot fallback (same logic as rows)
+                const tooltipEncode = seriesOption?.encode?.tooltip;
+                let tooltipDim: string | undefined;
+                if (Array.isArray(tooltipEncode)) {
+                    // eslint-disable-next-line prefer-destructuring
+                    tooltipDim = tooltipEncode[0];
+                } else if (typeof tooltipEncode === 'string') {
+                    tooltipDim = tooltipEncode;
+                }
+
+                const pivotDim =
+                    seriesOption?.pivotReference && pivotValuesColumnsMap
+                        ? Object.values(pivotValuesColumnsMap).find(
+                              (column) => {
+                                  const reference = seriesOption.pivotReference;
+                                  if (!reference) return false;
+                                  if (column.referenceField !== reference.field)
+                                      return false;
+                                  if (
+                                      column.pivotValues.length !==
+                                      reference.pivotValues?.length
+                                  )
+                                      return false;
+                                  return column.pivotValues.every(
+                                      (pivotValue, index) =>
+                                          pivotValue.value ===
+                                          reference.pivotValues?.[index]?.value,
+                                  );
+                              },
+                          )?.pivotColumnName
+                        : undefined;
+
+                const dim =
+                    encodeDim ??
+                    tooltipDim ??
+                    pivotDim ??
+                    (param?.dimensionNames?.[1] as string | undefined) ??
+                    undefined;
+
+                const needsPivotFallback =
+                    pivotDim &&
+                    dim &&
+                    pivotDim !== dim &&
+                    typeof param?.value === 'object' &&
+                    !Array.isArray(param?.value) &&
+                    (param.value as Record<string, unknown>)[dim] === undefined;
+
+                if (
+                    needsPivotFallback ||
+                    (pivotDim && pivotDim !== dim && rawVal === param?.value)
+                ) {
+                    rawVal = getRawVal(param, pivotDim, valueIdx, ctx);
+                }
+
+                const rawValueKeys = [
+                    dim,
+                    pivotDim,
+                    tooltipDim,
+                    yFieldHash,
+                    yRefField,
+                ].filter((k): k is string => !!k && typeof k === 'string');
+
+                if (
+                    (rawVal === param?.value ||
+                        (rawVal &&
+                            typeof rawVal === 'object' &&
+                            !Array.isArray(rawVal))) &&
+                    rawValueKeys.length > 0
+                ) {
+                    for (const key of rawValueKeys) {
+                        const candidate = getRawVal(param, key, valueIdx, ctx);
+                        if (
+                            candidate !== undefined &&
+                            candidate !== null &&
+                            candidate !== param?.value &&
+                            !(
+                                candidate === rawVal &&
+                                typeof candidate === 'object'
+                            )
+                        ) {
+                            rawVal = candidate;
+                            break;
+                        }
+                        if (
+                            param?.value &&
+                            typeof param.value === 'object' &&
+                            !Array.isArray(param.value) &&
+                            param.value[key as keyof typeof param.value] !==
+                                undefined
+                        ) {
+                            rawVal =
+                                param.value[key as keyof typeof param.value];
+                            break;
+                        }
+                        if (
+                            param?.data &&
+                            typeof param.data === 'object' &&
+                            !Array.isArray(param.data) &&
+                            param.data[key as keyof typeof param.data] !==
+                                undefined
+                        ) {
+                            rawVal = param.data[key as keyof typeof param.data];
+                            break;
+                        }
+                    }
+                }
+
+                const valueForFormat = unwrapValue(rawVal);
+
+                // For stack100, use original values
+                if (ctx.mode === 'stack100' && xFieldId && originalValues) {
+                    const xValue =
+                        param.axisValue ??
+                        param.name ??
+                        (typeof param.value === 'object' &&
+                        param.value !== null &&
+                        !Array.isArray(param.value)
+                            ? param.value[xFieldId as keyof typeof param.value]
+                            : undefined);
+                    const rawXValue = String(xValue ?? '');
+                    const originalValue =
+                        originalValues?.get(rawXValue)?.get(dim ?? '') || 0;
+                    if (!Number.isNaN(originalValue)) {
+                        stackTotal += originalValue;
+                        hasValidValues = true;
+                    }
+                } else {
+                    // For stackRegular, use the current values
+                    const numValue = toNumber(valueForFormat);
+                    if (!Number.isNaN(numValue)) {
+                        stackTotal += numValue;
+                        hasValidValues = true;
+                    }
+                }
+
+                // Store the first field ID for formatting
+                if (!firstFieldId) {
+                    const formatKey =
+                        (typeof dim === 'string' &&
+                            pivotValuesColumnsMap?.[dim]?.referenceField) ??
+                        (pivotDim &&
+                            pivotValuesColumnsMap?.[pivotDim]
+                                ?.referenceField) ??
+                        yRefField ??
+                        seriesOption?.pivotReference?.field ??
+                        dim ??
+                        pivotDim ??
+                        '';
+
+                    // Handle period-over-period
+                    let effectiveFormatKey = formatKey as string;
+                    if (seriesOption?.periodOverPeriodMetadata?.baseFieldId) {
+                        const { baseFieldId } =
+                            seriesOption.periodOverPeriodMetadata;
+                        if (itemsMap[baseFieldId]) {
+                            effectiveFormatKey = baseFieldId;
+                        }
+                    }
+
+                    firstFieldId = effectiveFormatKey;
+                }
+            });
+
+            // Format and display the total
+            if (hasValidValues && firstFieldId) {
+                const formattedTotal = getFormattedValue(
+                    stackTotal,
+                    firstFieldId,
+                    itemsMap,
+                    undefined,
+                    pivotValuesColumnsMap,
+                    parameters,
+                );
+
+                const totalLabel = formatTotalLabel('Total');
+                const totalRow = formatCartesianTooltipRow(
+                    '',
+                    totalLabel,
+                    formatTooltipValue(formattedTotal),
+                );
+
+                const divider = getTooltipDivider();
+                stackTotalHtml = `${totalRow}${divider}`;
+            }
+        }
 
         // rows
         const rowsHtml = params
@@ -891,7 +1200,7 @@ export const buildCartesianTooltipFormatter =
                 );
                 return `${formatTooltipHeader(
                     headerText,
-                )}${divider}${rowsHtml}`;
+                )}${divider}${stackTotalHtml}${rowsHtml}`;
             }
             const hasFormat = isField(field)
                 ? field.format !== undefined
@@ -907,11 +1216,11 @@ export const buildCartesianTooltipFormatter =
                 );
                 return `${formatTooltipHeader(
                     headerText,
-                )}${divider}${tooltipHtml}${rowsHtml}`;
+                )}${divider}${stackTotalHtml}${tooltipHtml}${rowsHtml}`;
             }
         }
 
         return `${formatTooltipHeader(
             header,
-        )}${divider}${tooltipHtml}${rowsHtml}`;
+        )}${divider}${stackTotalHtml}${tooltipHtml}${rowsHtml}`;
     };

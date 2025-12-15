@@ -159,3 +159,16 @@ export const formatCartesianTooltipRow = (
         ${valuePill}
     </div>`;
 };
+
+/**
+ * Format a total label for tooltip (e.g. "Total")
+ * Used for stack total rows - displays with bold weight to distinguish from series names
+ */
+export const formatTotalLabel = (text: string): string => {
+    const styles = stylesToString({
+        color: GRAY_7,
+        fontSize: '12px',
+        fontWeight: 600,
+    });
+    return `<span style="${styles}">${text}</span>`;
+};
