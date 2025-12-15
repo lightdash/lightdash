@@ -81,14 +81,6 @@ export const useTableStyles = createStyles((theme) => {
                 },
             },
 
-            /* Body last row, first cell: no left or bottom border */
-            '> tbody:last-child > *:last-child > *:first-child': {
-                boxShadow: 'none',
-                '&:hover': {
-                    boxShadow: 'none !important',
-                },
-            },
-
             /* Footer last row cells: no bottom border (container provides it) */
             '> tfoot:last-child > *:last-child > *': {
                 boxShadow: `inset -1px 0 0 0 ${borderColor}`,
@@ -99,14 +91,6 @@ export const useTableStyles = createStyles((theme) => {
 
             /* Footer last row, last cell: no right or bottom border */
             '> tfoot:last-child > *:last-child > *:last-child': {
-                boxShadow: 'none',
-                '&:hover': {
-                    boxShadow: 'none !important',
-                },
-            },
-
-            /* Footer last row, first cell: no left or bottom border */
-            '> tfoot:last-child > *:last-child > *:first-child': {
                 boxShadow: 'none',
                 '&:hover': {
                     boxShadow: 'none !important',
