@@ -1,3 +1,10 @@
+## [0.2251.3](https://github.com/lightdash/lightdash/compare/0.2251.2...0.2251.3) (2025-12-15)
+
+
+### Bug Fixes
+
+* fetch fallback projects even when there is a last project ([#18805](https://github.com/lightdash/lightdash/issues/18805)) ([def1af2](https://github.com/lightdash/lightdash/commit/def1af2d85d038cc596ef371253fce14bc7ce365))
+
 ## [0.2251.2](https://github.com/lightdash/lightdash/compare/0.2251.1...0.2251.2) (2025-12-15)
 
 
