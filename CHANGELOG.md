@@ -1,3 +1,10 @@
+# [0.2256.0](https://github.com/lightdash/lightdash/compare/0.2255.2...0.2256.0) (2025-12-16)
+
+
+### Features
+
+* add support for no-role keyword in SCIM service ([#18846](https://github.com/lightdash/lightdash/issues/18846)) ([6275103](https://github.com/lightdash/lightdash/commit/6275103e65155789ef3cd6579bd02c0604c9d63a))
+
 ## [0.2255.2](https://github.com/lightdash/lightdash/compare/0.2255.1...0.2255.2) (2025-12-16)
 
 
