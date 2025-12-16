@@ -1,3 +1,17 @@
+# [0.2258.0](https://github.com/lightdash/lightdash/compare/0.2257.1...0.2258.0) (2025-12-16)
+
+
+### Bug Fixes
+
+* illegible label inside bar charts with dark background ([#18849](https://github.com/lightdash/lightdash/issues/18849)) ([bef9aca](https://github.com/lightdash/lightdash/commit/bef9aca0dda9f6cc8b6d56ff69d2eba47056d83d)), closes [#18839](https://github.com/lightdash/lightdash/issues/18839)
+* improve dashboard filter visibility and required logic for tabs ([#18821](https://github.com/lightdash/lightdash/issues/18821)) ([253228d](https://github.com/lightdash/lightdash/commit/253228d4299177886cf9f765209f58c4a51ccd7b))
+* only show "not applied to any tabs" warning when tabs are enabled ([#18828](https://github.com/lightdash/lightdash/issues/18828)) ([8b1370a](https://github.com/lightdash/lightdash/commit/8b1370a2ef52e714363dfd1e0be43b1690f9d4db))
+
+
+### Features
+
+* **backend:** add heading tile type for dashboards ([#18807](https://github.com/lightdash/lightdash/issues/18807)) ([acaf567](https://github.com/lightdash/lightdash/commit/acaf567cf2a10f69f64c27be6454234b1e0b1a96))
+
 ## [0.2257.1](https://github.com/lightdash/lightdash/compare/0.2257.0...0.2257.1) (2025-12-16)
 
 
