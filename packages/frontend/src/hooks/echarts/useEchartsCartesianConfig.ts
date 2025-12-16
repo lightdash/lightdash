@@ -800,7 +800,11 @@ const getPivotSeries = ({
             label: {
                 ...series.label,
                 ...(series.color &&
-                    getValueLabelStyle(series.label.position, series.type)),
+                    getValueLabelStyle(
+                        series.label.position,
+                        series.type,
+                        series.color,
+                    )),
                 ...(itemsMap &&
                     itemsMap[series.encode.yRef.field] && {
                         formatter: (param: any) => {
@@ -912,7 +916,11 @@ const getSimpleSeries = ({
         label: {
             ...series.label,
             // Apply value label styling for all series types
-            ...getValueLabelStyle(series.label.position, series.type),
+            ...getValueLabelStyle(
+                series.label.position,
+                series.type,
+                series.color,
+            ),
             ...(itemsMap &&
                 itemsMap[yFieldHash] && {
                     formatter: (param: any) => {
@@ -2124,6 +2132,7 @@ const useEchartsCartesianConfig = (
                             ...getValueLabelStyle(
                                 serie.label.position,
                                 serie.type,
+                                computedColor,
                             ),
                         },
                     }),
