@@ -1,3 +1,10 @@
+## [0.2259.1](https://github.com/lightdash/lightdash/compare/0.2259.0...0.2259.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* wrap JSON parse in try/catch ([#18852](https://github.com/lightdash/lightdash/issues/18852)) ([d63a73d](https://github.com/lightdash/lightdash/commit/d63a73dcac8c9244db369c76316a0cd22c019b64))
+
 # [0.2259.0](https://github.com/lightdash/lightdash/compare/0.2258.1...0.2259.0) (2025-12-16)
 
 
