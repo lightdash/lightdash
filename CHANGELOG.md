@@ -1,3 +1,15 @@
+# [0.2259.0](https://github.com/lightdash/lightdash/compare/0.2258.1...0.2259.0) (2025-12-16)
+
+
+### Bug Fixes
+
+* normalize Snowflake warehouse names when comparing credentials ([#18854](https://github.com/lightdash/lightdash/issues/18854)) ([b301a2b](https://github.com/lightdash/lightdash/commit/b301a2ba514ec5aa2db55905312718792691d5d5))
+
+
+### Features
+
+* add Snowflake SSO support for CLI project creation ([#18845](https://github.com/lightdash/lightdash/issues/18845)) ([d59f54e](https://github.com/lightdash/lightdash/commit/d59f54ef5dbfd5ce0676073e6cb05bf31544a971))
+
 ## [0.2258.1](https://github.com/lightdash/lightdash/compare/0.2258.0...0.2258.1) (2025-12-16)
 
 
