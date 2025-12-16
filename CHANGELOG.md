@@ -1,3 +1,11 @@
+# [0.2255.0](https://github.com/lightdash/lightdash/compare/0.2254.0...0.2255.0) (2025-12-16)
+
+
+### Features
+
+* gracefully handle screenshot errors - support drawer ([#18826](https://github.com/lightdash/lightdash/issues/18826)) ([177bffd](https://github.com/lightdash/lightdash/commit/177bffd995b522bf0be6a50e1164dc4e6ceb5035))
+* replace html2canvas with html2canvas-pro ([#18827](https://github.com/lightdash/lightdash/issues/18827)) ([1d52a26](https://github.com/lightdash/lightdash/commit/1d52a2625654c88d9cff38579a1e474293de071e))
+
 # [0.2254.0](https://github.com/lightdash/lightdash/compare/0.2253.0...0.2254.0) (2025-12-16)
 
 
