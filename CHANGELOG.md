@@ -1,3 +1,10 @@
+## [0.2259.2](https://github.com/lightdash/lightdash/compare/0.2259.1...0.2259.2) (2025-12-16)
+
+
+### Bug Fixes
+
+* move all tiles to the new default tab immutably ([#18855](https://github.com/lightdash/lightdash/issues/18855)) ([60053d5](https://github.com/lightdash/lightdash/commit/60053d53d6a757db6b1e38db3bdc183968f8d41f))
+
 ## [0.2259.1](https://github.com/lightdash/lightdash/compare/0.2259.0...0.2259.1) (2025-12-16)
 
 
