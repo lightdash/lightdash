@@ -288,7 +288,6 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                         )}
                                         field={field}
                                         filterRule={item}
-                                        activeTabUuid={activeTabUuid}
                                         openPopoverId={openPopoverId}
                                         onPopoverOpen={onPopoverOpen}
                                         onPopoverClose={onPopoverClose}
@@ -347,7 +346,6 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         isEditMode={isEditMode}
                         field={field}
                         filterRule={item}
-                        activeTabUuid={activeTabUuid}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
                         onPopoverClose={onPopoverClose}
