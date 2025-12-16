@@ -846,18 +846,26 @@ export class UnfurlService extends BaseService {
                                             responseUrl,
                                         )
                                     ) {
-                                        const json = JSON.parse(
-                                            buffer.toString(),
-                                        ) as Partial<{
-                                            status: 'ok';
-                                            results: ApiGetAsyncQueryResults;
-                                        }>;
-                                        if (
-                                            json.results?.status ===
-                                            QueryHistoryStatus.ERROR
-                                        ) {
-                                            this.logger.error(
-                                                `Headless browser response error while fetching paginated results - url: ${responseUrl}, text: ${json.results.error}`,
+                                        try {
+                                            const json = JSON.parse(
+                                                buffer.toString(),
+                                            ) as Partial<{
+                                                status: 'ok';
+                                                results: ApiGetAsyncQueryResults;
+                                            }>;
+                                            if (
+                                                json.results?.status ===
+                                                QueryHistoryStatus.ERROR
+                                            ) {
+                                                this.logger.error(
+                                                    `Headless browser response error while fetching paginated results - url: ${responseUrl}, text: ${json.results.error}`,
+                                                );
+                                            }
+                                        } catch (parseError) {
+                                            this.logger.warn(
+                                                `Failed to parse paginated query response - url: ${responseUrl}, error: ${getErrorMessage(
+                                                    parseError,
+                                                )}`,
                                             );
                                         }
                                     }
