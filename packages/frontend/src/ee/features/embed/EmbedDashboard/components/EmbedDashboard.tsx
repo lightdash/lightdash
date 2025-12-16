@@ -7,7 +7,6 @@ import { IconUnlink } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
-import HeadingTile from '../../../../../components/DashboardTiles/DashboardHeadingTile';
 import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile';
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -25,6 +24,7 @@ import EmbedDashboardHeader from './EmbedDashboardHeader';
 
 import { Group, Tabs, Title } from '@mantine/core';
 import '../../../../../styles/react-grid.css';
+import { EmbedHeadingTile } from './EmbedHeadingTile';
 import { EmbedMarkdownTile } from './EmbedMarkdownTile';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
@@ -111,12 +111,14 @@ const EmbedDashboardGrid: FC<{
                                 onEdit={() => {}}
                             />
                         ) : tile.type === DashboardTileTypes.HEADING ? (
-                            <HeadingTile
+                            <EmbedHeadingTile
                                 key={tile.uuid}
                                 tile={tile}
                                 isEditMode={false}
                                 onDelete={() => {}}
                                 onEdit={() => {}}
+                                tileIndex={index}
+                                dashboardSlug={dashboard.slug}
                             />
                         ) : (
                             assertUnreachable(
