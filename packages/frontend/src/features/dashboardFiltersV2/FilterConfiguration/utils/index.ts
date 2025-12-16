@@ -53,6 +53,25 @@ export const getFilterTileRelation = (
 };
 
 /**
+ * Checks if a tile has the filter's target field available.
+ */
+const tileHasFilterField = (
+    filterRule: DashboardFilterRule,
+    tile: DashboardTile,
+    filterableFieldsByTileUuid:
+        | Record<string, FilterableDimension[]>
+        | undefined,
+): boolean => {
+    if (!filterableFieldsByTileUuid) return false;
+    const tileFields = filterableFieldsByTileUuid[tile.uuid];
+    return (
+        tileFields?.some(
+            (field) => getItemId(field) === filterRule.target.fieldId,
+        ) ?? false
+    );
+};
+
+/**
  * Determines if a filter applies to a specific tile based on tileTargets configuration.
  *
  * tileTargets[uuid] can be:
@@ -73,25 +92,23 @@ export const doesFilterApplyToTile = (
 
     switch (relation) {
         case 'all':
-            return true;
+            // No tileTargets config - filter applies to all tiles that have the field
+            return tileHasFilterField(
+                filterRule,
+                tile,
+                filterableFieldsByTileUuid,
+            );
         case 'excluded':
             return false;
         case 'explicit':
             return true;
-        case 'default': {
+        case 'default':
             // Not in tileTargets (undefined) - check if filter can apply by default
-            // The filter can apply if the tile has the filter's target field
-            if (filterableFieldsByTileUuid) {
-                const tileFields = filterableFieldsByTileUuid[tile.uuid];
-                return (
-                    tileFields?.some(
-                        (field) =>
-                            getItemId(field) === filterRule.target.fieldId,
-                    ) ?? false
-                );
-            }
-            return false;
-        }
+            return tileHasFilterField(
+                filterRule,
+                tile,
+                filterableFieldsByTileUuid,
+            );
         default:
             return assertUnreachable(
                 relation,
@@ -102,6 +119,10 @@ export const doesFilterApplyToTile = (
 
 /**
  * Computes which tab UUIDs a filter applies to based on its tileTargets configuration.
+ *
+ * A filter applies to a tab if:
+ * - The tab has at least one tile that supports the filter's field
+ * - The tile is not explicitly excluded via tileTargets
  *
  * @param filterRule - The filter rule to check
  * @param dashboardTiles - All tiles in the dashboard
@@ -117,13 +138,6 @@ export const getTabsForFilterRule = (
         | Record<string, FilterableDimension[]>
         | undefined,
 ): string[] => {
-    const { tileTargets } = filterRule;
-
-    // If no tileTargets configuration, filter applies to all tiles/tabs
-    if (!tileTargets) {
-        return sortedTabUuids;
-    }
-
     // Find which tabs have tiles targeted by this filter
     const tabsWithTargetedTiles = new Set<string>();
     dashboardTiles?.forEach((tile) => {

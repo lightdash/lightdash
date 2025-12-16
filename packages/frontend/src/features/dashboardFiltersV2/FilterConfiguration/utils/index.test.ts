@@ -109,11 +109,50 @@ describe('doesFilterApplyToTile', () => {
     const tile1 = createMockTile('tile-1', 'tab-1');
     const tile2 = createMockTile('tile-2', 'tab-2');
 
-    it('should return true when no tileTargets configuration exists (applies to all)', () => {
+    it('should return true when no tileTargets and tile has the filter field', () => {
+        const filterRule = createMockFilterRule({ tileTargets: undefined });
+        const filterableFieldsByTileUuid = {
+            'tile-1': [createMockFilterableField('orders_status', 'orders')],
+            'tile-2': [createMockFilterableField('orders_status', 'orders')],
+        };
+
+        expect(
+            doesFilterApplyToTile(
+                filterRule,
+                tile1,
+                filterableFieldsByTileUuid,
+            ),
+        ).toBe(true);
+        expect(
+            doesFilterApplyToTile(
+                filterRule,
+                tile2,
+                filterableFieldsByTileUuid,
+            ),
+        ).toBe(true);
+    });
+
+    it('should return false when no tileTargets and tile does not have the filter field', () => {
+        const filterRule = createMockFilterRule({ tileTargets: undefined });
+        const filterableFieldsByTileUuid = {
+            'tile-1': [
+                createMockFilterableField('customers_name', 'customers'),
+            ],
+        };
+
+        expect(
+            doesFilterApplyToTile(
+                filterRule,
+                tile1,
+                filterableFieldsByTileUuid,
+            ),
+        ).toBe(false);
+    });
+
+    it('should return false when no tileTargets and filterableFieldsByTileUuid is undefined', () => {
         const filterRule = createMockFilterRule({ tileTargets: undefined });
 
-        expect(doesFilterApplyToTile(filterRule, tile1, undefined)).toBe(true);
-        expect(doesFilterApplyToTile(filterRule, tile2, undefined)).toBe(true);
+        expect(doesFilterApplyToTile(filterRule, tile1, undefined)).toBe(false);
     });
 
     it('should return false when tile is explicitly excluded', () => {
@@ -196,7 +235,45 @@ describe('getTabsForFilterRule', () => {
     const dashboardTiles = [tile1Tab1, tile2Tab1, tile3Tab2, tile4Tab3];
     const sortedTabUuids = ['tab-1', 'tab-2', 'tab-3'];
 
-    it('should return all tabs when no tileTargets configuration exists', () => {
+    it('should return tabs where tiles have the filter field when no tileTargets', () => {
+        const filterRule = createMockFilterRule({ tileTargets: undefined });
+        const filterableFieldsByTileUuid = {
+            'tile-1': [createMockFilterableField('orders_status', 'orders')],
+            'tile-3': [createMockFilterableField('orders_status', 'orders')],
+            // tile-2 and tile-4 don't have the field
+        };
+
+        const result = getTabsForFilterRule(
+            filterRule,
+            dashboardTiles,
+            sortedTabUuids,
+            filterableFieldsByTileUuid,
+        );
+
+        // tile-1 has field (tab-1), tile-3 has field (tab-2)
+        // tile-2, tile-4 don't have field so tab-3 is excluded
+        expect(result).toEqual(['tab-1', 'tab-2']);
+    });
+
+    it('should return empty when no tileTargets and no tiles have the field', () => {
+        const filterRule = createMockFilterRule({ tileTargets: undefined });
+        const filterableFieldsByTileUuid = {
+            'tile-1': [
+                createMockFilterableField('customers_name', 'customers'),
+            ],
+        };
+
+        const result = getTabsForFilterRule(
+            filterRule,
+            dashboardTiles,
+            sortedTabUuids,
+            filterableFieldsByTileUuid,
+        );
+
+        expect(result).toEqual([]);
+    });
+
+    it('should return empty when no tileTargets and filterableFieldsByTileUuid is undefined', () => {
         const filterRule = createMockFilterRule({ tileTargets: undefined });
 
         const result = getTabsForFilterRule(
@@ -206,7 +283,7 @@ describe('getTabsForFilterRule', () => {
             undefined,
         );
 
-        expect(result).toEqual(['tab-1', 'tab-2', 'tab-3']);
+        expect(result).toEqual([]);
     });
 
     it('should return only tabs with explicitly included tiles', () => {
