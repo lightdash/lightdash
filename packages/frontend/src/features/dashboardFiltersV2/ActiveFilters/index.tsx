@@ -11,10 +11,7 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import {
-    getTabUuidsForFilterRules,
-    type DashboardFilters,
-} from '@lightdash/common';
+import { type DashboardFilterRule } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -26,6 +23,7 @@ import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { getTabsForFilterRule } from '../FilterConfiguration/utils';
 import InvalidFilter from '../InvalidFilter';
 import Filter from './Filter';
 
@@ -152,24 +150,18 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
         return sortedTabs?.map((tab) => tab.uuid) || [];
     }, [dashboardTabs]);
 
+    // Compute which tabs a filter applies to based on tileTargets
+    // Note: We use getTabsForFilterRule because getTabUuidsForFilterRules from common
+    // skips disabled filters, but required filters ARE disabled until a value is set
     const getTabsUsingFilter = useCallback(
-        (filters: DashboardFilters, filterId: string) => {
-            const tabsForFilterMap = getTabUuidsForFilterRules(
+        (filterRule: DashboardFilterRule) =>
+            getTabsForFilterRule(
+                filterRule,
                 dashboardTiles,
-                dashboardFilters,
+                sortedTabUuids,
                 filterableFieldsByTileUuid,
-            );
-            return sortedTabUuids.filter(
-                (tabUuid: string) =>
-                    tabsForFilterMap[filterId]?.includes(tabUuid) ?? false,
-            );
-        },
-        [
-            dashboardTiles,
-            dashboardFilters,
-            filterableFieldsByTileUuid,
-            sortedTabUuids,
-        ],
+            ),
+        [dashboardTiles, sortedTabUuids, filterableFieldsByTileUuid],
     );
 
     if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
@@ -235,21 +227,13 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             >
                 {dashboardFilters.dimensions.map((item, index) => {
                     const field = allFilterableFieldsMap[item.target.fieldId];
-                    const appliesToTabs = getTabsUsingFilter(
-                        dashboardFilters,
-                        item.id,
-                    );
+                    const appliesToTabs = getTabsUsingFilter(item);
 
-                    const appliedToAnyTab =
-                        !activeTabUuid || appliesToTabs.length > 0;
                     const appliedToCurrentTab =
-                        activeTabUuid && appliesToTabs.includes(activeTabUuid);
+                        !activeTabUuid || appliesToTabs.includes(activeTabUuid);
 
-                    if (
-                        activeTabUuid &&
-                        appliedToAnyTab &&
-                        !appliedToCurrentTab
-                    ) {
+                    // Hide filter if it doesn't apply to the current tab
+                    if (!appliedToCurrentTab) {
                         return null;
                     }
 
@@ -264,7 +248,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                     <Filter
                                         key={item.id}
                                         isEditMode={isEditMode}
-                                        notAppliedToAnyTab={!appliedToAnyTab}
+                                        notAppliedToAnyTab={
+                                            appliesToTabs.length === 0
+                                        }
                                         field={field}
                                         filterRule={item}
                                         activeTabUuid={activeTabUuid}
@@ -308,23 +294,20 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
             {dashboardTemporaryFilters.dimensions.map((item, index) => {
                 const field = allFilterableFieldsMap[item.target.fieldId];
-                const appliesToTabs = getTabsUsingFilter(
-                    dashboardTemporaryFilters,
-                    item.id,
-                );
+                const appliesToTabs = getTabsUsingFilter(item);
 
-                const appliedToAnyTab = appliesToTabs.length > 0;
                 const appliedToCurrentTab =
-                    activeTabUuid && appliesToTabs.includes(activeTabUuid);
+                    !activeTabUuid || appliesToTabs.includes(activeTabUuid);
 
-                if (appliedToAnyTab && !appliedToCurrentTab) {
+                // Hide filter if it doesn't apply to the current tab
+                if (!appliedToCurrentTab) {
                     return null;
                 }
 
                 return field || item.target.isSqlColumn ? (
                     <Filter
                         key={item.id}
-                        notAppliedToAnyTab={!appliedToAnyTab}
+                        notAppliedToAnyTab={appliesToTabs.length === 0}
                         isTemporary
                         isEditMode={isEditMode}
                         field={field}

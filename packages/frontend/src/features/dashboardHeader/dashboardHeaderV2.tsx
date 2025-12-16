@@ -24,7 +24,6 @@ type Props = {
     onParameterChange: (key: string, value: ParameterValue | null) => void;
     onParameterClearAll: () => void;
     onParameterPin: (parameterKey: string) => void;
-    hasRequiredDashboardFiltersToSet: boolean;
 
     // tabs
     activeTab: DashboardTab | undefined;
@@ -51,7 +50,6 @@ const DashboardHeaderV2: FC<Props> = ({
     parameterValues,
     parameters,
     pinnedParameters,
-    hasRequiredDashboardFiltersToSet,
     // tabs
     addingTab,
     dashboardTiles,
@@ -67,7 +65,6 @@ const DashboardHeaderV2: FC<Props> = ({
     return (
         <DashboardTabsV2
             isEditMode={isEditMode}
-            hasRequiredDashboardFiltersToSet={hasRequiredDashboardFiltersToSet}
             addingTab={addingTab}
             dashboardTiles={dashboardTiles}
             handleAddTiles={onAddTiles}

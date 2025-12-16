@@ -28,6 +28,7 @@ import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
 import DashboardFiltersV2 from '../dashboardFiltersV2';
+import { doesFilterApplyToTile } from '../dashboardFiltersV2/FilterConfiguration/utils';
 import FilterGroupSeparator from '../dashboardHeader/FilterGroupSeparator';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
@@ -47,7 +48,6 @@ const ResponsiveGridLayout = WidthProvider(Responsive);
 
 type DashboardTabsProps = {
     isEditMode: boolean;
-    hasRequiredDashboardFiltersToSet: boolean;
     addingTab: boolean;
     dashboardTiles: DashboardTile[] | undefined;
     activeTab: DashboardTab | undefined;
@@ -75,7 +75,6 @@ type DashboardTabsProps = {
 
 const DashboardTabsV2: FC<DashboardTabsProps> = ({
     isEditMode,
-    hasRequiredDashboardFiltersToSet,
     addingTab,
     dashboardTiles,
     activeTab,
@@ -140,6 +139,13 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
     const setHaveTilesChanged = useDashboardContext(
         (c) => c.setHaveTilesChanged,
     );
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const requiredDashboardFilters = useDashboardContext(
+        (c) => c.requiredDashboardFilters,
+    );
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
@@ -158,6 +164,58 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
             : [];
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
     const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
+
+    // Compute whether there are required filters that apply to the current tab
+    // Note: We use doesFilterApplyToTile because getTabUuidsForFilterRules from common
+    // skips disabled filters, but required filters ARE disabled until a value is set
+    const hasRequiredFiltersForCurrentTab = useMemo(() => {
+        // If no required filters, no locking needed
+        if (requiredDashboardFilters.length === 0) {
+            return false;
+        }
+
+        // If no tabs or single tab, use original behavior (check all required filters)
+        if (!tabsEnabled) {
+            return requiredDashboardFilters.length > 0;
+        }
+
+        // For each required filter, check if it applies to any tile on the current tab
+        return requiredDashboardFilters.some((requiredFilter) => {
+            // Find the full filter rule to get tileTargets
+            const filterRule = dashboardFilters.dimensions.find(
+                (f) => f.id === requiredFilter.id,
+            );
+            if (!filterRule) return false;
+
+            // If no tileTargets configuration, filter applies to all tiles
+            // So it applies to the current tab
+            if (!filterRule.tileTargets) {
+                return true;
+            }
+
+            // Check if any tile on the current tab is targeted by this filter
+            return (
+                dashboardTiles?.some((tile) => {
+                    // Check if tile is on current tab
+                    if (tile.tabUuid !== activeTab?.uuid) return false;
+
+                    // Use shared utility to check if filter applies to this tile
+                    return doesFilterApplyToTile(
+                        filterRule,
+                        tile,
+                        filterableFieldsByTileUuid,
+                    );
+                }) ?? false
+            );
+        });
+    }, [
+        requiredDashboardFilters,
+        tabsEnabled,
+        dashboardTiles,
+        dashboardFilters.dimensions,
+        activeTab?.uuid,
+        filterableFieldsByTileUuid,
+    ]);
 
     const sortedTiles = dashboardTiles?.sort((a, b) => {
         if (a.y === b.y) {
@@ -587,7 +645,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                     <ResponsiveGridLayout
                                         {...gridProps}
                                         className={`${
-                                            hasRequiredDashboardFiltersToSet
+                                            hasRequiredFiltersForCurrentTab
                                                 ? 'locked'
                                                 : ''
                                         }`}
@@ -612,7 +670,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                                         >
                                                             <GridTile
                                                                 locked={
-                                                                    hasRequiredDashboardFiltersToSet
+                                                                    hasRequiredFiltersForCurrentTab
                                                                 }
                                                                 index={idx}
                                                                 isEditMode={
@@ -641,7 +699,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                 </Group>
                                 <LockedDashboardModal
                                     opened={
-                                        hasRequiredDashboardFiltersToSet &&
+                                        hasRequiredFiltersForCurrentTab &&
                                         !!hasDashboardTiles
                                     }
                                 />
