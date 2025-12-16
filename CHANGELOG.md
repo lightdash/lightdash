@@ -1,3 +1,10 @@
+## [0.2255.1](https://github.com/lightdash/lightdash/compare/0.2255.0...0.2255.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* remove transparency from bg LD_FIELD_COLORS ([#18841](https://github.com/lightdash/lightdash/issues/18841)) ([7366d34](https://github.com/lightdash/lightdash/commit/7366d349589b571dec12434a9194c2a9bc61cf81)), closes [#18840](https://github.com/lightdash/lightdash/issues/18840)
+
 # [0.2255.0](https://github.com/lightdash/lightdash/compare/0.2254.0...0.2255.0) (2025-12-16)
 
 
