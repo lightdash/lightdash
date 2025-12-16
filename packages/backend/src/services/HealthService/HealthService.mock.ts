@@ -104,6 +104,7 @@ export const BaseResponse: HealthState = {
     ai: {
         analyticsProjectUuid: undefined,
         analyticsDashboardUuid: undefined,
+        isAmbientAiEnabled: false,
     },
     echarts6: {
         enabled: false,
