@@ -2,7 +2,9 @@ import {
     CreateProjectOptionalCredentials,
     CreateProjectTableConfiguration,
     DbtProjectType,
+    HealthState,
     ProjectType,
+    SnowflakeAuthenticationType,
     WarehouseTypes,
     type ApiCreateProjectResults,
     type CreateWarehouseCredentials,
@@ -18,7 +20,9 @@ import * as styles from '../styles';
 import { checkProjectCreationPermission, lightdashApi } from './dbt/apiClient';
 import getDbtProfileTargetName from './dbt/getDbtProfileTargetName';
 import { getDbtVersion } from './dbt/getDbtVersion';
-import getWarehouseClient from './dbt/getWarehouseClient';
+import getWarehouseClient, {
+    createProgramaticallySnowflakePat,
+} from './dbt/getWarehouseClient';
 
 const askToRememberAnswer = async (): Promise<void> => {
     const answers = await inquirer.prompt([
@@ -125,6 +129,16 @@ type CreateProjectOptions = {
     warehouseCredentials?: boolean;
     organizationCredentials?: string;
     targetPath?: string;
+};
+
+const isSnowflakeSsoEnabled = async (): Promise<boolean> => {
+    const response = await lightdashApi<HealthState>({
+        method: 'GET',
+        url: `/api/v1/health`,
+        body: undefined,
+    });
+
+    return response?.auth?.snowflake?.enabled ?? false;
 };
 
 export const createProject = async (
@@ -236,6 +250,43 @@ export const createProject = async (
             process.exit(1);
         }
         spinner?.start();
+    }
+
+    if (
+        credentials?.type === WarehouseTypes.SNOWFLAKE &&
+        credentials?.authenticationType ===
+            SnowflakeAuthenticationType.EXTERNAL_BROWSER
+    ) {
+        const snowflakeSsoEnabled = await isSnowflakeSsoEnabled();
+
+        if (snowflakeSsoEnabled) {
+            console.error(
+                styles.info(
+                    `\nLightdash server has Snowflake OAuth authentication enabled.
+We will ask for user credentials again on the Lightdash UI.\n`,
+                ),
+            );
+            credentials = {
+                ...credentials,
+                requireUserCredentials: true,
+            };
+        } else {
+            console.error(
+                styles.warning(
+                    `\nUser has externalbrowser snowflake authentication. 
+We will generate programatically a temporary PAT to enable access on Lightdash which expires in 1 day.
+For a better user experience, we recommend enabling Snowflake OAuth authentication on the server.\n`,
+                ),
+            );
+            const patToken = await createProgramaticallySnowflakePat(
+                credentials,
+            );
+            credentials = {
+                ...credentials,
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                password: patToken,
+            };
+        }
     }
 
     const project: CreateProjectOptionalCredentials = {
