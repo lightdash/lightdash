@@ -156,9 +156,22 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 >
                     {minimal ? (
                         !hideTitle ? (
-                            <Text fw={600} size="md">
-                                {title}
-                            </Text>
+                            <Tooltip
+                                disabled={!description}
+                                label={
+                                    <Text style={{ whiteSpace: 'pre-line' }}>
+                                        {description}
+                                    </Text>
+                                }
+                                multiline
+                                position="top-start"
+                                withinPortal
+                                maw={400}
+                            >
+                                <Text fw={600} size="md">
+                                    {title}
+                                </Text>
+                            </Tooltip>
                         ) : (
                             <Box />
                         )
