@@ -759,6 +759,27 @@ describe('ScimService', () => {
                 'Roles array can only contain one role per project. Duplicate project UUIDs: project-1-uuid',
             );
         });
+
+        test('should allow roles ending with NO_ROLE_KEYWORD', () => {
+            const roles = [
+                {
+                    value: 'admin',
+                    display: 'Admin',
+                    type: 'Organization',
+                    primary: true,
+                },
+                {
+                    value: 'project-1-uuid:no-role',
+                    display: 'Project 1 - No Role',
+                    type: 'Project - Project 1',
+                    primary: false,
+                },
+            ];
+
+            expect(() => {
+                ScimService.validateRolesArray(roles, validRoleValues);
+            }).not.toThrow();
+        });
     });
 
     describe('parseRoleId and generateRoleId integration', () => {
