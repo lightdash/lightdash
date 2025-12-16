@@ -23,7 +23,10 @@ import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import { getTabsForFilterRule } from '../FilterConfiguration/utils';
+import {
+    doesFilterApplyToAnyTile,
+    getTabsForFilterRule,
+} from '../FilterConfiguration/utils';
 import InvalidFilter from '../InvalidFilter';
 import Filter from './Filter';
 
@@ -150,6 +153,9 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
         return sortedTabs?.map((tab) => tab.uuid) || [];
     }, [dashboardTabs]);
 
+    // Tabs are only "enabled" when there's more than one tab
+    const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
+
     // Compute which tabs a filter applies to based on tileTargets
     // Note: We use getTabsForFilterRule because getTabUuidsForFilterRules from common
     // skips disabled filters, but required filters ARE disabled until a value is set
@@ -162,6 +168,34 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 filterableFieldsByTileUuid,
             ),
         [dashboardTiles, sortedTabUuids, filterableFieldsByTileUuid],
+    );
+
+    // Compute orphaned state for a filter
+    // - With multiple tabs: orphaned if filter applies to no tabs
+    // - With single/no tabs: orphaned if filter applies to no tiles
+    const getOrphanedState = useCallback(
+        (
+            filterRule: DashboardFilterRule,
+            appliesToTabs: string[],
+        ): { isOrphaned: boolean; orphanedTooltip: string } => {
+            if (tabsEnabled) {
+                return {
+                    isOrphaned: appliesToTabs.length === 0,
+                    orphanedTooltip: 'This filter is not applied to any tabs',
+                };
+            }
+            // Single tab or no tabs - check if filter applies to any tile
+            const appliesToAnyTile = doesFilterApplyToAnyTile(
+                filterRule,
+                dashboardTiles,
+                filterableFieldsByTileUuid,
+            );
+            return {
+                isOrphaned: !appliesToAnyTile,
+                orphanedTooltip: 'This filter is not applied to any tiles',
+            };
+        },
+        [tabsEnabled, dashboardTiles, filterableFieldsByTileUuid],
     );
 
     if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
@@ -248,9 +282,10 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                     <Filter
                                         key={item.id}
                                         isEditMode={isEditMode}
-                                        notAppliedToAnyTab={
-                                            appliesToTabs.length === 0
-                                        }
+                                        {...getOrphanedState(
+                                            item,
+                                            appliesToTabs,
+                                        )}
                                         field={field}
                                         filterRule={item}
                                         activeTabUuid={activeTabUuid}
@@ -307,7 +342,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 return field || item.target.isSqlColumn ? (
                     <Filter
                         key={item.id}
-                        notAppliedToAnyTab={appliesToTabs.length === 0}
+                        {...getOrphanedState(item, appliesToTabs)}
                         isTemporary
                         isEditMode={isEditMode}
                         field={field}

@@ -111,6 +111,28 @@ export const doesFilterApplyToTile = (
 };
 
 /**
+ * Checks if a filter applies to any tile in the dashboard.
+ *
+ * @param filterRule - The filter rule to check
+ * @param dashboardTiles - All tiles in the dashboard
+ * @param filterableFieldsByTileUuid - Map of tile UUID to available filterable fields
+ * @returns true if the filter applies to at least one tile
+ */
+export const doesFilterApplyToAnyTile = (
+    filterRule: DashboardFilterRule,
+    dashboardTiles: DashboardTile[] | undefined,
+    filterableFieldsByTileUuid:
+        | Record<string, FilterableDimension[]>
+        | undefined,
+): boolean => {
+    return (
+        dashboardTiles?.some((tile) =>
+            doesFilterApplyToTile(filterRule, tile, filterableFieldsByTileUuid),
+        ) ?? false
+    );
+};
+
+/**
  * Computes which tab UUIDs a filter applies to based on its tileTargets configuration.
  *
  * A filter applies to a tab if:

@@ -43,7 +43,8 @@ const useDashboardFilterStyles = createStyles((theme) => ({
 
 type Props = {
     isEditMode: boolean;
-    notAppliedToAnyTab: boolean;
+    isOrphaned: boolean;
+    orphanedTooltip?: string;
     isTemporary?: boolean;
     field: FilterableDimension | undefined;
     filterRule: DashboardFilterRule;
@@ -57,7 +58,8 @@ type Props = {
 
 const Filter: FC<Props> = ({
     isEditMode,
-    notAppliedToAnyTab,
+    isOrphaned,
+    orphanedTooltip = 'This filter is not applied to any tiles',
     isTemporary,
     field,
     filterRule,
@@ -209,10 +211,8 @@ const Filter: FC<Props> = ({
                     >
                         <Tooltip
                             fz="xs"
-                            label={
-                                'This filter is not currently applied to any tabs'
-                            }
-                            disabled={!notAppliedToAnyTab}
+                            label={orphanedTooltip}
+                            disabled={!isOrphaned}
                             withinPortal
                         >
                             <Button
@@ -228,11 +228,7 @@ const Filter: FC<Props> = ({
                                     hasUnsetRequiredFilter
                                         ? classes.unsetRequiredFilter
                                         : ''
-                                } ${
-                                    notAppliedToAnyTab
-                                        ? classes.inactiveFilter
-                                        : ''
-                                }`}
+                                } ${isOrphaned ? classes.inactiveFilter : ''}`}
                                 leftIcon={
                                     isDraggable && (
                                         <MantineIcon
