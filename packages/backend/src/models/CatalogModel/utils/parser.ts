@@ -80,7 +80,7 @@ export const parseCatalog = (
         >[];
         search_rank: number;
     },
-): CatalogTable | CatalogField => {
+): CatalogTable | CatalogField | null => {
     const baseTable = dbCatalog.explore.tables[dbCatalog.explore.baseTable];
 
     if (dbCatalog.type === CatalogType.Table) {
@@ -106,6 +106,13 @@ export const parseCatalog = (
     // This is important for fields from joined tables which may not be in the base table
     const catalogTable = dbCatalog.explore.tables[dbCatalog.table_name];
 
+    if (!catalogTable) {
+        // Table exists in catalog but not in the current explore definition.
+        // This can happen when a joined table is removed from the explore but the catalog
+        // hasn't been fully re-indexed yet. Return null to skip this stale entry.
+        return null;
+    }
+
     const dimensionsAndMetrics = [
         ...Object.values(catalogTable.dimensions),
         ...Object.values(catalogTable.metrics),
@@ -117,9 +124,10 @@ export const parseCatalog = (
         (d) => d.name === dbCatalog.name,
     );
     if (!findField) {
-        throw new Error(
-            `Field ${dbCatalog.name} not found in table ${dbCatalog.table_name} of explore ${dbCatalog.explore.name}`,
-        );
+        // Field exists in catalog but not in the current explore definition.
+        // This can happen when a field is removed from the dbt/YAML model but the catalog
+        // hasn't been fully re-indexed yet. Return null to skip this stale entry.
+        return null;
     }
     return parseFieldFromMetricOrDimension(catalogTable, findField, {
         label: dbCatalog.label,
