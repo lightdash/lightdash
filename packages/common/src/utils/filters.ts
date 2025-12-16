@@ -58,10 +58,12 @@ export const getFilterRulesFromGroup = (
     filterGroup: FilterGroup | undefined,
 ): FilterRule[] => {
     if (filterGroup) {
-        const items = isAndFilterGroup(filterGroup)
+        const items: FilterGroupItem[] | undefined = isAndFilterGroup(
+            filterGroup,
+        )
             ? filterGroup.and
             : filterGroup.or;
-        return items.reduce<FilterRule[]>(
+        return (items ?? []).reduce<FilterRule[]>(
             (sum, item) =>
                 isFilterGroup(item)
                     ? [...sum, ...getFilterRulesFromGroup(item)]
