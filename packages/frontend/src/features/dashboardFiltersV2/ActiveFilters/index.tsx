@@ -263,11 +263,13 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                     const field = allFilterableFieldsMap[item.target.fieldId];
                     const appliesToTabs = getTabsUsingFilter(item);
 
+                    const isOrphanedFilter = appliesToTabs.length === 0;
                     const appliedToCurrentTab =
                         !activeTabUuid || appliesToTabs.includes(activeTabUuid);
 
                     // Hide filter if it doesn't apply to the current tab
-                    if (!appliedToCurrentTab) {
+                    // But always show orphaned filters so users can see and fix them
+                    if (!appliedToCurrentTab && !isOrphanedFilter) {
                         return null;
                     }
 
@@ -330,11 +332,13 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                 const field = allFilterableFieldsMap[item.target.fieldId];
                 const appliesToTabs = getTabsUsingFilter(item);
 
+                const isOrphanedFilter = appliesToTabs.length === 0;
                 const appliedToCurrentTab =
                     !activeTabUuid || appliesToTabs.includes(activeTabUuid);
 
                 // Hide filter if it doesn't apply to the current tab
-                if (!appliedToCurrentTab) {
+                // But always show orphaned filters so users can see and fix them
+                if (!appliedToCurrentTab && !isOrphanedFilter) {
                     return null;
                 }
 
