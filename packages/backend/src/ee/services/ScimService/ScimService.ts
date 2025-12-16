@@ -66,6 +66,8 @@ type ScimServiceArguments = {
     projectModel: ProjectModel;
 };
 
+const NO_ROLE_KEYWORD = 'no-role';
+
 export class ScimService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -751,7 +753,14 @@ export class ScimService extends BaseService {
                     role.value,
                 );
                 if (projectUuid) {
-                    desiredProjectRoles.push({ projectUuid, roleId: roleUuid });
+                    if (roleUuid.toLowerCase() === NO_ROLE_KEYWORD) {
+                        // Ignore entry in SCIM roles array. This is used to bypass limitation in Okta SCIM API where a role value can't be optionally set.
+                    } else {
+                        desiredProjectRoles.push({
+                            projectUuid,
+                            roleId: roleUuid,
+                        });
+                    }
                 } else if (isOrganizationMemberRole(roleUuid)) {
                     desiredOrgRoleUuid = roleUuid;
                 }
@@ -1543,7 +1552,11 @@ export class ScimService extends BaseService {
         // Check for invalid role values
         const invalidRoles = roles
             .map((role) => role.value)
-            .filter((roleValue) => !validRoleValues.includes(roleValue));
+            .filter(
+                (roleValue) =>
+                    !validRoleValues.includes(roleValue) &&
+                    !roleValue.endsWith(NO_ROLE_KEYWORD),
+            );
 
         if (invalidRoles.length > 0) {
             throw new ParameterError(
