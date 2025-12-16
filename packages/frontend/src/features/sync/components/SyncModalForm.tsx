@@ -19,7 +19,7 @@ import {
 } from '@mantine/core';
 import { IconCirclesRelation, IconInfoCircle } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
-import { FormProvider, useForm } from 'react-hook-form';
+import { FormProvider, useForm, useFormState } from 'react-hook-form';
 import CronInput from '../../../components/ReactHookForm/CronInput';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -82,6 +82,8 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
         },
     });
 
+    const { isValid, errors } = useFormState({ control: methods.control });
+
     useEffect(() => {
         if (schedulerData && isEditing) {
             methods.reset(schedulerData);
@@ -101,11 +103,8 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
             | CreateSchedulerAndTargetsWithoutIds
             | UpdateSchedulerAndTargetsWithoutId,
     ) => {
-        if (!methods.formState.isValid) {
-            console.error(
-                'Unable to send form with errors',
-                methods.formState.errors,
-            );
+        if (!isValid) {
+            console.error('Unable to send form with errors', errors);
             return;
         }
 
@@ -245,10 +244,9 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                             label="Tab name"
                             placeholder="Sheet1"
                             error={
-                                methods.formState.errors.options &&
-                                `tabName` in methods.formState.errors.options &&
-                                methods.formState.errors.options?.tabName
-                                    ?.message
+                                errors.options &&
+                                `tabName` in errors.options &&
+                                errors.options?.tabName?.message
                             }
                             {...methods.register('options.tabName', {
                                 validate: (value) => {
@@ -273,9 +271,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
 
                         <Button
                             type="submit"
-                            disabled={
-                                !hasSetGoogleSheet || !methods.formState.isValid
-                            }
+                            disabled={!hasSetGoogleSheet || !isValid}
                             loading={isLoading}
                             leftIcon={
                                 !isEditing && (
