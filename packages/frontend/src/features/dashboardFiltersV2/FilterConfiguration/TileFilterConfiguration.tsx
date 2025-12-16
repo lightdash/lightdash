@@ -142,9 +142,9 @@ const TileFilterConfiguration: FC<Props> = ({
 
                     let selectedField;
                     let invalidField: string | undefined;
-                    if (relation !== 'excluded') {
+                    if (relation !== 'disabled') {
                         selectedField =
-                            relation === 'explicit' &&
+                            relation === 'mapped' &&
                             tileConfig &&
                             isDashboardFieldTarget(tileConfig)
                                 ? filters?.find(
@@ -159,7 +159,7 @@ const TileFilterConfiguration: FC<Props> = ({
 
                         // If tileConfig?.fieldId is set, but the field is not found in the filters, we mark it as invalid filter (missing dimension in model)
                         invalidField =
-                            relation === 'explicit' &&
+                            relation === 'mapped' &&
                             tileConfig &&
                             isDashboardFieldTarget(tileConfig) &&
                             tileConfig?.fieldId !== undefined &&
@@ -241,9 +241,9 @@ const TileFilterConfiguration: FC<Props> = ({
 
                 let selectedField;
                 let invalidField: string | undefined;
-                if (relation !== 'excluded') {
+                if (relation !== 'disabled') {
                     selectedField =
-                        relation === 'explicit' &&
+                        relation === 'mapped' &&
                         tileConfig &&
                         isDashboardFieldTarget(tileConfig)
                             ? columns?.find((f) => tileConfig?.fieldId === f)
@@ -251,7 +251,7 @@ const TileFilterConfiguration: FC<Props> = ({
 
                     // If tileConfig?.fieldId is set, but the field is not found in the filters, we mark it as invalid filter (missing dimension in model)
                     invalidField =
-                        relation === 'explicit' &&
+                        relation === 'mapped' &&
                         tileConfig &&
                         isDashboardFieldTarget(tileConfig) &&
                         tileConfig?.fieldId !== undefined &&

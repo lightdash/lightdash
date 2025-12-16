@@ -58,25 +58,25 @@ const createMockFilterableField = (
     } as FilterableDimension);
 
 describe('getFilterTileRelation', () => {
-    it('should return "all" when no tileTargets configuration exists', () => {
+    it('should return "auto" when no tileTargets configuration exists', () => {
         const filterRule = createMockFilterRule({ tileTargets: undefined });
         const result = getFilterTileRelation(filterRule, 'tile-1');
 
-        expect(result.relation).toBe('all');
+        expect(result.relation).toBe('auto');
         expect(result.tileConfig).toBeUndefined();
     });
 
-    it('should return "excluded" when tile is explicitly excluded (tileConfig === false)', () => {
+    it('should return "disabled" when tile is explicitly excluded (tileConfig === false)', () => {
         const filterRule = createMockFilterRule({
             tileTargets: { 'tile-1': false },
         });
         const result = getFilterTileRelation(filterRule, 'tile-1');
 
-        expect(result.relation).toBe('excluded');
+        expect(result.relation).toBe('disabled');
         expect(result.tileConfig).toBe(false);
     });
 
-    it('should return "explicit" when tile has explicit field mapping', () => {
+    it('should return "mapped" when tile has explicit field mapping', () => {
         const filterRule = createMockFilterRule({
             tileTargets: {
                 'tile-1': {
@@ -87,20 +87,20 @@ describe('getFilterTileRelation', () => {
         });
         const result = getFilterTileRelation(filterRule, 'tile-1');
 
-        expect(result.relation).toBe('explicit');
+        expect(result.relation).toBe('mapped');
         expect(result.tileConfig).toEqual({
             fieldId: 'orders_status',
             tableName: 'orders',
         });
     });
 
-    it('should return "default" when tile is not in tileTargets (undefined)', () => {
+    it('should return "auto" when tile is not in tileTargets (applies automatically)', () => {
         const filterRule = createMockFilterRule({
             tileTargets: { 'other-tile': false },
         });
         const result = getFilterTileRelation(filterRule, 'tile-1');
 
-        expect(result.relation).toBe('default');
+        expect(result.relation).toBe('auto');
         expect(result.tileConfig).toBeUndefined();
     });
 });

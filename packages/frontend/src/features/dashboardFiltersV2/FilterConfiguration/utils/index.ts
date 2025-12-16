@@ -14,12 +14,11 @@ import isEqual from 'lodash/isEqual';
 /**
  * Describes the relationship between a filter and a tile based on tileTargets configuration.
  *
- * - 'all': No tileTargets configuration exists, filter applies to all tiles
- * - 'excluded': Tile is explicitly excluded (tileConfig === false)
- * - 'explicit': Tile is explicitly included with field mapping (tileConfig is a field target)
- * - 'default': Tile should apply by default behavior (tileConfig is undefined)
+ * - 'auto': Filter automatically applies to tiles that have the matching field
+ * - 'disabled': Tile is explicitly disabled/excluded from this filter
+ * - 'mapped': Tile is explicitly mapped with a specific field configuration
  */
-export type FilterTileRelation = 'all' | 'excluded' | 'explicit' | 'default';
+export type FilterTileRelation = 'auto' | 'disabled' | 'mapped';
 
 /**
  * Gets the relationship between a filter and a tile based on tileTargets configuration.
@@ -36,20 +35,21 @@ export const getFilterTileRelation = (
     tileConfig: DashboardFieldTarget | false | undefined;
 } => {
     if (!filterRule.tileTargets) {
-        return { relation: 'all', tileConfig: undefined };
+        return { relation: 'auto', tileConfig: undefined };
     }
 
     const tileConfig = filterRule.tileTargets[tileUuid];
 
     if (tileConfig === false) {
-        return { relation: 'excluded', tileConfig };
+        return { relation: 'disabled', tileConfig };
     }
 
     if (tileConfig && isDashboardFieldTarget(tileConfig)) {
-        return { relation: 'explicit', tileConfig };
+        return { relation: 'mapped', tileConfig };
     }
 
-    return { relation: 'default', tileConfig: undefined };
+    // Tile not mentioned in tileTargets - applies automatically
+    return { relation: 'auto', tileConfig: undefined };
 };
 
 /**
@@ -91,24 +91,17 @@ export const doesFilterApplyToTile = (
     const { relation } = getFilterTileRelation(filterRule, tile.uuid);
 
     switch (relation) {
-        case 'all':
-            // No tileTargets config - filter applies to all tiles that have the field
+        case 'auto':
+            // Filter automatically applies to tiles that have the field
             return tileHasFilterField(
                 filterRule,
                 tile,
                 filterableFieldsByTileUuid,
             );
-        case 'excluded':
+        case 'disabled':
             return false;
-        case 'explicit':
+        case 'mapped':
             return true;
-        case 'default':
-            // Not in tileTargets (undefined) - check if filter can apply by default
-            return tileHasFilterField(
-                filterRule,
-                tile,
-                filterableFieldsByTileUuid,
-            );
         default:
             return assertUnreachable(
                 relation,
