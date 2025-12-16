@@ -1,4 +1,5 @@
 import {
+    AiAgentValidatorError,
     AiResultType,
     convertAiTableCalcsSchemaToTableCalcs,
     getSlackAiEchartsConfig,
@@ -56,6 +57,24 @@ export const validateRunQueryTool = (
     explore: Explore,
 ) => {
     const filterRules = getTotalFilterRules(queryTool.filters);
+
+    const {
+        queryConfig: { dimensions, metrics },
+        customMetrics,
+        tableCalculations,
+    } = queryTool;
+
+    const hasFields =
+        dimensions.length > 0 ||
+        metrics.length > 0 ||
+        (customMetrics && customMetrics.length > 0) ||
+        (tableCalculations && tableCalculations.length > 0);
+
+    if (!hasFields) {
+        throw new AiAgentValidatorError(
+            'Query must have at least one dimension, metric, or table calculation',
+        );
+    }
 
     // Validate dimensions
     validateFieldEntityType(
