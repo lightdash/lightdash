@@ -440,6 +440,12 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
                     zoom={mapConfig.zoom}
                     style={{ height: '100%', width: '100%' }}
                     scrollWheelZoom
+                    minZoom={2}
+                    maxBounds={[
+                        [-90, -180],
+                        [90, 180],
+                    ]}
+                    maxBoundsViscosity={1.0}
                 >
                     <MapRefUpdater mapRef={leafletMapRef} />
                     <MapExtentTracker
@@ -541,6 +547,12 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
                     zoom={mapConfig.zoom}
                     style={{ height: '100%', width: '100%' }}
                     scrollWheelZoom
+                    minZoom={2}
+                    maxBounds={[
+                        [-90, -180],
+                        [90, 180],
+                    ]}
+                    maxBoundsViscosity={1.0}
                 >
                     <MapRefUpdater mapRef={leafletMapRef} />
                     <MapExtentTracker
