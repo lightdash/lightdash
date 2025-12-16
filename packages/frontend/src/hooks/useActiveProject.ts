@@ -137,22 +137,34 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
         defaultProject?.projectUuid ||
         fallbackProject?.projectUuid;
 
-    // Update localStorage when we find an active project but don't have one stored
+    // Update localStorage when URL param takes precedence or no valid lastProject
     useEffect(() => {
         const newValue =
             paramProject?.projectUuid ||
             defaultProject?.projectUuid ||
             fallbackProject?.projectUuid;
-        if (!isLoading && !lastProjectUuid && newValue) {
+
+        const hasValidLastProject = !!lastProject?.projectUuid;
+        const shouldPersistProject =
+            !!params.projectUuid || !hasValidLastProject;
+
+        if (
+            !isLoading &&
+            shouldPersistProject &&
+            newValue &&
+            newValue !== lastProjectUuid
+        ) {
             mutate(newValue);
         }
     }, [
-        isLoading,
         defaultProject?.projectUuid,
         fallbackProject?.projectUuid,
+        isLoading,
+        lastProject?.projectUuid,
         lastProjectUuid,
         mutate,
         paramProject?.projectUuid,
+        params.projectUuid,
     ]);
 
     return {
