@@ -1,3 +1,10 @@
+## [0.2255.2](https://github.com/lightdash/lightdash/compare/0.2255.1...0.2255.2) (2025-12-16)
+
+
+### Bug Fixes
+
+* dashboard e2e test after chart tile structure change ([#18847](https://github.com/lightdash/lightdash/issues/18847)) ([afe590e](https://github.com/lightdash/lightdash/commit/afe590e53b87d69f62317c519d43a19811b341fe))
+
 ## [0.2255.1](https://github.com/lightdash/lightdash/compare/0.2255.0...0.2255.1) (2025-12-16)
 
 
