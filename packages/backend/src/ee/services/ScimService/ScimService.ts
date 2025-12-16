@@ -1555,7 +1555,7 @@ export class ScimService extends BaseService {
             .filter(
                 (roleValue) =>
                     !validRoleValues.includes(roleValue) &&
-                    !roleValue.endsWith(NO_ROLE_KEYWORD),
+                    !roleValue.toLowerCase().endsWith(NO_ROLE_KEYWORD),
             );
 
         if (invalidRoles.length > 0) {
