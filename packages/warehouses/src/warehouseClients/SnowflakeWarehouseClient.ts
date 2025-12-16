@@ -223,6 +223,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             credentials.authenticationType ===
             SnowflakeAuthenticationType.EXTERNAL_BROWSER
         ) {
+            // This can only be used on the CLI
+            // The backend does not support this authentication type
+            // See createProgrammaticAccessToken for more details
             authenticationOptions = {
                 authenticator: EXTERNAL_BROWSER_AUTHENTICATOR,
             };
@@ -352,7 +355,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 )();
             } catch (e: unknown) {
                 throw new WarehouseConnectionError(
-                    `Snowflake error: ${getErrorMessage(e)}`,
+                    `Snowflake external browser error: ${getErrorMessage(e)}`,
                 );
             }
             return connection;
@@ -384,6 +387,61 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             );
         }
         return connection;
+    }
+
+    /**
+     * Creates a Programmatic Access Token (PAT) after external browser authentication.
+     * This allows the backend to use the PAT for subsequent queries without requiring
+     * browser-based authentication.
+     *
+     * @param tokenName - Name for the PAT (must be unique per user)
+     * @param daysToExpiry - Number of days until the token expires (default: 1, max: 365)
+     * @param minsToBypassNetworkPolicy - Minutes to bypass network policy requirement (default: 1440 = 1 day, max: 1440)
+     * @returns The PAT secret that can be used as a password for authentication
+     */
+    async createProgrammaticAccessToken(
+        tokenName: string = `lightdash_pat_${Date.now()}`,
+        daysToExpiry: number = 1,
+        minsToBypassNetworkPolicy: number = 1440,
+    ): Promise<{ tokenSecret: string; tokenName: string }> {
+        if (
+            this.connectionOptions.authenticator !==
+            EXTERNAL_BROWSER_AUTHENTICATOR
+        ) {
+            throw new UnexpectedServerError(
+                'PAT creation is only supported with external browser authentication',
+            );
+        }
+
+        const connection = await this.createExternalBrowserConnection();
+
+        try {
+            // MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT allows PAT to work without network policy
+            // This is needed for human users who are not subject to a network policy
+            const sqlText = `ALTER USER ADD PAT ${tokenName} DAYS_TO_EXPIRY = ${daysToExpiry} MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT = ${minsToBypassNetworkPolicy} COMMENT = 'Lightdash backend access token'`;
+
+            const result = await this.executeStatements(connection, sqlText);
+
+            // The ALTER USER ADD PAT command returns a row with the token_secret
+            if (!result.rows || result.rows.length === 0) {
+                throw new UnexpectedServerError(
+                    'Failed to create PAT: no result returned',
+                );
+            }
+
+            const tokenSecret = result.rows[0]?.token_secret;
+            if (!tokenSecret) {
+                throw new UnexpectedServerError(
+                    'Failed to create PAT: token_secret not found in result',
+                );
+            }
+
+            return { tokenSecret, tokenName };
+        } catch (e: unknown) {
+            throw new WarehouseConnectionError(
+                `Failed to create Snowflake PAT: ${getErrorMessage(e)}`,
+            );
+        }
     }
 
     private async prepareWarehouse(

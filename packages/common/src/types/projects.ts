@@ -313,7 +313,9 @@ export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
         ...filteredBaseCredentials, // We copy most of the base config from the parent project, including advanced settings
         ...newCredentials,
         // Keep requireUserCredentials from base credentials, since this is a security setting and should not be overridden
-        requireUserCredentials: baseCredentials.requireUserCredentials,
+        requireUserCredentials:
+            baseCredentials.requireUserCredentials ||
+            newCredentials.requireUserCredentials,
     };
 
     return merged as T;
