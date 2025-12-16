@@ -3,6 +3,7 @@ import {
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
     getItemId,
+    getReadableTextColor,
     isNumericItem,
     type ConditionalFormattingRowFields,
     type ResultRow,
@@ -22,7 +23,6 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import React, { useEffect, useMemo, type FC } from 'react';
 import {
     getColorFromRange,
-    readableColor,
     transformColorsForDarkMode,
 } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabelFromItem } from '../../Filters/FilterInputs/utils';
@@ -146,7 +146,7 @@ const TableRow: FC<TableRowProps> = ({
                 // When conditional formatting is applied, always use calculated contrast color
                 // to ensure text remains readable regardless of light/dark mode
                 const fontColor = conditionalFormattingColor
-                    ? readableColor(conditionalFormattingColor)
+                    ? getReadableTextColor(conditionalFormattingColor)
                     : undefined;
 
                 const suppressContextMenu =

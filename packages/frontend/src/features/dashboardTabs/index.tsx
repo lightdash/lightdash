@@ -175,9 +175,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     order: 0,
                 };
                 newTabs.push(firstTab);
-                dashboardTiles?.forEach((tile) => {
-                    tile.tabUuid = firstTab.uuid; // move all tiles to default tab
-                });
+                // Move all tiles to the new default tab (immutable update)
+                setDashboardTiles((currentTiles) =>
+                    currentTiles?.map((tile) => ({
+                        ...tile,
+                        tabUuid: firstTab.uuid,
+                    })),
+                );
+                setHaveTilesChanged(true);
             }
             const lastOrd = newTabs.sort((a, b) => b.order - a.order)[0].order;
             const newTab = {
@@ -228,9 +233,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         setDeletingTab(false);
 
         if (dashboardTabs.length === 1) {
-            dashboardTiles?.forEach((tile) => {
-                tile.tabUuid = undefined; // set tab uuid back to null to avoid foreign key constraint error
-            });
+            // Clear tabUuid from all tiles to avoid foreign key constraint error (immutable update)
+            setDashboardTiles((currentTiles) =>
+                currentTiles?.map((tile) => ({
+                    ...tile,
+                    tabUuid: undefined,
+                })),
+            );
+            setHaveTilesChanged(true);
             // If this is the last tab, navigate to the non-tab URL.
             // See `const = sortedTabs` for more context.
             void navigate(

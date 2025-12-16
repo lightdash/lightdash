@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     defaultTileSize,
     type Dashboard,
+    type DashboardHeadingTileProperties,
     type DashboardLoomTileProperties,
     type DashboardMarkdownTile,
     type DashboardMarkdownTileProperties,
@@ -16,10 +17,11 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import { IconMarkdown, IconVideo } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { IconHeading, IconMarkdown, IconVideo } from '@tabler/icons-react';
+import { useCallback, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../common/MantineIcon';
+import HeadingTileForm from './HeadingTileForm';
 import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
 import { getLoomId, markdownTileContentTransform } from './utils';
@@ -28,7 +30,10 @@ type Tile = Dashboard['tiles'][number];
 type TileProperties = Tile['properties'];
 
 type AddProps = ModalProps & {
-    type: DashboardTileTypes.LOOM | DashboardTileTypes.MARKDOWN;
+    type:
+        | DashboardTileTypes.LOOM
+        | DashboardTileTypes.MARKDOWN
+        | DashboardTileTypes.HEADING;
     onConfirm: (tile: Tile) => void;
 };
 
@@ -49,13 +54,18 @@ export const TileAddModal: FC<AddProps> = ({
             title: (value: string | undefined) =>
                 !value || !value.length ? 'Required field' : null,
         };
+        const textValidator = {
+            text: (value: string | undefined) =>
+                !value || !value.length ? 'Required field' : null,
+        };
         if (type === DashboardTileTypes.LOOM)
             return { ...urlValidator, ...titleValidator };
+        if (type === DashboardTileTypes.HEADING) return textValidator;
     };
 
     const form = useForm<TileProperties>({
         validate: getValidators(),
-        validateInputOnChange: ['title', 'url', 'content'],
+        validateInputOnChange: ['title', 'url', 'content', 'text'],
         transformValues(values) {
             if (type === DashboardTileTypes.MARKDOWN) {
                 return markdownTileContentTransform(
@@ -66,6 +76,19 @@ export const TileAddModal: FC<AddProps> = ({
             return values;
         },
     });
+
+    const getTileIcon = useCallback(() => {
+        switch (type) {
+            case DashboardTileTypes.MARKDOWN:
+                return IconMarkdown;
+            case DashboardTileTypes.LOOM:
+                return IconVideo;
+            case DashboardTileTypes.HEADING:
+                return IconHeading;
+            default:
+                return assertUnreachable(type, 'Tile type not supported');
+        }
+    }, [type]);
 
     if (!type) return null;
 
@@ -78,13 +101,23 @@ export const TileAddModal: FC<AddProps> = ({
             }
         }
 
+        let size = defaultTileSize;
+
+        if (type === DashboardTileTypes.HEADING) {
+            size = {
+                ...defaultTileSize,
+                h: 1,
+                w: 36,
+            };
+        }
         onConfirm({
             uuid: uuid4(),
             properties: properties as any,
             type,
             tabUuid: undefined,
-            ...defaultTileSize,
+            ...size,
         });
+
         form.reset();
         setErrorMessage('');
     });
@@ -102,11 +135,7 @@ export const TileAddModal: FC<AddProps> = ({
                     <MantineIcon
                         size="lg"
                         color="blue.6"
-                        icon={
-                            type === DashboardTileTypes.MARKDOWN
-                                ? IconMarkdown
-                                : IconVideo
-                        }
+                        icon={getTileIcon()}
                     />
                     <Title order={4}>Add {type} tile</Title>
                 </Group>
@@ -133,6 +162,14 @@ export const TileAddModal: FC<AddProps> = ({
                                 >
                             }
                             withHideTitle={false}
+                        />
+                    ) : type === DashboardTileTypes.HEADING ? (
+                        <HeadingTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardHeadingTileProperties['properties']
+                                >
+                            }
                         />
                     ) : (
                         assertUnreachable(type, 'Tile type not supported')

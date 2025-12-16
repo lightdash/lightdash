@@ -43,12 +43,12 @@ const useDashboardFilterStyles = createStyles((theme) => ({
 
 type Props = {
     isEditMode: boolean;
-    notAppliedToAnyTab: boolean;
+    isOrphaned: boolean;
+    orphanedTooltip?: string;
     isTemporary?: boolean;
     field: FilterableDimension | undefined;
     filterRule: DashboardFilterRule;
     openPopoverId: string | undefined;
-    activeTabUuid: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
     onUpdate: (filter: DashboardFilterRule) => void;
@@ -57,12 +57,12 @@ type Props = {
 
 const Filter: FC<Props> = ({
     isEditMode,
-    notAppliedToAnyTab,
+    isOrphaned,
+    orphanedTooltip = 'This filter is not applied to any tiles',
     isTemporary,
     field,
     filterRule,
     openPopoverId,
-    activeTabUuid,
     onPopoverOpen,
     onPopoverClose,
     onUpdate,
@@ -209,10 +209,8 @@ const Filter: FC<Props> = ({
                     >
                         <Tooltip
                             fz="xs"
-                            label={
-                                'This filter is not currently applied to any tabs'
-                            }
-                            disabled={!notAppliedToAnyTab}
+                            label={orphanedTooltip}
+                            disabled={!isOrphaned}
                             withinPortal
                         >
                             <Button
@@ -228,11 +226,7 @@ const Filter: FC<Props> = ({
                                     hasUnsetRequiredFilter
                                         ? classes.unsetRequiredFilter
                                         : ''
-                                } ${
-                                    notAppliedToAnyTab
-                                        ? classes.inactiveFilter
-                                        : ''
-                                }`}
+                                } ${isOrphaned ? classes.inactiveFilter : ''}`}
                                 leftIcon={
                                     isDraggable && (
                                         <MantineIcon
@@ -343,7 +337,6 @@ const Filter: FC<Props> = ({
                             fields={allFilterableFields || []}
                             tiles={dashboardTiles}
                             tabs={dashboardTabs}
-                            activeTabUuid={activeTabUuid}
                             originalFilterRule={originalFilterRule}
                             availableTileFilters={
                                 filterableFieldsByTileUuid ?? {}

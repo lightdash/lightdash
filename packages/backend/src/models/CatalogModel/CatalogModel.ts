@@ -956,20 +956,14 @@ export class CatalogModel {
             paginatedCatalogItems.data.map((item) => item.catalog_search_uuid),
         );
 
-        // When using filteredExplores, we need to match each field to the correct explore
-        // that contains it, since fields from joined tables may be indexed under different explores
-        const exploreByTableName: Map<string, Explore> | undefined =
-            filteredExplores
-                ? new Map(
-                      filteredExplores.flatMap((explore) => {
-                          const tables = Object.keys(explore.tables);
-                          return tables.map((tableName): [string, Explore] => [
-                              tableName,
-                              explore,
-                          ]);
-                      }),
-                  )
-                : undefined;
+        // When using filteredExplores, we need to match each catalog item to the correct explore.
+        // We key by explore name (not table name) because the same table can appear in multiple
+        // explores as a joined table with different fields exposed.
+        const exploreByName: Map<string, Explore> | undefined = filteredExplores
+            ? new Map(
+                  filteredExplores.map((explore) => [explore.name, explore]),
+              )
+            : undefined;
 
         const catalog = await wrapSentryTransaction(
             'CatalogModel.search.parse',
@@ -977,37 +971,43 @@ export class CatalogModel {
                 catalogSize: paginatedCatalogItems.data.length,
             },
             async () =>
-                paginatedCatalogItems.data.map((item) => {
-                    // Use the explore from filteredExplores if available, otherwise use from DB
-                    let explore = exploreByTableName
-                        ? exploreByTableName.get(item.table_name)
-                        : undefined;
+                paginatedCatalogItems.data
+                    .map((item) => {
+                        // Use the explore from filteredExplores if available, otherwise use from DB.
+                        // We match by explore name (from item.explore) since each catalog entry
+                        // is indexed under a specific explore via cached_explore_uuid.
+                        let explore = exploreByName
+                            ? exploreByName.get(item.explore.name)
+                            : undefined;
 
-                    if (!explore) {
-                        explore = item.explore;
-                    }
+                        if (!explore) {
+                            explore = item.explore;
+                        }
 
-                    if (!explore) {
-                        throw new Error(
-                            `Explore not found for field ${item.name} in table ${item.table_name}`,
-                        );
-                    }
+                        if (!explore) {
+                            throw new Error(
+                                `Explore not found for field ${item.name} in table ${item.table_name}`,
+                            );
+                        }
 
-                    if (changeset) {
-                        const exploreWithChanges =
-                            ChangesetUtils.applyChangeset(changeset, {
-                                // we need to clone the explore to avoid mutating the original explore object
-                                [explore.name]: structuredClone(explore),
-                            })[explore.name] as Explore; // at this point we know the explore is valid
-                        explore = exploreWithChanges;
-                    }
-                    return parseCatalog({
-                        ...item,
-                        explore,
-                        catalog_tags:
-                            tagsPerItem[item.catalog_search_uuid] ?? [],
-                    });
-                }),
+                        if (changeset) {
+                            const exploreWithChanges =
+                                ChangesetUtils.applyChangeset(changeset, {
+                                    // we need to clone the explore to avoid mutating the original explore object
+                                    [explore.name]: structuredClone(explore),
+                                })[explore.name] as Explore; // at this point we know the explore is valid
+                            explore = exploreWithChanges;
+                        }
+                        return parseCatalog({
+                            ...item,
+                            explore,
+                            catalog_tags:
+                                tagsPerItem[item.catalog_search_uuid] ?? [],
+                        });
+                    })
+                    // Filter out null results from stale catalog entries
+                    // (fields/tables that exist in catalog but were removed from the explore)
+                    .filter((item): item is CatalogItem => item !== null),
         );
 
         return {

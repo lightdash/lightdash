@@ -35,7 +35,7 @@ export function metricQueryWithLimit(
         metricQuery.tableCalculations.length;
     if (numberColumns === 0)
         throw new ParameterError(
-            'Query must have at least one dimension or metric',
+            'Query must have at least one dimension, metric, or table calculation',
         );
     const maxRows = Math.floor(csvCellsLimit / Math.max(numberColumns, 1));
     const csvRowLimit =

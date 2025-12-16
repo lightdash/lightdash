@@ -11,10 +11,7 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import {
-    getTabUuidsForFilterRules,
-    type DashboardFilters,
-} from '@lightdash/common';
+import { type DashboardFilterRule } from '@lightdash/common';
 import {
     Button,
     Group,
@@ -26,6 +23,10 @@ import { IconRotate2 } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import {
+    doesFilterApplyToAnyTile,
+    getTabsForFilterRule,
+} from '../FilterConfiguration/utils';
 import InvalidFilter from '../InvalidFilter';
 import Filter from './Filter';
 
@@ -152,24 +153,49 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
         return sortedTabs?.map((tab) => tab.uuid) || [];
     }, [dashboardTabs]);
 
+    // Tabs are only "enabled" when there's more than one tab
+    const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
+
+    // Compute which tabs a filter applies to based on tileTargets
+    // Note: We use getTabsForFilterRule because getTabUuidsForFilterRules from common
+    // skips disabled filters, but required filters ARE disabled until a value is set
     const getTabsUsingFilter = useCallback(
-        (filters: DashboardFilters, filterId: string) => {
-            const tabsForFilterMap = getTabUuidsForFilterRules(
+        (filterRule: DashboardFilterRule) =>
+            getTabsForFilterRule(
+                filterRule,
                 dashboardTiles,
-                dashboardFilters,
+                sortedTabUuids,
+                filterableFieldsByTileUuid,
+            ),
+        [dashboardTiles, sortedTabUuids, filterableFieldsByTileUuid],
+    );
+
+    // Compute orphaned state for a filter
+    // - With multiple tabs: orphaned if filter applies to no tabs
+    // - With single/no tabs: orphaned if filter applies to no tiles
+    const getOrphanedState = useCallback(
+        (
+            filterRule: DashboardFilterRule,
+            appliesToTabs: string[],
+        ): { isOrphaned: boolean; orphanedTooltip: string } => {
+            if (tabsEnabled) {
+                return {
+                    isOrphaned: appliesToTabs.length === 0,
+                    orphanedTooltip: 'This filter is not applied to any tabs',
+                };
+            }
+            // Single tab or no tabs - check if filter applies to any tile
+            const appliesToAnyTile = doesFilterApplyToAnyTile(
+                filterRule,
+                dashboardTiles,
                 filterableFieldsByTileUuid,
             );
-            return sortedTabUuids.filter(
-                (tabUuid: string) =>
-                    tabsForFilterMap[filterId]?.includes(tabUuid) ?? false,
-            );
+            return {
+                isOrphaned: !appliesToAnyTile,
+                orphanedTooltip: 'This filter is not applied to any tiles',
+            };
         },
-        [
-            dashboardTiles,
-            dashboardFilters,
-            filterableFieldsByTileUuid,
-            sortedTabUuids,
-        ],
+        [tabsEnabled, dashboardTiles, filterableFieldsByTileUuid],
     );
 
     if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
@@ -235,21 +261,15 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             >
                 {dashboardFilters.dimensions.map((item, index) => {
                     const field = allFilterableFieldsMap[item.target.fieldId];
-                    const appliesToTabs = getTabsUsingFilter(
-                        dashboardFilters,
-                        item.id,
-                    );
+                    const appliesToTabs = getTabsUsingFilter(item);
 
-                    const appliedToAnyTab =
-                        !activeTabUuid || appliesToTabs.length > 0;
+                    const isOrphanedFilter = appliesToTabs.length === 0;
                     const appliedToCurrentTab =
-                        activeTabUuid && appliesToTabs.includes(activeTabUuid);
+                        !activeTabUuid || appliesToTabs.includes(activeTabUuid);
 
-                    if (
-                        activeTabUuid &&
-                        appliedToAnyTab &&
-                        !appliedToCurrentTab
-                    ) {
+                    // Hide filter if it doesn't apply to the current tab
+                    // But always show orphaned filters so users can see and fix them
+                    if (!appliedToCurrentTab && !isOrphanedFilter) {
                         return null;
                     }
 
@@ -264,10 +284,12 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                     <Filter
                                         key={item.id}
                                         isEditMode={isEditMode}
-                                        notAppliedToAnyTab={!appliedToAnyTab}
+                                        {...getOrphanedState(
+                                            item,
+                                            appliesToTabs,
+                                        )}
                                         field={field}
                                         filterRule={item}
-                                        activeTabUuid={activeTabUuid}
                                         openPopoverId={openPopoverId}
                                         onPopoverOpen={onPopoverOpen}
                                         onPopoverClose={onPopoverClose}
@@ -308,28 +330,26 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
             {dashboardTemporaryFilters.dimensions.map((item, index) => {
                 const field = allFilterableFieldsMap[item.target.fieldId];
-                const appliesToTabs = getTabsUsingFilter(
-                    dashboardTemporaryFilters,
-                    item.id,
-                );
+                const appliesToTabs = getTabsUsingFilter(item);
 
-                const appliedToAnyTab = appliesToTabs.length > 0;
+                const isOrphanedFilter = appliesToTabs.length === 0;
                 const appliedToCurrentTab =
-                    activeTabUuid && appliesToTabs.includes(activeTabUuid);
+                    !activeTabUuid || appliesToTabs.includes(activeTabUuid);
 
-                if (appliedToAnyTab && !appliedToCurrentTab) {
+                // Hide filter if it doesn't apply to the current tab
+                // But always show orphaned filters so users can see and fix them
+                if (!appliedToCurrentTab && !isOrphanedFilter) {
                     return null;
                 }
 
                 return field || item.target.isSqlColumn ? (
                     <Filter
                         key={item.id}
-                        notAppliedToAnyTab={!appliedToAnyTab}
+                        {...getOrphanedState(item, appliesToTabs)}
                         isTemporary
                         isEditMode={isEditMode}
                         field={field}
                         filterRule={item}
-                        activeTabUuid={activeTabUuid}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
                         onPopoverClose={onPopoverClose}

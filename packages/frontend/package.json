@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.2253.0",
+    "version": "0.2259.2",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -90,7 +90,7 @@
         "fastest-levenshtein": "^1.0.16",
         "fuse.js": "^6.5.3",
         "hast": "^1.0.0",
-        "html2canvas": "^1.4.1",
+        "html2canvas-pro": "^1.5.13",
         "immer": "^10.1.1",
         "js-yaml": "^4.1.1",
         "jspdf": "^3.0.2",

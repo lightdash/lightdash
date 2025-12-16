@@ -5,7 +5,7 @@ import {
     FeatureFlags,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import { Button, Menu } from '@mantine/core';
+import { Button, Group, Menu } from '@mantine/core';
 import {
     IconChartArea,
     IconChartAreaLine,
@@ -24,6 +24,7 @@ import {
 } from '@tabler/icons-react';
 import { memo, useMemo, type FC, type ReactNode } from 'react';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { BetaBadge } from '../../common/BetaBadge';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
@@ -188,8 +189,8 @@ const VisualizationCardOptions: FC = memo(() => {
                 };
             case ChartType.MAP:
                 return {
-                    text: 'Map',
-                    icon: <MantineIcon icon={IconMap} color="gray" />,
+                    text: 'Map (Beta)',
+                    icon: <MantineIcon icon={IconMap} color="ldGray" />,
                 };
             case ChartType.CUSTOM:
                 return {
@@ -430,7 +431,10 @@ const VisualizationCardOptions: FC = memo(() => {
                             setChartType(ChartType.MAP);
                         }}
                     >
-                        Map
+                        <Group spacing="xs">
+                            Map
+                            <BetaBadge />
+                        </Group>
                     </Menu.Item>
                 )}
 

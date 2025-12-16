@@ -689,6 +689,9 @@ export const getAiConfig = () => ({
                   apiKey: process.env.AZURE_AI_API_KEY,
                   apiVersion: process.env.AZURE_AI_API_VERSION,
                   deploymentName: process.env.AZURE_AI_DEPLOYMENT_NAME,
+                  deploymentSupportsReasoning:
+                      process.env.AZURE_AI_DEPLOYMENT_SUPPORTS_REASONING ===
+                      'true',
                   embeddingDeploymentName:
                       process.env.AZURE_EMBEDDING_DEPLOYMENT_NAME,
                   useDeploymentBasedUrls:

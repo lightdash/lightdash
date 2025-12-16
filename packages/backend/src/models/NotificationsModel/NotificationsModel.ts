@@ -111,7 +111,7 @@ export class NotificationsModel {
                                     commentAuthor,
                                     dashboardName: dashboard.name,
                                     dashboardTileTitle:
-                                        dashboardTile.properties.title,
+                                        dashboardTile.properties.title ?? '',
                                     tagged: mentionUserUuid.tagged,
                                 },
                             ),

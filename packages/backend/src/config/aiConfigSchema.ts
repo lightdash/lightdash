@@ -36,6 +36,7 @@ export const aiCopilotConfigSchema = z
                     apiKey: z.string(),
                     apiVersion: z.string(),
                     deploymentName: z.string(),
+                    deploymentSupportsReasoning: z.boolean().default(false),
                     embeddingDeploymentName: z
                         .string()
                         .default(DEFAULT_AZURE_EMBEDDING_MODEL),

@@ -1,3 +1,112 @@
+## [0.2259.2](https://github.com/lightdash/lightdash/compare/0.2259.1...0.2259.2) (2025-12-16)
+
+
+### Bug Fixes
+
+* move all tiles to the new default tab immutably ([#18855](https://github.com/lightdash/lightdash/issues/18855)) ([60053d5](https://github.com/lightdash/lightdash/commit/60053d53d6a757db6b1e38db3bdc183968f8d41f))
+
+## [0.2259.1](https://github.com/lightdash/lightdash/compare/0.2259.0...0.2259.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* wrap JSON parse in try/catch ([#18852](https://github.com/lightdash/lightdash/issues/18852)) ([d63a73d](https://github.com/lightdash/lightdash/commit/d63a73dcac8c9244db369c76316a0cd22c019b64))
+
+# [0.2259.0](https://github.com/lightdash/lightdash/compare/0.2258.1...0.2259.0) (2025-12-16)
+
+
+### Bug Fixes
+
+* normalize Snowflake warehouse names when comparing credentials ([#18854](https://github.com/lightdash/lightdash/issues/18854)) ([b301a2b](https://github.com/lightdash/lightdash/commit/b301a2ba514ec5aa2db55905312718792691d5d5))
+
+
+### Features
+
+* add Snowflake SSO support for CLI project creation ([#18845](https://github.com/lightdash/lightdash/issues/18845)) ([d59f54e](https://github.com/lightdash/lightdash/commit/d59f54ef5dbfd5ce0676073e6cb05bf31544a971))
+
+## [0.2258.1](https://github.com/lightdash/lightdash/compare/0.2258.0...0.2258.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* add tab route and update dashboard tabs styling ([#18838](https://github.com/lightdash/lightdash/issues/18838)) ([0efe6af](https://github.com/lightdash/lightdash/commit/0efe6af5f928b05de150c707dc8920b3f035a8d6))
+* always display orphaned filters regardless of active tab ([#18853](https://github.com/lightdash/lightdash/issues/18853)) ([675c553](https://github.com/lightdash/lightdash/commit/675c553cfdea87b3cff68afd011b7695f46d7ead))
+
+# [0.2258.0](https://github.com/lightdash/lightdash/compare/0.2257.1...0.2258.0) (2025-12-16)
+
+
+### Bug Fixes
+
+* illegible label inside bar charts with dark background ([#18849](https://github.com/lightdash/lightdash/issues/18849)) ([bef9aca](https://github.com/lightdash/lightdash/commit/bef9aca0dda9f6cc8b6d56ff69d2eba47056d83d)), closes [#18839](https://github.com/lightdash/lightdash/issues/18839)
+* improve dashboard filter visibility and required logic for tabs ([#18821](https://github.com/lightdash/lightdash/issues/18821)) ([253228d](https://github.com/lightdash/lightdash/commit/253228d4299177886cf9f765209f58c4a51ccd7b))
+* only show "not applied to any tabs" warning when tabs are enabled ([#18828](https://github.com/lightdash/lightdash/issues/18828)) ([8b1370a](https://github.com/lightdash/lightdash/commit/8b1370a2ef52e714363dfd1e0be43b1690f9d4db))
+
+
+### Features
+
+* **backend:** add heading tile type for dashboards ([#18807](https://github.com/lightdash/lightdash/issues/18807)) ([acaf567](https://github.com/lightdash/lightdash/commit/acaf567cf2a10f69f64c27be6454234b1e0b1a96))
+
+## [0.2257.1](https://github.com/lightdash/lightdash/compare/0.2257.0...0.2257.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* get correct explore when parsing fields ([#18844](https://github.com/lightdash/lightdash/issues/18844)) ([b31d3ee](https://github.com/lightdash/lightdash/commit/b31d3eef3db6765d05143dd82c9131f0153eb905))
+
+# [0.2257.0](https://github.com/lightdash/lightdash/compare/0.2256.0...0.2257.0) (2025-12-16)
+
+
+### Bug Fixes
+
+* add defensive check for undefined filter groups in getFilterRulesFromGroup ([#18842](https://github.com/lightdash/lightdash/issues/18842)) ([3c7e357](https://github.com/lightdash/lightdash/commit/3c7e3575b74e3ceb23449bb03ecea7cdb18b5ec2))
+* useFormState to sync form properly ([#18832](https://github.com/lightdash/lightdash/issues/18832)) ([2e1dd78](https://github.com/lightdash/lightdash/commit/2e1dd783ac6313dbcc6c0a7f28cb1877d4cb452b))
+
+
+### Features
+
+* render tooltip on minimal dashboard tile for embedded dashboard ([#18843](https://github.com/lightdash/lightdash/issues/18843)) ([962be0b](https://github.com/lightdash/lightdash/commit/962be0bdd65df97bcc0a6be7179738ec9a633907))
+
+# [0.2256.0](https://github.com/lightdash/lightdash/compare/0.2255.2...0.2256.0) (2025-12-16)
+
+
+### Features
+
+* add support for no-role keyword in SCIM service ([#18846](https://github.com/lightdash/lightdash/issues/18846)) ([6275103](https://github.com/lightdash/lightdash/commit/6275103e65155789ef3cd6579bd02c0604c9d63a))
+
+## [0.2255.2](https://github.com/lightdash/lightdash/compare/0.2255.1...0.2255.2) (2025-12-16)
+
+
+### Bug Fixes
+
+* dashboard e2e test after chart tile structure change ([#18847](https://github.com/lightdash/lightdash/issues/18847)) ([afe590e](https://github.com/lightdash/lightdash/commit/afe590e53b87d69f62317c519d43a19811b341fe))
+
+## [0.2255.1](https://github.com/lightdash/lightdash/compare/0.2255.0...0.2255.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* remove transparency from bg LD_FIELD_COLORS ([#18841](https://github.com/lightdash/lightdash/issues/18841)) ([7366d34](https://github.com/lightdash/lightdash/commit/7366d349589b571dec12434a9194c2a9bc61cf81)), closes [#18840](https://github.com/lightdash/lightdash/issues/18840)
+
+# [0.2255.0](https://github.com/lightdash/lightdash/compare/0.2254.0...0.2255.0) (2025-12-16)
+
+
+### Features
+
+* gracefully handle screenshot errors - support drawer ([#18826](https://github.com/lightdash/lightdash/issues/18826)) ([177bffd](https://github.com/lightdash/lightdash/commit/177bffd995b522bf0be6a50e1164dc4e6ceb5035))
+* replace html2canvas with html2canvas-pro ([#18827](https://github.com/lightdash/lightdash/issues/18827)) ([1d52a26](https://github.com/lightdash/lightdash/commit/1d52a2625654c88d9cff38579a1e474293de071e))
+
+# [0.2254.0](https://github.com/lightdash/lightdash/compare/0.2253.0...0.2254.0) (2025-12-16)
+
+
+### Bug Fixes
+
+* validate query has at least one field before execution ([#18835](https://github.com/lightdash/lightdash/issues/18835)) ([82b305a](https://github.com/lightdash/lightdash/commit/82b305a44862152e636c419ee32dd1100a576f0d))
+
+
+### Features
+
+* add support for Azure OpenAI reasoning capabilities ([#18812](https://github.com/lightdash/lightdash/issues/18812)) ([cf7ef79](https://github.com/lightdash/lightdash/commit/cf7ef79f80cdf6929f4c250caff28df8956aa0e4))
+
 # [0.2253.0](https://github.com/lightdash/lightdash/compare/0.2252.1...0.2253.0) (2025-12-15)
 
 

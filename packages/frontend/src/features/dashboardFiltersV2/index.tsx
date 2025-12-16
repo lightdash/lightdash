@@ -79,7 +79,6 @@ const DashboardFiltersV2: FC<Props> = ({ isEditMode, activeTabUuid }) => {
                 <AddFilterButton
                     isEditMode={isEditMode}
                     openPopoverId={openPopoverId}
-                    activeTabUuid={activeTabUuid}
                     onPopoverOpen={handlePopoverOpen}
                     onPopoverClose={handlePopoverClose}
                     onSave={handleSaveNew}

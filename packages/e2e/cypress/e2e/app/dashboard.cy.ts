@@ -268,7 +268,6 @@ describe('Dashboard', () => {
         )
             .eq(4)
             .parent()
-            .parent()
             .siblings()
             .first()
             .within(() => {

@@ -21,14 +21,24 @@ export const getAzureGpt41Model = (
 
     const model = azure(config.deploymentName);
 
+    const reasoningEnabled = config.deploymentSupportsReasoning;
+    const reasoningEffort = 'medium';
+
     return {
         model,
         callOptions: {
-            temperature: 0.2,
+            ...(reasoningEnabled
+                ? { temperature: undefined }
+                : { temperature: 0.2 }),
         },
         providerOptions: {
-            [PROVIDER]: {
+            // @ts-expect-error - provider should be set to openai for azure
+            openai: {
                 strictJsonSchema: true,
+                ...(reasoningEnabled && {
+                    reasoningSummary: 'auto',
+                    reasoningEffort,
+                }),
             },
         },
     };
