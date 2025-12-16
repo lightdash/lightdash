@@ -1,3 +1,10 @@
+## [0.2257.1](https://github.com/lightdash/lightdash/compare/0.2257.0...0.2257.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* get correct explore when parsing fields ([#18844](https://github.com/lightdash/lightdash/issues/18844)) ([b31d3ee](https://github.com/lightdash/lightdash/commit/b31d3eef3db6765d05143dd82c9131f0153eb905))
+
 # [0.2257.0](https://github.com/lightdash/lightdash/compare/0.2256.0...0.2257.0) (2025-12-16)
 
 
