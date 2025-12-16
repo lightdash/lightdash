@@ -1,3 +1,15 @@
+# [0.2254.0](https://github.com/lightdash/lightdash/compare/0.2253.0...0.2254.0) (2025-12-16)
+
+
+### Bug Fixes
+
+* validate query has at least one field before execution ([#18835](https://github.com/lightdash/lightdash/issues/18835)) ([82b305a](https://github.com/lightdash/lightdash/commit/82b305a44862152e636c419ee32dd1100a576f0d))
+
+
+### Features
+
+* add support for Azure OpenAI reasoning capabilities ([#18812](https://github.com/lightdash/lightdash/issues/18812)) ([cf7ef79](https://github.com/lightdash/lightdash/commit/cf7ef79f80cdf6929f4c250caff28df8956aa0e4))
+
 # [0.2253.0](https://github.com/lightdash/lightdash/compare/0.2252.1...0.2253.0) (2025-12-15)
 
 
