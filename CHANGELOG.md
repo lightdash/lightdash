@@ -1,3 +1,10 @@
+## [0.2259.3](https://github.com/lightdash/lightdash/compare/0.2259.2...0.2259.3) (2025-12-16)
+
+
+### Bug Fixes
+
+* update active project when there's no lastProject.uuid because of 404 ([#18859](https://github.com/lightdash/lightdash/issues/18859)) ([6a7bcc5](https://github.com/lightdash/lightdash/commit/6a7bcc510f564d0afe3d065840a26ef01d7d9af3))
+
 ## [0.2259.2](https://github.com/lightdash/lightdash/compare/0.2259.1...0.2259.2) (2025-12-16)
 
 
