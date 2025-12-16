@@ -269,7 +269,9 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
     );
 
     const scatterValueRange = useMemo(() => {
-        const values = scatterData.map((d) => d.value);
+        const values = scatterData
+            .map((d) => d.value)
+            .filter((v): v is number => v !== null);
         return {
             min: values.length > 0 ? Math.min(...values, 0) : 0,
             max: values.length > 0 ? Math.max(...values, 1) : 1,
@@ -288,9 +290,14 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
     const heatmapPoints = useMemo((): [number, number, number][] => {
         const { min, max } = scatterValueRange;
         return scatterData.map((point) => {
-            const intensity =
-                max === min ? 0.5 : (point.value - min) / (max - min);
-            return [point.lat, point.lon, intensity];
+            // Use 0.5 scale for non-numeric values
+            const scale =
+                point.value === null
+                    ? 0.5
+                    : max === min
+                    ? 0.5
+                    : (point.value - min) / (max - min);
+            return [point.lat, point.lon, scale];
         });
     }, [scatterData, scatterValueRange]);
 
@@ -472,12 +479,20 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
                         sizeScale &&
                         scatterData.map((point, idx) => {
                             const radius = sizeScale(point.sizeValue);
-                            const color = getColorForValue(
-                                point.value,
-                                scatterValueRange.min,
-                                scatterValueRange.max,
-                                mapConfig.colors.scale,
-                            );
+                            // Use default color (middle of scale) for non-numeric values
+                            const color =
+                                point.value !== null
+                                    ? getColorForValue(
+                                          point.value,
+                                          scatterValueRange.min,
+                                          scatterValueRange.max,
+                                          mapConfig.colors.scale,
+                                      )
+                                    : mapConfig.colors.scale[
+                                          Math.floor(
+                                              mapConfig.colors.scale.length / 2,
+                                          )
+                                      ];
                             return (
                                 <CircleMarker
                                     key={idx}
@@ -497,7 +512,7 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
                                                     'Value'}
                                                 :
                                             </strong>{' '}
-                                            {point.value}
+                                            {point.displayValue}
                                             <br />
                                             <span
                                                 style={{
