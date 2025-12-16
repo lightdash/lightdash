@@ -140,6 +140,10 @@ const MINIMAL_ROUTES: RouteObject[] = [
                 path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid',
                 element: <MinimalDashboard />,
             },
+            {
+                path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid/view/tabs/:tabUuid',
+                element: <MinimalDashboard />,
+            },
         ],
     },
 ];
