@@ -2,6 +2,7 @@ import {
     DashboardTileTypes,
     assertUnreachable,
     type Dashboard,
+    type DashboardHeadingTileProperties,
     type DashboardLoomTileProperties,
     type DashboardMarkdownTile,
     type DashboardMarkdownTileProperties,
@@ -15,9 +16,11 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import { IconMarkdown, IconVideo } from '@tabler/icons-react';
+import { IconHeading, IconMarkdown, IconVideo } from '@tabler/icons-react';
 import { produce } from 'immer';
+import { useCallback } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import HeadingTileForm from './HeadingTileForm';
 import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
 import { getLoomId, markdownTileContentTransform } from './utils';
@@ -46,15 +49,20 @@ const TileUpdateModal = <T extends Tile>({
                 return !value || !value.length ? 'Required field' : null;
             },
         };
+        const textValidator = {
+            text: (value: string | undefined) =>
+                !value || !value.length ? 'Required field' : null,
+        };
 
         if (tile.type === DashboardTileTypes.LOOM)
             return { ...urlValidator, ...titleValidator };
+        if (tile.type === DashboardTileTypes.HEADING) return textValidator;
     };
 
     const form = useForm<TileProperties>({
         initialValues: { ...tile.properties },
         validate: getValidators(),
-        validateInputOnChange: ['title', 'url'],
+        validateInputOnChange: ['title', 'url', 'text'],
         transformValues(values) {
             if (tile.type === DashboardTileTypes.MARKDOWN) {
                 return markdownTileContentTransform(
@@ -74,20 +82,30 @@ const TileUpdateModal = <T extends Tile>({
         );
     });
 
+    const getTileIcon = useCallback(() => {
+        const { type } = tile;
+        switch (type) {
+            case DashboardTileTypes.MARKDOWN:
+                return <IconMarkdown />;
+            case DashboardTileTypes.LOOM:
+                return <IconVideo />;
+            case DashboardTileTypes.HEADING:
+                return <IconHeading />;
+            case DashboardTileTypes.SAVED_CHART:
+                return null;
+            case DashboardTileTypes.SQL_CHART:
+                return null;
+            default:
+                return assertUnreachable(type, 'Tile type not supported');
+        }
+    }, [tile]);
+
     return (
         <Modal
             size="xl"
             title={
                 <Group spacing="xs">
-                    <MantineIcon
-                        size="lg"
-                        color="blue.8"
-                        icon={
-                            tile.type === DashboardTileTypes.MARKDOWN
-                                ? IconMarkdown
-                                : IconVideo
-                        }
-                    />
+                    <MantineIcon size="lg" color="blue.8" icon={getTileIcon} />
                     <Title order={4}>Edit {tile.type} tile</Title>
                 </Group>
             }
@@ -115,6 +133,14 @@ const TileUpdateModal = <T extends Tile>({
                                 >
                             }
                             withHideTitle
+                        />
+                    ) : tile.type === DashboardTileTypes.HEADING ? (
+                        <HeadingTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardHeadingTileProperties['properties']
+                                >
+                            }
                         />
                     ) : (
                         assertUnreachable(tile, 'Tile type not supported')

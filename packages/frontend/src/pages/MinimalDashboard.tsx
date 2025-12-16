@@ -16,6 +16,7 @@ import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useParams } from 'react-router';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
+import HeadingTile from '../components/DashboardTiles/DashboardHeadingTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import SqlChartTile from '../components/DashboardTiles/DashboardSqlChartTile';
@@ -250,6 +251,14 @@ const MinimalDashboard: FC = () => {
                                 />
                             ) : tile.type === DashboardTileTypes.SQL_CHART ? (
                                 <SqlChartTile
+                                    key={tile.uuid}
+                                    tile={tile}
+                                    isEditMode={false}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                />
+                            ) : tile.type === DashboardTileTypes.HEADING ? (
+                                <HeadingTile
                                     key={tile.uuid}
                                     tile={tile}
                                     isEditMode={false}

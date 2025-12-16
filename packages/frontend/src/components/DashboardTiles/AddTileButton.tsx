@@ -1,4 +1,8 @@
-import { DashboardTileTypes, type Dashboard } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    FeatureFlags,
+    type Dashboard,
+} from '@lightdash/common';
 import {
     Button,
     Group,
@@ -9,6 +13,7 @@ import {
 } from '@mantine/core';
 import {
     IconChartBar,
+    IconHeading,
     IconInfoCircle,
     IconMarkdown,
     IconNewSection,
@@ -18,6 +23,7 @@ import {
 import { useCallback, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
@@ -37,6 +43,9 @@ const AddTileButton: FC<Props> = ({
     activeTabUuid,
     dashboardTabs,
 }) => {
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
+    );
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -129,6 +138,17 @@ const AddTileButton: FC<Props> = ({
                         Loom video
                     </Menu.Item>
 
+                    {isDashboardRedesignEnabled && (
+                        <Menu.Item
+                            onClick={() =>
+                                setAddTileType(DashboardTileTypes.HEADING)
+                            }
+                            icon={<MantineIcon icon={IconHeading} />}
+                        >
+                            Heading
+                        </Menu.Item>
+                    )}
+
                     <Menu.Item
                         onClick={() => setAddingTab(true)}
                         icon={<MantineIcon icon={IconNewSection} />}
@@ -146,7 +166,8 @@ const AddTileButton: FC<Props> = ({
             )}
 
             {addTileType === DashboardTileTypes.MARKDOWN ||
-            addTileType === DashboardTileTypes.LOOM ? (
+            addTileType === DashboardTileTypes.LOOM ||
+            addTileType === DashboardTileTypes.HEADING ? (
                 <TileAddModal
                     opened={!!addTileType}
                     type={addTileType}

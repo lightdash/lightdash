@@ -1,11 +1,13 @@
 import {
     CreateDashboard,
     CreateDashboardChartTile,
+    CreateDashboardHeadingTile,
     CreateDashboardLoomTile,
     CreateDashboardMarkdownTile,
     CreateDashboardSqlChartTile,
     DashboardChartTile,
     DashboardDAO,
+    DashboardHeadingTile,
     DashboardLoomTile,
     DashboardMarkdownTile,
     DashboardSqlChartTile,
@@ -22,6 +24,7 @@ import {
     UpdateMultipleDashboards,
     assertUnreachable,
     isDashboardChartTileType,
+    isDashboardHeadingTileType,
     isDashboardLoomTileType,
     isDashboardMarkdownTileType,
     isDashboardSqlChartTile,
@@ -37,6 +40,7 @@ import {
     DashboardTabsTableName,
     DashboardTileChartTable,
     DashboardTileChartTableName,
+    DashboardTileHeadingsTableName,
     DashboardTileLoomsTableName,
     DashboardTileMarkdownsTableName,
     DashboardTileSqlChartTableName,
@@ -166,6 +170,7 @@ export class DashboardModel {
             | (CreateDashboardMarkdownTile & { uuid: string })
             | (CreateDashboardLoomTile & { uuid: string })
             | (CreateDashboardSqlChartTile & { uuid: string })
+            | (CreateDashboardHeadingTile & { uuid: string })
         > = version.tiles.map((tile) => ({
             ...tile,
             uuid: tile.uuid || uuidv4(),
@@ -248,6 +253,17 @@ export class DashboardModel {
                         properties.content,
                         HTML_SANITIZE_MARKDOWN_TILE_RULES,
                     ),
+                })),
+            );
+        }
+
+        const headingTiles = tilesWithUuids.filter(isDashboardHeadingTileType);
+        if (headingTiles.length > 0) {
+            await trx(DashboardTileHeadingsTableName).insert(
+                headingTiles.map(({ uuid, properties }) => ({
+                    dashboard_version_id: versionId.dashboard_version_id,
+                    dashboard_tile_uuid: uuid,
+                    text: properties.text,
                 })),
             );
         }
@@ -767,6 +783,7 @@ export class DashboardModel {
                     saved_sql_uuid: string | null;
                     url: string | null;
                     content: string | null;
+                    text: string | null;
                     hide_title: boolean | null;
                     title: string | null;
                     views_count: string;
@@ -820,6 +837,7 @@ export class DashboardModel {
                 ),
                 `${DashboardTileLoomsTableName}.url`,
                 `${DashboardTileMarkdownsTableName}.content`,
+                `${DashboardTileHeadingsTableName}.text`,
             )
             .leftJoin(DashboardTileChartTableName, function chartsJoin() {
                 this.on(
@@ -865,6 +883,18 @@ export class DashboardModel {
                 );
                 this.andOn(
                     `${DashboardTileMarkdownsTableName}.dashboard_version_id`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_version_id`,
+                );
+            })
+            .leftJoin(DashboardTileHeadingsTableName, function headingsJoin() {
+                this.on(
+                    `${DashboardTileHeadingsTableName}.dashboard_tile_uuid`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                );
+                this.andOn(
+                    `${DashboardTileHeadingsTableName}.dashboard_version_id`,
                     '=',
                     `${DashboardTilesTableName}.dashboard_version_id`,
                 );
@@ -930,6 +960,7 @@ export class DashboardModel {
                     hide_title,
                     url,
                     content,
+                    text,
                     belongs_to_dashboard,
                     name,
                     last_version_chart_kind,
@@ -994,6 +1025,14 @@ export class DashboardModel {
                                     chartName: name,
                                     savedSqlUuid: saved_sql_uuid,
                                     chartSlug: chart_slug,
+                                },
+                            };
+                        case DashboardTileTypes.HEADING:
+                            return <DashboardHeadingTile>{
+                                ...base,
+                                type: DashboardTileTypes.HEADING,
+                                properties: {
+                                    text: text || '',
                                 },
                             };
                         default: {

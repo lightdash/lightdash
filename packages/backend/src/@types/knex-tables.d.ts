@@ -11,6 +11,8 @@ import {
     DashboardTabsTableName,
     DashboardTileChartTable,
     DashboardTileChartTableName,
+    DashboardTileHeadingsTable,
+    DashboardTileHeadingsTableName,
     DashboardTileLoomsTable,
     DashboardTileLoomsTableName,
     DashboardTileMarkdownsTable,
@@ -348,6 +350,7 @@ declare module 'knex/types/tables' {
         [DashboardTileChartTableName]: DashboardTileChartTable;
         [DashboardTileLoomsTableName]: DashboardTileLoomsTable;
         [DashboardTileMarkdownsTableName]: DashboardTileMarkdownsTable;
+        [DashboardTileHeadingsTableName]: DashboardTileHeadingsTable;
         [OnboardingTableName]: OnboardingTable;
         [OpenIdIdentitiesTableName]: OpenIdIdentitiesTable;
         [OrganizationMembershipsTableName]: OrganizationMembershipsTable;

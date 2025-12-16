@@ -60,6 +60,7 @@ type Props<T> = {
     minimal?: boolean;
     tabs?: DashboardTab[];
     lockHeaderVisibility?: boolean;
+    transparent?: boolean;
 };
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
@@ -80,6 +81,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     minimal = false,
     tabs,
     lockHeaderVisibility = false,
+    transparent = false,
 }: Props<T>) => {
     const [isEditingTileContent, setIsEditingTileContent] = useState(false);
     const [isMovingTabs, setIsMovingTabs] = useState(false);
@@ -96,9 +98,10 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
 
     const hideTitle =
-        tile.type !== DashboardTileTypes.MARKDOWN
+        tile.type === DashboardTileTypes.HEADING ||
+        (tile.type !== DashboardTileTypes.MARKDOWN
             ? tile.properties.hideTitle
-            : false;
+            : false);
     const belongsToDashboard: boolean =
         isDashboardChartTileType(tile) && !!tile.properties.belongsToDashboard;
 
@@ -113,16 +116,21 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 ref={containerRef}
                 h="100%"
                 direction="column"
-                p="md"
+                p={transparent ? 0 : 'md'}
                 radius="sm"
-                bg="background"
+                bg={transparent ? 'transparent' : 'background'}
                 shadow={isEditMode ? 'xs' : undefined}
                 sx={(theme) => {
-                    let border = `1px solid ${
-                        theme.colorScheme === 'dark'
-                            ? theme.fn.lighten(theme.colors.ldDark[1], 0.05)
-                            : theme.colors.ldGray[1]
-                    }`;
+                    let border = transparent
+                        ? 'none'
+                        : `1px solid ${
+                              theme.colorScheme === 'dark'
+                                  ? theme.fn.lighten(
+                                        theme.colors.ldDark[1],
+                                        0.05,
+                                    )
+                                  : theme.colors.ldGray[1]
+                          }`;
                     if (isEditMode) {
                         border = `1px dashed ${theme.colors.blue[5]}`;
                     }
@@ -372,6 +380,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             ? chartHoveredProps.handleMouseLeave
                             : undefined
                     }
+                    $alignItems={transparent ? 'center' : undefined}
                 >
                     {children}
                 </ChartContainer>
