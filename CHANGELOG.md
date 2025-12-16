@@ -1,3 +1,11 @@
+## [0.2258.1](https://github.com/lightdash/lightdash/compare/0.2258.0...0.2258.1) (2025-12-16)
+
+
+### Bug Fixes
+
+* add tab route and update dashboard tabs styling ([#18838](https://github.com/lightdash/lightdash/issues/18838)) ([0efe6af](https://github.com/lightdash/lightdash/commit/0efe6af5f928b05de150c707dc8920b3f035a8d6))
+* always display orphaned filters regardless of active tab ([#18853](https://github.com/lightdash/lightdash/issues/18853)) ([675c553](https://github.com/lightdash/lightdash/commit/675c553cfdea87b3cff68afd011b7695f46d7ead))
+
 # [0.2258.0](https://github.com/lightdash/lightdash/compare/0.2257.1...0.2258.0) (2025-12-16)
 
 
