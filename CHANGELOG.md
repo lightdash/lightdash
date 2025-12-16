@@ -1,3 +1,16 @@
+# [0.2257.0](https://github.com/lightdash/lightdash/compare/0.2256.0...0.2257.0) (2025-12-16)
+
+
+### Bug Fixes
+
+* add defensive check for undefined filter groups in getFilterRulesFromGroup ([#18842](https://github.com/lightdash/lightdash/issues/18842)) ([3c7e357](https://github.com/lightdash/lightdash/commit/3c7e3575b74e3ceb23449bb03ecea7cdb18b5ec2))
+* useFormState to sync form properly ([#18832](https://github.com/lightdash/lightdash/issues/18832)) ([2e1dd78](https://github.com/lightdash/lightdash/commit/2e1dd783ac6313dbcc6c0a7f28cb1877d4cb452b))
+
+
+### Features
+
+* render tooltip on minimal dashboard tile for embedded dashboard ([#18843](https://github.com/lightdash/lightdash/issues/18843)) ([962be0b](https://github.com/lightdash/lightdash/commit/962be0bdd65df97bcc0a6be7179738ec9a633907))
+
 # [0.2256.0](https://github.com/lightdash/lightdash/compare/0.2255.2...0.2256.0) (2025-12-16)
 
 
