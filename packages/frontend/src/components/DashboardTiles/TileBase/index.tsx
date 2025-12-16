@@ -99,6 +99,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
 
     const hideTitle =
         tile.type === DashboardTileTypes.HEADING ||
+        tile.type === DashboardTileTypes.DIVIDER ||
         (tile.type !== DashboardTileTypes.MARKDOWN
             ? tile.properties.hideTitle
             : false);

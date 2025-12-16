@@ -42,6 +42,12 @@ const dashboardAsCodeSchema = z.object({
                     text: z.string(),
                 }),
             }),
+            z.object({
+                type: z.literal(DashboardTileTypes.DIVIDER),
+                properties: z.object({
+                    orientation: z.enum(['horizontal', 'vertical']),
+                }),
+            }),
         ]),
     ),
 });

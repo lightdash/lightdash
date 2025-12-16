@@ -16,6 +16,7 @@ export enum DashboardTileTypes {
     MARKDOWN = 'markdown',
     LOOM = 'loom',
     HEADING = 'heading',
+    DIVIDER = 'divider',
 }
 
 type CreateDashboardTileBase = {
@@ -80,6 +81,14 @@ export type DashboardHeadingTileProperties = {
     };
 };
 
+export type DashboardDividerTileProperties = {
+    type: DashboardTileTypes.DIVIDER;
+    properties: {
+        title: undefined;
+        orientation: 'horizontal' | 'vertical';
+    };
+};
+
 export type CreateDashboardMarkdownTile = CreateDashboardTileBase &
     DashboardMarkdownTileProperties;
 export type DashboardMarkdownTile = DashboardTileBase &
@@ -104,6 +113,11 @@ export type CreateDashboardHeadingTile = CreateDashboardTileBase &
 export type DashboardHeadingTile = DashboardTileBase &
     DashboardHeadingTileProperties;
 
+export type CreateDashboardDividerTile = CreateDashboardTileBase &
+    DashboardDividerTileProperties;
+export type DashboardDividerTile = DashboardTileBase &
+    DashboardDividerTileProperties;
+
 export type CreateDashboard = {
     name: string;
     description?: string;
@@ -113,6 +127,7 @@ export type CreateDashboard = {
         | CreateDashboardLoomTile
         | CreateDashboardSqlChartTile
         | CreateDashboardHeadingTile
+        | CreateDashboardDividerTile
     >;
     filters?: DashboardFilters;
     parameters?: DashboardParameters;
@@ -128,7 +143,8 @@ export type DashboardTile =
     | DashboardMarkdownTile
     | DashboardLoomTile
     | DashboardSqlChartTile
-    | DashboardHeadingTile;
+    | DashboardHeadingTile
+    | DashboardDividerTile;
 
 export const isDashboardChartTileType = (
     tile: DashboardTile,
@@ -149,6 +165,10 @@ export const isDashboardSqlChartTile = (
 export const isDashboardHeadingTileType = (
     tile: DashboardTile,
 ): tile is DashboardHeadingTile => tile.type === DashboardTileTypes.HEADING;
+
+export const isDashboardDividerTileType = (
+    tile: DashboardTile,
+): tile is DashboardDividerTile => tile.type === DashboardTileTypes.DIVIDER;
 
 export type DashboardTab = {
     uuid: string;

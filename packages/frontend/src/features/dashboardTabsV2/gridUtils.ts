@@ -1,4 +1,4 @@
-import { type DashboardTile } from '@lightdash/common';
+import { type DashboardTile, DashboardTileTypes } from '@lightdash/common';
 import { type Layout } from 'react-grid-layout';
 import { DEFAULT_ROW_HEIGHT } from '../dashboardTabs/gridUtils';
 
@@ -12,6 +12,11 @@ export type ResponsiveGridLayoutProps = {
 };
 
 const DEFAULT_COLS = 36;
+
+const nonResizeableTileTypes = [
+    DashboardTileTypes.DIVIDER,
+    DashboardTileTypes.HEADING,
+];
 
 export const getReactGridLayoutConfig = (
     tile: DashboardTile,
@@ -30,7 +35,9 @@ export const getReactGridLayoutConfig = (
         h: tile.h,
         i: tile.uuid,
         isDraggable: isEditMode,
-        isResizable: isEditMode,
+        isResizable: nonResizeableTileTypes.includes(tile.type)
+            ? false
+            : isEditMode,
     };
 };
 

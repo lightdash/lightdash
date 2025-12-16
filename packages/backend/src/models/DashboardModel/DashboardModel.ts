@@ -1,12 +1,14 @@
 import {
     CreateDashboard,
     CreateDashboardChartTile,
+    CreateDashboardDividerTile,
     CreateDashboardHeadingTile,
     CreateDashboardLoomTile,
     CreateDashboardMarkdownTile,
     CreateDashboardSqlChartTile,
     DashboardChartTile,
     DashboardDAO,
+    DashboardDividerTile,
     DashboardHeadingTile,
     DashboardLoomTile,
     DashboardMarkdownTile,
@@ -24,6 +26,7 @@ import {
     UpdateMultipleDashboards,
     assertUnreachable,
     isDashboardChartTileType,
+    isDashboardDividerTileType,
     isDashboardHeadingTileType,
     isDashboardLoomTileType,
     isDashboardMarkdownTileType,
@@ -40,6 +43,7 @@ import {
     DashboardTabsTableName,
     DashboardTileChartTable,
     DashboardTileChartTableName,
+    DashboardTileDividersTableName,
     DashboardTileHeadingsTableName,
     DashboardTileLoomsTableName,
     DashboardTileMarkdownsTableName,
@@ -171,6 +175,7 @@ export class DashboardModel {
             | (CreateDashboardLoomTile & { uuid: string })
             | (CreateDashboardSqlChartTile & { uuid: string })
             | (CreateDashboardHeadingTile & { uuid: string })
+            | (CreateDashboardDividerTile & { uuid: string })
         > = version.tiles.map((tile) => ({
             ...tile,
             uuid: tile.uuid || uuidv4(),
@@ -265,6 +270,17 @@ export class DashboardModel {
                     dashboard_version_id: versionId.dashboard_version_id,
                     dashboard_tile_uuid: uuid,
                     text: properties.text,
+                })),
+            );
+        }
+
+        const dividerTiles = tilesWithUuids.filter(isDashboardDividerTileType);
+        if (dividerTiles.length > 0) {
+            await trx(DashboardTileDividersTableName).insert(
+                dividerTiles.map(({ uuid, properties }) => ({
+                    dashboard_version_id: versionId.dashboard_version_id,
+                    dashboard_tile_uuid: uuid,
+                    orientation: properties.orientation,
                 })),
             );
         }
@@ -785,6 +801,7 @@ export class DashboardModel {
                     url: string | null;
                     content: string | null;
                     text: string | null;
+                    orientation: 'horizontal' | 'vertical' | null;
                     hide_title: boolean | null;
                     hide_frame: boolean | null;
                     title: string | null;
@@ -841,6 +858,7 @@ export class DashboardModel {
                 `${DashboardTileMarkdownsTableName}.content`,
                 `${DashboardTileMarkdownsTableName}.hide_frame`,
                 `${DashboardTileHeadingsTableName}.text`,
+                `${DashboardTileDividersTableName}.orientation`,
             )
             .leftJoin(DashboardTileChartTableName, function chartsJoin() {
                 this.on(
@@ -898,6 +916,18 @@ export class DashboardModel {
                 );
                 this.andOn(
                     `${DashboardTileHeadingsTableName}.dashboard_version_id`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_version_id`,
+                );
+            })
+            .leftJoin(DashboardTileDividersTableName, function dividersJoin() {
+                this.on(
+                    `${DashboardTileDividersTableName}.dashboard_tile_uuid`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                );
+                this.andOn(
+                    `${DashboardTileDividersTableName}.dashboard_version_id`,
                     '=',
                     `${DashboardTilesTableName}.dashboard_version_id`,
                 );
@@ -965,6 +995,7 @@ export class DashboardModel {
                     content,
                     hide_frame,
                     text,
+                    orientation,
                     belongs_to_dashboard,
                     name,
                     last_version_chart_kind,
@@ -1038,6 +1069,14 @@ export class DashboardModel {
                                 type: DashboardTileTypes.HEADING,
                                 properties: {
                                     text: text || '',
+                                },
+                            };
+                        case DashboardTileTypes.DIVIDER:
+                            return <DashboardDividerTile>{
+                                ...base,
+                                type: DashboardTileTypes.DIVIDER,
+                                properties: {
+                                    orientation: orientation || 'horizontal',
                                 },
                             };
                         default: {

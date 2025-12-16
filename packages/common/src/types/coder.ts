@@ -4,6 +4,7 @@ import type {
     Dashboard,
     DashboardAsCodeLanguageMap,
     DashboardChartTileProperties,
+    DashboardDividerTileProperties,
     DashboardFilterRule,
     DashboardFilters,
     DashboardHeadingTileProperties,
@@ -98,7 +99,8 @@ export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {
           >
         | DashboardMarkdownTileProperties['properties']
         | DashboardLoomTileProperties['properties']
-        | DashboardHeadingTileProperties['properties'];
+        | DashboardHeadingTileProperties['properties']
+        | DashboardDividerTileProperties['properties'];
 };
 
 export type DashboardTileWithSlug = DashboardTile & {

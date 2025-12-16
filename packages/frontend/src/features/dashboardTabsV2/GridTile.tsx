@@ -7,6 +7,7 @@ import {
 import { Box } from '@mantine/core';
 import { memo, type FC } from 'react';
 import ChartTile from '../../components/DashboardTiles/DashboardChartTile';
+import DividerTile from '../../components/DashboardTiles/DashboardDividerTile';
 import HeadingTile from '../../components/DashboardTiles/DashboardHeadingTile';
 import LoomTile from '../../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../../components/DashboardTiles/DashboardMarkdownTile';
@@ -27,7 +28,7 @@ const GridTile: FC<
     const { tile } = props;
 
     if (props.locked) {
-        // Allow markdown, loom, and heading tiles to show even when locked since they are not filterable
+        // Allow markdown, loom, heading, and divider tiles to show even when locked since they are not filterable
         if (tile.type === DashboardTileTypes.MARKDOWN) {
             return <MarkdownTile {...props} tile={tile} />;
         }
@@ -36,6 +37,9 @@ const GridTile: FC<
         }
         if (tile.type === DashboardTileTypes.HEADING) {
             return <HeadingTile {...props} tile={tile} />;
+        }
+        if (tile.type === DashboardTileTypes.DIVIDER) {
+            return <DividerTile {...props} tile={tile} />;
         }
 
         return (
@@ -56,6 +60,8 @@ const GridTile: FC<
             return <SqlChartTile {...props} tile={tile} />;
         case DashboardTileTypes.HEADING:
             return <HeadingTile {...props} tile={tile} />;
+        case DashboardTileTypes.DIVIDER:
+            return <DividerTile {...props} tile={tile} />;
         default: {
             return assertUnreachable(
                 tile,

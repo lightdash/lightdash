@@ -16,6 +16,7 @@ import {
     IconHeading,
     IconInfoCircle,
     IconMarkdown,
+    IconMinus,
     IconNewSection,
     IconPlus,
     IconVideo,
@@ -150,14 +151,24 @@ const AddTileButton: FC<Props> = ({
                     </Menu.Item>
 
                     {isDashboardRedesignEnabled && (
-                        <Menu.Item
-                            onClick={() =>
-                                setAddTileType(DashboardTileTypes.HEADING)
-                            }
-                            icon={<MantineIcon icon={IconHeading} />}
-                        >
-                            Heading
-                        </Menu.Item>
+                        <>
+                            <Menu.Item
+                                onClick={() =>
+                                    setAddTileType(DashboardTileTypes.HEADING)
+                                }
+                                icon={<MantineIcon icon={IconHeading} />}
+                            >
+                                Heading
+                            </Menu.Item>
+                            <Menu.Item
+                                onClick={() =>
+                                    setAddTileType(DashboardTileTypes.DIVIDER)
+                                }
+                                icon={<MantineIcon icon={IconMinus} />}
+                            >
+                                Divider
+                            </Menu.Item>
+                        </>
                     )}
                 </Menu.Dropdown>
             </Menu>
@@ -171,7 +182,8 @@ const AddTileButton: FC<Props> = ({
 
             {addTileType === DashboardTileTypes.MARKDOWN ||
             addTileType === DashboardTileTypes.LOOM ||
-            addTileType === DashboardTileTypes.HEADING ? (
+            addTileType === DashboardTileTypes.HEADING ||
+            addTileType === DashboardTileTypes.DIVIDER ? (
                 <TileAddModal
                     opened={!!addTileType}
                     type={addTileType}

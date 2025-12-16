@@ -2,6 +2,7 @@ import {
     DashboardTileTypes,
     assertUnreachable,
     type Dashboard,
+    type DashboardDividerTileProperties,
     type DashboardHeadingTileProperties,
     type DashboardLoomTileProperties,
     type DashboardMarkdownTile,
@@ -16,10 +17,16 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import { IconHeading, IconMarkdown, IconVideo } from '@tabler/icons-react';
+import {
+    IconHeading,
+    IconMarkdown,
+    IconMinus,
+    IconVideo,
+} from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import DividerTileForm from './DividerTileForm';
 import HeadingTileForm from './HeadingTileForm';
 import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
@@ -53,16 +60,24 @@ const TileUpdateModal = <T extends Tile>({
             text: (value: string | undefined) =>
                 !value || !value.length ? 'Required field' : null,
         };
+        const orientationValidator = {
+            orientation: (value: string | undefined) =>
+                value === 'horizontal' || value === 'vertical'
+                    ? null
+                    : 'Required field',
+        };
 
         if (tile.type === DashboardTileTypes.LOOM)
             return { ...urlValidator, ...titleValidator };
         if (tile.type === DashboardTileTypes.HEADING) return textValidator;
+        if (tile.type === DashboardTileTypes.DIVIDER)
+            return orientationValidator;
     };
 
     const form = useForm<TileProperties>({
         initialValues: { ...tile.properties },
         validate: getValidators(),
-        validateInputOnChange: ['title', 'url', 'text'],
+        validateInputOnChange: ['title', 'url', 'text', 'orientation'],
         transformValues(values) {
             if (tile.type === DashboardTileTypes.MARKDOWN) {
                 return markdownTileContentTransform(
@@ -91,6 +106,8 @@ const TileUpdateModal = <T extends Tile>({
                 return <IconVideo />;
             case DashboardTileTypes.HEADING:
                 return <IconHeading />;
+            case DashboardTileTypes.DIVIDER:
+                return <IconMinus />;
             case DashboardTileTypes.SAVED_CHART:
                 return null;
             case DashboardTileTypes.SQL_CHART:
@@ -139,6 +156,14 @@ const TileUpdateModal = <T extends Tile>({
                             form={
                                 form as UseFormReturnType<
                                     DashboardHeadingTileProperties['properties']
+                                >
+                            }
+                        />
+                    ) : tile.type === DashboardTileTypes.DIVIDER ? (
+                        <DividerTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardDividerTileProperties['properties']
                                 >
                             }
                         />

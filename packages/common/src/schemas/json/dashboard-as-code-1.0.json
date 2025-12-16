@@ -72,7 +72,8 @@
                             "sql_chart",
                             "markdown",
                             "loom",
-                            "heading"
+                            "heading",
+                            "divider"
                         ]
                     },
                     "x": {
@@ -228,6 +229,18 @@
                                     }
                                 },
                                 "required": ["text"]
+                            },
+                            {
+                                "description": "Properties for a divider tile",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "orientation": {
+                                        "type": "string",
+                                        "enum": ["horizontal", "vertical"],
+                                        "description": "Orientation of the divider line"
+                                    }
+                                },
+                                "required": ["orientation"]
                             }
                         ]
                     }

@@ -16,6 +16,7 @@ export const DashboardTileSqlChartTableName = 'dashboard_tile_sql_charts';
 export const DashboardTileMarkdownsTableName = 'dashboard_tile_markdowns';
 export const DashboardTileLoomsTableName = 'dashboard_tile_looms';
 export const DashboardTileHeadingsTableName = 'dashboard_tile_headings';
+export const DashboardTileDividersTableName = 'dashboard_tile_dividers';
 export const DashboardTabsTableName = 'dashboard_tabs';
 
 export type DbDashboard = {
@@ -135,6 +136,15 @@ type DbDashboardTileHeadings = {
 
 export type DashboardTileHeadingsTable =
     Knex.CompositeTableType<DbDashboardTileHeadings>;
+
+type DbDashboardTileDividers = {
+    dashboard_version_id: number;
+    dashboard_tile_uuid: string;
+    orientation: 'horizontal' | 'vertical';
+};
+
+export type DashboardTileDividersTable =
+    Knex.CompositeTableType<DbDashboardTileDividers>;
 
 export type DbDashboardTabs = {
     name: string;

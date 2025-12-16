@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     defaultTileSize,
     type Dashboard,
+    type DashboardDividerTileProperties,
     type DashboardHeadingTileProperties,
     type DashboardLoomTileProperties,
     type DashboardMarkdownTile,
@@ -17,10 +18,16 @@ import {
     type ModalProps,
 } from '@mantine/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import { IconHeading, IconMarkdown, IconVideo } from '@tabler/icons-react';
+import {
+    IconHeading,
+    IconMarkdown,
+    IconMinus,
+    IconVideo,
+} from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import MantineIcon from '../../common/MantineIcon';
+import DividerTileForm from './DividerTileForm';
 import HeadingTileForm from './HeadingTileForm';
 import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
@@ -33,7 +40,8 @@ type AddProps = ModalProps & {
     type:
         | DashboardTileTypes.LOOM
         | DashboardTileTypes.MARKDOWN
-        | DashboardTileTypes.HEADING;
+        | DashboardTileTypes.HEADING
+        | DashboardTileTypes.DIVIDER;
     onConfirm: (tile: Tile) => void;
 };
 
@@ -58,14 +66,27 @@ export const TileAddModal: FC<AddProps> = ({
             text: (value: string | undefined) =>
                 !value || !value.length ? 'Required field' : null,
         };
+        const orientationValidator = {
+            orientation: (value: string | undefined) =>
+                value === 'horizontal' || value === 'vertical'
+                    ? null
+                    : 'Required field',
+        };
         if (type === DashboardTileTypes.LOOM)
             return { ...urlValidator, ...titleValidator };
         if (type === DashboardTileTypes.HEADING) return textValidator;
+        if (type === DashboardTileTypes.DIVIDER) return orientationValidator;
     };
 
     const form = useForm<TileProperties>({
         validate: getValidators(),
-        validateInputOnChange: ['title', 'url', 'content', 'text'],
+        validateInputOnChange: [
+            'title',
+            'url',
+            'content',
+            'text',
+            'orientation',
+        ],
         transformValues(values) {
             if (type === DashboardTileTypes.MARKDOWN) {
                 return markdownTileContentTransform(
@@ -85,6 +106,8 @@ export const TileAddModal: FC<AddProps> = ({
                 return IconVideo;
             case DashboardTileTypes.HEADING:
                 return IconHeading;
+            case DashboardTileTypes.DIVIDER:
+                return IconMinus;
             default:
                 return assertUnreachable(type, 'Tile type not supported');
         }
@@ -108,6 +131,16 @@ export const TileAddModal: FC<AddProps> = ({
                 ...defaultTileSize,
                 h: 1,
                 w: 36,
+            };
+        }
+
+        if (type === DashboardTileTypes.DIVIDER) {
+            const dividerProps =
+                properties as DashboardDividerTileProperties['properties'];
+            size = {
+                ...defaultTileSize,
+                h: dividerProps.orientation === 'horizontal' ? 1 : 9,
+                w: dividerProps.orientation === 'horizontal' ? 36 : 1,
             };
         }
         onConfirm({
@@ -168,6 +201,14 @@ export const TileAddModal: FC<AddProps> = ({
                             form={
                                 form as UseFormReturnType<
                                     DashboardHeadingTileProperties['properties']
+                                >
+                            }
+                        />
+                    ) : type === DashboardTileTypes.DIVIDER ? (
+                        <DividerTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardDividerTileProperties['properties']
                                 >
                             }
                         />

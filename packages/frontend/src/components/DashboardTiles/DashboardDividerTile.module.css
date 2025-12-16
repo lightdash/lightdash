@@ -1,0 +1,12 @@
+.divider {
+    width: 100%;
+    height: 1px;
+    border-top: 1px solid var(--mantine-color-gray-3);
+}
+
+.dividerVertical {
+    width: 1px;
+    height: 100%;
+    border-top: none;
+    border-left: 1px solid var(--mantine-color-gray-3);
+}
