@@ -7,6 +7,7 @@ import {
     ApiRegisterUserResponse,
     ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
+    AuthorizationError,
     CreatePersonalAccessToken,
     getRequestMethod,
     LightdashRequestMethodHeader,
@@ -60,11 +61,14 @@ export class UserController extends BaseController {
     async getAuthenticatedUser(
         @Request() req: express.Request,
     ): Promise<ApiGetAuthenticatedUserResponse> {
+        if (!req.user) {
+            throw new AuthorizationError('User session not found');
+        }
         this.setStatus(200);
 
         return {
             status: 'ok',
-            results: UserModel.lightdashUserFromSession(req.user!),
+            results: UserModel.lightdashUserFromSession(req.user),
         };
     }
 

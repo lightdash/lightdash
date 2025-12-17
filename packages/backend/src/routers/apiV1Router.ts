@@ -1,3 +1,4 @@
+import { AuthorizationError } from '@lightdash/common';
 import express, { type Router } from 'express';
 import passport from 'passport';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -51,13 +52,18 @@ apiV1Router.get('/flash', (req, res) => {
 });
 
 apiV1Router.post('/login', passport.authenticate('local'), (req, res, next) => {
+    if (!req.user) {
+        next(new AuthorizationError('User session not found'));
+        return;
+    }
+    const { user } = req;
     req.session.save((err) => {
         if (err) {
             next(err);
         } else {
             res.json({
                 status: 'ok',
-                results: UserModel.lightdashUserFromSession(req.user!),
+                results: UserModel.lightdashUserFromSession(user),
             });
         }
     });
