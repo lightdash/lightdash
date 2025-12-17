@@ -1,5 +1,5 @@
 import { type ApiError, type ApiSuccessEmpty } from '@lightdash/common';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../api';
 import useHealth from './health/useHealth';
@@ -47,9 +47,15 @@ export function useDatabricksLoginPopup({
 }) {
     const { showToastError } = useToaster();
     const health = useHealth();
+    const queryClient = useQueryClient();
     const ssoMutation = useMutation({
         mutationFn: () => triggerDatabricksLogin(health.data?.siteUrl || ''),
-        onSuccess: () => _onLogin?.(),
+        onSuccess: async () => {
+            // Invalidate user warehouse credentials since the backend creates
+            // credentials during the OAuth flow
+            await queryClient.invalidateQueries(['user_warehouse_credentials']);
+            await _onLogin?.();
+        },
         onError: (error: Error) => {
             showToastError({
                 title: 'Authentication failed',
