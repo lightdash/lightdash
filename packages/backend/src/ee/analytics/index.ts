@@ -78,6 +78,16 @@ export type GenerateChartMetadataGenerated = BaseTrack & {
         chartType: string;
     };
 };
+
+export type GenerateTableCalculationGenerated = BaseTrack & {
+    event: 'ai.table_calculation.generated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        userId: string;
+    };
+};
+
 // SCIM events
 
 export type ScimAccessTokenAuthenticationEvent = BaseTrack & {

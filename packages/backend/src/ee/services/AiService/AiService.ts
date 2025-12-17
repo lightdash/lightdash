@@ -6,10 +6,13 @@ import {
     FeatureFlags,
     ForbiddenError,
     GenerateChartMetadataRequest,
+    GenerateTableCalculationRequest,
     GeneratedChartMetadata,
+    GeneratedTableCalculation,
     ItemsMap,
     QueryExecutionContext,
     SessionUser,
+    TableCalculationType,
     UnexpectedServerError,
     getErrorMessage,
     getItemId,
@@ -29,10 +32,15 @@ import {
     DashboardSummaryCreated,
     DashboardSummaryViewed,
     GenerateChartMetadataGenerated,
+    GenerateTableCalculationGenerated,
 } from '../../analytics';
 import OpenAi from '../../clients/OpenAi';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
 import { generateChartMetadata as generateChartMetadataFromContext } from '../ai/agents/chartMetadataGenerator';
+import {
+    generateTableCalculation as generateTableCalculationFromContext,
+    sanitizeCustomFormat,
+} from '../ai/agents/tableCalculationGenerator';
 import { getModel } from '../ai/models';
 import { getAnthropicModel } from '../ai/models/anthropic-claude';
 import { getModelPreset } from '../ai/models/presets';
@@ -462,5 +470,48 @@ export class AiService {
         });
 
         return result;
+    }
+
+    async generateTableCalculation(
+        user: SessionUser,
+        projectUuid: string,
+        payload: GenerateTableCalculationRequest,
+    ): Promise<GeneratedTableCalculation> {
+        const model = await this.getAmbientAiModel(user);
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
+        const warehouseType = project.warehouseConnection?.type;
+
+        if (!warehouseType) {
+            throw new ForbiddenError('Warehouse type is not available');
+        }
+
+        const result = await generateTableCalculationFromContext(model, {
+            prompt: payload.prompt,
+            tableName: payload.tableName,
+            warehouseType,
+            fieldsContext: payload.fieldsContext,
+            existingTableCalculations: payload.existingTableCalculations,
+            currentSql: payload.currentSql,
+        });
+
+        this.analytics.track<GenerateTableCalculationGenerated>({
+            userId: user.userUuid,
+            event: 'ai.table_calculation.generated',
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                userId: user.userUuid,
+            },
+        });
+
+        return {
+            sql: result.sql,
+            displayName: result.displayName,
+            type: result.type as TableCalculationType,
+            format: sanitizeCustomFormat(result.format),
+        };
     }
 }
