@@ -1,3 +1,10 @@
+## [0.2260.1](https://github.com/lightdash/lightdash/compare/0.2260.0...0.2260.1) (2025-12-17)
+
+
+### Bug Fixes
+
+* cannot read properties of undefined in isFilterableDimension ([#18885](https://github.com/lightdash/lightdash/issues/18885)) ([ef7daa9](https://github.com/lightdash/lightdash/commit/ef7daa93b93095ef03ed4f944321e6684bc3688d))
+
 # [0.2260.0](https://github.com/lightdash/lightdash/compare/0.2259.3...0.2260.0) (2025-12-17)
 
 
