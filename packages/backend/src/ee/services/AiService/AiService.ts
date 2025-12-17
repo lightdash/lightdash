@@ -339,6 +339,7 @@ export class AiService {
         const { context, tone, audiences } = opts;
 
         try {
+            // TODO: use ambient AI model
             dashboardSummaryResult = await this.openAi.run(
                 DEFAULT_DASHBOARD_SUMMARY_PROMPT,
                 {

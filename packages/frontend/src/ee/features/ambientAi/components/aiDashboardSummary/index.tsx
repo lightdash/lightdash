@@ -1,12 +1,14 @@
-import { type ApiError, type DashboardSummary } from '@lightdash/common';
+import { type DashboardSummary } from '@lightdash/common';
 import { Button, Modal, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconWand } from '@tabler/icons-react';
-import { useMutation, useQuery } from '@tanstack/react-query';
 import { useCallback, useEffect, useState, type FC } from 'react';
-import { lightdashApi } from '../../../api';
-import MantineIcon from '../../../components/common/MantineIcon';
-import useToaster from '../../../hooks/toaster/useToaster';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import useToaster from '../../../../../hooks/toaster/useToaster';
+import {
+    useCreateDashboardSummary,
+    useGetDashboardSummary,
+} from '../../hooks/useDashboardSummary';
 import PresetsForm from './PresetsForm';
 import SummaryPreview from './SummaryPreview';
 
@@ -15,52 +17,6 @@ type DashboardAIProps = {
     dashboardUuid: string;
     dashboardVersionId: number;
 };
-
-// get
-const getDashboardSummary = async (
-    projectUuid: string,
-    dashboardUuid: string,
-) => {
-    return lightdashApi<DashboardSummary>({
-        url: `/ai/${projectUuid}/dashboard/${dashboardUuid}/summary`,
-        method: 'GET',
-        body: undefined,
-    });
-};
-
-const useGetDashboardSummary = (projectUuid: string, dashboardUuid: string) =>
-    useQuery<DashboardSummary, ApiError>({
-        queryKey: ['ai-dashboard-summary', projectUuid, dashboardUuid],
-        queryFn: () => getDashboardSummary(projectUuid, dashboardUuid),
-    });
-
-// create
-const createDashboardSummary = async (
-    projectUuid: string,
-    dashboardUuid: string,
-    params: Pick<DashboardSummary, 'context' | 'tone' | 'audiences'>,
-) => {
-    return lightdashApi<DashboardSummary>({
-        url: `/ai/${projectUuid}/dashboard/${dashboardUuid}/summary`,
-        method: 'POST',
-        body: JSON.stringify(params),
-    });
-};
-
-const useCreateDashboardSummary = (
-    projectUuid: string,
-    dashboardUuid: string,
-    onError?: (error: ApiError) => void,
-) =>
-    useMutation<
-        DashboardSummary,
-        ApiError,
-        Pick<DashboardSummary, 'context' | 'tone' | 'audiences'>
-    >({
-        mutationFn: (params) =>
-            createDashboardSummary(projectUuid, dashboardUuid, params),
-        onError,
-    });
 
 const AIDashboardSummary: FC<DashboardAIProps> = ({
     dashboardUuid,
@@ -169,9 +125,7 @@ const AIDashboardSummary: FC<DashboardAIProps> = ({
                         isPersistedDashboardSummaryLoading
                     }
                 >
-                    {summary
-                        ? 'Dashboard Summary'
-                        : 'Generate Dashboard Summary'}
+                    {summary ? 'Dashboard Summary' : 'Generate Summary'}
                 </Button>
             </Tooltip>
         </>
