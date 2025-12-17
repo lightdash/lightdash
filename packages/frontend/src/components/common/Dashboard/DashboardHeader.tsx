@@ -1,9 +1,10 @@
 import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     ResourceViewItemType,
     type Dashboard,
-    type FeatureFlags,
 } from '@lightdash/common';
+import { ActionIcon as ActionIconV8 } from '@mantine-8/core';
 import {
     ActionIcon,
     Box,
@@ -11,7 +12,6 @@ import {
     Group,
     Menu,
     Popover,
-    Stack,
     Text,
     Title,
     Tooltip,
@@ -54,10 +54,7 @@ import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import MantineIcon from '../MantineIcon';
 import PageHeader from '../Page/PageHeader';
-import SlugInfo from '../PageHeader/SlugInfo';
-import SpaceAndDashboardInfo from '../PageHeader/SpaceAndDashboardInfo';
-import { UpdatedInfo } from '../PageHeader/UpdatedInfo';
-import ViewInfo from '../PageHeader/ViewInfo';
+import DashboardInfoOverlay from '../PageHeader/DashboardInfoOverlay';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
@@ -114,6 +111,9 @@ const DashboardHeader = ({
 }: DashboardHeaderProps) => {
     const isDashboardSummariesEnabled = useFeatureFlagEnabled(
         'ai-dashboard-summary' as FeatureFlags,
+    );
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
     );
 
     const { search } = useLocation();
@@ -238,45 +238,26 @@ const DashboardHeader = ({
                     }}
                 >
                     <Popover.Target>
-                        <ActionIcon color="dark">
-                            <MantineIcon icon={IconInfoCircle} />
-                        </ActionIcon>
+                        {isDashboardRedesignEnabled ? (
+                            <ActionIconV8
+                                variant="subtle"
+                                color="ldGray.6"
+                                radius="md"
+                            >
+                                <MantineIcon icon={IconInfoCircle} />
+                            </ActionIconV8>
+                        ) : (
+                            <ActionIcon color="dark">
+                                <MantineIcon icon={IconInfoCircle} />
+                            </ActionIcon>
+                        )}
                     </Popover.Target>
 
-                    <Popover.Dropdown maw={500}>
-                        <Stack spacing="xs">
-                            {dashboard.description && (
-                                <Text
-                                    fz="xs"
-                                    color="ldGray.7"
-                                    fw={500}
-                                    style={{ whiteSpace: 'pre-line' }}
-                                >
-                                    {dashboard.description}
-                                </Text>
-                            )}
-
-                            <UpdatedInfo
-                                updatedAt={dashboard.updatedAt}
-                                user={dashboard.updatedByUser}
-                            />
-
-                            <ViewInfo
-                                views={dashboard.views}
-                                firstViewedAt={dashboard.firstViewedAt}
-                            />
-
-                            <SlugInfo slug={dashboard.slug} />
-
-                            {dashboard.spaceName && (
-                                <SpaceAndDashboardInfo
-                                    space={{
-                                        link: `/projects/${projectUuid}/spaces/${dashboard.spaceUuid}`,
-                                        name: dashboard.spaceName,
-                                    }}
-                                />
-                            )}
-                        </Stack>
+                    <Popover.Dropdown maw={500} p={0}>
+                        <DashboardInfoOverlay
+                            dashboard={dashboard}
+                            projectUuid={projectUuid}
+                        />
                     </Popover.Dropdown>
                 </Popover>
 
@@ -332,9 +313,7 @@ const DashboardHeader = ({
                 >
                     Dashboard uses cached data from
                     <Text fw={700}>
-                        {dayjs(oldestCacheTime).format(
-                            'MMM D, YYYY h:mm A',
-                        )}{' '}
+                        {dayjs(oldestCacheTime).format('MMM D, YYYY h:mm A')}{' '}
                     </Text>
                 </Text>
             )}
