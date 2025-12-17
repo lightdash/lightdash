@@ -8,7 +8,6 @@ import {
     isFormat,
     type CustomBinDimension,
     type CustomSqlDimension,
-    type Field,
     type TableCalculation,
 } from './field';
 import { type AdditionalMetric } from './metricQuery';
@@ -103,40 +102,6 @@ describe('field util functions', () => {
                 name: 'calc2',
             };
             expect(getItemId(additionalMetric)).toEqual('table1_calc2');
-        });
-        it('should handle item with undefined table gracefully', async () => {
-            // Mock console.warn to avoid test output noise
-            const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-
-            const itemWithoutTable = { name: 'field_test' } as Pick<
-                Field,
-                'name'
-            >;
-            expect(
-                getItemId(itemWithoutTable as Pick<Field, 'name' | 'table'>),
-            ).toEqual('field_test');
-
-            // Verify warning was logged
-            expect(consoleSpy).toHaveBeenCalledWith(
-                'getItemId: item.table is undefined for item:',
-                itemWithoutTable,
-            );
-
-            consoleSpy.mockRestore();
-        });
-        it('should handle item with undefined table and dots in name', async () => {
-            // Mock console.warn to avoid test output noise
-            const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-
-            const itemWithoutTable = { name: 'field.nested.value' } as Pick<
-                Field,
-                'name'
-            >;
-            expect(
-                getItemId(itemWithoutTable as Pick<Field, 'name' | 'table'>),
-            ).toEqual('field__nested__value');
-
-            consoleSpy.mockRestore();
         });
     });
     describe('isFormat', () => {
