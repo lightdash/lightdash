@@ -723,7 +723,7 @@ const DashboardProvider: React.FC<
                 showToastWarning({
                     title: 'Could not restore filters from URL',
                     subtitle:
-                        'The link may have been truncated. Please ask for it to be shared again.',
+                        'The link appears to be incomplete. Please ask for it to be shared again.',
                 });
             }
         }
