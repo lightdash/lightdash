@@ -143,6 +143,7 @@ pnpm -F backend rollback-last
     -   Backwards compatibility requirements
     -   API design patterns where omission has semantic meaning
     -   Configuration objects with sensible defaults
+-   **Always wrap `JSON.parse` in try/catch**: Parse errors crash the app. On failure, considering showing a warning toast or falling back to a sensible default.
 
 ## TypeScript Utilities
 

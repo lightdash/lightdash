@@ -50,6 +50,7 @@ import {
     useDashboardsAvailableFilters,
     useDashboardVersionRefresh,
 } from '../../hooks/dashboard/useDashboard';
+import useToaster from '../../hooks/toaster/useToaster';
 import {
     hasSavedFiltersOverrides,
     useSavedDashboardFiltersOverrides,
@@ -86,6 +87,7 @@ const DashboardProvider: React.FC<
 }) => {
     const { search, pathname } = useLocation();
     const navigate = useNavigate();
+    const { showToastWarning } = useToaster();
 
     const { dashboardUuid, tabUuid } = useParams<{
         dashboardUuid: string;
@@ -694,20 +696,36 @@ const DashboardProvider: React.FC<
 
         sessionStorage.removeItem('unsavedDashboardFilters');
         if (unsavedDashboardFiltersRaw) {
-            const unsavedDashboardFilters = JSON.parse(
-                unsavedDashboardFiltersRaw,
-            );
-            // TODO: this should probably merge with the filters
-            // from the database. This will break if they diverge,
-            // meaning there is a subtle race condition here
-            setDashboardFilters(unsavedDashboardFilters);
+            try {
+                const unsavedDashboardFilters = JSON.parse(
+                    unsavedDashboardFiltersRaw,
+                );
+                // TODO: this should probably merge with the filters
+                // from the database. This will break if they diverge,
+                // meaning there is a subtle race condition here
+                setDashboardFilters(unsavedDashboardFilters);
+            } catch {
+                showToastWarning({
+                    title: 'Could not restore unsaved filters',
+                    subtitle:
+                        'Your previous filter changes could not be loaded',
+                });
+            }
         }
         if (tempFilterSearchParam) {
-            setDashboardTemporaryFilters(
-                convertDashboardFiltersParamToDashboardFilters(
-                    JSON.parse(tempFilterSearchParam),
-                ),
-            );
+            try {
+                setDashboardTemporaryFilters(
+                    convertDashboardFiltersParamToDashboardFilters(
+                        JSON.parse(tempFilterSearchParam),
+                    ),
+                );
+            } catch {
+                showToastWarning({
+                    title: 'Could not restore filters from URL',
+                    subtitle:
+                        'The link appears to be incomplete. Please ask for it to be shared again.',
+                });
+            }
         }
     });
 

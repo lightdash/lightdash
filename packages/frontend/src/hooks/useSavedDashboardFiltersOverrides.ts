@@ -3,8 +3,9 @@ import {
     type DashboardFilterRuleOverride,
     type DashboardFilters,
 } from '@lightdash/common';
-import { useReducer } from 'react';
+import { useEffect, useReducer, useRef } from 'react';
 import { useLocation } from 'react-router';
+import useToaster from './toaster/useToaster';
 
 export const hasSavedFiltersOverrides = (
     overrides: DashboardFilters | undefined,
@@ -72,15 +73,34 @@ const reducer = (
 
 export const useSavedDashboardFiltersOverrides = () => {
     const { search } = useLocation();
+    const { showToastWarning } = useToaster();
     const searchParams = new URLSearchParams(search);
     const overridesForSavedDashboardFiltersParam = searchParams.get('filters');
+    const parseErrorRef = useRef(false);
 
     const [state, dispatch] = useReducer(
         reducer,
-        overridesForSavedDashboardFiltersParam
-            ? JSON.parse(overridesForSavedDashboardFiltersParam)
-            : { dimensions: [], metrics: [] },
+        overridesForSavedDashboardFiltersParam,
+        (param) => {
+            if (!param) return { dimensions: [], metrics: [] };
+            try {
+                return JSON.parse(param);
+            } catch {
+                parseErrorRef.current = true;
+                return { dimensions: [], metrics: [] };
+            }
+        },
     );
+
+    useEffect(() => {
+        if (parseErrorRef.current) {
+            showToastWarning({
+                title: 'Could not restore filters from URL',
+                subtitle:
+                    'The link appears to be incomplete. Please ask for it to be shared again.',
+            });
+        }
+    }, [showToastWarning]);
 
     const addSavedFilterOverride = ({
         tileTargets,
