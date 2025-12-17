@@ -1,3 +1,19 @@
+# [0.2260.0](https://github.com/lightdash/lightdash/compare/0.2259.3...0.2260.0) (2025-12-17)
+
+
+### Bug Fixes
+
+* prevent filter groups from wrapping in dashboard tabs ([#18873](https://github.com/lightdash/lightdash/issues/18873)) ([b398694](https://github.com/lightdash/lightdash/commit/b3986949b7a6c3d7560162f84e4c0ff05fd4f228))
+* remove error toast when lastProject errors fetch ([#18878](https://github.com/lightdash/lightdash/issues/18878)) ([fac4382](https://github.com/lightdash/lightdash/commit/fac438236f67d84f4f0048b4c6e9d038a008a9fc))
+* **security:** upgrade next.js to 15.4.10 (CVE-2025-55184) ([#18879](https://github.com/lightdash/lightdash/issues/18879)) ([4ec427a](https://github.com/lightdash/lightdash/commit/4ec427a1e8efb8a810b471d518157cb435ceded4)), closes [#398](https://github.com/lightdash/lightdash/issues/398)
+* verify email after update is not sent ([#18863](https://github.com/lightdash/lightdash/issues/18863)) ([d1d1e0a](https://github.com/lightdash/lightdash/commit/d1d1e0aabf36d4f7c28bfdf02e8ce8416e67f7eb))
+
+
+### Features
+
+* add hide frame option for dashboard markdown tiles ([#18820](https://github.com/lightdash/lightdash/issues/18820)) ([9305994](https://github.com/lightdash/lightdash/commit/9305994f95c28465064fcfbc18d99114b8be71aa)), closes [#17969](https://github.com/lightdash/lightdash/issues/17969)
+* improve required filter indicator with custom styling and tooltip ([#18876](https://github.com/lightdash/lightdash/issues/18876)) ([5a61d5c](https://github.com/lightdash/lightdash/commit/5a61d5c04dd19c616339cacc5f3fa2af198698f0))
+
 ## [0.2259.3](https://github.com/lightdash/lightdash/compare/0.2259.2...0.2259.3) (2025-12-16)
 
 
