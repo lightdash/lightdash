@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     NotFoundError,
     UnexpectedServerError,
     UpsertUserWarehouseCredentials,
@@ -61,17 +62,24 @@ export class UserWarehouseCredentialsModel {
                 case WarehouseTypes.REDSHIFT:
                 case WarehouseTypes.POSTGRES:
                 case WarehouseTypes.TRINO:
-                case WarehouseTypes.SNOWFLAKE:
                 case WarehouseTypes.CLICKHOUSE:
                     credentials = {
                         type: credentialsWithSecrets.type,
                         user: credentialsWithSecrets.user,
                     };
                     break;
-                default:
+                case WarehouseTypes.SNOWFLAKE:
+                case WarehouseTypes.BIGQUERY:
+                case WarehouseTypes.DATABRICKS:
                     credentials = {
                         type: credentialsWithSecrets.type,
                     };
+                    break;
+                default:
+                    return assertUnreachable(
+                        credentialsWithSecrets,
+                        `Unknown warehouse type`,
+                    );
             }
         } catch (e) {
             throw new UnexpectedServerError(

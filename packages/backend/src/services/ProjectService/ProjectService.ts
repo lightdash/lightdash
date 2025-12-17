@@ -146,6 +146,7 @@ import {
     SpaceSummary,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
+    stripUserSpecificFields,
     SummaryExplore,
     TablesConfiguration,
     TableSelectionType,
@@ -679,12 +680,9 @@ export class ProjectService extends BaseService {
             args.authenticationType === 'sso'
         ) {
             try {
-                // On old project configs we were storing refreshToken inside the token field (legacy)
-                let refreshToken = args.refreshToken || args.token;
+                // Use refresh token from credentials (user or org), or fetch from user's OpenID identity
+                let { refreshToken } = args;
 
-                // We pass the refresh token for snowflake on args
-                // This is used on user warehouse credentials.
-                // If this is provided, use this instead of getting the refresh token from the openid table
                 if (refreshToken === undefined) {
                     refreshToken = await this.userModel.getRefreshToken(
                         userUuid,
@@ -1006,7 +1004,7 @@ export class ProjectService extends BaseService {
                 `Refreshing snowflake warehouse credentials from user uuid: ${userUuid}`,
             );
             const credentials = await this.refreshCredentials(
-                { ...args.warehouseConnection, token: refreshToken },
+                { ...args.warehouseConnection, refreshToken },
                 userUuid,
             );
             return {
@@ -1114,8 +1112,10 @@ export class ProjectService extends BaseService {
                     credentials.type ===
                     userWarehouseCredentials.credentials.type
                 ) {
+                    // Strip user-specific fields from project/org credentials to ensure
+                    // user credentials always take precedence
                     credentials = {
-                        ...credentials,
+                        ...stripUserSpecificFields(credentials),
                         ...userWarehouseCredentials.credentials,
                     } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
                 } else {

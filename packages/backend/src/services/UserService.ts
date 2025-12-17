@@ -1767,10 +1767,9 @@ export class UserService extends BaseService {
         const snowflakeCredentials: UpsertUserWarehouseCredentials = {
             name: 'Default',
             credentials: {
-                user: user.userUuid,
                 type: WarehouseTypes.SNOWFLAKE,
                 authenticationType: SnowflakeAuthenticationType.SSO,
-                token: refreshToken,
+                refreshToken,
             },
         };
         await this.createWarehouseCredentials(user, snowflakeCredentials);

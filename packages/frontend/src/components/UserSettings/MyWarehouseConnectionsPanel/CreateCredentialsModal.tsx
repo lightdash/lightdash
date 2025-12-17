@@ -44,8 +44,6 @@ const defaultCredentials: Record<
     },
     [WarehouseTypes.SNOWFLAKE]: {
         type: WarehouseTypes.SNOWFLAKE,
-        user: '',
-        password: '',
     },
     [WarehouseTypes.TRINO]: {
         type: WarehouseTypes.TRINO,

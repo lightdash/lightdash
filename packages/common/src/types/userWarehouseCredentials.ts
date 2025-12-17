@@ -18,11 +18,11 @@ export type UserWarehouseCredentials = {
         | Pick<
               | CreateRedshiftCredentials
               | CreatePostgresCredentials
-              | CreateSnowflakeCredentials
               | CreateTrinoCredentials
               | CreateClickhouseCredentials,
               'type' | 'user'
           >
+        | Pick<CreateSnowflakeCredentials, 'type'>
         | Pick<CreateBigqueryCredentials, 'type'>
         | Pick<CreateDatabricksCredentials, 'type'>;
 };
@@ -36,7 +36,7 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
         | Pick<CreatePostgresCredentials, 'type' | 'user' | 'password'>
         | Pick<
               CreateSnowflakeCredentials,
-              'type' | 'user' | 'password' | 'authenticationType' | 'token'
+              'type' | 'password' | 'authenticationType' | 'refreshToken'
           >
         | Pick<CreateTrinoCredentials, 'type' | 'user' | 'password'>
         | Pick<CreateClickhouseCredentials, 'type' | 'user' | 'password'>

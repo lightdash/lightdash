@@ -75,6 +75,39 @@ export const sensitiveCredentialsFieldNames = [
 ] as const;
 export type SensitiveCredentialsFieldNames =
     typeof sensitiveCredentialsFieldNames[number];
+
+/**
+ * Fields that contain user-specific authentication credentials and should be
+ * stripped from project/org credentials before merging user credentials.
+ */
+export const userSpecificCredentialFieldNames = [
+    // User identity
+    'user',
+    // OAuth tokens
+    'refreshToken',
+    'token',
+    // Password auth
+    'password',
+    // Key-based auth
+    'privateKey',
+    'privateKeyPass',
+    'keyfileContents',
+    // Personal tokens
+    'personalAccessToken',
+    // OAuth client credentials (user-specific when using U2M flow)
+    'oauthClientId',
+    'oauthClientSecret',
+    // SSH tunnel credentials
+    'sshTunnelPrivateKey',
+    // SSL certificates
+    'sslcert',
+    'sslkey',
+    'sslrootcert',
+] as const;
+
+export type UserSpecificCredentialFieldNames =
+    typeof userSpecificCredentialFieldNames[number];
+
 export type BigqueryCredentials = Omit<
     CreateBigqueryCredentials,
     SensitiveCredentialsFieldNames
@@ -253,6 +286,20 @@ export type WarehouseCredentials =
 export type CreatePostgresLikeCredentials =
     | CreateRedshiftCredentials
     | CreatePostgresCredentials;
+
+/**
+ * Strips user-specific fields from credentials before merging with user credentials.
+ * This ensures user credentials always take precedence over project/org credentials.
+ */
+export const stripUserSpecificFields = <T extends CreateWarehouseCredentials>(
+    credentials: T,
+): Omit<T, UserSpecificCredentialFieldNames> => {
+    const stripped = { ...credentials };
+    for (const field of userSpecificCredentialFieldNames) {
+        delete (stripped as Record<string, unknown>)[field];
+    }
+    return stripped as Omit<T, UserSpecificCredentialFieldNames>;
+};
 
 export const maybeOverrideWarehouseConnection = <
     T extends WarehouseCredentials,
