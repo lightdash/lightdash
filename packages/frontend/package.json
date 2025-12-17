@@ -144,7 +144,6 @@
     "devDependencies": {
         "@chromatic-com/storybook": "^3",
         "@mantine/styles": "6.0.21",
-        "@react-grab/claude-code": "^0.0.70",
         "@storybook/addon-essentials": "^8.6.6",
         "@storybook/addon-interactions": "^8.6.6",
         "@storybook/addon-onboarding": "^8.6.6",
@@ -183,7 +182,6 @@
         "isomorphic-fetch": "^3.0.0",
         "jsdom": "^24.0.0",
         "nock": "^13.5.1",
-        "react-grab": "^0.0.70",
         "react-test-renderer": "^19.0.0",
         "storybook": "^8.6.6",
         "ts-unused-exports": "^9.0.4",

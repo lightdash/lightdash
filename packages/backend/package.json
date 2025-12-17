@@ -34,7 +34,6 @@
         "copyfiles": "^2.4.1",
         "jest-fetch-mock": "^3.0.3",
         "knex-mock-client": "^1.11.0",
-        "mastra": "^0.10.15",
         "nodemon": "^3.1.9",
         "ts-node": "^10.9.2"
     },
@@ -54,8 +53,6 @@
         "@langchain/openai": "^0.4.2",
         "@lightdash/common": "workspace:*",
         "@lightdash/warehouses": "workspace:*",
-        "@mastra/core": "^0.16.0",
-        "@mastra/evals": "^0.13.4",
         "@mastra/schema-compat": "^0.11.2",
         "@modelcontextprotocol/sdk": "^1.17.5",
         "@node-oauth/oauth2-server": "^5.2.0",
