@@ -135,12 +135,30 @@ const formatBarDisplayCell = (
         formatted = formatRowValueFromWarehouse(cellValue);
     }
 
-    // Get min/max from minMaxMap (same as conditional formatting)
+    // Get columnsConfig and columnStats from table meta
+    const columnsConfig = info.table?.options.meta?.columnsConfig;
+    const columnStats = info.table?.options.meta?.columnStats;
+
+    // Priority 1: Check for custom barConfig (user-specified override)
+    // For pivot tables, try baseFieldId first so all pivoted versions share the same scale
+    const customBarConfig =
+        columnsConfig?.[baseFieldId]?.barConfig ??
+        columnsConfig?.[columnId]?.barConfig;
+
+    // Priority 2: Check for auto-calculated stats (from actual data)
     // For pivot tables, try baseFieldId first so all pivoted versions share the same scale
     // Fall back to columnId for individual column scales
-    const minMax = minMaxMap[baseFieldId] ?? minMaxMap[columnId];
-    const min = minMax?.min ?? 0;
-    const max = minMax?.max ?? 100;
+    // Support both columnStats (DataViz tables) and minMaxMap (legacy tables)
+    const autoCalcStats =
+        columnStats?.[baseFieldId] ??
+        columnStats?.[columnId] ??
+        minMaxMap?.[baseFieldId] ??
+        minMaxMap?.[columnId];
+
+    // Determine final min/max with proper fallback
+    // If no stats are available, use the current value as max to ensure at least some bar is visible
+    const min = customBarConfig?.min ?? autoCalcStats?.min ?? 0;
+    const max = customBarConfig?.max ?? autoCalcStats?.max ?? value;
 
     return (
         <TableCellBar
