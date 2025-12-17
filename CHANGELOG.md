@@ -1,3 +1,10 @@
+## [0.2262.1](https://github.com/lightdash/lightdash/compare/0.2262.0...0.2262.1) (2025-12-17)
+
+
+### Bug Fixes
+
+* add error handling for dashboard filter JSON parsing ([#18864](https://github.com/lightdash/lightdash/issues/18864)) ([7547966](https://github.com/lightdash/lightdash/commit/7547966289004648c15cdce4e541a223060d9129))
+
 # [0.2262.0](https://github.com/lightdash/lightdash/compare/0.2261.0...0.2262.0) (2025-12-17)
 
 
