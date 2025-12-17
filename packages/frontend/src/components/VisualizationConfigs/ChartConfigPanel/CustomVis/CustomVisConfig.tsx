@@ -1,5 +1,12 @@
 import { FeatureFlags } from '@lightdash/common';
-import { Button, Flex, Group, Loader, Text } from '@mantine/core';
+import {
+    Button,
+    Flex,
+    Group,
+    Loader,
+    Text,
+    useMantineTheme,
+} from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
 import { type IDisposable, type languages } from 'monaco-editor';
@@ -60,6 +67,20 @@ const loadMonaco = (monaco: Monaco, schemas: Schema[]) => {
         foldingRanges: true,
         diagnostics: true,
     });
+
+    // Define light and dark themes
+    monaco.editor.defineTheme('lightdash-light', {
+        base: 'vs',
+        inherit: true,
+        rules: [],
+        colors: {},
+    });
+    monaco.editor.defineTheme('lightdash-dark', {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [],
+        colors: {},
+    });
 };
 
 const registerCustomCompletionProvider = (
@@ -97,6 +118,7 @@ const registerCustomCompletionProvider = (
 
 export const ConfigTabs: React.FC = memo(() => {
     const { visualizationConfig } = useVisualizationContext();
+    const theme = useMantineTheme();
 
     const isCustomConfig = isCustomVisualizationConfig(visualizationConfig);
 
@@ -297,6 +319,11 @@ export const ConfigTabs: React.FC = memo(() => {
                     onChange={(config) => {
                         setEditorConfig(config ?? '');
                     }}
+                    theme={
+                        theme.colorScheme === 'dark'
+                            ? 'lightdash-dark'
+                            : 'lightdash-light'
+                    }
                 />
             </Group>
         </>
