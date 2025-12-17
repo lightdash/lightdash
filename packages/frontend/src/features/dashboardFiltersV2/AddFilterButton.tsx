@@ -1,7 +1,16 @@
 import { type DashboardFilterRule } from '@lightdash/common';
-import { Button, Popover, Text, Tooltip } from '@mantine/core';
-import { useDisclosure, useId } from '@mantine/hooks';
+import {
+    Button,
+    Divider,
+    Group,
+    Popover,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
+import { useDisclosure, useId } from '@mantine-8/hooks';
+import { IconRotate2 } from '@tabler/icons-react';
 import { type FC, useCallback, useMemo } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import FilterConfiguration from './FilterConfiguration';
 
@@ -11,6 +20,7 @@ type Props = {
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
     onSave: (value: DashboardFilterRule) => void;
+    onResetDashboardFilters: () => void;
 };
 
 const AddFilterButton: FC<Props> = ({
@@ -19,6 +29,7 @@ const AddFilterButton: FC<Props> = ({
     onPopoverOpen,
     onPopoverClose,
     onSave,
+    onResetDashboardFilters,
 }) => {
     const popoverId = useId();
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
@@ -45,6 +56,16 @@ const AddFilterButton: FC<Props> = ({
         (c) => c.isFetchingDashboardFilters,
     );
 
+    const haveFiltersChanged = useDashboardContext(
+        (c) =>
+            c.haveFiltersChanged ||
+            c.dashboardTemporaryFilters.dimensions.length > 0,
+    );
+
+    const setHaveFiltersChanged = useDashboardContext(
+        (c) => c.setHaveFiltersChanged,
+    );
+
     const isPopoverOpen = openPopoverId === popoverId;
 
     const [isSubPopoverOpen, { close: closeSubPopover, open: openSubPopover }] =
@@ -63,8 +84,10 @@ const AddFilterButton: FC<Props> = ({
         [onSave, handleClose],
     );
 
+    const showResetFiltersButton = !isEditMode && haveFiltersChanged;
+
     return (
-        <>
+        <Group gap={0}>
             <Popover
                 position="bottom-start"
                 trapFocus
@@ -106,6 +129,24 @@ const AddFilterButton: FC<Props> = ({
                                 isLoadingDashboardFilters ||
                                 isFetchingDashboardFilters
                             }
+                            styles={{
+                                root: {
+                                    borderStyle: 'dashed',
+                                    borderRadius: '100px',
+                                    ...(showResetFiltersButton
+                                        ? {
+                                              borderRightWidth: '0px',
+                                              borderTopRightRadius: '0px',
+                                              borderBottomRightRadius: '0px',
+                                          }
+                                        : {
+                                              borderRightStyle: 'dashed',
+                                              borderRightWidth: '1px',
+                                              borderTopRightRadius: '100px',
+                                              borderBottomRightRadius: '100px',
+                                          }),
+                                },
+                            }}
                             onClick={() =>
                                 isPopoverOpen
                                     ? handleClose()
@@ -137,7 +178,39 @@ const AddFilterButton: FC<Props> = ({
                     )}
                 </Popover.Dropdown>
             </Popover>
-        </>
+
+            {showResetFiltersButton && (
+                <>
+                    <Divider orientation="vertical" />
+
+                    <Tooltip label="Reset all filters" withinPortal>
+                        <Button
+                            aria-label="Reset all filters"
+                            size="xs"
+                            variant="default"
+                            radius="md"
+                            color="gray"
+                            onClick={() => {
+                                setHaveFiltersChanged(false);
+                                onResetDashboardFilters();
+                            }}
+                            styles={{
+                                root: {
+                                    borderLeft: '0px',
+                                    borderStartStartRadius: '0px',
+                                    borderEndStartRadius: '0px',
+                                    borderStartEndRadius: '100px',
+                                    borderEndEndRadius: '100px',
+                                    borderStyle: 'dashed',
+                                },
+                            }}
+                        >
+                            <MantineIcon icon={IconRotate2} />
+                        </Button>
+                    </Tooltip>
+                </>
+            )}
+        </Group>
     );
 };
 

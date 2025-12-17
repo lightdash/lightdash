@@ -498,7 +498,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                         align="flex-start"
                                         wrap="nowrap"
                                         px="lg"
-                                        pt="sm"
+                                        py="sm"
                                     >
                                         {/* This Group will take up remaining space (and not push DateZoom) */}
                                         <Group
@@ -506,15 +506,12 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                             align="flex-start"
                                             wrap="nowrap"
                                             grow
-                                            style={{
-                                                overflow: 'auto',
-                                            }}
                                         >
                                             {hasTilesThatSupportFilters && (
                                                 <Group
                                                     align="flex-start"
                                                     gap="xs"
-                                                    wrap="nowrap"
+                                                    wrap="wrap"
                                                 >
                                                     <FilterGroupSeparator
                                                         icon={IconFilter}

@@ -1,10 +1,8 @@
 import {
     type DashboardFieldTarget,
     type DashboardFilterRule,
-    type FilterableDimension,
     type FilterOperator,
 } from '@lightdash/common';
-import { Flex } from '@mantine/core';
 import { useCallback, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
@@ -67,7 +65,7 @@ const DashboardFiltersV2: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     }, []);
 
     return (
-        <FiltersProvider<Record<string, FilterableDimension>>
+        <FiltersProvider
             projectUuid={projectUuid}
             itemsMap={allFilterableFieldsMap}
             startOfWeek={
@@ -75,24 +73,22 @@ const DashboardFiltersV2: FC<Props> = ({ isEditMode, activeTabUuid }) => {
             }
             dashboardFilters={allFilters}
         >
-            <Flex gap="xs" wrap="wrap" mb="xs">
-                <AddFilterButton
-                    isEditMode={isEditMode}
-                    openPopoverId={openPopoverId}
-                    onPopoverOpen={handlePopoverOpen}
-                    onPopoverClose={handlePopoverClose}
-                    onSave={handleSaveNew}
-                />
+            <AddFilterButton
+                isEditMode={isEditMode}
+                openPopoverId={openPopoverId}
+                onPopoverOpen={handlePopoverOpen}
+                onPopoverClose={handlePopoverClose}
+                onSave={handleSaveNew}
+                onResetDashboardFilters={resetDashboardFilters}
+            />
 
-                <ActiveFilters
-                    isEditMode={isEditMode}
-                    activeTabUuid={activeTabUuid}
-                    openPopoverId={openPopoverId}
-                    onPopoverOpen={handlePopoverOpen}
-                    onPopoverClose={handlePopoverClose}
-                    onResetDashboardFilters={resetDashboardFilters}
-                />
-            </Flex>
+            <ActiveFilters
+                isEditMode={isEditMode}
+                activeTabUuid={activeTabUuid}
+                openPopoverId={openPopoverId}
+                onPopoverOpen={handlePopoverOpen}
+                onPopoverClose={handlePopoverClose}
+            />
         </FiltersProvider>
     );
 };
