@@ -53,24 +53,20 @@ export const Parameters: FC<Props> = ({
         );
     }
 
-    return (
-        <Group gap="xs">
-            {Object.entries(parameters).map(([paramKey, parameter]) => (
-                <Parameter
-                    key={paramKey}
-                    paramKey={paramKey}
-                    parameter={parameter}
-                    value={parameterValues[paramKey] ?? null}
-                    parameterValues={parameterValues}
-                    openPopoverId={openPopoverId}
-                    onPopoverOpen={handlePopoverOpen}
-                    onPopoverClose={handlePopoverClose}
-                    onParameterChange={onParameterChange}
-                    projectUuid={projectUuid}
-                    isRequired={missingRequiredParameters.includes(paramKey)}
-                    isEditMode={isEditMode}
-                />
-            ))}
-        </Group>
-    );
+    return Object.entries(parameters).map(([paramKey, parameter]) => (
+        <Parameter
+            key={paramKey}
+            paramKey={paramKey}
+            parameter={parameter}
+            value={parameterValues[paramKey] ?? null}
+            parameterValues={parameterValues}
+            openPopoverId={openPopoverId}
+            onPopoverOpen={handlePopoverOpen}
+            onPopoverClose={handlePopoverClose}
+            onParameterChange={onParameterChange}
+            projectUuid={projectUuid}
+            isRequired={missingRequiredParameters.includes(paramKey)}
+            isEditMode={isEditMode}
+        />
+    ));
 };
