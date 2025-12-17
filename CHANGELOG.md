@@ -1,3 +1,10 @@
+## [0.2262.2](https://github.com/lightdash/lightdash/compare/0.2262.1...0.2262.2) (2025-12-17)
+
+
+### Bug Fixes
+
+* docs link to email env variables ([#18897](https://github.com/lightdash/lightdash/issues/18897)) ([3867dd5](https://github.com/lightdash/lightdash/commit/3867dd583ea2c388b5b3b5f8ff51c36d0ab271ba))
+
 ## [0.2262.1](https://github.com/lightdash/lightdash/compare/0.2262.0...0.2262.1) (2025-12-17)
 
 
