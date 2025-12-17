@@ -8,9 +8,10 @@ import useEchartsPieConfig, {
 } from '../../hooks/echarts/useEchartsPieConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
 import useApp from '../../providers/App/useApp';
+import { ChartLoadingSkeleton } from '../common/ChartSkeletons';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import PieChartContextMenu, {
     type PieChartContextMenuProps,
 } from './PieChartContextMenu';
@@ -21,16 +22,6 @@ const EmptyChart = () => (
             title="No data available"
             description="Query metrics and dimensions with results."
             icon={IconChartPieOff}
-        />
-    </div>
-);
-
-const LoadingChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="Loading chart"
-            loading
-            className="loading_chart"
         />
     </div>
 );
@@ -96,7 +87,7 @@ const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
         close();
     }, [close]);
 
-    if (isLoading) return <LoadingChart />;
+    if (isLoading) return <ChartLoadingSkeleton />;
     if (!pieChartOptions) return <EmptyChart />;
 
     return (

@@ -2,10 +2,10 @@ import { Anchor, Text } from '@mantine/core';
 import { IconChartBarOff } from '@tabler/icons-react';
 import { Suspense, lazy, useEffect, type FC } from 'react';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
+import { ChartLoadingSkeleton } from '../common/ChartSkeletons';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
-import { LoadingChart } from '../SimpleChart';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
 const VegaLite = lazy(() =>
     import('react-vega').then((module) => ({ default: module.VegaLite })),
@@ -34,7 +34,7 @@ const CustomVisualization: FC<Props> = (props) => {
     const spec = visualizationConfig.chartConfig.validConfig.spec;
 
     if (isLoading) {
-        return <LoadingChart />;
+        return <ChartLoadingSkeleton />;
     }
 
     if (
@@ -83,7 +83,7 @@ const CustomVisualization: FC<Props> = (props) => {
                 overflow: 'hidden',
             }}
         >
-            <Suspense fallback={<LoadingChart />}>
+            <Suspense fallback={<ChartLoadingSkeleton />}>
                 <VegaLite
                     style={{
                         width: containerWidth,

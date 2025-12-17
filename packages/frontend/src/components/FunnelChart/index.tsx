@@ -9,9 +9,10 @@ import useEchartsFunnelConfig, {
 } from '../../hooks/echarts/useEchartsFunnelConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
 import useApp from '../../providers/App/useApp';
+import { ChartLoadingSkeleton } from '../common/ChartSkeletons';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import FunnelChartContextMenu, {
     type FunnelChartContextMenuProps,
 } from './FunnelChartContextMenu';
@@ -22,16 +23,6 @@ const EmptyChart = () => (
             title="No data available"
             description="Query metrics and dimensions with results."
             icon={IconFilterOff}
-        />
-    </Box>
-);
-
-const LoadingChart = () => (
-    <Box h="100%" w="100%" py="xl">
-        <SuboptimalState
-            title="Loading chart"
-            loading
-            className="loading_chart"
         />
     </Box>
 );
@@ -99,7 +90,7 @@ const FunnelChart: FC<FunnelChartProps> = memo((props) => {
         close();
     }, [close]);
 
-    if (isLoading) return <LoadingChart />;
+    if (isLoading) return <ChartLoadingSkeleton />;
     if (!funnelChartOptions) return <EmptyChart />;
 
     return (

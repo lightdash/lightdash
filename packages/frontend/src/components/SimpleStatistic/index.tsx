@@ -21,10 +21,11 @@ import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabs/gridUtils';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
+import { ChartLoadingSkeleton } from '../common/ChartSkeletons';
+import MantineIcon from '../common/MantineIcon';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
-import { EmptyChart, LoadingChart } from '../SimpleChart';
-import MantineIcon from '../common/MantineIcon';
+import { EmptyChart } from '../SimpleChart';
 import BigNumberContextMenu from './BigNumberContextMenu';
 import styles from './SimpleStatistic.module.css';
 
@@ -234,7 +235,7 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             : _spacingMultiplier;
     const validData = bigNumber && resultsData?.rows.length;
 
-    if (isLoading) return <LoadingChart />;
+    if (isLoading) return <ChartLoadingSkeleton />;
 
     const shouldHideContextMenu =
         (minimal && !embedToken) ||

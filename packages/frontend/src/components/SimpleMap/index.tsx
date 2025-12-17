@@ -23,9 +23,10 @@ import {
 import * as topojson from 'topojson-client';
 import type { Topology } from 'topojson-specification';
 import useLeafletMapConfig from '../../hooks/leaflet/useLeafletMapConfig';
+import { ChartLoadingSkeleton } from '../common/ChartSkeletons';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { isMapVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
-import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import HeatmapLayer from './HeatmapLayer';
 import MapLegend from './MapLegend';
 // eslint-disable-next-line css-modules/no-unused-class
@@ -91,16 +92,6 @@ const EmptyChart: FC<{ locationType?: MapChartType }> = ({ locationType }) => {
         </div>
     );
 };
-
-const LoadingChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="Loading chart"
-            loading
-            className="loading_chart"
-        />
-    </div>
-);
 
 type SimpleMapProps = {
     isInDashboard: boolean;
@@ -419,7 +410,7 @@ const SimpleMap: FC<SimpleMapProps> = memo((props) => {
     );
 
     if (isLoading) {
-        return <LoadingChart />;
+        return <ChartLoadingSkeleton />;
     }
 
     if (!mapConfig) {

@@ -8,6 +8,7 @@ import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useCallback, useEffect, useMemo, type FC } from 'react';
 import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
+import { ChartLoadingSkeleton } from '../common/ChartSkeletons';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
@@ -61,16 +62,6 @@ export const EmptyChart = () => (
             title="No data available"
             description="Query metrics and dimensions with results."
             icon={IconChartBarOff}
-        />
-    </div>
-);
-
-export const LoadingChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="Loading chart"
-            loading
-            className="loading_chart"
         />
     </div>
 );
@@ -272,7 +263,7 @@ const SimpleChart: FC<SimpleChartProps> = memo((props) => {
     }, [chartRef, eChartsOptions?.tooltip]);
 
     if (resultsData?.error) return <EmptyChart />;
-    if (isLoading) return <LoadingChart />;
+    if (isLoading) return <ChartLoadingSkeleton />;
     if (!eChartsOptions) return <EmptyChart />;
 
     return (
