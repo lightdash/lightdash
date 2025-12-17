@@ -1,0 +1,25 @@
+.container {
+    border-radius: var(--mantine-radius-md);
+    min-width: 200px;
+    max-height: 250px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.fieldItem {
+    display: block;
+    width: 100%;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    transition: background-color 0.1s ease;
+}
+
+.fieldItem:hover,
+.fieldItem[data-selected='true'] {
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-1);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-5);
+    }
+}
