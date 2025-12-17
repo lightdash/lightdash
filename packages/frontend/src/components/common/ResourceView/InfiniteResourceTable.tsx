@@ -31,6 +31,7 @@ import {
     IconFolderSymlink,
     IconLayoutDashboard,
     IconSearch,
+    IconTrash,
     IconX,
 } from '@tabler/icons-react';
 import {
@@ -61,6 +62,7 @@ import { useValidationUserAbility } from '../../../hooks/validation/useValidatio
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../MantineIcon';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
+import BulkDeleteItemsModal from '../BulkDeleteItemsModal';
 import AdminContentViewFilter from './AdminContentViewFilter';
 import ContentTypeFilter from './ContentTypeFilter';
 import InfiniteResourceTableColumnName from './InfiniteResourceTableColumnName';
@@ -114,6 +116,11 @@ const InfiniteResourceTable = ({
     const [
         isTransferItemsModalOpen,
         { open: openTransferItemsModal, close: closeTransferItemsModal },
+    ] = useDisclosure(false);
+
+    const [
+        isDeleteModalOpen,
+        { open: openDeleteModal, close: closeDeleteModal },
     ] = useDisclosure(false);
 
     const canUserManageValidation = useValidationUserAbility(
@@ -650,18 +657,29 @@ const InfiniteResourceTable = ({
                         </Group>
 
                         {selectedItems.length > 0 ? (
-                            <Button
-                                ml="auto"
-                                variant="filled"
-                                size="xs"
-                                color="blue"
-                                leftIcon={
-                                    <MantineIcon icon={IconFolderSymlink} />
-                                }
-                                onClick={openTransferItemsModal}
-                            >
-                                Move to space
-                            </Button>
+                            <>
+                                <Button
+                                    ml="auto"
+                                    variant="filled"
+                                    size="xs"
+                                    color="blue"
+                                    leftIcon={
+                                        <MantineIcon icon={IconFolderSymlink} />
+                                    }
+                                    onClick={openTransferItemsModal}
+                                >
+                                    Move to space
+                                </Button>
+                                <Button
+                                    variant="filled"
+                                    size="xs"
+                                    color="red"
+                                    leftIcon={<MantineIcon icon={IconTrash} />}
+                                    onClick={openDeleteModal}
+                                >
+                                    Delete
+                                </Button>
+                            </>
                         ) : null}
                     </Group>
                     <Divider color="ldGray.2" />
@@ -825,6 +843,47 @@ const InfiniteResourceTable = ({
         [closeTransferItemsModal, contentBulkAction, table],
     );
 
+    const handleBulkDeleteContent = useCallback(
+        async (selectedItems: ResourceViewItem[]) => {
+            await contentBulkAction({
+                action: {
+                    type: 'delete',
+                },
+                content: selectedItems.map((item) => {
+                    switch (item.type) {
+                        case ContentType.CHART:
+                            return {
+                                uuid: item.data.uuid,
+                                contentType: ContentType.CHART,
+                                source:
+                                    item.data.source ??
+                                    ChartSourceType.DBT_EXPLORE,
+                            };
+                        case ContentType.DASHBOARD:
+                            return {
+                                uuid: item.data.uuid,
+                                contentType: ContentType.DASHBOARD,
+                            };
+                        case ContentType.SPACE:
+                            return {
+                                uuid: item.data.uuid,
+                                contentType: ContentType.SPACE,
+                            };
+                        default:
+                            return assertUnreachable(
+                                item,
+                                'Invalid item type in bulk delete handler',
+                            );
+                    }
+                }),
+            });
+
+            table.resetRowSelection();
+            closeDeleteModal();
+        },
+        [closeDeleteModal, contentBulkAction, table],
+    );
+
     const selectedItems = table
         .getFilteredSelectedRowModel()
         .flatRows.map((row) => row.original);
@@ -843,6 +902,18 @@ const InfiniteResourceTable = ({
                     isLoading={isFetching || isContentBulkActionLoading}
                     onConfirm={async (spaceUuid) => {
                         await handleBulkMoveContent(selectedItems, spaceUuid);
+                    }}
+                />
+            )}
+
+            {isDeleteModalOpen && (
+                <BulkDeleteItemsModal
+                    opened
+                    onClose={closeDeleteModal}
+                    items={selectedItems}
+                    isLoading={isFetching || isContentBulkActionLoading}
+                    onConfirm={async () => {
+                        await handleBulkDeleteContent(selectedItems);
                     }}
                 />
             )}

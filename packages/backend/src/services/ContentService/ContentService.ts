@@ -4,6 +4,7 @@ import {
     ApiContentBulkActionBody,
     assertUnreachable,
     ChartSourceType,
+    ContentActionDelete,
     ContentActionMove,
     ContentType,
     ForbiddenError,
@@ -227,6 +228,75 @@ export class ContentService extends BaseService {
             properties: {
                 projectId: projectUuid,
                 targetSpaceId: targetSpaceUuid,
+                contentCount: content.length,
+            },
+        });
+    }
+
+    async bulkDelete(
+        user: SessionUser,
+        projectUuid: string,
+        content: ApiContentBulkActionBody<ContentActionDelete>['content'],
+    ) {
+        if (user.organizationUuid === undefined) {
+            throw new NotExistsError('Organization not found');
+        }
+
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const database = this.contentModel.getDatabase();
+
+        await database.transaction(async (tx) => {
+            const deletions = content.map((c) => {
+                switch (c.contentType) {
+                    case ContentType.CHART:
+                        switch (c.source) {
+                            case ChartSourceType.DBT_EXPLORE:
+                                return this.savedChartService.delete(
+                                    user,
+                                    c.uuid,
+                                );
+                            case ChartSourceType.SQL:
+                                return this.savedSqlService.deleteSqlChart(
+                                    user,
+                                    projectUuid,
+                                    c.uuid,
+                                );
+                            default:
+                                return assertUnreachable(
+                                    c.source,
+                                    `Unknown chart source in bulk delete: ${c.source}`,
+                                );
+                        }
+                    case ContentType.DASHBOARD:
+                        return this.dashboardService.delete(user, c.uuid);
+                    case ContentType.SPACE:
+                        return this.spaceService.deleteSpace(user, c.uuid);
+                    default:
+                        return assertUnreachable(c, 'Unknown content type');
+                }
+            });
+
+            await Promise.all(deletions);
+        });
+
+        this.analytics.track({
+            event: 'content.bulk_deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+                projectId: projectUuid,
                 contentCount: content.length,
             },
         });
