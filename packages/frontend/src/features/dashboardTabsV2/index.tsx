@@ -31,7 +31,7 @@ import DashboardFiltersV2 from '../dashboardFiltersV2';
 import { doesFilterApplyToTile } from '../dashboardFiltersV2/FilterConfiguration/utils';
 import FilterGroupSeparator from '../dashboardHeader/FilterGroupSeparator';
 import { DateZoom } from '../dateZoom';
-import { Parameters } from '../parameters';
+import { ParametersV2 } from '../parametersV2';
 import { TabAddModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
@@ -577,7 +577,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                                         }
                                                     />
 
-                                                    <Parameters
+                                                    <ParametersV2
                                                         isEditMode={isEditMode}
                                                         parameterValues={
                                                             parameterValues
