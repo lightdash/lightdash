@@ -1,3 +1,10 @@
+## [0.2262.4](https://github.com/lightdash/lightdash/compare/0.2262.3...0.2262.4) (2025-12-17)
+
+
+### Bug Fixes
+
+* ensure changeset doesn't introduce undefined dimensions/metrics into the explore ([#18911](https://github.com/lightdash/lightdash/issues/18911)) ([8afa9fa](https://github.com/lightdash/lightdash/commit/8afa9fabab1a9be8cf260261af03ed18c74405e1))
+
 ## [0.2262.3](https://github.com/lightdash/lightdash/compare/0.2262.2...0.2262.3) (2025-12-17)
 
 

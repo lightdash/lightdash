@@ -1331,15 +1331,10 @@ export class AiAgentService {
                     retrieveRelevantArtifacts: false,
                 });
 
-            // Get agent settings to use reasoning preference
-            const agent = await this.aiAgentModel.getAgent({
-                organizationUuid: user.organizationUuid!,
-                agentUuid,
-            });
-
-            // Get model configuration with agent's reasoning setting
+            // Use fast model for title generation (lightweight task)
             const { model } = getModel(this.lightdashConfig.ai.copilot, {
-                enableReasoning: agent.enableReasoning,
+                enableReasoning: false,
+                useFastModel: true,
             });
 
             // Generate title using the dedicated title generator
