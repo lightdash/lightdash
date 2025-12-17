@@ -19,3 +19,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.indicator {
+    top: -5px;
+    left: 40px;
+    height: 13px;
+    &::before {
+        border-radius: 5px;
+        border-bottom-left-radius: 0px;
+        border-bottom-right-radius: 0px;
+    }
+}

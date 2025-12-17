@@ -170,8 +170,21 @@ const Filter: FC<Props> = ({
                 <Popover.Target>
                     <Indicator
                         inline
-                        processing
+                        classNames={{
+                            indicator: classes.indicator,
+                        }}
+                        position="top-start"
                         disabled={!hasUnsetRequiredFilter}
+                        label={
+                            <Tooltip
+                                fz="xs"
+                                label="Set a value to run this dashboard"
+                            >
+                                <Text fz="10px" fw={500}>
+                                    Required
+                                </Text>
+                            </Tooltip>
+                        }
                     >
                         <Tooltip
                             fz="xs"
