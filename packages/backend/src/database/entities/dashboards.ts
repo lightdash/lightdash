@@ -121,6 +121,7 @@ type DbDashboardTileMarkdowns = {
     dashboard_tile_uuid: string;
     title: string;
     content: string;
+    hide_frame: boolean | null;
 };
 
 export type DashboardTileMarkdownsTable =

@@ -380,7 +380,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             ? chartHoveredProps.handleMouseLeave
                             : undefined
                     }
-                    $alignItems={transparent ? 'center' : undefined}
+                    $alignItems={
+                        tile.type === DashboardTileTypes.HEADING
+                            ? 'center'
+                            : undefined
+                    }
                 >
                     {children}
                 </ChartContainer>
