@@ -417,6 +417,7 @@ export type HealthState = {
     ai: {
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
+        isAmbientAiEnabled: boolean;
     };
     echarts6: {
         enabled: boolean;
