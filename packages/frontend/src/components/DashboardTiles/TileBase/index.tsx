@@ -61,6 +61,7 @@ type Props<T> = {
     tabs?: DashboardTab[];
     lockHeaderVisibility?: boolean;
     transparent?: boolean;
+    fullWidth?: boolean;
 };
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
@@ -82,6 +83,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     tabs,
     lockHeaderVisibility = false,
     transparent = false,
+    fullWidth = false,
 }: Props<T>) => {
     const [isEditingTileContent, setIsEditingTileContent] = useState(false);
     const [isMovingTabs, setIsMovingTabs] = useState(false);
@@ -385,6 +387,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                             ? 'center'
                             : undefined
                     }
+                    $fullWidth={fullWidth}
                 >
                     {children}
                 </ChartContainer>

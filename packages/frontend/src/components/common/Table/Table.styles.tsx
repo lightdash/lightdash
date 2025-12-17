@@ -3,15 +3,23 @@ import styled, { css } from 'styled-components';
 import { ROW_HEIGHT_PX } from './constants';
 import trStyles from './Tr.module.css';
 
-export const TableScrollableWrapper = styled.div`
+export const TableScrollableWrapper = styled.div<{
+    $isDashboard?: boolean;
+}>`
     display: flex;
     flex-direction: column;
 
     position: relative;
     overflow: auto;
     min-width: 100%;
-    border-radius: 4px;
+    border-radius: ${({ $isDashboard }) => ($isDashboard ? '0' : '4px')};
     border: 1px solid var(--mantine-color-ldGray-3);
+    ${({ $isDashboard }) =>
+        $isDashboard &&
+        css`
+            border-left: none;
+            border-right: none;
+        `}
 `;
 
 interface TableContainerProps {
