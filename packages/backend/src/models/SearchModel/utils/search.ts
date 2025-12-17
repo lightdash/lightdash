@@ -13,7 +13,15 @@ export function getFullTextSearchQuery(
         .map((word) => word.trim())
         .filter((word) => word.length > 0)
         .filter((word, index, self) => self.indexOf(word) === index)
-        .map((word) => `'${word.replace(/'/g, "''")}':*`) // wrap the word in quotes and escape existing quotes, this so that we can search with special charcters in the search query
+        .map((word) => {
+            // Remove or escape characters that cause issues with PostgreSQL text search
+            const sanitized = word
+                .replace(/'/g, "''") // escape single quotes
+                .replace(/[?&|!()]/g, '') // remove problematic tsquery operators
+                .replace(/:/g, ''); // remove colon which has special meaning in tsquery
+            return sanitized ? `'${sanitized}':*` : '';
+        })
+        .filter((word) => word.length > 0) // remove empty results after sanitization
         .join(operator);
 }
 
