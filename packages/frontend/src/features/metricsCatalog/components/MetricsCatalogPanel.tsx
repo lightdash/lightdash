@@ -384,7 +384,10 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
         padding: `${theme.spacing.xxs} 10px ${theme.spacing.xxs} ${theme.spacing.xs}`,
         fontSize: theme.fontSizes.sm,
         fontWeight: 500,
-        color: theme.colors.ldGray[7],
+        color:
+            theme.colorScheme === 'dark'
+                ? theme.colors.ldDark[9]
+                : theme.colors.ldGray[7],
     };
 
     return (

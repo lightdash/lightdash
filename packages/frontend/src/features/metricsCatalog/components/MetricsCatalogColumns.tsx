@@ -105,7 +105,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     variant="subtle"
                     leftIcon={<TableFilled />}
                     fz="sm"
-                    c="ldDark.4"
+                    c="ldDark.7"
                     fw={500}
                     sx={{
                         '&[data-disabled]': {
@@ -116,6 +116,14 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     styles={(theme) => ({
                         leftIcon: {
                             marginRight: theme.spacing.xxs,
+                            color:
+                                theme.colorScheme === 'dark'
+                                    ? theme.colors.ldDark[7]
+                                    : theme.colors.ldGray[4],
+                            '--table-icon-stroke':
+                                theme.colorScheme === 'dark'
+                                    ? theme.colors.ldDark[4]
+                                    : 'white',
                         },
                     })}
                 >
