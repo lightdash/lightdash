@@ -4,8 +4,8 @@ import { IconExclamationCircle, IconRefresh } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import { type FC } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { useTimeAgo } from '../../../hooks/useTimeAgo';
+import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 
 type SummaryPreviewProps = {
     summary: DashboardSummary;
