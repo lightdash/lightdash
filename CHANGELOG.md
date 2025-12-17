@@ -1,3 +1,11 @@
+## [0.2262.3](https://github.com/lightdash/lightdash/compare/0.2262.2...0.2262.3) (2025-12-17)
+
+
+### Bug Fixes
+
+* dark mode for custom viz config ([#18906](https://github.com/lightdash/lightdash/issues/18906)) ([f9f1345](https://github.com/lightdash/lightdash/commit/f9f134557458d7ae1d713aaab42c53187f124f35))
+* handle undefined req.user in user endpoints ([#18888](https://github.com/lightdash/lightdash/issues/18888)) ([5862ade](https://github.com/lightdash/lightdash/commit/5862adebd4facf07d2442131b5b693bd161fd805))
+
 ## [0.2262.2](https://github.com/lightdash/lightdash/compare/0.2262.1...0.2262.2) (2025-12-17)
 
 
