@@ -7,8 +7,8 @@ import { useVisualizationContext } from '../LightdashVisualization/useVisualizat
 import { LoadingChart } from '../SimpleChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
-const VegaLite = lazy(() =>
-    import('react-vega').then((module) => ({ default: module.VegaLite })),
+const VegaEmbed = lazy(() =>
+    import('react-vega').then((module) => ({ default: module.VegaEmbed })),
 );
 
 type Props = {
@@ -84,34 +84,29 @@ const CustomVisualization: FC<Props> = (props) => {
             }}
         >
             <Suspense fallback={<LoadingChart />}>
-                <VegaLite
+                <VegaEmbed
                     style={{
                         width: containerWidth,
                         height: containerHeight,
                     }}
-                    config={{
-                        font: 'Inter, sans-serif',
-                        autosize: {
-                            type: 'fit',
-                            resize: true,
+                    spec={{
+                        $schema:
+                            'https://vega.github.io/schema/vega-lite/v5.json',
+                        ...spec,
+                        width: 'container',
+                        height: 'container',
+                        data: { name: 'values', values: data.values },
+                        config: {
+                            font: 'Inter, sans-serif',
+                            autosize: {
+                                type: 'fit',
+                                resize: true,
+                            },
                         },
                     }}
-                    // TODO: We are ignoring some typescript errors here because the type
-                    // that vegalite expects doesn't include a few of the properties
-                    // that are required to make data and layout properties work. This
-                    // might be a mismatch in which of the vega spec union types gets
-                    // picked, or a bug in the vegalite typescript definitions.
-                    // @ts-ignore
-                    spec={{
-                        ...spec,
-                        // @ts-ignore, see above
-                        width: 'container',
-                        // @ts-ignore, see above
-                        height: 'container',
-                        data: { name: 'values' },
+                    options={{
+                        actions: false,
                     }}
-                    data={data}
-                    actions={false}
                 />
             </Suspense>
         </div>
