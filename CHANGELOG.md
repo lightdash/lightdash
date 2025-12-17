@@ -1,3 +1,10 @@
+# [0.2261.0](https://github.com/lightdash/lightdash/compare/0.2260.1...0.2261.0) (2025-12-17)
+
+
+### Features
+
+* expand to all on ai generation of chart metadata ([#18866](https://github.com/lightdash/lightdash/issues/18866)) ([2e64f09](https://github.com/lightdash/lightdash/commit/2e64f09f21c7592384496b361cbb2f02579a7b2c))
+
 ## [0.2260.1](https://github.com/lightdash/lightdash/compare/0.2260.0...0.2260.1) (2025-12-17)
 
 
