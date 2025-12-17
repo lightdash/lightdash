@@ -1110,22 +1110,27 @@ export class ProjectService extends BaseService {
 
             if (userWarehouseCredentials) {
                 // User has credentials - use them
+                credentials = {
+                    ...credentials,
+                    ...userWarehouseCredentials.credentials,
+                } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
+
+                // Backwards compatibility token for snowflake
                 if (
-                    credentials.type ===
-                    userWarehouseCredentials.credentials.type
+                    userWarehouseCredentials.credentials.type ===
+                        WarehouseTypes.SNOWFLAKE &&
+                    credentials.type === WarehouseTypes.SNOWFLAKE
                 ) {
                     credentials = {
                         ...credentials,
-                        ...userWarehouseCredentials.credentials,
-                    } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
-                } else {
-                    throw new UnexpectedServerError(
-                        'User warehouse credentials are not compatible',
-                    );
+                        refreshToken:
+                            userWarehouseCredentials.credentials.token,
+                    };
                 }
                 this.logger.debug(
                     `Using user warehouse credentials for user ${userId}`,
                 );
+
                 credentials = await this.refreshCredentials(
                     credentials,
                     userId,
