@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { lightdashApi } from '../api';
+import { lightdashApi } from '../../../../api';
 
 // 5 second timeout for AI metadata generation - anything longer is too disruptive
 const METADATA_GENERATION_TIMEOUT_MS = 5000;
@@ -39,6 +39,9 @@ type UseGenerateChartMetadataOptions = {
     onComplete?: (metadata: ChartMetadata | null) => void;
 };
 
+/**
+ * Generate chart metadata using ambient AI
+ */
 export const useGenerateChartMetadata = ({
     projectUuid,
     unsavedChartVersion,

@@ -7,7 +7,12 @@ import {
     type UpdateProject,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useMutation,
+    useQuery,
+    useQueryClient,
+    type UseQueryOptions,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
 import useToaster from './toaster/useToaster';
@@ -44,7 +49,10 @@ const updateProjectSchedulerSettings = async (
         body: JSON.stringify(data),
     });
 
-export const useProject = (id: string | undefined) => {
+export const useProject = (
+    id: string | undefined,
+    options?: UseQueryOptions<Project, ApiError>,
+) => {
     const setErrorResponse = useQueryError();
     return useQuery<Project, ApiError>({
         queryKey: ['project', id],
@@ -52,6 +60,7 @@ export const useProject = (id: string | undefined) => {
         enabled: !!id,
         retry: false,
         onError: (result) => setErrorResponse(result),
+        ...options,
     });
 };
 

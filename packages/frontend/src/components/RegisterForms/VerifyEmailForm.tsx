@@ -25,7 +25,7 @@ const VerifyEmailForm: FC<{
     emailStatusData?: EmailStatusExpiring;
     statusLoading?: boolean;
 }> = ({ isLoading, emailStatusData, statusLoading }) => {
-    const { health, user } = useApp();
+    const { health } = useApp();
     const { mutate: verifyCode, isLoading: verificationLoading } =
         useVerifyEmail();
     const data = emailStatusData;
@@ -71,7 +71,7 @@ const VerifyEmailForm: FC<{
             <Title order={3}>Check your inbox!</Title>
             <Text color="ldGray.6" ta="center">
                 Verify your email address by entering the code we've just sent
-                to <b>{user?.data?.email || 'your email'}</b>
+                to <b>{data?.email || 'your email'}</b>
             </Text>
             <form
                 name="verifyEmail"
@@ -100,7 +100,7 @@ const VerifyEmailForm: FC<{
                     key={expirationTime?.toString()}
                     date={expirationTime}
                     renderer={({ minutes, seconds, completed }) => {
-                        if (completed) {
+                        if (completed && !emailStatusData?.isVerified) {
                             return (
                                 <Alert
                                     icon={

@@ -37,7 +37,7 @@ import dayjs from 'dayjs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { useToggle } from 'react-use';
-import AIDashboardSummary from '../../../ee/features/aiDashboardSummary';
+import AIDashboardSummary from '../../../ee/features/ambientAi/components/aiDashboardSummary';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteDashboardDiffMutation,
@@ -332,7 +332,9 @@ const DashboardHeader = ({
                 >
                     Dashboard uses cached data from
                     <Text fw={700}>
-                        {dayjs(oldestCacheTime).format('MMM D, YYYY h:mm A')}{' '}
+                        {dayjs(oldestCacheTime).format(
+                            'MMM D, YYYY h:mm A',
+                        )}{' '}
                     </Text>
                 </Text>
             )}

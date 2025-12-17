@@ -735,8 +735,9 @@ export interface Metric extends Field {
 }
 
 export const isFilterableDimension = (
-    dimension: Dimension,
+    dimension: Dimension | undefined,
 ): dimension is FilterableDimension =>
+    !!dimension &&
     [
         DimensionType.STRING,
         DimensionType.NUMBER,

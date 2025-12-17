@@ -15,7 +15,7 @@ import {
     type FC,
     type KeyboardEventHandler,
 } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
+import MantineIcon from '../../../../../../components/common/MantineIcon';
 
 type AudienceItemProps = {
     item: string;
@@ -77,7 +77,10 @@ const AudienceInput: FC<AudienceInputProps> = ({
                     placeholder="Type the summary audience"
                     value={inputAudience}
                     rightSection={
-                        <ActionIcon onClick={addAudience}>
+                        <ActionIcon
+                            onClick={addAudience}
+                            disabled={inputAudience.trim().length === 0}
+                        >
                             <MantineIcon icon={IconPlus} />
                         </ActionIcon>
                     }

@@ -9,12 +9,11 @@ import {
     ActionIcon,
     Box,
     Button,
-    createStyles,
     Indicator,
     Popover,
     Text,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useDisclosure, useId } from '@mantine/hooks';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
@@ -27,19 +26,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import FilterConfiguration from '../FilterConfiguration';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
-
-const useDashboardFilterStyles = createStyles((theme) => ({
-    unsetRequiredFilter: {
-        borderStyle: 'solid',
-        borderWidth: '3px',
-    },
-    inactiveFilter: {
-        borderStyle: 'dashed',
-        borderWidth: '1px',
-        borderColor: theme.fn.rgba(theme.colors.ldGray[5], 0.7),
-        backgroundColor: theme.fn.rgba(theme.colors.background[0], 0.7),
-    },
-}));
+import classes from './Filter.module.css';
 
 type Props = {
     isEditMode: boolean;
@@ -68,7 +55,6 @@ const Filter: FC<Props> = ({
     onUpdate,
     onRemove,
 }) => {
-    const { classes } = useDashboardFilterStyles();
     const popoverId = useId();
 
     const dashboard = useDashboardContext((c) => c.dashboard);
@@ -184,28 +170,21 @@ const Filter: FC<Props> = ({
                 <Popover.Target>
                     <Indicator
                         inline
-                        position="top-end"
-                        size={16}
+                        classNames={{
+                            indicator: classes.indicator,
+                        }}
+                        position="top-start"
                         disabled={!hasUnsetRequiredFilter}
                         label={
                             <Tooltip
                                 fz="xs"
                                 label="Set a value to run this dashboard"
                             >
-                                <Text fz="9px" fw={500}>
+                                <Text fz="10px" fw={500}>
                                     Required
                                 </Text>
                             </Tooltip>
                         }
-                        styles={(theme) => ({
-                            common: {
-                                top: -5,
-                                right: 24,
-                                borderRadius: theme.radius.xs,
-                                borderBottomRightRadius: 0,
-                                borderBottomLeftRadius: 0,
-                            },
-                        })}
                     >
                         <Tooltip
                             fz="xs"
@@ -216,18 +195,20 @@ const Filter: FC<Props> = ({
                             <Button
                                 pos="relative"
                                 size="xs"
-                                radius="md"
                                 variant={
                                     isTemporary || hasUnsetRequiredFilter
                                         ? 'outline'
                                         : 'default'
                                 }
-                                className={`${
+                                classNames={{
+                                    label: classes.label,
+                                }}
+                                className={`${classes.button} ${
                                     hasUnsetRequiredFilter
                                         ? classes.unsetRequiredFilter
                                         : ''
                                 } ${isOrphaned ? classes.inactiveFilter : ''}`}
-                                leftIcon={
+                                leftSection={
                                     isDraggable && (
                                         <MantineIcon
                                             icon={IconGripVertical}
@@ -236,11 +217,14 @@ const Filter: FC<Props> = ({
                                         />
                                     )
                                 }
-                                rightIcon={
+                                rightSection={
                                     (isEditMode || isTemporary) && (
                                         <ActionIcon
                                             onClick={onRemove}
                                             size="xs"
+                                            color="dark"
+                                            radius="xl"
+                                            variant="subtle"
                                         >
                                             <MantineIcon
                                                 size="sm"
@@ -249,14 +233,6 @@ const Filter: FC<Props> = ({
                                         </ActionIcon>
                                     )
                                 }
-                                styles={{
-                                    label: {
-                                        maxWidth: '800px',
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                    },
-                                }}
                                 onClick={() =>
                                     isPopoverOpen
                                         ? handleClose()
@@ -264,7 +240,7 @@ const Filter: FC<Props> = ({
                                 }
                             >
                                 <Box
-                                    sx={{
+                                    style={{
                                         maxWidth: '100%',
                                         overflow: 'hidden',
                                     }}
@@ -280,12 +256,16 @@ const Filter: FC<Props> = ({
                                             openDelay={1000}
                                             offset={8}
                                             label={
-                                                <Text fz="xs">
+                                                <Text fz="inherit">
                                                     {filterRuleTables?.length ===
                                                     1
                                                         ? 'Table: '
                                                         : 'Tables: '}
-                                                    <Text span fw={600}>
+                                                    <Text
+                                                        span
+                                                        fw={600}
+                                                        fz="inherit"
+                                                    >
                                                         {filterRuleTables?.join(
                                                             ', ',
                                                         )}
@@ -293,7 +273,12 @@ const Filter: FC<Props> = ({
                                                 </Text>
                                             }
                                         >
-                                            <Text fw={600} span truncate>
+                                            <Text
+                                                fz="inherit"
+                                                fw={600}
+                                                span
+                                                truncate
+                                            >
                                                 {filterRule?.label ||
                                                     filterRuleLabels?.field}{' '}
                                             </Text>
@@ -301,7 +286,8 @@ const Filter: FC<Props> = ({
                                         {filterRule?.disabled ? (
                                             <Text
                                                 span
-                                                color="ldGray.6"
+                                                fz="inherit"
+                                                c="ldGray.6"
                                                 truncate
                                             >
                                                 is any value
@@ -310,12 +296,18 @@ const Filter: FC<Props> = ({
                                             <>
                                                 <Text
                                                     span
-                                                    color="ldGray.7"
+                                                    fz="inherit"
+                                                    c="dimmed"
                                                     truncate
                                                 >
                                                     {filterRuleLabels?.operator}{' '}
                                                 </Text>
-                                                <Text fw={700} span truncate>
+                                                <Text
+                                                    fw={500}
+                                                    fz="inherit"
+                                                    span
+                                                    truncate
+                                                >
                                                     {filterRuleLabels?.value}
                                                 </Text>
                                             </>

@@ -4,7 +4,7 @@ import {
     type ApiScheduledDownloadCsv,
     type UploadMetricGsheet,
 } from '@lightdash/common';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { lightdashApi } from '../../api';
 import { convertDateFilters } from '../../utils/dateFilter';
@@ -73,11 +73,19 @@ export const useGoogleLoginPopup = (
 ) => {
     const { showToastError } = useToaster();
     const health = useHealth();
+    const queryClient = useQueryClient();
 
     return useMutation({
         mutationFn: () =>
             triggerGdriveLogin(loginPath, health.data?.siteUrl || ''),
-        onSuccess: () => {
+        onSuccess: async () => {
+            // For BigQuery, invalidate user warehouse credentials since the backend
+            // creates credentials during the OAuth flow
+            if (loginPath === 'bigquery') {
+                await queryClient.invalidateQueries([
+                    'user_warehouse_credentials',
+                ]);
+            }
             onLogin?.();
         },
         onError: (error: Error) => {

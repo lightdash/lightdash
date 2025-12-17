@@ -1129,6 +1129,8 @@ export class UserService extends BaseService {
         user: SessionUser,
         data: Partial<UpdateUserArgs>,
     ): Promise<LightdashUser> {
+        const emailChanged = data.email && user.email !== data.email;
+
         const updatedUser = await this.userModel.updateUser(
             user.userUuid,
             user.email,
@@ -1151,6 +1153,11 @@ export class UserService extends BaseService {
                 context: 'update_self',
             },
         });
+
+        if (emailChanged) {
+            await this.sendOneTimePasscodeToPrimaryEmail(updatedUser);
+        }
+
         return updatedUser;
     }
 
@@ -1954,8 +1961,8 @@ export class UserService extends BaseService {
         };
     }
 
-    /* 
-    For service accounts, we get the admin user from the userUuid who created the user 
+    /*
+    For service accounts, we get the admin user from the userUuid who created the user
     if this user no longer exist, then we will get another admin user from the org
     */
     async getAdminUser(userUuid: string | null, organizationUuid: string) {

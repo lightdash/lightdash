@@ -203,6 +203,9 @@ export class HealthService extends BaseService {
                     this.lightdashConfig.ai.analyticsProjectUuid,
                 analyticsDashboardUuid:
                     this.lightdashConfig.ai.analyticsDashboardUuid,
+                isAmbientAiEnabled:
+                    !!this.lightdashConfig.ai.copilot.providers.anthropic
+                        ?.apiKey,
             },
             echarts6: {
                 enabled: this.lightdashConfig.echarts6.enabled,

@@ -253,6 +253,7 @@ export class DashboardModel {
                         properties.content,
                         HTML_SANITIZE_MARKDOWN_TILE_RULES,
                     ),
+                    hide_frame: properties.hideFrame ?? false,
                 })),
             );
         }
@@ -785,6 +786,7 @@ export class DashboardModel {
                     content: string | null;
                     text: string | null;
                     hide_title: boolean | null;
+                    hide_frame: boolean | null;
                     title: string | null;
                     views_count: string;
                     first_viewed_at: Date | null;
@@ -837,6 +839,7 @@ export class DashboardModel {
                 ),
                 `${DashboardTileLoomsTableName}.url`,
                 `${DashboardTileMarkdownsTableName}.content`,
+                `${DashboardTileMarkdownsTableName}.hide_frame`,
                 `${DashboardTileHeadingsTableName}.text`,
             )
             .leftJoin(DashboardTileChartTableName, function chartsJoin() {
@@ -960,6 +963,7 @@ export class DashboardModel {
                     hide_title,
                     url,
                     content,
+                    hide_frame,
                     text,
                     belongs_to_dashboard,
                     name,
@@ -1005,6 +1009,7 @@ export class DashboardModel {
                                 properties: {
                                     ...commonProperties,
                                     content: content || '',
+                                    hideFrame: hide_frame ?? false,
                                 },
                             };
                         case DashboardTileTypes.LOOM:

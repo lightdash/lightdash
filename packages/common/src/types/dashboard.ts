@@ -35,6 +35,7 @@ export type DashboardMarkdownTileProperties = {
     properties: {
         title: string;
         content: string;
+        hideFrame?: boolean;
     };
 };
 

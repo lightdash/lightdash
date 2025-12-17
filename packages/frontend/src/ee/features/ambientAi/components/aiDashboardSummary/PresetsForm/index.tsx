@@ -1,10 +1,13 @@
-import { DashboardSummaryTone, type DashboardSummary } from '@lightdash/common';
+import {
+    assertUnreachable,
+    DashboardSummaryTone,
+    type DashboardSummary,
+} from '@lightdash/common';
 import { Button, Flex, Select, Stack, Textarea } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import capitalize from 'lodash/capitalize';
 import { type FC } from 'react';
 import { z } from 'zod';
-import { getToneEmoji } from '../utils';
 import AudienceInput from './AudienceInput';
 
 type PresetsFormProps = {
@@ -23,6 +26,21 @@ const validationSchema = z.object({
 });
 
 type PresetFormValues = z.infer<typeof validationSchema>;
+
+const getToneEmoji = (tone: DashboardSummaryTone) => {
+    switch (tone) {
+        case DashboardSummaryTone.FRIENDLY:
+            return '😊';
+        case DashboardSummaryTone.FORMAL:
+            return '👔';
+        case DashboardSummaryTone.DIRECT:
+            return '🎯';
+        case DashboardSummaryTone.ENTHUSIASTIC:
+            return '🎉';
+        default:
+            return assertUnreachable(tone, `Unexpected tone: ${tone}`);
+    }
+};
 
 // this never changes so we can keep it outside of the component
 const TONE_SELECT_DATA = Object.values(DashboardSummaryTone).map((tone) => ({
@@ -81,15 +99,15 @@ const PresetsForm: FC<PresetsFormProps> = ({
                 />
 
                 <Flex gap="md" justify="flex-end">
-                    <Button type="submit" loading={isLoading}>
-                        Generate Dashboard Summary
-                    </Button>
                     <Button
                         onClick={handleCancel}
                         variant="subtle"
                         disabled={isLoading}
                     >
                         Cancel
+                    </Button>
+                    <Button type="submit" loading={isLoading}>
+                        Generate Summary
                     </Button>
                 </Flex>
             </Stack>

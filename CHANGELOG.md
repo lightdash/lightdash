@@ -1,3 +1,69 @@
+## [0.2262.3](https://github.com/lightdash/lightdash/compare/0.2262.2...0.2262.3) (2025-12-17)
+
+
+### Bug Fixes
+
+* dark mode for custom viz config ([#18906](https://github.com/lightdash/lightdash/issues/18906)) ([f9f1345](https://github.com/lightdash/lightdash/commit/f9f134557458d7ae1d713aaab42c53187f124f35))
+* handle undefined req.user in user endpoints ([#18888](https://github.com/lightdash/lightdash/issues/18888)) ([5862ade](https://github.com/lightdash/lightdash/commit/5862adebd4facf07d2442131b5b693bd161fd805))
+
+## [0.2262.2](https://github.com/lightdash/lightdash/compare/0.2262.1...0.2262.2) (2025-12-17)
+
+
+### Bug Fixes
+
+* docs link to email env variables ([#18897](https://github.com/lightdash/lightdash/issues/18897)) ([3867dd5](https://github.com/lightdash/lightdash/commit/3867dd583ea2c388b5b3b5f8ff51c36d0ab271ba))
+
+## [0.2262.1](https://github.com/lightdash/lightdash/compare/0.2262.0...0.2262.1) (2025-12-17)
+
+
+### Bug Fixes
+
+* add error handling for dashboard filter JSON parsing ([#18864](https://github.com/lightdash/lightdash/issues/18864)) ([7547966](https://github.com/lightdash/lightdash/commit/7547966289004648c15cdce4e541a223060d9129))
+
+# [0.2262.0](https://github.com/lightdash/lightdash/compare/0.2261.0...0.2262.0) (2025-12-17)
+
+
+### Bug Fixes
+
+* **security:** upgrade jsonwebtoken to 9.0.3 (jws vulnerability) ([#18880](https://github.com/lightdash/lightdash/issues/18880)) ([704374b](https://github.com/lightdash/lightdash/commit/704374bc15c3f01840e0d10da51fa3fd214a74e3)), closes [#392](https://github.com/lightdash/lightdash/issues/392) [#393](https://github.com/lightdash/lightdash/issues/393)
+
+
+### Features
+
+* allow non-numeric values field in maps ([#18860](https://github.com/lightdash/lightdash/issues/18860)) ([1c3289a](https://github.com/lightdash/lightdash/commit/1c3289a888a07493a09e7bba7848d66bee3842be))
+* invalidate user warehouse credentials after OAuth flow ([#18889](https://github.com/lightdash/lightdash/issues/18889)) ([a851633](https://github.com/lightdash/lightdash/commit/a851633ccf550111a4e3cf3a86868c0de2c9d4dd))
+* use single controls in map config ([#18865](https://github.com/lightdash/lightdash/issues/18865)) ([a45fe62](https://github.com/lightdash/lightdash/commit/a45fe62f5f1e44bd90cbfc4dc94771febce0a764))
+
+# [0.2261.0](https://github.com/lightdash/lightdash/compare/0.2260.1...0.2261.0) (2025-12-17)
+
+
+### Features
+
+* expand to all on ai generation of chart metadata ([#18866](https://github.com/lightdash/lightdash/issues/18866)) ([2e64f09](https://github.com/lightdash/lightdash/commit/2e64f09f21c7592384496b361cbb2f02579a7b2c))
+
+## [0.2260.1](https://github.com/lightdash/lightdash/compare/0.2260.0...0.2260.1) (2025-12-17)
+
+
+### Bug Fixes
+
+* cannot read properties of undefined in isFilterableDimension ([#18885](https://github.com/lightdash/lightdash/issues/18885)) ([ef7daa9](https://github.com/lightdash/lightdash/commit/ef7daa93b93095ef03ed4f944321e6684bc3688d))
+
+# [0.2260.0](https://github.com/lightdash/lightdash/compare/0.2259.3...0.2260.0) (2025-12-17)
+
+
+### Bug Fixes
+
+* prevent filter groups from wrapping in dashboard tabs ([#18873](https://github.com/lightdash/lightdash/issues/18873)) ([b398694](https://github.com/lightdash/lightdash/commit/b3986949b7a6c3d7560162f84e4c0ff05fd4f228))
+* remove error toast when lastProject errors fetch ([#18878](https://github.com/lightdash/lightdash/issues/18878)) ([fac4382](https://github.com/lightdash/lightdash/commit/fac438236f67d84f4f0048b4c6e9d038a008a9fc))
+* **security:** upgrade next.js to 15.4.10 (CVE-2025-55184) ([#18879](https://github.com/lightdash/lightdash/issues/18879)) ([4ec427a](https://github.com/lightdash/lightdash/commit/4ec427a1e8efb8a810b471d518157cb435ceded4)), closes [#398](https://github.com/lightdash/lightdash/issues/398)
+* verify email after update is not sent ([#18863](https://github.com/lightdash/lightdash/issues/18863)) ([d1d1e0a](https://github.com/lightdash/lightdash/commit/d1d1e0aabf36d4f7c28bfdf02e8ce8416e67f7eb))
+
+
+### Features
+
+* add hide frame option for dashboard markdown tiles ([#18820](https://github.com/lightdash/lightdash/issues/18820)) ([9305994](https://github.com/lightdash/lightdash/commit/9305994f95c28465064fcfbc18d99114b8be71aa)), closes [#17969](https://github.com/lightdash/lightdash/issues/17969)
+* improve required filter indicator with custom styling and tooltip ([#18876](https://github.com/lightdash/lightdash/issues/18876)) ([5a61d5c](https://github.com/lightdash/lightdash/commit/5a61d5c04dd19c616339cacc5f3fa2af198698f0))
+
 ## [0.2259.3](https://github.com/lightdash/lightdash/compare/0.2259.2...0.2259.3) (2025-12-16)
 
 
