@@ -81,7 +81,13 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
     const shouldFetchLastProject =
         isLoggedIn && !params.projectUuid && !!lastProjectUuid;
     const { data: lastProject, isInitialLoading: isLoadingLastProject } =
-        useProject(shouldFetchLastProject ? lastProjectUuid : undefined);
+        useProject(shouldFetchLastProject ? lastProjectUuid : undefined, {
+            onError: () => {
+                console.warn(
+                    `Couldn't find last project ${lastProjectUuid}. Will default to organization default or fallback project.`,
+                );
+            },
+        });
 
     // Priority 3: Organization's default project
     // Only fetch if no param project, no last project, and org has a default
