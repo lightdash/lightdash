@@ -514,6 +514,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                                 <Group
                                                     align="flex-start"
                                                     gap="xs"
+                                                    wrap="nowrap"
                                                 >
                                                     <FilterGroupSeparator
                                                         icon={IconFilter}
@@ -549,7 +550,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                         {hasDashboardTiles &&
                                             Object.keys(parameters).length >
                                                 0 && (
-                                                <Group gap="xs">
+                                                <Group gap="xs" wrap="nowrap">
                                                     <Divider orientation="vertical" />
 
                                                     <FilterGroupSeparator
@@ -615,6 +616,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                             <Group
                                                 gap="xs"
                                                 style={{ marginLeft: 'auto' }}
+                                                wrap="nowrap"
                                             >
                                                 <Divider orientation="vertical" />
 
