@@ -1,3 +1,17 @@
+# [0.2262.0](https://github.com/lightdash/lightdash/compare/0.2261.0...0.2262.0) (2025-12-17)
+
+
+### Bug Fixes
+
+* **security:** upgrade jsonwebtoken to 9.0.3 (jws vulnerability) ([#18880](https://github.com/lightdash/lightdash/issues/18880)) ([704374b](https://github.com/lightdash/lightdash/commit/704374bc15c3f01840e0d10da51fa3fd214a74e3)), closes [#392](https://github.com/lightdash/lightdash/issues/392) [#393](https://github.com/lightdash/lightdash/issues/393)
+
+
+### Features
+
+* allow non-numeric values field in maps ([#18860](https://github.com/lightdash/lightdash/issues/18860)) ([1c3289a](https://github.com/lightdash/lightdash/commit/1c3289a888a07493a09e7bba7848d66bee3842be))
+* invalidate user warehouse credentials after OAuth flow ([#18889](https://github.com/lightdash/lightdash/issues/18889)) ([a851633](https://github.com/lightdash/lightdash/commit/a851633ccf550111a4e3cf3a86868c0de2c9d4dd))
+* use single controls in map config ([#18865](https://github.com/lightdash/lightdash/issues/18865)) ([a45fe62](https://github.com/lightdash/lightdash/commit/a45fe62f5f1e44bd90cbfc4dc94771febce0a764))
+
 # [0.2261.0](https://github.com/lightdash/lightdash/compare/0.2260.1...0.2261.0) (2025-12-17)
 
 
