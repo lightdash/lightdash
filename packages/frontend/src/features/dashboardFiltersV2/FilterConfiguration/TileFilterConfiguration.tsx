@@ -44,6 +44,7 @@ type TileWithTargetFields = {
     sortedFilters: Field[] | undefined;
     selectedField: Field | undefined;
     tabUuid?: string;
+    hasExactMatch: boolean;
 };
 
 type TileWithTargetColumns = {
@@ -57,6 +58,7 @@ type TileWithTargetColumns = {
     sortedFilters: string[];
     selectedField: string | undefined;
     tabUuid?: string;
+    hasExactMatch: boolean;
 };
 
 type Props = {
@@ -202,10 +204,16 @@ const TileFilterConfiguration: FC<Props> = ({
                         }
                     }
 
+                    const hasExactMatch = field
+                        ? sortedFilters?.some((f) =>
+                              matchFieldExact(f)(field),
+                          ) ?? false
+                        : false;
+
                     return {
                         key: tileUuid + index,
                         label: tileLabel,
-                        checked: !!selectedField,
+                        checked: !!selectedField || !!invalidField,
                         disabled: !isFilterAvailable,
                         invalidField,
                         tileUuid,
@@ -218,6 +226,7 @@ const TileFilterConfiguration: FC<Props> = ({
                         sortedFilters,
                         selectedField,
                         tabUuid: tabUuidFromTile,
+                        hasExactMatch,
                     };
                 },
             );
@@ -273,13 +282,14 @@ const TileFilterConfiguration: FC<Props> = ({
                 acc.push({
                     key: tileUuid + index,
                     label: tileLabel,
-                    checked: !!selectedField,
+                    checked: !!selectedField || !!invalidField,
                     disabled: false,
                     invalidField,
                     tileUuid,
                     sortedFilters: columns,
                     selectedField,
                     tabUuid: tile.tabUuid,
+                    hasExactMatch: false, // SQL tiles don't have exact field match concept
                 });
                 return acc;
             },
@@ -306,7 +316,7 @@ const TileFilterConfiguration: FC<Props> = ({
         label,
         disabled,
     }: {
-        tileList: any[];
+        tileList: Array<TileWithTargetFields | TileWithTargetColumns>;
         tabName: string;
         label: string;
         disabled?: boolean;
@@ -316,33 +326,48 @@ const TileFilterConfiguration: FC<Props> = ({
             !isAllChecked && tileList.some(({ checked }) => checked);
         const tileUuids = tileList.map((tile) => tile.tileUuid);
         const shouldBeChecked = isAllChecked || isIndeterminate;
-        const tooltipLabel = disabled
-            ? 'No chart tiles in this tab'
-            : shouldBeChecked
-            ? `Uncheck to turn filter on for tab '${tabName}'`
-            : `Check to turn filter off for tab '${tabName}'`;
+        const hasAnyExactMatch = tileList.some((tile) => tile.hasExactMatch);
+        // Disable if no tiles OR if unchecked and no exact matches available
+        const isDisabled = disabled || (!shouldBeChecked && !hasAnyExactMatch);
+
+        const getTooltipLabel = () => {
+            if (disabled) return 'No chart tiles in this tab';
+            if (!hasAnyExactMatch && !shouldBeChecked)
+                return 'No tiles in this tab have an exact field match';
+            if (shouldBeChecked)
+                return `Uncheck to turn filter off for tab '${tabName}'`;
+            return `Check to turn filter on for tab '${tabName}'`;
+        };
 
         return (
-            <Tooltip label={tooltipLabel} position="right">
-                <Checkbox
-                    size="xs"
-                    checked={disabled ? false : shouldBeChecked}
-                    indeterminate={disabled ? false : isIndeterminate}
-                    disabled={disabled}
-                    label={label}
-                    styles={{
-                        label: {
-                            paddingLeft: theme.spacing.xs,
-                        },
-                    }}
-                    onChange={() => {
-                        if (isIndeterminate) {
-                            onToggleAll(false, tileUuids);
-                        } else {
-                            onToggleAll(!isAllChecked, tileUuids);
-                        }
-                    }}
-                />
+            <Tooltip label={getTooltipLabel()} position="top-start">
+                <Box>
+                    <Checkbox
+                        size="xs"
+                        checked={isDisabled ? false : shouldBeChecked}
+                        indeterminate={isDisabled ? false : isIndeterminate}
+                        disabled={isDisabled}
+                        label={label}
+                        styles={{
+                            label: {
+                                paddingLeft: theme.spacing.xs,
+                            },
+                        }}
+                        onChange={() => {
+                            if (isIndeterminate) {
+                                onToggleAll(false, tileUuids);
+                            } else if (isAllChecked) {
+                                onToggleAll(false, tileUuids);
+                            } else {
+                                // When toggling ON, only include tiles with exact field match
+                                const exactMatchTileUuids = tileList
+                                    .filter((tile) => tile.hasExactMatch)
+                                    .map((tile) => tile.tileUuid);
+                                onToggleAll(true, exactMatchTileUuids);
+                            }
+                        }}
+                    />
+                </Box>
             </Tooltip>
         );
     };
@@ -562,8 +587,14 @@ const TileFilterConfiguration: FC<Props> = ({
                     const tileUuids = tileTargetList.map((v) => v.tileUuid);
                     if (isIndeterminate) {
                         onToggleAll(false, tileUuids);
+                    } else if (isAllChecked) {
+                        onToggleAll(false, tileUuids);
                     } else {
-                        onToggleAll(!isAllChecked, tileUuids);
+                        // When toggling ON, only include tiles with exact field match
+                        const exactMatchTileUuids = tileTargetList
+                            .filter((v) => v.hasExactMatch)
+                            .map((v) => v.tileUuid);
+                        onToggleAll(true, exactMatchTileUuids);
                     }
                 }}
             />
