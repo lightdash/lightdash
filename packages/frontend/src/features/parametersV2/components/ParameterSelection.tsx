@@ -38,7 +38,8 @@ type ParameterSelectionProps = {
     onParameterPin?: (paramKey: string) => void;
 };
 
-export const ParameterSelection: FC<ParameterSelectionProps> = ({
+// eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars, react-refresh/only-export-components
+const ParameterSelection: FC<ParameterSelectionProps> = ({
     parameters,
     isLoading,
     isError,

@@ -14,9 +14,9 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { useId } from '@mantine/hooks';
-import { IconInfoCircle, IconX } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useId } from '@mantine-8/hooks';
+import { IconX } from '@tabler/icons-react';
+import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import styles from './Parameter.module.css';
 import { ParameterInput } from './ParameterInput';
@@ -46,7 +46,6 @@ const Parameter: FC<Props> = ({
     onParameterChange,
     projectUuid,
     isRequired = false,
-    // isEditMode = false,
 }) => {
     const popoverId = useId();
     const isPopoverOpen = openPopoverId === popoverId;
@@ -89,21 +88,29 @@ const Parameter: FC<Props> = ({
     const hasValue = value !== null && value !== undefined && value !== '';
     const hasUnsetRequiredParameter = isRequired && !hasValue;
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         if (isPopoverOpen) onPopoverClose();
-    };
+    }, [isPopoverOpen, onPopoverClose]);
 
     const handleClear = (e: React.MouseEvent) => {
         e.stopPropagation();
         onParameterChange(paramKey, null);
     };
 
+    const handleToggle = useCallback(() => {
+        if (isPopoverOpen) {
+            handleClose();
+        } else {
+            onPopoverOpen(popoverId);
+        }
+    }, [isPopoverOpen, handleClose, onPopoverOpen, popoverId]);
+
     return (
         <Popover
             position="bottom-start"
-            trapFocus
             opened={isPopoverOpen}
             onClose={handleClose}
+            onDismiss={handleClose}
             transitionProps={{ transition: 'pop-top-left' }}
             withArrow
             shadow="md"
@@ -112,79 +119,66 @@ const Parameter: FC<Props> = ({
             withinPortal
         >
             <Popover.Target>
-                <Button
-                    pos="relative"
-                    size="xs"
-                    variant={hasUnsetRequiredParameter ? 'outline' : 'default'}
-                    classNames={{
-                        label: styles.label,
-                    }}
-                    className={`${styles.button} ${
-                        hasUnsetRequiredParameter ? styles.unsetRequired : ''
-                    }`}
-                    rightSection={
-                        hasValue && (
-                            <ActionIcon
-                                onClick={handleClear}
-                                size="xs"
-                                color="dark"
-                                radius="xl"
-                                variant="subtle"
-                            >
-                                <MantineIcon size="sm" icon={IconX} />
-                            </ActionIcon>
-                        )
-                    }
-                    onClick={() =>
-                        isPopoverOpen ? handleClose() : onPopoverOpen(popoverId)
-                    }
+                <Tooltip
+                    label={parameter.description}
+                    disabled={!parameter.description || isPopoverOpen}
+                    position="top"
+                    withinPortal
+                    maw={350}
+                    multiline
                 >
-                    <Box
-                        style={{
-                            maxWidth: '100%',
-                            overflow: 'hidden',
+                    <Button
+                        pos="relative"
+                        size="xs"
+                        variant={
+                            hasUnsetRequiredParameter ? 'outline' : 'default'
+                        }
+                        classNames={{
+                            label: styles.label,
                         }}
+                        className={`${styles.button} ${
+                            hasUnsetRequiredParameter
+                                ? styles.unsetRequired
+                                : ''
+                        }`}
+                        rightSection={
+                            hasValue && (
+                                <ActionIcon
+                                    onClick={handleClear}
+                                    size="xs"
+                                    color="dark"
+                                    radius="xl"
+                                    variant="subtle"
+                                >
+                                    <MantineIcon size="sm" icon={IconX} />
+                                </ActionIcon>
+                            )
+                        }
+                        onClick={handleToggle}
                     >
-                        <Text fz="xs" truncate>
-                            <Text span fw={600} fz="inherit">
-                                {displayLabel}
+                        <Box
+                            style={{
+                                maxWidth: '100%',
+                                overflow: 'hidden',
+                            }}
+                        >
+                            <Text fz="xs" truncate>
+                                <Text span fw={600} fz="inherit">
+                                    {displayLabel}
+                                </Text>
+                                <Text span c="gray.6" fz="inherit">
+                                    {' '}
+                                    is{' '}
+                                </Text>
+                                <Text span fz="inherit">
+                                    {displayValue}
+                                </Text>
                             </Text>
-                            <Text span c="gray.6" fz="inherit">
-                                {' '}
-                                is{' '}
-                            </Text>
-                            <Text span fz="inherit">
-                                {displayValue}
-                            </Text>
-                        </Text>
-                    </Box>
-                </Button>
+                        </Box>
+                    </Button>
+                </Tooltip>
             </Popover.Target>
-
-            <Popover.Dropdown p="sm" miw={280}>
-                <Box mb="xs">
-                    <Text size="sm" fw={500} mb={4}>
-                        {displayLabel}
-                        {parameter.description && (
-                            <Tooltip
-                                withinPortal
-                                position="top"
-                                maw={350}
-                                label={parameter.description}
-                            >
-                                <MantineIcon
-                                    icon={IconInfoCircle}
-                                    color="gray.6"
-                                    size="sm"
-                                    style={{
-                                        marginLeft: 4,
-                                        verticalAlign: 'middle',
-                                    }}
-                                />
-                            </Tooltip>
-                        )}
-                    </Text>
-                </Box>
+            <Popover.Dropdown p="sm" miw={200}>
                 <ParameterInput
                     paramKey={paramKey}
                     parameter={parameter}
