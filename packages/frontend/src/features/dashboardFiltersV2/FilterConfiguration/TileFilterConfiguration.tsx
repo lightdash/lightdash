@@ -406,7 +406,7 @@ const TileFilterConfiguration: FC<Props> = ({
                         value.sortedFilters && value.sortedFilters.length > 0;
 
                     return (
-                        <Box key={value.key}>
+                        <Box key={value.key} data-testid="tile-filter-item">
                             <Tooltip
                                 label={
                                     value.invalidField
