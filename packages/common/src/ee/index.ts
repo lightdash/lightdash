@@ -1,4 +1,5 @@
 export * from './AiAgent';
+export * from './ambientAi';
 export * from './commercialFeatureFlags';
 export * from './embed';
 export * from './scim/errors';

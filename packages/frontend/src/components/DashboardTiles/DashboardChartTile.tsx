@@ -1860,6 +1860,10 @@ export const GenericDashboardChartTile: FC<
             tableName={dashboardChartReadyQuery.chart.tableName || ''}
             explore={dashboardChartReadyQuery.explore}
             queryUuid={dashboardChartReadyQuery.executeQueryResponse.queryUuid}
+            parameters={
+                dashboardChartReadyQuery.executeQueryResponse
+                    .usedParametersValues
+            }
         >
             {minimal ? (
                 <DashboardChartTileMinimal

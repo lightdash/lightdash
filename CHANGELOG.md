@@ -1,3 +1,108 @@
+## [0.2265.4](https://github.com/lightdash/lightdash/compare/0.2265.3...0.2265.4) (2025-12-18)
+
+
+### Bug Fixes
+
+* only run the necessary query depending on sql runner tab ([#18953](https://github.com/lightdash/lightdash/issues/18953)) ([963840a](https://github.com/lightdash/lightdash/commit/963840a0ff64f86c178b3690db6e599157e7c972))
+
+## [0.2265.3](https://github.com/lightdash/lightdash/compare/0.2265.2...0.2265.3) (2025-12-18)
+
+
+### Bug Fixes
+
+* guard GENERATE_SLACK_CHANNEL_SYNC_JOBS if slack client is not configured ([#18959](https://github.com/lightdash/lightdash/issues/18959)) ([fdab50d](https://github.com/lightdash/lightdash/commit/fdab50d1588c3b8c41141521a9ffce6e83b0f7aa))
+
+## [0.2265.2](https://github.com/lightdash/lightdash/compare/0.2265.1...0.2265.2) (2025-12-18)
+
+
+### Bug Fixes
+
+* bidirectional x-axis and group by filtering for SQL runner cartesian charts ([#18950](https://github.com/lightdash/lightdash/issues/18950)) ([5fbd26d](https://github.com/lightdash/lightdash/commit/5fbd26d23bef450721dcd909fe9460f6e0d71c46))
+
+## [0.2265.1](https://github.com/lightdash/lightdash/compare/0.2265.0...0.2265.1) (2025-12-18)
+
+
+### Bug Fixes
+
+* update Mantine import path and add onDismiss handler to popovers ([#18951](https://github.com/lightdash/lightdash/issues/18951)) ([64cea67](https://github.com/lightdash/lightdash/commit/64cea67cf4715796ccc6245aab7415fb93ffe9c4))
+
+# [0.2265.0](https://github.com/lightdash/lightdash/compare/0.2264.0...0.2265.0) (2025-12-18)
+
+
+### Bug Fixes
+
+* dashboard tiles e2e test ([#18943](https://github.com/lightdash/lightdash/issues/18943)) ([860ba39](https://github.com/lightdash/lightdash/commit/860ba3900f57e48e4c5e47cf726a7d7d463d7186))
+* improve tile filter checkbox behavior and error messaging ([#18932](https://github.com/lightdash/lightdash/issues/18932)) ([f3d6eaf](https://github.com/lightdash/lightdash/commit/f3d6eaffd73244fcff7434aadd155050fecc0827))
+
+
+### Features
+
+* improve filter matching with exact field match detection and better checkbox behavior ([#18931](https://github.com/lightdash/lightdash/issues/18931)) ([39b081a](https://github.com/lightdash/lightdash/commit/39b081a8890c0ffb6daa778351a374772d12cd36))
+
+# [0.2264.0](https://github.com/lightdash/lightdash/compare/0.2263.1...0.2264.0) (2025-12-18)
+
+
+### Bug Fixes
+
+* tiny bars scaling for percentage metrics in table charts ([#18909](https://github.com/lightdash/lightdash/issues/18909)) ([b38c310](https://github.com/lightdash/lightdash/commit/b38c31084ff436dcf9c4edd7794d5c98ddc71a3f))
+
+
+### Features
+
+* add translation support for heading tiles in embedded dashboards ([#18848](https://github.com/lightdash/lightdash/issues/18848)) ([0cb4a9f](https://github.com/lightdash/lightdash/commit/0cb4a9ff39f0f7321e3fb40ce52ec2ec09620856))
+* redesign dashboard info overlay ([#18907](https://github.com/lightdash/lightdash/issues/18907)) ([3a7db6c](https://github.com/lightdash/lightdash/commit/3a7db6c1a75e838e2c35526d5db1f6f60e75cbc3))
+* reorganize dashboard add menu with tiles and elements sections ([#18851](https://github.com/lightdash/lightdash/issues/18851)) ([7f10691](https://github.com/lightdash/lightdash/commit/7f106910a44942c45a1a39bb56bdf716ab7b4dd3))
+
+## [0.2263.1](https://github.com/lightdash/lightdash/compare/0.2263.0...0.2263.1) (2025-12-18)
+
+
+### Bug Fixes
+
+* use refreshToken consistently in ProjectService ([#18919](https://github.com/lightdash/lightdash/issues/18919)) ([b6c7cb5](https://github.com/lightdash/lightdash/commit/b6c7cb5a10681d607e64f907d39f9fe3b7928769))
+
+# [0.2263.0](https://github.com/lightdash/lightdash/compare/0.2262.8...0.2263.0) (2025-12-18)
+
+
+### Bug Fixes
+
+* introduce new error boundary for missing chunks ([#18896](https://github.com/lightdash/lightdash/issues/18896)) ([716bbc3](https://github.com/lightdash/lightdash/commit/716bbc355526b0f35ae6ef65cb7dce54ac5f6ad8))
+* skip embedding generator if text is empty ([#18938](https://github.com/lightdash/lightdash/issues/18938)) ([275dbc3](https://github.com/lightdash/lightdash/commit/275dbc314abc7712820b45dff3c02487a3bb91db))
+
+
+### Features
+
+* allow generating table calculations with ai ([#18921](https://github.com/lightdash/lightdash/issues/18921)) ([35347a6](https://github.com/lightdash/lightdash/commit/35347a63c1dcf7a809532c6e12a6e27d0637dcb7))
+
+## [0.2262.8](https://github.com/lightdash/lightdash/compare/0.2262.7...0.2262.8) (2025-12-18)
+
+
+### Bug Fixes
+
+* seq scans on search queries ([#18916](https://github.com/lightdash/lightdash/issues/18916)) ([4fc76b6](https://github.com/lightdash/lightdash/commit/4fc76b6c8ff2248e3844c10f4a77a0bd85a5d27a))
+* underlying data on explores using parameters ([#18787](https://github.com/lightdash/lightdash/issues/18787)) ([1068cba](https://github.com/lightdash/lightdash/commit/1068cba68a5baf14cfd736bbaa6141dde22fc397))
+
+## [0.2262.7](https://github.com/lightdash/lightdash/compare/0.2262.6...0.2262.7) (2025-12-18)
+
+
+### Bug Fixes
+
+* add error handling for undefined dimensions and metrics in validation service ([#18926](https://github.com/lightdash/lightdash/issues/18926)) ([e574b64](https://github.com/lightdash/lightdash/commit/e574b64999cb67a1afbef6e332744f81d6359ed0))
+
+## [0.2262.6](https://github.com/lightdash/lightdash/compare/0.2262.5...0.2262.6) (2025-12-18)
+
+
+### Bug Fixes
+
+* disable scheduled delivery if all MS teams deliveries fail ([#18933](https://github.com/lightdash/lightdash/issues/18933)) ([15bab59](https://github.com/lightdash/lightdash/commit/15bab59a5db5cc6328b42940b6c020e571072afa))
+
+## [0.2262.5](https://github.com/lightdash/lightdash/compare/0.2262.4...0.2262.5) (2025-12-18)
+
+
+### Bug Fixes
+
+* handle ParameterError as non-retryable in scheduler ([#18913](https://github.com/lightdash/lightdash/issues/18913)) ([3cba372](https://github.com/lightdash/lightdash/commit/3cba372f319d094c92261a0a04cdbe7f57ae4ec2))
+* improve PostgreSQL text search sanitization by removing problematic characters ([#18924](https://github.com/lightdash/lightdash/issues/18924)) ([fa60946](https://github.com/lightdash/lightdash/commit/fa60946e48f423101d5c97bf6b412049ea2c6a73))
+
 ## [0.2262.4](https://github.com/lightdash/lightdash/compare/0.2262.3...0.2262.4) (2025-12-17)
 
 

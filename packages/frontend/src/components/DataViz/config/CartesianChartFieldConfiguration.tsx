@@ -292,16 +292,23 @@ export const CartesianChartFieldConfiguration = ({
         cartesianChartSelectors.getErrors(state, selectedChartType),
     );
 
+    const filteredXLayoutOptions = xLayoutOptions?.filter(
+        (option) => option.reference !== groupByField?.reference,
+    );
+    const filteredGroupByOptions = groupByLayoutOptions?.filter(
+        (option) => option.reference !== xAxisField?.reference,
+    );
+
     return (
         <Stack spacing="xl" mt="sm">
             <Config>
                 <Config.Section>
                     <Config.Heading>{`X-axis`}</Config.Heading>
-                    {xLayoutOptions && (
+                    {filteredXLayoutOptions && (
                         <XFieldAxisConfig
                             columns={columns}
                             field={xAxisField}
-                            xLayoutOptions={xLayoutOptions}
+                            xLayoutOptions={filteredXLayoutOptions}
                             actions={actions}
                             error={errors?.indexFieldError}
                         />
@@ -352,7 +359,7 @@ export const CartesianChartFieldConfiguration = ({
                     <GroupByFieldAxisConfig
                         columns={columns}
                         field={groupByField}
-                        groupByOptions={groupByLayoutOptions}
+                        groupByOptions={filteredGroupByOptions}
                         actions={actions}
                         error={errors?.groupByFieldError}
                     />

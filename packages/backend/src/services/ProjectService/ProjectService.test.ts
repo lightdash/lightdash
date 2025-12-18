@@ -42,6 +42,7 @@ import {
     warehouseClientMock,
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
+import { UserService } from '../UserService';
 import { ProjectService } from './ProjectService';
 import {
     allExplores,
@@ -313,6 +314,217 @@ describe('ProjectService', () => {
             expect(result).toEqual(expectedApiQueryResultsWith1Row);
         });
     });
+
+    describe('user warehouse credentials override', () => {
+        test('should use user refreshToken instead of project refreshToken when requireUserCredentials is true', async () => {
+            // clear in memory cache so new mock is applied
+            service.warehouseClients = {};
+
+            // Mock the token generation to avoid actual Snowflake API calls
+            jest.spyOn(
+                UserService,
+                'generateSnowflakeAccessToken',
+            ).mockResolvedValue('mocked-access-token');
+
+            // Project credentials with Snowflake SSO that has a refreshToken
+            // The project's refreshToken should be cleared and NOT used
+            const projectSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'test-account',
+                warehouse: 'test-warehouse',
+                database: 'test-db',
+                schema: 'test-schema',
+                authenticationType: 'sso',
+                refreshToken: 'project-refresh-token-should-not-be-used',
+                requireUserCredentials: true,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockImplementation(async () => projectSnowflakeCredentials);
+
+            // User credentials with refreshToken (correct field)
+            const userCredentials = {
+                uuid: 'user-creds-uuid',
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: 'sso',
+                    refreshToken: 'user-refresh-token',
+                },
+            };
+
+            const findForProjectWithSecretsMock = jest.fn(
+                async () => userCredentials,
+            );
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: jest.Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecretsMock;
+
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation((creds: Record<string, unknown>) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                runQuery: jest.fn(async () => resultsWith1Row),
+            }));
+
+            await service.runExploreQuery(
+                sessionAccount,
+                metricQueryMock,
+                projectUuid,
+                'valid_explore',
+                null,
+            );
+
+            // Verify generateSnowflakeAccessToken was called with user's refreshToken
+            expect(
+                UserService.generateSnowflakeAccessToken,
+            ).toHaveBeenCalledWith('user-refresh-token');
+            // Project's refreshToken should NOT have been used
+            expect(
+                UserService.generateSnowflakeAccessToken,
+            ).not.toHaveBeenCalledWith(
+                'project-refresh-token-should-not-be-used',
+            );
+        });
+
+        test('should throw error when user credentials have token instead of refreshToken', async () => {
+            // clear in memory cache so new mock is applied
+            service.warehouseClients = {};
+
+            // Mock the token generation to avoid actual Snowflake API calls
+            jest.spyOn(
+                UserService,
+                'generateSnowflakeAccessToken',
+            ).mockResolvedValue('mocked-access-token');
+
+            // Project credentials with Snowflake SSO
+            const projectSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'test-account',
+                warehouse: 'test-warehouse',
+                database: 'test-db',
+                schema: 'test-schema',
+                authenticationType: 'sso',
+                refreshToken: 'project-refresh-token',
+                requireUserCredentials: true,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockImplementation(async () => projectSnowflakeCredentials);
+
+            // User credentials with token instead of refreshToken (the bug scenario)
+            // Older code stored refreshToken in the token field by mistake
+            const userCredentials = {
+                uuid: 'user-creds-uuid',
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: 'sso',
+                    token: 'user-token-stored-incorrectly', // Bug: stored in wrong field
+                },
+            };
+
+            const findForProjectWithSecretsMock = jest.fn(
+                async () => userCredentials,
+            );
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: jest.Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecretsMock;
+
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation((creds: Record<string, unknown>) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                runQuery: jest.fn(async () => resultsWith1Row),
+            }));
+
+            // Should throw an error because user credentials have token instead of refreshToken
+            await expect(
+                service.runExploreQuery(
+                    sessionAccount,
+                    metricQueryMock,
+                    projectUuid,
+                    'valid_explore',
+                    null,
+                ),
+            ).rejects.toThrow('Error refreshing snowflake token');
+        });
+
+        test('should use project refreshToken when requireUserCredentials is false for Snowflake', async () => {
+            // clear in memory cache so new mock is applied
+            service.warehouseClients = {};
+
+            // Mock the token generation to avoid actual Snowflake API calls
+            jest.spyOn(
+                UserService,
+                'generateSnowflakeAccessToken',
+            ).mockResolvedValue('mocked-access-token');
+
+            // Mock project credentials with Snowflake SSO - requireUserCredentials is false
+            // so the project's credentials should be used directly
+            const projectSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'test-account',
+                warehouse: 'test-warehouse',
+                database: 'test-db',
+                schema: 'test-schema',
+                authenticationType: 'sso',
+                refreshToken: 'project-refresh-token',
+                requireUserCredentials: false,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockImplementation(async () => projectSnowflakeCredentials);
+
+            // User credentials should NOT be fetched when requireUserCredentials is false
+            const findForProjectWithSecretsMock = jest.fn(
+                async () => undefined,
+            );
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: jest.Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecretsMock;
+
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation((creds: Record<string, unknown>) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                runQuery: jest.fn(async () => resultsWith1Row),
+            }));
+
+            await service.runExploreQuery(
+                sessionAccount,
+                metricQueryMock,
+                projectUuid,
+                'valid_explore',
+                null,
+            );
+
+            // Verify generateSnowflakeAccessToken was called with project's refreshToken
+            expect(
+                UserService.generateSnowflakeAccessToken,
+            ).toHaveBeenCalledWith('project-refresh-token');
+
+            // User credentials should NOT have been fetched
+            expect(findForProjectWithSecretsMock).not.toHaveBeenCalled();
+        });
+    });
+
     describe('getAllExploresSummary', () => {
         test('should get all explores summary without filtering', async () => {
             const result = await service.getAllExploresSummary(

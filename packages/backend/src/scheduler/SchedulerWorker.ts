@@ -942,6 +942,13 @@ export class SchedulerWorker extends SchedulerTask {
                 _payload,
                 helpers,
             ) => {
+                if (!this.slackClient.isEnabled) {
+                    Logger.info(
+                        'Skipping Slack channel sync generation: Slack is not configured',
+                    );
+                    return;
+                }
+
                 Logger.info('Starting daily Slack channel sync job generation');
 
                 // Get all organizations with Slack installations

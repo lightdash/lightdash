@@ -1,0 +1,67 @@
+.container {
+    width: 100%;
+}
+
+.editorRoot {
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+
+    @mixin light {
+        border-color: var(--mantine-color-ldGray-3);
+    }
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.editorContent {
+    min-height: 36px;
+    max-height: 120px;
+    overflow-y: auto;
+    font-size: var(--mantine-font-size-xs);
+    /* Leave space for the generate button on the right */
+    padding-right: calc(var(--mantine-spacing-xs) + 28px);
+
+    /* Placeholder color styling */
+    :global(p.is-empty.is-editor-empty::before) {
+        @mixin light {
+            color: var(--mantine-color-ldDark-2) !important;
+        }
+
+        @mixin dark {
+            color: var(--mantine-color-ldGray-7) !important;
+        }
+    }
+}
+
+/* Focus state */
+.editorRoot:focus-within {
+    @mixin light {
+        border-color: var(--mantine-color-ldGray-4);
+    }
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-6);
+    }
+}
+
+.mentionLabel {
+    font-weight: 500;
+    background-color: var(--mantine-color-ldDark-0);
+    padding: var(--mantine-spacing-xxs) var(--mantine-spacing-xxs);
+    border-radius: var(--mantine-radius-sm);
+
+    @mixin light {
+        color: var(--mantine-color-foreground-0);
+        background-color: var(--mantine-color-ldGray-0);
+        border: 1px solid var(--mantine-color-ldGray-3);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-foreground-0);
+        background-color: var(--mantine-color-ldDark-4);
+        border: 1px solid var(--mantine-color-ldDark-5);
+    }
+}

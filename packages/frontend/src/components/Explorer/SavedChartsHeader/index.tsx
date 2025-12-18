@@ -369,7 +369,7 @@ const SavedChartsHeader: FC = () => {
                                     dashboardName={savedChart.dashboardName}
                                 />
                                 <Title
-                                    c="ldGray.8"
+                                    c="ldDark.9"
                                     order={5}
                                     fw={600}
                                     truncate

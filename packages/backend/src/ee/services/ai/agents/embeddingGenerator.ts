@@ -62,6 +62,11 @@ export async function generateEmbedding(
     provider: string;
     modelName: string;
 } | null> {
+    const trimmedText = text.trim();
+    if (!trimmedText) {
+        return null;
+    }
+
     const embeddingModelConfig = getEmbeddingModelConfig(config);
     if (!embeddingModelConfig) {
         return null;
@@ -70,7 +75,7 @@ export async function generateEmbedding(
 
     let { embedding } = await embed({
         model,
-        value: text.trim(),
+        value: trimmedText,
         experimental_telemetry: {
             functionId: 'generateEmbedding',
             isEnabled: true,

@@ -88,6 +88,7 @@ const AddTileButton: FC<Props> = ({
                     </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    <Menu.Label>Tiles</Menu.Label>
                     <Menu.Item
                         onClick={() => setIsAddChartTilesModalOpen(true)}
                         icon={<MantineIcon icon={IconChartBar} />}
@@ -138,6 +139,16 @@ const AddTileButton: FC<Props> = ({
                         Loom video
                     </Menu.Item>
 
+                    <Menu.Divider />
+
+                    <Menu.Label>Elements</Menu.Label>
+                    <Menu.Item
+                        onClick={() => setAddingTab(true)}
+                        icon={<MantineIcon icon={IconNewSection} />}
+                    >
+                        Tab
+                    </Menu.Item>
+
                     {isDashboardRedesignEnabled && (
                         <Menu.Item
                             onClick={() =>
@@ -148,13 +159,6 @@ const AddTileButton: FC<Props> = ({
                             Heading
                         </Menu.Item>
                     )}
-
-                    <Menu.Item
-                        onClick={() => setAddingTab(true)}
-                        icon={<MantineIcon icon={IconNewSection} />}
-                    >
-                        Add tab
-                    </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
 

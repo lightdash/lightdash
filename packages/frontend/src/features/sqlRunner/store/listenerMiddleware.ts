@@ -7,6 +7,7 @@ import {
     addChartConfigListener,
     addChartTypeListener,
     addSqlRunnerQueryListener,
+    addTabSwitchListener,
 } from './sqlRunnerListeners';
 
 export const listenerMiddleware = createListenerMiddleware();
@@ -22,3 +23,4 @@ export const startAppListening = listenerMiddleware.startListening.withTypes<
 addSqlRunnerQueryListener(startAppListening);
 addChartConfigListener(startAppListening);
 addChartTypeListener(startAppListening);
+addTabSwitchListener(startAppListening);
