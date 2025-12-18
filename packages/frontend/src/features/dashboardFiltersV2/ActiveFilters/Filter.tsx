@@ -14,7 +14,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { useDisclosure, useId } from '@mantine/hooks';
+import { useDisclosure, useId } from '@mantine-8/hooks';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import {
@@ -159,6 +159,7 @@ const Filter: FC<Props> = ({
                 closeOnEscape={!isSubPopoverOpen}
                 closeOnClickOutside={!isSubPopoverOpen}
                 onClose={handleClose}
+                onDismiss={!isSubPopoverOpen ? handleClose : undefined}
                 disabled={disabled}
                 transitionProps={{ transition: 'pop-top-left' }}
                 withArrow

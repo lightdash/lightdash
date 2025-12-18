@@ -95,6 +95,7 @@ const AddFilterButton: FC<Props> = ({
                 closeOnEscape={!isSubPopoverOpen}
                 closeOnClickOutside={!isSubPopoverOpen}
                 onClose={handleClose}
+                onDismiss={!isSubPopoverOpen ? handleClose : undefined}
                 disabled={disabled}
                 transitionProps={{ transition: 'pop-top-left' }}
                 withArrow
