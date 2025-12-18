@@ -1,3 +1,11 @@
+## [0.2262.5](https://github.com/lightdash/lightdash/compare/0.2262.4...0.2262.5) (2025-12-18)
+
+
+### Bug Fixes
+
+* handle ParameterError as non-retryable in scheduler ([#18913](https://github.com/lightdash/lightdash/issues/18913)) ([3cba372](https://github.com/lightdash/lightdash/commit/3cba372f319d094c92261a0a04cdbe7f57ae4ec2))
+* improve PostgreSQL text search sanitization by removing problematic characters ([#18924](https://github.com/lightdash/lightdash/issues/18924)) ([fa60946](https://github.com/lightdash/lightdash/commit/fa60946e48f423101d5c97bf6b412049ea2c6a73))
+
 ## [0.2262.4](https://github.com/lightdash/lightdash/compare/0.2262.3...0.2262.4) (2025-12-17)
 
 
