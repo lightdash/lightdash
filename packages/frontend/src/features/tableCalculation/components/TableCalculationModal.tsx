@@ -438,7 +438,7 @@ const TableCalculationModal: FC<Props> = ({
                                             borderStyle: 'solid',
                                             borderTop: 'none',
                                             height: isExpanded
-                                                ? 'calc(90vh - 400px)'
+                                                ? 'calc(80vh - 400px)'
                                                 : 'auto',
                                         },
                                     }}
@@ -452,7 +452,14 @@ const TableCalculationModal: FC<Props> = ({
                                         </Tabs.Tab>
                                     </Tabs.List>
 
-                                    <Tabs.Panel value="sqlEditor">
+                                    <Tabs.Panel
+                                        value="sqlEditor"
+                                        style={{
+                                            height: isExpanded
+                                                ? 'calc(85vh - 400px)'
+                                                : 'auto',
+                                        }}
+                                    >
                                         <Suspense
                                             fallback={
                                                 <Box

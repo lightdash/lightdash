@@ -2,6 +2,8 @@ import type { GeneratedTableCalculation } from '@lightdash/common';
 import {
     Alert,
     Anchor,
+    Box,
+    Flex,
     ScrollArea,
     Text,
     useMantineTheme,
@@ -108,8 +110,11 @@ export const SqlForm: FC<Props> = ({
     }, [isSoftWrapEnabled, setSoftWrapEnabled]);
 
     return (
-        <>
-            <ScrollArea h={isFullScreen ? '90%' : '150px'}>
+        <Flex direction="column" h={isFullScreen ? '100%' : 'auto'}>
+            <ScrollArea
+                style={{ flex: isFullScreen ? 1 : 'none' }}
+                h={isFullScreen ? undefined : '150px'}
+            >
                 <SqlEditor
                     mode="sql"
                     theme={
@@ -141,44 +146,46 @@ export const SqlForm: FC<Props> = ({
                 />
             </ScrollArea>
 
-            {isAmbientAiEnabled ? (
-                <AiTableCalculationInput
-                    currentSql={form.values.sql || undefined}
-                    onApply={handleAiApply}
-                />
-            ) : (
-                <Alert
-                    radius={0}
-                    icon={<MantineIcon icon={IconSparkles} />}
-                    title={
-                        <Text fz="xs">
-                            Need inspiration?{' '}
-                            <Anchor
-                                target="_blank"
-                                href="https://docs.lightdash.com/guides/table-calculations/sql-templates"
-                                rel="noreferrer"
-                            >
-                                Check out our templates!
-                            </Anchor>
-                        </Text>
-                    }
-                    color="violet"
-                    styles={{
-                        root: {
-                            paddingBottom: theme.spacing.sm,
-                            paddingTop: theme.spacing.sm,
-                        },
-                        wrapper: {
-                            alignItems: 'center',
-                        },
-                        title: {
-                            marginBottom: 0,
-                        },
-                    }}
-                >
-                    <></>
-                </Alert>
-            )}
-        </>
+            <Box style={{ flexShrink: 0 }}>
+                {isAmbientAiEnabled ? (
+                    <AiTableCalculationInput
+                        currentSql={form.values.sql || undefined}
+                        onApply={handleAiApply}
+                    />
+                ) : (
+                    <Alert
+                        radius={0}
+                        icon={<MantineIcon icon={IconSparkles} />}
+                        title={
+                            <Text fz="xs">
+                                Need inspiration?{' '}
+                                <Anchor
+                                    target="_blank"
+                                    href="https://docs.lightdash.com/guides/table-calculations/sql-templates"
+                                    rel="noreferrer"
+                                >
+                                    Check out our templates!
+                                </Anchor>
+                            </Text>
+                        }
+                        color="violet"
+                        styles={{
+                            root: {
+                                paddingBottom: theme.spacing.sm,
+                                paddingTop: theme.spacing.sm,
+                            },
+                            wrapper: {
+                                alignItems: 'center',
+                            },
+                            title: {
+                                marginBottom: 0,
+                            },
+                        }}
+                    >
+                        <></>
+                    </Alert>
+                )}
+            </Box>
+        </Flex>
     );
 };
