@@ -1,3 +1,16 @@
+# [0.2263.0](https://github.com/lightdash/lightdash/compare/0.2262.8...0.2263.0) (2025-12-18)
+
+
+### Bug Fixes
+
+* introduce new error boundary for missing chunks ([#18896](https://github.com/lightdash/lightdash/issues/18896)) ([716bbc3](https://github.com/lightdash/lightdash/commit/716bbc355526b0f35ae6ef65cb7dce54ac5f6ad8))
+* skip embedding generator if text is empty ([#18938](https://github.com/lightdash/lightdash/issues/18938)) ([275dbc3](https://github.com/lightdash/lightdash/commit/275dbc314abc7712820b45dff3c02487a3bb91db))
+
+
+### Features
+
+* allow generating table calculations with ai ([#18921](https://github.com/lightdash/lightdash/issues/18921)) ([35347a6](https://github.com/lightdash/lightdash/commit/35347a63c1dcf7a809532c6e12a6e27d0637dcb7))
+
 ## [0.2262.8](https://github.com/lightdash/lightdash/compare/0.2262.7...0.2262.8) (2025-12-18)
 
 
