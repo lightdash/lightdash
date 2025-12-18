@@ -16,6 +16,12 @@
     "format": {
       "cache": true
     },
+    "fix-lint": {
+      "cache": false
+    },
+    "fix-format": {
+      "cache": false
+    },
     "test": {
       "dependsOn": ["^build", "build"],
       "cache": true

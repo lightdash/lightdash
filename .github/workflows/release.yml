@@ -24,7 +24,7 @@ jobs:
       - name: Install packages
         run: pnpm install --frozen-lockfile --prefer-offline
       - name: Build all packages
-        run: pnpm turbo:build
+        run: pnpm build
 
   release:
     runs-on: ubuntu-latest
