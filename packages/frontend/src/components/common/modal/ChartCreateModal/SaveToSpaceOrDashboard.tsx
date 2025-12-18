@@ -45,15 +45,9 @@ import {
     type ChartMetadata,
 } from './types';
 
-enum SaveDestination {
-    Dashboard = 'dashboard',
-    Space = 'space',
-}
+enum SaveDestination
 
-enum ModalStep {
-    InitialInfo,
-    SelectDestination,
-}
+enum ModalStep
 
 const saveToSpaceOrDashboardSchema = z
     .object({
@@ -205,9 +199,11 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     const { mutateAsync: updateDashboard } = useUpdateDashboard(
         form.values.dashboardUuid ?? undefined,
     );
-    const { data: selectedDashboard } = useDashboardQuery(
-        form.values.dashboardUuid ?? undefined,
-    );
+    const {
+        data: selectedDashboard,
+        isLoading: isLoadingSelectedDashboard,
+        isError: isSelectedDashboardError,
+    } = useDashboardQuery(form.values.dashboardUuid ?? undefined);
 
     const isFormReadyToSave = useMemo(() => {
         if (currentStep === ModalStep.SelectDestination) {
@@ -219,11 +215,23 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 );
             }
             if (saveDestination === SaveDestination.Dashboard) {
-                return form.values.dashboardUuid;
+                return (
+                    form.values.dashboardUuid &&
+                    selectedDashboard &&
+                    !isLoadingSelectedDashboard &&
+                    !isSelectedDashboardError
+                );
             }
         }
         return false;
-    }, [currentStep, form.values, saveDestination]);
+    }, [
+        currentStep,
+        form.values,
+        saveDestination,
+        selectedDashboard,
+        isLoadingSelectedDashboard,
+        isSelectedDashboardError,
+    ]);
 
     const handleOnSubmit = useCallback(
         async (values: FormValues) => {
@@ -238,7 +246,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
              */
             if (saveDestination === SaveDestination.Dashboard) {
                 if (!selectedDashboard) {
-                    throw new Error('Expected dashboard');
+                    throw new Error(
+                        'Dashboard not found or failed to load. Please try selecting a different dashboard.',
+                    );
                 }
                 savedQuery = await createChart({
                     ...savedData,
@@ -487,7 +497,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                             type="submit"
                             loading={
                                 isSavingChart ||
-                                spaceManagement.createSpaceMutation.isLoading
+                                spaceManagement.createSpaceMutation.isLoading ||
+                                isLoadingSelectedDashboard
                             }
                             disabled={!isFormReadyToSave}
                         >
