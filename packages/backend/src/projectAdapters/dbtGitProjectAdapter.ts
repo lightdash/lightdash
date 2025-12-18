@@ -14,6 +14,7 @@ import * as fspromises from 'fs-extra';
 import * as path from 'path';
 import simpleGit, {
     GitError,
+    GitPluginError,
     SimpleGit,
     SimpleGitProgressEvent,
 } from 'simple-git';
@@ -38,6 +39,8 @@ export type DbtGitProjectAdapterArgs = {
     analytics?: LightdashAnalytics;
 };
 
+const GIT_OPERATION_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+
 const stripTokensFromUrls = (raw: string) => {
     const pattern = /\/\/(.*)@/g;
     return raw.replace(pattern, '//*****@');
@@ -47,6 +50,12 @@ const gitErrorHandler = (e: unknown, repository: string) => {
     if (!(e instanceof Error)) {
         throw new UnexpectedServerError(
             `Unexpected git error: ${getErrorMessage(e)}`,
+        );
+    }
+    if (e instanceof GitPluginError && e.plugin === 'timeout') {
+        const timeoutMinutes = GIT_OPERATION_TIMEOUT_MS / 60000;
+        throw new UnexpectedGitError(
+            `Git operation timed out after ${timeoutMinutes} minutes while accessing repository "${repository}". Please check your repository credentials and network connectivity.`,
         );
     }
     if (e.message.includes('Authentication failed')) {
@@ -126,6 +135,9 @@ export class DbtGitProjectAdapter
         this.branch = gitBranch;
         this.repository = repository;
         this.git = simpleGit({
+            timeout: {
+                block: GIT_OPERATION_TIMEOUT_MS,
+            },
             progress({ method, stage, progress }: SimpleGitProgressEvent) {
                 Logger.debug(
                     `git.${method} ${stage} stage ${progress}% complete`,
