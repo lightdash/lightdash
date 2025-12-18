@@ -1,3 +1,10 @@
+## [0.2265.1](https://github.com/lightdash/lightdash/compare/0.2265.0...0.2265.1) (2025-12-18)
+
+
+### Bug Fixes
+
+* update Mantine import path and add onDismiss handler to popovers ([#18951](https://github.com/lightdash/lightdash/issues/18951)) ([64cea67](https://github.com/lightdash/lightdash/commit/64cea67cf4715796ccc6245aab7415fb93ffe9c4))
+
 # [0.2265.0](https://github.com/lightdash/lightdash/compare/0.2264.0...0.2265.0) (2025-12-18)
 
 
