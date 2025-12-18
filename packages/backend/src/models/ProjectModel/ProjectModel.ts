@@ -25,6 +25,7 @@ import {
     ProjectMemberRole,
     ProjectSummary,
     ProjectType,
+    RequestMethod,
     SnowflakeAuthenticationType,
     SpaceSummary,
     SupportedDbtVersions,
@@ -322,6 +323,7 @@ export class ProjectModel {
                 'projects.created_at',
                 `projects.copied_from_project_uuid`,
                 `projects.created_by_user_uuid`,
+                `projects.created_via`,
                 `${WarehouseCredentialTableName}.warehouse_type`,
                 this.database.raw(
                     '(agg_project_group_access_counts.member_count + agg_project_membership_counts.member_count) as member_count',
@@ -356,6 +358,7 @@ export class ProjectModel {
                 project_type,
                 created_at,
                 created_by_user_uuid,
+                created_via,
                 copied_from_project_uuid,
                 warehouse_type,
             }) => ({
@@ -364,6 +367,7 @@ export class ProjectModel {
                 type: project_type,
                 createdByUserUuid: created_by_user_uuid,
                 createdAt: created_at,
+                createdVia: created_via,
                 upstreamProjectUuid: copied_from_project_uuid,
                 warehouseType:
                     warehouse_type !== null
@@ -441,6 +445,7 @@ export class ProjectModel {
         userUuid: string,
         organizationUuid: string,
         data: CreateProjectOptionalCredentials,
+        createdVia?: RequestMethod,
     ): Promise<string> {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)
@@ -483,6 +488,7 @@ export class ProjectModel {
                           }
                         : {}),
                     created_by_user_uuid: userUuid,
+                    created_via: createdVia ?? RequestMethod.UNKNOWN,
                     organization_warehouse_credentials_uuid:
                         data.organizationWarehouseCredentialsUuid ?? null,
                 })
