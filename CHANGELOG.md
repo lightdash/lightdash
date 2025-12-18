@@ -1,3 +1,17 @@
+# [0.2264.0](https://github.com/lightdash/lightdash/compare/0.2263.1...0.2264.0) (2025-12-18)
+
+
+### Bug Fixes
+
+* tiny bars scaling for percentage metrics in table charts ([#18909](https://github.com/lightdash/lightdash/issues/18909)) ([b38c310](https://github.com/lightdash/lightdash/commit/b38c31084ff436dcf9c4edd7794d5c98ddc71a3f))
+
+
+### Features
+
+* add translation support for heading tiles in embedded dashboards ([#18848](https://github.com/lightdash/lightdash/issues/18848)) ([0cb4a9f](https://github.com/lightdash/lightdash/commit/0cb4a9ff39f0f7321e3fb40ce52ec2ec09620856))
+* redesign dashboard info overlay ([#18907](https://github.com/lightdash/lightdash/issues/18907)) ([3a7db6c](https://github.com/lightdash/lightdash/commit/3a7db6c1a75e838e2c35526d5db1f6f60e75cbc3))
+* reorganize dashboard add menu with tiles and elements sections ([#18851](https://github.com/lightdash/lightdash/issues/18851)) ([7f10691](https://github.com/lightdash/lightdash/commit/7f106910a44942c45a1a39bb56bdf716ab7b4dd3))
+
 ## [0.2263.1](https://github.com/lightdash/lightdash/compare/0.2263.0...0.2263.1) (2025-12-18)
 
 
