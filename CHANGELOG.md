@@ -1,3 +1,10 @@
+## [0.2262.6](https://github.com/lightdash/lightdash/compare/0.2262.5...0.2262.6) (2025-12-18)
+
+
+### Bug Fixes
+
+* disable scheduled delivery if all MS teams deliveries fail ([#18933](https://github.com/lightdash/lightdash/issues/18933)) ([15bab59](https://github.com/lightdash/lightdash/commit/15bab59a5db5cc6328b42940b6c020e571072afa))
+
 ## [0.2262.5](https://github.com/lightdash/lightdash/compare/0.2262.4...0.2262.5) (2025-12-18)
 
 
