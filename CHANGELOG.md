@@ -1,3 +1,16 @@
+# [0.2265.0](https://github.com/lightdash/lightdash/compare/0.2264.0...0.2265.0) (2025-12-18)
+
+
+### Bug Fixes
+
+* dashboard tiles e2e test ([#18943](https://github.com/lightdash/lightdash/issues/18943)) ([860ba39](https://github.com/lightdash/lightdash/commit/860ba3900f57e48e4c5e47cf726a7d7d463d7186))
+* improve tile filter checkbox behavior and error messaging ([#18932](https://github.com/lightdash/lightdash/issues/18932)) ([f3d6eaf](https://github.com/lightdash/lightdash/commit/f3d6eaffd73244fcff7434aadd155050fecc0827))
+
+
+### Features
+
+* improve filter matching with exact field match detection and better checkbox behavior ([#18931](https://github.com/lightdash/lightdash/issues/18931)) ([39b081a](https://github.com/lightdash/lightdash/commit/39b081a8890c0ffb6daa778351a374772d12cd36))
+
 # [0.2264.0](https://github.com/lightdash/lightdash/compare/0.2263.1...0.2264.0) (2025-12-18)
 
 
