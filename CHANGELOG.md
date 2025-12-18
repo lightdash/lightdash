@@ -1,3 +1,10 @@
+## [0.2265.4](https://github.com/lightdash/lightdash/compare/0.2265.3...0.2265.4) (2025-12-18)
+
+
+### Bug Fixes
+
+* only run the necessary query depending on sql runner tab ([#18953](https://github.com/lightdash/lightdash/issues/18953)) ([963840a](https://github.com/lightdash/lightdash/commit/963840a0ff64f86c178b3690db6e599157e7c972))
+
 ## [0.2265.3](https://github.com/lightdash/lightdash/compare/0.2265.2...0.2265.3) (2025-12-18)
 
 
