@@ -45,9 +45,15 @@ import {
     type ChartMetadata,
 } from './types';
 
-enum SaveDestination
+enum SaveDestination {
+    Dashboard = 'dashboard',
+    Space = 'space',
+}
 
-enum ModalStep
+enum ModalStep {
+    InitialInfo,
+    SelectDestination,
+}
 
 const saveToSpaceOrDashboardSchema = z
     .object({
