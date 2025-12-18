@@ -27,6 +27,7 @@ import {
     NotFoundError,
     NotificationFrequency,
     NotificationPayloadBase,
+    ParameterError,
     ParametersValuesMap,
     type PartialFailure,
     PartialFailureType,
@@ -3084,10 +3085,12 @@ export default class SchedulerTask {
 
             if (
                 e instanceof FieldReferenceError ||
-                e instanceof WarehouseConnectionError
+                e instanceof WarehouseConnectionError ||
+                e instanceof ParameterError
             ) {
                 // This captures both the error from thresholdAlert and metricQuery
                 // WarehouseConnectionError indicates misconfigured credentials (wrong password, unreachable host, etc.)
+                // ParameterError indicates invalid configuration (e.g., selected tabs no longer exist)
                 Logger.warn(
                     `Disabling scheduler with non-retryable error: ${e}`,
                 );
