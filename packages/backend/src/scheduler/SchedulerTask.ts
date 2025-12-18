@@ -1,5 +1,6 @@
 import {
     type Account as AccountType,
+    AllMSTeamsDeliveriesFailed,
     AnyType,
     type BatchDeliveryResult,
     CompileProjectPayload,
@@ -3086,7 +3087,8 @@ export default class SchedulerTask {
             if (
                 e instanceof FieldReferenceError ||
                 e instanceof WarehouseConnectionError ||
-                e instanceof ParameterError
+                e instanceof ParameterError ||
+                e instanceof AllMSTeamsDeliveriesFailed
             ) {
                 // This captures both the error from thresholdAlert and metricQuery
                 // WarehouseConnectionError indicates misconfigured credentials (wrong password, unreachable host, etc.)
@@ -3894,7 +3896,7 @@ export default class SchedulerTask {
                 batchResult,
                 notification.projectUuid,
             );
-            throw new Error(
+            throw new AllMSTeamsDeliveriesFailed(
                 `All MS Teams deliveries failed: ${results
                     .map((r) => r.error)
                     .join(', ')}`,

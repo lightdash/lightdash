@@ -411,6 +411,20 @@ export class MsTeamsError extends LightdashError {
     }
 }
 
+export class AllMSTeamsDeliveriesFailed extends LightdashError {
+    constructor(
+        message: string = 'All MS Teams deliveries failed',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'AllMSTeamsDeliveriesFailed',
+            statusCode: 400,
+            data,
+        });
+    }
+}
+
 export class UnexpectedGoogleSheetsError extends LightdashError {
     constructor(
         message = 'Unexpected error in Google sheets client',
