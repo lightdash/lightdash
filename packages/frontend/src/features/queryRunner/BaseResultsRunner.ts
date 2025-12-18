@@ -97,6 +97,12 @@ export class BaseResultsRunner implements IResultsRunner {
         this.queryClient = createQueryClient();
     }
 
+    invalidatePivotCache(): void {
+        void this.queryClient.invalidateQueries({
+            queryKey: ['transformedData'],
+        });
+    }
+
     async getPivotedVisualizationData(
         query: SqlRunnerQuery,
     ): Promise<PivotChartData> {

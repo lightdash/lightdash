@@ -18,7 +18,7 @@ import { format, type FormatOptionsWithLanguage } from 'sql-formatter';
 import { type MonacoHighlightChar } from '../components/SqlEditor';
 import { SqlRunnerResultsRunnerFrontend } from '../runners/SqlRunnerResultsRunnerFrontend';
 import { createHistoryReducer, withHistory, type WithHistory } from './history';
-import { runSqlQuery } from './thunks';
+import { prepareAndFetchChartData, runSqlQuery } from './thunks';
 
 export enum EditorTabs {
     SQL = 'SQL',
@@ -442,6 +442,15 @@ export const sqlRunnerSlice = createSlice({
                           char: Number(action.payload.data.charNumber),
                       }
                     : undefined;
+            })
+            .addCase(prepareAndFetchChartData.pending, (state) => {
+                state.queryIsLoading = true;
+            })
+            .addCase(prepareAndFetchChartData.fulfilled, (state) => {
+                state.queryIsLoading = false;
+            })
+            .addCase(prepareAndFetchChartData.rejected, (state) => {
+                state.queryIsLoading = false;
             });
     },
 });

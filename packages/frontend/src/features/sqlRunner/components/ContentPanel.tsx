@@ -80,7 +80,7 @@ import {
     setSqlLimit,
     updateParameterValue,
 } from '../store/sqlRunnerSlice';
-import { runSqlQuery } from '../store/thunks';
+import { prepareAndFetchChartData, runSqlQuery } from '../store/thunks';
 import { ChartDownload } from './Download/ChartDownload';
 import ResultsDownloadButton from './Download/ResultsDownloadButton';
 import { SqlEditor } from './SqlEditor';
@@ -163,16 +163,23 @@ export const ContentPanel: FC = () => {
         async (sqlToUse: string) => {
             if (!sqlToUse || !limit) return;
 
-            await dispatch(
-                runSqlQuery({
-                    sql: sqlToUse,
-                    limit,
-                    projectUuid,
-                    parameterValues,
-                }),
-            );
+            if (activeEditorTab === EditorTabs.VISUALIZATION) {
+                // Force refresh to bypass queryClient cache when user clicks Run
+                await dispatch(
+                    prepareAndFetchChartData({ forceRefresh: true }),
+                );
+            } else {
+                await dispatch(
+                    runSqlQuery({
+                        sql: sqlToUse,
+                        limit,
+                        projectUuid,
+                        parameterValues,
+                    }),
+                );
+            }
         },
-        [dispatch, projectUuid, limit, parameterValues],
+        [activeEditorTab, dispatch, projectUuid, limit, parameterValues],
     );
 
     useEffect(() => {
