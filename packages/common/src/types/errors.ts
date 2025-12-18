@@ -397,6 +397,20 @@ export class SlackError extends LightdashError {
     }
 }
 
+export class AllSlackDeliveriesFailedError extends LightdashError {
+    constructor(
+        message: string = 'All Slack deliveries failed',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'AllSlackDeliveriesFailedError',
+            statusCode: 400,
+            data,
+        });
+    }
+}
+
 export class MsTeamsError extends LightdashError {
     constructor(
         message: string = 'Microsoft Teams API error occurred',
@@ -405,6 +419,20 @@ export class MsTeamsError extends LightdashError {
         super({
             message,
             name: 'MsTeamsError',
+            statusCode: 400,
+            data,
+        });
+    }
+}
+
+export class AllMSTeamsDeliveriesFailedError extends LightdashError {
+    constructor(
+        message: string = 'All MS Teams deliveries failed',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'AllMSTeamsDeliveriesFailed',
             statusCode: 400,
             data,
         });

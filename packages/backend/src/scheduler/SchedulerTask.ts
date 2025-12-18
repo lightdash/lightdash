@@ -1,5 +1,7 @@
 import {
     type Account as AccountType,
+    AllMSTeamsDeliveriesFailedError,
+    AllSlackDeliveriesFailedError,
     AnyType,
     type BatchDeliveryResult,
     CompileProjectPayload,
@@ -3086,7 +3088,9 @@ export default class SchedulerTask {
             if (
                 e instanceof FieldReferenceError ||
                 e instanceof WarehouseConnectionError ||
-                e instanceof ParameterError
+                e instanceof ParameterError ||
+                e instanceof AllMSTeamsDeliveriesFailedError ||
+                e instanceof AllSlackDeliveriesFailedError
             ) {
                 // This captures both the error from thresholdAlert and metricQuery
                 // WarehouseConnectionError indicates misconfigured credentials (wrong password, unreachable host, etc.)
@@ -3495,7 +3499,7 @@ export default class SchedulerTask {
                 batchResult,
                 notification.projectUuid,
             );
-            throw new Error(
+            throw new AllSlackDeliveriesFailedError(
                 `All Slack deliveries failed: ${results
                     .map((r) => r.error)
                     .join(', ')}`,
@@ -3894,7 +3898,7 @@ export default class SchedulerTask {
                 batchResult,
                 notification.projectUuid,
             );
-            throw new Error(
+            throw new AllMSTeamsDeliveriesFailedError(
                 `All MS Teams deliveries failed: ${results
                     .map((r) => r.error)
                     .join(', ')}`,
