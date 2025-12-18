@@ -1770,7 +1770,7 @@ export class UserService extends BaseService {
                 user: user.userUuid,
                 type: WarehouseTypes.SNOWFLAKE,
                 authenticationType: SnowflakeAuthenticationType.SSO,
-                token: refreshToken,
+                refreshToken,
             },
         };
         await this.createWarehouseCredentials(user, snowflakeCredentials);

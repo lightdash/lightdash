@@ -139,6 +139,7 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     snakeCaseName,
+    SnowflakeAuthenticationType,
     SnowflakeTokenError,
     SortByDirection,
     SortField,
@@ -679,12 +680,9 @@ export class ProjectService extends BaseService {
             args.authenticationType === 'sso'
         ) {
             try {
-                // On old project configs we were storing refreshToken inside the token field (legacy)
-                let refreshToken = args.refreshToken || args.token;
+                let { refreshToken } = args;
 
-                // We pass the refresh token for snowflake on args
-                // This is used on user warehouse credentials.
-                // If this is provided, use this instead of getting the refresh token from the openid table
+                // If no refresh token provided, try to get it from user's OpenID table
                 if (refreshToken === undefined) {
                     refreshToken = await this.userModel.getRefreshToken(
                         userUuid,
@@ -701,10 +699,8 @@ export class ProjectService extends BaseService {
                 if (refreshToken.startsWith('ver:1-hint')) {
                     // This is an invalid refresh token format,
                     // we are using `access token` as refresh token (refresh token starts with ver:2-hint)
-                    // Review the calls to this method and ensure we pass {token: refreshToken} instead
                     // This might affect older projects that were not storing correctly refresh token
                     // They should be recompiled to store the refresh token correctly
-                    // see _resolveWarehouseClientCredentials for more details.
                     throw new UnexpectedServerError(
                         'Invalid snowflake refresh token format, please recompile your project',
                     );
@@ -719,7 +715,7 @@ export class ProjectService extends BaseService {
                     );
                 return {
                     ...args,
-                    authenticationType: 'sso',
+                    authenticationType: SnowflakeAuthenticationType.SSO,
                     token: accessToken,
                 };
             } catch (e: unknown) {
@@ -821,7 +817,6 @@ export class ProjectService extends BaseService {
             args.authenticationType === DatabricksAuthenticationType.OAUTH_U2M
         ) {
             try {
-                // For U2M OAuth, refresh token should be stored in credentials
                 const { refreshToken } = args;
 
                 if (!refreshToken) {
@@ -1006,7 +1001,7 @@ export class ProjectService extends BaseService {
                 `Refreshing snowflake warehouse credentials from user uuid: ${userUuid}`,
             );
             const credentials = await this.refreshCredentials(
-                { ...args.warehouseConnection, token: refreshToken },
+                { ...args.warehouseConnection, refreshToken },
                 userUuid,
             );
             return {
@@ -1048,6 +1043,47 @@ export class ProjectService extends BaseService {
         }
 
         return args;
+    }
+
+    // Extra security measure, we remove the "secrets" from the project/org credentials
+    // and let the user override that token/password later on
+    // eslint-disable-next-line class-methods-use-this
+    private clearSecretsFromCredentials(
+        credentials: CreateWarehouseCredentials,
+    ): CreateWarehouseCredentials {
+        switch (credentials.type) {
+            case WarehouseTypes.SNOWFLAKE: {
+                // Remove optional properties for snowflake OAuth
+                const { refreshToken, token, ...rest } = credentials;
+                return rest;
+            }
+            case WarehouseTypes.DATABRICKS: {
+                const { refreshToken, token, personalAccessToken, ...rest } =
+                    credentials;
+                return rest;
+            }
+            case WarehouseTypes.BIGQUERY: {
+                return {
+                    ...credentials,
+                    keyfileContents: {},
+                };
+            }
+            case WarehouseTypes.POSTGRES:
+            case WarehouseTypes.TRINO:
+            case WarehouseTypes.CLICKHOUSE:
+            case WarehouseTypes.REDSHIFT: {
+                return {
+                    ...credentials,
+                    password: '',
+                };
+            }
+
+            default:
+                return assertUnreachable(
+                    credentials,
+                    `Unexpected warehouse type`,
+                );
+        }
     }
 
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. Perhaps this information can be passed as a prop to the client so that other services can use the warehouse client credentials logic?
@@ -1109,20 +1145,14 @@ export class ProjectService extends BaseService {
                 : undefined;
 
             if (userWarehouseCredentials) {
+                credentials = this.clearSecretsFromCredentials(credentials);
+
                 // User has credentials - use them
-                if (
-                    credentials.type ===
-                    userWarehouseCredentials.credentials.type
-                ) {
-                    credentials = {
-                        ...credentials,
-                        ...userWarehouseCredentials.credentials,
-                    } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
-                } else {
-                    throw new UnexpectedServerError(
-                        'User warehouse credentials are not compatible',
-                    );
-                }
+                credentials = {
+                    ...credentials,
+                    ...userWarehouseCredentials.credentials,
+                } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
+
                 this.logger.debug(
                     `Using user warehouse credentials for user ${userId}`,
                 );
