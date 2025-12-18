@@ -1,3 +1,10 @@
+## [0.2265.2](https://github.com/lightdash/lightdash/compare/0.2265.1...0.2265.2) (2025-12-18)
+
+
+### Bug Fixes
+
+* bidirectional x-axis and group by filtering for SQL runner cartesian charts ([#18950](https://github.com/lightdash/lightdash/issues/18950)) ([5fbd26d](https://github.com/lightdash/lightdash/commit/5fbd26d23bef450721dcd909fe9460f6e0d71c46))
+
 ## [0.2265.1](https://github.com/lightdash/lightdash/compare/0.2265.0...0.2265.1) (2025-12-18)
 
 
