@@ -398,120 +398,69 @@ const TileFilterConfiguration: FC<Props> = ({
                 mt={isNested ? 'lg' : undefined}
                 ml={isNested ? 'xl' : undefined}
             >
-                {tileList.map((value) => (
-                    <Box key={value.key}>
-                        <Tooltip
-                            label={
-                                value.invalidField
-                                    ? `The selected field ${value.invalidField} is not valid`
-                                    : 'No fields matching filter type'
-                            }
-                            position="left"
-                            disabled={
-                                !value.disabled &&
-                                value.invalidField === undefined
-                            }
-                        >
-                            <Checkbox
-                                size="xs"
-                                fw={500}
-                                disabled={value.disabled}
-                                label={
-                                    <Flex align="center" gap="xxs">
-                                        <MantineIcon
-                                            color="blue.6"
-                                            icon={getChartIcon(
-                                                value.tileChartKind,
-                                            )}
-                                        />
-                                        <Text
-                                            color={
-                                                value.invalidField
-                                                    ? 'red'
-                                                    : undefined
-                                            }
-                                        >
-                                            {value.label}
-                                        </Text>
-                                    </Flex>
-                                }
-                                styles={{
-                                    label: {
-                                        paddingLeft: theme.spacing.xs,
-                                    },
-                                }}
-                                checked={value.checked}
-                                onChange={(event) => {
-                                    onChange(
-                                        event.currentTarget.checked
-                                            ? FilterActions.ADD
-                                            : FilterActions.REMOVE,
-                                        value.tileUuid,
-                                        event.currentTarget.checked &&
-                                            typeof value.selectedField ===
-                                                'string'
-                                            ? {
-                                                  fieldId: value.selectedField,
-                                                  tableName: 'mock_table',
-                                                  isSqlColumn: true,
-                                              }
-                                            : undefined,
-                                    );
-                                }}
-                            />
-                        </Tooltip>
+                {tileList.map((value) => {
+                    // Only disable if no type-compatible fields AND not already checked
+                    // (allow unchecking even when no compatible fields)
+                    const isCheckboxDisabled = value.disabled && !value.checked;
+                    const hasFiltersToShow =
+                        value.sortedFilters && value.sortedFilters.length > 0;
 
-                        {value.sortedFilters && (
-                            <Box
-                                ml="xl"
-                                mt="sm"
-                                display={!value.checked ? 'none' : 'auto'}
+                    return (
+                        <Box key={value.key}>
+                            <Tooltip
+                                label={
+                                    value.invalidField
+                                        ? `The selected field '${value.invalidField}' is not available in this chart`
+                                        : 'No fields matching filter type'
+                                }
+                                position="top-start"
+                                disabled={
+                                    !isCheckboxDisabled &&
+                                    value.invalidField === undefined
+                                }
                             >
-                                {isField(value.selectedField) ? (
-                                    <FieldSelect
+                                <Box>
+                                    <Checkbox
                                         size="xs"
-                                        disabled={!value.checked}
-                                        item={value.selectedField}
-                                        items={value.sortedFilters as Field[]}
-                                        withinPortal={
-                                            popoverProps?.withinPortal
+                                        fw={500}
+                                        disabled={isCheckboxDisabled}
+                                        label={
+                                            <Flex align="center" gap="xxs">
+                                                <MantineIcon
+                                                    color="blue.6"
+                                                    icon={getChartIcon(
+                                                        value.tileChartKind,
+                                                    )}
+                                                />
+                                                <Text
+                                                    color={
+                                                        value.invalidField
+                                                            ? 'red'
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {value.label}
+                                                </Text>
+                                            </Flex>
                                         }
-                                        onDropdownOpen={popoverProps?.onOpen}
-                                        onDropdownClose={popoverProps?.onClose}
-                                        onChange={(newField) => {
+                                        styles={{
+                                            label: {
+                                                paddingLeft: theme.spacing.xs,
+                                            },
+                                        }}
+                                        checked={value.checked}
+                                        onChange={(event) => {
                                             onChange(
-                                                FilterActions.ADD,
+                                                event.currentTarget.checked
+                                                    ? FilterActions.ADD
+                                                    : FilterActions.REMOVE,
                                                 value.tileUuid,
-                                                newField
+                                                event.currentTarget.checked &&
+                                                    typeof value.selectedField ===
+                                                        'string'
                                                     ? {
                                                           fieldId:
-                                                              getItemId(
-                                                                  newField,
-                                                              ),
-                                                          tableName:
-                                                              newField.table,
-                                                      }
-                                                    : undefined,
-                                            );
-                                        }}
-                                    />
-                                ) : (
-                                    <Select
-                                        w="100%"
-                                        size="xs"
-                                        searchable
-                                        dropdownComponent="div"
-                                        icon={undefined}
-                                        allowDeselect={false}
-                                        value={value.selectedField}
-                                        data={value.sortedFilters as string[]}
-                                        onChange={(newField) => {
-                                            onChange(
-                                                FilterActions.ADD,
-                                                value.tileUuid,
-                                                newField
-                                                    ? {
-                                                          fieldId: newField,
+                                                              value.selectedField,
                                                           tableName:
                                                               'mock_table',
                                                           isSqlColumn: true,
@@ -520,11 +469,82 @@ const TileFilterConfiguration: FC<Props> = ({
                                             );
                                         }}
                                     />
-                                )}
-                            </Box>
-                        )}
-                    </Box>
-                ))}
+                                </Box>
+                            </Tooltip>
+
+                            {hasFiltersToShow && (
+                                <Box
+                                    ml="xl"
+                                    mt="sm"
+                                    display={!value.checked ? 'none' : 'auto'}
+                                >
+                                    {isField(value.selectedField) ? (
+                                        <FieldSelect
+                                            size="xs"
+                                            disabled={!value.checked}
+                                            item={value.selectedField}
+                                            items={
+                                                value.sortedFilters as Field[]
+                                            }
+                                            withinPortal={
+                                                popoverProps?.withinPortal
+                                            }
+                                            onDropdownOpen={
+                                                popoverProps?.onOpen
+                                            }
+                                            onDropdownClose={
+                                                popoverProps?.onClose
+                                            }
+                                            onChange={(newField) => {
+                                                onChange(
+                                                    FilterActions.ADD,
+                                                    value.tileUuid,
+                                                    newField
+                                                        ? {
+                                                              fieldId:
+                                                                  getItemId(
+                                                                      newField,
+                                                                  ),
+                                                              tableName:
+                                                                  newField.table,
+                                                          }
+                                                        : undefined,
+                                                );
+                                            }}
+                                        />
+                                    ) : (
+                                        <Select
+                                            w="100%"
+                                            size="xs"
+                                            searchable
+                                            dropdownComponent="div"
+                                            icon={undefined}
+                                            allowDeselect={false}
+                                            value={value.selectedField}
+                                            data={
+                                                value.sortedFilters as string[]
+                                            }
+                                            onChange={(newField) => {
+                                                onChange(
+                                                    FilterActions.ADD,
+                                                    value.tileUuid,
+                                                    newField
+                                                        ? {
+                                                              fieldId: newField,
+                                                              tableName:
+                                                                  'mock_table',
+                                                              isSqlColumn: true,
+                                                          }
+                                                        : undefined,
+                                                );
+                                            }}
+                                        />
+                                    )}
+                                </Box>
+                            )}
+                        </Box>
+                    );
+                })}
             </Stack>
         );
     };
