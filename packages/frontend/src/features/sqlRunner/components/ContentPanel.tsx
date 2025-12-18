@@ -158,17 +158,22 @@ export const ContentPanel: FC = () => {
     );
 
     const queryResults = useAppSelector(selectSqlQueryResults);
+    const hasQueryResults = useMemo(() => !!queryResults, [queryResults]);
 
     const handleRunQuery = useCallback(
         async (sqlToUse: string) => {
             if (!sqlToUse || !limit) return;
 
-            if (activeEditorTab === EditorTabs.VISUALIZATION) {
-                // Force refresh to bypass queryClient cache when user clicks Run
+            if (
+                activeEditorTab === EditorTabs.VISUALIZATION &&
+                hasQueryResults
+            ) {
+                // Already have results, just refresh pivot data
                 await dispatch(
                     prepareAndFetchChartData({ forceRefresh: true }),
                 );
             } else {
+                // Need to run SQL query first
                 await dispatch(
                     runSqlQuery({
                         sql: sqlToUse,
@@ -177,9 +182,22 @@ export const ContentPanel: FC = () => {
                         parameterValues,
                     }),
                 );
+                // If we're on viz tab, also fetch chart data after SQL completes
+                if (activeEditorTab === EditorTabs.VISUALIZATION) {
+                    await dispatch(
+                        prepareAndFetchChartData({ forceRefresh: true }),
+                    );
+                }
             }
         },
-        [activeEditorTab, dispatch, projectUuid, limit, parameterValues],
+        [
+            activeEditorTab,
+            dispatch,
+            projectUuid,
+            limit,
+            parameterValues,
+            hasQueryResults,
+        ],
     );
 
     useEffect(() => {
@@ -201,17 +219,24 @@ export const ContentPanel: FC = () => {
     useEffect(
         // When the user opens the sql runner and the query results are not yet loaded, run the query and then change to the visualization tab
         function handleEditModeOnLoad() {
-            if (fetchResultsOnLoad && !queryResults) {
+            if (fetchResultsOnLoad && !hasQueryResults) {
                 void handleRunQuery(sql);
             } else if (
                 fetchResultsOnLoad &&
-                queryResults &&
+                hasQueryResults &&
                 mode === 'default'
             ) {
                 dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
             }
         },
-        [fetchResultsOnLoad, handleRunQuery, queryResults, dispatch, sql, mode],
+        [
+            fetchResultsOnLoad,
+            handleRunQuery,
+            hasQueryResults,
+            dispatch,
+            sql,
+            mode,
+        ],
     );
 
     const activeConfigs = useAppSelector((state) => {
