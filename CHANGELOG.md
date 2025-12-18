@@ -1,3 +1,10 @@
+## [0.2262.7](https://github.com/lightdash/lightdash/compare/0.2262.6...0.2262.7) (2025-12-18)
+
+
+### Bug Fixes
+
+* add error handling for undefined dimensions and metrics in validation service ([#18926](https://github.com/lightdash/lightdash/issues/18926)) ([e574b64](https://github.com/lightdash/lightdash/commit/e574b64999cb67a1afbef6e332744f81d6359ed0))
+
 ## [0.2262.6](https://github.com/lightdash/lightdash/compare/0.2262.5...0.2262.6) (2025-12-18)
 
 
