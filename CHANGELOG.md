@@ -1,3 +1,10 @@
+## [0.2263.1](https://github.com/lightdash/lightdash/compare/0.2263.0...0.2263.1) (2025-12-18)
+
+
+### Bug Fixes
+
+* use refreshToken consistently in ProjectService ([#18919](https://github.com/lightdash/lightdash/issues/18919)) ([b6c7cb5](https://github.com/lightdash/lightdash/commit/b6c7cb5a10681d607e64f907d39f9fe3b7928769))
+
 # [0.2263.0](https://github.com/lightdash/lightdash/compare/0.2262.8...0.2263.0) (2025-12-18)
 
 
