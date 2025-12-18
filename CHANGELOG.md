@@ -1,3 +1,10 @@
+## [0.2265.3](https://github.com/lightdash/lightdash/compare/0.2265.2...0.2265.3) (2025-12-18)
+
+
+### Bug Fixes
+
+* guard GENERATE_SLACK_CHANNEL_SYNC_JOBS if slack client is not configured ([#18959](https://github.com/lightdash/lightdash/issues/18959)) ([fdab50d](https://github.com/lightdash/lightdash/commit/fdab50d1588c3b8c41141521a9ffce6e83b0f7aa))
+
 ## [0.2265.2](https://github.com/lightdash/lightdash/compare/0.2265.1...0.2265.2) (2025-12-18)
 
 
