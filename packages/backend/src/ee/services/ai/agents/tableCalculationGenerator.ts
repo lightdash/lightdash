@@ -273,14 +273,53 @@ export async function generateTableCalculation(
                     SYNTAX RULES:
                     - Reference fields using \${table_name.field_name} syntax (e.g., \${orders.total_revenue})
 
-                    COMMON PATTERNS:
-                    - Percentage change from previous
-                    - Percent of previous value
-                    - Percent of column total
-                    - Percent of group/pivot total
-                    - Rank in column
-                    - Running total
-                    - Rolling window
+                    COMMON PATTERNS WITH SQL TEMPLATES:
+
+                    1. PERCENT CHANGE FROM PREVIOUS - Shows percent change compared to the previous row:
+                    (
+                      \${table.column_to_compare} /
+                        LAG(\${table.column_to_compare}) OVER (
+                          ORDER BY \${table.column_to_order_by}
+                        )
+                    ) - 1
+                    Note: Use format type "percent" for this calculation.
+
+                    2. PERCENT OF PREVIOUS VALUE - Shows current value as a percentage of the previous row:
+                    \${table.column_to_compare} /
+                      LAG(\${table.column_to_compare}) OVER (
+                        ORDER BY \${table.column_to_order_by}
+                      )
+                    Note: Use format type "percent" for this calculation.
+
+                    3. PERCENT OF COLUMN TOTAL - Shows each value as a percentage of the column sum:
+                    \${table.column_for_percent} / SUM(\${table.column_for_percent}) OVER()
+                    Note: Use format type "percent" for this calculation.
+
+                    4. PERCENT OF GROUP/PIVOT TOTAL - Shows each value as a percentage within its group:
+                    \${table.column_for_percent} /
+                      SUM(\${table.column_for_percent}) OVER (
+                        PARTITION BY \${table.column_to_group_by}
+                      )
+                    Note: Use format type "percent" for this calculation.
+
+                    5. RANK IN COLUMN - Assigns a rank to each row based on a value:
+                    ROW_NUMBER() OVER (
+                      ORDER BY \${table.column_to_rank} DESC
+                    )
+                    Note: Use DESC for biggest values first (rank=1), ASC for smallest first.
+
+                    6. RUNNING TOTAL - Cumulative sum up to the current row:
+                    SUM(\${table.column_to_sum}) OVER (
+                      ORDER BY \${table.column_to_order_by}
+                      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                    )
+
+                    7. ROLLING WINDOW - Aggregate over a sliding window of N previous rows:
+                    SUM(\${table.column_to_sum}) OVER (
+                      ORDER BY \${table.column_to_order_by}
+                      ROWS BETWEEN N PRECEDING AND CURRENT ROW
+                    )
+                    Note: Replace N with the number of previous rows (e.g., 3 for a 4-row window including current).
 
                     DISPLAY NAME:
                     - Create a concise, descriptive name that explains what the calculation does
