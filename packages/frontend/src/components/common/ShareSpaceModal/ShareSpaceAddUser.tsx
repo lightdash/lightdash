@@ -301,7 +301,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                                 {(hasUsersNextPage || hasGroupsNextPage) && (
                                     <Button
                                         size="xs"
-                                        variant="white"
+                                        variant="default"
+                                        fullWidth
                                         onClick={async () => {
                                             await Promise.all([
                                                 fetchGroupsNextPage(),
@@ -313,8 +314,14 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                                             isUsersFetching ||
                                             isGroupsFetching
                                         }
+                                        mt="xs"
+                                        sx={(theme) => ({
+                                            borderRadius: 0,
+                                            border: 0,
+                                            borderTop: `1px solid ${theme.colors.ldGray[2]}`,
+                                        })}
                                     >
-                                        <Text>Load more</Text>
+                                        Load more
                                     </Button>
                                 )}
                             </>
