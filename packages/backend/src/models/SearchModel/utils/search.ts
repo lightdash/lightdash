@@ -56,6 +56,37 @@ export function getFullTextSearchRankCalcSql({
 }
 
 /**
+ * Returns a raw SQL condition that uses the GIN index on search_vector.
+ * This should be used in a WHERE clause BEFORE computing ts_rank_cd to
+ * filter rows using the index, dramatically reducing the number of rows
+ * that need rank computation.
+ */
+export function getFullTextSearchFilterSql({
+    database,
+    searchVectorColumn,
+    searchQuery,
+    fullTextSearchOperator = 'AND',
+}: {
+    database: Knex;
+    searchVectorColumn: string;
+    searchQuery: string;
+    fullTextSearchOperator?: 'OR' | 'AND';
+}) {
+    const formattedQuery = getFullTextSearchQuery(
+        searchQuery,
+        fullTextSearchOperator,
+    );
+
+    return database.raw(
+        `:searchVectorColumn: @@ to_tsquery('lightdash_english_config', :searchQuery)`,
+        {
+            searchVectorColumn,
+            searchQuery: formattedQuery,
+        },
+    );
+}
+
+/**
  * Converts a natural language query to OR-based websearch query.
  * For example: "average cost" becomes "average OR cost"
  * This makes searches more permissive for better recall.
