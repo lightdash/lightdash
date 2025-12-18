@@ -2,6 +2,10 @@ import { Box, Button, Flex, Text } from '@mantine/core';
 import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
 import { type FC, useCallback, useEffect, useMemo } from 'react';
+import {
+    isChunkLoadError,
+    triggerChunkErrorReload,
+} from '../../features/chunkErrorHandler';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { LoadingChart } from '../SimpleChart';
@@ -143,9 +147,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     } = visualizationConfig.chartConfig;
 
     if (pivotTableData.error) {
-        const isWorkerFetchError = pivotTableData.error.includes(
-            'Failed to fetch dynamically imported module',
-        );
+        const isWorkerFetchError = isChunkLoadError(pivotTableData.error);
         if (isWorkerFetchError) {
             return (
                 <SuboptimalState
@@ -168,7 +170,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             variant="default"
                             size={'xs'}
                             leftIcon={<IconRefresh size={16} />}
-                            onClick={() => window.location.reload()}
+                            onClick={triggerChunkErrorReload}
                         >
                             Refresh page
                         </Button>
