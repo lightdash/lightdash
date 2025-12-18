@@ -1,3 +1,11 @@
+## [0.2262.8](https://github.com/lightdash/lightdash/compare/0.2262.7...0.2262.8) (2025-12-18)
+
+
+### Bug Fixes
+
+* seq scans on search queries ([#18916](https://github.com/lightdash/lightdash/issues/18916)) ([4fc76b6](https://github.com/lightdash/lightdash/commit/4fc76b6c8ff2248e3844c10f4a77a0bd85a5d27a))
+* underlying data on explores using parameters ([#18787](https://github.com/lightdash/lightdash/issues/18787)) ([1068cba](https://github.com/lightdash/lightdash/commit/1068cba68a5baf14cfd736bbaa6141dde22fc397))
+
 ## [0.2262.7](https://github.com/lightdash/lightdash/compare/0.2262.6...0.2262.7) (2025-12-18)
 
 
