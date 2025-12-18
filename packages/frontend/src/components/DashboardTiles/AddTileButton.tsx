@@ -34,7 +34,7 @@ type Props = {
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     activeTabUuid?: string;
     dashboardTabs?: Dashboard['tabs'];
-} & Pick<ButtonProps, 'disabled'>;
+} & Pick<ButtonProps, 'disabled' | 'radius'>;
 
 const AddTileButton: FC<Props> = ({
     onAddTiles,
@@ -42,6 +42,7 @@ const AddTileButton: FC<Props> = ({
     disabled,
     activeTabUuid,
     dashboardTabs,
+    radius,
 }) => {
     const isDashboardRedesignEnabled = useFeatureFlagEnabled(
         FeatureFlags.DashboardRedesign,
@@ -81,6 +82,7 @@ const AddTileButton: FC<Props> = ({
                     <Button
                         size="xs"
                         variant="default"
+                        radius={radius}
                         disabled={disabled}
                         leftIcon={<MantineIcon icon={IconPlus} />}
                     >
