@@ -561,6 +561,7 @@ const TableCalculationModal: FC<Props> = ({
                                     type="submit"
                                     ref={submitButtonRef}
                                     data-testid="table-calculation-save-button"
+                                    disabled={form.values.sql.length === 0}
                                 >
                                     {tableCalculation
                                         ? 'Save changes'

@@ -1,0 +1,42 @@
+.container {
+    padding: var(--mantine-spacing-sm);
+    background-color: var(--mantine-color-ldGray-0);
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+        border-top: 1px solid var(--mantine-color-ldGray-2);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-2);
+        border-top: 1px solid var(--mantine-color-ldDark-2);
+    }
+}
+
+.editorContainer {
+    position: relative;
+}
+
+.generateButton {
+    position: absolute;
+    right: var(--mantine-spacing-xs);
+    bottom: var(--mantine-spacing-xs);
+    transition:
+        transform 150ms ease,
+        opacity 150ms ease;
+
+    background-color: var(--mantine-color-foreground-0);
+
+    &:hover:not(:disabled) {
+        background-color: var(--mantine-color-foreground-1);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(0.95);
+    }
+}
