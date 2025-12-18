@@ -1,3 +1,4 @@
+import { ParameterError } from '../types/errors';
 import { type Explore } from '../types/explore';
 import {
     DimensionType,
@@ -49,6 +50,10 @@ export const isNumericType = (
 export const getItemId = (
     item: ItemsMap[string] | AdditionalMetric | Pick<Field, 'name' | 'table'>,
 ) => {
+    if (!item) {
+        // This should never happen based on the type system, but it is happening. Throwing an error so we can investigate.
+        throw new ParameterError('Item is undefined');
+    }
     if (isCustomDimension(item)) {
         return item.id;
     }
