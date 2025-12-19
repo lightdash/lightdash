@@ -146,6 +146,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
+    const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
@@ -620,40 +621,44 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                             )}
                                         </Group>
 
-                                        {/* DateZoom section will adjust width dynamically */}
-                                        {hasDashboardTiles && (
-                                            <Group
-                                                gap="xs"
-                                                style={{ marginLeft: 'auto' }}
-                                                wrap="nowrap"
-                                            >
-                                                <Divider orientation="vertical" />
+                                        {hasDashboardTiles &&
+                                            (!isDateZoomDisabled ||
+                                                isEditMode) && (
+                                                <Group
+                                                    gap="xs"
+                                                    style={{
+                                                        marginLeft: 'auto',
+                                                    }}
+                                                    wrap="nowrap"
+                                                >
+                                                    <Divider orientation="vertical" />
 
-                                                <FilterGroupSeparator
-                                                    icon={IconCalendar}
-                                                    tooltipLabel={
-                                                        <div>
-                                                            <Text
-                                                                fw={500}
-                                                                fz="xs"
-                                                            >
-                                                                Date Zoom
-                                                            </Text>
+                                                    <FilterGroupSeparator
+                                                        icon={IconCalendar}
+                                                        tooltipLabel={
+                                                            <div>
+                                                                <Text
+                                                                    fw={500}
+                                                                    fz="xs"
+                                                                >
+                                                                    Date Zoom
+                                                                </Text>
 
-                                                            <Text fz="xs">
-                                                                Quickly change
-                                                                the date
-                                                                granularity of
-                                                                charts.
-                                                            </Text>
-                                                        </div>
-                                                    }
-                                                />
-                                                <DateZoomV2
-                                                    isEditMode={isEditMode}
-                                                />
-                                            </Group>
-                                        )}
+                                                                <Text fz="xs">
+                                                                    Quickly
+                                                                    change the
+                                                                    date
+                                                                    granularity
+                                                                    of charts.
+                                                                </Text>
+                                                            </div>
+                                                        }
+                                                    />
+                                                    <DateZoomV2
+                                                        isEditMode={isEditMode}
+                                                    />
+                                                </Group>
+                                            )}
                                     </Group>
                                 </div>
 

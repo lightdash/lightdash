@@ -1,7 +1,6 @@
 import { DateGranularity } from '@lightdash/common';
-import { ActionIcon, Box, Button, Group, Menu } from '@mantine-8/core';
+import { ActionIcon, Button, Group, Menu, Text } from '@mantine-8/core';
 import {
-    IconCalendarSearch,
     IconCheck,
     IconChevronDown,
     IconChevronUp,
@@ -41,13 +40,11 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
         if (isEditMode)
             return (
                 <Button
-                    variant="outline"
+                    variant="light"
                     size="xs"
-                    leftSection={<MantineIcon icon={IconCalendarSearch} />}
                     onClick={() => setIsDateZoomDisabled(false)}
-                    classNames={{ root: styles.addDateZoomButton }}
                 >
-                    + Add date zoom
+                    Add Date Zoom
                 </Button>
             );
         return null;
@@ -86,29 +83,33 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                                 ? { root: styles.activeDateZoomButton }
                                 : undefined
                         }
-                        leftSection={<MantineIcon icon={IconCalendarSearch} />}
                         rightSection={
-                            <MantineIcon
-                                icon={
-                                    showOpenIcon
-                                        ? IconChevronUp
-                                        : IconChevronDown
-                                }
-                            />
+                            isEditMode ? null : (
+                                <MantineIcon
+                                    icon={
+                                        showOpenIcon
+                                            ? IconChevronUp
+                                            : IconChevronDown
+                                    }
+                                />
+                            )
                         }
                     >
-                        Date Zoom
-                        {dateZoomGranularity ? `:` : null}{' '}
+                        <Text fz="inherit" fw={600}>
+                            Date Zoom
+                        </Text>
                         {dateZoomGranularity ? (
-                            <Box fw={500} ml="xxs">
-                                {dateZoomGranularity}
-                            </Box>
+                            <>
+                                :{' '}
+                                <Text fz="inherit" fw={500} ml="xxs">
+                                    {dateZoomGranularity}
+                                </Text>
+                            </>
                         ) : null}
                     </Button>
                 </Group>
             </Menu.Target>
             <Menu.Dropdown>
-                <Menu.Label fz={10}>Granularity</Menu.Label>
                 <Menu.Item
                     fz="xs"
                     onClick={() => {
@@ -122,11 +123,6 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                         setDateZoomGranularity(undefined);
                     }}
                     disabled={dateZoomGranularity === undefined}
-                    className={
-                        dateZoomGranularity === undefined
-                            ? styles.menuItemDisabled
-                            : ''
-                    }
                     rightSection={
                         dateZoomGranularity === undefined ? (
                             <MantineIcon icon={IconCheck} size={14} />
@@ -135,6 +131,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                 >
                     Default
                 </Menu.Item>
+
                 {Object.values(DateGranularity).map((granularity) => (
                     <Menu.Item
                         fz="xs"
@@ -149,11 +146,6 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                             setDateZoomGranularity(granularity);
                         }}
                         disabled={dateZoomGranularity === granularity}
-                        className={
-                            dateZoomGranularity === granularity
-                                ? styles.menuItemDisabled
-                                : ''
-                        }
                         rightSection={
                             dateZoomGranularity === granularity ? (
                                 <MantineIcon icon={IconCheck} size={14} />
