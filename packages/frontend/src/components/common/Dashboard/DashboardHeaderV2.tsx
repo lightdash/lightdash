@@ -1,30 +1,29 @@
 import { subject } from '@casl/ability';
-import {
-    ResourceViewItemType,
-    type Dashboard,
-    type FeatureFlags,
-} from '@lightdash/common';
+import { type FeatureFlags, ResourceViewItemType } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
     Button,
+    Divider,
     Group,
     Menu,
     Popover,
     Text,
     Title,
     Tooltip,
-} from '@mantine/core';
+    UnstyledButton,
+} from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconArrowsMaximize,
-    IconArrowsMinimize,
     IconCopy,
+    IconDatabase,
     IconDatabaseExport,
     IconDots,
     IconFolderPlus,
     IconFolderSymlink,
     IconInfoCircle,
+    IconMaximize,
+    IconMinimize,
     IconPencil,
     IconPin,
     IconPinnedOff,
@@ -58,32 +57,9 @@ import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
-import { DashboardRefreshButton } from './DashboardRefreshButton';
-import ShareLinkButton from './ShareLinkButton';
-
-export type DashboardHeaderProps = {
-    dashboard: Dashboard;
-    organizationUuid?: string;
-    hasDashboardChanged: boolean;
-    isEditMode: boolean;
-    isSaving: boolean;
-    isFullScreenFeatureEnabled?: boolean;
-    isFullscreen: boolean;
-    oldestCacheTime?: Date;
-    activeTabUuid?: string;
-    dashboardTabs?: Dashboard['tabs'];
-    isMovingDashboardToSpace: boolean;
-    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
-    onCancel: () => void;
-    onSaveDashboard: () => void;
-    onDelete: () => void;
-    onDuplicate: () => void;
-    onMoveToSpace: (spaceUuid: string) => void;
-    onExport: () => void;
-    onToggleFullscreen: () => void;
-    setAddingTab: (value: React.SetStateAction<boolean>) => void;
-    onEditClicked: () => void;
-};
+import { type DashboardHeaderProps } from './DashboardHeaderV1';
+import { DashboardRefreshButtonV2 } from './DashboardRefreshButtonV2';
+import { ShareLinkButtonV2 } from './ShareLinkButtonV2';
 
 const DashboardHeaderV2 = ({
     dashboard,
@@ -215,15 +191,9 @@ const DashboardHeaderV2 = ({
     );
 
     return (
-        <PageHeader
-            cardProps={{
-                h: 'auto',
-            }}
-        >
-            <Group spacing="xs" style={{ flex: 1 }}>
-                <Title order={4} fw={600}>
-                    {dashboard.name}
-                </Title>
+        <PageHeader cardProps={{ px: 'xl', py: 0, h: 50, bg: 'background' }}>
+            <Group gap="xs" flex={1}>
+                <Title order={6}>{dashboard.name}</Title>
 
                 <Popover
                     withinPortal
@@ -234,7 +204,12 @@ const DashboardHeaderV2 = ({
                     }}
                 >
                     <Popover.Target>
-                        <ActionIcon color="dark">
+                        <ActionIcon
+                            variant="subtle"
+                            size="md"
+                            radius="md"
+                            color="ldGray.6"
+                        >
                             <MantineIcon icon={IconInfoCircle} />
                         </ActionIcon>
                     </Popover.Target>
@@ -249,11 +224,18 @@ const DashboardHeaderV2 = ({
 
                 {isEditMode && userCanManageDashboard && (
                     <ActionIcon
-                        color="dark"
+                        variant="subtle"
+                        size="md"
+                        color="ldGray.6"
+                        radius="md"
                         disabled={isSaving}
                         onClick={handleEditClick}
                     >
-                        <MantineIcon icon={IconPencil} />
+                        <MantineIcon
+                            icon={IconPencil}
+                            size={14}
+                            strokeWidth={2.25}
+                        />
                     </ActionIcon>
                 )}
 
@@ -291,27 +273,15 @@ const DashboardHeaderV2 = ({
                 )}
             </Group>
 
-            {oldestCacheTime && (
-                <Text
-                    color="ldGray"
-                    mr="sm"
-                    sx={{ fontSize: '11px', textAlign: 'end' }}
-                >
-                    Dashboard uses cached data from
-                    <Text fw={700}>
-                        {dayjs(oldestCacheTime).format('MMM D, YYYY h:mm A')}{' '}
-                    </Text>
-                </Text>
-            )}
-
             {userCanManageDashboard && isEditMode ? (
-                <Group spacing="xs">
+                <Group gap="xs">
                     <AddTileButton
                         onAddTiles={onAddTiles}
                         disabled={isSaving}
                         setAddingTab={setAddingTab}
                         activeTabUuid={activeTabUuid}
                         dashboardTabs={dashboardTabs}
+                        radius="md"
                     />
 
                     <Tooltip
@@ -320,6 +290,8 @@ const DashboardHeaderV2 = ({
                         position="bottom"
                         label="No changes to save"
                         disabled={hasDashboardChanged}
+                        openDelay={200}
+                        transitionProps={{ transition: 'fade', duration: 150 }}
                     >
                         <Box>
                             <Button
@@ -343,7 +315,7 @@ const DashboardHeaderV2 = ({
                     </Button>
                 </Group>
             ) : (
-                <Group spacing="xs">
+                <Group gap="sm">
                     {isDashboardSummariesEnabled &&
                         projectUuid &&
                         dashboardUuid && (
@@ -356,8 +328,72 @@ const DashboardHeaderV2 = ({
                             />
                         )}
 
+                    {!!userCanManageDashboard && !isFullscreen && (
+                        <Tooltip
+                            label="Edit dashboard"
+                            withinPortal
+                            position="bottom"
+                            openDelay={200}
+                            transitionProps={{
+                                transition: 'fade',
+                                duration: 150,
+                            }}
+                        >
+                            <ActionIcon
+                                radius="md"
+                                onClick={onEditClicked}
+                                bg="foreground"
+                                c="background"
+                                size="md"
+                            >
+                                <MantineIcon
+                                    icon={IconPencil}
+                                    color="background"
+                                    size="md"
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+
+                    {(userCanExportData ||
+                        (!isEditMode &&
+                            document.fullscreenEnabled &&
+                            isFullScreenFeatureEnabled) ||
+                        !isFullscreen) && <Divider orientation="vertical" />}
+
+                    {oldestCacheTime && (
+                        <Tooltip
+                            label={`Dashboard uses cached data from ${dayjs(
+                                oldestCacheTime,
+                            ).format('MMM D, YYYY h:mm A')}`}
+                            withinPortal
+                            position="bottom"
+                            openDelay={200}
+                            transitionProps={{
+                                transition: 'fade',
+                                duration: 150,
+                            }}
+                        >
+                            <UnstyledButton>
+                                <Group gap={6}>
+                                    <MantineIcon
+                                        icon={IconDatabase}
+                                        size="sm"
+                                        color="ldGray.6"
+                                    />
+
+                                    <Text fz={11} c="dimmed">
+                                        {dayjs(oldestCacheTime).format(
+                                            'MMM D, h:mm A',
+                                        )}
+                                    </Text>
+                                </Group>
+                            </UnstyledButton>
+                        </Tooltip>
+                    )}
+
                     {userCanExportData && (
-                        <DashboardRefreshButton
+                        <DashboardRefreshButtonV2
                             onIntervalChange={handleDashboardRefreshUpdateEvent}
                         />
                     )}
@@ -373,39 +409,32 @@ const DashboardHeaderV2 = ({
                                 }
                                 withinPortal
                                 position="bottom"
+                                openDelay={200}
+                                transitionProps={{
+                                    transition: 'fade',
+                                    duration: 150,
+                                }}
                             >
                                 <ActionIcon
                                     variant="default"
+                                    size="md"
+                                    radius="md"
                                     onClick={onToggleFullscreen}
                                 >
                                     <MantineIcon
                                         icon={
                                             isFullscreen
-                                                ? IconArrowsMinimize
-                                                : IconArrowsMaximize
+                                                ? IconMinimize
+                                                : IconMaximize
                                         }
+                                        size="md"
                                     />
                                 </ActionIcon>
                             </Tooltip>
                         )}
 
-                    {!!userCanManageDashboard && !isFullscreen && (
-                        <Tooltip
-                            label="Edit dashboard"
-                            withinPortal
-                            position="bottom"
-                        >
-                            <ActionIcon
-                                variant="default"
-                                onClick={onEditClicked}
-                            >
-                                <MantineIcon icon={IconPencil} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-
                     {userCanExportData && !isFullscreen && (
-                        <ShareLinkButton url={`${window.location.href}`} />
+                        <ShareLinkButtonV2 url={`${window.location.href}`} />
                     )}
 
                     {!isFullscreen && (
@@ -420,7 +449,11 @@ const DashboardHeaderV2 = ({
                             }
                         >
                             <Menu.Target>
-                                <ActionIcon variant="default">
+                                <ActionIcon
+                                    variant="default"
+                                    size="md"
+                                    radius="md"
+                                >
                                     <MantineIcon icon={IconDots} />
                                 </ActionIcon>
                             </Menu.Target>
@@ -429,7 +462,7 @@ const DashboardHeaderV2 = ({
                                 {!!userCanManageDashboard && (
                                     <>
                                         <Menu.Item
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon icon={IconCopy} />
                                             }
                                             onClick={onDuplicate}
@@ -438,7 +471,7 @@ const DashboardHeaderV2 = ({
                                         </Menu.Item>
 
                                         <Menu.Item
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconFolderSymlink}
                                                 />
@@ -456,7 +489,7 @@ const DashboardHeaderV2 = ({
                                     <Menu.Item
                                         component="button"
                                         role="menuitem"
-                                        icon={
+                                        leftSection={
                                             isPinned ? (
                                                 <MantineIcon
                                                     icon={IconPinnedOff}
@@ -475,7 +508,9 @@ const DashboardHeaderV2 = ({
 
                                 {!!userCanCreateDeliveries && (
                                     <Menu.Item
-                                        icon={<MantineIcon icon={IconSend} />}
+                                        leftSection={
+                                            <MantineIcon icon={IconSend} />
+                                        }
                                         onClick={() => {
                                             toggleScheduledDeliveriesModal(
                                                 true,
@@ -501,7 +536,7 @@ const DashboardHeaderV2 = ({
                                                     project?.upstreamProjectUuid ===
                                                     undefined
                                                 }
-                                                icon={
+                                                leftSection={
                                                     <MantineIcon
                                                         icon={
                                                             IconDatabaseExport
@@ -523,7 +558,9 @@ const DashboardHeaderV2 = ({
                                 {(userCanExportData ||
                                     userCanManageDashboard) && (
                                     <Menu.Item
-                                        icon={<MantineIcon icon={IconUpload} />}
+                                        leftSection={
+                                            <MantineIcon icon={IconUpload} />
+                                        }
                                         onClick={onExport}
                                     >
                                         Export dashboard
@@ -534,7 +571,7 @@ const DashboardHeaderV2 = ({
                                     <>
                                         <Menu.Divider />
                                         <Menu.Item
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconTrash}
                                                     color="red"
@@ -544,7 +581,7 @@ const DashboardHeaderV2 = ({
                                             color="red"
                                         >
                                             Delete
-                                        </Menu.Item>{' '}
+                                        </Menu.Item>
                                     </>
                                 )}
                             </Menu.Dropdown>
