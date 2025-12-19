@@ -1,3 +1,10 @@
+# [0.2268.0](https://github.com/lightdash/lightdash/compare/0.2267.1...0.2268.0) (2025-12-19)
+
+
+### Features
+
+* add truncated values display with "+N" badge in dashboard filters ([#18981](https://github.com/lightdash/lightdash/issues/18981)) ([9384d1a](https://github.com/lightdash/lightdash/commit/9384d1a321d4456ccc660a2600da09ea2ca391b2))
+
 ## [0.2267.1](https://github.com/lightdash/lightdash/compare/0.2267.0...0.2267.1) (2025-12-19)
 
 
