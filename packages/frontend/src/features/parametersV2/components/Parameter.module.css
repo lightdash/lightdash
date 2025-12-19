@@ -1,0 +1,15 @@
+.button {
+    border-radius: 100px !important;
+}
+
+.unsetRequired {
+    border-style: solid;
+    border-width: 1px;
+}
+
+.label {
+    max-width: 800px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

@@ -3,17 +3,10 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { Box, Button, Menu } from '@mantine-8/core';
-import {
-    IconChevronDown,
-    IconChevronUp,
-    IconVariable,
-} from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { Group, Skeleton } from '@mantine-8/core';
+import { useCallback, useState, type FC } from 'react';
 import { useParams } from 'react-router';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { ParameterSelection } from './ParameterSelection';
-import styles from './Parameters.module.css';
+import Parameter from './Parameter';
 
 type Props = {
     isEditMode: boolean;
@@ -32,88 +25,48 @@ export const Parameters: FC<Props> = ({
     isEditMode,
     parameterValues,
     onParameterChange,
-    onClearAll,
     parameters,
     isLoading,
-    isError,
     missingRequiredParameters = [],
-    pinnedParameters = [],
-    onParameterPin,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [showOpenIcon, setShowOpenIcon] = useState(false);
+    const [openPopoverId, setOpenPopoverId] = useState<string | undefined>();
 
-    // Calculate selected parameters count
-    const selectedParametersCount = Object.values(parameters ?? {}).length;
+    const handlePopoverOpen = useCallback((popoverId: string) => {
+        setOpenPopoverId(popoverId);
+    }, []);
 
-    if (!parameters || selectedParametersCount === 0) {
+    const handlePopoverClose = useCallback(() => {
+        setOpenPopoverId(undefined);
+    }, []);
+
+    if (!parameters || Object.keys(parameters).length === 0) {
         return null;
     }
 
-    // Determine button CSS classes based on state
-    const buttonClasses = [
-        selectedParametersCount > 0 && !isEditMode
-            ? styles.parameterButtonActive
-            : '',
-    ]
-        .filter(Boolean)
-        .join(' ');
+    if (isLoading) {
+        return (
+            <Group gap="xs">
+                <Skeleton h={30} w={120} radius={100} />
+                <Skeleton h={30} w={120} radius={100} />
+            </Group>
+        );
+    }
 
-    return (
-        <Menu
-            withinPortal
-            withArrow
-            arrowOffset={100}
-            closeOnItemClick={false}
-            closeOnClickOutside
-            offset={-1}
-            position="bottom-end"
-            disabled={isLoading}
-            onOpen={() => setShowOpenIcon(true)}
-            onClose={() => setShowOpenIcon(false)}
-        >
-            <Menu.Target>
-                <Button
-                    size="xs"
-                    variant="default"
-                    loading={isLoading}
-                    disabled={isLoading}
-                    className={buttonClasses}
-                    leftSection={<MantineIcon icon={IconVariable} />}
-                    rightSection={
-                        <MantineIcon
-                            icon={
-                                showOpenIcon ? IconChevronUp : IconChevronDown
-                            }
-                        />
-                    }
-                >
-                    Parameters
-                    {selectedParametersCount > 0
-                        ? ` (${selectedParametersCount})`
-                        : ''}
-                </Button>
-            </Menu.Target>
-            <Menu.Dropdown>
-                <Menu.Label fz={10}>Parameters</Menu.Label>
-                <Box p="sm" miw={200}>
-                    <ParameterSelection
-                        parameters={parameters}
-                        isLoading={isLoading}
-                        isError={isError}
-                        parameterValues={parameterValues}
-                        onParameterChange={onParameterChange}
-                        size="xs"
-                        showClearAll={selectedParametersCount > 0}
-                        onClearAll={onClearAll}
-                        projectUuid={projectUuid}
-                        missingRequiredParameters={missingRequiredParameters}
-                        isEditMode={isEditMode}
-                        pinnedParameters={pinnedParameters}
-                        onParameterPin={onParameterPin}
-                    />
-                </Box>
-            </Menu.Dropdown>
-        </Menu>
-    );
+    return Object.entries(parameters).map(([paramKey, parameter]) => (
+        <Parameter
+            key={paramKey}
+            paramKey={paramKey}
+            parameter={parameter}
+            value={parameterValues[paramKey] ?? null}
+            parameterValues={parameterValues}
+            openPopoverId={openPopoverId}
+            onPopoverOpen={handlePopoverOpen}
+            onPopoverClose={handlePopoverClose}
+            onParameterChange={onParameterChange}
+            projectUuid={projectUuid}
+            isRequired={missingRequiredParameters.includes(paramKey)}
+            isEditMode={isEditMode}
+        />
+    ));
 };
