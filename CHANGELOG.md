@@ -1,3 +1,10 @@
+# [0.2266.0](https://github.com/lightdash/lightdash/compare/0.2265.4...0.2266.0) (2025-12-19)
+
+
+### Features
+
+* make table charts full width in dashboard redesign ([#18893](https://github.com/lightdash/lightdash/issues/18893)) ([7133218](https://github.com/lightdash/lightdash/commit/713321871e0b02ff51ddd4c1042011f4dca3acdc))
+
 ## [0.2265.4](https://github.com/lightdash/lightdash/compare/0.2265.3...0.2265.4) (2025-12-18)
 
 
