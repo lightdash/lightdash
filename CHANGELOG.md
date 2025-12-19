@@ -1,3 +1,10 @@
+## [0.2269.1](https://github.com/lightdash/lightdash/compare/0.2269.0...0.2269.1) (2025-12-19)
+
+
+### Bug Fixes
+
+* string casting in dashboard filters ([#19002](https://github.com/lightdash/lightdash/issues/19002)) ([6040258](https://github.com/lightdash/lightdash/commit/6040258ee1da7cbb6afde04ab06a8c8ded1c45c8))
+
 # [0.2269.0](https://github.com/lightdash/lightdash/compare/0.2268.0...0.2269.0) (2025-12-19)
 
 
