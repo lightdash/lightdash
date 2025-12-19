@@ -1,6 +1,7 @@
 import {
     GetObjectCommand,
     HeadObjectCommand,
+    NoSuchKey,
     NotFound,
     PutObjectCommand,
     PutObjectCommandInput,
@@ -9,6 +10,7 @@ import {
 import {
     getErrorMessage,
     MissingConfigError,
+    NotFoundError,
     S3Error,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -156,6 +158,13 @@ export class S3CacheClient extends S3BaseClient {
                 });
                 return await this.s3.send(command);
             } catch (error) {
+                if (error instanceof NoSuchKey || error instanceof NotFound) {
+                    Logger.debug(`S3 key not found: ${key}.${extension}`);
+                    throw new NotFoundError(
+                        'Your results have expired. Please refresh the page and try again.',
+                    );
+                }
+
                 if (error instanceof S3ServiceException) {
                     Logger.error(
                         `Failed to get results from s3. ${error.name} - ${error.message}`,

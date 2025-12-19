@@ -1,9 +1,10 @@
-import { GetObjectCommand, NotFound } from '@aws-sdk/client-s3';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
     getErrorMessage,
     MissingConfigError,
+    NotFoundError,
     WarehouseResults,
 } from '@lightdash/common';
 import fs from 'fs';
@@ -119,22 +120,14 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         cacheKey: string,
         fileExtension = 'jsonl',
     ): Promise<Readable> {
-        try {
-            const results = await this.getResults(cacheKey, fileExtension);
-            if (!results.Body) {
-                throw new Error('No results found');
-            }
-
-            return results.Body as Readable;
-        } catch (error) {
-            if (error instanceof NotFound) {
-                throw new Error(`Cache key ${cacheKey} not found`);
-            }
-            Logger.error(
-                `Failed to download results from s3. ${getErrorMessage(error)}`,
+        const results = await this.getResults(cacheKey, fileExtension);
+        if (!results.Body) {
+            throw new NotFoundError(
+                'Your results have expired. Please refresh the page and try again.',
             );
-            throw error;
         }
+
+        return results.Body as Readable;
     }
 
     async getFileUrl(cacheKey: string, fileExtension = 'jsonl') {

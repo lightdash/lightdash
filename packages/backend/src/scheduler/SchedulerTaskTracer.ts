@@ -1,5 +1,6 @@
 import {
     GoogleSheetsTransientError,
+    NotFoundError,
     QueueTraceProperties,
     SCHEDULER_TASKS,
     SchedulerTaskName,
@@ -291,12 +292,17 @@ export const traceTask = <T extends SchedulerTaskName>(
                             });
 
                             // Only capture to Sentry if this is the final attempt or it's not a retryable error
+                            // NotFoundError is expected (e.g., expired cache) and should not go to Sentry
                             const isRetryableError =
                                 e instanceof GoogleSheetsTransientError;
+                            const isExpectedError = e instanceof NotFoundError;
                             const hasRetriesRemaining =
                                 job.attempts < job.max_attempts;
 
-                            if (!isRetryableError || !hasRetriesRemaining) {
+                            if (
+                                !isExpectedError &&
+                                (!isRetryableError || !hasRetriesRemaining)
+                            ) {
                                 Sentry.withScope((scope) => {
                                     scope.setFingerprint([
                                         'scheduler_worker',
