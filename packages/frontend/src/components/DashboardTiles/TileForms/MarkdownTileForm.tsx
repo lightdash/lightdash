@@ -2,9 +2,8 @@ import {
     FeatureFlags,
     type DashboardMarkdownTileProperties,
 } from '@lightdash/common';
-import { ActionIcon, Group, Stack, Switch, TextInput } from '@mantine/core';
+import { Group, Stack, Switch, TextInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
-import { IconInfoCircle } from '@tabler/icons-react';
 import MDEditor from '@uiw/react-md-editor';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 
@@ -36,14 +35,7 @@ const MarkdownTileForm = ({ form }: MarkdownTileFormProps) => {
             />
             {isDashboardRedesignEnabled && (
                 <Switch
-                    label={
-                        <Group spacing="xs">
-                            Show tile frame
-                            <ActionIcon size="xs" variant="subtle">
-                                <IconInfoCircle size={14} />
-                            </ActionIcon>
-                        </Group>
-                    }
+                    label={<Group spacing="xs">Show tile frame</Group>}
                     checked={!form.values.hideFrame}
                     onChange={(e) =>
                         form.setFieldValue(

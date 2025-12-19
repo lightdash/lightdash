@@ -265,6 +265,7 @@ export class DashboardModel {
                     dashboard_version_id: versionId.dashboard_version_id,
                     dashboard_tile_uuid: uuid,
                     text: properties.text,
+                    show_divider: properties.showDivider ?? false,
                 })),
             );
         }
@@ -787,6 +788,7 @@ export class DashboardModel {
                     text: string | null;
                     hide_title: boolean | null;
                     hide_frame: boolean | null;
+                    show_divider: boolean | null;
                     title: string | null;
                     views_count: string;
                     first_viewed_at: Date | null;
@@ -841,6 +843,7 @@ export class DashboardModel {
                 `${DashboardTileMarkdownsTableName}.content`,
                 `${DashboardTileMarkdownsTableName}.hide_frame`,
                 `${DashboardTileHeadingsTableName}.text`,
+                `${DashboardTileHeadingsTableName}.show_divider`,
             )
             .leftJoin(DashboardTileChartTableName, function chartsJoin() {
                 this.on(
@@ -964,6 +967,7 @@ export class DashboardModel {
                     url,
                     content,
                     hide_frame,
+                    show_divider,
                     text,
                     belongs_to_dashboard,
                     name,
@@ -1038,6 +1042,7 @@ export class DashboardModel {
                                 type: DashboardTileTypes.HEADING,
                                 properties: {
                                     text: text || '',
+                                    showDivider: show_divider ?? false,
                                 },
                             };
                         default: {
