@@ -129,6 +129,7 @@ export const CatalogTagsTableName = 'catalog_search_tags';
 export type DbMetricsTreeEdge = {
     source_metric_catalog_search_uuid: string;
     target_metric_catalog_search_uuid: string;
+    project_uuid: string;
     created_at: Date;
     created_by_user_uuid: string | null;
 };
@@ -137,6 +138,7 @@ export type DbMetricsTreeEdgeIn = Pick<
     DbMetricsTreeEdge,
     | 'source_metric_catalog_search_uuid'
     | 'target_metric_catalog_search_uuid'
+    | 'project_uuid'
     | 'created_by_user_uuid'
 >;
 

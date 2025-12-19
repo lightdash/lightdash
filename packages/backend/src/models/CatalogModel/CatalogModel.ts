@@ -323,7 +323,7 @@ export class CatalogModel {
                                     break;
                                 }
                                 default:
-                                    assertUnreachable(
+                                    return assertUnreachable(
                                         change.entityType,
                                         `Unknown entity type ${change.entityType}`,
                                     );
@@ -486,7 +486,7 @@ export class CatalogModel {
                                             ];
                                         break;
                                     default:
-                                        assertUnreachable(
+                                        return assertUnreachable(
                                             revertedChange.entityType,
                                             `Unknown entity type`,
                                         );
@@ -1471,6 +1471,7 @@ export class CatalogModel {
             >({
                 source_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
                 target_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+                project_uuid: `${MetricsTreeEdgesTableName}.project_uuid`,
                 created_at: `${MetricsTreeEdgesTableName}.created_at`,
                 created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
                 source_metric_name: `source_metric.name`,
@@ -1478,25 +1479,16 @@ export class CatalogModel {
                 target_metric_name: `target_metric.name`,
                 target_metric_table_name: `target_metric.table_name`,
             })
+            .where(`${MetricsTreeEdgesTableName}.project_uuid`, projectUuid)
             .innerJoin(
                 { source_metric: CatalogTableName },
-                function joinSource() {
-                    void this.on(
-                        `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
-                        '=',
-                        `source_metric.catalog_search_uuid`,
-                    ).andOnVal('source_metric.project_uuid', '=', projectUuid);
-                },
+                `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
+                `source_metric.catalog_search_uuid`,
             )
             .innerJoin(
                 { target_metric: CatalogTableName },
-                function joinTarget() {
-                    void this.on(
-                        `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
-                        '=',
-                        `target_metric.catalog_search_uuid`,
-                    ).andOnVal('target_metric.project_uuid', '=', projectUuid);
-                },
+                `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+                `target_metric.catalog_search_uuid`,
             );
 
         return edges.map((e) => ({
@@ -1512,7 +1504,7 @@ export class CatalogModel {
             },
             createdAt: e.created_at,
             createdByUserUuid: e.created_by_user_uuid,
-            projectUuid,
+            projectUuid: e.project_uuid,
         }));
     }
 

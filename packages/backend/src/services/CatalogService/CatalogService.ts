@@ -598,6 +598,7 @@ export class CatalogService<
                                 sourceCatalogItem.catalogSearchUuid,
                             target_metric_catalog_search_uuid:
                                 targetCatalogItem.catalogSearchUuid,
+                            project_uuid: projectUuid,
                             created_by_user_uuid: edge.createdByUserUuid,
                             created_at: edge.createdAt,
                         },
@@ -1291,6 +1292,7 @@ export class CatalogService<
         return this.catalogModel.createMetricsTreeEdge({
             source_metric_catalog_search_uuid: sourceCatalogSearchUuid,
             target_metric_catalog_search_uuid: targetCatalogSearchUuid,
+            project_uuid: projectUuid,
             created_by_user_uuid: user.userUuid,
         });
     }
