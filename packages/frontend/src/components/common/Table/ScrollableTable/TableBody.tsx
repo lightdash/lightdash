@@ -27,7 +27,11 @@ import {
 } from '../../../../utils/colorUtils';
 import { getConditionalRuleLabelFromItem } from '../../Filters/FilterInputs/utils';
 import MantineIcon from '../../MantineIcon';
-import { ROW_HEIGHT_PX, SMALL_TEXT_LENGTH } from '../constants';
+import {
+    FROZEN_COLUMN_BACKGROUND,
+    ROW_HEIGHT_PX,
+    SMALL_TEXT_LENGTH,
+} from '../constants';
 import { Tr } from '../Table.styles';
 import { type TableContext } from '../types';
 import { useTableContext } from '../useTableContext';
@@ -127,12 +131,12 @@ const TableRow: FC<TableRowProps> = ({
                         },
                     });
 
-                // Frozen/locked rows should have a white background, unless there is a conditional formatting color
+                // Frozen/locked rows should have a fixed background, unless there is a conditional formatting color
                 let backgroundColor: string | undefined;
                 if (conditionalFormattingColor) {
                     backgroundColor = conditionalFormattingColor;
                 } else if (meta?.frozen) {
-                    backgroundColor = 'white';
+                    backgroundColor = FROZEN_COLUMN_BACKGROUND;
                 }
 
                 const tooltipContent = getConditionalFormattingDescription(
