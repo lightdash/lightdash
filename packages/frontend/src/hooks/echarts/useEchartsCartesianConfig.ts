@@ -30,6 +30,7 @@ import {
     getItemLabelWithoutTableName,
     getItemType,
     getLineChartGridStyle,
+    getReadableColor,
     getReferenceLineStyle,
     getResultValueArray,
     getTooltipStyle,
@@ -59,6 +60,7 @@ import {
     type Field,
     type Item,
     type ItemsMap,
+    type MarkLine,
     type MarkLineData,
     type ParametersValuesMap,
     type PivotReference,
@@ -858,6 +860,45 @@ const getSimpleSeriesSymbolConfig = (series: Series) => {
     }
 };
 
+const applyReadableColorsToMarkLine = (
+    markLine: MarkLine,
+    baseColor?: string,
+    backgroundColor?: string,
+) => {
+    const baseStyle = getReferenceLineStyle(baseColor, backgroundColor);
+
+    // Apply readable color adjustment to each reference line
+    const adjustedData = markLine.data?.map((item: any) => {
+        if (!item.lineStyle?.color || !backgroundColor) {
+            return item;
+        }
+
+        const adjustedColor = getReadableColor(
+            item.lineStyle.color,
+            backgroundColor,
+        );
+        const itemStyle = getReferenceLineStyle(adjustedColor, backgroundColor);
+
+        return {
+            ...item,
+            lineStyle: {
+                ...item.lineStyle,
+                color: adjustedColor,
+            },
+            label: {
+                ...itemStyle.label,
+                position: item.label?.position,
+            },
+        };
+    });
+
+    return {
+        ...markLine,
+        ...baseStyle,
+        data: adjustedData,
+    };
+};
+
 type GetSimpleSeriesArg = {
     series: Series;
     itemsMap: ItemsMap;
@@ -867,6 +908,7 @@ type GetSimpleSeriesArg = {
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
     parameters?: ParametersValuesMap;
     isStack100?: boolean;
+    backgroundColor?: string;
 };
 
 const getSimpleSeries = ({
@@ -878,6 +920,7 @@ const getSimpleSeries = ({
     pivotValuesColumnsMap,
     parameters,
     isStack100,
+    backgroundColor,
 }: GetSimpleSeriesArg) => ({
     ...series,
     xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
@@ -952,10 +995,11 @@ const getSimpleSeries = ({
         },
     }),
     ...(series.markLine && {
-        markLine: {
-            ...series.markLine,
-            ...getReferenceLineStyle(series.color),
-        },
+        markLine: applyReadableColorsToMarkLine(
+            series.markLine,
+            series.color,
+            backgroundColor,
+        ),
     }),
 });
 
@@ -969,6 +1013,7 @@ const getEchartsSeriesFromPivotedData = (
         | null
         | undefined,
     parameters?: ParametersValuesMap,
+    backgroundColor?: string,
 ): EChartsSeries[] => {
     // Check if 100% stacking is enabled
     const isStack100 = cartesianChart.layout.stack === StackType.PERCENT;
@@ -1047,6 +1092,7 @@ const getEchartsSeriesFromPivotedData = (
                 pivotValuesColumnsMap,
                 parameters,
                 isStack100,
+                backgroundColor,
             });
         });
 
@@ -2136,12 +2182,13 @@ const useEchartsCartesianConfig = (
                             ),
                         },
                     }),
-                    // Apply reference line styling
+                    // Apply reference line styling with readable colors
                     ...(serie.markLine && {
-                        markLine: {
-                            ...serie.markLine,
-                            ...getReferenceLineStyle(computedColor),
-                        },
+                        markLine: applyReadableColorsToMarkLine(
+                            serie.markLine as MarkLine,
+                            computedColor,
+                            theme.colors.background[0],
+                        ),
                     }),
                 };
 
@@ -2210,6 +2257,7 @@ const useEchartsCartesianConfig = (
         rows,
         validCartesianConfigLegend,
         getSeriesColor,
+        theme.colors,
     ]);
     const sortedResults = useMemo(() => {
         const results =
