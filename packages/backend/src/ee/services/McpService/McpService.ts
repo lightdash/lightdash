@@ -1,9 +1,9 @@
+/* eslint-disable import/extensions */
 import { subject } from '@casl/ability';
 import {
     Account,
     AnyType,
     ApiKeyAccount,
-    CatalogFilter,
     CatalogType,
     CommercialFeatureFlags,
     Explore,
@@ -29,11 +29,14 @@ import {
     toolSearchFieldValuesArgsSchema,
     UserAttributeValueMap,
 } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
-// eslint-disable-next-line import/extensions
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
-// eslint-disable-next-line import/extensions
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import {
+    ServerNotification,
+    ServerRequest,
+} from '@modelcontextprotocol/sdk/types.js';
+import * as Sentry from '@sentry/node';
 import { z, ZodRawShape } from 'zod';
 import {
     LightdashAnalytics,
@@ -228,9 +231,12 @@ export class McpService extends BaseService {
                 description: 'Get the current Lightdash version',
                 inputSchema: {},
             },
-            async (_args, context) => {
+            async (
+                _args: Record<string, never>,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
                 this.trackToolCall(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                     McpToolName.GET_LIGHTDASH_VERSION,
                 );
                 return {
@@ -238,7 +244,7 @@ export class McpService extends BaseService {
                         {
                             type: 'text',
                             text: this.getLightdashVersion(
-                                context as McpProtocolContext,
+                                extra as McpProtocolContext,
                             ),
                         },
                     ],
@@ -252,31 +258,35 @@ export class McpService extends BaseService {
                 description: mcpToolListExploresArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     mcpToolListExploresArgsSchema,
-                ) as AnyType,
+                ),
             },
-            async (_args, context) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            async (
+                _args: AnyType,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
                 try {
                     const { user } = this.getAccount(
-                        context as McpProtocolContext,
+                        extra as McpProtocolContext,
                     );
 
                     const projectUuid = await this.resolveProjectUuid(
-                        context as McpProtocolContext,
+                        extra as McpProtocolContext,
                     );
 
                     this.trackToolCall(
-                        context as McpProtocolContext,
+                        extra as McpProtocolContext,
                         McpToolName.LIST_EXPLORES,
                         projectUuid,
                     );
 
                     const tagsFromContext = await this.getTagsFromContext(
-                        context as McpProtocolContext,
+                        extra as McpProtocolContext,
                     );
 
                     const userAttributeOverrides =
                         await this.getUserAttributeOverridesFromContext(
-                            context as McpProtocolContext,
+                            extra as McpProtocolContext,
                         );
 
                     const listExplores = async () =>
@@ -323,18 +333,22 @@ export class McpService extends BaseService {
                 description: toolFindExploresArgsSchemaV3.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     toolFindExploresArgsSchemaV3,
-                ) as AnyType,
+                ),
             },
-            async (_args, context) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            async (
+                _args: AnyType,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
                 const args = _args as Omit<ToolFindExploresArgsV3, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                 );
                 const argsWithProject = { ...args, projectUuid };
 
                 this.trackToolCall(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                     McpToolName.FIND_EXPLORES,
                     projectUuid,
                 );
@@ -342,17 +356,16 @@ export class McpService extends BaseService {
                 const findExplores: FindExploresFn =
                     await this.getFindExploresFunction(
                         argsWithProject,
-                        context as McpProtocolContext,
+                        extra as McpProtocolContext,
                     );
 
-                const { user } = (context as McpProtocolContext).authInfo!
-                    .extra;
+                const { user } = (extra as McpProtocolContext).authInfo!.extra;
                 const tagsFromContext = await this.getTagsFromContext(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                 );
                 const userAttributeOverrides =
                     await this.getUserAttributeOverridesFromContext(
-                        context as McpProtocolContext,
+                        extra as McpProtocolContext,
                     );
                 const availableExplores = await this.getAvailableExplores(
                     user,
@@ -395,18 +408,22 @@ export class McpService extends BaseService {
                 description: toolFindFieldsArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     toolFindFieldsArgsSchema,
-                ) as AnyType,
+                ),
             },
-            async (_args, context) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            async (
+                _args: AnyType,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
                 const args = _args as Omit<ToolFindFieldsArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                 );
                 const argsWithProject = { ...args, projectUuid };
 
                 this.trackToolCall(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                     McpToolName.FIND_FIELDS,
                     projectUuid,
                 );
@@ -414,7 +431,7 @@ export class McpService extends BaseService {
                 const findFields: FindFieldFn =
                     await this.getFindFieldsFunction(
                         argsWithProject,
-                        context as McpProtocolContext,
+                        extra as McpProtocolContext,
                     );
 
                 const findFieldsTool = getFindFields({
@@ -446,16 +463,20 @@ export class McpService extends BaseService {
                     toolFindContentArgsSchema,
                 ),
             },
-            async (_args, context) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            async (
+                _args: AnyType,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
                 const args = _args as Omit<ToolFindContentArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                 );
                 const argsWithProject = { ...args, projectUuid };
 
                 this.trackToolCall(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                     McpToolName.FIND_CONTENT,
                     projectUuid,
                 );
@@ -463,7 +484,7 @@ export class McpService extends BaseService {
                 const findContent: FindContentFn =
                     await this.getFindContentFunction(
                         argsWithProject,
-                        context as McpProtocolContext,
+                        extra as McpProtocolContext,
                     );
 
                 const findContentTool = getFindContent({
@@ -492,13 +513,16 @@ export class McpService extends BaseService {
                 description: 'List all accessible projects in the organization',
                 inputSchema: {},
             },
-            async (_args, context) => {
-                const { user, organizationUuid, account } = this.getAccount(
-                    context as McpProtocolContext,
+            async (
+                _args: Record<string, never>,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
+                const { user, organizationUuid } = this.getAccount(
+                    extra as McpProtocolContext,
                 );
 
                 this.trackToolCall(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                     McpToolName.LIST_PROJECTS,
                 );
 
@@ -533,18 +557,22 @@ export class McpService extends BaseService {
                 description:
                     'Set the active project for subsequent MCP operations',
                 inputSchema: {
-                    projectUuid: z.string() as AnyType,
-                    tags: z.array(z.string()).optional() as AnyType,
+                    projectUuid: z.string(),
+                    tags: z.array(z.string()).optional(),
                 },
             },
-            async (_args, context) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            async (
+                _args: AnyType,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
                 const args = _args as { projectUuid: string; tags?: string[] };
                 const { user, organizationUuid, account } = this.getAccount(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                 );
 
                 this.trackToolCall(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                     McpToolName.SET_PROJECT,
                     args.projectUuid,
                 );
@@ -619,13 +647,16 @@ export class McpService extends BaseService {
                 description: 'Get the currently active project',
                 inputSchema: {},
             },
-            async (_args, context) => {
+            async (
+                _args: Record<string, never>,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
                 const { user, organizationUuid } = this.getAccount(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                 );
 
                 this.trackToolCall(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                     McpToolName.GET_CURRENT_PROJECT,
                 );
 
@@ -678,18 +709,22 @@ export class McpService extends BaseService {
                 description: toolRunMetricQueryArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     toolRunMetricQueryArgsSchema,
-                ) as AnyType,
+                ),
             },
-            async (_args, context) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            async (
+                _args: AnyType,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
                 const args = _args as Omit<ToolRunMetricQueryArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                 );
                 const argsWithProject = { ...args, projectUuid };
 
                 this.trackToolCall(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                     McpToolName.RUN_METRIC_QUERY,
                     projectUuid,
                 );
@@ -697,7 +732,7 @@ export class McpService extends BaseService {
                 const { agentContext, runMiniMetricQuery } =
                     await this.getRunMetricQueryDependencies(
                         argsWithProject,
-                        context as McpProtocolContext,
+                        extra as McpProtocolContext,
                     );
 
                 const runMetricQueryTool = getRunMetricQuery({
@@ -731,18 +766,22 @@ export class McpService extends BaseService {
                 description: toolSearchFieldValuesArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
                     toolSearchFieldValuesArgsSchema,
-                ) as AnyType,
+                ),
             },
-            async (_args, context) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            async (
+                _args: AnyType,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
                 const args = _args as Omit<ToolSearchFieldValuesArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                 );
                 const argsWithProject = { ...args, projectUuid };
 
                 this.trackToolCall(
-                    context as McpProtocolContext,
+                    extra as McpProtocolContext,
                     McpToolName.SEARCH_FIELD_VALUES,
                     projectUuid,
                 );
@@ -750,7 +789,7 @@ export class McpService extends BaseService {
                 const searchFieldValues: SearchFieldValuesFn =
                     await this.getSearchFieldValuesFunction(
                         argsWithProject,
-                        context as McpProtocolContext,
+                        extra as McpProtocolContext,
                     );
 
                 const searchFieldValuesTool = getSearchFieldValues({
