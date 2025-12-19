@@ -149,7 +149,7 @@ const Filter: FC<Props> = ({
         }
 
         const formattedValues = values.map((v) =>
-            formatDisplayValue(v as string),
+            formatDisplayValue(String(v)),
         );
         const displayedValues = formattedValues.slice(0, MAX_DISPLAYED_VALUES);
         const additionalValues = formattedValues.slice(MAX_DISPLAYED_VALUES);
