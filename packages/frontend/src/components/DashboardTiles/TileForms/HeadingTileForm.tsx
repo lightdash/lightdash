@@ -1,5 +1,5 @@
 import { type DashboardHeadingTileProperties } from '@lightdash/common';
-import { Stack, TextInput } from '@mantine-8/core';
+import { Stack, Switch, TextInput } from '@mantine-8/core';
 import { type UseFormReturnType } from '@mantine/form';
 
 interface HeadingTileFormProps {
@@ -13,6 +13,13 @@ const HeadingTileForm = ({ form }: HeadingTileFormProps) => (
             placeholder="Enter heading text"
             required
             {...form.getInputProps('text')}
+        />
+        <Switch
+            label="Display a divider below the heading"
+            checked={form.values.showDivider ?? false}
+            onChange={(e) =>
+                form.setFieldValue('showDivider', e.currentTarget.checked)
+            }
         />
     </Stack>
 );

@@ -131,6 +131,7 @@ type DbDashboardTileHeadings = {
     dashboard_version_id: number;
     dashboard_tile_uuid: string;
     text: string;
+    show_divider: boolean | null;
 };
 
 export type DashboardTileHeadingsTable =

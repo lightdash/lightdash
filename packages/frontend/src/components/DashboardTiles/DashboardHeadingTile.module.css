@@ -1,0 +1,8 @@
+.heading {
+    width: 100%;
+}
+
+.withDivider {
+    border-bottom: 1px solid var(--mantine-color-ldGray-3);
+    padding-bottom: var(--mantine-spacing-xs);
+}
