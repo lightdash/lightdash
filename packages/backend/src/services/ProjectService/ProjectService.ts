@@ -2993,6 +2993,7 @@ export class ProjectService extends BaseService {
 
     async getResultsFromCacheOrWarehouse({
         projectUuid,
+        userUuid,
         context,
         warehouseClient,
         query,
@@ -3001,6 +3002,7 @@ export class ProjectService extends BaseService {
         invalidateCache,
     }: {
         projectUuid: string;
+        userUuid: string | null;
         context: QueryExecutionContext;
         warehouseClient: WarehouseClient;
         query: AnyType;
@@ -3017,8 +3019,8 @@ export class ProjectService extends BaseService {
             async (span) => {
                 // TODO: put this hash function in a util somewhere
                 const queryHashKey = metricQuery.timezone
-                    ? `${projectUuid}.${query}.${metricQuery.timezone}`
-                    : `${projectUuid}.${query}`;
+                    ? `${projectUuid}.${userUuid}.${query}.${metricQuery.timezone}`
+                    : `${projectUuid}.${userUuid}.${query}`;
                 const queryHash = crypto
                     .createHash('sha256')
                     .update(queryHashKey)
@@ -3207,14 +3209,16 @@ export class ProjectService extends BaseService {
                             exploreName,
                         ));
 
+                    const warehouseCredentials =
+                        await this.getWarehouseCredentials({
+                            projectUuid,
+                            userId: account.user.id,
+                            isRegisteredUser: account.isRegisteredUser(),
+                        });
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(
                             projectUuid,
-                            await this.getWarehouseCredentials({
-                                projectUuid,
-                                userId: account.user.id,
-                                isRegisteredUser: account.isRegisteredUser(),
-                            }),
+                            warehouseCredentials,
                             {
                                 snowflakeVirtualWarehouse: explore.warehouse,
                                 databricksCompute: explore.databricksCompute,
@@ -3309,10 +3313,14 @@ export class ProjectService extends BaseService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
-
+                    const userUuid =
+                        warehouseCredentials.userWarehouseCredentialsUuid
+                            ? account.user.id
+                            : null;
                     const { rows, cacheMetadata } =
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
+                            userUuid,
                             context,
                             warehouseClient,
                             metricQuery: metricQueryWithLimit,
@@ -5731,13 +5739,14 @@ export class ProjectService extends BaseService {
         organizationUuid: string,
         parameters?: ParametersValuesMap,
     ) {
+        const warehouseCredentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+        });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-            }),
+            warehouseCredentials,
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
                 databricksCompute: explore.databricksCompute,
@@ -5771,9 +5780,13 @@ export class ProjectService extends BaseService {
                 query_context: QueryExecutionContext.CALCULATE_TOTAL,
             };
 
+            const userUuid = warehouseCredentials.userWarehouseCredentialsUuid
+                ? account.user.id
+                : null;
             const { rows, cacheMetadata } =
                 await this.getResultsFromCacheOrWarehouse({
                     projectUuid,
+                    userUuid,
                     context: QueryExecutionContext.CALCULATE_TOTAL,
                     warehouseClient,
                     metricQuery: totalQuery,
