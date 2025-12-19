@@ -122,4 +122,10 @@ export type DashboardContextType = {
     tileNamesById: Record<string, string>;
     refreshDashboardVersion: () => Promise<void>;
     isRefreshingDashboardVersion: boolean;
+    markTileScreenshotReady: (tileUuid: string) => void;
+    markTileScreenshotErrored: (tileUuid: string) => void;
+    isReadyForScreenshot: boolean;
+    screenshotReadyTilesCount: number;
+    screenshotErroredTilesCount: number;
+    expectedScreenshotTilesCount: number;
 };

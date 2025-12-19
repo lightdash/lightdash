@@ -24,6 +24,8 @@ interface LightdashVisualizationProps {
     isTitleHidden?: boolean;
     className?: string;
     'data-testid'?: string;
+    onScreenshotReady?: () => void;
+    onScreenshotError?: () => void;
 }
 
 const LightdashVisualization = memo(
@@ -34,6 +36,8 @@ const LightdashVisualization = memo(
                 tileUuid,
                 isTitleHidden = false,
                 className,
+                onScreenshotReady,
+                onScreenshotError,
                 ...props
             },
             ref,
@@ -96,6 +100,8 @@ const LightdashVisualization = memo(
                             isDashboard={isDashboard}
                             className={className}
                             data-testid={props['data-testid']}
+                            onScreenshotReady={onScreenshotReady}
+                            onScreenshotError={onScreenshotError}
                             {...props}
                         />
                     );
@@ -108,6 +114,8 @@ const LightdashVisualization = memo(
                             className={className}
                             $shouldExpand
                             data-testid={props['data-testid']}
+                            onScreenshotReady={onScreenshotReady}
+                            onScreenshotError={onScreenshotError}
                             {...props}
                         />
                     );
@@ -118,6 +126,8 @@ const LightdashVisualization = memo(
                             isInDashboard={!!isDashboard}
                             $shouldExpand
                             data-testid={props['data-testid']}
+                            onScreenshotReady={onScreenshotReady}
+                            onScreenshotError={onScreenshotError}
                             {...props}
                         />
                     );
@@ -128,6 +138,8 @@ const LightdashVisualization = memo(
                             isInDashboard={!!isDashboard}
                             $shouldExpand
                             data-testid={props['data-testid']}
+                            onScreenshotReady={onScreenshotReady}
+                            onScreenshotError={onScreenshotError}
                             {...props}
                         />
                     );
@@ -138,6 +150,8 @@ const LightdashVisualization = memo(
                             isInDashboard={!!isDashboard}
                             $shouldExpand
                             data-testid={props['data-testid']}
+                            onScreenshotReady={onScreenshotReady}
+                            onScreenshotError={onScreenshotError}
                             {...props}
                         />
                     );
@@ -148,6 +162,8 @@ const LightdashVisualization = memo(
                             isInDashboard={!!isDashboard}
                             $shouldExpand
                             data-testid={props['data-testid']}
+                            onScreenshotReady={onScreenshotReady}
+                            onScreenshotError={onScreenshotError}
                             {...props}
                         />
                     );
@@ -158,6 +174,8 @@ const LightdashVisualization = memo(
                             isInDashboard={isDashboard}
                             $shouldExpand
                             data-testid={props['data-testid']}
+                            onScreenshotReady={onScreenshotReady}
+                            onScreenshotError={onScreenshotError}
                             {...props}
                         />
                     );
@@ -176,6 +194,8 @@ const LightdashVisualization = memo(
                                 isInDashboard={isDashboard}
                                 $shouldExpand
                                 data-testid={props['data-testid']}
+                                onScreenshotReady={onScreenshotReady}
+                                onScreenshotError={onScreenshotError}
                                 {...props}
                             />
                         </Suspense>
@@ -194,6 +214,8 @@ const LightdashVisualization = memo(
                             <CustomVisualization
                                 data-testid={props['data-testid']}
                                 className={className}
+                                onScreenshotReady={onScreenshotReady}
+                                onScreenshotError={onScreenshotError}
                             />
                         </div>
                     );

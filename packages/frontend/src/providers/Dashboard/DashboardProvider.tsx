@@ -398,6 +398,57 @@ const DashboardProvider: React.FC<
         return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
     }, [dashboardTiles, loadedTiles, activeTab, dashboardTabs]);
 
+    const [screenshotReadyTiles, setScreenshotReadyTiles] = useState<
+        Set<string>
+    >(new Set());
+    const [screenshotErroredTiles, setScreenshotErroredTiles] = useState<
+        Set<string>
+    >(new Set());
+
+    const markTileScreenshotReady = useCallback((tileUuid: string) => {
+        setScreenshotReadyTiles((prev) => new Set(prev).add(tileUuid));
+    }, []);
+
+    const markTileScreenshotErrored = useCallback((tileUuid: string) => {
+        setScreenshotErroredTiles((prev) => new Set(prev).add(tileUuid));
+    }, []);
+
+    const expectedScreenshotTileUuids = useMemo(() => {
+        if (!dashboardTiles) return [];
+
+        if (dashboardTabs && dashboardTabs.length > 0 && !activeTab) return [];
+
+        return dashboardTiles
+            .filter(isDashboardChartTileType)
+            .filter((tile) => {
+                if (!activeTab) return true;
+                return !tile.tabUuid || tile.tabUuid === activeTab.uuid;
+            })
+            .map((tile) => tile.uuid);
+    }, [dashboardTiles, activeTab, dashboardTabs]);
+
+    const isReadyForScreenshot = useMemo(() => {
+        if (expectedScreenshotTileUuids.length === 0) {
+            return !!dashboardTiles;
+        }
+
+        return expectedScreenshotTileUuids.every(
+            (tileUuid) =>
+                screenshotReadyTiles.has(tileUuid) ||
+                screenshotErroredTiles.has(tileUuid),
+        );
+    }, [
+        expectedScreenshotTileUuids,
+        screenshotReadyTiles,
+        screenshotErroredTiles,
+        dashboardTiles,
+    ]);
+
+    useEffect(() => {
+        setScreenshotReadyTiles(new Set());
+        setScreenshotErroredTiles(new Set());
+    }, [dashboardTiles, activeTab]);
+
     const missingRequiredParameters = useMemo(() => {
         // If no parameter references, return empty array
         if (!dashboardParameterReferences.size) return [];
@@ -1178,6 +1229,12 @@ const DashboardProvider: React.FC<
         tileNamesById,
         refreshDashboardVersion,
         isRefreshingDashboardVersion,
+        markTileScreenshotReady,
+        markTileScreenshotErrored,
+        isReadyForScreenshot,
+        screenshotReadyTilesCount: screenshotReadyTiles.size,
+        screenshotErroredTilesCount: screenshotErroredTiles.size,
+        expectedScreenshotTilesCount: expectedScreenshotTileUuids.length,
     };
     return (
         <DashboardContext.Provider value={value}>

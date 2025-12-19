@@ -1,7 +1,7 @@
 import { IconGauge } from '@tabler/icons-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import clamp from 'lodash/clamp';
-import { memo, useEffect, useMemo, useState, type FC } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabs/gridUtils';
 import useEchartsGaugeConfig from '../../hooks/echarts/useEchartsGaugeConfig';
 import EChartsReact from '../EChartsReactWrapper';
@@ -33,6 +33,8 @@ type SimpleGaugeProps = Omit<EChartsReactProps, 'option'> & {
     $shouldExpand?: boolean;
     className?: string;
     'data-testid'?: string;
+    onScreenshotReady?: () => void;
+    onScreenshotError?: () => void;
 };
 
 const BOX_MIN_WIDTH = 150;
@@ -88,95 +90,118 @@ const calculateRadius = (boundWidth: number, boundHeight: number) => {
 
 const EchartOptions: Opts = { renderer: 'svg' };
 
-const SimpleGauge: FC<SimpleGaugeProps> = memo((props) => {
-    const { chartRef, isLoading } = useVisualizationContext();
-    const [chartWidth, setChartWidth] = useState(0);
-    const [chartHeight, setChartHeight] = useState(0);
-    const sizes = useMemo(() => {
-        const boundWidth = clamp(chartWidth || 0, BOX_MIN_WIDTH, BOX_MAX_WIDTH);
+const SimpleGauge: FC<SimpleGaugeProps> = memo(
+    ({ onScreenshotReady, onScreenshotError, ...props }) => {
+        const { chartRef, isLoading } = useVisualizationContext();
+        const [chartWidth, setChartWidth] = useState(0);
+        const [chartHeight, setChartHeight] = useState(0);
 
-        const availableHeightForFontSizeCalculation = chartHeight ?? 0;
+        const hasSignaledScreenshotReady = useRef(false);
 
-        const boundHeight = clamp(
-            availableHeightForFontSizeCalculation,
-            BOX_MIN_HEIGHT,
-            BOX_MAX_HEIGHT,
-        );
+        const sizes = useMemo(() => {
+            const boundWidth = clamp(
+                chartWidth || 0,
+                BOX_MIN_WIDTH,
+                BOX_MAX_WIDTH,
+            );
 
-        return {
-            tileFontSize: calculateFontSize(
-                TITLE_SIZE_MIN,
-                TITLE_SIZE_MAX,
-                boundWidth,
-                boundHeight,
-            ),
-            detailsFontSize: calculateFontSize(
-                DETAILS_SIZE_MIN,
-                DETAILS_SIZE_MAX,
-                boundWidth,
-                boundHeight,
-            ),
-            lineSize: calculateFontSize(
-                LINE_SIZE_MIN,
-                LINE_SIZE_MAX,
-                boundWidth,
-                boundHeight,
-            ),
-            radius: calculateRadius(boundWidth, boundHeight),
-        };
-    }, [chartWidth, chartHeight]);
-    const gaugeOptions = useEchartsGaugeConfig({
-        isInDashboard: props.isInDashboard,
-        ...sizes,
-    });
+            const availableHeightForFontSizeCalculation = chartHeight ?? 0;
 
-    useEffect(() => {
-        const listener = () => chartRef.current?.getEchartsInstance().resize();
-        const observer = new ResizeObserver(([entry]) => {
-            const { width, height } = entry.contentRect;
-            setChartWidth(width);
-            setChartHeight(height);
+            const boundHeight = clamp(
+                availableHeightForFontSizeCalculation,
+                BOX_MIN_HEIGHT,
+                BOX_MAX_HEIGHT,
+            );
+
+            return {
+                tileFontSize: calculateFontSize(
+                    TITLE_SIZE_MIN,
+                    TITLE_SIZE_MAX,
+                    boundWidth,
+                    boundHeight,
+                ),
+                detailsFontSize: calculateFontSize(
+                    DETAILS_SIZE_MIN,
+                    DETAILS_SIZE_MAX,
+                    boundWidth,
+                    boundHeight,
+                ),
+                lineSize: calculateFontSize(
+                    LINE_SIZE_MIN,
+                    LINE_SIZE_MAX,
+                    boundWidth,
+                    boundHeight,
+                ),
+                radius: calculateRadius(boundWidth, boundHeight),
+            };
+        }, [chartWidth, chartHeight]);
+
+        const gaugeOptions = useEchartsGaugeConfig({
+            isInDashboard: props.isInDashboard,
+            ...sizes,
         });
 
-        if (chartRef.current?.getEchartsInstance().getDom()) {
-            observer.observe(chartRef.current?.getEchartsInstance().getDom());
-        }
-        window.addEventListener('resize', listener);
-        return () => {
-            window.removeEventListener('resize', listener);
-            observer.disconnect();
-        };
-    });
+        useEffect(() => {
+            if (hasSignaledScreenshotReady.current) return;
+            if (!onScreenshotReady && !onScreenshotError) return;
 
-    if (isLoading) return <LoadingChart />;
-    if (!gaugeOptions) return <EmptyChart />;
+            if (!isLoading) {
+                onScreenshotReady?.();
+                hasSignaledScreenshotReady.current = true;
+            }
+        }, [isLoading, gaugeOptions, onScreenshotReady, onScreenshotError]);
 
-    return (
-        <>
-            <EChartsReact
-                ref={chartRef}
-                data-testid={props['data-testid']}
-                className={props.className}
-                style={
-                    props.$shouldExpand
-                        ? {
-                              minHeight: 'inherit',
-                              height: '100%',
-                              width: '100%',
-                          }
-                        : {
-                              minHeight: 'inherit',
-                              // height defaults to 300px
-                              width: '100%',
-                          }
-                }
-                opts={EchartOptions}
-                option={gaugeOptions.eChartsOption}
-                notMerge
-                {...props}
-            />
-        </>
-    );
-});
+        useEffect(() => {
+            const listener = () =>
+                chartRef.current?.getEchartsInstance().resize();
+            const observer = new ResizeObserver(([entry]) => {
+                const { width, height } = entry.contentRect;
+                setChartWidth(width);
+                setChartHeight(height);
+            });
+
+            if (chartRef.current?.getEchartsInstance().getDom()) {
+                observer.observe(
+                    chartRef.current?.getEchartsInstance().getDom(),
+                );
+            }
+            window.addEventListener('resize', listener);
+            return () => {
+                window.removeEventListener('resize', listener);
+                observer.disconnect();
+            };
+        });
+
+        if (isLoading) return <LoadingChart />;
+        if (!gaugeOptions) return <EmptyChart />;
+
+        return (
+            <>
+                <EChartsReact
+                    ref={chartRef}
+                    data-testid={props['data-testid']}
+                    className={props.className}
+                    style={
+                        props.$shouldExpand
+                            ? {
+                                  minHeight: 'inherit',
+                                  height: '100%',
+                                  width: '100%',
+                              }
+                            : {
+                                  minHeight: 'inherit',
+                                  // height defaults to 300px
+                                  width: '100%',
+                              }
+                    }
+                    opts={EchartOptions}
+                    option={gaugeOptions.eChartsOption}
+                    notMerge
+                    {...props}
+                />
+            </>
+        );
+    },
+);
 
 export default SimpleGauge;
