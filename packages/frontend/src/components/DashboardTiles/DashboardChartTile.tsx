@@ -521,6 +521,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const { totalResults, initialQueryExecutionMs } = resultsData;
 
+    // Calculate if limit warning should be shown
+    const showLimitWarning = useMemo(
+        () => {
+            const limit = metricQuery?.limit || chart.metricQuery.limit;
+            return !!(totalResults && limit && totalResults >= limit);
+        },
+        [totalResults, metricQuery?.limit, chart.metricQuery.limit],
+    );
+
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const projectUuid = useProjectUuid();
 
@@ -1157,6 +1166,21 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     </HoverCard.Target>
                                 </HoverCard>
                             )}
+                        {showLimitWarning && (
+                            <Tooltip
+                                width={400}
+                                label={`Query limit of ${metricQuery?.limit || chart.metricQuery.limit} reached. There may be additional results that have not been displayed. To see more, edit the chart to increase the query limit or try narrowing filters.`}
+                                multiline
+                                position={'bottom-end'}
+                            >
+                                <ActionIcon size="sm" sx={{ cursor: 'help' }}>
+                                    <MantineIcon
+                                        icon={IconAlertCircle}
+                                        color="yellow.6"
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                     </>
                 }
                 titleLeftIcon={
@@ -1509,6 +1533,19 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         RefObject<EChartsReact | null> | undefined
     >();
 
+    // Calculate if limit warning should be shown
+    const showLimitWarning = useMemo(
+        () => {
+            const limit = metricQuery?.limit || chart.metricQuery.limit;
+            return !!(
+                resultsData.totalResults &&
+                limit &&
+                resultsData.totalResults >= limit
+            );
+        },
+        [resultsData.totalResults, metricQuery?.limit, chart.metricQuery.limit],
+    );
+
     const handleExploreFromHere = useCallback(() => {
         if (onExplore) {
             onExplore({ chart });
@@ -1630,6 +1667,23 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                 description={chart.description}
                 isLoading={false}
                 minimal={true}
+                extraHeaderElement={
+                    showLimitWarning ? (
+                        <Tooltip
+                            width={400}
+                            label={`Query limit of ${metricQuery?.limit || chart.metricQuery.limit} reached. There may be additional results that have not been displayed. To see more, edit the chart to increase the query limit or try narrowing filters.`}
+                            multiline
+                            position={'bottom-end'}
+                        >
+                            <ActionIcon size="sm" sx={{ cursor: 'help' }}>
+                                <MantineIcon
+                                    icon={IconAlertCircle}
+                                    color="yellow.6"
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    ) : undefined
+                }
                 extraMenuItems={
                     canExportCsv ||
                     (canExportImages &&
