@@ -99,11 +99,19 @@ export const TileTitleLink = styled.a<TileTitleProps>`
         `}
 `;
 
-export const ChartContainer = styled.div<{ $alignItems?: 'center' }>`
+export const ChartContainer = styled.div<{
+    $alignItems?: 'center';
+    $fullWidth?: boolean;
+}>`
     flex: 1;
     overflow: hidden;
     display: flex;
     align-items: ${({ $alignItems }) => $alignItems};
+    ${({ $fullWidth }) =>
+        $fullWidth &&
+        css`
+            margin: 0 -16px -16px -16px;
+        `}
 `;
 
 export const TileCardWrapper = styled.div`

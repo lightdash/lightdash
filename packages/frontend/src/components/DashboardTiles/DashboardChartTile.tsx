@@ -490,6 +490,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const showExecutionTime = useFeatureFlagEnabled(
         FeatureFlags.ShowExecutionTime,
     );
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
+    );
 
     const {
         tile: {
@@ -1323,6 +1326,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         </>
                     )
                 }
+                fullWidth={
+                    chart.chartConfig.type === ChartType.TABLE &&
+                    isDashboardRedesignEnabled
+                }
                 {...props}
             >
                 <>
@@ -1475,6 +1482,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         top: number;
     }>();
     const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
+    );
 
     const {
         tile: {
@@ -1658,6 +1668,10 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                                 )}
                         </>
                     ) : undefined
+                }
+                fullWidth={
+                    isDashboardRedesignEnabled &&
+                    chart.chartConfig.type === ChartType.TABLE
                 }
                 {...props}
             >
