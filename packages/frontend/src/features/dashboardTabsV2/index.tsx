@@ -543,12 +543,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                     />
                                 )}
 
-                                <Group
-                                    grow
-                                    pt={tabsEnabled ? 'sm' : undefined}
-                                    pb="lg"
-                                    px="xs"
-                                >
+                                <Group grow pb="lg" px="xs">
                                     <ResponsiveGridLayout
                                         {...gridProps}
                                         className={`${

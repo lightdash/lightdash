@@ -77,7 +77,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                 align="flex-start"
                 wrap="nowrap"
                 px="lg"
-                py="sm"
+                py="xxs"
             >
                 {/* Left section - filters and parameters */}
                 <Group justify="apart" align="flex-start" wrap="nowrap" grow>
