@@ -4,7 +4,7 @@ import {
     type ParameterValue,
 } from '@lightdash/common';
 import { Group, Skeleton } from '@mantine-8/core';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useState, type FC, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import Parameter from './Parameter';
 
@@ -19,6 +19,8 @@ type Props = {
     onParameterPin?: (paramKey: string) => void;
     isLoading?: boolean;
     isError?: boolean;
+    /** Separator element to render with the first parameter (so they wrap together) */
+    separator?: ReactNode;
 };
 
 export const Parameters: FC<Props> = ({
@@ -28,6 +30,7 @@ export const Parameters: FC<Props> = ({
     parameters,
     isLoading,
     missingRequiredParameters = [],
+    separator,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [openPopoverId, setOpenPopoverId] = useState<string | undefined>();
@@ -47,26 +50,49 @@ export const Parameters: FC<Props> = ({
     if (isLoading) {
         return (
             <Group gap="xs">
+                {separator}
                 <Skeleton h={30} w={120} radius={100} />
                 <Skeleton h={30} w={120} radius={100} />
             </Group>
         );
     }
 
-    return Object.entries(parameters).map(([paramKey, parameter]) => (
-        <Parameter
-            key={paramKey}
-            paramKey={paramKey}
-            parameter={parameter}
-            value={parameterValues[paramKey] ?? null}
-            parameterValues={parameterValues}
-            openPopoverId={openPopoverId}
-            onPopoverOpen={handlePopoverOpen}
-            onPopoverClose={handlePopoverClose}
-            onParameterChange={onParameterChange}
-            projectUuid={projectUuid}
-            isRequired={missingRequiredParameters.includes(paramKey)}
-            isEditMode={isEditMode}
-        />
-    ));
+    const paramEntries = Object.entries(parameters);
+
+    return (
+        <>
+            {paramEntries.map(([paramKey, parameter], index) => {
+                const paramComponent = (
+                    <Parameter
+                        key={paramKey}
+                        paramKey={paramKey}
+                        parameter={parameter}
+                        value={parameterValues[paramKey] ?? null}
+                        parameterValues={parameterValues}
+                        openPopoverId={openPopoverId}
+                        onPopoverOpen={handlePopoverOpen}
+                        onPopoverClose={handlePopoverClose}
+                        onParameterChange={onParameterChange}
+                        projectUuid={projectUuid}
+                        isRequired={missingRequiredParameters.includes(
+                            paramKey,
+                        )}
+                        isEditMode={isEditMode}
+                    />
+                );
+
+                // Group separator with first parameter so they wrap together
+                if (index === 0 && separator) {
+                    return (
+                        <Group key={paramKey} gap="xs" wrap="nowrap">
+                            {separator}
+                            {paramComponent}
+                        </Group>
+                    );
+                }
+
+                return paramComponent;
+            })}
+        </>
+    );
 };
