@@ -1,3 +1,10 @@
+## [0.2267.1](https://github.com/lightdash/lightdash/compare/0.2267.0...0.2267.1) (2025-12-19)
+
+
+### Bug Fixes
+
+* do not delete files when making --nested download ([#18979](https://github.com/lightdash/lightdash/issues/18979)) ([0276e99](https://github.com/lightdash/lightdash/commit/0276e9944494b865fb54b18f92a3d030a63c7b1d)), closes [#18781](https://github.com/lightdash/lightdash/issues/18781)
+
 # [0.2267.0](https://github.com/lightdash/lightdash/compare/0.2266.0...0.2267.0) (2025-12-19)
 
 
