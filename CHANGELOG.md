@@ -1,3 +1,10 @@
+## [0.2269.2](https://github.com/lightdash/lightdash/compare/0.2269.1...0.2269.2) (2025-12-19)
+
+
+### Bug Fixes
+
+* date filters display ([#19003](https://github.com/lightdash/lightdash/issues/19003)) ([dc2daeb](https://github.com/lightdash/lightdash/commit/dc2daeb51353356a428e8832cf9a10c56d71416d))
+
 ## [0.2269.1](https://github.com/lightdash/lightdash/compare/0.2269.0...0.2269.1) (2025-12-19)
 
 
