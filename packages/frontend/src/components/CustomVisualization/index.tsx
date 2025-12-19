@@ -1,6 +1,6 @@
 import { Anchor, Text } from '@mantine/core';
 import { IconChartBarOff } from '@tabler/icons-react';
-import { Suspense, lazy, useEffect, type FC } from 'react';
+import { Suspense, lazy, useEffect, useRef, type FC } from 'react';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
@@ -14,9 +14,15 @@ const VegaLite = lazy(() =>
 type Props = {
     className?: string;
     'data-testid'?: string;
+    onScreenshotReady?: () => void;
+    onScreenshotError?: () => void;
 };
 
-const CustomVisualization: FC<Props> = (props) => {
+const CustomVisualization: FC<Props> = ({
+    onScreenshotReady,
+    onScreenshotError,
+    ...props
+}) => {
     const {
         isLoading,
         visualizationConfig,
@@ -24,6 +30,17 @@ const CustomVisualization: FC<Props> = (props) => {
         containerWidth,
         containerHeight,
     } = useVisualizationContext();
+
+    const hasSignaledScreenshotReady = useRef(false);
+
+    useEffect(() => {
+        if (hasSignaledScreenshotReady.current) return;
+        if (!onScreenshotReady && !onScreenshotError) return;
+        if (!isLoading) {
+            onScreenshotReady?.();
+            hasSignaledScreenshotReady.current = true;
+        }
+    }, [isLoading, visualizationConfig, onScreenshotReady, onScreenshotError]);
 
     useEffect(() => {
         // Load all the rows

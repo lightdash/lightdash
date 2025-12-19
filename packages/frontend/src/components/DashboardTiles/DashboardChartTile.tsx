@@ -240,6 +240,12 @@ const ValidDashboardChartTile: FC<{
     const addResultsCacheTime = useDashboardContext(
         (c) => c.addResultsCacheTime,
     );
+    const markTileScreenshotReady = useDashboardContext(
+        (c) => c.markTileScreenshotReady,
+    );
+    const markTileScreenshotErrored = useDashboardContext(
+        (c) => c.markTileScreenshotErrored,
+    );
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
@@ -306,6 +312,14 @@ const ValidDashboardChartTile: FC<{
         chart.colorPalette,
     ]);
 
+    const handleScreenshotReady = useCallback(() => {
+        markTileScreenshotReady(tileUuid);
+    }, [markTileScreenshotReady, tileUuid]);
+
+    const handleScreenshotError = useCallback(() => {
+        markTileScreenshotErrored(tileUuid);
+    }, [markTileScreenshotErrored, tileUuid]);
+
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -339,6 +353,8 @@ const ValidDashboardChartTile: FC<{
                 isDashboard
                 tileUuid={tileUuid}
                 isTitleHidden={isTitleHidden}
+                onScreenshotReady={handleScreenshotReady}
+                onScreenshotError={handleScreenshotError}
             />
         </VisualizationProvider>
     );
@@ -372,6 +388,12 @@ const ValidDashboardChartTileMinimal: FC<{
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
+    );
+    const markTileScreenshotReady = useDashboardContext(
+        (c) => c.markTileScreenshotReady,
+    );
+    const markTileScreenshotErrored = useDashboardContext(
+        (c) => c.markTileScreenshotErrored,
     );
 
     const {
@@ -425,6 +447,14 @@ const ValidDashboardChartTileMinimal: FC<{
         chart.colorPalette,
     ]);
 
+    const handleScreenshotReady = useCallback(() => {
+        markTileScreenshotReady(tileUuid);
+    }, [markTileScreenshotReady, tileUuid]);
+
+    const handleScreenshotError = useCallback(() => {
+        markTileScreenshotErrored(tileUuid);
+    }, [markTileScreenshotErrored, tileUuid]);
+
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -458,6 +488,8 @@ const ValidDashboardChartTileMinimal: FC<{
                 isDashboard
                 tileUuid={tileUuid}
                 isTitleHidden={isTitleHidden}
+                onScreenshotReady={handleScreenshotReady}
+                onScreenshotError={handleScreenshotError}
             />
         </VisualizationProvider>
     );

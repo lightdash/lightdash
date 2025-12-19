@@ -1,8 +1,9 @@
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
-import { memo, useEffect, useMemo, useState, type FC } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
+import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import {
@@ -60,6 +61,27 @@ const MinimalExplorerContent = memo(() => {
     const isLoadingQueryResults =
         query.isFetching || queryResults.isFetchingRows;
 
+    const [isScreenshotReady, setIsScreenshotReady] = useState(false);
+    const hasSignaledReady = useRef(false);
+
+    useEffect(() => {
+        if (hasSignaledReady.current) return;
+        if (
+            !savedChart ||
+            isLoadingQueryResults ||
+            health.isInitialLoading ||
+            !health.data
+        )
+            return;
+        setIsScreenshotReady(true);
+        hasSignaledReady.current = true;
+    }, [
+        savedChart,
+        isLoadingQueryResults,
+        health.isInitialLoading,
+        health.data,
+    ]);
+
     if (!savedChart || health.isInitialLoading || !health.data) {
         return null;
     }
@@ -89,6 +111,14 @@ const MinimalExplorerContent = memo(() => {
                     />
                 </Box>
             </MantineProvider>
+
+            {isScreenshotReady && (
+                <ScreenshotReadyIndicator
+                    tilesTotal={1}
+                    tilesReady={1}
+                    tilesErrored={0}
+                />
+            )}
         </VisualizationProvider>
     );
 });
