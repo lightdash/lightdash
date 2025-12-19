@@ -1,3 +1,10 @@
+# [0.2269.0](https://github.com/lightdash/lightdash/compare/0.2268.0...0.2269.0) (2025-12-19)
+
+
+### Features
+
+* add screenshot ready indicator for more reliable dashboard captures ([#18742](https://github.com/lightdash/lightdash/issues/18742)) ([36f1f3c](https://github.com/lightdash/lightdash/commit/36f1f3ca9c3fde0f7f2036041399a7dd529c488c))
+
 # [0.2268.0](https://github.com/lightdash/lightdash/compare/0.2267.1...0.2268.0) (2025-12-19)
 
 
