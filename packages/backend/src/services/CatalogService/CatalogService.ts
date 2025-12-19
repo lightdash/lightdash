@@ -600,6 +600,7 @@ export class CatalogService<
                                 targetCatalogItem.catalogSearchUuid,
                             created_by_user_uuid: edge.createdByUserUuid,
                             created_at: edge.createdAt,
+                            project_uuid: projectUuid,
                         },
                     ];
                 }
@@ -607,10 +608,7 @@ export class CatalogService<
                 return acc;
             }, []);
 
-        return this.catalogModel.migrateMetricsTreeEdges(
-            metricEdgesMigrateIn,
-            projectUuid,
-        );
+        return this.catalogModel.migrateMetricsTreeEdges(metricEdgesMigrateIn);
     }
 
     async getCatalog(
@@ -1291,14 +1289,12 @@ export class CatalogService<
 
         await this.validateMetricsTreeEdge(projectUuid, edgePayload);
 
-        return this.catalogModel.createMetricsTreeEdge(
-            {
-                source_metric_catalog_search_uuid: sourceCatalogSearchUuid,
-                target_metric_catalog_search_uuid: targetCatalogSearchUuid,
-                created_by_user_uuid: user.userUuid,
-            },
-            projectUuid,
-        );
+        return this.catalogModel.createMetricsTreeEdge({
+            source_metric_catalog_search_uuid: sourceCatalogSearchUuid,
+            target_metric_catalog_search_uuid: targetCatalogSearchUuid,
+            created_by_user_uuid: user.userUuid,
+            project_uuid: projectUuid,
+        });
     }
 
     async getAllCatalogMetricsWithTimeDimensions(

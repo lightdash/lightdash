@@ -1457,8 +1457,10 @@ export class CatalogModel {
         };
     }
 
-    private newAllMetricsTreeEdgesQuery(projectUuid: string) {
-        return this.database(MetricsTreeEdgesTableName)
+    async getAllMetricsTreeEdges(
+        projectUuid: string,
+    ): Promise<CatalogMetricsTreeEdge[]> {
+        const edges = await this.database(MetricsTreeEdgesTableName)
             .select<
                 (DbMetricsTreeEdge & {
                     source_metric_name: string;
@@ -1488,63 +1490,6 @@ export class CatalogModel {
                 `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
                 `target_metric.catalog_search_uuid`,
             );
-    }
-
-    private legacyAllMetricsTreeEdgesQuery(projectUuid: string) {
-        return this.database(MetricsTreeEdgesTableName)
-            .select<
-                (DbMetricsTreeEdge & {
-                    source_metric_name: string;
-                    source_metric_table_name: string;
-                    target_metric_name: string;
-                    target_metric_table_name: string;
-                })[]
-            >({
-                source_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
-                target_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
-                created_at: `${MetricsTreeEdgesTableName}.created_at`,
-                created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
-                source_metric_name: `source_metric.name`,
-                source_metric_table_name: `source_metric.table_name`,
-                target_metric_name: `target_metric.name`,
-                target_metric_table_name: `target_metric.table_name`,
-            })
-            .innerJoin(
-                { source_metric: CatalogTableName },
-                function joinSource() {
-                    void this.on(
-                        `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
-                        '=',
-                        `source_metric.catalog_search_uuid`,
-                    ).andOnVal('source_metric.project_uuid', '=', projectUuid);
-                },
-            )
-            .innerJoin(
-                { target_metric: CatalogTableName },
-                function joinTarget() {
-                    void this.on(
-                        `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
-                        '=',
-                        `target_metric.catalog_search_uuid`,
-                    ).andOnVal('target_metric.project_uuid', '=', projectUuid);
-                },
-            );
-    }
-
-    async hasProjectUuidColumn() {
-        return this.database.schema.hasColumn(
-            MetricsTreeEdgesTableName,
-            'project_uuid',
-        );
-    }
-
-    async getAllMetricsTreeEdges(
-        projectUuid: string,
-    ): Promise<CatalogMetricsTreeEdge[]> {
-        const hasProjectUuidColumn = await this.hasProjectUuidColumn();
-        const edges = await (hasProjectUuidColumn
-            ? this.newAllMetricsTreeEdgesQuery(projectUuid)
-            : this.legacyAllMetricsTreeEdgesQuery(projectUuid));
 
         return edges.map((e) => ({
             source: {
@@ -1559,23 +1504,13 @@ export class CatalogModel {
             },
             createdAt: e.created_at,
             createdByUserUuid: e.created_by_user_uuid,
-            projectUuid,
+            projectUuid: e.project_uuid,
         }));
     }
 
     // Omiting the project_uuid from the input so the model decides whether to include it or not
-    async createMetricsTreeEdge(
-        metricsTreeEdge: Omit<DbMetricsTreeEdgeIn, 'project_uuid'>,
-        projectUuid: string,
-    ) {
-        const hasProjectUuidColumn = await this.hasProjectUuidColumn();
-        const metricsTreeEdgeIn = hasProjectUuidColumn
-            ? { ...metricsTreeEdge, project_uuid: projectUuid }
-            : metricsTreeEdge;
-
-        return this.database(MetricsTreeEdgesTableName).insert(
-            metricsTreeEdgeIn,
-        );
+    async createMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdgeIn) {
+        return this.database(MetricsTreeEdgesTableName).insert(metricsTreeEdge);
     }
 
     async deleteMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdgeDelete) {
@@ -1586,20 +1521,11 @@ export class CatalogModel {
 
     // Omiting the project_uuid from the input so the model decides whether to include it or not
     async migrateMetricsTreeEdges(
-        metricTreeEdgesMigrateIn: Omit<DbMetricsTreeEdgeIn, 'project_uuid'>[],
-        projectUuid: string,
+        metricTreeEdgesMigrateIn: DbMetricsTreeEdgeIn[],
     ) {
-        const hasProjectUuidColumn = await this.hasProjectUuidColumn();
-        const metricTreeEdgesIn = hasProjectUuidColumn
-            ? metricTreeEdgesMigrateIn.map((edge) => ({
-                  ...edge,
-                  project_uuid: projectUuid,
-              }))
-            : metricTreeEdgesMigrateIn;
-
         return this.database.batchInsert(
             MetricsTreeEdgesTableName,
-            metricTreeEdgesIn,
+            metricTreeEdgesMigrateIn,
         );
     }
 
