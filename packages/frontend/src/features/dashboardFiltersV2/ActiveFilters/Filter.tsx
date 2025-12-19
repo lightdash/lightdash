@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Indicator,
@@ -18,6 +19,7 @@ import { useDisclosure, useId } from '@mantine-8/hooks';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import {
+    formatDisplayValue,
     getConditionalRuleLabel,
     getConditionalRuleLabelFromItem,
     getFilterRuleTables,
@@ -134,6 +136,31 @@ const Filter: FC<Props> = ({
         return getFilterRuleTables(filterRule, field, allFilterableFields);
     }, [filterRule, field, allFilterableFields]);
 
+    // Truncated values display - show max 2 values with "+N" badge
+    const MAX_DISPLAYED_VALUES = 2;
+    const truncatedValuesDisplay = useMemo(() => {
+        const values = filterRule.values;
+        if (!values || values.length === 0) {
+            return {
+                displayedValues: [],
+                additionalValues: [],
+                hasMore: false,
+            };
+        }
+
+        const formattedValues = values.map((v) =>
+            formatDisplayValue(v as string),
+        );
+        const displayedValues = formattedValues.slice(0, MAX_DISPLAYED_VALUES);
+        const additionalValues = formattedValues.slice(MAX_DISPLAYED_VALUES);
+
+        return {
+            displayedValues,
+            additionalValues,
+            hasMore: additionalValues.length > 0,
+        };
+    }, [filterRule.values]);
+
     const hasUnsetRequiredFilter =
         filterRule.required && !hasFilterValueSet(filterRule);
 
@@ -209,6 +236,11 @@ const Filter: FC<Props> = ({
                                         ? classes.unsetRequiredFilter
                                         : ''
                                 } ${isOrphaned ? classes.inactiveFilter : ''}`}
+                                pr={
+                                    truncatedValuesDisplay.hasMore
+                                        ? 6
+                                        : undefined
+                                }
                                 leftSection={
                                     isDraggable && (
                                         <MantineIcon
@@ -309,8 +341,70 @@ const Filter: FC<Props> = ({
                                                     span
                                                     truncate
                                                 >
-                                                    {filterRuleLabels?.value}
+                                                    {truncatedValuesDisplay
+                                                        .displayedValues
+                                                        .length > 0
+                                                        ? truncatedValuesDisplay.displayedValues.join(
+                                                              ', ',
+                                                          )
+                                                        : filterRuleLabels?.value}
                                                 </Text>
+                                                {truncatedValuesDisplay.hasMore && (
+                                                    <Tooltip
+                                                        withinPortal
+                                                        position="bottom"
+                                                        label={
+                                                            <Box>
+                                                                <Text
+                                                                    fz="xs"
+                                                                    fw={500}
+                                                                    c="dimmed"
+                                                                >
+                                                                    Additional
+                                                                    values (
+                                                                    {
+                                                                        truncatedValuesDisplay
+                                                                            .additionalValues
+                                                                            .length
+                                                                    }
+                                                                    )
+                                                                </Text>
+                                                                {truncatedValuesDisplay.additionalValues.map(
+                                                                    (
+                                                                        val,
+                                                                        idx,
+                                                                    ) => (
+                                                                        <Text
+                                                                            key={
+                                                                                idx
+                                                                            }
+                                                                            fz="xs"
+                                                                        >
+                                                                            •{' '}
+                                                                            {
+                                                                                val
+                                                                            }
+                                                                        </Text>
+                                                                    ),
+                                                                )}
+                                                            </Box>
+                                                        }
+                                                    >
+                                                        <Badge
+                                                            size="sm"
+                                                            variant="light"
+                                                            color="gray"
+                                                            ml={4}
+                                                        >
+                                                            +
+                                                            {
+                                                                truncatedValuesDisplay
+                                                                    .additionalValues
+                                                                    .length
+                                                            }
+                                                        </Badge>
+                                                    </Tooltip>
+                                                )}
                                             </>
                                         )}
                                     </Text>
