@@ -77,6 +77,7 @@ export type DashboardHeadingTileProperties = {
     properties: {
         title: undefined;
         text: string;
+        showDivider?: boolean;
     };
 };
 

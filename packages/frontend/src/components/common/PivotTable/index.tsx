@@ -105,6 +105,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
         showSubtotals?: boolean;
         columnProperties?: ColumnProperties;
         isMinimal: boolean;
+        isDashboard?: boolean;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
@@ -118,6 +119,7 @@ const PivotTable: FC<PivotTableProps> = ({
     showSubtotals = false,
     columnProperties = {},
     isMinimal = false,
+    isDashboard = false,
     ...tableProps
 }) => {
     const { colorScheme } = useMantineColorScheme();
@@ -421,6 +423,7 @@ const PivotTable: FC<PivotTableProps> = ({
             className={className}
             {...tableProps}
             containerRef={containerRef}
+            isDashboard={isDashboard}
         >
             <Table.Head withSticky>
                 {data.headerValues.map((headerValues, headerRowIndex) => (

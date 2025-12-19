@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.2265.4",
+    "version": "0.2268.0",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -28,7 +28,8 @@
             "form-data@4.0.2": "4.0.4",
             "validator": "^13.15.22",
             "node-forge": "^1.3.2",
-            "glob@>=10.2.0 <10.5.0": "^10.5.0"
+            "glob@>=10.2.0 <10.5.0": "^10.5.0",
+            "jws": "^4.0.1"
         }
     },
     "dependencies": {

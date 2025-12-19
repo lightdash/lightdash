@@ -1,4 +1,5 @@
 import {
+    GoogleSheetsTransientError,
     QueueTraceProperties,
     SCHEDULER_TASKS,
     SchedulerTaskName,
@@ -289,16 +290,23 @@ export const traceTask = <T extends SchedulerTaskName>(
                                 },
                             });
 
-                            // Capture the error with additional fingerprinting
-                            Sentry.withScope((scope) => {
-                                scope.setFingerprint([
-                                    'scheduler_worker',
-                                    taskName,
-                                    (e as Error).name || 'Error',
-                                    (e as Error).message || 'Unknown error',
-                                ]);
-                                Sentry.captureException(e);
-                            });
+                            // Only capture to Sentry if this is the final attempt or it's not a retryable error
+                            const isRetryableError =
+                                e instanceof GoogleSheetsTransientError;
+                            const hasRetriesRemaining =
+                                job.attempts < job.max_attempts;
+
+                            if (!isRetryableError || !hasRetriesRemaining) {
+                                Sentry.withScope((scope) => {
+                                    scope.setFingerprint([
+                                        'scheduler_worker',
+                                        taskName,
+                                        (e as Error).name || 'Error',
+                                        (e as Error).message || 'Unknown error',
+                                    ]);
+                                    Sentry.captureException(e);
+                                });
+                            }
 
                             throw e;
                         }

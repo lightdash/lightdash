@@ -383,6 +383,7 @@ export class SchedulerClient {
             payload,
             date,
             JobPriority.LOW,
+            3,
         );
 
         this.analytics.track({
@@ -901,6 +902,7 @@ export class SchedulerClient {
             payload,
             now,
             JobPriority.LOW,
+            3,
         );
 
         await this.schedulerModel.logSchedulerJob({

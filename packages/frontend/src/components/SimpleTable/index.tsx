@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Box, Button, Flex, Text } from '@mantine/core';
 import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
@@ -6,6 +7,7 @@ import {
     isChunkLoadError,
     triggerChunkErrorReload,
 } from '../../features/chunkErrorHandler';
+import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { LoadingChart } from '../SimpleChart';
@@ -38,6 +40,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
     minimal = false,
     ...rest
 }) => {
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
+    );
     const {
         columnOrder,
         itemsMap,
@@ -188,7 +193,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     } else if (pivotTableData.loading || pivotTableData.data) {
         return (
             <Box
-                p="xs"
+                p={isDashboard && isDashboardRedesignEnabled ? 0 : 'xs'}
                 pb={showResultsTotal ? 'xxl' : 'xl'}
                 miw="100%"
                 h="100%"
@@ -199,6 +204,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                             className={className}
                             data={pivotTableData.data}
                             isMinimal={minimal}
+                            isDashboard={isDashboard}
                             conditionalFormattings={conditionalFormattings}
                             minMaxMap={minMaxMap}
                             getFieldLabel={getFieldLabel}
@@ -226,8 +232,14 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }
 
     return (
-        <Box p="xs" pb="md" miw="100%" h="100%">
+        <Box
+            p={isDashboard && isDashboardRedesignEnabled ? 0 : 'xs'}
+            pb="md"
+            miw="100%"
+            h="100%"
+        >
             <Table
+                isDashboard={isDashboard}
                 minimal={minimal}
                 $shouldExpand={$shouldExpand}
                 className={className}

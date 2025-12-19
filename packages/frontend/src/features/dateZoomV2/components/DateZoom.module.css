@@ -1,0 +1,10 @@
+.activeDateZoomButton {
+    border-color: var(--mantine-color-blue-6);
+}
+
+.closeButton {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    z-index: 1;
+}

@@ -7,31 +7,23 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { Button, Divider, Group, Tabs, Text } from '@mantine-8/core';
-import {
-    IconAdjustmentsHorizontal,
-    IconCalendar,
-    IconFilter,
-    IconPlus,
-} from '@tabler/icons-react';
+import { Button, Group, Tabs } from '@mantine-8/core';
+import { IconPlus } from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
 import { useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
-import PinnedParameters from '../../components/PinnedParameters';
 import MantineIcon from '../../components/common/MantineIcon';
 import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
-import DashboardFiltersV2 from '../dashboardFiltersV2';
+import { DashboardFiltersBar } from '../dashboardFiltersV2/DashboardFiltersBar';
+import { DashboardFiltersBarSummary } from '../dashboardFiltersV2/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFiltersV2/FilterConfiguration/utils';
-import FilterGroupSeparator from '../dashboardHeader/FilterGroupSeparator';
-import { DateZoom } from '../dateZoom';
-import { Parameters } from '../parameters';
 import { TabAddModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
@@ -146,6 +138,17 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
     );
+    const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
+    const dateZoomGranularity = useDashboardContext(
+        (c) => c.dateZoomGranularity,
+    );
+    const dashboardTemporaryFilters = useDashboardContext(
+        (c) => c.dashboardTemporaryFilters,
+    );
+
+    // filters bar state
+    const [isFiltersCollapsed, setIsFiltersCollapsed] =
+        useState<boolean>(false);
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
@@ -216,6 +219,12 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
         activeTab?.uuid,
         filterableFieldsByTileUuid,
     ]);
+
+    // Collapsed summary values
+    const totalFiltersCount =
+        dashboardFilters.dimensions.length +
+        dashboardTemporaryFilters.dimensions.length;
+    const totalParametersCount = Object.keys(parameters).length;
 
     const sortedTiles = dashboardTiles?.sort((a, b) => {
         if (a.y === b.y) {
@@ -492,165 +501,49 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                     </Tabs.List>
                                 )}
 
-                                <div>
-                                    <Group
-                                        justify="apart"
-                                        align="flex-start"
-                                        wrap="nowrap"
-                                        px="lg"
-                                        py="sm"
-                                    >
-                                        {/* This Group will take up remaining space (and not push DateZoom) */}
-                                        <Group
-                                            justify="apart"
-                                            align="flex-start"
-                                            wrap="nowrap"
-                                            grow
-                                        >
-                                            {hasTilesThatSupportFilters && (
-                                                <Group
-                                                    align="flex-start"
-                                                    gap="xs"
-                                                    wrap="wrap"
-                                                >
-                                                    <FilterGroupSeparator
-                                                        icon={IconFilter}
-                                                        tooltipLabel={
-                                                            <div>
-                                                                <Text
-                                                                    fw={500}
-                                                                    fz="xs"
-                                                                >
-                                                                    Filters
-                                                                </Text>
+                                {/* Filters bar - collapsed or expanded view */}
+                                {isFiltersCollapsed && !isEditMode ? (
+                                    <DashboardFiltersBarSummary
+                                        filtersCount={totalFiltersCount}
+                                        parametersCount={totalParametersCount}
+                                        dateZoomLabel={
+                                            isDateZoomDisabled
+                                                ? null
+                                                : dateZoomGranularity ||
+                                                  'Default'
+                                        }
+                                        onExpand={() =>
+                                            setIsFiltersCollapsed(false)
+                                        }
+                                    />
+                                ) : (
+                                    <DashboardFiltersBar
+                                        isEditMode={isEditMode}
+                                        activeTabUuid={activeTab?.uuid}
+                                        hasTilesThatSupportFilters={
+                                            hasTilesThatSupportFilters
+                                        }
+                                        hasDashboardTiles={!!hasDashboardTiles}
+                                        parameters={parameters}
+                                        parameterValues={parameterValues}
+                                        onParameterChange={onParameterChange}
+                                        onParameterClearAll={
+                                            onParameterClearAll
+                                        }
+                                        isParameterLoading={isParameterLoading}
+                                        missingRequiredParameters={
+                                            missingRequiredParameters
+                                        }
+                                        pinnedParameters={pinnedParameters}
+                                        onParameterPin={onParameterPin}
+                                        isDateZoomDisabled={isDateZoomDisabled}
+                                        onCollapse={() =>
+                                            setIsFiltersCollapsed(true)
+                                        }
+                                    />
+                                )}
 
-                                                                <Text fz="xs">
-                                                                    Refine your
-                                                                    dashboard by
-                                                                    choosing
-                                                                    which data
-                                                                    to see.
-                                                                </Text>
-                                                            </div>
-                                                        }
-                                                    />
-                                                    <DashboardFiltersV2
-                                                        isEditMode={isEditMode}
-                                                        activeTabUuid={
-                                                            activeTab?.uuid
-                                                        }
-                                                    />
-                                                </Group>
-                                            )}
-                                        </Group>
-
-                                        {hasDashboardTiles &&
-                                            Object.keys(parameters).length >
-                                                0 && (
-                                                <Group gap="xs" wrap="nowrap">
-                                                    <Divider orientation="vertical" />
-
-                                                    <FilterGroupSeparator
-                                                        icon={
-                                                            IconAdjustmentsHorizontal
-                                                        }
-                                                        tooltipLabel={
-                                                            <div>
-                                                                <Text
-                                                                    fw={500}
-                                                                    fz="xs"
-                                                                >
-                                                                    Parameters
-                                                                </Text>
-
-                                                                <Text fz="xs">
-                                                                    Adjust
-                                                                    preset
-                                                                    inputs that
-                                                                    change how
-                                                                    the
-                                                                    dashboard's
-                                                                    numbers are
-                                                                    calculated.
-                                                                </Text>
-                                                            </div>
-                                                        }
-                                                    />
-
-                                                    <Parameters
-                                                        isEditMode={isEditMode}
-                                                        parameterValues={
-                                                            parameterValues
-                                                        }
-                                                        onParameterChange={
-                                                            onParameterChange
-                                                        }
-                                                        onClearAll={
-                                                            onParameterClearAll
-                                                        }
-                                                        parameters={parameters}
-                                                        isLoading={
-                                                            isParameterLoading
-                                                        }
-                                                        missingRequiredParameters={
-                                                            missingRequiredParameters
-                                                        }
-                                                        pinnedParameters={
-                                                            pinnedParameters
-                                                        }
-                                                        onParameterPin={
-                                                            onParameterPin
-                                                        }
-                                                    />
-                                                    <PinnedParameters
-                                                        isEditMode={isEditMode}
-                                                    />
-                                                </Group>
-                                            )}
-
-                                        {/* DateZoom section will adjust width dynamically */}
-                                        {hasDashboardTiles && (
-                                            <Group
-                                                gap="xs"
-                                                style={{ marginLeft: 'auto' }}
-                                                wrap="nowrap"
-                                            >
-                                                <Divider orientation="vertical" />
-
-                                                <FilterGroupSeparator
-                                                    icon={IconCalendar}
-                                                    tooltipLabel={
-                                                        <div>
-                                                            <Text
-                                                                fw={500}
-                                                                fz="xs"
-                                                            >
-                                                                Date Zoom
-                                                            </Text>
-
-                                                            <Text fz="xs">
-                                                                Quickly change
-                                                                the date
-                                                                granularity of
-                                                                charts.
-                                                            </Text>
-                                                        </div>
-                                                    }
-                                                />
-                                                <DateZoom
-                                                    isEditMode={isEditMode}
-                                                />
-                                            </Group>
-                                        )}
-                                    </Group>
-                                </div>
-
-                                <Group
-                                    grow
-                                    pt={tabsEnabled ? 'sm' : undefined}
-                                    pb="lg"
-                                    px="xs"
-                                >
+                                <Group grow pb="lg" px="xs">
                                     <ResponsiveGridLayout
                                         {...gridProps}
                                         className={`${

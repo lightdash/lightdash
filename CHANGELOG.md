@@ -1,3 +1,42 @@
+# [0.2268.0](https://github.com/lightdash/lightdash/compare/0.2267.1...0.2268.0) (2025-12-19)
+
+
+### Features
+
+* add truncated values display with "+N" badge in dashboard filters ([#18981](https://github.com/lightdash/lightdash/issues/18981)) ([9384d1a](https://github.com/lightdash/lightdash/commit/9384d1a321d4456ccc660a2600da09ea2ca391b2))
+
+## [0.2267.1](https://github.com/lightdash/lightdash/compare/0.2267.0...0.2267.1) (2025-12-19)
+
+
+### Bug Fixes
+
+* do not delete files when making --nested download ([#18979](https://github.com/lightdash/lightdash/issues/18979)) ([0276e99](https://github.com/lightdash/lightdash/commit/0276e9944494b865fb54b18f92a3d030a63c7b1d)), closes [#18781](https://github.com/lightdash/lightdash/issues/18781)
+
+# [0.2267.0](https://github.com/lightdash/lightdash/compare/0.2266.0...0.2267.0) (2025-12-19)
+
+
+### Bug Fixes
+
+* add retries to googleSheetsSync jobs and only track a sentry error on the last retry ([#18857](https://github.com/lightdash/lightdash/issues/18857)) ([bc59c0e](https://github.com/lightdash/lightdash/commit/bc59c0e819d341ace181397254a3ba1f69a1a5c8))
+* adjust padding in dashboard filters bar and tabs layout ([#18972](https://github.com/lightdash/lightdash/issues/18972)) ([437c22d](https://github.com/lightdash/lightdash/commit/437c22d99299384095c90a4bd8e13640688a5a60))
+* remove border-radius styling from parameter button ([#18975](https://github.com/lightdash/lightdash/issues/18975)) ([b607786](https://github.com/lightdash/lightdash/commit/b607786464c09fb8dd42f2f60a3d3df14d5f91d8))
+
+
+### Features
+
+* add ability to hide date zoom in dashboard ([#18968](https://github.com/lightdash/lightdash/issues/18968)) ([9d7c7eb](https://github.com/lightdash/lightdash/commit/9d7c7eb50b438146c6a6faddf327e865ac51d72b))
+* add collapsible dashboard filters bar with summary view ([#18971](https://github.com/lightdash/lightdash/issues/18971)) ([ccbbe68](https://github.com/lightdash/lightdash/commit/ccbbe683873214ef90ecb832d422a1bf5be6c2f5))
+* add divider option for dashboard heading tiles ([#18966](https://github.com/lightdash/lightdash/issues/18966)) ([bb5f993](https://github.com/lightdash/lightdash/commit/bb5f99377c34d51426757d417aaa429a5646653e))
+* implement DateZoomV2 component with improved UI and granularity controls ([#18967](https://github.com/lightdash/lightdash/issues/18967)) ([9b3b572](https://github.com/lightdash/lightdash/commit/9b3b572e5550a5c88dd8606b483b206f10b033e2))
+* redesign dashboard header with improved UI components ([#18970](https://github.com/lightdash/lightdash/issues/18970)) ([ccee73b](https://github.com/lightdash/lightdash/commit/ccee73b04d0e5e0aa5a4741d5d0bb168b6ec2f85))
+
+# [0.2266.0](https://github.com/lightdash/lightdash/compare/0.2265.4...0.2266.0) (2025-12-19)
+
+
+### Features
+
+* make table charts full width in dashboard redesign ([#18893](https://github.com/lightdash/lightdash/issues/18893)) ([7133218](https://github.com/lightdash/lightdash/commit/713321871e0b02ff51ddd4c1042011f4dca3acdc))
+
 ## [0.2265.4](https://github.com/lightdash/lightdash/compare/0.2265.3...0.2265.4) (2025-12-18)
 
 
