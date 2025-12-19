@@ -1,0 +1,27 @@
+/* Dashed outline button for adding date zoom */
+.addDateZoomButton {
+    border-style: dashed;
+    border-width: 1px;
+    border-color: var(--mantine-color-gray-4);
+}
+
+/* Positioned close button on date zoom */
+.closeButton {
+    position: absolute;
+    top: -6px;
+    left: -6px;
+    z-index: 1;
+}
+
+/* Active date zoom button with blue border */
+.activeDateZoomButton {
+    border-color: var(--mantine-color-blue-6);
+}
+
+/* Menu item styling for disabled state */
+.menuItemDisabled {
+    color: white;
+    &:not([data-disabled='false']) {
+        color: var(--mantine-color-gray-6);
+    }
+}

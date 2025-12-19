@@ -30,7 +30,7 @@ import { SectionName } from '../../types/Events';
 import DashboardFiltersV2 from '../dashboardFiltersV2';
 import { doesFilterApplyToTile } from '../dashboardFiltersV2/FilterConfiguration/utils';
 import FilterGroupSeparator from '../dashboardHeader/FilterGroupSeparator';
-import { DateZoom } from '../dateZoom';
+import { DateZoomV2 } from '../dateZoomV2';
 import { ParametersV2 } from '../parametersV2';
 import { TabAddModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
@@ -649,7 +649,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                                         </div>
                                                     }
                                                 />
-                                                <DateZoom
+                                                <DateZoomV2
                                                     isEditMode={isEditMode}
                                                 />
                                             </Group>
