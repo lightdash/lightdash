@@ -136,9 +136,29 @@ const Filter: FC<Props> = ({
         return getFilterRuleTables(filterRule, field, allFilterableFields);
     }, [filterRule, field, allFilterableFields]);
 
+    // Determine if this is a date/timestamp filter that shouldn't use truncated display
+    // Date filters have formatted values like "2 months" that shouldn't be truncated
+    const isDateFilter = useMemo(() => {
+        const type =
+            field?.type ??
+            filterRule.target.fallbackType ??
+            DimensionType.STRING;
+        return type === DimensionType.DATE || type === DimensionType.TIMESTAMP;
+    }, [field?.type, filterRule.target.fallbackType]);
+
     // Truncated values display - show max 2 values with "+N" badge
+    // Skip for date filters since their values include units (e.g., "2 months")
     const MAX_DISPLAYED_VALUES = 2;
     const truncatedValuesDisplay = useMemo(() => {
+        // Don't use truncated display for date filters - they have formatted values
+        if (isDateFilter) {
+            return {
+                displayedValues: [],
+                additionalValues: [],
+                hasMore: false,
+            };
+        }
+
         const values = filterRule.values;
         if (!values || values.length === 0) {
             return {
@@ -159,7 +179,7 @@ const Filter: FC<Props> = ({
             additionalValues,
             hasMore: additionalValues.length > 0,
         };
-    }, [filterRule.values]);
+    }, [filterRule.values, isDateFilter]);
 
     const hasUnsetRequiredFilter =
         filterRule.required && !hasFilterValueSet(filterRule);
