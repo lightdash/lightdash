@@ -136,11 +136,11 @@ const Parameter: FC<Props> = ({
                         classNames={{
                             label: styles.label,
                         }}
-                        className={`${styles.button} ${
+                        className={
                             hasUnsetRequiredParameter
                                 ? styles.unsetRequired
                                 : ''
-                        }`}
+                        }
                         rightSection={
                             hasValue && (
                                 <ActionIcon
