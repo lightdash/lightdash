@@ -65,6 +65,7 @@ export type Explore = {
     tags: string[];
     groupLabel?: string;
     baseTable: string; // Must match a tableName in tables
+    description?: string;
     joinedTables: CompiledExploreJoin[]; // Must match a tableName in tables
     tables: { [tableName: string]: CompiledTable }; // All tables in this explore, potentially filtered by user attributes
     unfilteredTables?: { [tableName: string]: CompiledTable }; // All tables, without user attribute filters, for error handling
