@@ -1,6 +1,11 @@
 import { subject } from '@casl/ability';
 import {
     ECHARTS_DEFAULT_COLORS,
+    FeatureFlags,
+    MAX_SAFE_INTEGER,
+    QueryHistoryStatus,
+    derivePivotConfigurationFromChart,
+    type ApiExecuteAsyncSqlQueryResults,
     type ItemsMap,
     type MetricQuery,
 } from '@lightdash/common';
@@ -23,8 +28,9 @@ import {
     IconTrashX,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
+import { lightdashApi } from '../api';
 import { TimeGranularity } from '../api/MetricFlowAPI';
-import { ChartDownloadMenu } from '../components/ChartDownload';
+import ChartDownloadMenu from '../components/common/ChartDownload/ChartDownloadMenu';
 import CollapsableCard from '../components/common/CollapsableCard/CollapsableCard';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../components/common/CollapsableCard/constants';
 import LoadingState from '../components/common/LoadingState';
@@ -46,9 +52,11 @@ import useSemanticLayerMetrics from '../features/metricFlow/hooks/useSemanticLay
 import convertFieldMapToTableColumns from '../features/metricFlow/utils/convertFieldMapToTableColumns';
 import convertMetricFlowFieldsToExplore from '../features/metricFlow/utils/convertMetricFlowFieldsToExplore';
 import convertMetricFlowQueryResultsToResultsData from '../features/metricFlow/utils/convertMetricFlowQueryResultsToResultsData';
+import { pollForResults } from '../features/queryRunner/executeQuery';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
+import { useFeatureFlag } from '../hooks/useFeatureFlagEnabled';
 import { type InfiniteQueryResults } from '../hooks/useQueryResults';
 import useApp from '../providers/App/useApp';
 
@@ -150,10 +158,15 @@ const MetricFlowPage = () => {
     const {
         columnOrder,
         chartConfig,
+        pivotFields,
         setChartType,
         setChartConfig,
         setPivotFields,
     } = useMetricFlowVisualization(metricFlowResultsData);
+
+    const { data: useSqlPivotResults } = useFeatureFlag(
+        FeatureFlags.UseSqlPivotResults,
+    );
 
     const visualizationResultsData = useMemo<
         InfiniteQueryResults & {
@@ -171,6 +184,7 @@ const MetricFlowPage = () => {
             setFetchAll: () => undefined,
             fetchAll: false,
             hasFetchedAllRows: true,
+            totalResults: metricFlowResultsData?.rows.length ?? 0,
             totalClientFetchTimeMs: undefined,
             error: metricFlowQueryResultsQuery.error ?? null,
             projectUuid: activeProjectUuid,
@@ -184,6 +198,84 @@ const MetricFlowPage = () => {
             metricFlowQueryResultsQuery.error,
             metricFlowQueryResultsQuery.isLoading,
             activeProjectUuid,
+        ],
+    );
+
+    const pivotConfiguration = useMemo(() => {
+        if (
+            !pivotFields ||
+            pivotFields.length === 0 ||
+            !metricFlowResultsData?.metricQuery ||
+            !metricFlowResultsData?.fields
+        ) {
+            return undefined;
+        }
+
+        return derivePivotConfigurationFromChart(
+            {
+                chartConfig,
+                pivotConfig: { columns: pivotFields },
+            },
+            metricFlowResultsData.metricQuery,
+            metricFlowResultsData.fields,
+        );
+    }, [
+        chartConfig,
+        metricFlowResultsData?.fields,
+        metricFlowResultsData?.metricQuery,
+        pivotFields,
+    ]);
+
+    const getDownloadQueryUuid = useCallback(
+        async (limit: number | null, exportPivotedResults: boolean) => {
+            if (!activeProjectUuid) {
+                throw new Error('Missing project');
+            }
+
+            const sql = metricFlowQueryResultsQuery.data?.query.sql;
+            if (!sql) {
+                throw new Error('Missing SQL query');
+            }
+
+            const sqlLimit =
+                limit === null ? MAX_SAFE_INTEGER : limit ?? undefined;
+
+            const response = await lightdashApi<ApiExecuteAsyncSqlQueryResults>(
+                {
+                    url: `/projects/${activeProjectUuid}/query/sql`,
+                    version: 'v2',
+                    method: 'POST',
+                    body: JSON.stringify({
+                        sql,
+                        limit: sqlLimit,
+                        pivotConfiguration:
+                            exportPivotedResults && useSqlPivotResults?.enabled
+                                ? pivotConfiguration
+                                : undefined,
+                    }),
+                },
+            );
+
+            const query = await pollForResults(
+                activeProjectUuid,
+                response.queryUuid,
+            );
+
+            if (query.status === QueryHistoryStatus.ERROR) {
+                throw new Error(query.error || 'Error executing SQL query');
+            }
+
+            if (query.status !== QueryHistoryStatus.READY) {
+                throw new Error('Unexpected query status');
+            }
+
+            return query.queryUuid;
+        },
+        [
+            activeProjectUuid,
+            metricFlowQueryResultsQuery.data?.query.sql,
+            pivotConfiguration,
+            useSqlPivotResults?.enabled,
         ],
     );
 
@@ -454,6 +546,9 @@ const MetricFlowPage = () => {
                                 {activeProjectUuid && (
                                     <ChartDownloadMenu
                                         projectUuid={activeProjectUuid}
+                                        getDownloadQueryUuid={
+                                            getDownloadQueryUuid
+                                        }
                                     />
                                 )}
                             </>

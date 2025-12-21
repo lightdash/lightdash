@@ -12,7 +12,7 @@ const useMetricFlowVisualization = (
     const [chartConfig, setChartConfig] = useState<ChartConfig>(
         getValidChartConfig(ChartType.CARTESIAN),
     );
-    const [_pivotFields, setPivotFields] = useState<string[] | undefined>();
+    const [pivotFields, setPivotFields] = useState<string[] | undefined>();
 
     const columnOrder = useMemo(() => {
         return resultsData
@@ -35,6 +35,7 @@ const useMetricFlowVisualization = (
     return {
         columnOrder,
         chartConfig,
+        pivotFields,
         setChartType: handleChartTypeChange,
         setChartConfig,
         setPivotFields,
