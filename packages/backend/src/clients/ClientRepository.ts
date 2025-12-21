@@ -3,6 +3,7 @@ import { SchedulerClient } from '../scheduler/SchedulerClient';
 import { type OperationContext } from '../services/ServiceRepository';
 import { S3CacheClient } from './Aws/S3CacheClient';
 import { S3Client } from './Aws/S3Client';
+import DbtCloudGraphqlClient from './dbtCloud/DbtCloudGraphqlClient';
 import EmailClient from './EmailClient/EmailClient';
 import { GoogleDriveClient } from './Google/GoogleDriveClient';
 import { MicrosoftTeamsClient } from './MicrosoftTeams/MicrosoftTeamsClient';
@@ -15,6 +16,7 @@ import { SlackClient } from './Slack/SlackClient';
  */
 
 export interface ClientManifest {
+    dbtCloudGraphqlClient: DbtCloudGraphqlClient;
     emailClient: EmailClient;
     googleDriveClient: GoogleDriveClient;
     s3CacheClient: S3CacheClient;
@@ -112,6 +114,16 @@ export class ClientRepository
      * Holds memoized instances of clients after their initial instantiation:
      */
     protected clientInstances: Partial<ClientManifest> = {};
+
+    public getDbtCloudGraphqlClient(): DbtCloudGraphqlClient {
+        return this.getClient(
+            'dbtCloudGraphqlClient',
+            () =>
+                new DbtCloudGraphqlClient({
+                    lightdashConfig: this.context.lightdashConfig,
+                }),
+        );
+    }
 
     public getEmailClient(): EmailClient {
         return this.getClient(

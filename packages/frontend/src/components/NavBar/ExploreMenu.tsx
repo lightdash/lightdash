@@ -3,6 +3,7 @@ import { Button, Menu } from '@mantine/core';
 import {
     IconFolder,
     IconFolderPlus,
+    IconLayersIntersect,
     IconLayoutDashboard,
     IconSquareRoundedPlus,
     IconTable,
@@ -26,7 +27,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const { user } = useApp();
+    const { user, health } = useApp();
 
     const [isOpen, setIsOpen] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
@@ -75,6 +76,15 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             to={`/projects/${projectUuid}/tables`}
                             icon={IconTable}
                         />
+                        {health.data?.hasDbtSemanticLayer && (
+                            <LargeMenuItem
+                                component={Link}
+                                title="Query using dbt Semantic Layer"
+                                description="Build queries with dbt Semantic Layer"
+                                to={`/projects/${projectUuid}/dbtsemanticlayer`}
+                                icon={IconLayersIntersect}
+                            />
+                        )}
 
                         <Can
                             I="manage"

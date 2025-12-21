@@ -49,6 +49,7 @@ export default function mockHealthResponse(
         slack: {
             multiAgentChannelEnabled: false,
         },
+        hasDbtSemanticLayer: false,
         auth: {
             disablePasswordAuthentication: false,
             google: {

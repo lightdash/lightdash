@@ -21,6 +21,7 @@ import Invite from './pages/Invite';
 import JoinOrganization from './pages/JoinOrganization';
 import LegacySqlRunner from './pages/LegacySqlRunner';
 import Login from './pages/Login';
+import MetricFlow from './pages/MetricFlow';
 import MetricsCatalog from './pages/MetricsCatalog';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
@@ -247,6 +248,20 @@ const SQL_RUNNER_ROUTES: RouteObject[] = [
     },
 ];
 
+const METRIC_FLOW_ROUTES: RouteObject[] = [
+    {
+        path: '/projects/:projectUuid/dbtsemanticlayer',
+        element: (
+            <>
+                <NavBar />
+                <TrackPage name={PageName.METRIC_FLOW}>
+                    <MetricFlow />
+                </TrackPage>
+            </>
+        ),
+    },
+];
+
 const TABLES_ROUTES: RouteObject[] = [
     {
         path: '/projects/:projectUuid/tables',
@@ -358,6 +373,7 @@ const APP_ROUTES: RouteObject[] = [
                 children: [
                     ...TABLES_ROUTES,
                     ...SQL_RUNNER_ROUTES,
+                    ...METRIC_FLOW_ROUTES,
                     ...CHART_ROUTES,
                     ...DASHBOARD_ROUTES,
                     ...SPACES_ROUTES,

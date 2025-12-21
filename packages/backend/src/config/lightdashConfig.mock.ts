@@ -139,6 +139,11 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
+    dbtCloud: {
+        domain: 'https://semantic-layer.cloud.getdbt.com',
+        bearerToken: undefined,
+        environmentId: undefined,
+    },
     rudder: {
         writeKey: '',
         dataPlaneUrl: '',

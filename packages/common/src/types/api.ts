@@ -397,6 +397,7 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
+    hasDbtSemanticLayer: boolean;
     appearance: {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;

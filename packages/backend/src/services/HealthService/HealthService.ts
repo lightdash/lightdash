@@ -170,6 +170,9 @@ export class HealthService extends BaseService {
             hasEmailClient: !!this.lightdashConfig.smtp,
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,
+            hasDbtSemanticLayer:
+                !!this.lightdashConfig.dbtCloud.environmentId &&
+                !!this.lightdashConfig.dbtCloud.bearerToken,
             hasExtendedUsageAnalytics:
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
             hasCacheAutocompleResults:

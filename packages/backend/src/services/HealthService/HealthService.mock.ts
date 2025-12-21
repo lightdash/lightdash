@@ -21,6 +21,7 @@ export const BaseResponse: HealthState = {
     hasGitlab: false,
     hasHeadlessBrowser: false,
     hasSlack: false,
+    hasDbtSemanticLayer: false,
     slack: {
         multiAgentChannelEnabled: false,
     },

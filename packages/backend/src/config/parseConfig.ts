@@ -842,6 +842,11 @@ export type LightdashConfig = {
         cacheStateTimeSeconds: number;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
+    dbtCloud: {
+        bearerToken?: string;
+        environmentId?: string;
+        domain: string;
+    };
     slack?: SlackConfig;
     scheduler: {
         enabled: boolean;
@@ -1564,6 +1569,13 @@ export const parseConfig = (): LightdashConfig => {
                 10,
             ),
             s3: parseResultsS3Config(),
+        },
+        dbtCloud: {
+            bearerToken: process.env.DBT_CLOUD_BEARER_TOKEN,
+            environmentId: process.env.DBT_CLOUD_ENVIRONMENT_ID,
+            domain:
+                process.env.DBT_CLOUD_DOMAIN ||
+                'https://semantic-layer.cloud.getdbt.com',
         },
         slack: {
             signingSecret: process.env.SLACK_SIGNING_SECRET,

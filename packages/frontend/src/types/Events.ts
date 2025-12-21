@@ -36,6 +36,7 @@ export enum PageName {
     SQL_RUNNER = 'SQL_RUNNER',
     SEMANTIC_VIEWER_VIEW = 'SEMANTIC_VIEWER_VIEW',
     SEMANTIC_VIEWER_EDIT = 'SEMANTIC_VIEWER_EDIT',
+    METRIC_FLOW = 'METRIC_FLOW',
     SOCIAL_LOGIN_SETTINGS = 'social_login_settings',
     APPEARANCE = 'appearance_settings',
     ACCESS_TOKENS = 'access_tokens',
