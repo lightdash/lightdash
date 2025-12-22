@@ -1,5 +1,6 @@
 import {
     getErrorMessage,
+    isUnrecoverableSlackError,
     LightdashError,
     ScimError,
     SlackError,
@@ -57,6 +58,11 @@ export const scimErrorHandler = (
 };
 export const slackErrorHandler = (e: unknown, context: string) => {
     Logger.error(`${context}: ${getErrorMessage(e)}`);
+
+    // Don't report unrecoverable errors to Sentry (expected for broken installations)
+    if (isUnrecoverableSlackError(e)) {
+        return;
+    }
 
     if (
         typeof e === 'object' &&
