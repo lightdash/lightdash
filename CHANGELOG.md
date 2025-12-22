@@ -1,3 +1,11 @@
+## [0.2270.3](https://github.com/lightdash/lightdash/compare/0.2270.2...0.2270.3) (2025-12-22)
+
+
+### Bug Fixes
+
+* don't report unrecoverable Slack errors to Sentry ([#19011](https://github.com/lightdash/lightdash/issues/19011)) ([bd1a17c](https://github.com/lightdash/lightdash/commit/bd1a17caf336a9e67b61380205595ddc2f543f92))
+* remove AllMSTeamsDeliveriesFailedError and AllSlackDeliveriesFailedError exceptions ([#19010](https://github.com/lightdash/lightdash/issues/19010)) ([389fe26](https://github.com/lightdash/lightdash/commit/389fe2645d4126ab435f7953d8d2dc6e03640908))
+
 ## [0.2270.2](https://github.com/lightdash/lightdash/compare/0.2270.1...0.2270.2) (2025-12-22)
 
 
