@@ -142,7 +142,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         staleTime: 0,
     });
 
-    const { initialize, setFieldValue } = form;
+    const { initialize, setFieldValue, setFieldError, clearFieldError } = form;
 
     useEffect(
         function initializeForm() {
@@ -201,7 +201,20 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         data: selectedDashboard,
         isLoading: isLoadingSelectedDashboard,
         isError: isSelectedDashboardError,
+        error: selectedDashboardError,
     } = useDashboardQuery(form.values.dashboardUuid ?? undefined);
+
+    // Handle dashboard selection errors
+    useEffect(() => {
+        if (selectedDashboardError) {
+            setFieldError(
+                'dashboardUuid',
+                `Failed to load dashboard. ${selectedDashboardError.error.message}`,
+            );
+        } else {
+            clearFieldError('dashboardUuid');
+        }
+    }, [selectedDashboardError, setFieldError, clearFieldError]);
 
     const isFormReadyToSave = useMemo(() => {
         if (currentStep === ModalStep.SelectDestination) {
