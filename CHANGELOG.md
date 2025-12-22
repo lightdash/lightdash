@@ -1,3 +1,10 @@
+## [0.2269.4](https://github.com/lightdash/lightdash/compare/0.2269.3...0.2269.4) (2025-12-22)
+
+
+### Bug Fixes
+
+* background css variable index ([#19007](https://github.com/lightdash/lightdash/issues/19007)) ([61be274](https://github.com/lightdash/lightdash/commit/61be274174730910ee64b80611d93a4d34d552ed))
+
 ## [0.2269.3](https://github.com/lightdash/lightdash/compare/0.2269.2...0.2269.3) (2025-12-22)
 
 
