@@ -1,3 +1,18 @@
+# [0.2270.0](https://github.com/lightdash/lightdash/compare/0.2269.5...0.2270.0) (2025-12-22)
+
+
+### Bug Fixes
+
+* change userUuid type from optional to nullable in query history ([#18980](https://github.com/lightdash/lightdash/issues/18980)) ([d054daa](https://github.com/lightdash/lightdash/commit/d054daad1069b08559c9cc85b682d1ccb0253a78))
+* enforce the presence of project_uuid for metrics_tree_edges ([#19000](https://github.com/lightdash/lightdash/issues/19000)) ([1788a38](https://github.com/lightdash/lightdash/commit/1788a384d8264aeb37a93716188233c40e18ec10))
+* reference lines not visible in dark mode ([#18977](https://github.com/lightdash/lightdash/issues/18977)) ([333ae5a](https://github.com/lightdash/lightdash/commit/333ae5a2c1b0a7b41d6875b898c659a82d7bdf8a)), closes [#18900](https://github.com/lightdash/lightdash/issues/18900)
+
+
+### Features
+
+* include userUuid in query cache key ([#18993](https://github.com/lightdash/lightdash/issues/18993)) ([73d06ad](https://github.com/lightdash/lightdash/commit/73d06ada39427655d778705ccfdee7c207aced32))
+* update reference line label bg to match line color ([#18978](https://github.com/lightdash/lightdash/issues/18978)) ([d55db30](https://github.com/lightdash/lightdash/commit/d55db30098ea57af32e32b2859ae7decfb023718))
+
 ## [0.2269.5](https://github.com/lightdash/lightdash/compare/0.2269.4...0.2269.5) (2025-12-22)
 
 
