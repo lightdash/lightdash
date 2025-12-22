@@ -32,7 +32,6 @@ import {
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
-    ExpiredError,
     Explore,
     ExploreCompiler,
     type Field,
@@ -78,6 +77,7 @@ import {
     type ReadyQueryResultsPage,
     type ResultColumns,
     ResultRow,
+    ResultsExpiredError,
     type RunQueryTags,
     S3Error,
     SchedulerFormat,
@@ -529,10 +529,10 @@ export class AsyncQueryService extends ProjectService {
         }
 
         if (resultsExpiresAt && resultsExpiresAt < new Date()) {
-            // TODO: throw a specific error the FE will respond to
-            throw new ExpiredError(
+            this.logger.debug(
                 `Results expired for file ${resultsFileName} and project ${projectUuid}`,
             );
+            throw new ResultsExpiredError();
         }
 
         const defaultedPageSize =
