@@ -4,6 +4,7 @@ import {
     Explore,
     ExploreError,
     LightdashProjectConfig,
+    ParameterError,
     type RunQueryTags,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
@@ -37,7 +38,9 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
         organizationUuid: string;
         projectUuid: string;
     }): Promise<(Explore | ExploreError)[]> {
-        throw new Error('Cannot compile explores with CLI-created projects');
+        throw new ParameterError(
+            'Cannot compile explores as this project was created via CLI and has no dbt connection configured. Either configure a dbt connection in project settings or use the CLI to deploy explores.',
+        );
     }
 
     // eslint-disable-next-line class-methods-use-this
