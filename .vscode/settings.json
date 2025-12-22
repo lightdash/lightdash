@@ -52,8 +52,5 @@
 
     // TypeScript
     "typescript.preferences.importModuleSpecifier": "relative",
-    "typescript.enablePromptUseWorkspaceTsdk": true,
-    "trunk.autoInit": false,
-    "trunk.enableUpgradePane": false,
-    "trunk.inlineDecorators": false
+    "typescript.enablePromptUseWorkspaceTsdk": true
 }
