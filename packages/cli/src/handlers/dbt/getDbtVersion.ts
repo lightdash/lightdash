@@ -69,7 +69,7 @@ const getFallbackDbtVersionOption = (version: string): DbtVersionOption => {
     return getLatestSupportDbtVersion();
 };
 
-type DbtVersion = {
+export type DbtVersion = {
     verboseVersion: string; // Verbose version returned by dbt --version
     versionOption: DbtVersionOption; // The supported version by Lightdash
     isDbtCloudCLI: boolean; // Whether the version is dbt Cloud CLI
@@ -153,4 +153,21 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
         isDbtCloudCLI: isDbtCloudCLI(verboseVersion),
         versionOption: supportedVersionOption ?? fallbackVersionOption,
     };
+};
+
+export const tryGetDbtVersion = async (): Promise<
+    { success: true; version: DbtVersion } | { success: false; error: unknown }
+> => {
+    try {
+        const version = await getDbtVersion();
+        GlobalState.debug(`> dbt version ${version.verboseVersion}`);
+        return { success: true, version };
+    } catch (e) {
+        GlobalState.debug(
+            `> dbt installation not found: ${getErrorMessage(
+                e,
+            )} (might be using Lightdash YAML only)`,
+        );
+        return { success: false, error: e };
+    }
 };
