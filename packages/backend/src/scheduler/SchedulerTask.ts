@@ -238,6 +238,78 @@ export default class SchedulerTask {
             : undefined;
     }
 
+    private async trySendSchedulerFailureNotificationEmail(
+        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        schedulerUuid: string | undefined,
+        projectUuid: string,
+        error: unknown,
+    ): Promise<void> {
+        try {
+            const user = await this.userService.getSessionByUserUuid(
+                scheduler.createdBy,
+            );
+            if (user.email) {
+                const schedulerUrlParam = setUuidParam(
+                    'scheduler_uuid',
+                    schedulerUuid,
+                );
+                const schedulerUrl =
+                    scheduler.savedChartUuid || scheduler.dashboardUuid
+                        ? `${
+                              this.lightdashConfig.siteUrl
+                          }/projects/${projectUuid}/${
+                              scheduler.savedChartUuid ? 'saved' : 'dashboards'
+                          }/${
+                              scheduler.savedChartUuid ||
+                              scheduler.dashboardUuid
+                          }/view?${schedulerUrlParam}`
+                        : this.lightdashConfig.siteUrl;
+
+                await this.emailClient.sendScheduledDeliveryFailureEmail(
+                    user.email,
+                    scheduler.name,
+                    schedulerUrl,
+                    getErrorMessage(error),
+                );
+            }
+        } catch (emailError) {
+            Logger.error(
+                `Failed to send scheduled delivery failure email: ${emailError}`,
+            );
+        }
+    }
+
+    private async disableSchedulerForNonRetryableError(
+        error: unknown,
+        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
+        schedulerUuid: string | undefined,
+    ): Promise<boolean> {
+        if (
+            error instanceof FieldReferenceError ||
+            error instanceof WarehouseConnectionError ||
+            error instanceof ParameterError ||
+            error instanceof AllMSTeamsDeliveriesFailedError ||
+            error instanceof AllSlackDeliveriesFailedError
+        ) {
+            // This captures both the error from thresholdAlert and metricQuery
+            // WarehouseConnectionError indicates misconfigured credentials (wrong password, unreachable host, etc.)
+            // ParameterError indicates invalid configuration (e.g., selected tabs no longer exist)
+            Logger.warn(
+                `Disabling scheduler with non-retryable error: ${error}`,
+            );
+            const user = await this.userService.getSessionByUserUuid(
+                scheduler.createdBy,
+            );
+            await this.schedulerService.setSchedulerEnabled(
+                user,
+                schedulerUuid!,
+                false,
+            );
+            return true; // Indicates scheduler was disabled
+        }
+        return false; // Indicates scheduler was not disabled
+    }
+
     protected async getChartOrDashboard(
         chartUuid: string | null,
         dashboardUuid: string | null,
@@ -3041,42 +3113,13 @@ export default class SchedulerTask {
             });
 
             // Send failure notification email to scheduler creator
-            try {
-                const user = await this.userService.getSessionByUserUuid(
-                    scheduler.createdBy,
-                );
-                if (user.email) {
-                    const schedulerUrlParam = setUuidParam(
-                        'scheduler_uuid',
-                        schedulerUuid,
-                    );
-                    const schedulerUrl =
-                        scheduler.savedChartUuid || scheduler.dashboardUuid
-                            ? `${this.lightdashConfig.siteUrl}/projects/${
-                                  schedulerPayload.projectUuid
-                              }/${
-                                  scheduler.savedChartUuid
-                                      ? 'saved'
-                                      : 'dashboards'
-                              }/${
-                                  scheduler.savedChartUuid ||
-                                  scheduler.dashboardUuid
-                              }/view?${schedulerUrlParam}`
-                            : this.lightdashConfig.siteUrl;
+            await this.trySendSchedulerFailureNotificationEmail(
+                scheduler,
+                schedulerUuid,
+                schedulerPayload.projectUuid,
+                e,
+            );
 
-                    await this.emailClient.sendScheduledDeliveryFailureEmail(
-                        user.email,
-                        scheduler.name,
-                        schedulerUrl,
-                        getErrorMessage(e),
-                    );
-                }
-            } catch (emailError) {
-                Logger.error(
-                    `Failed to send scheduled delivery failure email: ${emailError}`,
-                );
-                // Don't throw - we still want to handle the original error
-            }
             if (e instanceof NotEnoughResults) {
                 Logger.warn(
                     `Scheduler ${schedulerUuid} did not return enough results for threshold alert`,
@@ -3085,27 +3128,13 @@ export default class SchedulerTask {
                 return; // Do not cascade error
             }
 
-            if (
-                e instanceof FieldReferenceError ||
-                e instanceof WarehouseConnectionError ||
-                e instanceof ParameterError ||
-                e instanceof AllMSTeamsDeliveriesFailedError ||
-                e instanceof AllSlackDeliveriesFailedError
-            ) {
-                // This captures both the error from thresholdAlert and metricQuery
-                // WarehouseConnectionError indicates misconfigured credentials (wrong password, unreachable host, etc.)
-                // ParameterError indicates invalid configuration (e.g., selected tabs no longer exist)
-                Logger.warn(
-                    `Disabling scheduler with non-retryable error: ${e}`,
-                );
-                const user = await this.userService.getSessionByUserUuid(
-                    scheduler.createdBy,
-                );
-                await this.schedulerService.setSchedulerEnabled(
-                    user,
-                    schedulerUuid!,
-                    false,
-                );
+            // Check if we should disable the scheduler for non-retryable errors
+            const wasDisabled = await this.disableSchedulerForNonRetryableError(
+                e,
+                scheduler,
+                schedulerUuid,
+            );
+            if (wasDisabled) {
                 return; // Do not cascade error
             }
             throw e; // Cascade error to it can be retried by graphile
