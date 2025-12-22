@@ -1,3 +1,10 @@
+## [0.2270.12](https://github.com/lightdash/lightdash/compare/0.2270.11...0.2270.12) (2025-12-22)
+
+
+### Bug Fixes
+
+* improve error handling for expired S3 cache results ([#18995](https://github.com/lightdash/lightdash/issues/18995)) ([7434d44](https://github.com/lightdash/lightdash/commit/7434d44a0acb9f811af5690fd5423183e61ada90))
+
 ## [0.2270.11](https://github.com/lightdash/lightdash/compare/0.2270.10...0.2270.11) (2025-12-22)
 
 

@@ -151,6 +151,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                 }
                             })
                             .catch((error: Error) => {
+                                notifications.hide(TOAST_KEY);
                                 showToastError({
                                     title: `Unable to download results`,
                                     subtitle: error.message,
