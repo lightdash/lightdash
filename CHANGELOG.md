@@ -1,3 +1,10 @@
+## [0.2269.5](https://github.com/lightdash/lightdash/compare/0.2269.4...0.2269.5) (2025-12-22)
+
+
+### Bug Fixes
+
+* add new project_uuid column for metrics_tree_edges ([#18999](https://github.com/lightdash/lightdash/issues/18999)) ([8916b94](https://github.com/lightdash/lightdash/commit/8916b94586b7b5f4c236bd8d1b14bef464d5d4ad))
+
 ## [0.2269.4](https://github.com/lightdash/lightdash/compare/0.2269.3...0.2269.4) (2025-12-22)
 
 
