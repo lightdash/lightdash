@@ -1,3 +1,10 @@
+## [0.2270.2](https://github.com/lightdash/lightdash/compare/0.2270.1...0.2270.2) (2025-12-22)
+
+
+### Bug Fixes
+
+* simplify token refresh logic in ProjectService ([#18973](https://github.com/lightdash/lightdash/issues/18973)) ([4fd685e](https://github.com/lightdash/lightdash/commit/4fd685e950cbca2b24f2833906a68fc3868def9c))
+
 ## [0.2270.1](https://github.com/lightdash/lightdash/compare/0.2270.0...0.2270.1) (2025-12-22)
 
 
