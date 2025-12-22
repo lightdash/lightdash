@@ -31,7 +31,7 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
         >
             <Group gap="xs" align="center">
                 {(hasFilters || hasParameters || hasDateZoom) && (
-                    <FilterGroupSeparator icon={IconFilter} size="sm" />
+                    <FilterGroupSeparator icon={IconFilter} />
                 )}
 
                 <Text fz="12" c="dimmed">
