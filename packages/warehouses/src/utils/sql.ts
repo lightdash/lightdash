@@ -14,6 +14,10 @@ export function getDefaultMetricSql(sql: string, type: MetricType): string {
             return `MIN(${sql})`;
         case MetricType.SUM:
             return `SUM(${sql})`;
+        case MetricType.VARIANCE:
+            return `VARIANCE(${sql})`;
+        case MetricType.STANDARD_DEVIATION:
+            return `STDDEV(${sql})`;
         case MetricType.NUMBER:
         case MetricType.STRING:
         case MetricType.DATE:

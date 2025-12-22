@@ -149,6 +149,10 @@ export class ClickhouseSqlBuilder extends WarehouseBaseSqlBuilder {
                 return `quantile(${(metric.percentile ?? 50) / 100})(${sql})`;
             case MetricType.MEDIAN:
                 return `median(${sql})`;
+            case MetricType.VARIANCE:
+                return `varSamp(${sql})`;
+            case MetricType.STANDARD_DEVIATION:
+                return `stddevSamp(${sql})`;
             default:
                 return super.getMetricSql(sql, metric);
         }
@@ -282,7 +286,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
 
     async getCatalog(requests: TableInfo[]): Promise<WarehouseCatalog> {
         let results: Record<string, unknown>[][];
-        const query = `SELECT 
+        const query = `SELECT
                             '' as "table_catalog",
                             database as "table_schema",
                             table as "table_name",
@@ -323,7 +327,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
     ): Promise<WarehouseCatalog> {
         const databaseName = schema || this.credentials.schema; // In clickhouse schema = database
         const query = `
-            SELECT 
+            SELECT
                 '' as "table_catalog",
                 database as "table_schema",
                 name as "table_name"
@@ -351,7 +355,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
     ): Promise<WarehouseCatalog> {
         const dbName = schema || this.credentials.schema; // In clickhouse schema = database
         const query = `
-            SELECT 
+            SELECT
                 '' as "table_catalog",
                 database as "table_schema",
                 table as "table_name",
@@ -378,7 +382,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
     async getAllTables() {
         const databaseName = this.credentials.schema; // In clickhouse schema = database
         const query = `
-            SELECT 
+            SELECT
                 '' as "table_catalog",
                 database as "table_schema",
                 name as "table_name"

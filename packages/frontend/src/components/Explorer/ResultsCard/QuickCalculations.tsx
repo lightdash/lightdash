@@ -69,6 +69,8 @@ const isCalculationAvailable = (
         MetricType.COUNT,
         MetricType.COUNT_DISTINCT,
         MetricType.SUM,
+        MetricType.VARIANCE,
+        MetricType.STANDARD_DEVIATION,
         // MIN and MAX can be of non-numeric types, like dates
     ];
     switch (templateType) {
