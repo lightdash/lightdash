@@ -45,15 +45,9 @@ import {
     type ChartMetadata,
 } from './types';
 
-enum SaveDestination {
-    Dashboard = 'dashboard',
-    Space = 'space',
-}
+enum SaveDestination
 
-enum ModalStep {
-    InitialInfo,
-    SelectDestination,
-}
+enum ModalStep
 
 const saveToSpaceOrDashboardSchema = z
     .object({
@@ -504,7 +498,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                             loading={
                                 isSavingChart ||
                                 spaceManagement.createSpaceMutation.isLoading ||
-                                isLoadingSelectedDashboard
+                                (!!form.values.dashboardUuid &&
+                                    isLoadingSelectedDashboard)
                             }
                             disabled={!isFormReadyToSave}
                         >
