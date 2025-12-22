@@ -1,3 +1,10 @@
+## [0.2270.9](https://github.com/lightdash/lightdash/compare/0.2270.8...0.2270.9) (2025-12-22)
+
+
+### Bug Fixes
+
+* centralize monaco editor configuration in vite ([#19022](https://github.com/lightdash/lightdash/issues/19022)) ([e314b7f](https://github.com/lightdash/lightdash/commit/e314b7f1e40cb661500cac2a2a39236780b03e62))
+
 ## [0.2270.8](https://github.com/lightdash/lightdash/compare/0.2270.7...0.2270.8) (2025-12-22)
 
 
