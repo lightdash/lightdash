@@ -185,6 +185,12 @@ export type MapChart = {
     minBubbleSize?: number;
     maxBubbleSize?: number;
     sizeFieldId?: string;
+    // Heatmap settings
+    heatmapConfig?: {
+        radius?: number;
+        blur?: number;
+        opacity?: number;
+    };
     // Tile background
     tileBackground?: MapTileBackground;
     backgroundColor?: string;
