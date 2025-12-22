@@ -30,6 +30,7 @@ import {
     DbValidationTable,
     ValidationTableName,
 } from '../../database/entities/validation';
+import Logger from '../../logging/logger';
 
 type ValidationModelArguments = {
     database: Knex;
@@ -79,8 +80,8 @@ export class ValidationModel {
                     error.code === FOREIGN_KEY_VIOLATION_ERROR_CODE &&
                     error.constraint === 'validations_project_uuid_foreign'
                 ) {
-                    console.warn(
-                        `Failed to insert validations: Project UUID does not exist. This may happen if the project was deleted during validation.`,
+                    Logger.warn(
+                        'Failed to insert validations: Project UUID does not exist. This may happen if the project was deleted during validation.',
                     );
                     return;
                 }
