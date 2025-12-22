@@ -1,17 +1,27 @@
+import { getReadableColor } from '../../../utils/colors';
 import { GRAY_7, GRAY_8, GRAY_9, WHITE } from './themeColors';
 
 /**
  * Get reference line styling
+ * @param lineColor Optional custom color for the line
+ * @param backgroundColor Background color to ensure contrast against (required for color adjustment)
  */
-export const getReferenceLineStyle = (lineColor?: string) => {
+export const getReferenceLineStyle = (
+    lineColor?: string,
+    backgroundColor?: string,
+) => {
     const defaultLineColor = lineColor || GRAY_9;
+    // Adjust color for visibility if background color is provided
+    const adjustedLineColor = backgroundColor
+        ? getReadableColor(defaultLineColor, backgroundColor)
+        : defaultLineColor;
 
     return {
         emphasis: {
             disabled: true,
         },
         lineStyle: {
-            color: defaultLineColor,
+            color: adjustedLineColor,
             type: [2, 3] as const, // Dotted: 2px dash, 3px gap
             width: 2,
         },
