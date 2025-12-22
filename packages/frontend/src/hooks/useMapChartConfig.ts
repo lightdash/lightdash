@@ -8,8 +8,17 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-// Default colors for the region color gradient (2 colors by default)
+// Default colors for scatter/area maps (2 colors by default)
 export const DEFAULT_MAP_COLORS = ['#228be6', '#fa5252']; // blue to red
+
+// Default colors for heatmap (classic heatmap gradient)
+const DEFAULT_HEATMAP_COLORS = [
+    '#3b4cc0', // blue
+    '#7092e5', // light blue
+    '#aac7fd', // very light blue
+    '#f7b89c', // light orange
+    '#e7553c', // red-orange
+]; // blue to red through white
 
 type MapChartConfig = {
     chartType: ChartType.MAP;
@@ -34,6 +43,11 @@ type MapChartConfig = {
     setMinBubbleSize: (size: number | undefined) => void;
     setMaxBubbleSize: (size: number | undefined) => void;
     setSizeFieldId: (fieldId: string | undefined) => void;
+    setHeatmapConfig: (
+        config:
+            | { radius?: number; blur?: number; opacity?: number }
+            | undefined,
+    ) => void;
     setTileBackground: (background: MapTileBackground | undefined) => void;
     setBackgroundColor: (color: string | undefined) => void;
 };
@@ -91,6 +105,9 @@ const useMapChartConfig = (
     const [sizeFieldId, setSizeFieldIdState] = useState<string | undefined>(
         initialConfig?.sizeFieldId,
     );
+    const [heatmapConfig, setHeatmapConfigState] = useState<
+        { radius?: number; blur?: number; opacity?: number } | undefined
+    >(initialConfig?.heatmapConfig);
     const [tileBackground, setTileBackgroundState] = useState<
         MapTileBackground | undefined
     >(initialConfig?.tileBackground ?? MapTileBackground.LIGHT);
@@ -170,6 +187,7 @@ const useMapChartConfig = (
             minBubbleSize,
             maxBubbleSize,
             sizeFieldId,
+            heatmapConfig,
             tileBackground,
             backgroundColor,
         };
@@ -190,6 +208,7 @@ const useMapChartConfig = (
         minBubbleSize,
         maxBubbleSize,
         sizeFieldId,
+        heatmapConfig,
         tileBackground,
         backgroundColor,
     ]);
@@ -215,9 +234,22 @@ const useMapChartConfig = (
 
     const setLocationType = useCallback(
         (newLocationType: MapChartType | undefined) => {
+            const oldLocationType = locationType;
             setLocationTypeState(newLocationType);
+
+            // Update color range when switching to/from heatmap
+            const wasHeatmap = oldLocationType === MapChartType.HEATMAP;
+            const isNowHeatmap = newLocationType === MapChartType.HEATMAP;
+
+            if (!wasHeatmap && isNowHeatmap) {
+                // Switching TO heatmap - use heatmap default colors
+                setColorRangeState(DEFAULT_HEATMAP_COLORS);
+            } else if (wasHeatmap && !isNowHeatmap) {
+                // Switching FROM heatmap - use regular default colors
+                setColorRangeState(DEFAULT_MAP_COLORS);
+            }
         },
-        [],
+        [locationType],
     );
 
     const setLatitudeFieldId = useCallback((fieldId: string | undefined) => {
@@ -297,6 +329,26 @@ const useMapChartConfig = (
         setSizeFieldIdState(fieldId);
     }, []);
 
+    const setHeatmapConfig = useCallback(
+        (
+            config:
+                | { radius?: number; blur?: number; opacity?: number }
+                | undefined,
+        ) => {
+            if (config === undefined) {
+                setHeatmapConfigState(undefined);
+            } else {
+                setHeatmapConfigState((prev) => ({
+                    radius: prev?.radius ?? 25,
+                    blur: prev?.blur ?? 15,
+                    opacity: prev?.opacity ?? 0.6,
+                    ...config,
+                }));
+            }
+        },
+        [],
+    );
+
     const setTileBackground = useCallback(
         (background: MapTileBackground | undefined) => {
             setTileBackgroundState(background);
@@ -331,6 +383,7 @@ const useMapChartConfig = (
         setMinBubbleSize,
         setMaxBubbleSize,
         setSizeFieldId,
+        setHeatmapConfig,
         setTileBackground,
         setBackgroundColor,
     };

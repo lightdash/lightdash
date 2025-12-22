@@ -47,6 +47,11 @@ export type LeafletMapConfig = {
     minBubbleSize: number;
     maxBubbleSize: number;
     sizeRange: { min: number; max: number } | null;
+    heatmapConfig: {
+        radius: number;
+        blur: number;
+        opacity: number;
+    };
     tile: TileConfig;
     backgroundColor: string | null;
     showLegend: boolean;
@@ -174,6 +179,7 @@ const useLeafletMapConfig = ({
             minBubbleSize,
             maxBubbleSize,
             sizeFieldId,
+            heatmapConfig,
             tileBackground,
             backgroundColor,
             showLegend,
@@ -323,6 +329,11 @@ const useLeafletMapConfig = ({
             minBubbleSize: minBubbleSize ?? 2,
             maxBubbleSize: maxBubbleSize ?? 8,
             sizeRange,
+            heatmapConfig: {
+                radius: heatmapConfig?.radius ?? 25,
+                blur: heatmapConfig?.blur ?? 15,
+                opacity: heatmapConfig?.opacity ?? 0.6,
+            },
             tile: getTileConfig(tileBackground),
             backgroundColor: backgroundColor ?? null,
             showLegend: showLegend ?? false,
