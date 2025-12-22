@@ -14,6 +14,7 @@ import {
     ValidationSourceType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { DatabaseError } from 'pg';
 import {
     DashboardsTableName,
     DashboardTable,
@@ -46,30 +47,45 @@ export class ValidationModel {
         jobId?: string,
     ): Promise<void> {
         if (validations.length > 0) {
-            await this.database.batchInsert(
-                ValidationTableName,
-                validations.map((validation) => ({
-                    project_uuid: validation.projectUuid,
-                    error: validation.error,
-                    job_id: jobId ?? null,
-                    error_type: validation.errorType,
-                    source: validation.source ?? null,
-                    ...(isTableValidationError(validation) && {
-                        model_name: validation.modelName,
-                    }),
-                    ...(isChartValidationError(validation) && {
-                        saved_chart_uuid: validation.chartUuid,
-                        field_name: validation.fieldName,
-                        chart_name: validation.chartName ?? null,
-                    }),
-                    ...(isDashboardValidationError(validation) && {
-                        dashboard_uuid: validation.dashboardUuid,
-                        field_name: validation.fieldName ?? null,
-                        chart_name: validation.chartName ?? null,
-                        model_name: validation.name,
-                    }),
-                })),
-            );
+            try {
+                await this.database.batchInsert(
+                    ValidationTableName,
+                    validations.map((validation) => ({
+                        project_uuid: validation.projectUuid,
+                        error: validation.error,
+                        job_id: jobId ?? null,
+                        error_type: validation.errorType,
+                        source: validation.source ?? null,
+                        ...(isTableValidationError(validation) && {
+                            model_name: validation.modelName,
+                        }),
+                        ...(isChartValidationError(validation) && {
+                            saved_chart_uuid: validation.chartUuid,
+                            field_name: validation.fieldName,
+                            chart_name: validation.chartName ?? null,
+                        }),
+                        ...(isDashboardValidationError(validation) && {
+                            dashboard_uuid: validation.dashboardUuid,
+                            field_name: validation.fieldName ?? null,
+                            chart_name: validation.chartName ?? null,
+                            model_name: validation.name,
+                        }),
+                    })),
+                );
+            } catch (error: unknown) {
+                const FOREIGN_KEY_VIOLATION_ERROR_CODE = '23503';
+                if (
+                    error instanceof DatabaseError &&
+                    error.code === FOREIGN_KEY_VIOLATION_ERROR_CODE &&
+                    error.constraint === 'validations_project_uuid_foreign'
+                ) {
+                    console.warn(
+                        `Failed to insert validations: Project UUID does not exist. This may happen if the project was deleted during validation.`,
+                    );
+                    return;
+                }
+                throw error;
+            }
         }
     }
 
