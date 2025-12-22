@@ -1,5 +1,5 @@
-import { getReadableColor } from '../../../utils/colors';
-import { GRAY_7, GRAY_8, GRAY_9, WHITE } from './themeColors';
+import { getReadableColor, getReadableTextColor } from '../../../utils/colors';
+import { GRAY_9 } from './themeColors';
 
 /**
  * Get reference line styling
@@ -37,10 +37,10 @@ export const getReferenceLineStyle = (
                     ? `${text.substring(0, maxChars)}...`
                     : text;
             },
-            backgroundColor: GRAY_7,
-            color: WHITE,
+            backgroundColor: adjustedLineColor,
+            color: getReadableTextColor(adjustedLineColor),
             borderWidth: 1,
-            borderColor: GRAY_8,
+            borderColor: adjustedLineColor,
             padding: [2, 4],
             borderRadius: 4,
             fontSize: 11,
