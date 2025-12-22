@@ -1,6 +1,11 @@
 import { forwardRef, type ComponentPropsWithRef, type ReactNode } from 'react';
 import styled, { css } from 'styled-components';
-import { ROW_HEIGHT_PX } from './constants';
+import {
+    FROZEN_COLUMN_BACKGROUND,
+    FROZEN_COLUMN_BORDER_COLOR,
+    FROZEN_COLUMN_BORDER_WIDTH,
+    ROW_HEIGHT_PX,
+} from './constants';
 import trStyles from './Tr.module.css';
 
 export const TableScrollableWrapper = styled.div<{
@@ -140,15 +145,16 @@ export const Table = styled.table<{
         word-break: break-word;
         :hover {
             white-space: normal;
-            background-color: white;
+            background-color: ${FROZEN_COLUMN_BACKGROUND};
         }
     }
     th.sticky-column {
-        background: white !important;
+        background: ${FROZEN_COLUMN_BACKGROUND} !important;
     }
 
     .last-sticky-column {
-        border-right: 1.4px solid rgb(189, 189, 189);
+        border-right: ${FROZEN_COLUMN_BORDER_WIDTH} solid
+            ${FROZEN_COLUMN_BORDER_COLOR};
     }
 `;
 
