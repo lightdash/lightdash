@@ -680,35 +680,19 @@ export class ProjectService extends BaseService {
             args.authenticationType === 'sso'
         ) {
             try {
-                let { refreshToken } = args;
+                const { refreshToken } = args;
 
-                // If no refresh token provided, try to get it from user's OpenID table
-                if (refreshToken === undefined) {
-                    refreshToken = await this.userModel.getRefreshToken(
-                        userUuid,
-                        OpenIdIdentityIssuerType.SNOWFLAKE,
-                    );
-                }
-                // If we still don't have a token, we can't refresh
+                // If we don't have a token, we can't refresh
                 if (!refreshToken) {
                     throw new Error(
                         'No refresh token available for Snowflake SSO authentication',
                     );
                 }
-                // Token format validation
-                if (refreshToken.startsWith('ver:1-hint')) {
-                    // This is an invalid refresh token format,
-                    // we are using `access token` as refresh token (refresh token starts with ver:2-hint)
-                    // This might affect older projects that were not storing correctly refresh token
-                    // They should be recompiled to store the refresh token correctly
-                    throw new UnexpectedServerError(
-                        'Invalid snowflake refresh token format, please recompile your project',
-                    );
-                }
                 this.logger.debug(
                     `Refreshing snowflake token for user ${userUuid}`,
                 );
-
+                // If we try to generate access token from token instead of refreshToken
+                // it will throw an error: The request was invalid.
                 const accessToken =
                     await UserService.generateSnowflakeAccessToken(
                         refreshToken,
@@ -769,17 +753,9 @@ export class ProjectService extends BaseService {
                     };
                 }
 
-                let { refreshToken } = args;
+                const { refreshToken } = args;
 
-                // If no refresh token provided, try to get it from user's OpenID table
-                if (refreshToken === undefined) {
-                    refreshToken = await this.userModel.getRefreshToken(
-                        userUuid,
-                        OpenIdIdentityIssuerType.DATABRICKS,
-                    );
-                }
-
-                // If we still don't have a refresh token, we can't refresh
+                // If we don't have a refresh token, we can't refresh
                 if (!refreshToken) {
                     throw new Error(
                         'No refresh token or OAuth credentials available for Databricks OAuth authentication',
@@ -2993,6 +2969,7 @@ export class ProjectService extends BaseService {
 
     async getResultsFromCacheOrWarehouse({
         projectUuid,
+        userUuid,
         context,
         warehouseClient,
         query,
@@ -3001,6 +2978,7 @@ export class ProjectService extends BaseService {
         invalidateCache,
     }: {
         projectUuid: string;
+        userUuid: string | null;
         context: QueryExecutionContext;
         warehouseClient: WarehouseClient;
         query: AnyType;
@@ -3017,8 +2995,8 @@ export class ProjectService extends BaseService {
             async (span) => {
                 // TODO: put this hash function in a util somewhere
                 const queryHashKey = metricQuery.timezone
-                    ? `${projectUuid}.${query}.${metricQuery.timezone}`
-                    : `${projectUuid}.${query}`;
+                    ? `${projectUuid}.${userUuid}.${query}.${metricQuery.timezone}`
+                    : `${projectUuid}.${userUuid}.${query}`;
                 const queryHash = crypto
                     .createHash('sha256')
                     .update(queryHashKey)
@@ -3207,14 +3185,16 @@ export class ProjectService extends BaseService {
                             exploreName,
                         ));
 
+                    const warehouseCredentials =
+                        await this.getWarehouseCredentials({
+                            projectUuid,
+                            userId: account.user.id,
+                            isRegisteredUser: account.isRegisteredUser(),
+                        });
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(
                             projectUuid,
-                            await this.getWarehouseCredentials({
-                                projectUuid,
-                                userId: account.user.id,
-                                isRegisteredUser: account.isRegisteredUser(),
-                            }),
+                            warehouseCredentials,
                             {
                                 snowflakeVirtualWarehouse: explore.warehouse,
                                 databricksCompute: explore.databricksCompute,
@@ -3309,10 +3289,14 @@ export class ProjectService extends BaseService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
-
+                    const userUuid =
+                        warehouseCredentials.userWarehouseCredentialsUuid
+                            ? account.user.id
+                            : null;
                     const { rows, cacheMetadata } =
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
+                            userUuid,
                             context,
                             warehouseClient,
                             metricQuery: metricQueryWithLimit,
@@ -5731,13 +5715,14 @@ export class ProjectService extends BaseService {
         organizationUuid: string,
         parameters?: ParametersValuesMap,
     ) {
+        const warehouseCredentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+        });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-            }),
+            warehouseCredentials,
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
                 databricksCompute: explore.databricksCompute,
@@ -5771,9 +5756,13 @@ export class ProjectService extends BaseService {
                 query_context: QueryExecutionContext.CALCULATE_TOTAL,
             };
 
+            const userUuid = warehouseCredentials.userWarehouseCredentialsUuid
+                ? account.user.id
+                : null;
             const { rows, cacheMetadata } =
                 await this.getResultsFromCacheOrWarehouse({
                     projectUuid,
+                    userUuid,
                     context: QueryExecutionContext.CALCULATE_TOTAL,
                     warehouseClient,
                     metricQuery: totalQuery,

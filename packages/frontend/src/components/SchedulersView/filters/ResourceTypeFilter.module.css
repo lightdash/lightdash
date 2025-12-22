@@ -1,6 +1,6 @@
 .segmentedControl {
     border: 1px solid var(--mantine-color-ldGray-3);
-    background: var(--mantine-color-background);
+    background: var(--mantine-color-background-0);
     box-shadow: var(--mantine-shadow-subtle);
 }
 

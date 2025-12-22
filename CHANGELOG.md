@@ -1,3 +1,117 @@
+## [0.2270.11](https://github.com/lightdash/lightdash/compare/0.2270.10...0.2270.11) (2025-12-22)
+
+
+### Bug Fixes
+
+* handle foreign key violations when inserting validations ([#19025](https://github.com/lightdash/lightdash/issues/19025)) ([cd1baa2](https://github.com/lightdash/lightdash/commit/cd1baa2c48df303fef37060e5f5e990441bcb6a5))
+
+## [0.2270.10](https://github.com/lightdash/lightdash/compare/0.2270.9...0.2270.10) (2025-12-22)
+
+
+### Bug Fixes
+
+* truncate and sanitize Slack message text to prevent block errors ([#19018](https://github.com/lightdash/lightdash/issues/19018)) ([c7eb258](https://github.com/lightdash/lightdash/commit/c7eb258f562d727a33d8b3dadd8a5fb788f918f2))
+
+## [0.2270.9](https://github.com/lightdash/lightdash/compare/0.2270.8...0.2270.9) (2025-12-22)
+
+
+### Bug Fixes
+
+* centralize monaco editor configuration in vite ([#19022](https://github.com/lightdash/lightdash/issues/19022)) ([e314b7f](https://github.com/lightdash/lightdash/commit/e314b7f1e40cb661500cac2a2a39236780b03e62))
+
+## [0.2270.8](https://github.com/lightdash/lightdash/compare/0.2270.7...0.2270.8) (2025-12-22)
+
+
+### Bug Fixes
+
+* improve error message for CLI-created projects without dbt connection ([#19021](https://github.com/lightdash/lightdash/issues/19021)) ([44fca41](https://github.com/lightdash/lightdash/commit/44fca411cb8fc035edbb78f77672d632bac541ac))
+
+## [0.2270.7](https://github.com/lightdash/lightdash/compare/0.2270.6...0.2270.7) (2025-12-22)
+
+
+### Bug Fixes
+
+* ignore UserInfoError from Google OAuth2 in Sentry ([#19019](https://github.com/lightdash/lightdash/issues/19019)) ([f759098](https://github.com/lightdash/lightdash/commit/f7590982ecce19a16dc98d9bda6c34ffcf282bd4))
+
+## [0.2270.6](https://github.com/lightdash/lightdash/compare/0.2270.5...0.2270.6) (2025-12-22)
+
+
+### Bug Fixes
+
+* log instead of throwing error for missing Slack scopes during channel sync ([#19017](https://github.com/lightdash/lightdash/issues/19017)) ([d0a446e](https://github.com/lightdash/lightdash/commit/d0a446e1bb5294800d796a30b2385ec010d445cb))
+
+## [0.2270.5](https://github.com/lightdash/lightdash/compare/0.2270.4...0.2270.5) (2025-12-22)
+
+
+### Bug Fixes
+
+* {projectUuid}/spaces explicit user session validation ([#18961](https://github.com/lightdash/lightdash/issues/18961)) ([81fb6be](https://github.com/lightdash/lightdash/commit/81fb6be86a307dcbe73252ed6310b6271d39f31a))
+
+## [0.2270.4](https://github.com/lightdash/lightdash/compare/0.2270.3...0.2270.4) (2025-12-22)
+
+
+### Bug Fixes
+
+* context menu on stacked bar charts ([#18997](https://github.com/lightdash/lightdash/issues/18997)) ([704a24a](https://github.com/lightdash/lightdash/commit/704a24ae1d4346be78f0f090e5122eb5cd9cf41b))
+
+## [0.2270.3](https://github.com/lightdash/lightdash/compare/0.2270.2...0.2270.3) (2025-12-22)
+
+
+### Bug Fixes
+
+* don't report unrecoverable Slack errors to Sentry ([#19011](https://github.com/lightdash/lightdash/issues/19011)) ([bd1a17c](https://github.com/lightdash/lightdash/commit/bd1a17caf336a9e67b61380205595ddc2f543f92))
+* remove AllMSTeamsDeliveriesFailedError and AllSlackDeliveriesFailedError exceptions ([#19010](https://github.com/lightdash/lightdash/issues/19010)) ([389fe26](https://github.com/lightdash/lightdash/commit/389fe2645d4126ab435f7953d8d2dc6e03640908))
+
+## [0.2270.2](https://github.com/lightdash/lightdash/compare/0.2270.1...0.2270.2) (2025-12-22)
+
+
+### Bug Fixes
+
+* simplify token refresh logic in ProjectService ([#18973](https://github.com/lightdash/lightdash/issues/18973)) ([4fd685e](https://github.com/lightdash/lightdash/commit/4fd685e950cbca2b24f2833906a68fc3868def9c))
+
+## [0.2270.1](https://github.com/lightdash/lightdash/compare/0.2270.0...0.2270.1) (2025-12-22)
+
+
+### Bug Fixes
+
+* improve dashboard loading state handling and error messages ([#18939](https://github.com/lightdash/lightdash/issues/18939)) ([c92e8f2](https://github.com/lightdash/lightdash/commit/c92e8f2b8cdbdde419d417ed594ce920378f4151))
+
+# [0.2270.0](https://github.com/lightdash/lightdash/compare/0.2269.5...0.2270.0) (2025-12-22)
+
+
+### Bug Fixes
+
+* change userUuid type from optional to nullable in query history ([#18980](https://github.com/lightdash/lightdash/issues/18980)) ([d054daa](https://github.com/lightdash/lightdash/commit/d054daad1069b08559c9cc85b682d1ccb0253a78))
+* enforce the presence of project_uuid for metrics_tree_edges ([#19000](https://github.com/lightdash/lightdash/issues/19000)) ([1788a38](https://github.com/lightdash/lightdash/commit/1788a384d8264aeb37a93716188233c40e18ec10))
+* reference lines not visible in dark mode ([#18977](https://github.com/lightdash/lightdash/issues/18977)) ([333ae5a](https://github.com/lightdash/lightdash/commit/333ae5a2c1b0a7b41d6875b898c659a82d7bdf8a)), closes [#18900](https://github.com/lightdash/lightdash/issues/18900)
+
+
+### Features
+
+* include userUuid in query cache key ([#18993](https://github.com/lightdash/lightdash/issues/18993)) ([73d06ad](https://github.com/lightdash/lightdash/commit/73d06ada39427655d778705ccfdee7c207aced32))
+* update reference line label bg to match line color ([#18978](https://github.com/lightdash/lightdash/issues/18978)) ([d55db30](https://github.com/lightdash/lightdash/commit/d55db30098ea57af32e32b2859ae7decfb023718))
+
+## [0.2269.5](https://github.com/lightdash/lightdash/compare/0.2269.4...0.2269.5) (2025-12-22)
+
+
+### Bug Fixes
+
+* add new project_uuid column for metrics_tree_edges ([#18999](https://github.com/lightdash/lightdash/issues/18999)) ([8916b94](https://github.com/lightdash/lightdash/commit/8916b94586b7b5f4c236bd8d1b14bef464d5d4ad))
+
+## [0.2269.4](https://github.com/lightdash/lightdash/compare/0.2269.3...0.2269.4) (2025-12-22)
+
+
+### Bug Fixes
+
+* background css variable index ([#19007](https://github.com/lightdash/lightdash/issues/19007)) ([61be274](https://github.com/lightdash/lightdash/commit/61be274174730910ee64b80611d93a4d34d552ed))
+
+## [0.2269.3](https://github.com/lightdash/lightdash/compare/0.2269.2...0.2269.3) (2025-12-22)
+
+
+### Bug Fixes
+
+* table locked columns in dark mode ([#18996](https://github.com/lightdash/lightdash/issues/18996)) ([184cc22](https://github.com/lightdash/lightdash/commit/184cc2241c507268173ecd060eefb486ee6e79cf)), closes [#18994](https://github.com/lightdash/lightdash/issues/18994)
+
 ## [0.2269.2](https://github.com/lightdash/lightdash/compare/0.2269.1...0.2269.2) (2025-12-19)
 
 

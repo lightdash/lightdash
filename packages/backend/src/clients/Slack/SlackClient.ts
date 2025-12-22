@@ -539,10 +539,7 @@ export class SlackClient {
         if (!this.hasRequiredScopes(installation.scopes)) {
             const currentScopes = installation.scopes.join(', ');
             const requiredScopes = this.getRequiredScopes().join(', ');
-            slackErrorHandler(
-                new SlackError(
-                    `Missing required Slack scopes. Has: [${currentScopes}], needs: [${requiredScopes}]`,
-                ),
+            Logger.debug(
                 `Skipping Slack channel sync for organization ${organizationUuid}: missing required scopes. Has: [${currentScopes}], needs: [${requiredScopes}]`,
             );
             return {

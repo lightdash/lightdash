@@ -18,6 +18,7 @@ import {
     isCompleteLayout,
     isDashboardChartTileType,
     isFilterableField,
+    isMetric,
     isTableChartConfig,
     type ApiChartAndResults,
     type ApiError,
@@ -28,6 +29,7 @@ import {
     type FilterDashboardToRule,
     type DashboardChartTile as IDashboardChartTile,
     type ItemsMap,
+    type Metric,
     type PivotReference,
     type ResultValue,
     type SavedChart,
@@ -811,9 +813,29 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             if (explore === undefined) {
                 return;
             }
-            const dimensions = getDimensions(explore).filter((dimension) =>
+
+            const allDimensions = getDimensions(explore);
+            const allItemsMap = getItemMap(
+                explore,
+                chart.metricQuery.additionalMetrics,
+                chart.metricQuery.tableCalculations,
+                chart.metricQuery.customDimensions,
+            );
+
+            // Filter dimensions from explore that match dimensionNames
+            const exploreDimensions = allDimensions.filter((dimension) =>
                 e.dimensionNames.includes(getItemId(dimension)),
             );
+
+            // Also check for metrics in the items map that match dimensionNames
+            const itemsMapMetrics = Object.values(allItemsMap).filter(
+                (item): item is Metric =>
+                    isMetric(item) &&
+                    e.dimensionNames.includes(getItemId(item)),
+            );
+
+            // Fields available for filtering from the click event
+            const availableFields = [...exploreDimensions, ...itemsMapMetrics];
 
             // Helper to extract value from click event data
             // For stacked bars: e.value is an array, e.dimensionNames maps indices to field names
@@ -826,12 +848,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 return (e.data as Record<string, unknown>)[fieldId];
             };
 
-            const dimensionOptions = dimensions.map((dimension) =>
+            const dimensionOptions = availableFields.map((field) =>
                 createDashboardFilterRuleFromField({
-                    field: dimension,
+                    field,
                     availableTileFilters: {},
                     isTemporary: true,
-                    value: getValueFromClickData(getItemId(dimension)),
+                    value: getValueFromClickData(getItemId(field)),
                 }),
             );
             const serie = series[e.seriesIndex];
@@ -842,10 +864,23 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             );
             const seriesName = serie.encode?.seriesName;
 
-            const pivotValue =
+            // Try to get pivot value from seriesName (old format: field.pivotField.value)
+            // This is only for non-SQL pivoting
+            let pivotValue =
                 pivot && seriesName?.includes(`.${pivot}.`)
                     ? seriesName?.split(`.${pivot}.`)[1]
                     : undefined;
+
+            // If no pivot value from seriesName, try to get it from pivotReference
+            // This is only for SQL pivoting
+            if (!pivotValue && serie.pivotReference?.pivotValues) {
+                const pivotRefValue = serie.pivotReference.pivotValues.find(
+                    (pv) => pv.field === pivot,
+                );
+                if (pivotRefValue) {
+                    pivotValue = pivotRefValue.value as string;
+                }
+            }
 
             const pivotOptions =
                 pivot && pivotField && pivotValue
@@ -868,12 +903,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 left: e.event.event.pageX,
                 top: e.event.event.pageY,
             });
-
-            const allItemsMap = getItemMap(
-                explore,
-                chart.metricQuery.additionalMetrics,
-                chart.metricQuery.tableCalculations,
-            );
 
             const underlyingData = getDataFromChartClick(
                 e,

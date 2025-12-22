@@ -6,7 +6,11 @@ import {
     type GroupingState,
 } from '@tanstack/react-table';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
-import { DEFAULT_PAGE_SIZE, ROW_NUMBER_COLUMN_ID } from './constants';
+import {
+    DEFAULT_PAGE_SIZE,
+    FROZEN_COLUMN_BACKGROUND,
+    ROW_NUMBER_COLUMN_ID,
+} from './constants';
 import Context from './context';
 import { getGroupedRowModelLightdash } from './getGroupedRowModelLightdash';
 import { type ProviderProps, type TableColumn } from './types';
@@ -116,7 +120,7 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
                 style: {
                     maxWidth: rowColumnWidth,
                     minWidth: rowColumnWidth,
-                    backgroundColor: 'white',
+                    backgroundColor: FROZEN_COLUMN_BACKGROUND,
                 },
             },
         };

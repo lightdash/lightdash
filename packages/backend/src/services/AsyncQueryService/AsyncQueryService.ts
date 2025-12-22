@@ -1814,7 +1814,7 @@ export class AsyncQueryService extends ProjectService {
                             userUuid:
                                 warehouseCredentials.userWarehouseCredentialsUuid
                                     ? account.user.id
-                                    : undefined,
+                                    : null,
                         },
                     );
 

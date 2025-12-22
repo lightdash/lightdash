@@ -26,7 +26,10 @@ export default defineConfig({
         }),
         monacoEditorPlugin({
             forceBuildCDN: true,
-            languageWorkers: ['json'],
+            languageWorkers: ['editorWorkerService', 'json', 'html'],
+            customWorkers: [
+                { label: 'yaml', entry: 'monaco-yaml/yaml.worker.js' },
+            ],
         }),
         sentryVitePlugin({
             telemetry: false,
