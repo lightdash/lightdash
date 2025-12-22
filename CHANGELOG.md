@@ -1,3 +1,10 @@
+## [0.2270.6](https://github.com/lightdash/lightdash/compare/0.2270.5...0.2270.6) (2025-12-22)
+
+
+### Bug Fixes
+
+* log instead of throwing error for missing Slack scopes during channel sync ([#19017](https://github.com/lightdash/lightdash/issues/19017)) ([d0a446e](https://github.com/lightdash/lightdash/commit/d0a446e1bb5294800d796a30b2385ec010d445cb))
+
 ## [0.2270.5](https://github.com/lightdash/lightdash/compare/0.2270.4...0.2270.5) (2025-12-22)
 
 
