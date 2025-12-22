@@ -1,6 +1,6 @@
 .filterButton {
     border: 1px dashed var(--mantine-color-ldGray-3);
-    background: var(--mantine-color-background);
+    background: var(--mantine-color-background-0);
     box-shadow: var(--mantine-shadow-subtle);
 }
 
