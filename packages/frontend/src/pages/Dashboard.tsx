@@ -11,14 +11,16 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
 import { useBlocker, useNavigate, useParams } from 'react-router';
+import { dashboardCSSVars } from '../components/common/Dashboard/dashboard.constants';
+import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
-import Page from '../components/common/Page/Page';
-import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
 import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
+import Page from '../components/common/Page/Page';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { useDashboardCommentsCheck } from '../features/comments';
 import DashboardHeaderV1 from '../features/dashboardHeader/dashboardHeaderV1';
 import DashboardHeaderV2 from '../features/dashboardHeader/dashboardHeaderV2';
@@ -565,6 +567,79 @@ const Dashboard: FC = () => {
         );
     }
 
+    const handleSaveDashboard = () => {
+        const dimensionFilters = [
+            ...dashboardFilters.dimensions,
+            ...dashboardTemporaryFilters.dimensions,
+        ];
+        // Reset value for required filter on save dashboard
+        const requiredFiltersWithoutValues = dimensionFilters.map((filter) => {
+            if (filter.required) {
+                return {
+                    ...filter,
+                    disabled: true,
+                    values: [],
+                };
+            }
+            return filter;
+        });
+
+        mutate({
+            tiles: dashboardTiles,
+            filters: {
+                dimensions: requiredFiltersWithoutValues,
+                metrics: [
+                    ...dashboardFilters.metrics,
+                    ...dashboardTemporaryFilters.metrics,
+                ],
+                tableCalculations: [
+                    ...dashboardFilters.tableCalculations,
+                    ...dashboardTemporaryFilters.tableCalculations,
+                ],
+            },
+            name: dashboard.name,
+            tabs: dashboardTabs,
+            config: {
+                isDateZoomDisabled,
+                pinnedParameters,
+            },
+            parameters: dashboardParameters,
+        });
+    };
+
+    const dashboardHeaderProps = {
+        dashboard,
+        organizationUuid: organization?.organizationUuid,
+        isEditMode,
+        isSaving,
+        oldestCacheTime,
+        isFullscreen,
+        activeTabUuid: activeTab?.uuid,
+        dashboardTabs,
+        isFullScreenFeatureEnabled,
+        onToggleFullscreen: handleToggleFullscreen,
+        hasDashboardChanged:
+            haveTilesChanged ||
+            haveFiltersChanged ||
+            hasTemporaryFilters ||
+            haveTabsChanged ||
+            hasDateZoomDisabledChanged ||
+            parametersHaveChanged ||
+            havePinnedParametersChanged,
+        onAddTiles: handleAddTiles,
+        onSaveDashboard: handleSaveDashboard,
+        onCancel: handleCancel,
+        onMoveToSpace: handleMoveDashboardToSpace,
+        isMovingDashboardToSpace: isContentActionLoading,
+        onDuplicate: duplicateModalHandlers.open,
+        onDelete: deleteModalHandlers.open,
+        onExport: exportDashboardModalHandlers.open,
+        setAddingTab,
+        onEditClicked: handleEnterEditMode,
+        ...(isDashboardRedesignEnabled &&
+            isEditMode && { className: styles.stickyHeader }),
+    };
+
     return (
         <>
             {blocker.state === 'blocked' && (
@@ -617,103 +692,43 @@ const Dashboard: FC = () => {
                 noContentPadding={isDashboardRedesignEnabled}
                 withFullHeight
                 header={
-                    <DashboardHeader
-                        dashboard={dashboard}
-                        organizationUuid={organization?.organizationUuid}
-                        isEditMode={isEditMode}
-                        isSaving={isSaving}
-                        oldestCacheTime={oldestCacheTime}
-                        isFullscreen={isFullscreen}
-                        activeTabUuid={activeTab?.uuid}
-                        dashboardTabs={dashboardTabs}
-                        isFullScreenFeatureEnabled={isFullScreenFeatureEnabled}
-                        onToggleFullscreen={handleToggleFullscreen}
-                        hasDashboardChanged={
-                            haveTilesChanged ||
-                            haveFiltersChanged ||
-                            hasTemporaryFilters ||
-                            haveTabsChanged ||
-                            hasDateZoomDisabledChanged ||
-                            parametersHaveChanged ||
-                            havePinnedParametersChanged
-                        }
-                        onAddTiles={handleAddTiles}
-                        onSaveDashboard={() => {
-                            const dimensionFilters = [
-                                ...dashboardFilters.dimensions,
-                                ...dashboardTemporaryFilters.dimensions,
-                            ];
-                            // Reset value for required filter on save dashboard
-                            const requiredFiltersWithoutValues =
-                                dimensionFilters.map((filter) => {
-                                    if (filter.required) {
-                                        return {
-                                            ...filter,
-                                            disabled: true,
-                                            values: [],
-                                        };
-                                    }
-                                    return filter;
-                                });
-
-                            mutate({
-                                tiles: dashboardTiles,
-                                filters: {
-                                    dimensions: requiredFiltersWithoutValues,
-                                    metrics: [
-                                        ...dashboardFilters.metrics,
-                                        ...dashboardTemporaryFilters.metrics,
-                                    ],
-                                    tableCalculations: [
-                                        ...dashboardFilters.tableCalculations,
-                                        ...dashboardTemporaryFilters.tableCalculations,
-                                    ],
-                                },
-                                name: dashboard.name,
-                                tabs: dashboardTabs,
-                                config: {
-                                    isDateZoomDisabled,
-                                    pinnedParameters,
-                                },
-                                parameters: dashboardParameters,
-                            });
-                        }}
-                        onCancel={handleCancel}
-                        onMoveToSpace={handleMoveDashboardToSpace}
-                        isMovingDashboardToSpace={isContentActionLoading}
-                        onDuplicate={duplicateModalHandlers.open}
-                        onDelete={deleteModalHandlers.open}
-                        onExport={exportDashboardModalHandlers.open}
-                        setAddingTab={setAddingTab}
-                        onEditClicked={handleEnterEditMode}
-                    />
+                    isDashboardRedesignEnabled ? null : (
+                        <DashboardHeader {...dashboardHeaderProps} />
+                    )
                 }
             >
                 {isDashboardRedesignEnabled ? (
-                    <DashboardHeaderV2
-                        isEditMode={isEditMode}
-                        hasTilesThatSupportFilters={hasTilesThatSupportFilters}
-                        // parameters
-                        parameters={referencedParameters}
-                        parameterValues={parameterValues}
-                        onParameterChange={handleParameterChange}
-                        onParameterClearAll={clearAllParameters}
-                        isParameterLoading={!areAllChartsLoaded}
-                        missingRequiredParameters={missingRequiredParameters}
-                        pinnedParameters={pinnedParameters}
-                        onParameterPin={toggleParameterPin}
-                        // tabs
-                        activeTab={activeTab}
-                        addingTab={addingTab}
-                        dashboardTiles={dashboardTiles}
-                        onAddTiles={handleAddTiles}
-                        onUpdateTiles={handleUpdateTiles}
-                        onDeleteTile={handleDeleteTile}
-                        onBatchDeleteTiles={handleBatchDeleteTiles}
-                        onEditTile={handleEditTiles}
-                        setGridWidth={setGridWidth}
-                        setAddingTab={setAddingTab}
-                    />
+                    <div style={dashboardCSSVars as React.CSSProperties}>
+                        <DashboardHeader {...dashboardHeaderProps} />
+                        <DashboardHeaderV2
+                            isEditMode={isEditMode}
+                            hasTilesThatSupportFilters={
+                                hasTilesThatSupportFilters
+                            }
+                            // parameters
+                            parameters={referencedParameters}
+                            parameterValues={parameterValues}
+                            onParameterChange={handleParameterChange}
+                            onParameterClearAll={clearAllParameters}
+                            isParameterLoading={!areAllChartsLoaded}
+                            missingRequiredParameters={
+                                missingRequiredParameters
+                            }
+                            pinnedParameters={pinnedParameters}
+                            onParameterPin={toggleParameterPin}
+                            // tabs
+                            activeTab={activeTab}
+                            addingTab={addingTab}
+                            dashboardTiles={dashboardTiles}
+                            onAddTiles={handleAddTiles}
+                            onUpdateTiles={handleUpdateTiles}
+                            onDeleteTile={handleDeleteTile}
+                            onBatchDeleteTiles={handleBatchDeleteTiles}
+                            onEditTile={handleEditTiles}
+                            setGridWidth={setGridWidth}
+                            setAddingTab={setAddingTab}
+                        />
+                    </div>
                 ) : (
                     <DashboardHeaderV1
                         isEditMode={isEditMode}
