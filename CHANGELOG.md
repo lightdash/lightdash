@@ -1,3 +1,10 @@
+## [0.2269.3](https://github.com/lightdash/lightdash/compare/0.2269.2...0.2269.3) (2025-12-22)
+
+
+### Bug Fixes
+
+* table locked columns in dark mode ([#18996](https://github.com/lightdash/lightdash/issues/18996)) ([184cc22](https://github.com/lightdash/lightdash/commit/184cc2241c507268173ecd060eefb486ee6e79cf)), closes [#18994](https://github.com/lightdash/lightdash/issues/18994)
+
 ## [0.2269.2](https://github.com/lightdash/lightdash/compare/0.2269.1...0.2269.2) (2025-12-19)
 
 
