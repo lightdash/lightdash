@@ -110,7 +110,6 @@ module.exports = {
                 ignoreRestSiblings: true,
             },
         ],
-        '@typescript-eslint/prefer-enum-initializers': 'off',
         'react-refresh/only-export-components': 'error',
         'lodash/import-scope': [2, 'method'],
     },
