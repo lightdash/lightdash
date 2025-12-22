@@ -1,0 +1,29 @@
+.tileWrapper {
+    position: relative;
+    height: 100%;
+}
+
+.tileCard {
+    overflow: unset;
+
+    border: 1px solid
+        light-dark(
+            var(--mantine-color-ldGray-1),
+            lighten(var(--mantine-color-ldDark-1), 0.05)
+        ) !important;
+
+    &[data-with-transparent-border='true'] {
+        border: 1px solid transparent !important;
+    }
+
+    &[data-with-edit-mode='true'] {
+        border: 1px dashed var(--mantine-color-blue-5) !important;
+    }
+}
+
+.dragHandleIcon {
+    cursor: grab;
+    &:active {
+        cursor: grabbing;
+    }
+}

@@ -346,6 +346,7 @@ export const getMantineThemeOverride = (
                 fontWeight: 600,
             },
 
+            // TODO: remove after we migrate dashboards to v2 (feature flag: DashboardRedesign, dashboard-redesign)
             '.react-draggable.react-draggable-dragging .tile-base': {
                 border: `1px solid ${theme.colors.blue[5]}`,
             },

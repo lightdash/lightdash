@@ -280,7 +280,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             {chartData.config.type === ChartKind.TABLE &&
                 isVizTableConfig(chartData.config) && (
                     // So that the Table tile isn't cropped by the overflow
-                    <Box w="100%" h="100%" sx={{ overflow: 'auto' }}>
+                    <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
                         <Table
                             resultsRunner={chartResultsData.resultsRunner}
                             columnsConfig={chartData.config.columns}

@@ -1,6 +1,6 @@
 import { type DashboardSummary } from '@lightdash/common';
-import { Button, Modal, Tooltip } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { Button, Modal, Tooltip } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import { IconWand } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -117,7 +117,7 @@ const AIDashboardSummary: FC<DashboardAIProps> = ({
                 <Button
                     variant="light"
                     onClick={open}
-                    leftIcon={<MantineIcon icon={IconWand} />}
+                    leftSection={<MantineIcon icon={IconWand} />}
                     size="xs"
                     color="violet"
                     loading={
