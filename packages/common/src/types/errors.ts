@@ -501,6 +501,19 @@ export class S3Error extends LightdashError {
     }
 }
 
+export class ResultsExpiredError extends LightdashError {
+    constructor(
+        message = 'Your results have expired. Please refresh the page or re-run the query.',
+    ) {
+        super({
+            message,
+            name: 'ResultsExpiredError',
+            statusCode: 404,
+            data: {},
+        });
+    }
+}
+
 export class TimeoutError extends LightdashError {
     constructor(message: string) {
         super({
