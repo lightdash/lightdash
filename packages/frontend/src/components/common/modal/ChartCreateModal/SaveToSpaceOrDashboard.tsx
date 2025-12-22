@@ -40,14 +40,12 @@ import SaveToDashboardForm from './SaveToDashboardForm';
 import SaveToSpaceForm from './SaveToSpaceForm';
 import {
     DEFAULT_CHART_METADATA,
+    ModalStep,
+    SaveDestination,
     saveToDashboardSchema,
     saveToSpaceSchema,
     type ChartMetadata,
 } from './types';
-
-enum SaveDestination
-
-enum ModalStep
 
 const saveToSpaceOrDashboardSchema = z
     .object({
