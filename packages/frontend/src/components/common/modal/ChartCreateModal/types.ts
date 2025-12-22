@@ -22,3 +22,13 @@ export const DEFAULT_CHART_METADATA = {
     name: '',
     description: '',
 } as const;
+
+export enum SaveDestination {
+    Dashboard = 'dashboard',
+    Space = 'space',
+}
+
+export enum ModalStep {
+    InitialInfo = 0,
+    SelectDestination = 1,
+}
