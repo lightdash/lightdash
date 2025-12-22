@@ -81,7 +81,7 @@ export class ValidationModel {
                     error.constraint === 'validations_project_uuid_foreign'
                 ) {
                     Logger.warn(
-                        'Failed to insert validations: Project UUID does not exist. This may happen if the project was deleted during validation.',
+                        `Failed to insert validations: Project UUID (${validations[0].projectUuid}) does not exist. This may happen if the project was deleted during validation.`,
                     );
                     return;
                 }
