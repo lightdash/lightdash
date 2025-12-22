@@ -7,7 +7,10 @@ describe('QueryHistoryModel', () => {
         const timezone = 'UTC';
 
         test('should generate correct hash with SQL only', () => {
-            const result = QueryHistoryModel.getCacheKey(projectUuid, { sql });
+            const result = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                userUuid: null,
+            });
             expect(result).toBeDefined();
             expect(typeof result).toBe('string');
             expect(result.length).toBe(64); // SHA-256 produces 64 character hex string
@@ -17,6 +20,7 @@ describe('QueryHistoryModel', () => {
             const result = QueryHistoryModel.getCacheKey(projectUuid, {
                 sql,
                 timezone,
+                userUuid: null,
             });
             expect(result).toBeDefined();
             expect(typeof result).toBe('string');
@@ -25,16 +29,26 @@ describe('QueryHistoryModel', () => {
 
         test('should generate different hashes for different projects with same SQL', () => {
             const projectUuid2 = 'different-project-uuid';
-            const hash1 = QueryHistoryModel.getCacheKey(projectUuid, { sql });
-            const hash2 = QueryHistoryModel.getCacheKey(projectUuid2, { sql });
+            const hash1 = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                userUuid: null,
+            });
+            const hash2 = QueryHistoryModel.getCacheKey(projectUuid2, {
+                sql,
+                userUuid: null,
+            });
             expect(hash1).not.toBe(hash2);
         });
 
         test('should generate different hashes for same project with different SQL', () => {
             const sql2 = 'SELECT * FROM different_table';
-            const hash1 = QueryHistoryModel.getCacheKey(projectUuid, { sql });
+            const hash1 = QueryHistoryModel.getCacheKey(projectUuid, {
+                sql,
+                userUuid: null,
+            });
             const hash2 = QueryHistoryModel.getCacheKey(projectUuid, {
                 sql: sql2,
+                userUuid: null,
             });
             expect(hash1).not.toBe(hash2);
         });
@@ -44,23 +58,26 @@ describe('QueryHistoryModel', () => {
             const hash1 = QueryHistoryModel.getCacheKey(projectUuid, {
                 sql,
                 timezone,
+                userUuid: null,
             });
             const hash2 = QueryHistoryModel.getCacheKey(projectUuid, {
                 sql,
                 timezone: timezone2,
+                userUuid: null,
             });
             expect(hash1).not.toBe(hash2);
         });
 
-        test('should generate same hash when userUuid is undefined (backward compatibility)', () => {
+        test('should generate same hash when userUuid is null (backward compatibility)', () => {
             const hash1 = QueryHistoryModel.getCacheKey(projectUuid, {
                 sql,
                 timezone,
+                userUuid: null,
             });
             const hash2 = QueryHistoryModel.getCacheKey(projectUuid, {
                 sql,
                 timezone,
-                userUuid: undefined,
+                userUuid: null,
             });
             expect(hash1).toBe(hash2);
         });
@@ -101,6 +118,7 @@ describe('QueryHistoryModel', () => {
             const hash1 = QueryHistoryModel.getCacheKey(projectUuid, {
                 sql,
                 timezone,
+                userUuid: null,
             });
             const hash2 = QueryHistoryModel.getCacheKey(projectUuid, {
                 sql,

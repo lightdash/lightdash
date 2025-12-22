@@ -64,7 +64,7 @@ export class QueryHistoryModel {
         resultsIdentifiers: {
             sql: string;
             timezone?: string;
-            userUuid?: string;
+            userUuid: string | null;
         },
     ) {
         const CACHE_VERSION = 'v3'; // change when we want to force invalidation
