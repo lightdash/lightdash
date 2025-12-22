@@ -1,3 +1,10 @@
+## [0.2270.1](https://github.com/lightdash/lightdash/compare/0.2270.0...0.2270.1) (2025-12-22)
+
+
+### Bug Fixes
+
+* improve dashboard loading state handling and error messages ([#18939](https://github.com/lightdash/lightdash/issues/18939)) ([c92e8f2](https://github.com/lightdash/lightdash/commit/c92e8f2b8cdbdde419d417ed594ce920378f4151))
+
 # [0.2270.0](https://github.com/lightdash/lightdash/compare/0.2269.5...0.2270.0) (2025-12-22)
 
 
