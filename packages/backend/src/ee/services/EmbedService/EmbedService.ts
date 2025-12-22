@@ -853,6 +853,7 @@ export class EmbedService extends BaseService {
         const results =
             await this.projectService.getResultsFromCacheOrWarehouse({
                 projectUuid,
+                userUuid: null,
                 context: QueryExecutionContext.EMBED,
                 warehouseClient,
                 metricQuery,
