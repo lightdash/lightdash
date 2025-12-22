@@ -1,3 +1,10 @@
+## [0.2270.11](https://github.com/lightdash/lightdash/compare/0.2270.10...0.2270.11) (2025-12-22)
+
+
+### Bug Fixes
+
+* handle foreign key violations when inserting validations ([#19025](https://github.com/lightdash/lightdash/issues/19025)) ([cd1baa2](https://github.com/lightdash/lightdash/commit/cd1baa2c48df303fef37060e5f5e990441bcb6a5))
+
 ## [0.2270.10](https://github.com/lightdash/lightdash/compare/0.2270.9...0.2270.10) (2025-12-22)
 
 
