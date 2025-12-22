@@ -10,7 +10,7 @@ export const ROW_HEIGHT_PX = 34;
 
 // Frozen/locked column styling constants
 export const FROZEN_COLUMN_BACKGROUND =
-    'light-dark(var(--mantine-color-background), var(--mantine-color-ldGray-0))';
+    'light-dark(var(--mantine-color-background-0), var(--mantine-color-ldGray-0))';
 
 export const FROZEN_COLUMN_BORDER_COLOR = 'var(--mantine-color-ldGray-4)';
 
