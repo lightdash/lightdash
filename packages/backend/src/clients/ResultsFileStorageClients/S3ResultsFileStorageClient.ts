@@ -4,7 +4,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import {
     getErrorMessage,
     MissingConfigError,
-    NotFoundError,
+    ResultsExpiredError,
     WarehouseResults,
 } from '@lightdash/common';
 import fs from 'fs';
@@ -122,9 +122,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
     ): Promise<Readable> {
         const results = await this.getResults(cacheKey, fileExtension);
         if (!results.Body) {
-            throw new NotFoundError(
-                'Your results have expired. Please refresh the page and try again.',
-            );
+            throw new ResultsExpiredError();
         }
 
         return results.Body as Readable;

@@ -1,7 +1,7 @@
 import {
     GoogleSheetsTransientError,
-    NotFoundError,
     QueueTraceProperties,
+    ResultsExpiredError,
     SCHEDULER_TASKS,
     SchedulerTaskName,
     TaskPayloadMap,
@@ -292,10 +292,11 @@ export const traceTask = <T extends SchedulerTaskName>(
                             });
 
                             // Only capture to Sentry if this is the final attempt or it's not a retryable error
-                            // NotFoundError is expected (e.g., expired cache) and should not go to Sentry
+                            // ResultsExpiredError is expected (expired S3 cache) and should not go to Sentry
                             const isRetryableError =
                                 e instanceof GoogleSheetsTransientError;
-                            const isExpectedError = e instanceof NotFoundError;
+                            const isExpectedError =
+                                e instanceof ResultsExpiredError;
                             const hasRetriesRemaining =
                                 job.attempts < job.max_attempts;
 

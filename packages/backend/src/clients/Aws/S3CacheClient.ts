@@ -10,7 +10,7 @@ import {
 import {
     getErrorMessage,
     MissingConfigError,
-    NotFoundError,
+    ResultsExpiredError,
     S3Error,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -160,9 +160,7 @@ export class S3CacheClient extends S3BaseClient {
             } catch (error) {
                 if (error instanceof NoSuchKey || error instanceof NotFound) {
                     Logger.debug(`S3 key not found: ${key}.${extension}`);
-                    throw new NotFoundError(
-                        'Your results have expired. Please refresh the page and try again.',
-                    );
+                    throw new ResultsExpiredError();
                 }
 
                 if (error instanceof S3ServiceException) {
