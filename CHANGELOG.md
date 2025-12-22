@@ -1,3 +1,10 @@
+## [0.2270.4](https://github.com/lightdash/lightdash/compare/0.2270.3...0.2270.4) (2025-12-22)
+
+
+### Bug Fixes
+
+* context menu on stacked bar charts ([#18997](https://github.com/lightdash/lightdash/issues/18997)) ([704a24a](https://github.com/lightdash/lightdash/commit/704a24ae1d4346be78f0f090e5122eb5cd9cf41b))
+
 ## [0.2270.3](https://github.com/lightdash/lightdash/compare/0.2270.2...0.2270.3) (2025-12-22)
 
 
