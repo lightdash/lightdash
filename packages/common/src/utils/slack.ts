@@ -17,6 +17,8 @@ export const UNRECOVERABLE_SLACK_ERRORS = [
     'account_inactive', // Bot/app was deactivated
     'invalid_auth', // Invalid authentication
     'missing_scope', // Missing required OAuth scope
+    'channel_not_found', // Channel doesn't exist
+    'not_in_channel', // Bot/app isn't in the channel
 ] as const;
 
 /**
