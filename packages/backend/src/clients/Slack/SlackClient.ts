@@ -923,19 +923,28 @@ export class SlackClient {
         text: string;
         blocks?: Block[];
     }): Promise<void> {
-        const channelId = await this.getNotificationChannel(organizationUuid);
-        if (!channelId) {
-            Logger.warn(
-                `Unable to send slack notification for organization ${organizationUuid}. No notification channel set.`,
+        try {
+            const channelId = await this.getNotificationChannel(
+                organizationUuid,
             );
-            return;
+            if (!channelId) {
+                Logger.warn(
+                    `Unable to send slack notification for organization ${organizationUuid}. No notification channel set.`,
+                );
+                return;
+            }
+            await this.postMessage({
+                organizationUuid,
+                text,
+                channel: channelId,
+                blocks,
+            });
+        } catch (e) {
+            slackErrorHandler(
+                e,
+                `Unable to send slack notification for organization ${organizationUuid}.`,
+            );
         }
-        await this.postMessage({
-            organizationUuid,
-            text,
-            channel: channelId,
-            blocks,
-        });
     }
 
     async updateMessage({
