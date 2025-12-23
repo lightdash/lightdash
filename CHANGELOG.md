@@ -1,3 +1,10 @@
+# [0.2275.0](https://github.com/lightdash/lightdash/compare/0.2274.0...0.2275.0) (2025-12-23)
+
+
+### Features
+
+* add bulk scheduler reassignment ([#19053](https://github.com/lightdash/lightdash/issues/19053)) ([3726ba2](https://github.com/lightdash/lightdash/commit/3726ba297a47d6257465ce737b07da0cd0c47589))
+
 # [0.2274.0](https://github.com/lightdash/lightdash/compare/0.2273.0...0.2274.0) (2025-12-23)
 
 
