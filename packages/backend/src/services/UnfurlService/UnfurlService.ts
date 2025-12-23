@@ -1203,6 +1203,7 @@ export class UnfurlService extends BaseService {
                         errorMessage.includes(
                             'Target page, context or browser has been closed',
                         ) ||
+                        errorMessage.includes('not attached to the DOM') ||
                         isQueueFullError;
 
                     if (isRetryableError && retries) {
