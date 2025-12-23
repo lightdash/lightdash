@@ -62,6 +62,7 @@ import { useProject } from '../../hooks/useProject';
 import GSheetsSvg from '../../svgs/google-sheets.svg?react';
 import SlackSvg from '../../svgs/slack.svg?react';
 import MantineIcon from '../common/MantineIcon';
+import ReassignSchedulerOwnerModal from './ReassignSchedulerOwnerModal';
 import { SchedulerTopToolbar } from './SchedulerTopToolbar';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
 import {
@@ -167,6 +168,30 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     useEffect(() => {
         setTableData(flatData);
     }, [flatData]);
+
+    // Reassign owner modal state
+    const [reassignModalOpen, setReassignModalOpen] = useState(false);
+    const [schedulerUuidsToReassign, setSchedulerUuidsToReassign] = useState<
+        string[]
+    >([]);
+    const [excludedUserUuid, setExcludedUserUuid] = useState<
+        string | undefined
+    >(undefined);
+
+    const handleReassignOwner = useCallback(
+        (schedulerUuid: string, ownerUuid: string | undefined) => {
+            setSchedulerUuidsToReassign([schedulerUuid]);
+            setExcludedUserUuid(ownerUuid);
+            setReassignModalOpen(true);
+        },
+        [],
+    );
+
+    const handleReassignModalClose = useCallback(() => {
+        setReassignModalOpen(false);
+        setSchedulerUuidsToReassign([]);
+        setExcludedUserUuid(undefined);
+    }, []);
 
     // Compute available users from loaded schedulers
     const availableUsers = useMemo(() => {
@@ -663,13 +688,20 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             <SchedulersViewActionMenu
                                 item={item}
                                 projectUuid={projectUuid}
+                                onReassignOwner={handleReassignOwner}
                             />
                         </Box>
                     );
                 },
             },
         ],
-        [project, projectUuid, getSlackChannelName, setSearchParams],
+        [
+            project,
+            projectUuid,
+            getSlackChannelName,
+            setSearchParams,
+            handleReassignOwner,
+        ],
     );
 
     const table = useMantineReactTable({
@@ -795,7 +827,18 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         },
     });
 
-    return <MantineReactTable table={table} />;
+    return (
+        <>
+            <MantineReactTable table={table} />
+            <ReassignSchedulerOwnerModal
+                opened={reassignModalOpen}
+                onClose={handleReassignModalClose}
+                projectUuid={projectUuid}
+                schedulerUuids={schedulerUuidsToReassign}
+                excludedUserUuid={excludedUserUuid}
+            />
+        </>
+    );
 };
 
 export default SchedulersTable;
