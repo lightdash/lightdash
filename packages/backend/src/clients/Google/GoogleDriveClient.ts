@@ -80,6 +80,16 @@ export class GoogleDriveClient {
                 );
             }
 
+            // Handle "The caller does not have permission" error
+            if (
+                err?.message &&
+                err.message.includes('The caller does not have permission')
+            ) {
+                throw new ForbiddenError(
+                    `The caller does not have permission to access this Google Sheet: ${err.message}`,
+                );
+            }
+
             throw err;
         }
     }
