@@ -8,6 +8,7 @@ import {
     CustomFormatType,
     DimensionType,
     evaluateConditionalFormatExpression,
+    FeatureFlags,
     formatItemValue,
     formatNumberValue,
     formatValueWithExpression,
@@ -87,6 +88,8 @@ import { useVisualizationContext } from '../../components/LightdashVisualization
 import {
     defaultAxisLabelGap,
     defaultGrid,
+    defaultGridLegacy,
+    legendTopSpacing,
 } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import {
@@ -94,6 +97,7 @@ import {
     getPlottedData,
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
+import { useFeatureFlagEnabled } from '../useFeatureFlagEnabled';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import {
     computeSeriesColorsWithPop,
@@ -128,6 +132,15 @@ const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
     } else {
         return '';
     }
+};
+
+const addPx = (pxValue: string, amount: number): string => {
+    const base = parseInt(pxValue.replace('px', ''), 10);
+    return `${base + amount}px`;
+};
+
+const isPxValue = (value: string): boolean => {
+    return value.endsWith('px');
 };
 
 export const getAxisTypeFromField = (
@@ -2003,6 +2016,9 @@ const useEchartsCartesianConfig = (
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
+    );
 
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
@@ -2583,10 +2599,37 @@ const useEchartsCartesianConfig = (
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
         const flipAxes = validCartesianConfig?.layout?.flipAxes;
 
-        const grid = {
-            ...defaultGrid,
+        const baseGrid = isDashboardRedesignEnabled
+            ? defaultGrid
+            : defaultGridLegacy;
+
+        const grid: {
+            containLabel: boolean;
+            left: string;
+            right: string;
+            top: string;
+            bottom: string;
+        } = {
+            ...baseGrid,
             ...removeEmptyProperties(validCartesianConfig?.eChartsConfig.grid),
         };
+
+        if (isDashboardRedesignEnabled) {
+            const legendConfig = removeEmptyProperties(
+                validCartesianConfig?.eChartsConfig.legend,
+            );
+            const isLegendShown = legendConfig
+                ? 'show' in legendConfig
+                    ? legendConfig.show !== false
+                    : true
+                : series.length > 1;
+
+            const hasExplicitTop =
+                validCartesianConfig?.eChartsConfig.grid?.top !== undefined;
+            if (isLegendShown && !hasExplicitTop && isPxValue(grid.top)) {
+                grid.top = addPx(grid.top, legendTopSpacing);
+            }
+        }
 
         const gridLeft = grid.left;
         const gridRight = grid.right;
@@ -2649,39 +2692,31 @@ const useEchartsCartesianConfig = (
         // Only works for px values, percentage values are not supported because it cannot use calc()
         return {
             ...grid,
-            left: gridLeft.includes('px')
-                ? `${
-                      parseInt(gridLeft.replace('px', '')) +
-                      defaultAxisLabelGap +
-                      extraLeftPadding
-                  }px`
+            left: isPxValue(gridLeft)
+                ? addPx(gridLeft, defaultAxisLabelGap + extraLeftPadding)
                 : grid.left,
             right:
-                gridRight.includes('px') && !enableDataZoom
-                    ? `${
-                          parseInt(gridRight.replace('px', '')) +
-                          defaultAxisLabelGap +
-                          extraRightPadding
-                      }px`
-                    : gridRight.includes('px') && enableDataZoom && flipAxes
-                    ? `${
-                          parseInt(gridRight.replace('px', '')) +
-                          defaultAxisLabelGap +
-                          extraRightPadding +
-                          30
-                      }px`
+                isPxValue(gridRight) && !enableDataZoom
+                    ? addPx(gridRight, defaultAxisLabelGap + extraRightPadding)
+                    : isPxValue(gridRight) && enableDataZoom && flipAxes
+                    ? addPx(
+                          gridRight,
+                          defaultAxisLabelGap + extraRightPadding + 30,
+                      )
                     : grid.right,
             // Add extra bottom spacing for dataZoom slider when not flipped
             bottom:
-                enableDataZoom && !flipAxes && gridBottom.includes('px')
-                    ? `${parseInt(gridBottom.replace('px', '')) + 30}px`
+                enableDataZoom && !flipAxes && isPxValue(gridBottom)
+                    ? addPx(gridBottom, 30)
                     : grid.bottom,
         };
     }, [
         validCartesianConfig?.eChartsConfig.grid,
         validCartesianConfig?.eChartsConfig?.xAxis,
+        validCartesianConfig?.eChartsConfig.legend,
         validCartesianConfig?.layout?.flipAxes,
         series,
+        isDashboardRedesignEnabled,
     ]);
 
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
