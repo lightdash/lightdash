@@ -1,12 +1,14 @@
 import {
     ActionIcon,
+    Button,
     Divider,
     Group,
+    Text,
     Tooltip,
     useMantineTheme,
     type GroupProps,
 } from '@mantine-8/core';
-import { IconTrash } from '@tabler/icons-react';
+import { IconTrash, IconUserEdit } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import {
     type DestinationType,
@@ -44,6 +46,9 @@ type SchedulerTopToolbarProps = GroupProps &
         onClearFilters?: () => void;
         availableUsers: User[];
         availableDestinations: DestinationType[];
+        // Bulk selection props
+        selectedCount?: number;
+        onBulkReassign?: () => void;
     };
 
 export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
@@ -64,9 +69,12 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
         onClearFilters,
         availableUsers,
         availableDestinations,
+        selectedCount = 0,
+        onBulkReassign,
         ...props
     }) => {
         const theme = useMantineTheme();
+        const hasSelection = selectedCount > 0;
 
         return (
             <Group
@@ -121,19 +129,38 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     />
                 </Group>
 
-                {hasActiveFilters && onClearFilters && (
-                    <Tooltip label="Clear all filters">
-                        <ActionIcon
-                            variant="subtle"
-                            size="sm"
-                            color="gray"
-                            onClick={onClearFilters}
-                            style={{ flexShrink: 0 }}
-                        >
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
-                    </Tooltip>
-                )}
+                <Group gap="sm" wrap="nowrap" style={{ flexShrink: 0 }}>
+                    {hasSelection && onBulkReassign && (
+                        <>
+                            <Text size="sm" c="dimmed">
+                                {selectedCount}{' '}
+                                {selectedCount === 1 ? 'selected' : 'selected'}
+                            </Text>
+                            <Button
+                                size="xs"
+                                variant="light"
+                                leftSection={
+                                    <MantineIcon icon={IconUserEdit} />
+                                }
+                                onClick={onBulkReassign}
+                            >
+                                Reassign owner
+                            </Button>
+                        </>
+                    )}
+                    {hasActiveFilters && onClearFilters && !hasSelection && (
+                        <Tooltip label="Clear all filters">
+                            <ActionIcon
+                                variant="subtle"
+                                size="sm"
+                                color="gray"
+                                onClick={onClearFilters}
+                            >
+                                <MantineIcon icon={IconTrash} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                </Group>
             </Group>
         );
     },
