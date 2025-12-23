@@ -236,7 +236,15 @@ export class UnfurlService extends BaseService {
                         return;
                     }
 
-                    const body = await response.body();
+                    let body: Buffer;
+                    try {
+                        body = await response.body();
+                    } catch (error) {
+                        this.logger.debug(
+                            `Failed to get response body for ${response.url()}, skipping`,
+                        );
+                        return;
+                    }
                     let json: Partial<{
                         status: 'ok';
                         results: ApiGetAsyncQueryResults;
