@@ -62,16 +62,17 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
 
     // Determine if configured pivot dimensions are different from the ones used to compute the results
     const shouldShowPivotMismatch = useMemo(() => {
-        if (!resultsData.pivotDetails?.groupByColumns) return false;
-
-        // Determine pivot used to compute current results
-        const resultsPivotDimensions =
-            resultsData.pivotDetails.groupByColumns.map(
-                (c: { reference: string }) => c.reference,
-            );
-
         // Only show when using SQL pivot results
         if (!useSqlPivotResults?.enabled) return false;
+
+        // Only show when results have been fetched (metricQuery exists)
+        if (!resultsData?.metricQuery) return false;
+
+        // Determine pivot used to compute current results (treat missing as empty)
+        const resultsPivotDimensions = (
+            resultsData?.pivotDetails?.groupByColumns ?? []
+        ).map((c: { reference: string }) => c.reference);
+
         // If both sides empty/undefined, no warning
         if (
             resultsPivotDimensions.length === 0 &&
@@ -81,6 +82,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         // Show when arrays differ
         return !isEqual(dirtyPivotDimensions, resultsPivotDimensions);
     }, [
+        resultsData?.metricQuery,
         resultsData?.pivotDetails?.groupByColumns,
         useSqlPivotResults,
         dirtyPivotDimensions,

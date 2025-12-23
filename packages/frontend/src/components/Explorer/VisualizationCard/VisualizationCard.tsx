@@ -34,6 +34,7 @@ import {
     selectSavedChart,
     selectTableCalculationsMetadata,
     selectUnsavedChartVersion,
+    selectValidQueryArgs,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -133,6 +134,15 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     );
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+
+    const validQueryArgs = useExplorerSelector(selectValidQueryArgs);
+    const pivotDimensions = useMemo(
+        () =>
+            validQueryArgs?.pivotConfiguration?.groupByColumns?.map(
+                (c) => c.reference,
+            ),
+        [validQueryArgs?.pivotConfiguration?.groupByColumns],
+    );
 
     const tableCalculationsMetadata = useExplorerSelector(
         selectTableCalculationsMetadata,
@@ -284,9 +294,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                     headerElement={
                         isOpen && (
                             <VisualizationWarning
-                                pivotDimensions={
-                                    unsavedChartVersion.pivotConfig?.columns
-                                }
+                                pivotDimensions={pivotDimensions}
                                 chartConfig={unsavedChartVersion.chartConfig}
                                 resultsData={resultsData}
                                 isLoading={isLoadingQueryResults}
