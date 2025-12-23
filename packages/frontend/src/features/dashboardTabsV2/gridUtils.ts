@@ -1,6 +1,13 @@
 import { type DashboardTile } from '@lightdash/common';
 import { type Layout } from 'react-grid-layout';
-import { DEFAULT_ROW_HEIGHT } from '../dashboardTabs/gridUtils';
+import {
+    convertLayoutToBaseCoordinates,
+    DEFAULT_COLS,
+    DEFAULT_ROW_HEIGHT,
+} from '../dashboardTabs/gridUtils';
+
+// Re-export constants and utilities for use in this module until v2 migration completes
+export { convertLayoutToBaseCoordinates };
 
 export type ResponsiveGridLayoutProps = {
     draggableCancel: string;
@@ -10,8 +17,6 @@ export type ResponsiveGridLayoutProps = {
     cols: { lg: number; md: number; sm: number };
     rowHeight: number;
 };
-
-const DEFAULT_COLS = 36;
 
 export const getReactGridLayoutConfig = (
     tile: DashboardTile,
