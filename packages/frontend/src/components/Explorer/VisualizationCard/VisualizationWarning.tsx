@@ -60,7 +60,6 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         );
     }, [resultsData?.pivotDetails?.totalColumnCount, maxColumnLimit]);
 
-    console.log(dirtyPivotDimensions, resultsData.pivotDetails);
     // Determine if configured pivot dimensions are different from the ones used to compute the results
     const shouldShowPivotMismatch = useMemo(() => {
         if (!resultsData.pivotDetails?.groupByColumns) return false;
