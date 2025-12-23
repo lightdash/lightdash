@@ -60,12 +60,17 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         );
     }, [resultsData?.pivotDetails?.totalColumnCount, maxColumnLimit]);
 
+    console.log(dirtyPivotDimensions, resultsData.pivotDetails);
     // Determine if configured pivot dimensions are different from the ones used to compute the results
     const shouldShowPivotMismatch = useMemo(() => {
+        if (!resultsData.pivotDetails?.groupByColumns) return false;
+
         // Determine pivot used to compute current results
-        const resultsPivotDimensions = (
-            resultsData?.pivotDetails?.groupByColumns || []
-        ).map((c: { reference: string }) => c.reference);
+        const resultsPivotDimensions =
+            resultsData.pivotDetails.groupByColumns.map(
+                (c: { reference: string }) => c.reference,
+            );
+
         // Only show when using SQL pivot results
         if (!useSqlPivotResults?.enabled) return false;
         // If both sides empty/undefined, no warning
