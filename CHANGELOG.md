@@ -1,3 +1,12 @@
+# [0.2271.0](https://github.com/lightdash/lightdash/compare/0.2270.16...0.2271.0) (2025-12-23)
+
+
+### Features
+
+* add scroll to top button in dashboards ([#19035](https://github.com/lightdash/lightdash/issues/19035)) ([37ff7e1](https://github.com/lightdash/lightdash/commit/37ff7e19a5eecfab6b29630e7d265936da713a7e))
+* add styles to sticky dashboard elements ([#19027](https://github.com/lightdash/lightdash/issues/19027)) ([ed49d45](https://github.com/lightdash/lightdash/commit/ed49d454a7b9f4bd0e5b6b6bcd5a3b16cbfcfb7d))
+* dashboard scrolling updates ([#19026](https://github.com/lightdash/lightdash/issues/19026)) ([b97f2fe](https://github.com/lightdash/lightdash/commit/b97f2fe701335791453c076523f9c14fff044662)), closes [#18006](https://github.com/lightdash/lightdash/issues/18006)
+
 ## [0.2270.16](https://github.com/lightdash/lightdash/compare/0.2270.15...0.2270.16) (2025-12-23)
 
 
