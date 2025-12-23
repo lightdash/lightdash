@@ -1,3 +1,11 @@
+## [0.2271.1](https://github.com/lightdash/lightdash/compare/0.2271.0...0.2271.1) (2025-12-23)
+
+
+### Bug Fixes
+
+* add error handling for Slack notifications ([#19049](https://github.com/lightdash/lightdash/issues/19049)) ([c8d08a3](https://github.com/lightdash/lightdash/commit/c8d08a3ba49826dc0c6006da9c0dcd9b6926e01a))
+* handle errors when collecting queue size metrics ([#19050](https://github.com/lightdash/lightdash/issues/19050)) ([b6ce0a2](https://github.com/lightdash/lightdash/commit/b6ce0a275e7e7d59793563c9ad7c13854279cc28))
+
 # [0.2271.0](https://github.com/lightdash/lightdash/compare/0.2270.16...0.2271.0) (2025-12-23)
 
 
