@@ -5,16 +5,26 @@ import {
     getItemId,
     MetricType,
     SupportedDbtAdapter,
+    TimeFrames,
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
 } from '@lightdash/common';
 import {
     MetricFlowDimensionType,
+    TimeGranularity,
     type GetMetricFlowFieldsResponse,
     type GetSemanticLayerMetricsResponse,
 } from '../../../api/MetricFlowAPI';
 import { convertDimensionNameToLabels } from './convertDimensionNameToLabels';
+
+const TIME_GRANULARITY_TO_TIME_FRAME: Record<TimeGranularity, TimeFrames> = {
+    [TimeGranularity.DAY]: TimeFrames.DAY,
+    [TimeGranularity.WEEK]: TimeFrames.WEEK,
+    [TimeGranularity.MONTH]: TimeFrames.MONTH,
+    [TimeGranularity.QUARTER]: TimeFrames.QUARTER,
+    [TimeGranularity.YEAR]: TimeFrames.YEAR,
+};
 
 export default function convertMetricFlowFieldsToExplore(
     tableName: string,
@@ -36,9 +46,12 @@ export default function convertMetricFlowFieldsToExplore(
                 table: tableName,
                 tableLabel: labels.tableLabel ?? '',
                 sql: '',
-                compiledSql: '',
+                compiledSql: isTimeDimension
+                    ? `{{ TimeDimension('${name}', 'day') }}`
+                    : `{{ Dimension('${name}') }}`,
                 tablesReferences: [tableName],
-                hidden: false,
+                hidden: isTimeDimension,
+                isIntervalBase: isTimeDimension,
             };
             acc[getItemId(dimension)] = dimension;
 
@@ -46,7 +59,7 @@ export default function convertMetricFlowFieldsToExplore(
                 queryableGranularities.forEach((timeGranularity) => {
                     const timeDimension: CompiledDimension = {
                         fieldType: FieldType.DIMENSION,
-                        type: DimensionType.TIMESTAMP,
+                        type: DimensionType.DATE,
                         // Note: time columns in results are suffixed with the time granularity eg:'__day'
                         name: `${name}__${timeGranularity
                             .toString()
@@ -58,9 +71,14 @@ export default function convertMetricFlowFieldsToExplore(
                         table: tableName,
                         tableLabel: labels.tableLabel ?? '',
                         sql: '',
-                        compiledSql: '',
+                        compiledSql: `{{ TimeDimension('${name}', '${timeGranularity
+                            .toString()
+                            .toLowerCase()}') }}`,
                         tablesReferences: [tableName],
                         hidden: false,
+                        timeInterval:
+                            TIME_GRANULARITY_TO_TIME_FRAME[timeGranularity],
+                        timeIntervalBaseDimensionName: name,
                     };
                     acc[getItemId(timeDimension)] = timeDimension;
                 });

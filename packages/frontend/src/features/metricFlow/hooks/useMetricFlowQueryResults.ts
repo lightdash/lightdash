@@ -7,6 +7,7 @@ import {
     QueryStatus,
     type CreateMetricFlowQueryResponse,
     type GetMetricFlowQueryResultsResponse,
+    type MetricFlowOrderBy,
     type TimeGranularity,
 } from '../../../api/MetricFlowAPI';
 import type Table from '../../../components/common/Table';
@@ -26,7 +27,9 @@ const useMetricFlowQueryResults = (
     projectUuid: string | undefined,
     query?: {
         metrics: Record<string, {}>;
-        dimensions: Record<string, { grain: TimeGranularity }>;
+        dimensions: Record<string, { grain?: TimeGranularity }>;
+        where?: string[];
+        orderBy?: MetricFlowOrderBy[];
     },
     useCreateQueryOptions?: UseQueryOptions<
         CreateMetricFlowQueryResponse,

@@ -1,3 +1,4 @@
+import { type FieldValueSearchResult } from '@lightdash/common';
 import { lightdashApi } from '../api';
 
 export enum MetricFlowDimensionType {
@@ -18,6 +19,37 @@ export enum TimeGranularity {
     MONTH = 'MONTH',
     QUARTER = 'QUARTER',
     YEAR = 'YEAR',
+}
+
+export type MetricFlowOrderBy =
+    | {
+          type: 'metric';
+          name: string;
+          descending: boolean;
+      }
+    | {
+          type: 'groupBy';
+          name: string;
+          grain?: TimeGranularity;
+          descending: boolean;
+      };
+
+export type MetricFlowDimensionValuesRequest = {
+    dimension: string;
+    metrics?: string[];
+    search?: string;
+    limit?: number;
+};
+
+export function getMetricFlowDimensionValues(
+    projectUuid: string,
+    data: MetricFlowDimensionValuesRequest,
+): Promise<FieldValueSearchResult<string>> {
+    return lightdashApi<FieldValueSearchResult<string>>({
+        url: `/projects/${projectUuid}/dbtsemanticlayer/dimension-values`,
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
 }
 
 export type GetMetricFlowFieldsResponse = {
@@ -91,16 +123,18 @@ export function getSemanticLayerDimensions(
 
 export function getSemanticLayerMetrics(
     projectUuid: string,
-    dimensions: Record<string, { grain: TimeGranularity }>,
+    dimensions: Record<string, { grain?: TimeGranularity }>,
 ): Promise<GetSemanticLayerMetricsResponse> {
     const query = `query GetFields($environmentId: BigInt!) {
             metricsForDimensions(environmentId: $environmentId, dimensions: [${
                 Object.entries(dimensions)
                     .filter(([dimension]) => dimension !== 'metric_time') // TODO: remove this when dbt stops throwing error when filtering by "metric_time"
-                    .map(
-                        ([dimension, options]) =>
-                            `{ name: "${dimension}", grain: ${options.grain} }`,
-                    ) ?? ''
+                    .map(([dimension, options]) => {
+                        const grainPart = options.grain
+                            ? `, grain: ${options.grain}`
+                            : '';
+                        return `{ name: "${dimension}"${grainPart} }`;
+                    }) ?? ''
             }]) {
                 name
                 description
@@ -131,9 +165,21 @@ export function createMetricFlowQuery(
     projectUuid: string,
     data: {
         metrics: Record<string, {}>;
-        dimensions: Record<string, { grain: TimeGranularity }>;
+        dimensions: Record<string, { grain?: TimeGranularity }>;
+        where?: string[];
+        orderBy?: MetricFlowOrderBy[];
     },
 ): Promise<CreateMetricFlowQueryResponse> {
+    const whereString =
+        data.where?.map((sql) => `{ sql: ${JSON.stringify(sql)} }`) ?? [];
+    const orderByString =
+        data.orderBy?.map((orderBy) => {
+            if (orderBy.type === 'metric') {
+                return `{ metric: { name: "${orderBy.name}" }, descending: ${orderBy.descending} }`;
+            }
+            const grainPart = orderBy.grain ? `, grain: ${orderBy.grain}` : '';
+            return `{ groupBy: { name: "${orderBy.name}"${grainPart} }, descending: ${orderBy.descending} }`;
+        }) ?? [];
     const query: string = `
             mutation CreateQuery($environmentId: BigInt!) {
               createQuery(
@@ -142,9 +188,15 @@ export function createMetricFlowQuery(
                     ([metric]) => `{ name: "${metric}" }`,
                 )}]
                 groupBy: [${Object.entries(data.dimensions ?? {}).map(
-                    ([dimension, options]) =>
-                        `{ name: "${dimension}", grain: ${options.grain} }`,
+                    ([dimension, options]) => {
+                        const grainPart = options.grain
+                            ? `, grain: ${options.grain}`
+                            : '';
+                        return `{ name: "${dimension}"${grainPart} }`;
+                    },
                 )}]
+                where: [${whereString}]
+                orderBy: [${orderByString}]
               ) {
                 queryId
               }
@@ -219,9 +271,18 @@ export function getMetricFlowQueryResults(
         let jsonResult: MetricFlowJsonResults | null = null;
         if (response.query.jsonResult) {
             try {
-                jsonResult = JSON.parse(
-                    atob(response.query.jsonResult),
-                ) as MetricFlowJsonResults;
+                const decoded =
+                    typeof TextDecoder === 'undefined'
+                        ? decodeURIComponent(
+                              escape(atob(response.query.jsonResult)),
+                          )
+                        : new TextDecoder('utf-8').decode(
+                              Uint8Array.from(
+                                  atob(response.query.jsonResult),
+                                  (char) => char.charCodeAt(0),
+                              ),
+                          );
+                jsonResult = JSON.parse(decoded) as MetricFlowJsonResults;
             } catch (error) {
                 console.warn('Failed to parse MetricFlow query results', error);
             }

@@ -6,6 +6,8 @@ import {
     DbtGraphQLDimension,
     DbtGraphQLGetDimensionsArgs,
     DbtGraphQLGetDimensionsResponse,
+    DbtGraphQLGetDimensionValuesArgs,
+    DbtGraphQLGetDimensionValuesResponse,
     DbtGraphQLGetMetricsForDimensionsArgs,
     DbtGraphQLGetMetricsForDimensionsResponse,
     DbtGraphQLGetMetricsResponse,
@@ -31,6 +33,7 @@ type DbtCloudGraphqlClientArgs = {
 
 type GetDimensionsFnArgs = DbtGraphQLGetDimensionsArgs;
 type GetMetricsForDimensionsFnArgs = DbtGraphQLGetMetricsForDimensionsArgs;
+type GetDimensionValuesFnArgs = DbtGraphQLGetDimensionValuesArgs;
 
 export default class DbtCloudGraphqlClient implements SemanticLayerClient {
     transformers = dbtCloudTransfomers;
@@ -358,6 +361,27 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
 
         return this.runGraphQlQuery<DbtGraphQLGetDimensionsResponse>(
             getDimensionsQuery,
+        );
+    }
+
+    async getDimensionValues({ dimension, metrics }: GetDimensionValuesFnArgs) {
+        const metricsString =
+            metrics?.map((metric) => JSON.stringify(metric)) ?? [];
+        const getDimensionValuesQuery = `
+            query GetDimensionValues($environmentId: BigInt!) {
+                dimensionValues(
+                    environmentId: $environmentId
+                    dimension: ${JSON.stringify(dimension)}
+                    metrics: [${metricsString}]
+                ) {
+                    dimension
+                    values
+                    totalCount
+                }
+            }`;
+
+        return this.runGraphQlQuery<DbtGraphQLGetDimensionValuesResponse>(
+            getDimensionValuesQuery,
         );
     }
 

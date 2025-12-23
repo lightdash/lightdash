@@ -1,8 +1,11 @@
 import {
     isField,
+    type AndFilterGroup,
     type DashboardFilters,
+    type FieldValueSearchResult,
     type FilterRule,
     type FilterableItem,
+    type ParametersValuesMap,
     type WeekDay,
 } from '@lightdash/common';
 import { type PopoverProps } from '@mantine/core';
@@ -16,6 +19,19 @@ type Props<T extends DefaultFieldsMap> = {
     baseTable?: string;
     startOfWeek?: WeekDay;
     dashboardFilters?: DashboardFilters;
+    autocompleteEnabled?: boolean;
+    autocompleteKey?: string;
+    fieldValuesRequest?: (args: {
+        projectUuid: string;
+        field: FilterableItem;
+        fieldId: string;
+        tableName?: string;
+        search: string;
+        forceRefresh: boolean;
+        filters: AndFilterGroup | undefined;
+        limit: number;
+        parameterValues?: ParametersValuesMap;
+    }) => Promise<FieldValueSearchResult<string>>;
     popoverProps?: Omit<PopoverProps, 'children'>;
     children?: ReactNode;
 };
@@ -26,6 +42,9 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
     baseTable,
     startOfWeek,
     dashboardFilters,
+    autocompleteEnabled = true,
+    autocompleteKey,
+    fieldValuesRequest,
     popoverProps,
     children,
 }: Props<T>) => {
@@ -62,6 +81,9 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
                 itemsMap,
                 startOfWeek,
                 baseTable,
+                autocompleteEnabled,
+                autocompleteKey,
+                fieldValuesRequest,
                 getField,
                 getAutocompleteFilterGroup,
                 popoverProps,

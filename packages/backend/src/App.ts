@@ -532,6 +532,7 @@ export default class App {
          */
         expressApp.use((req, res, next) => {
             req.services = this.serviceRepository;
+            req.clients = this.clients;
             next();
         });
 

@@ -7821,6 +7821,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -7836,15 +7849,18 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
+                                                                        "tableName": {
+                                                                            "type": "string"
                                                                         },
                                                                         "fieldType": {
                                                                             "type": "string"
@@ -7852,17 +7868,14 @@
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
+                                                                        "tableName",
                                                                         "fieldType",
                                                                         "label",
-                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -7956,15 +7969,18 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
+                                                                                    "tableName": {
+                                                                                        "type": "string"
                                                                                     },
                                                                                     "fieldType": {
                                                                                         "type": "string"
@@ -7972,17 +7988,14 @@
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "name": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
+                                                                                    "tableName",
                                                                                     "fieldType",
                                                                                     "label",
-                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -20505,6 +20518,28 @@
             "MetricTotalComparisonType": {
                 "enum": ["none", "previous_period"],
                 "type": "string"
+            },
+            "FieldValueSearchResult_string_": {
+                "properties": {
+                    "refreshedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "cached": {
+                        "type": "boolean"
+                    },
+                    "results": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "search": {
+                        "type": "string"
+                    }
+                },
+                "required": ["refreshedAt", "cached", "results", "search"],
+                "type": "object"
             },
             "ApiGroupResponse": {
                 "properties": {
@@ -33984,7 +34019,20 @@
                         "description": "Success",
                         "content": {
                             "application/json": {
-                                "schema": {}
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/Record_string.unknown_"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
                             }
                         }
                     },
@@ -34035,6 +34083,89 @@
                                 "required": ["query"],
                                 "type": "object",
                                 "description": "graphql query"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dbtsemanticlayer/dimension-values": {
+            "post": {
+                "operationId": "GetDbtSemanticLayerDimensionValues",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/FieldValueSearchResult_string_"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get dimension values for autocomplete",
+                "tags": ["DbtSemanticLayer"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the projectId",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "dimension and metrics",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "limit": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "search": {
+                                        "type": "string"
+                                    },
+                                    "metrics": {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    "dimension": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": ["dimension"],
+                                "type": "object",
+                                "description": "dimension and metrics"
                             }
                         }
                     }

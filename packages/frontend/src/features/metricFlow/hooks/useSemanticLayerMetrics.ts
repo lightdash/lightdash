@@ -8,7 +8,7 @@ import {
 
 const useSemanticLayerMetrics = (
     projectUuid?: string,
-    dimensions?: Record<string, { grain: TimeGranularity }>,
+    dimensions?: Record<string, { grain?: TimeGranularity }>,
     useQueryOptions?: UseQueryOptions<
         GetSemanticLayerMetricsResponse,
         ApiError

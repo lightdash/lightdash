@@ -9,6 +9,8 @@ import { type TableColumn } from '../../../components/common/Table/types';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 
+const noopFetchMoreRows = () => undefined;
+
 const ResultsErrorState: FC<{ error: string }> = ({ error }) => (
     <TrackSection name={SectionName.EMPTY_RESULTS_TABLE}>
         <div style={{ padding: '50px 0' }}>
@@ -34,6 +36,9 @@ const MetricFlowResultsTable: FC<{
                     status={status}
                     data={resultsData?.rows || []}
                     columns={columns}
+                    totalRowsCount={resultsData?.rows.length ?? 0}
+                    isFetchingRows={status === 'loading'}
+                    fetchMoreRows={noopFetchMoreRows}
                     pagination={{
                         show: true,
                     }}

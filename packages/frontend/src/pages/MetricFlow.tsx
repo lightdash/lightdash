@@ -1,13 +1,23 @@
 import { subject } from '@casl/ability';
 import {
+    DimensionType,
     ECHARTS_DEFAULT_COLORS,
     FeatureFlags,
     MAX_SAFE_INTEGER,
     QueryHistoryStatus,
     derivePivotConfigurationFromChart,
+    friendlyName,
+    getItemId,
+    getItemLabelWithoutTableName,
+    isDimension,
+    type AndFilterGroup,
     type ApiExecuteAsyncSqlQueryResults,
+    type FilterableField,
+    type FilterableItem,
+    type Filters,
     type ItemsMap,
     type MetricQuery,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import {
     Badge,
@@ -15,6 +25,8 @@ import {
     Flex,
     Group,
     ScrollArea,
+    SegmentedControl,
+    Select,
     Stack,
     Text,
     Title,
@@ -27,16 +39,24 @@ import {
     IconRefresh,
     IconTrashX,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { lightdashApi } from '../api';
-import { TimeGranularity } from '../api/MetricFlowAPI';
+import {
+    MetricFlowDimensionType,
+    TimeGranularity,
+    getMetricFlowDimensionValues,
+    type MetricFlowOrderBy,
+} from '../api/MetricFlowAPI';
 import ChartDownloadMenu from '../components/common/ChartDownload/ChartDownloadMenu';
 import CollapsableCard from '../components/common/CollapsableCard/CollapsableCard';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../components/common/CollapsableCard/constants';
+import FiltersForm from '../components/common/Filters';
+import FiltersProvider from '../components/common/Filters/FiltersProvider';
 import LoadingState from '../components/common/LoadingState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
+import { useFieldsWithSuggestions } from '../components/Explorer/FiltersCard/useFieldsWithSuggestions';
 import VisualizationConfig from '../components/Explorer/VisualizationCard/VisualizationConfig';
 import VisualizationCardOptions from '../components/Explorer/VisualizationCardOptions';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -51,12 +71,14 @@ import useSemanticLayerDimensions from '../features/metricFlow/hooks/useSemantic
 import useSemanticLayerMetrics from '../features/metricFlow/hooks/useSemanticLayerMetrics';
 import convertFieldMapToTableColumns from '../features/metricFlow/utils/convertFieldMapToTableColumns';
 import convertMetricFlowFieldsToExplore from '../features/metricFlow/utils/convertMetricFlowFieldsToExplore';
+import convertMetricFlowFiltersToWhere from '../features/metricFlow/utils/convertMetricFlowFiltersToWhere';
 import convertMetricFlowQueryResultsToResultsData from '../features/metricFlow/utils/convertMetricFlowQueryResultsToResultsData';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useFeatureFlag } from '../hooks/useFeatureFlagEnabled';
+import { useProject } from '../hooks/useProject';
 import { type InfiniteQueryResults } from '../hooks/useQueryResults';
 import useApp from '../providers/App/useApp';
 
@@ -67,14 +89,21 @@ const MetricFlowPage = () => {
     const { user, health } = useApp();
     const { data: org } = useOrganization();
     const { activeProjectUuid } = useActiveProjectUuid();
+    const { data: project } = useProject(activeProjectUuid);
     const [selectedMetrics, setSelectedMetrics] = useState<Record<string, {}>>(
         {},
     );
     const [selectedDimensions, setSelectedDimensions] = useState<
-        Record<string, { grain: TimeGranularity }>
+        Record<string, { grain?: TimeGranularity }>
     >({});
+    const [filters, setFilters] = useState<Filters>({});
+    const [sortFieldKey, setSortFieldKey] = useState<string | null>(null);
+    const [sortDescending, setSortDescending] = useState(false);
     const [isVisualizationConfigOpen, setIsVisualizationConfigOpen] =
         useState(false);
+    const [isFiltersOpen, setIsFiltersOpen] = useState(true);
+    const [isChartsOpen, setIsChartsOpen] = useState(true);
+    const [isResultsOpen, setIsResultsOpen] = useState(true);
     const semanticLayerDimensionsQuery = useSemanticLayerDimensions(
         activeProjectUuid,
         selectedMetrics,
@@ -101,11 +130,112 @@ const MetricFlowPage = () => {
             },
         },
     );
+    const explore = useMemo(() => {
+        if (
+            !semanticLayerDimensionsQuery.data ||
+            !semanticLayerMetricsQuery.data
+        ) {
+            return undefined;
+        }
+
+        return convertMetricFlowFieldsToExplore(
+            MOCK_TABLE_NAME,
+            semanticLayerDimensionsQuery.data?.dimensions ?? [],
+            semanticLayerMetricsQuery.data?.metricsForDimensions ?? [],
+        );
+    }, [semanticLayerDimensionsQuery.data, semanticLayerMetricsQuery.data]);
+
+    const filterFieldsMap = useMemo<Record<string, FilterableField>>(() => {
+        if (!explore) return {};
+        const table = explore.tables[MOCK_TABLE_NAME];
+        return Object.entries(table.dimensions).reduce<
+            Record<string, FilterableField>
+        >((acc, [fieldId, field]) => {
+            if (!isDimension(field)) return acc;
+            if (field.isIntervalBase) return acc;
+            if (
+                (field.type === DimensionType.TIMESTAMP ||
+                    field.type === DimensionType.DATE) &&
+                !field.timeInterval
+            ) {
+                return acc;
+            }
+            acc[fieldId] = field;
+            return acc;
+        }, {});
+    }, [explore]);
+
+    const whereSql = useMemo(
+        () =>
+            convertMetricFlowFiltersToWhere(
+                filters,
+                filterFieldsMap,
+                project?.warehouseConnection?.startOfWeek,
+            ),
+        [filters, filterFieldsMap, project?.warehouseConnection?.startOfWeek],
+    );
+
+    const metricFlowAutocompleteKey = useMemo(
+        () => Object.keys(selectedMetrics).sort().join(','),
+        [selectedMetrics],
+    );
+
+    const metricFlowFieldValuesRequest = useCallback(
+        async (args: {
+            projectUuid: string;
+            field: FilterableItem;
+            fieldId: string;
+            tableName?: string;
+            search: string;
+            forceRefresh: boolean;
+            filters: AndFilterGroup | undefined;
+            limit: number;
+            parameterValues?: ParametersValuesMap;
+        }) =>
+            getMetricFlowDimensionValues(args.projectUuid, {
+                dimension: args.field.name,
+                metrics:
+                    Object.keys(selectedMetrics).length > 0
+                        ? Object.keys(selectedMetrics)
+                        : undefined,
+                search: args.search,
+                limit: args.limit,
+            }),
+        [selectedMetrics],
+    );
+
+    const metricFlowOrderBy = useMemo<MetricFlowOrderBy[]>(() => {
+        if (!sortFieldKey) return [];
+        const [type, name, grain] = sortFieldKey.split(':');
+        if (type === 'metric') {
+            return [
+                {
+                    type: 'metric',
+                    name,
+                    descending: sortDescending,
+                },
+            ];
+        }
+        return [
+            {
+                type: 'groupBy',
+                name,
+                grain:
+                    grain && grain.length > 0
+                        ? (grain as TimeGranularity)
+                        : undefined,
+                descending: sortDescending,
+            },
+        ];
+    }, [sortDescending, sortFieldKey]);
+
     const metricFlowQueryResultsQuery = useMetricFlowQueryResults(
         activeProjectUuid,
         {
             metrics: selectedMetrics,
             dimensions: selectedDimensions,
+            where: whereSql,
+            orderBy: metricFlowOrderBy,
         },
         {
             onError: ({ error }) => {
@@ -125,21 +255,6 @@ const MetricFlowPage = () => {
         },
     );
 
-    const explore = useMemo(() => {
-        if (
-            !semanticLayerDimensionsQuery.data ||
-            !semanticLayerMetricsQuery.data
-        ) {
-            return undefined;
-        }
-
-        return convertMetricFlowFieldsToExplore(
-            MOCK_TABLE_NAME,
-            semanticLayerDimensionsQuery.data?.dimensions ?? [],
-            semanticLayerMetricsQuery.data?.metricsForDimensions ?? [],
-        );
-    }, [semanticLayerDimensionsQuery.data, semanticLayerMetricsQuery.data]);
-
     const { resultsData: metricFlowResultsData, columns } = useMemo(() => {
         if (!explore || !metricFlowQueryResultsQuery.data?.query.jsonResult) {
             return { resultsData: undefined, columns: [] };
@@ -154,6 +269,78 @@ const MetricFlowPage = () => {
             columns: convertFieldMapToTableColumns(results.fields),
         };
     }, [explore, metricFlowQueryResultsQuery.data]);
+
+    const fieldsWithSuggestions = useFieldsWithSuggestions({
+        exploreData: explore,
+        rows: metricFlowResultsData?.rows,
+        customDimensions: undefined,
+        additionalMetrics: undefined,
+        tableCalculations: undefined,
+    });
+
+    const metricFlowFilterFields = useMemo<
+        Record<string, FilterableField & { suggestions?: string[] }>
+    >(() => {
+        return Object.entries(filterFieldsMap).reduce(
+            (acc, [fieldId, field]) => {
+                acc[fieldId] = fieldsWithSuggestions[fieldId] ?? field;
+                return acc;
+            },
+            {},
+        );
+    }, [fieldsWithSuggestions, filterFieldsMap]);
+
+    const sortOptions = useMemo(() => {
+        const options: { value: string; label: string }[] = [];
+        if (!explore) return options;
+        const table = explore.tables[MOCK_TABLE_NAME];
+
+        Object.keys(selectedMetrics).forEach((metricName) => {
+            const fieldId = getItemId({
+                table: MOCK_TABLE_NAME,
+                name: metricName,
+            });
+            const metric = table.metrics[fieldId];
+            options.push({
+                value: `metric:${metricName}`,
+                label: metric
+                    ? getItemLabelWithoutTableName(metric)
+                    : friendlyName(metricName),
+            });
+        });
+
+        Object.entries(selectedDimensions).forEach(
+            ([dimensionName, optionsState]) => {
+                const timeSuffix = optionsState.grain
+                    ? `__${optionsState.grain.toLowerCase()}`
+                    : '';
+                const fieldId = getItemId({
+                    table: MOCK_TABLE_NAME,
+                    name: `${dimensionName}${timeSuffix}`,
+                });
+                const dimension = table.dimensions[fieldId];
+                options.push({
+                    value: `dimension:${dimensionName}:${
+                        optionsState.grain ?? ''
+                    }`,
+                    label: dimension
+                        ? getItemLabelWithoutTableName(dimension)
+                        : friendlyName(dimensionName),
+                });
+            },
+        );
+
+        return options;
+    }, [explore, selectedDimensions, selectedMetrics]);
+
+    useEffect(() => {
+        if (
+            sortFieldKey &&
+            !sortOptions.some((option) => option.value === sortFieldKey)
+        ) {
+            setSortFieldKey(null);
+        }
+    }, [sortFieldKey, sortOptions]);
 
     const {
         columnOrder,
@@ -289,6 +476,21 @@ const MetricFlowPage = () => {
         [],
     );
 
+    const handleToggleFilters = useCallback(
+        (value: boolean) => setIsFiltersOpen(value),
+        [],
+    );
+
+    const handleToggleCharts = useCallback(
+        (value: boolean) => setIsChartsOpen(value),
+        [],
+    );
+
+    const handleToggleResults = useCallback(
+        (value: boolean) => setIsResultsOpen(value),
+        [],
+    );
+
     const handleMetricSelect = useCallback(
         (metric: string) => {
             setSelectedMetrics((prevState) => {
@@ -309,12 +511,20 @@ const MetricFlowPage = () => {
                 if (!!prevState[dimension]) {
                     delete prevState[dimension];
                 } else {
-                    prevState[dimension] = { grain: TimeGranularity.DAY };
+                    const dimensionType =
+                        semanticLayerDimensionsQuery.data?.dimensions.find(
+                            (item) => item.name === dimension,
+                        )?.type;
+                    const isTimeDimension =
+                        dimensionType === MetricFlowDimensionType.TIME;
+                    prevState[dimension] = isTimeDimension
+                        ? { grain: TimeGranularity.DAY }
+                        : {};
                 }
                 return { ...prevState };
             });
         },
-        [setSelectedDimensions],
+        [semanticLayerDimensionsQuery.data?.dimensions, setSelectedDimensions],
     );
 
     const handleDimensionTimeGranularitySelect = useCallback(
@@ -348,179 +558,221 @@ const MetricFlowPage = () => {
         return <ForbiddenPanel />;
     }
     return (
-        <Page
-            title="MetricFlow"
-            withSidebarFooter
-            withFullHeight
-            withPaddedContent
-            rightSidebar={
-                isVisualizationConfigOpen ? (
-                    <Stack spacing={0} h="100%" sx={{ flex: 1 }}>
-                        <VisualizationConfig
-                            chartType={chartConfig.type}
-                            onClose={closeVisualizationConfig}
-                        />
-                    </Stack>
-                ) : null
-            }
-            isRightSidebarOpen={isVisualizationConfigOpen}
-            sidebar={
-                <Stack
-                    spacing="xl"
-                    mah="100%"
-                    sx={{ overflowY: 'hidden', flex: 1 }}
-                >
-                    <Group position="apart">
-                        <Flex gap="xs">
-                            <PageBreadcrumbs
-                                items={[
-                                    {
-                                        title: 'dbt Semantic Layer',
-                                        active: true,
-                                    },
-                                ]}
+        <VisualizationProvider
+            chartConfig={chartConfig}
+            initialPivotDimensions={undefined}
+            resultsData={visualizationResultsData}
+            isLoading={metricFlowQueryResultsQuery.isLoading}
+            onChartConfigChange={setChartConfig}
+            onChartTypeChange={setChartType}
+            onPivotDimensionsChange={setPivotFields}
+            columnOrder={columnOrder}
+            pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
+            colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
+        >
+            <Page
+                title="MetricFlow"
+                withSidebarFooter
+                withFullHeight
+                withPaddedContent
+                rightSidebar={
+                    isVisualizationConfigOpen ? (
+                        <Stack spacing={0} h="100%" sx={{ flex: 1 }}>
+                            <VisualizationConfig
+                                chartType={chartConfig.type}
+                                onClose={closeVisualizationConfig}
                             />
-                            <Tooltip
-                                multiline
-                                label={`The dbt Semantic Layer integration is in beta and may be unstable`}
-                            >
-                                <Badge size="sm" variant="light">
-                                    BETA
-                                </Badge>
-                            </Tooltip>
-                        </Flex>
-                        <Button.Group>
-                            <Tooltip
-                                label={'Run query'}
-                                withinPortal
-                                position="bottom"
-                            >
-                                <Button
-                                    size="xs"
-                                    variant="default"
-                                    disabled={
-                                        metricFlowQueryResultsQuery.isLoading
-                                    }
-                                    onClick={() =>
-                                        metricFlowQueryResultsQuery.refetch()
-                                    }
+                        </Stack>
+                    ) : null
+                }
+                isRightSidebarOpen={isVisualizationConfigOpen}
+                sidebar={
+                    <Stack
+                        spacing="xl"
+                        mah="100%"
+                        sx={{ overflowY: 'hidden', flex: 1 }}
+                    >
+                        <Group position="apart">
+                            <Flex gap="xs">
+                                <PageBreadcrumbs
+                                    items={[
+                                        {
+                                            title: 'dbt Semantic Layer',
+                                            active: true,
+                                        },
+                                    ]}
+                                />
+                                <Tooltip
+                                    multiline
+                                    label={`The dbt Semantic Layer integration is in beta and may be unstable`}
                                 >
-                                    <IconPlayerPlay size={12} color="blue" />
-                                </Button>
-                            </Tooltip>
-                            <Tooltip
-                                label={'Refetch fields'}
-                                withinPortal
-                                position="bottom"
-                            >
-                                <Button
-                                    size="xs"
-                                    variant="default"
+                                    <Badge size="sm" variant="light">
+                                        BETA
+                                    </Badge>
+                                </Tooltip>
+                            </Flex>
+                            <Button.Group>
+                                <Tooltip
+                                    label={'Run query'}
+                                    withinPortal
+                                    position="bottom"
+                                >
+                                    <Button
+                                        size="xs"
+                                        variant="default"
+                                        disabled={
+                                            metricFlowQueryResultsQuery.isLoading
+                                        }
+                                        onClick={() =>
+                                            metricFlowQueryResultsQuery.refetch()
+                                        }
+                                    >
+                                        <IconPlayerPlay
+                                            size={12}
+                                            color="blue"
+                                        />
+                                    </Button>
+                                </Tooltip>
+                                <Tooltip
+                                    label={'Refetch fields'}
+                                    withinPortal
+                                    position="bottom"
+                                >
+                                    <Button
+                                        size="xs"
+                                        variant="default"
+                                        disabled={
+                                            semanticLayerDimensionsQuery.isFetching ||
+                                            semanticLayerMetricsQuery.isFetching
+                                        }
+                                        onClick={() => {
+                                            void semanticLayerDimensionsQuery.refetch();
+                                            void semanticLayerMetricsQuery.refetch();
+                                        }}
+                                    >
+                                        <IconRefresh size={12} />
+                                    </Button>
+                                </Tooltip>
+                                <Tooltip
+                                    label={'Clear selected fields'}
+                                    withinPortal
+                                    position="bottom"
+                                >
+                                    <Button
+                                        size="xs"
+                                        variant="default"
+                                        onClick={() => {
+                                            setSelectedMetrics({});
+                                            setSelectedDimensions({});
+                                        }}
+                                    >
+                                        <IconTrashX size={12} color="red" />
+                                    </Button>
+                                </Tooltip>
+                            </Button.Group>
+                        </Group>
+                        <Stack mah="100%" sx={{ overflow: 'hidden' }}>
+                            <Flex align="baseline" gap="xxs">
+                                <Title order={5} color="yellow.9">
+                                    Metrics
+                                </Title>
+                                <Text span fz="xs" color="gray.6">
+                                    (
+                                    {semanticLayerMetricsQuery.data
+                                        ?.metricsForDimensions.length ?? 0}
+                                    {Object.keys(selectedDimensions).length >
+                                        0 && (
+                                        <>
+                                            {' '}
+                                            available based on selected
+                                            dimensions
+                                        </>
+                                    )}
+                                    )
+                                </Text>
+                            </Flex>
+                            <ScrollArea offsetScrollbars sx={{ flex: 1 }}>
+                                <MetricFlowFieldList
                                     disabled={
-                                        semanticLayerDimensionsQuery.isFetching ||
                                         semanticLayerMetricsQuery.isFetching
                                     }
-                                    onClick={() => {
-                                        void semanticLayerDimensionsQuery.refetch();
-                                        void semanticLayerMetricsQuery.refetch();
-                                    }}
-                                >
-                                    <IconRefresh size={12} />
-                                </Button>
-                            </Tooltip>
-                            <Tooltip
-                                label={'Clear selected fields'}
-                                withinPortal
-                                position="bottom"
-                            >
-                                <Button
-                                    size="xs"
-                                    variant="default"
-                                    onClick={() => {
-                                        setSelectedMetrics({});
-                                        setSelectedDimensions({});
-                                    }}
-                                >
-                                    <IconTrashX size={12} color="red" />
-                                </Button>
-                            </Tooltip>
-                        </Button.Group>
-                    </Group>
-                    <Stack mah="100%" sx={{ overflow: 'hidden' }}>
-                        <Flex align="baseline" gap="xxs">
-                            <Title order={5} color="yellow.9">
-                                Metrics
-                            </Title>
-                            <Text span fz="xs" color="gray.6">
-                                (
-                                {semanticLayerMetricsQuery.data
-                                    ?.metricsForDimensions.length ?? 0}
-                                {Object.keys(selectedDimensions).length > 0 && (
-                                    <> available based on selected dimensions</>
-                                )}
-                                )
-                            </Text>
-                        </Flex>
-                        <ScrollArea offsetScrollbars sx={{ flex: 1 }}>
-                            <MetricFlowFieldList
-                                disabled={semanticLayerMetricsQuery.isFetching}
-                                fields={
-                                    semanticLayerMetricsQuery.data
-                                        ?.metricsForDimensions
-                                }
-                                selectedFields={selectedMetrics}
-                                onClick={(name) => handleMetricSelect(name)}
-                            />
-                        </ScrollArea>
-                        <Flex align="baseline" gap="xxs">
-                            <Title order={5} color="blue.9">
-                                Dimensions
-                            </Title>
-                            <Text span fz="xs" color="gray.6">
-                                (
-                                {semanticLayerDimensionsQuery.data?.dimensions
-                                    .length ?? 0}
-                                {Object.keys(selectedMetrics).length > 0 && (
-                                    <> available based on selected metrics</>
-                                )}
-                                )
-                            </Text>
-                        </Flex>
-                        <ScrollArea offsetScrollbars sx={{ flex: 1 }}>
-                            <MetricFlowFieldList
-                                disabled={
-                                    semanticLayerDimensionsQuery.isFetching
-                                }
-                                fields={
-                                    semanticLayerDimensionsQuery.data
-                                        ?.dimensions
-                                }
-                                selectedFields={selectedDimensions}
-                                onClick={(name) => handleDimensionSelect(name)}
-                                onClickTimeGranularity={
-                                    handleDimensionTimeGranularitySelect
-                                }
-                            />
-                        </ScrollArea>
+                                    fields={
+                                        semanticLayerMetricsQuery.data
+                                            ?.metricsForDimensions
+                                    }
+                                    selectedFields={selectedMetrics}
+                                    onClick={(name) => handleMetricSelect(name)}
+                                />
+                            </ScrollArea>
+                            <Flex align="baseline" gap="xxs">
+                                <Title order={5} color="blue.9">
+                                    Dimensions
+                                </Title>
+                                <Text span fz="xs" color="gray.6">
+                                    (
+                                    {semanticLayerDimensionsQuery.data
+                                        ?.dimensions.length ?? 0}
+                                    {Object.keys(selectedMetrics).length >
+                                        0 && (
+                                        <>
+                                            {' '}
+                                            available based on selected metrics
+                                        </>
+                                    )}
+                                    )
+                                </Text>
+                            </Flex>
+                            <ScrollArea offsetScrollbars sx={{ flex: 1 }}>
+                                <MetricFlowFieldList
+                                    disabled={
+                                        semanticLayerDimensionsQuery.isFetching
+                                    }
+                                    fields={
+                                        semanticLayerDimensionsQuery.data
+                                            ?.dimensions
+                                    }
+                                    selectedFields={selectedDimensions}
+                                    onClick={(name) =>
+                                        handleDimensionSelect(name)
+                                    }
+                                    onClickTimeGranularity={
+                                        handleDimensionTimeGranularitySelect
+                                    }
+                                />
+                            </ScrollArea>
+                        </Stack>
                     </Stack>
-                </Stack>
-            }
-        >
-            <Stack spacing="sm" sx={{ flexGrow: 1 }}>
-                <VisualizationProvider
-                    chartConfig={chartConfig}
-                    initialPivotDimensions={undefined}
-                    resultsData={visualizationResultsData}
-                    isLoading={metricFlowQueryResultsQuery.isLoading}
-                    onChartConfigChange={setChartConfig}
-                    onChartTypeChange={setChartType}
-                    onPivotDimensionsChange={setPivotFields}
-                    columnOrder={columnOrder}
-                    pivotTableMaxColumnLimit={
-                        health.data.pivotTable.maxColumnLimit
-                    }
-                    colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
-                >
+                }
+            >
+                <Stack spacing="sm" sx={{ flexGrow: 1 }}>
+                    <CollapsableCard
+                        title="Filters"
+                        isOpen={isFiltersOpen}
+                        onToggle={handleToggleFilters}
+                    >
+                        <FiltersProvider
+                            projectUuid={activeProjectUuid}
+                            itemsMap={metricFlowFilterFields}
+                            startOfWeek={
+                                project?.warehouseConnection?.startOfWeek ??
+                                undefined
+                            }
+                            popoverProps={{
+                                withinPortal: true,
+                            }}
+                            baseTable={MOCK_TABLE_NAME}
+                            autocompleteEnabled={true}
+                            autocompleteKey={metricFlowAutocompleteKey}
+                            fieldValuesRequest={metricFlowFieldValuesRequest}
+                        >
+                            <FiltersForm
+                                isEditMode={true}
+                                filters={filters}
+                                setFilters={setFilters}
+                                useSimplifiedForm={false}
+                            />
+                        </FiltersProvider>
+                    </CollapsableCard>
                     <CollapsableCard
                         title="Charts"
                         rightHeaderElement={
@@ -553,41 +805,67 @@ const MetricFlowPage = () => {
                                 )}
                             </>
                         }
-                        isOpen={true}
+                        isOpen={isChartsOpen}
                         isVisualizationCard
-                        onToggle={() => undefined}
+                        onToggle={handleToggleCharts}
                     >
                         <LightdashVisualization className="sentry-block ph-no-capture" />
                     </CollapsableCard>
-                </VisualizationProvider>
 
-                <CollapsableCard
-                    title="Results"
-                    isOpen={true}
-                    onToggle={() => undefined}
-                >
-                    <MetricFlowResultsTable
-                        columns={columns}
-                        resultsData={metricFlowResultsData}
+                    <CollapsableCard
+                        title="Results"
+                        isOpen={isResultsOpen}
+                        onToggle={handleToggleResults}
+                        rightHeaderElement={
+                            <Group spacing="xs">
+                                <Select
+                                    size="xs"
+                                    placeholder="Sort by"
+                                    data={sortOptions}
+                                    value={sortFieldKey}
+                                    onChange={setSortFieldKey}
+                                    clearable
+                                    withinPortal
+                                    disabled={sortOptions.length === 0}
+                                />
+                                <SegmentedControl
+                                    size="xs"
+                                    data={[
+                                        { label: 'Asc', value: 'asc' },
+                                        { label: 'Desc', value: 'desc' },
+                                    ]}
+                                    value={sortDescending ? 'desc' : 'asc'}
+                                    onChange={(value) =>
+                                        setSortDescending(value === 'desc')
+                                    }
+                                    disabled={!sortFieldKey}
+                                />
+                            </Group>
+                        }
+                    >
+                        <MetricFlowResultsTable
+                            columns={columns}
+                            resultsData={metricFlowResultsData}
+                            status={metricFlowQueryResultsQuery.status}
+                            error={metricFlowQueryResultsQuery.error}
+                        />
+                    </CollapsableCard>
+                    <MetricFlowSqlCard
+                        projectUuid={activeProjectUuid}
                         status={metricFlowQueryResultsQuery.status}
+                        sql={metricFlowQueryResultsQuery.data?.query.sql}
                         error={metricFlowQueryResultsQuery.error}
+                        canRedirectToSqlRunner={user.data?.ability?.can(
+                            'manage',
+                            subject('SqlRunner', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid: activeProjectUuid,
+                            }),
+                        )}
                     />
-                </CollapsableCard>
-                <MetricFlowSqlCard
-                    projectUuid={activeProjectUuid}
-                    status={metricFlowQueryResultsQuery.status}
-                    sql={metricFlowQueryResultsQuery.data?.query.sql}
-                    error={metricFlowQueryResultsQuery.error}
-                    canRedirectToSqlRunner={user.data?.ability?.can(
-                        'manage',
-                        subject('SqlRunner', {
-                            organizationUuid: user.data?.organizationUuid,
-                            projectUuid: activeProjectUuid,
-                        }),
-                    )}
-                />
-            </Stack>
-        </Page>
+                </Stack>
+            </Page>
+        </VisualizationProvider>
     );
 };
 export default MetricFlowPage;

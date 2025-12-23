@@ -75,6 +75,18 @@ export const useFieldValues = (
     forceRefresh: boolean = false,
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
+    fieldValuesRequest?: (args: {
+        projectUuid: string;
+        field: FilterableItem;
+        fieldId: string;
+        tableName?: string;
+        search: string;
+        forceRefresh: boolean;
+        filters: AndFilterGroup | undefined;
+        limit: number;
+        parameterValues?: ParametersValuesMap;
+    }) => Promise<FieldValueSearchResult<string>>,
+    autocompleteKey?: string,
 ) => {
     const { embedToken } = useEmbed();
     const [fieldName, setFieldName] = useState<string>(field.name);
@@ -127,10 +139,24 @@ export const useFieldValues = (
         'search',
         debouncedSearch,
         parameterValues,
+        autocompleteKey,
     ];
     const query = useQuery<FieldValueSearchResult, ApiError>(
         cachekey,
         () => {
+            if (fieldValuesRequest && projectId) {
+                return fieldValuesRequest({
+                    projectUuid: projectId,
+                    field,
+                    fieldId,
+                    tableName,
+                    search: debouncedSearch,
+                    forceRefresh,
+                    filters,
+                    limit: MAX_AUTOCOMPLETE_RESULTS,
+                    parameterValues,
+                });
+            }
             if (embedToken && filterId && projectId) {
                 return getEmbedFilterValues({
                     embedToken,
@@ -221,6 +247,18 @@ export const useFieldValuesSafely = (
     forceRefresh: boolean = false,
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
+    fieldValuesRequest?: (args: {
+        projectUuid: string;
+        field: FilterableItem;
+        fieldId: string;
+        tableName?: string;
+        search: string;
+        forceRefresh: boolean;
+        filters: AndFilterGroup | undefined;
+        limit: number;
+        parameterValues?: ParametersValuesMap;
+    }) => Promise<FieldValueSearchResult<string>>,
+    autocompleteKey?: string,
 ) => {
     const fieldValuesResult = useFieldValues(
         search,
@@ -245,6 +283,8 @@ export const useFieldValuesSafely = (
             enabled: !!field && useQueryOptions?.enabled !== false,
         },
         parameterValues,
+        fieldValuesRequest,
+        autocompleteKey,
     );
 
     if (!field) {

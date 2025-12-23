@@ -1,4 +1,7 @@
-import { ApiErrorPayload } from '@lightdash/common';
+import {
+    ApiErrorPayload,
+    type FieldValueSearchResult,
+} from '@lightdash/common';
 import {
     Body,
     Middlewares,
@@ -72,6 +75,55 @@ export class MetricFlowController extends BaseController {
             results: await req.clients
                 .getDbtCloudGraphqlClient()
                 .runGraphQlQuery(body.query),
+        };
+    }
+
+    /**
+     * Get dimension values for autocomplete
+     * @param projectUuid the projectId
+     * @param req express request
+     * @param body dimension and metrics
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/dimension-values')
+    @OperationId('GetDbtSemanticLayerDimensionValues')
+    async getDimensionValues(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body()
+        body: {
+            dimension: string;
+            metrics?: string[];
+            search?: string;
+            limit?: number;
+        },
+    ): Promise<{
+        status: 'ok';
+        results: FieldValueSearchResult<string>;
+    }> {
+        this.setStatus(200);
+
+        const search = body.search ?? '';
+        const limit = body.limit && body.limit > 0 ? body.limit : 50;
+        const { dimensionValues } = await req.clients
+            .getDbtCloudGraphqlClient()
+            .getDimensionValues(body);
+        const normalizedSearch = search.toLowerCase();
+        const filtered = normalizedSearch
+            ? dimensionValues.values.filter((value) =>
+                  value.toLowerCase().includes(normalizedSearch),
+              )
+            : dimensionValues.values;
+
+        return {
+            status: 'ok',
+            results: {
+                search,
+                results: filtered.slice(0, limit),
+                cached: false,
+                refreshedAt: new Date(),
+            },
         };
     }
 }

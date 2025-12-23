@@ -3,7 +3,7 @@ import {
     columnHelper,
     type TableColumn,
 } from '../../../components/common/Table/types';
-import { getRawValueCell } from '../../../hooks/useColumns';
+import { getFormattedValueCell } from '../../../hooks/useColumns';
 
 export default function convertFieldMapToTableColumns(itemsMap: ItemsMap) {
     return Object.values(itemsMap).map<TableColumn>((item) => {
@@ -11,7 +11,7 @@ export default function convertFieldMapToTableColumns(itemsMap: ItemsMap) {
         return columnHelper.accessor((row) => row[fieldId], {
             id: fieldId,
             header: () => getItemLabel(item),
-            cell: getRawValueCell,
+            cell: getFormattedValueCell,
             meta: {
                 item,
             },

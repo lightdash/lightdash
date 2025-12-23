@@ -1,8 +1,10 @@
 import {
     type AndFilterGroup,
+    type FieldValueSearchResult,
     type FilterableItem,
     type FilterRule,
     type ItemsMap,
+    type ParametersValuesMap,
     type WeekDay,
 } from '@lightdash/common';
 import { type PopoverProps } from '@mantine/core';
@@ -18,6 +20,19 @@ export type FiltersContext<T extends DefaultFieldsMap = DefaultFieldsMap> = {
     itemsMap: T;
     baseTable?: string;
     startOfWeek?: WeekDay;
+    autocompleteEnabled?: boolean;
+    autocompleteKey?: string;
+    fieldValuesRequest?: (args: {
+        projectUuid: string;
+        field: FilterableItem;
+        fieldId: string;
+        tableName?: string;
+        search: string;
+        forceRefresh: boolean;
+        filters: AndFilterGroup | undefined;
+        limit: number;
+        parameterValues?: ParametersValuesMap;
+    }) => Promise<FieldValueSearchResult<string>>;
     getField: (filterRule: FilterRule) => T[keyof T] | undefined;
     getAutocompleteFilterGroup: (
         filterId: string,

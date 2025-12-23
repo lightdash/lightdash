@@ -157,6 +157,19 @@ export type DbtGraphQLGetMetricsForDimensionsResponse = {
     metricsForDimensions: DbtGraphQLMetric[];
 };
 
+export type DbtGraphQLGetDimensionValuesArgs = {
+    dimension: string;
+    metrics?: string[];
+};
+
+export type DbtGraphQLGetDimensionValuesResponse = {
+    dimensionValues: {
+        dimension: string;
+        values: string[];
+        totalCount: number;
+    };
+};
+
 export type DbtGraphQLGetDimensionsArgs = {
     metrics: DbtGraphQLMetricInput[];
 };
