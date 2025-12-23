@@ -1,3 +1,10 @@
+## [0.2271.5](https://github.com/lightdash/lightdash/compare/0.2271.4...0.2271.5) (2025-12-23)
+
+
+### Bug Fixes
+
+* validate BigQuery keyfileContents exists for private key/SSO authentication ([#19058](https://github.com/lightdash/lightdash/issues/19058)) ([43989c7](https://github.com/lightdash/lightdash/commit/43989c7567295abd2e4dd1cb0bc0f445d7c2f831))
+
 ## [0.2271.4](https://github.com/lightdash/lightdash/compare/0.2271.3...0.2271.4) (2025-12-23)
 
 
