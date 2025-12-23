@@ -17,6 +17,7 @@ import { v4 as uuid4 } from 'uuid';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
 import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
 import MantineIcon from '../../components/common/MantineIcon';
+import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -605,7 +606,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                     </div>
                                 </StickyWithDetection>
 
-                                <Group grow pb="lg" px="xs">
+                                <Group grow pb={60} px="xs">
                                     <ResponsiveGridLayout
                                         {...gridProps}
                                         className={`${
@@ -737,6 +738,11 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                     </>
                 )}
             </Droppable>
+
+            <ScrollToTop
+                show={isHeaderStuck}
+                scrollContainer={scrollContainer}
+            />
         </DragDropContext>
     );
 };
