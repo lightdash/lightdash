@@ -397,6 +397,20 @@ export class SlackError extends LightdashError {
     }
 }
 
+export class SlackFileUploadError extends LightdashError {
+    constructor(
+        message: string = 'Slack file upload failed',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'SlackFileUploadError',
+            statusCode: 400,
+            data,
+        });
+    }
+}
+
 export class MsTeamsError extends LightdashError {
     constructor(
         message: string = 'Microsoft Teams API error occurred',
