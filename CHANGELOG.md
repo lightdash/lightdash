@@ -1,3 +1,10 @@
+## [0.2271.6](https://github.com/lightdash/lightdash/compare/0.2271.5...0.2271.6) (2025-12-23)
+
+
+### Bug Fixes
+
+* screenshot ready indicator for SQL charts ([#19065](https://github.com/lightdash/lightdash/issues/19065)) ([b6ce49a](https://github.com/lightdash/lightdash/commit/b6ce49a0b6b24e945c3d584cb24151c96e35b3a5))
+
 ## [0.2271.5](https://github.com/lightdash/lightdash/compare/0.2271.4...0.2271.5) (2025-12-23)
 
 
