@@ -364,6 +364,15 @@ export type ApiTestSchedulerResponse = {
     };
 };
 
+export type ReassignSchedulerOwnerRequest = {
+    schedulerUuids: string[];
+    newOwnerUserUuid: string;
+};
+
+export type ApiReassignSchedulerOwnerResponse = ApiSuccess<
+    SchedulerAndTargets[]
+>;
+
 export type TraceTaskBase = {
     organizationUuid: string;
     projectUuid: string;
