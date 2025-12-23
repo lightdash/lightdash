@@ -8,6 +8,7 @@ import {
     ForbiddenError,
     getTimezoneLabel,
     getTzMinutesOffset,
+    InvalidUser,
     isChartCreateScheduler,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
@@ -50,10 +51,12 @@ import {
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAdjustedCronByOffset } from '../../utils/cronUtils';
 import { BaseService } from '../BaseService';
@@ -68,6 +71,7 @@ type SchedulerServiceArguments = {
     spaceModel: SpaceModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
+    userModel: UserModel;
 };
 
 export class SchedulerService extends BaseService {
@@ -89,6 +93,8 @@ export class SchedulerService extends BaseService {
 
     projectModel: ProjectModel;
 
+    userModel: UserModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -99,6 +105,7 @@ export class SchedulerService extends BaseService {
         schedulerClient,
         slackClient,
         projectModel,
+        userModel,
     }: SchedulerServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -110,6 +117,7 @@ export class SchedulerService extends BaseService {
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
         this.projectModel = projectModel;
+        this.userModel = userModel;
     }
 
     private async getSchedulerResource(
@@ -468,6 +476,118 @@ export class SchedulerService extends BaseService {
         }
 
         return scheduler;
+    }
+
+    async reassignSchedulerOwner(
+        user: SessionUser,
+        projectUuid: string,
+        schedulerUuids: string[],
+        newOwnerUserUuid: string,
+    ): Promise<SchedulerAndTargets[]> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        if (schedulerUuids.length === 0) {
+            throw new ParameterError('At least one scheduler UUID is required');
+        }
+
+        // Get project to validate it exists and get organizationUuid
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = projectSummary;
+
+        // Check user has manage:ScheduledDeliveries permission
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Validate all schedulers belong to the project
+        const schedulers = await this.schedulerModel.getSchedulersByUuid(
+            projectUuid,
+            schedulerUuids,
+        );
+
+        if (schedulers.length !== schedulerUuids.length) {
+            const foundUuids = new Set(schedulers.map((s) => s.schedulerUuid));
+            const missingUuids = schedulerUuids.filter(
+                (uuid) => !foundUuids.has(uuid),
+            );
+            throw new NotFoundError(
+                `Schedulers not found or not in project: ${missingUuids.join(
+                    ', ',
+                )}`,
+            );
+        }
+
+        // Validate new owner exists, is a member of the organization, and can create scheduled deliveries
+        let newOwner: SessionUser | undefined;
+
+        try {
+            newOwner = await this.userModel.findSessionUserAndOrgByUuid(
+                newOwnerUserUuid,
+                organizationUuid,
+            );
+        } catch (error) {
+            // `findSessionUserAndOrgByUuid` throws invalid user, we convert it here to NotFoundError - related issue: https://github.com/lightdash/lightdash/issues/11603
+            if (error instanceof InvalidUser) {
+                throw new NotFoundError(
+                    'New owner not found or not a member of the organization',
+                );
+            }
+
+            throw error;
+        }
+
+        if (!newOwner) {
+            throw new NotFoundError(
+                'New owner not found or not a member of the organization',
+            );
+        }
+
+        if (
+            newOwner.ability.cannot(
+                'create',
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'New owner does not have permission to create scheduled deliveries',
+            );
+        }
+
+        // Update ownership
+        await this.schedulerModel.updateOwner(schedulerUuids, newOwnerUserUuid);
+
+        // Fetch and return updated schedulers with targets
+        const updatedSchedulers = await this.schedulerModel.getSchedulersByUuid(
+            projectUuid,
+            schedulerUuids,
+        );
+
+        // Track analytics event
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'scheduler.ownership_reassigned',
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                schedulerUuids,
+                newOwnerUserUuid,
+            },
+        });
+
+        return updatedSchedulers;
     }
 
     async deleteScheduler(

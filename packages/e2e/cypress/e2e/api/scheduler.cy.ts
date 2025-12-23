@@ -6,14 +6,23 @@ import {
     SchedulerAndTargets,
     SchedulerFormat,
     SchedulerSlackTarget,
+    SEED_ORG_1_EDITOR,
+    SEED_ORG_1_VIEWER,
+    SEED_ORG_2_ADMIN,
     SEED_PROJECT,
     UpdateSchedulerAndTargetsWithoutId,
+    type ApiReassignSchedulerOwnerResponse,
+    type Dashboard,
+    type SavedChart,
 } from '@lightdash/common';
 
 const apiUrl = '/api/v1';
 
 const cron = '59 23 * * *';
-const createSchedulerBody: CreateSchedulerAndTargetsWithoutIds = {
+const createSchedulerBody: Omit<
+    CreateSchedulerAndTargetsWithoutIds,
+    'enabled' | 'includeLinks'
+> = {
     name: 'test',
     cron,
     targets: [{ channel: 'C1' }, { channel: 'C2' }],
@@ -24,7 +33,7 @@ const createSchedulerBody: CreateSchedulerAndTargetsWithoutIds = {
 
 const getUpdateSchedulerBody = (
     schedulerSlackTargetUuid: string,
-): UpdateSchedulerAndTargetsWithoutId => ({
+): Omit<UpdateSchedulerAndTargetsWithoutId, 'includeLinks'> => ({
     name: 'test2',
     cron,
     targets: [{ schedulerSlackTargetUuid, channel: 'C1' }, { channel: 'C3' }],
@@ -41,7 +50,7 @@ describe('Lightdash scheduler endpoints', () => {
         cy.request(`${apiUrl}/projects/${projectUuid}/charts`).then(
             (projectResponse) => {
                 const savedChart = projectResponse.body.results.find(
-                    (s) =>
+                    (s: SavedChart) =>
                         s.name ===
                         'How much revenue do we have per payment method?',
                 );
@@ -143,7 +152,7 @@ describe('Lightdash scheduler endpoints', () => {
         cy.request(`${apiUrl}/projects/${projectUuid}/dashboards`).then(
             (projectResponse) => {
                 const dashboard = projectResponse.body.results.find(
-                    (d) => d.name === 'Jaffle dashboard',
+                    (d: Dashboard) => d.name === 'Jaffle dashboard',
                 );
 
                 cy.request<{ results: SchedulerAndTargets }>({
@@ -238,5 +247,162 @@ describe('Lightdash scheduler endpoints', () => {
                 });
             },
         );
+    });
+
+    describe('Reassign scheduler owner', () => {
+        let schedulerUuid: string;
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        beforeEach(() => {
+            cy.login();
+            // Create a scheduler to test with
+            cy.request(`${apiUrl}/projects/${projectUuid}/charts`).then(
+                (projectResponse) => {
+                    const savedChart = projectResponse.body.results.find(
+                        (s: SavedChart) =>
+                            s.name ===
+                            'How much revenue do we have per payment method?',
+                    );
+
+                    cy.request<{ results: SchedulerAndTargets }>({
+                        url: `${apiUrl}/saved/${savedChart.uuid}/schedulers`,
+                        headers: { 'Content-type': 'application/json' },
+                        method: 'POST',
+                        body: createSchedulerBody,
+                    }).then((createResponse) => {
+                        schedulerUuid =
+                            createResponse.body.results.schedulerUuid;
+                    });
+                },
+            );
+        });
+
+        afterEach(() => {
+            // Clean up - delete the scheduler
+            cy.login();
+            if (schedulerUuid) {
+                cy.request({
+                    url: `${apiUrl}/schedulers/${schedulerUuid}`,
+                    method: 'DELETE',
+                    failOnStatusCode: false,
+                });
+            }
+        });
+
+        it('Should reassign scheduler ownership as admin', () => {
+            cy.request<ApiReassignSchedulerOwnerResponse>({
+                url: `${apiUrl}/schedulers/${projectUuid}/reassign-owner`,
+                headers: { 'Content-type': 'application/json' },
+                method: 'PATCH',
+                body: {
+                    schedulerUuids: [schedulerUuid],
+                    newOwnerUserUuid: SEED_ORG_1_EDITOR.user_uuid,
+                },
+            }).then((response) => {
+                expect(response.status).to.eq(200);
+                expect(response.body.results).to.have.length(1);
+                expect(response.body.results[0].schedulerUuid).to.eq(
+                    schedulerUuid,
+                );
+                expect(response.body.results[0].createdBy).to.eq(
+                    SEED_ORG_1_EDITOR.user_uuid,
+                );
+            });
+        });
+
+        it('Should reassign scheduler ownership as editor', () => {
+            cy.loginAsEditor();
+            cy.request<ApiReassignSchedulerOwnerResponse>({
+                url: `${apiUrl}/schedulers/${projectUuid}/reassign-owner`,
+                headers: { 'Content-type': 'application/json' },
+                method: 'PATCH',
+                body: {
+                    schedulerUuids: [schedulerUuid],
+                    newOwnerUserUuid: SEED_ORG_1_EDITOR.user_uuid,
+                },
+            }).then((response) => {
+                expect(response.status).to.eq(200);
+                expect(response.body.results).to.have.length(1);
+                expect(response.body.results[0].createdBy).to.eq(
+                    SEED_ORG_1_EDITOR.user_uuid,
+                );
+            });
+        });
+
+        it('Should fail to reassign scheduler ownership as viewer', () => {
+            cy.loginAsViewer();
+            cy.request({
+                url: `${apiUrl}/schedulers/${projectUuid}/reassign-owner`,
+                headers: { 'Content-type': 'application/json' },
+                method: 'PATCH',
+                body: {
+                    schedulerUuids: [schedulerUuid],
+                    newOwnerUserUuid: SEED_ORG_1_EDITOR.user_uuid,
+                },
+                failOnStatusCode: false,
+            }).then((response) => {
+                expect(response.status).to.eq(403);
+            });
+        });
+
+        it('Should fail when scheduler does not exist', () => {
+            cy.request({
+                url: `${apiUrl}/schedulers/${projectUuid}/reassign-owner`,
+                headers: { 'Content-type': 'application/json' },
+                method: 'PATCH',
+                body: {
+                    schedulerUuids: ['00000000-0000-0000-0000-000000000000'],
+                    newOwnerUserUuid: SEED_ORG_1_EDITOR.user_uuid,
+                },
+                failOnStatusCode: false,
+            }).then((response) => {
+                expect(response.status).to.eq(404);
+            });
+        });
+
+        it('Should fail when new owner is not in organization', () => {
+            cy.request({
+                url: `${apiUrl}/schedulers/${projectUuid}/reassign-owner`,
+                headers: { 'Content-type': 'application/json' },
+                method: 'PATCH',
+                body: {
+                    schedulerUuids: [schedulerUuid],
+                    newOwnerUserUuid: SEED_ORG_2_ADMIN.user_uuid,
+                },
+                failOnStatusCode: false,
+            }).then((response) => {
+                expect(response.status).to.eq(404);
+            });
+        });
+
+        it('Should fail when new owner is a viewer (cannot create scheduled deliveries)', () => {
+            cy.request({
+                url: `${apiUrl}/schedulers/${projectUuid}/reassign-owner`,
+                headers: { 'Content-type': 'application/json' },
+                method: 'PATCH',
+                body: {
+                    schedulerUuids: [schedulerUuid],
+                    newOwnerUserUuid: SEED_ORG_1_VIEWER.user_uuid,
+                },
+                failOnStatusCode: false,
+            }).then((response) => {
+                expect(response.status).to.eq(403);
+            });
+        });
+
+        it('Should fail when schedulerUuids is empty', () => {
+            cy.request({
+                url: `${apiUrl}/schedulers/${projectUuid}/reassign-owner`,
+                headers: { 'Content-type': 'application/json' },
+                method: 'PATCH',
+                body: {
+                    schedulerUuids: [],
+                    newOwnerUserUuid: SEED_ORG_1_EDITOR.user_uuid,
+                },
+                failOnStatusCode: false,
+            }).then((response) => {
+                expect(response.status).to.eq(400);
+            });
+        });
     });
 });
