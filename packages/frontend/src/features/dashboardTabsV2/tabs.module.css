@@ -8,6 +8,10 @@
     &[data-has-header-above='true'] {
         top: var(--dashboard-header-height);
     }
+
+    &[data-is-stuck='true'] {
+        border-bottom: 1px solid var(--mantine-color-ldGray-3);
+    }
 }
 
 .list {
