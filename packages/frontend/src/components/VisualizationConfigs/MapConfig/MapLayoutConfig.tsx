@@ -61,12 +61,9 @@ export const Layout: FC = memo(() => {
     ];
 
     const locationTypeOptions = [
-        {
-            value: MapChartType.SCATTER,
-            label: 'Scatter',
-        },
-        { value: MapChartType.HEATMAP, label: 'Heatmap' },
+        { value: MapChartType.SCATTER, label: 'Scatter' },
         { value: MapChartType.AREA, label: 'Area' },
+        { value: MapChartType.HEATMAP, label: 'Heatmap' },
     ];
 
     const locationType = validConfig.locationType || MapChartType.SCATTER;
