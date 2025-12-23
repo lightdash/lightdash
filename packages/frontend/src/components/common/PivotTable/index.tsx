@@ -556,23 +556,6 @@ const PivotTable: FC<PivotTableProps> = ({
                     const row = rows[rowIndex];
                     if (!row) return null;
 
-                    const rowFields = row
-                        .getVisibleCells()
-                        .reduce<ConditionalFormattingRowFields>((acc, cell) => {
-                            const meta = cell.column.columnDef.meta;
-                            if (meta?.item) {
-                                const cellValue = cell.getValue() as
-                                    | ResultRow[0]
-                                    | undefined;
-
-                                acc[getItemId(meta.item)] = {
-                                    field: meta.item,
-                                    value: cellValue?.value?.raw,
-                                };
-                            }
-                            return acc;
-                        }, {});
-
                     const toggleExpander = row.getToggleExpandedHandler();
 
                     return (
@@ -601,13 +584,46 @@ const PivotTable: FC<PivotTableProps> = ({
                                     cell.getValue() as ResultRow[0];
                                 const value = fullValue?.value;
 
+                                // Build rowFields for this cell's pivot context only
+                                // This ensures field comparisons use values from the same pivot column
+                                const currentHeaderInfo =
+                                    cell.column.columnDef.meta?.headerInfo;
+                                const rowFieldsForCell = row
+                                    .getVisibleCells()
+                                    .reduce<ConditionalFormattingRowFields>(
+                                        (acc, c) => {
+                                            const cellMeta =
+                                                c.column.columnDef.meta;
+                                            if (
+                                                cellMeta?.item &&
+                                                isEqual(
+                                                    cellMeta?.headerInfo,
+                                                    currentHeaderInfo,
+                                                )
+                                            ) {
+                                                const cellValue =
+                                                    c.getValue() as
+                                                        | ResultRow[0]
+                                                        | undefined;
+                                                acc[getItemId(cellMeta.item)] =
+                                                    {
+                                                        field: cellMeta.item,
+                                                        value: cellValue?.value
+                                                            ?.raw,
+                                                    };
+                                            }
+                                            return acc;
+                                        },
+                                        {},
+                                    );
+
                                 const conditionalFormattingConfig =
                                     getConditionalFormattingConfig({
                                         field: item,
                                         value: value?.raw,
                                         minMaxMap,
                                         conditionalFormattings,
-                                        rowFields,
+                                        rowFields: rowFieldsForCell,
                                     });
 
                                 const conditionalFormattingColor =
@@ -640,7 +656,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         getConditionalFormattingDescription(
                                             item,
                                             conditionalFormattingConfig,
-                                            rowFields,
+                                            rowFieldsForCell,
                                             getConditionalRuleLabelFromItem,
                                         );
 
