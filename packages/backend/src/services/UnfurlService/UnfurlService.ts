@@ -228,11 +228,29 @@ export class UnfurlService extends BaseService {
                     this.logger.debug(
                         `Received paginated response: ${response.url()}`,
                     );
+
+                    if (!response.ok()) {
+                        this.logger.warn(
+                            `Paginated response returned non-OK status ${response.status()} for ${response.url()}`,
+                        );
+                        return;
+                    }
+
                     const body = await response.body();
-                    const json = JSON.parse(body.toString()) as Partial<{
+                    let json: Partial<{
                         status: 'ok';
                         results: ApiGetAsyncQueryResults;
                     }>;
+                    try {
+                        json = JSON.parse(body.toString());
+                    } catch (parseError) {
+                        this.logger.warn(
+                            `Failed to parse paginated response as JSON from ${response.url()}: ${body
+                                .toString()
+                                .slice(0, 100)}`,
+                        );
+                        return;
+                    }
 
                     // Check if is last page (aka has no next page)
                     if (
