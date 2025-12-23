@@ -31,6 +31,7 @@ import {
     IconRadar,
     IconRun,
     IconTextCaption,
+    IconUser,
 } from '@tabler/icons-react';
 import {
     MantineReactTable,
@@ -392,6 +393,26 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 },
             },
             {
+                accessorKey: 'createdByName',
+                header: 'Owner',
+                enableSorting: false,
+                size: 150,
+                Header: ({ column }) => (
+                    <Group gap="two" wrap="nowrap">
+                        <MantineIcon icon={IconUser} color="ldGray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => {
+                    const item = row.original;
+                    return (
+                        <Text fz="xs" c="ldGray.6">
+                            {item.createdByName || 'Unknown'}
+                        </Text>
+                    );
+                },
+            },
+            {
                 accessorKey: 'lastRunStatus',
                 header: 'Last Run Status',
                 enableSorting: false,
@@ -618,7 +639,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 Cell: ({ row }) => {
                     const item = row.original;
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="xs" c="ldGray.6">
                             {new Date(item.createdAt).toLocaleDateString()}
                         </Text>
                     );
