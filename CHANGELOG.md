@@ -1,3 +1,10 @@
+# [0.2272.0](https://github.com/lightdash/lightdash/compare/0.2271.6...0.2272.0) (2025-12-23)
+
+
+### Features
+
+* **wip:** add endpoint to reassign scheduled deliveries in bulk ([#19041](https://github.com/lightdash/lightdash/issues/19041)) ([426f685](https://github.com/lightdash/lightdash/commit/426f6858324f87c2e47b01a576e1b5eab010c6f2))
+
 ## [0.2271.6](https://github.com/lightdash/lightdash/compare/0.2271.5...0.2271.6) (2025-12-23)
 
 
