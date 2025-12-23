@@ -1,3 +1,10 @@
+## [0.2271.4](https://github.com/lightdash/lightdash/compare/0.2271.3...0.2271.4) (2025-12-23)
+
+
+### Bug Fixes
+
+* scheduled deliveries to private slack channels ([#19042](https://github.com/lightdash/lightdash/issues/19042)) ([f0080e0](https://github.com/lightdash/lightdash/commit/f0080e07b9e45ee8e32c7d96c68e25d0d42fbc6c))
+
 ## [0.2271.3](https://github.com/lightdash/lightdash/compare/0.2271.2...0.2271.3) (2025-12-23)
 
 
