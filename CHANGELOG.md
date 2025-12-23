@@ -1,3 +1,10 @@
+# [0.2274.0](https://github.com/lightdash/lightdash/compare/0.2273.0...0.2274.0) (2025-12-23)
+
+
+### Features
+
+* add reassign user for individual schedulers ([#19048](https://github.com/lightdash/lightdash/issues/19048)) ([6627582](https://github.com/lightdash/lightdash/commit/662758261a12325052bf0a24e9703978a7cf3a48))
+
 # [0.2273.0](https://github.com/lightdash/lightdash/compare/0.2272.0...0.2273.0) (2025-12-23)
 
 
