@@ -389,6 +389,44 @@ const PivotTable: FC<PivotTableProps> = ({
         return (hideRowNumbers ? 0 : 1) + data.cellsCount;
     }, [hideRowNumbers, data.cellsCount]);
 
+    // Pre-compute metric values per pivot column for metricsAsRows mode
+    // Maps headerInfo key -> { [metricFieldId]: { field, value } }
+    const columnValuesMap = useMemo(() => {
+        if (!data.pivotConfig.metricsAsRows) return null;
+
+        const map = new Map<string, ConditionalFormattingRowFields>();
+
+        rows.forEach((row, rowIndex) => {
+            // Get field ID from the label column
+            const fieldId = data.indexValues[rowIndex]?.find(
+                (v) => v.type === 'label',
+            )?.fieldId;
+
+            if (!fieldId) return;
+
+            const field = getField(fieldId);
+            if (!field) return;
+
+            row.getVisibleCells().forEach((cell) => {
+                const headerInfo = cell.column.columnDef.meta?.headerInfo;
+                if (!headerInfo || Object.keys(headerInfo).length === 0) return;
+
+                const key = cell.column.id;
+                const cellValue = cell.getValue() as ResultRow[0] | undefined;
+
+                if (!map.has(key)) {
+                    map.set(key, {});
+                }
+                map.get(key)![fieldId] = {
+                    field,
+                    value: cellValue?.value?.raw,
+                };
+            });
+        });
+
+        return map;
+    }, [data.pivotConfig.metricsAsRows, data.indexValues, rows, getField]);
+
     useEffect(() => {
         // TODO: Remove code duplicated from non-pivot table version.
         if (showSubtotals) {
@@ -584,38 +622,52 @@ const PivotTable: FC<PivotTableProps> = ({
                                     cell.getValue() as ResultRow[0];
                                 const value = fullValue?.value;
 
-                                // Build rowFields for this cell's pivot context only
-                                // This ensures field comparisons use values from the same pivot column
+                                // Build rowFields for this cell's pivot context
                                 const currentHeaderInfo =
                                     cell.column.columnDef.meta?.headerInfo;
-                                const rowFieldsForCell = row
-                                    .getVisibleCells()
-                                    .reduce<ConditionalFormattingRowFields>(
-                                        (acc, c) => {
-                                            const cellMeta =
-                                                c.column.columnDef.meta;
-                                            if (
-                                                cellMeta?.item &&
-                                                isEqual(
-                                                    cellMeta?.headerInfo,
-                                                    currentHeaderInfo,
-                                                )
-                                            ) {
-                                                const cellValue =
-                                                    c.getValue() as
-                                                        | ResultRow[0]
-                                                        | undefined;
-                                                acc[getItemId(cellMeta.item)] =
-                                                    {
+
+                                let rowFieldsForCell: ConditionalFormattingRowFields;
+
+                                if (
+                                    data.pivotConfig.metricsAsRows &&
+                                    columnValuesMap
+                                ) {
+                                    // Use pre-computed column values for metricsAsRows mode
+                                    rowFieldsForCell =
+                                        columnValuesMap.get(cell.column.id) ??
+                                        {};
+                                } else {
+                                    // Use same-row filtering for normal pivot mode
+                                    rowFieldsForCell = row
+                                        .getVisibleCells()
+                                        .reduce<ConditionalFormattingRowFields>(
+                                            (acc, c) => {
+                                                const cellMeta =
+                                                    c.column.columnDef.meta;
+                                                if (
+                                                    cellMeta?.item &&
+                                                    isEqual(
+                                                        cellMeta?.headerInfo,
+                                                        currentHeaderInfo,
+                                                    )
+                                                ) {
+                                                    const cellValue =
+                                                        c.getValue() as
+                                                            | ResultRow[0]
+                                                            | undefined;
+                                                    acc[
+                                                        getItemId(cellMeta.item)
+                                                    ] = {
                                                         field: cellMeta.item,
                                                         value: cellValue?.value
                                                             ?.raw,
                                                     };
-                                            }
-                                            return acc;
-                                        },
-                                        {},
-                                    );
+                                                }
+                                                return acc;
+                                            },
+                                            {},
+                                        );
+                                }
 
                                 const conditionalFormattingConfig =
                                     getConditionalFormattingConfig({
