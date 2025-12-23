@@ -90,6 +90,12 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         (c) => c.updateSqlChartTilesMetadata,
     );
     const parameters = useDashboardContext((c) => c.parameterValues);
+    const markTileScreenshotReady = useDashboardContext(
+        (c) => c.markTileScreenshotReady,
+    );
+    const markTileScreenshotErrored = useDashboardContext(
+        (c) => c.markTileScreenshotErrored,
+    );
     const dashboardFilters = useDashboardFiltersForTile(tile.uuid);
 
     const closeDataExportModal = useCallback(
@@ -141,6 +147,25 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
         chartResultsData?.originalColumns,
         tile.uuid,
         updateSqlChartTilesMetadata,
+    ]);
+
+    useEffect(() => {
+        if (chartError || chartResultsError) {
+            markTileScreenshotErrored(tile.uuid);
+            return;
+        }
+        if (!isChartLoading && !isChartResultsLoading && chartResultsData) {
+            markTileScreenshotReady(tile.uuid);
+        }
+    }, [
+        isChartLoading,
+        isChartResultsLoading,
+        chartResultsData,
+        chartError,
+        chartResultsError,
+        tile.uuid,
+        markTileScreenshotReady,
+        markTileScreenshotErrored,
     ]);
 
     const userCanExportData = user.data?.ability.can(
