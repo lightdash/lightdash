@@ -83,6 +83,7 @@ export type DashboardHeaderProps = {
     onToggleFullscreen: () => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     onEditClicked: () => void;
+    className?: string;
 };
 
 const DashboardHeaderV1 = ({

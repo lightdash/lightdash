@@ -412,7 +412,6 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
         setDuplicatingTab(false);
         setTabToDuplicate(null);
     };
-    const MAGIC_SCROLL_AREA_HEIGHT = 100;
 
     return (
         <DragDropContext
@@ -451,97 +450,121 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                     list: styles.list,
                                     tab: styles.tab,
                                 }}
-                                h={MAGIC_SCROLL_AREA_HEIGHT}
                                 mt={tabsEnabled ? undefined : 'xs'}
                             >
-                                {sortedTabs && sortedTabs?.length > 0 && (
-                                    <Tabs.List px="lg" mb="xs">
-                                        {sortedTabs.map((tab, idx) => (
-                                            <DraggableTab
-                                                key={tab.uuid}
-                                                idx={idx}
-                                                tab={tab}
-                                                isEditMode={isEditMode}
-                                                sortedTabs={sortedTabs}
-                                                currentTabHasTiles={
-                                                    currentTabHasTiles
+                                <div
+                                    className={styles.stickyTabsAndFilters}
+                                    data-has-header-above={isEditMode}
+                                >
+                                    {sortedTabs && sortedTabs?.length > 0 && (
+                                        <Tabs.List px="lg">
+                                            {sortedTabs.map((tab, idx) => (
+                                                <DraggableTab
+                                                    key={tab.uuid}
+                                                    idx={idx}
+                                                    tab={tab}
+                                                    isEditMode={isEditMode}
+                                                    sortedTabs={sortedTabs}
+                                                    currentTabHasTiles={
+                                                        currentTabHasTiles
+                                                    }
+                                                    setEditingTab={
+                                                        setEditingTab
+                                                    }
+                                                    handleDeleteTab={
+                                                        handleDeleteTab
+                                                    }
+                                                    handleDuplicateTab={
+                                                        handleDuplicateTab
+                                                    }
+                                                    setDeletingTab={
+                                                        setDeletingTab
+                                                    }
+                                                />
+                                            ))}
+
+                                            {provided.placeholder}
+
+                                            {isEditMode && (
+                                                <Button
+                                                    ml="sm"
+                                                    size="sm"
+                                                    fz={13}
+                                                    variant="subtle"
+                                                    flex="0 0 auto"
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconPlus}
+                                                        />
+                                                    }
+                                                    onClick={() =>
+                                                        setAddingTab(true)
+                                                    }
+                                                >
+                                                    New tab
+                                                </Button>
+                                            )}
+                                        </Tabs.List>
+                                    )}
+
+                                    {/* Filters bar - collapsed or expanded view */}
+                                    <div className={styles.filtersBar}>
+                                        {isFiltersCollapsed && !isEditMode ? (
+                                            <DashboardFiltersBarSummary
+                                                filtersCount={totalFiltersCount}
+                                                parametersCount={
+                                                    totalParametersCount
                                                 }
-                                                setEditingTab={setEditingTab}
-                                                handleDeleteTab={
-                                                    handleDeleteTab
+                                                dateZoomLabel={
+                                                    isDateZoomDisabled
+                                                        ? null
+                                                        : dateZoomGranularity ||
+                                                          'Default'
                                                 }
-                                                handleDuplicateTab={
-                                                    handleDuplicateTab
+                                                onExpand={() =>
+                                                    setIsFiltersCollapsed(false)
                                                 }
-                                                setDeletingTab={setDeletingTab}
                                             />
-                                        ))}
-
-                                        {provided.placeholder}
-
-                                        {isEditMode && (
-                                            <Button
-                                                ml="sm"
-                                                size="sm"
-                                                fz={13}
-                                                variant="subtle"
-                                                flex="0 0 auto"
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconPlus}
-                                                    />
+                                        ) : (
+                                            <DashboardFiltersBar
+                                                isEditMode={isEditMode}
+                                                activeTabUuid={activeTab?.uuid}
+                                                hasTilesThatSupportFilters={
+                                                    hasTilesThatSupportFilters
                                                 }
-                                                onClick={() =>
-                                                    setAddingTab(true)
+                                                hasDashboardTiles={
+                                                    !!hasDashboardTiles
                                                 }
-                                            >
-                                                New tab
-                                            </Button>
+                                                parameters={parameters}
+                                                parameterValues={
+                                                    parameterValues
+                                                }
+                                                onParameterChange={
+                                                    onParameterChange
+                                                }
+                                                onParameterClearAll={
+                                                    onParameterClearAll
+                                                }
+                                                isParameterLoading={
+                                                    isParameterLoading
+                                                }
+                                                missingRequiredParameters={
+                                                    missingRequiredParameters
+                                                }
+                                                pinnedParameters={
+                                                    pinnedParameters
+                                                }
+                                                onParameterPin={onParameterPin}
+                                                isDateZoomDisabled={
+                                                    isDateZoomDisabled
+                                                }
+                                                onCollapse={() =>
+                                                    setIsFiltersCollapsed(true)
+                                                }
+                                            />
                                         )}
-                                    </Tabs.List>
-                                )}
-
-                                {/* Filters bar - collapsed or expanded view */}
-                                {isFiltersCollapsed && !isEditMode ? (
-                                    <DashboardFiltersBarSummary
-                                        filtersCount={totalFiltersCount}
-                                        parametersCount={totalParametersCount}
-                                        dateZoomLabel={
-                                            isDateZoomDisabled
-                                                ? null
-                                                : dateZoomGranularity ||
-                                                  'Default'
-                                        }
-                                        onExpand={() =>
-                                            setIsFiltersCollapsed(false)
-                                        }
-                                    />
-                                ) : (
-                                    <DashboardFiltersBar
-                                        isEditMode={isEditMode}
-                                        activeTabUuid={activeTab?.uuid}
-                                        hasTilesThatSupportFilters={
-                                            hasTilesThatSupportFilters
-                                        }
-                                        hasDashboardTiles={!!hasDashboardTiles}
-                                        parameters={parameters}
-                                        parameterValues={parameterValues}
-                                        onParameterChange={onParameterChange}
-                                        onParameterClearAll={
-                                            onParameterClearAll
-                                        }
-                                        isParameterLoading={isParameterLoading}
-                                        missingRequiredParameters={
-                                            missingRequiredParameters
-                                        }
-                                        pinnedParameters={pinnedParameters}
-                                        onParameterPin={onParameterPin}
-                                        isDateZoomDisabled={isDateZoomDisabled}
-                                        onCollapse={() =>
-                                            setIsFiltersCollapsed(true)
-                                        }
-                                    />
-                                )}
+                                    </div>
+                                </div>
 
                                 <Group grow pb="lg" px="xs">
                                     <ResponsiveGridLayout
