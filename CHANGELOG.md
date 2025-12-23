@@ -1,3 +1,10 @@
+## [0.2270.16](https://github.com/lightdash/lightdash/compare/0.2270.15...0.2270.16) (2025-12-23)
+
+
+### Bug Fixes
+
+* add SlackFileUploadError and handle it gracefully ([#19038](https://github.com/lightdash/lightdash/issues/19038)) ([93dde7b](https://github.com/lightdash/lightdash/commit/93dde7b7f6078d5742fc957a2dbac9f560852ced))
+
 ## [0.2270.15](https://github.com/lightdash/lightdash/compare/0.2270.14...0.2270.15) (2025-12-23)
 
 
