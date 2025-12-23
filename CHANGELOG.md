@@ -1,3 +1,97 @@
+# [0.2273.0](https://github.com/lightdash/lightdash/compare/0.2272.0...0.2273.0) (2025-12-23)
+
+
+### Features
+
+* **wip:** add owners column to scheduled deliveries table ([#19046](https://github.com/lightdash/lightdash/issues/19046)) ([25dca9f](https://github.com/lightdash/lightdash/commit/25dca9fad2b562a433dc00a37c8dcfe1f700e6ee))
+
+# [0.2272.0](https://github.com/lightdash/lightdash/compare/0.2271.6...0.2272.0) (2025-12-23)
+
+
+### Features
+
+* **wip:** add endpoint to reassign scheduled deliveries in bulk ([#19041](https://github.com/lightdash/lightdash/issues/19041)) ([426f685](https://github.com/lightdash/lightdash/commit/426f6858324f87c2e47b01a576e1b5eab010c6f2))
+
+## [0.2271.6](https://github.com/lightdash/lightdash/compare/0.2271.5...0.2271.6) (2025-12-23)
+
+
+### Bug Fixes
+
+* screenshot ready indicator for SQL charts ([#19065](https://github.com/lightdash/lightdash/issues/19065)) ([b6ce49a](https://github.com/lightdash/lightdash/commit/b6ce49a0b6b24e945c3d584cb24151c96e35b3a5))
+
+## [0.2271.5](https://github.com/lightdash/lightdash/compare/0.2271.4...0.2271.5) (2025-12-23)
+
+
+### Bug Fixes
+
+* validate BigQuery keyfileContents exists for private key/SSO authentication ([#19058](https://github.com/lightdash/lightdash/issues/19058)) ([43989c7](https://github.com/lightdash/lightdash/commit/43989c7567295abd2e4dd1cb0bc0f445d7c2f831))
+
+## [0.2271.4](https://github.com/lightdash/lightdash/compare/0.2271.3...0.2271.4) (2025-12-23)
+
+
+### Bug Fixes
+
+* scheduled deliveries to private slack channels ([#19042](https://github.com/lightdash/lightdash/issues/19042)) ([f0080e0](https://github.com/lightdash/lightdash/commit/f0080e07b9e45ee8e32c7d96c68e25d0d42fbc6c))
+
+## [0.2271.3](https://github.com/lightdash/lightdash/compare/0.2271.2...0.2271.3) (2025-12-23)
+
+
+### Bug Fixes
+
+* handle response.body() errors in UnfurlService ([#19045](https://github.com/lightdash/lightdash/issues/19045)) ([9195568](https://github.com/lightdash/lightdash/commit/9195568676ac45431fe3b084667d191457020290))
+
+## [0.2271.2](https://github.com/lightdash/lightdash/compare/0.2271.1...0.2271.2) (2025-12-23)
+
+
+### Bug Fixes
+
+* increase pg warehouse connection timeout ([#19055](https://github.com/lightdash/lightdash/issues/19055)) ([24a59b7](https://github.com/lightdash/lightdash/commit/24a59b7455bae4f17c6e9dabf9cd9ee2a688a89c))
+
+## [0.2271.1](https://github.com/lightdash/lightdash/compare/0.2271.0...0.2271.1) (2025-12-23)
+
+
+### Bug Fixes
+
+* add error handling for Slack notifications ([#19049](https://github.com/lightdash/lightdash/issues/19049)) ([c8d08a3](https://github.com/lightdash/lightdash/commit/c8d08a3ba49826dc0c6006da9c0dcd9b6926e01a))
+* handle errors when collecting queue size metrics ([#19050](https://github.com/lightdash/lightdash/issues/19050)) ([b6ce0a2](https://github.com/lightdash/lightdash/commit/b6ce0a275e7e7d59793563c9ad7c13854279cc28))
+
+# [0.2271.0](https://github.com/lightdash/lightdash/compare/0.2270.16...0.2271.0) (2025-12-23)
+
+
+### Features
+
+* add scroll to top button in dashboards ([#19035](https://github.com/lightdash/lightdash/issues/19035)) ([37ff7e1](https://github.com/lightdash/lightdash/commit/37ff7e19a5eecfab6b29630e7d265936da713a7e))
+* add styles to sticky dashboard elements ([#19027](https://github.com/lightdash/lightdash/issues/19027)) ([ed49d45](https://github.com/lightdash/lightdash/commit/ed49d454a7b9f4bd0e5b6b6bcd5a3b16cbfcfb7d))
+* dashboard scrolling updates ([#19026](https://github.com/lightdash/lightdash/issues/19026)) ([b97f2fe](https://github.com/lightdash/lightdash/commit/b97f2fe701335791453c076523f9c14fff044662)), closes [#18006](https://github.com/lightdash/lightdash/issues/18006)
+
+## [0.2270.16](https://github.com/lightdash/lightdash/compare/0.2270.15...0.2270.16) (2025-12-23)
+
+
+### Bug Fixes
+
+* add SlackFileUploadError and handle it gracefully ([#19038](https://github.com/lightdash/lightdash/issues/19038)) ([93dde7b](https://github.com/lightdash/lightdash/commit/93dde7b7f6078d5742fc957a2dbac9f560852ced))
+
+## [0.2270.15](https://github.com/lightdash/lightdash/compare/0.2270.14...0.2270.15) (2025-12-23)
+
+
+### Bug Fixes
+
+* handle permission errors for Google Sheets access ([#19044](https://github.com/lightdash/lightdash/issues/19044)) ([73daf3d](https://github.com/lightdash/lightdash/commit/73daf3d003c558f8c82a909be24e8ed83af5ef79))
+
+## [0.2270.14](https://github.com/lightdash/lightdash/compare/0.2270.13...0.2270.14) (2025-12-23)
+
+
+### Bug Fixes
+
+* try/catch JSON.parse() ([#19040](https://github.com/lightdash/lightdash/issues/19040)) ([dcd816c](https://github.com/lightdash/lightdash/commit/dcd816c09ec55f537570317996db9201b8f7b76b))
+
+## [0.2270.13](https://github.com/lightdash/lightdash/compare/0.2270.12...0.2270.13) (2025-12-23)
+
+
+### Bug Fixes
+
+* simplify dashboard search filter configuration ([#19036](https://github.com/lightdash/lightdash/issues/19036)) ([2a6249c](https://github.com/lightdash/lightdash/commit/2a6249cc6fbafc26b1b68dabea1b442855fc750f))
+
 ## [0.2270.12](https://github.com/lightdash/lightdash/compare/0.2270.11...0.2270.12) (2025-12-22)
 
 

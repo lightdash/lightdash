@@ -15,7 +15,10 @@ import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
+import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
 import MantineIcon from '../../components/common/MantineIcon';
+import { ScrollToTop } from '../../components/common/ScrollToTop';
+import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
@@ -150,6 +153,8 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
     const [isFiltersCollapsed, setIsFiltersCollapsed] =
         useState<boolean>(false);
 
+    const [isHeaderStuck, setIsHeaderStuck] = useState<boolean>(false);
+
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
     const [isDeletingTab, setDeletingTab] = useState<boolean>(false);
@@ -167,6 +172,10 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
             : [];
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
     const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
+
+    // Get the scroll container (Page component's main element)
+    const scrollContainer =
+        document.querySelector<HTMLElement>('#page-root main');
 
     // Compute whether there are required filters that apply to the current tab
     // Note: We use doesFilterApplyToTile because getTabUuidsForFilterRules from common
@@ -412,7 +421,6 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
         setDuplicatingTab(false);
         setTabToDuplicate(null);
     };
-    const MAGIC_SCROLL_AREA_HEIGHT = 100;
 
     return (
         <DragDropContext
@@ -451,99 +459,154 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                     list: styles.list,
                                     tab: styles.tab,
                                 }}
-                                h={MAGIC_SCROLL_AREA_HEIGHT}
-                                mt={tabsEnabled ? undefined : 'xs'}
                             >
-                                {sortedTabs && sortedTabs?.length > 0 && (
-                                    <Tabs.List px="lg" mb="xs">
-                                        {sortedTabs.map((tab, idx) => (
-                                            <DraggableTab
-                                                key={tab.uuid}
-                                                idx={idx}
-                                                tab={tab}
-                                                isEditMode={isEditMode}
-                                                sortedTabs={sortedTabs}
-                                                currentTabHasTiles={
-                                                    currentTabHasTiles
-                                                }
-                                                setEditingTab={setEditingTab}
-                                                handleDeleteTab={
-                                                    handleDeleteTab
-                                                }
-                                                handleDuplicateTab={
-                                                    handleDuplicateTab
-                                                }
-                                                setDeletingTab={setDeletingTab}
-                                            />
-                                        ))}
+                                <StickyWithDetection
+                                    // Header that includes dashboard title is sticky during editing
+                                    offset={
+                                        isEditMode ? DASHBOARD_HEADER_HEIGHT : 0
+                                    }
+                                    onStuckChange={setIsHeaderStuck}
+                                    scrollContainer={scrollContainer}
+                                >
+                                    <div
+                                        className={styles.stickyTabsAndFilters}
+                                        data-has-header-above={isEditMode}
+                                        data-is-stuck={isHeaderStuck}
+                                    >
+                                        {sortedTabs &&
+                                            sortedTabs?.length > 0 && (
+                                                <Tabs.List px="lg">
+                                                    {sortedTabs.map(
+                                                        (tab, idx) => (
+                                                            <DraggableTab
+                                                                key={tab.uuid}
+                                                                idx={idx}
+                                                                tab={tab}
+                                                                isEditMode={
+                                                                    isEditMode
+                                                                }
+                                                                sortedTabs={
+                                                                    sortedTabs
+                                                                }
+                                                                currentTabHasTiles={
+                                                                    currentTabHasTiles
+                                                                }
+                                                                setEditingTab={
+                                                                    setEditingTab
+                                                                }
+                                                                handleDeleteTab={
+                                                                    handleDeleteTab
+                                                                }
+                                                                handleDuplicateTab={
+                                                                    handleDuplicateTab
+                                                                }
+                                                                setDeletingTab={
+                                                                    setDeletingTab
+                                                                }
+                                                            />
+                                                        ),
+                                                    )}
 
-                                        {provided.placeholder}
+                                                    {provided.placeholder}
 
-                                        {isEditMode && (
-                                            <Button
-                                                ml="sm"
-                                                size="sm"
-                                                fz={13}
-                                                variant="subtle"
-                                                flex="0 0 auto"
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconPlus}
-                                                    />
-                                                }
-                                                onClick={() =>
-                                                    setAddingTab(true)
-                                                }
-                                            >
-                                                New tab
-                                            </Button>
-                                        )}
-                                    </Tabs.List>
-                                )}
+                                                    {isEditMode && (
+                                                        <Button
+                                                            ml="sm"
+                                                            size="sm"
+                                                            fz={13}
+                                                            variant="subtle"
+                                                            flex="0 0 auto"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconPlus
+                                                                    }
+                                                                />
+                                                            }
+                                                            onClick={() =>
+                                                                setAddingTab(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        >
+                                                            New tab
+                                                        </Button>
+                                                    )}
+                                                </Tabs.List>
+                                            )}
 
-                                {/* Filters bar - collapsed or expanded view */}
-                                {isFiltersCollapsed && !isEditMode ? (
-                                    <DashboardFiltersBarSummary
-                                        filtersCount={totalFiltersCount}
-                                        parametersCount={totalParametersCount}
-                                        dateZoomLabel={
-                                            isDateZoomDisabled
-                                                ? null
-                                                : dateZoomGranularity ||
-                                                  'Default'
-                                        }
-                                        onExpand={() =>
-                                            setIsFiltersCollapsed(false)
-                                        }
-                                    />
-                                ) : (
-                                    <DashboardFiltersBar
-                                        isEditMode={isEditMode}
-                                        activeTabUuid={activeTab?.uuid}
-                                        hasTilesThatSupportFilters={
-                                            hasTilesThatSupportFilters
-                                        }
-                                        hasDashboardTiles={!!hasDashboardTiles}
-                                        parameters={parameters}
-                                        parameterValues={parameterValues}
-                                        onParameterChange={onParameterChange}
-                                        onParameterClearAll={
-                                            onParameterClearAll
-                                        }
-                                        isParameterLoading={isParameterLoading}
-                                        missingRequiredParameters={
-                                            missingRequiredParameters
-                                        }
-                                        pinnedParameters={pinnedParameters}
-                                        onParameterPin={onParameterPin}
-                                        isDateZoomDisabled={isDateZoomDisabled}
-                                        onCollapse={() =>
-                                            setIsFiltersCollapsed(true)
-                                        }
-                                    />
-                                )}
+                                        {/* Filters bar - collapsed or expanded view */}
+                                        <div className={styles.filtersBar}>
+                                            {isFiltersCollapsed &&
+                                            !isEditMode ? (
+                                                <DashboardFiltersBarSummary
+                                                    filtersCount={
+                                                        totalFiltersCount
+                                                    }
+                                                    parametersCount={
+                                                        totalParametersCount
+                                                    }
+                                                    dateZoomLabel={
+                                                        isDateZoomDisabled
+                                                            ? null
+                                                            : dateZoomGranularity ||
+                                                              'Default'
+                                                    }
+                                                    onExpand={() =>
+                                                        setIsFiltersCollapsed(
+                                                            false,
+                                                        )
+                                                    }
+                                                />
+                                            ) : (
+                                                <DashboardFiltersBar
+                                                    isEditMode={isEditMode}
+                                                    activeTabUuid={
+                                                        activeTab?.uuid
+                                                    }
+                                                    hasTilesThatSupportFilters={
+                                                        hasTilesThatSupportFilters
+                                                    }
+                                                    hasDashboardTiles={
+                                                        !!hasDashboardTiles
+                                                    }
+                                                    parameters={parameters}
+                                                    parameterValues={
+                                                        parameterValues
+                                                    }
+                                                    onParameterChange={
+                                                        onParameterChange
+                                                    }
+                                                    onParameterClearAll={
+                                                        onParameterClearAll
+                                                    }
+                                                    isParameterLoading={
+                                                        isParameterLoading
+                                                    }
+                                                    missingRequiredParameters={
+                                                        missingRequiredParameters
+                                                    }
+                                                    pinnedParameters={
+                                                        pinnedParameters
+                                                    }
+                                                    onParameterPin={
+                                                        onParameterPin
+                                                    }
+                                                    isDateZoomDisabled={
+                                                        isDateZoomDisabled
+                                                    }
+                                                    onCollapse={() =>
+                                                        setIsFiltersCollapsed(
+                                                            true,
+                                                        )
+                                                    }
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                </StickyWithDetection>
 
-                                <Group grow pb="lg" px="xs">
+                                <Group grow pb={60} px="xs">
                                     <ResponsiveGridLayout
                                         {...gridProps}
                                         className={`${
@@ -551,6 +614,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                                 ? 'locked'
                                                 : ''
                                         }`}
+                                        containerPadding={[10, 0]}
                                         onDragStop={handleUpdateTiles}
                                         onResizeStop={handleUpdateTiles}
                                         onWidthChange={(cw) => setGridWidth(cw)}
@@ -674,6 +738,11 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                     </>
                 )}
             </Droppable>
+
+            <ScrollToTop
+                show={isHeaderStuck}
+                scrollContainer={scrollContainer}
+            />
         </DragDropContext>
     );
 };

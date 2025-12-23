@@ -296,14 +296,8 @@ export class SearchModel {
         subquery = filterByCreatedByUuid(
             subquery,
             {
-                join: {
-                    isVersioned: true,
-                    joinTableName: 'first_version',
-                    joinTableIdColumnName: 'dashboard_id',
-                    joinTableUserUuidColumnName: 'updated_by_user_uuid',
-                    tableIdColumnName: 'dashboard_id',
-                },
-                tableName: DashboardsTableName,
+                tableName: 'first_version',
+                tableUserUuidColumnName: 'updated_by_user_uuid',
             },
             filters,
         );

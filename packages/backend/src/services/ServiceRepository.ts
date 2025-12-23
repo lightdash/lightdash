@@ -648,6 +648,7 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     slackClient: this.clients.getSlackClient(),
+                    userModel: this.models.getUserModel(),
                 }),
         );
     }

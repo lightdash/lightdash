@@ -96,6 +96,7 @@ export type SchedulerTable = Knex.CompositeTableType<
           | 'include_links'
       >
     | Pick<SchedulerDb, 'updated_at' | 'enabled'>
+    | Pick<SchedulerDb, 'created_by' | 'updated_at'>
     | Pick<SchedulerDb, 'cron'>
 >;
 

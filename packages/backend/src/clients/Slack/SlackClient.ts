@@ -10,6 +10,7 @@ import {
     SlackAppCustomSettings,
     SlackChannel,
     SlackError,
+    SlackFileUploadError,
     SlackInstallationNotFoundError,
     SlackSettings,
     sleep,
@@ -922,19 +923,28 @@ export class SlackClient {
         text: string;
         blocks?: Block[];
     }): Promise<void> {
-        const channelId = await this.getNotificationChannel(organizationUuid);
-        if (!channelId) {
-            Logger.warn(
-                `Unable to send slack notification for organization ${organizationUuid}. No notification channel set.`,
+        try {
+            const channelId = await this.getNotificationChannel(
+                organizationUuid,
             );
-            return;
+            if (!channelId) {
+                Logger.warn(
+                    `Unable to send slack notification for organization ${organizationUuid}. No notification channel set.`,
+                );
+                return;
+            }
+            await this.postMessage({
+                organizationUuid,
+                text,
+                channel: channelId,
+                blocks,
+            });
+        } catch (e) {
+            slackErrorHandler(
+                e,
+                `Unable to send slack notification for organization ${organizationUuid}.`,
+            );
         }
-        await this.postMessage({
-            organizationUuid,
-            text,
-            channel: channelId,
-            blocks,
-        });
     }
 
     async updateMessage({
@@ -1041,7 +1051,7 @@ export class SlackClient {
         const uploadedFile = result.files?.[0].files?.[0];
 
         if (!uploadedFile?.id) {
-            throw new UnexpectedServerError('Slack file was not uploaded');
+            throw new SlackFileUploadError('Slack file was not uploaded');
         }
 
         // We need to wait for the file to be ready, otherwise slack will fail with invalid_blocks error
@@ -1051,7 +1061,7 @@ export class SlackClient {
 
             const checkFile = async (attempt: number): Promise<string> => {
                 if (attempt >= maxRetries) {
-                    throw new UnexpectedServerError(
+                    throw new SlackFileUploadError(
                         'File URL not available after maximum retries.',
                     );
                 }
@@ -1166,7 +1176,11 @@ export class SlackClient {
             });
             return { url: slackFileUrl, expiring: false };
         } catch (e) {
-            slackErrorHandler(e, 'Failed to upload image to slack');
+            if (e instanceof SlackFileUploadError) {
+                Logger.warn(e.message);
+            } else {
+                slackErrorHandler(e, 'Failed to upload image to slack');
+            }
             return { url: imageUrl, expiring: true };
         }
     }

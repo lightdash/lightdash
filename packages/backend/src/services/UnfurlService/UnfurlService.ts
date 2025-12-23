@@ -228,11 +228,37 @@ export class UnfurlService extends BaseService {
                     this.logger.debug(
                         `Received paginated response: ${response.url()}`,
                     );
-                    const body = await response.body();
-                    const json = JSON.parse(body.toString()) as Partial<{
+
+                    if (!response.ok()) {
+                        this.logger.warn(
+                            `Paginated response returned non-OK status ${response.status()} for ${response.url()}`,
+                        );
+                        return;
+                    }
+
+                    let body: Buffer;
+                    try {
+                        body = await response.body();
+                    } catch (error) {
+                        this.logger.debug(
+                            `Failed to get response body for ${response.url()}, skipping`,
+                        );
+                        return;
+                    }
+                    let json: Partial<{
                         status: 'ok';
                         results: ApiGetAsyncQueryResults;
                     }>;
+                    try {
+                        json = JSON.parse(body.toString());
+                    } catch (parseError) {
+                        this.logger.warn(
+                            `Failed to parse paginated response as JSON from ${response.url()}: ${body
+                                .toString()
+                                .slice(0, 100)}`,
+                        );
+                        return;
+                    }
 
                     // Check if is last page (aka has no next page)
                     if (
@@ -907,7 +933,11 @@ export class UnfurlService extends BaseService {
                             let exploreChartResultsPromise:
                                 | Promise<unknown>
                                 | undefined;
-                            if (chartTileUuids) {
+                            if (
+                                chartTileUuids &&
+                                !this.lightdashConfig.scheduler
+                                    .useScreenshotReadyIndicator
+                            ) {
                                 this.logger.info(
                                     `Dashboard screenshot: Found ${
                                         chartTileUuids.length
@@ -967,7 +997,12 @@ export class UnfurlService extends BaseService {
                             const hasSqlCharts =
                                 filteredSqlChartTileUuids &&
                                 filteredSqlChartTileUuids.length > 0;
-                            if (hasSqlCharts && page) {
+                            if (
+                                hasSqlCharts &&
+                                page &&
+                                !this.lightdashConfig.scheduler
+                                    .useScreenshotReadyIndicator
+                            ) {
                                 sqlInitialLoadPromises =
                                     filteredSqlChartTileUuids.map((id) => {
                                         const responsePattern = new RegExp(
@@ -1020,16 +1055,25 @@ export class UnfurlService extends BaseService {
                             lightdashPage === LightdashPage.CHART ||
                             lightdashPage === LightdashPage.EXPLORE
                         ) {
-                            chartResultsPromises = [
-                                this.waitForPaginatedResultsResponse(page),
-                            ]; // NOTE: No await here
+                            if (
+                                !this.lightdashConfig.scheduler
+                                    .useScreenshotReadyIndicator
+                            ) {
+                                chartResultsPromises = [
+                                    this.waitForPaginatedResultsResponse(page),
+                                ]; // NOTE: No await here
+                            }
                         }
 
                         await page.goto(url, {
                             timeout: 150000,
                         });
 
-                        if (chartResultsPromises) {
+                        if (
+                            chartResultsPromises &&
+                            !this.lightdashConfig.scheduler
+                                .useScreenshotReadyIndicator
+                        ) {
                             // We wait after navigating to the page
                             await Promise.allSettled(chartResultsPromises);
                         }

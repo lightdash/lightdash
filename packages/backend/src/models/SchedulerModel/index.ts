@@ -625,6 +625,20 @@ export class SchedulerModel {
         return this.getSchedulerAndTargets(schedulerUuid);
     }
 
+    async updateOwner(
+        schedulerUuids: string[],
+        newOwnerUserUuid: string,
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx(SchedulerTableName)
+                .update({
+                    created_by: newOwnerUserUuid,
+                    updated_at: new Date(),
+                })
+                .whereIn('scheduler_uuid', schedulerUuids);
+        });
+    }
+
     async updateScheduler(
         scheduler: UpdateSchedulerAndTargets,
     ): Promise<SchedulerAndTargets> {

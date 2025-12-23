@@ -1,3 +1,19 @@
+/* Wrapper for tabs and filters - always sticky together */
+.stickyTabsAndFilters {
+    position: sticky;
+    top: 0;
+    z-index: var(--dashboard-tabs-zindex);
+
+    /* When header is sticky above (edit mode), position below it */
+    &[data-has-header-above='true'] {
+        top: var(--dashboard-header-height);
+    }
+
+    &[data-is-stuck='true'] {
+        border-bottom: 1px solid var(--mantine-color-ldGray-3);
+    }
+}
+
 .list {
     &::before {
         border-bottom: 0;
@@ -28,7 +44,7 @@
     font-size: 13px;
     font-weight: 500;
 
-    height: 50px;
+    height: var(--dashboard-tab-height);
     border-radius: 0;
 
     font-size: 13px;
@@ -56,5 +72,15 @@
     &[data-active='true'] {
         color: var(--mantine-color-ldGray-9);
         border-bottom: 2px solid var(--mantine-color-ldGray-9);
+    }
+}
+
+.filtersBar {
+    padding: var(--mantine-spacing-xs) 0;
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-0);
+    }
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
     }
 }
