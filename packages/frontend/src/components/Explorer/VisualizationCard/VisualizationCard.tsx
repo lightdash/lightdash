@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
+    derivePivotConfigurationFromChart,
     ECHARTS_DEFAULT_COLORS,
+    getFieldsFromMetricQuery,
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
@@ -219,6 +221,19 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         missingRequiredParameters,
     ]);
 
+    const dirtyPivotConfiguration = useMemo(() => {
+        return explore
+            ? derivePivotConfigurationFromChart(
+                  unsavedChartVersion,
+                  unsavedChartVersion.metricQuery,
+                  getFieldsFromMetricQuery(
+                      unsavedChartVersion.metricQuery,
+                      explore,
+                  ),
+              )
+            : undefined;
+    }, [unsavedChartVersion, explore]);
+
     if (!unsavedChartVersion.tableName) {
         return <CollapsableCard title="Charts" disabled />;
     }
@@ -284,8 +299,8 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                     headerElement={
                         isOpen && (
                             <VisualizationWarning
-                                pivotDimensions={
-                                    unsavedChartVersion.pivotConfig?.columns
+                                dirtyPivotConfiguration={
+                                    dirtyPivotConfiguration
                                 }
                                 chartConfig={unsavedChartVersion.chartConfig}
                                 resultsData={resultsData}
