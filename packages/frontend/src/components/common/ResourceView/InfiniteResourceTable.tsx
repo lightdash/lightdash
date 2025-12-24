@@ -529,7 +529,7 @@ const InfiniteResourceTable = ({
                 onClick: () => {
                     if (isTableSelectionActive) {
                         row.toggleSelected();
-                    } else {
+                    } else if (!isInitialLoading) {
                         void navigate(
                             getResourceUrl(filters.projectUuid, row.original),
                         );
