@@ -32,6 +32,7 @@ import {
     getExpandedRowModel,
     useReactTable,
     type GroupingState,
+    type Row,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import isEqual from 'lodash/isEqual';
@@ -93,6 +94,18 @@ const VirtualizedArea: FC<{
         </Table.Row>
     );
 };
+
+type IndexDimension = { fieldId: string; value: unknown };
+
+const extractIndexDimensions = (
+    indexValueRow: PivotData['indexValues'][number],
+): IndexDimension[] =>
+    indexValueRow
+        .filter((v) => v.type === 'value')
+        .map((v) => ({
+            fieldId: v.fieldId,
+            value: 'value' in v ? v.value?.raw : undefined,
+        }));
 
 type PivotTableProps = BoxProps & // TODO: remove this
     React.RefAttributes<HTMLTableElement> & {
@@ -374,6 +387,107 @@ const PivotTable: FC<PivotTableProps> = ({
         [rows, data.indexValues],
     );
 
+    // Find the data column index from headerInfo by matching against headerValues
+    // Used for metricsAsRows mode to look up values from dataValues
+    const findDataColumnIndex = useCallback(
+        (
+            headerInfo: Record<string, ResultValue> | undefined,
+        ): number | undefined => {
+            if (!headerInfo || data.headerValues.length === 0) return undefined;
+
+            const numColumns = data.headerValues[0]?.length ?? 0;
+
+            // Find column where ALL header dimension values match
+            for (let colIdx = 0; colIdx < numColumns; colIdx++) {
+                const allMatch = data.headerValues.every((headerRow) => {
+                    const headerCell = headerRow[colIdx];
+                    if (headerCell?.type !== 'value') return true;
+                    const expectedValue = headerInfo[headerCell.fieldId]?.raw;
+                    return headerCell.value?.raw === expectedValue;
+                });
+                if (allMatch) return colIdx;
+            }
+            return undefined;
+        },
+        [data.headerValues],
+    );
+
+    // Build rowFields for metricsAsRows mode by looking up metric values across rows
+    // that share the same index dimension values (same "row group" in the original data)
+    const buildRowFieldsForMetricsAsRows = useCallback(
+        (
+            rowIndex: number,
+            headerInfo: Record<string, ResultValue> | undefined,
+        ): ConditionalFormattingRowFields => {
+            const dataColIndex = findDataColumnIndex(headerInfo);
+            if (dataColIndex === undefined) return {};
+
+            const currentIndexDims = extractIndexDimensions(
+                data.indexValues[rowIndex] ?? [],
+            );
+
+            return data.indexValues.reduce<ConditionalFormattingRowFields>(
+                (acc, indexValueRow, metricRowIdx) => {
+                    const rowIndexDims = extractIndexDimensions(indexValueRow);
+
+                    // Only include metrics from same index dimension group
+                    const sameIndexGroup =
+                        currentIndexDims.length === rowIndexDims.length &&
+                        currentIndexDims.every(
+                            (dim, i) =>
+                                rowIndexDims[i]?.fieldId === dim.fieldId &&
+                                rowIndexDims[i]?.value === dim.value,
+                        );
+                    if (!sameIndexGroup) return acc;
+
+                    const labelEntry = indexValueRow.find(
+                        (v) => v.type === 'label',
+                    );
+                    if (!labelEntry) return acc;
+
+                    const metricId = labelEntry.fieldId;
+                    const field = getField(metricId);
+                    const metricValue =
+                        data.dataValues[metricRowIdx]?.[dataColIndex];
+
+                    if (field && !isDimension(field)) {
+                        acc[metricId] = { field, value: metricValue?.raw };
+                    }
+                    return acc;
+                },
+                {},
+            );
+        },
+        [data.indexValues, data.dataValues, findDataColumnIndex, getField],
+    );
+
+    // Build rowFields for normal pivot mode from visible cells with matching header context
+    const buildRowFieldsFromVisibleCells = useCallback(
+        (
+            row: Row<ResultRow>,
+            headerInfo: Record<string, ResultValue> | undefined,
+        ): ConditionalFormattingRowFields =>
+            row
+                .getVisibleCells()
+                .reduce<ConditionalFormattingRowFields>((acc, c) => {
+                    const cellMeta = c.column.columnDef.meta;
+                    if (
+                        cellMeta?.item &&
+                        isEqual(cellMeta?.headerInfo, headerInfo)
+                    ) {
+                        const cellValue = c.getValue() as
+                            | ResultRow[0]
+                            | undefined;
+                        acc[getItemId(cellMeta.item)] = {
+                            field: cellMeta.item,
+                            value: cellValue?.value?.raw,
+                        };
+                    }
+                    return acc;
+                }, {}),
+        [],
+    );
+
     const paddingTop = useMemo(() => {
         return virtualRows.length > 0 ? virtualRows?.[0]?.start || 0 : 0;
     }, [virtualRows]);
@@ -566,9 +680,28 @@ const PivotTable: FC<PivotTableProps> = ({
                             {row.getVisibleCells().map((cell, colIndex) => {
                                 const meta = cell.column.columnDef.meta;
                                 const isRowTotal = meta?.type === 'rowTotal';
+                                const isDataColumn =
+                                    meta?.type !== 'indexValue' &&
+                                    meta?.type !== 'label' &&
+                                    !isRowTotal;
                                 let item = meta?.item;
 
-                                if (item && isDimension(item)) {
+                                if (
+                                    data.pivotConfig.metricsAsRows &&
+                                    isDataColumn
+                                ) {
+                                    const metricLabelInfo = data.indexValues[
+                                        rowIndex
+                                    ]?.find(
+                                        (indexValue) =>
+                                            indexValue.type === 'label',
+                                    );
+                                    if (metricLabelInfo) {
+                                        item = getField(
+                                            metricLabelInfo.fieldId,
+                                        );
+                                    }
+                                } else if (item && isDimension(item)) {
                                     const underlyingId = data.indexValues[
                                         rowIndex
                                     ]?.find(
@@ -588,34 +721,17 @@ const PivotTable: FC<PivotTableProps> = ({
                                 // This ensures field comparisons use values from the same pivot column
                                 const currentHeaderInfo =
                                     cell.column.columnDef.meta?.headerInfo;
-                                const rowFieldsForCell = row
-                                    .getVisibleCells()
-                                    .reduce<ConditionalFormattingRowFields>(
-                                        (acc, c) => {
-                                            const cellMeta =
-                                                c.column.columnDef.meta;
-                                            if (
-                                                cellMeta?.item &&
-                                                isEqual(
-                                                    cellMeta?.headerInfo,
-                                                    currentHeaderInfo,
-                                                )
-                                            ) {
-                                                const cellValue =
-                                                    c.getValue() as
-                                                        | ResultRow[0]
-                                                        | undefined;
-                                                acc[getItemId(cellMeta.item)] =
-                                                    {
-                                                        field: cellMeta.item,
-                                                        value: cellValue?.value
-                                                            ?.raw,
-                                                    };
-                                            }
-                                            return acc;
-                                        },
-                                        {},
-                                    );
+
+                                const rowFieldsForCell = data.pivotConfig
+                                    .metricsAsRows
+                                    ? buildRowFieldsForMetricsAsRows(
+                                          rowIndex,
+                                          currentHeaderInfo,
+                                      )
+                                    : buildRowFieldsFromVisibleCells(
+                                          row,
+                                          currentHeaderInfo,
+                                      );
 
                                 const conditionalFormattingConfig =
                                     getConditionalFormattingConfig({
