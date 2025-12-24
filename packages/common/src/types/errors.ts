@@ -698,3 +698,14 @@ export class ChangesetConflictError extends LightdashError {
         });
     }
 }
+
+export class InvalidSpaceStateError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'InvalidSpaceStateError',
+            statusCode: 500,
+            data: {},
+        });
+    }
+}

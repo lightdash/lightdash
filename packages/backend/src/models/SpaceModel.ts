@@ -9,6 +9,7 @@ import {
     getHighestSpaceRole,
     getLtreePathFromSlug,
     GroupRole,
+    InvalidSpaceStateError,
     NotFoundError,
     OrganizationMemberRole,
     OrganizationRole,
@@ -1032,14 +1033,24 @@ export class SpaceModel {
         spaceUuids: string[],
     ): Promise<Record<string, SpaceShare[]>> {
         // Get a normalized list of root space UUIDs if the spaces are nested
-        const spacesWithRootSpaceUuid = await Promise.all(
-            spaceUuids.map(async (spaceUuid) => {
-                const { spaceRoot: root } =
-                    await this.getSpaceRootFromCacheOrDB(spaceUuid);
+        const spacesWithRootSpaceUuid = (
+            await Promise.all(
+                spaceUuids.map(async (spaceUuid) => {
+                    try {
+                        const { spaceRoot: root } =
+                            await this.getSpaceRootFromCacheOrDB(spaceUuid);
 
-                return { rootSpaceUuid: root, spaceUuid };
-            }),
-        );
+                        return { rootSpaceUuid: root, spaceUuid };
+                    } catch (e) {
+                        // Prevent one of the spaces from causing the entire request to fail
+                        if (e instanceof InvalidSpaceStateError) {
+                            return null;
+                        }
+                        throw e;
+                    }
+                }),
+            )
+        ).filter((space) => space !== null);
 
         const rootSpaceUuids = Array.from(
             new Set(
@@ -1992,7 +2003,7 @@ export class SpaceModel {
 
     private async getSpaceRoot(spaceUuid: string): Promise<string> {
         const space = await this.database(SpaceTableName)
-            .select(['path', 'project_id'])
+            .select(['path', 'project_id', 'parent_space_uuid'])
             .where('space_uuid', spaceUuid)
             .first();
 
@@ -2010,9 +2021,19 @@ export class SpaceModel {
             .first();
 
         if (!root) {
-            throw new NotFoundError(
+            const error = new InvalidSpaceStateError(
                 `Root space for space for ${spaceUuid} not found`,
             );
+
+            Sentry.captureException(error, {
+                extra: {
+                    spaceUuid,
+                    parentSpaceUuid: space.parent_space_uuid,
+                    path: space.path,
+                },
+            });
+
+            throw error;
         }
 
         return root.space_uuid;
