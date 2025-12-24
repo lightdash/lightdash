@@ -1,3 +1,12 @@
+## [0.2278.2](https://github.com/lightdash/lightdash/compare/0.2278.1...0.2278.2) (2025-12-24)
+
+
+### Bug Fixes
+
+* add filter option hides filter search results in dashboard ([#19043](https://github.com/lightdash/lightdash/issues/19043)) ([d4bd785](https://github.com/lightdash/lightdash/commit/d4bd785f146c8450a8410ef0582812b87ae14027)), closes [#19008](https://github.com/lightdash/lightdash/issues/19008)
+* conditional formatting for field references for metrics-as-rows ([#19064](https://github.com/lightdash/lightdash/issues/19064)) ([279d443](https://github.com/lightdash/lightdash/commit/279d4438f9f097049806c6ccb44994083dccdc6b))
+* conditional formatting in pivoted tables w/ field comparison ([#19039](https://github.com/lightdash/lightdash/issues/19039)) ([277876c](https://github.com/lightdash/lightdash/commit/277876cc2bfcb1fdc1d21342ce4a65b6b6aaa1c9))
+
 ## [0.2278.1](https://github.com/lightdash/lightdash/compare/0.2278.0...0.2278.1) (2025-12-24)
 
 
