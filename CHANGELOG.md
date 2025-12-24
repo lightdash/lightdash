@@ -1,3 +1,10 @@
+# [0.2276.0](https://github.com/lightdash/lightdash/compare/0.2275.1...0.2276.0) (2025-12-24)
+
+
+### Features
+
+* new dashboard tile toolbar ([#19030](https://github.com/lightdash/lightdash/issues/19030)) ([f3b6bf7](https://github.com/lightdash/lightdash/commit/f3b6bf723c8aa038659b486592d6f39b34669b20))
+
 ## [0.2275.1](https://github.com/lightdash/lightdash/compare/0.2275.0...0.2275.1) (2025-12-24)
 
 
