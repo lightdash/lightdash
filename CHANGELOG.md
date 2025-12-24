@@ -1,3 +1,10 @@
+# [0.2277.0](https://github.com/lightdash/lightdash/compare/0.2276.0...0.2277.0) (2025-12-24)
+
+
+### Features
+
+* use derived pivot configuration in visualization warning ([#19067](https://github.com/lightdash/lightdash/issues/19067)) ([aa1073d](https://github.com/lightdash/lightdash/commit/aa1073d67dac0404e119c318c6b8f9bc22a38ee9))
+
 # [0.2276.0](https://github.com/lightdash/lightdash/compare/0.2275.1...0.2276.0) (2025-12-24)
 
 
