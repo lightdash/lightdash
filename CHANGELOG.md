@@ -1,3 +1,10 @@
+## [0.2277.1](https://github.com/lightdash/lightdash/compare/0.2277.0...0.2277.1) (2025-12-24)
+
+
+### Bug Fixes
+
+* validate scheduler targets ([#19075](https://github.com/lightdash/lightdash/issues/19075)) ([a5a26f8](https://github.com/lightdash/lightdash/commit/a5a26f847abe396cedde8a5350b8a3629c36959d))
+
 # [0.2277.0](https://github.com/lightdash/lightdash/compare/0.2276.0...0.2277.0) (2025-12-24)
 
 
