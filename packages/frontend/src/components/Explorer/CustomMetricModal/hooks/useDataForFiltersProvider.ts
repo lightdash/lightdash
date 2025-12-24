@@ -1,4 +1,3 @@
-import { useParams } from 'react-router';
 import {
     selectAdditionalMetrics,
     selectCustomDimensions,
@@ -9,10 +8,11 @@ import {
 import { useExplore } from '../../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../../hooks/useExplorerQuery';
 import { useProject } from '../../../../hooks/useProject';
+import { useProjectUuid } from '../../../../hooks/useProjectUuid';
 import { useFieldsWithSuggestions } from '../../FiltersCard/useFieldsWithSuggestions';
 
 export const useDataForFiltersProvider = () => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const project = useProject(projectUuid);
 
     const tableName = useExplorerSelector(selectTableName);
