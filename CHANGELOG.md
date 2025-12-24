@@ -1,3 +1,10 @@
+## [0.2278.1](https://github.com/lightdash/lightdash/compare/0.2278.0...0.2278.1) (2025-12-24)
+
+
+### Bug Fixes
+
+* handle missing root space gracefully in getSpaceRoot method ([#19076](https://github.com/lightdash/lightdash/issues/19076)) ([f8687a3](https://github.com/lightdash/lightdash/commit/f8687a3df54e4b4694c95c56f9057421973cdbd2))
+
 # [0.2278.0](https://github.com/lightdash/lightdash/compare/0.2277.1...0.2278.0) (2025-12-24)
 
 
