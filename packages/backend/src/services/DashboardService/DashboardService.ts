@@ -988,6 +988,12 @@ export class DashboardService
             throw new ParameterError('Timezone string is not valid');
         }
 
+        if (!newScheduler.targets || !Array.isArray(newScheduler.targets)) {
+            throw new ParameterError(
+                'Targets is required and must be an array',
+            );
+        }
+
         const { projectUuid, organizationUuid } =
             await this.checkCreateScheduledDeliveryAccess(user, dashboardUuid);
         const scheduler = await this.schedulerModel.createScheduler({
