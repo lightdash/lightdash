@@ -109,7 +109,7 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                 <SuboptimalState
                     icon={IconLayoutDashboard}
                     title="Tab is empty"
-                    sx={{ marginTop: '40px' }}
+                    mt="40px"
                 />
             ) : (
                 <ResponsiveGridLayout {...gridProps} layouts={layouts}>
