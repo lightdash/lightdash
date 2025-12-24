@@ -1,0 +1,18 @@
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--mantine-color-background);
+    border-radius: var(--mantine-radius-sm);
+    padding: var(--mantine-spacing-md);
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.skeleton {
+    &::after {
+        background-color: var(--mantine-color-ldGray-1);
+    }
+}
