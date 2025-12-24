@@ -1,4 +1,4 @@
-import { type DashboardTab } from '@lightdash/common';
+import { type ChartKind, type DashboardTab } from '@lightdash/common';
 import { type ReactNode } from 'react';
 
 export type TileBaseProps<T> = {
@@ -12,6 +12,7 @@ export type TileBaseProps<T> = {
     tile: T;
     isLoading?: boolean;
     hasError?: boolean;
+    chartKind?: ChartKind | null;
     extraMenuItems?: ReactNode;
     onDelete: (tile: T) => void;
     onEdit: (tile: T) => void;

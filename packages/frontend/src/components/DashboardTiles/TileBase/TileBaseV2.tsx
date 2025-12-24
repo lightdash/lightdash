@@ -11,7 +11,6 @@ import {
     Flex,
     getDefaultZIndex,
     Group,
-    LoadingOverlay,
     Paper,
     rem,
     Text,
@@ -33,6 +32,7 @@ import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/Delet
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';
 import MoveTileToTabModal from '../TileForms/MoveTileToTabModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
+import LoadingSkeletonOverlay from './LoadingSkeletonOverlay';
 import styles from './TileBase.module.css';
 import { type TileBaseProps } from './types';
 
@@ -45,6 +45,7 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
     tile,
     isLoading = false,
     hasError = false,
+    chartKind,
     extraMenuItems = null,
     onDelete,
     onEdit,
@@ -239,11 +240,12 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
                 bg={transparent ? 'transparent' : 'background'}
                 radius={isEditMode ? rem(4) : rem(12)}
             >
-                <LoadingOverlay
+                <LoadingSkeletonOverlay
                     // ! Very important to have this class name on the tile loading overlay, otherwise the unfurl service will not be able to find it
                     className={LOADING_CHART_OVERLAY_CLASS}
+                    hasTitle={!hideTitle}
+                    chartKind={chartKind}
                     visible={isLoading ?? false}
-                    zIndex={getDefaultZIndex('modal') - 10}
                 />
 
                 <Group
