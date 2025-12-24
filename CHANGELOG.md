@@ -1,3 +1,10 @@
+# [0.2278.0](https://github.com/lightdash/lightdash/compare/0.2277.1...0.2278.0) (2025-12-24)
+
+
+### Features
+
+* add collapsible tabs in tile filter configuration ([#19078](https://github.com/lightdash/lightdash/issues/19078)) ([3470b28](https://github.com/lightdash/lightdash/commit/3470b2843afda9841f135e965ac2d14fc3907c4d))
+
 ## [0.2277.1](https://github.com/lightdash/lightdash/compare/0.2277.0...0.2277.1) (2025-12-24)
 
 
