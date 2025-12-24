@@ -2,7 +2,6 @@
 .stickyTabsAndFilters {
     position: sticky;
     top: 0;
-    z-index: var(--dashboard-tabs-zindex);
 
     /* When header is sticky above (edit mode), position below it */
     &[data-has-header-above='true'] {
@@ -10,6 +9,7 @@
     }
 
     &[data-is-stuck='true'] {
+        z-index: var(--dashboard-tabs-zindex);
         border-bottom: 1px solid var(--mantine-color-ldGray-3);
     }
 }

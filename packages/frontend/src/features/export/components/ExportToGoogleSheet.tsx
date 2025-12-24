@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { type ApiScheduledDownloadCsv } from '@lightdash/common';
-import { Button, Loader, Menu } from '@mantine/core';
+import { Button, Loader } from '@mantine-8/core';
+import { Menu } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useEffect, type FC } from 'react';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
@@ -80,7 +81,7 @@ export const ExportToGoogleSheet: FC<ExportToGoogleSheetProps> = memo(
                 size="xs"
                 variant="default"
                 loading={isExporting}
-                leftIcon={<MantineIcon icon={GSheetsIcon} />}
+                leftSection={<MantineIcon icon={GSheetsIcon} />}
                 onClick={() => mutate()}
                 disabled={disabled}
             >

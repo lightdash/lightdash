@@ -1,49 +1,18 @@
-import {
-    type CompiledDimension,
-    type DateGranularity,
-} from '@lightdash/common';
-import { Text, Tooltip } from '@mantine/core';
-import { IconCalendarSearch } from '@tabler/icons-react';
+import { FeatureFlags } from '@lightdash/common';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { DateZoomInfoOnTileV1 } from './DateZoomInfoOnTileV1';
+import { DateZoomInfoOnTileV2 } from './DateZoomInfoOnTileV2';
+import { type DateZoomInfoOnTileProps } from './types';
 
-type Props = {
-    dateZoomGranularity: DateGranularity;
-    dateDimension: Pick<CompiledDimension, 'label' | 'name'>;
-};
+export const DateZoomInfoOnTile: FC<DateZoomInfoOnTileProps> = (props) => {
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
+    );
 
-export const DateZoomInfoOnTile: FC<Props> = ({
-    dateZoomGranularity,
-    dateDimension,
-}) => {
-    return (
-        <Tooltip
-            label={
-                <>
-                    <Text fz="xs">
-                        Date zoom:{' '}
-                        <Text span fw={500}>
-                            {dateZoomGranularity}
-                        </Text>
-                    </Text>
-                    <Text fz="xs">
-                        On:{' '}
-                        <Text span fw={500}>
-                            {dateDimension?.label}
-                        </Text>
-                    </Text>
-                </>
-            }
-            disabled={!dateDimension}
-            multiline
-            withinPortal
-        >
-            <MantineIcon
-                icon={IconCalendarSearch}
-                color="blue"
-                size={20}
-                style={{ flexShrink: 0 }}
-            />
-        </Tooltip>
+    return isDashboardRedesignEnabled ? (
+        <DateZoomInfoOnTileV2 {...props} />
+    ) : (
+        <DateZoomInfoOnTileV1 {...props} />
     );
 };
