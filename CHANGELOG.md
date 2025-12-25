@@ -1,3 +1,10 @@
+## [0.2278.6](https://github.com/lightdash/lightdash/compare/0.2278.5...0.2278.6) (2025-12-25)
+
+
+### Bug Fixes
+
+* CLI throws "dbt not found error" when working with lightdash yaml ([#19016](https://github.com/lightdash/lightdash/issues/19016)) ([d5134f7](https://github.com/lightdash/lightdash/commit/d5134f70bb0c8ea859f40ee446ae698d4c2116b5))
+
 ## [0.2278.5](https://github.com/lightdash/lightdash/compare/0.2278.4...0.2278.5) (2025-12-25)
 
 
