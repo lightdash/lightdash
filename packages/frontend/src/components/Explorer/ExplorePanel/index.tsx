@@ -17,7 +17,6 @@ import {
     useTransition,
     type FC,
 } from 'react';
-import { useParams } from 'react-router';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -33,6 +32,7 @@ import {
 } from '../../../features/virtualView';
 import { useExplore } from '../../../hooks/useExplore';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -59,7 +59,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const [isViewSourceOpen, setIsViewSourceOpen] = useState(false);
     const [, startTransition] = useTransition();
 
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const isGitProject = useIsGitProject(projectUuid ?? '');
     const { data: editYamlInUiFlag } = useFeatureFlag(
         FeatureFlags.EditYamlInUi,

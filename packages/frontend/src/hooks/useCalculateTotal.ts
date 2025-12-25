@@ -13,12 +13,12 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import {
     convertDateDashboardFilters,
     convertDateFilters,
 } from '../utils/dateFilter';
+import { useProjectUuid } from './useProjectUuid';
 
 const calculateTotalFromQuery = async (
     projectUuid: string,
@@ -132,8 +132,7 @@ export const useCalculateTotal = ({
         if (showColumnCalculation === false) return [];
         return getCalculationColumnFields(fieldIds, itemsMap);
     }, [fieldIds, itemsMap, showColumnCalculation]);
-
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     // only add relevant fields to the key (filters, metrics)
     const queryKey = savedChartUuid

@@ -3,7 +3,6 @@ import { FeatureFlags, isCustomSqlDimension } from '@lightdash/common';
 import { ActionIcon, Button, Group, Text, Tooltip } from '@mantine/core';
 import { IconCode, IconPlus } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -12,6 +11,7 @@ import {
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
 import { useFeatureFlagEnabled } from '../../../../../hooks/useFeatureFlagEnabled';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -31,7 +31,7 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
 }) => {
     const { label, color, depth, tableName, treeSection, helpButton } =
         item.data;
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { user } = useApp();
     const { track } = useTracking();
     const dispatch = useExplorerDispatch();
