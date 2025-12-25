@@ -63,6 +63,7 @@ import { AllMiddlewareArgs, App, SlackEventMiddlewareArgs } from '@slack/bolt';
 import { Block, KnownBlock, WebClient } from '@slack/web-api';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
 import {
+    APICallError,
     AssistantModelMessage,
     ModelMessage,
     ToolCallPart,
@@ -1981,7 +1982,10 @@ export class AiAgentService {
             Logger.error(
                 `Failed to generate question for artifact version ${payload.artifactVersionUuid}`,
             );
-            Sentry.captureException(error);
+            // Skip Sentry for AI API timeouts - these are expected transient failures
+            if (!APICallError.isInstance(error)) {
+                Sentry.captureException(error);
+            }
         }
     }
 
