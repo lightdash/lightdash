@@ -1,4 +1,4 @@
-import { Loader, Stack, Text, type StackProps } from '@mantine/core';
+import { Box, Loader, Stack, Text, type StackProps } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
 
@@ -20,36 +20,39 @@ const SuboptimalState: FC<Props> = ({
 }) => {
     return (
         <Stack
-            spacing="sm"
             {...rest}
-            sx={{
-                height: '100%',
-                width: '100%',
-                alignContent: 'center',
-                justifyContent: 'center',
-                textAlign: 'center',
+            h="100%"
+            w="100%"
+            align="center"
+            justify="center"
+            ta="center"
+            style={{
                 alignItems: 'center',
-                ...rest?.sx,
+                ...rest?.style,
             }}
         >
-            {loading && <Loader color="ldGray.6" />}
+            {loading && <Loader color="ldGray.5" />}
             {icon && !loading && (
-                <MantineIcon color="ldGray.5" size="xxl" icon={icon} />
+                <MantineIcon color="ldGray.5" size="lg" icon={icon} />
             )}
             {title && (
                 <Text
-                    color="ldGray.7"
-                    fz={18}
+                    c="ldGray.8"
+                    size="md"
                     fw={600}
                     style={{ whiteSpace: 'pre-wrap' }}
                 >
                     {title}
                 </Text>
             )}
-            {description && typeof description === 'string' ? (
-                <Text maw={400}>{description}</Text>
-            ) : (
-                description
+            {description && (
+                <Box c="dimmed" fz="xs" maw={400} mt={title ? -10 : 0}>
+                    {typeof description === 'string' ? (
+                        <Text size="xs">{description}</Text>
+                    ) : (
+                        description
+                    )}
+                </Box>
             )}
             {action && action}
         </Stack>
