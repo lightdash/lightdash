@@ -5,11 +5,12 @@
 
 .tileCard {
     overflow: unset;
+    box-shadow: unset;
 
     border: 1px solid
         light-dark(
-            var(--mantine-color-ldGray-1),
-            lighten(var(--mantine-color-ldDark-1), 0.05)
+            var(--mantine-color-ldGray-2),
+            lighten(var(--mantine-color-ldDark-2), 0.05)
         ) !important;
 
     &[data-with-transparent-border='true'] {
@@ -23,6 +24,10 @@
     &[data-has-error='true'] {
         border-style: dashed !important;
         background: transparent !important;
+    }
+
+    &[data-with-shadow='true'] {
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03);
     }
 }
 
