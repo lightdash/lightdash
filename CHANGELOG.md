@@ -1,3 +1,12 @@
+# [0.2279.0](https://github.com/lightdash/lightdash/compare/0.2278.6...0.2279.0) (2025-12-25)
+
+
+### Features
+
+* add subtle error state for dashboard tiles ([#19088](https://github.com/lightdash/lightdash/issues/19088)) ([a9c3834](https://github.com/lightdash/lightdash/commit/a9c38340668fcbdc5d98fdcd67c6fc1213742bf8)), closes [#17936](https://github.com/lightdash/lightdash/issues/17936)
+* adjust chart margins based on legend presence ([#19051](https://github.com/lightdash/lightdash/issues/19051)) ([204ec2a](https://github.com/lightdash/lightdash/commit/204ec2a288d03065d362dacec590e7077d590434)), closes [#17934](https://github.com/lightdash/lightdash/issues/17934)
+* revamp SuboptimalState styles ([#19084](https://github.com/lightdash/lightdash/issues/19084)) ([965bd70](https://github.com/lightdash/lightdash/commit/965bd70dba25d7ce665340abaeee0e8f7c932559))
+
 ## [0.2278.6](https://github.com/lightdash/lightdash/compare/0.2278.5...0.2278.6) (2025-12-25)
 
 
