@@ -1,3 +1,10 @@
+## [0.2278.3](https://github.com/lightdash/lightdash/compare/0.2278.2...0.2278.3) (2025-12-25)
+
+
+### Bug Fixes
+
+* Column totals for metrics-as-rows ([#19079](https://github.com/lightdash/lightdash/issues/19079)) ([869c2c9](https://github.com/lightdash/lightdash/commit/869c2c9b9a2b321da0ded7997ba66c61f11e39d8))
+
 ## [0.2278.2](https://github.com/lightdash/lightdash/compare/0.2278.1...0.2278.2) (2025-12-24)
 
 
