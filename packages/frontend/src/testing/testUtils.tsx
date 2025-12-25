@@ -17,8 +17,16 @@ import AppProviderMock, {
     type AppProviderMockProps,
 } from './__mocks__/providers/AppProvider.mock';
 
-vi.mock('src/providers/ReactQueryProvider');
-vi.mock('src/providers/TrackingProvider');
+vi.mock('../providers/ReactQuery/ReactQueryProvider', async () => {
+    const mock = await import('../providers/__mocks__/ReactQueryProvider');
+    return { default: mock.default };
+});
+vi.mock('../providers/Tracking/TrackingProvider', async () => {
+    const mock = await import(
+        '../providers/__mocks__/Tracking/TrackingProvider'
+    );
+    return { default: mock.TrackingProvider };
+});
 
 const getMockedProviders = (appMocks?: AppProviderMockProps['mocks']) => {
     const ProviderWrapper: FC<PropsWithChildren> = ({ children }) => {
