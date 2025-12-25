@@ -47,6 +47,7 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
     description = null,
     tile,
     isLoading = false,
+    hasError = false,
     extraMenuItems = null,
     onDelete,
     onEdit,
@@ -75,6 +76,7 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
 
     const hideTitle =
+        hasError ||
         tile.type === DashboardTileTypes.HEADING ||
         (tile.type !== DashboardTileTypes.MARKDOWN
             ? tile.properties.hideTitle
@@ -233,6 +235,7 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
                 className={styles.tileCard}
                 data-with-transparent-border={transparent}
                 data-with-edit-mode={isEditMode}
+                data-has-error={hasError}
                 h="100%"
                 p={transparent ? 0 : 'md'}
                 bg={transparent ? 'transparent' : 'background'}
