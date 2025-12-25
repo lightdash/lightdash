@@ -28,7 +28,7 @@ import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { loadLightdashModels } from '../lightdash/loader';
 import * as styles from '../styles';
 import { DbtCompileOptions, maybeCompileModelsAndJoins } from './dbt/compile';
-import { getDbtVersion } from './dbt/getDbtVersion';
+import { tryGetDbtVersion } from './dbt/getDbtVersion';
 import getWarehouseClient from './dbt/getWarehouseClient';
 
 export type CompileHandlerOptions = DbtCompileOptions & {
@@ -101,14 +101,16 @@ const getExploresFromLightdashYmlProject = async (
 };
 
 export const compile = async (options: CompileHandlerOptions) => {
-    const dbtVersion = await getDbtVersion();
-    GlobalState.debug(`> dbt version ${dbtVersion.verboseVersion}`);
+    const dbtVersionResult = await tryGetDbtVersion();
     const executionId = uuidv4();
+
     await LightdashAnalytics.track({
         event: 'compile.started',
         properties: {
             executionId,
-            dbtVersion: dbtVersion.verboseVersion,
+            dbtVersion: dbtVersionResult.success
+                ? dbtVersionResult.version.verboseVersion
+                : undefined,
             useDbtList: !!options.useDbtList,
             skipWarehouseCatalog: !!options.skipWarehouseCatalog,
             skipDbtCompile: !!options.skipDbtCompile,
@@ -119,8 +121,6 @@ export const compile = async (options: CompileHandlerOptions) => {
 
     GlobalState.debug(`> Compiling with project dir ${absoluteProjectPath}`);
 
-    // Load Lightdash Project
-    // Load Lightdash project config
     const lightdashProjectConfig = await readAndLoadLightdashProjectConfig(
         absoluteProjectPath,
     );
@@ -139,6 +139,18 @@ export const compile = async (options: CompileHandlerOptions) => {
 
     // Load dbt Project
     if (explores === null) {
+        if (!dbtVersionResult.success) {
+            await LightdashAnalytics.track({
+                event: 'compile.error',
+                properties: {
+                    executionId,
+                    error: 'dbt not found',
+                },
+            });
+
+            throw dbtVersionResult.error;
+        }
+
         const context = await getDbtContext({
             projectDir: absoluteProjectPath,
             targetPath: options.targetPath,
@@ -183,7 +195,9 @@ export const compile = async (options: CompileHandlerOptions) => {
         let catalog: WarehouseCatalog = {};
         if (!options.skipWarehouseCatalog) {
             const { warehouseClient } = await getWarehouseClient({
-                isDbtCloudCLI: dbtVersion.isDbtCloudCLI,
+                isDbtCloudCLI: dbtVersionResult.success
+                    ? dbtVersionResult.version.isDbtCloudCLI
+                    : false,
                 profilesDir: options.profilesDir,
                 profile: options.profile || context.profileName,
                 target: options.target,
@@ -208,7 +222,9 @@ export const compile = async (options: CompileHandlerOptions) => {
                 event: 'compile.error',
                 properties: {
                     executionId,
-                    dbtVersion: dbtVersion.verboseVersion,
+                    dbtVersion: dbtVersionResult.success
+                        ? dbtVersionResult.version.verboseVersion
+                        : undefined,
                     error: `Dbt adapter ${manifest.metadata.adapter_type} is not supported`,
                 },
             });
@@ -277,7 +293,9 @@ export const compile = async (options: CompileHandlerOptions) => {
             explores: explores.length,
             errors,
             dbtMetrics: metricsCount,
-            dbtVersion: dbtVersion.verboseVersion,
+            dbtVersion: dbtVersionResult.success
+                ? dbtVersionResult.version.verboseVersion
+                : undefined,
         },
     });
     return explores;
