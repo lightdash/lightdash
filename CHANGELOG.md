@@ -1,3 +1,11 @@
+## [0.2278.4](https://github.com/lightdash/lightdash/compare/0.2278.3...0.2278.4) (2025-12-25)
+
+
+### Bug Fixes
+
+* replace useParams with useProjectUuid hook ([#19085](https://github.com/lightdash/lightdash/issues/19085)) ([37dd590](https://github.com/lightdash/lightdash/commit/37dd590919cc498729fe434f033375264823e63b)), closes [#19083](https://github.com/lightdash/lightdash/issues/19083)
+* retry on Element is not attached to the DOM ([#19066](https://github.com/lightdash/lightdash/issues/19066)) ([bd0908e](https://github.com/lightdash/lightdash/commit/bd0908efa84fb1f460466a54cddfd4a05b2507ed))
+
 ## [0.2278.3](https://github.com/lightdash/lightdash/compare/0.2278.2...0.2278.3) (2025-12-25)
 
 
