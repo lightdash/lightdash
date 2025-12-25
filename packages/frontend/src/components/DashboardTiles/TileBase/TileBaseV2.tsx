@@ -7,16 +7,17 @@ import {
     ActionIcon,
     Box,
     Card,
+    Flex,
+    getDefaultZIndex,
     Group,
     LoadingOverlay,
     Paper,
+    rem,
     Text,
     Tooltip,
-    getDefaultZIndex,
-    rem,
 } from '@mantine-8/core';
 import { useHover, useToggle } from '@mantine-8/hooks';
-import { Menu } from '@mantine/core';
+import { clsx, Menu } from '@mantine/core';
 import {
     IconArrowAutofitContent,
     IconDots,
@@ -32,12 +33,6 @@ import ChartUpdateModal from '../TileForms/ChartUpdateModal';
 import MoveTileToTabModal from '../TileForms/MoveTileToTabModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 import styles from './TileBase.module.css';
-import {
-    ChartContainer,
-    HeaderContainer,
-    TileTitleLink,
-    TitleWrapper,
-} from './TileBase.styles';
 import { type TileBaseProps } from './types';
 
 const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
@@ -241,7 +236,7 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
                 h="100%"
                 p={transparent ? 0 : 'md'}
                 bg={transparent ? 'transparent' : 'background'}
-                radius={rem(12)}
+                radius={isEditMode ? rem(4) : rem(12)}
             >
                 <LoadingOverlay
                     // ! Very important to have this class name on the tile loading overlay, otherwise the unfurl service will not be able to find it
@@ -250,13 +245,16 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
                     zIndex={getDefaultZIndex('modal') - 10}
                 />
 
-                <HeaderContainer
-                    $isEditMode={isEditMode}
-                    $isEmpty={isMarkdownTileTitleEmpty || hideTitle}
+                <Group
+                    className={styles.headerContainer}
+                    justify="flex-start"
+                    align="center"
+                    gap="8px"
+                    mb="12px"
+                    data-is-edit-mode={isEditMode}
+                    data-is-empty={isMarkdownTileTitleEmpty || hideTitle}
                     style={{
-                        alignItems: 'flex-start',
                         zIndex: isLoading ? getDefaultZIndex('modal') - 10 : 3,
-                        borderRadius: '5px',
                     }}
                 >
                     {minimal ? (
@@ -284,65 +282,64 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
                             <Box />
                         )
                     ) : (
-                        <Group
-                            gap="xs"
-                            wrap="nowrap"
-                            align="start"
-                            style={{ overflow: 'hidden' }}
-                        >
-                            <TitleWrapper $hovered={titleHovered}>
-                                <Tooltip
-                                    disabled={!description}
-                                    label={
-                                        <Text
-                                            style={{ whiteSpace: 'pre-line' }}
-                                            fz="sm"
-                                        >
-                                            {description}
-                                        </Text>
-                                    }
-                                    multiline
-                                    position="top-start"
-                                    withinPortal
-                                    maw={400}
+                        <Tooltip
+                            disabled={!description}
+                            label={
+                                <Text
+                                    style={{ whiteSpace: 'pre-line' }}
+                                    fz="sm"
                                 >
-                                    {isEditMode ||
-                                    tile.type ===
-                                        DashboardTileTypes.MARKDOWN ? (
-                                        <Text
-                                            fw={600}
-                                            fz="md"
-                                            hidden={hideTitle}
-                                            c="foreground"
-                                        >
-                                            {title}
-                                        </Text>
-                                    ) : (
-                                        <Text
-                                            component={TileTitleLink}
-                                            href={titleHref}
-                                            onMouseEnter={() =>
-                                                setTitleHovered(true)
-                                            }
-                                            onMouseLeave={() =>
-                                                setTitleHovered(false)
-                                            }
-                                            $hovered={titleHovered}
-                                            target="_blank"
-                                            className="non-draggable"
-                                            hidden={hideTitle}
-                                        >
-                                            {title}
-                                        </Text>
-                                    )}
-                                </Tooltip>
-                            </TitleWrapper>
-                        </Group>
+                                    {description}
+                                </Text>
+                            }
+                            multiline
+                            position="top-start"
+                            withinPortal
+                            maw={400}
+                        >
+                            {isEditMode ||
+                            tile.type === DashboardTileTypes.MARKDOWN ? (
+                                <Text
+                                    className={styles.tileTitle}
+                                    fw={600}
+                                    fz="md"
+                                    hidden={hideTitle}
+                                    c="foreground"
+                                >
+                                    {title}
+                                </Text>
+                            ) : (
+                                <Text
+                                    component="a"
+                                    className={styles.tileTitle}
+                                    data-hovered={titleHovered}
+                                    href={titleHref}
+                                    onMouseEnter={() => setTitleHovered(true)}
+                                    onMouseLeave={() => setTitleHovered(false)}
+                                    target="_blank"
+                                    hidden={hideTitle}
+                                >
+                                    {title}
+                                </Text>
+                            )}
+                        </Tooltip>
                     )}
-                </HeaderContainer>
+                </Group>
 
-                <ChartContainer
-                    className="non-draggable sentry-block ph-no-capture"
+                <Flex
+                    className={clsx(
+                        'non-draggable',
+                        'sentry-block',
+                        'ph-no-capture',
+                        styles.chartContainer,
+                    )}
+                    data-full-width={fullWidth}
+                    flex="1"
+                    align={
+                        tile.type === DashboardTileTypes.HEADING
+                            ? 'center'
+                            : undefined
+                    }
                     onMouseEnter={
                         hideTitle
                             ? chartHoveredProps.handleMouseEnter
@@ -353,15 +350,9 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
                             ? chartHoveredProps.handleMouseLeave
                             : undefined
                     }
-                    $alignItems={
-                        tile.type === DashboardTileTypes.HEADING
-                            ? 'center'
-                            : undefined
-                    }
-                    $fullWidth={fullWidth}
                 >
                     {children}
-                </ChartContainer>
+                </Flex>
 
                 {isEditingTileContent &&
                     (tile.type === DashboardTileTypes.SAVED_CHART ||
