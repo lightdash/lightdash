@@ -4,6 +4,8 @@ import {
     AndFilterGroup,
     AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
+    CalculateSubtotalsFromQuery,
+    CalculateTotalFromQuery,
     CommercialFeatureFlags,
     CompiledDimension,
     CreateEmbedJwt,
@@ -1489,6 +1491,151 @@ export class EmbedService extends BaseService {
 
         const subtotalsEntries = await Promise.all(subtotalsPromises);
         return SubtotalsCalculator.formatSubtotalEntries(subtotalsEntries);
+    }
+
+    /**
+     * Calculate totals from a raw metric query in embed context.
+     * This is used when exploring data directly (not from a saved chart).
+     */
+    async calculateTotalFromQuery(
+        account: AnonymousAccount,
+        projectUuid: string,
+        data: CalculateTotalFromQuery,
+    ): Promise<Record<string, number>> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            data.explore,
+        );
+
+        if (isExploreError(explore)) {
+            throw new ForbiddenError(
+                `Explore ${data.explore} on project ${projectUuid} has errors: ${explore.errors}`,
+            );
+        }
+
+        const { warehouseClient } = await this._getWarehouseClient(
+            projectUuid,
+            explore,
+        );
+
+        const { userAttributes, intrinsicUserAttributes } =
+            this.getAccessControls(account);
+
+        // Handle parameter interactivity - only accept user parameters if enabled
+        const acceptedUserParameters =
+            isParameterInteractivityEnabled(account.access.parameters) &&
+            data.parameters
+                ? data.parameters
+                : {};
+
+        const combinedParameters = await this.projectService.combineParameters(
+            projectUuid,
+            explore,
+            acceptedUserParameters,
+        );
+
+        const availableParameterDefinitions = await this.getAvailableParameters(
+            projectUuid,
+            explore,
+        );
+
+        try {
+            const { totalQuery: totalMetricQuery } =
+                await this.projectService._getCalculateTotalQuery(
+                    userAttributes,
+                    intrinsicUserAttributes,
+                    explore,
+                    data.metricQuery,
+                    warehouseClient,
+                    availableParameterDefinitions,
+                    combinedParameters,
+                );
+
+            const { rows } = await this._runEmbedQuery({
+                projectUuid,
+                metricQuery: totalMetricQuery,
+                explore,
+                queryTags: {
+                    embed: 'true',
+                    external_id: account.user.id,
+                    project_uuid: projectUuid,
+                    organization_uuid: organizationUuid,
+                    dashboard_uuid: '',
+                    explore_name: data.explore,
+                    query_context: QueryExecutionContext.CALCULATE_TOTAL,
+                },
+                account,
+                combinedParameters,
+            });
+
+            if (rows.length === 0) {
+                throw new NotFoundError('No results found');
+            }
+
+            return rows[0] as Record<string, number>;
+        } catch (e) {
+            if (e instanceof NotSupportedError) {
+                this.logger.warn(e.message);
+                return {}; // no totals
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Calculate subtotals from a raw metric query in embed context.
+     * This is used when exploring data directly (not from a saved chart).
+     */
+    async calculateSubtotalsFromQuery(
+        account: AnonymousAccount,
+        projectUuid: string,
+        data: CalculateSubtotalsFromQuery,
+    ) {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            data.explore,
+        );
+
+        if (isExploreError(explore)) {
+            throw new ForbiddenError(
+                `Explore ${data.explore} on project ${projectUuid} has errors: ${explore.errors}`,
+            );
+        }
+
+        // Handle parameter interactivity - only accept user parameters if enabled
+        const acceptedUserParameters =
+            isParameterInteractivityEnabled(account.access.parameters) &&
+            data.parameters
+                ? data.parameters
+                : {};
+
+        const combinedParameters = await this.projectService.combineParameters(
+            projectUuid,
+            explore,
+            acceptedUserParameters,
+        );
+
+        return this._calculateSubtotalsForEmbed(
+            account,
+            projectUuid,
+            explore,
+            data.metricQuery,
+            data.columnOrder,
+            data.pivotDimensions,
+            organizationUuid,
+            undefined, // no chartUuid for raw query
+            undefined, // no dashboardUuid for raw query
+            combinedParameters,
+            data.dateZoom,
+        );
     }
 
     async searchFilterValues({

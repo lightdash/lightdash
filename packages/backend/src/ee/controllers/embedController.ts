@@ -10,6 +10,8 @@ import {
     assertEmbeddedAuth,
     assertSessionAuth,
     CacheMetadata,
+    CalculateSubtotalsFromQuery,
+    CalculateTotalFromQuery,
     CommonEmbedJwtContent,
     CreateEmbedJwt,
     CreateEmbedRequestBody,
@@ -397,6 +399,58 @@ export class EmbedController extends BaseController {
                     body.invalidateCache,
                     body.dateZoom,
                 ),
+        };
+    }
+
+    /**
+     * Calculate totals from a raw metric query in embed context.
+     * This is used when exploring data directly (not from a saved chart).
+     */
+    @SuccessResponse('200', 'Success')
+    @Post('/calculate-total')
+    @OperationId('embedCalculateTotalFromQuery')
+    async embedCalculateTotalFromQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: CalculateTotalFromQuery,
+    ): Promise<ApiCalculateTotalResponse> {
+        this.setStatus(200);
+
+        assertEmbeddedAuth(req.account);
+
+        return {
+            status: 'ok',
+            results: await this.getEmbedService().calculateTotalFromQuery(
+                req.account,
+                projectUuid,
+                body,
+            ),
+        };
+    }
+
+    /**
+     * Calculate subtotals from a raw metric query in embed context.
+     * This is used when exploring data directly (not from a saved chart).
+     */
+    @SuccessResponse('200', 'Success')
+    @Post('/calculate-subtotals')
+    @OperationId('embedCalculateSubtotalsFromQuery')
+    async embedCalculateSubtotalsFromQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: CalculateSubtotalsFromQuery,
+    ): Promise<ApiCalculateSubtotalsResponse> {
+        this.setStatus(200);
+
+        assertEmbeddedAuth(req.account);
+
+        return {
+            status: 'ok',
+            results: await this.getEmbedService().calculateSubtotalsFromQuery(
+                req.account,
+                projectUuid,
+                body,
+            ),
         };
     }
 
