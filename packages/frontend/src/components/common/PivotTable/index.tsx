@@ -938,93 +938,99 @@ const PivotTable: FC<PivotTableProps> = ({
 
             {hasColumnTotals ? (
                 <Table.Footer withSticky>
-                    {data.columnTotals?.map((row, totalRowIndex) => (
-                        <Table.Row
-                            key={`column-total-${totalRowIndex}`}
-                            index={totalRowIndex}
-                        >
-                            {/* shows empty cell if row numbers are visible */}
-                            {hideRowNumbers ? null : <Table.Cell />}
+                    {data.columnTotals?.map((row, totalRowIndex) => {
+                        const totalRowCount = data.columnTotals?.length ?? 1;
+                        const stickyIndex = totalRowCount - 1 - totalRowIndex;
+                        return (
+                            <Table.Row
+                                key={`column-total-${totalRowIndex}`}
+                                index={stickyIndex}
+                            >
+                                {/* shows empty cell if row numbers are visible */}
+                                {hideRowNumbers ? null : <Table.Cell />}
 
-                            {/* render the total label */}
-                            {data.columnTotalFields?.[totalRowIndex].map(
-                                (totalLabel, totalColIndex) =>
-                                    totalLabel ? (
+                                {/* render the total label */}
+                                {data.columnTotalFields?.[totalRowIndex].map(
+                                    (totalLabel, totalColIndex) =>
+                                        totalLabel ? (
+                                            <Table.CellHead
+                                                key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                isMinimal={isMinimal}
+                                                withAlignRight
+                                                withBoldFont
+                                            >
+                                                {totalLabel.fieldId
+                                                    ? `Total ${getFieldLabel(
+                                                          totalLabel.fieldId,
+                                                      )}`
+                                                    : `Total`}
+                                            </Table.CellHead>
+                                        ) : (
+                                            <Table.Cell
+                                                key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                isMinimal={isMinimal}
+                                            />
+                                        ),
+                                )}
+
+                                {row.map((total, totalColIndex) => {
+                                    const value = data.pivotConfig.metricsAsRows
+                                        ? getMetricAsRowColumnTotalValueFromAxis(
+                                              total,
+                                              totalRowIndex,
+                                          )
+                                        : getColumnTotalValueFromAxis(
+                                              total,
+                                              totalColIndex,
+                                          );
+                                    return value ? (
                                         <Table.CellHead
-                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                            isMinimal={isMinimal}
+                                            key={`column-total-${totalRowIndex}-${totalColIndex}`}
                                             withAlignRight
+                                            isMinimal={isMinimal}
                                             withBoldFont
+                                            withInteractions
+                                            withValue={value.formatted}
+                                            withMenu={(
+                                                {
+                                                    isOpen,
+                                                    onClose,
+                                                    onCopy,
+                                                }: MenuCallbackProps,
+                                                render: RenderCallback,
+                                            ) => (
+                                                <TotalCellMenu
+                                                    opened={isOpen}
+                                                    onClose={onClose}
+                                                    onCopy={onCopy}
+                                                >
+                                                    {render()}
+                                                </TotalCellMenu>
+                                            )}
                                         >
-                                            {totalLabel.fieldId
-                                                ? `Total ${getFieldLabel(
-                                                      totalLabel.fieldId,
-                                                  )}`
-                                                : `Total`}
+                                            {value.formatted}
                                         </Table.CellHead>
                                     ) : (
                                         <Table.Cell
                                             key={`footer-total-${totalRowIndex}-${totalColIndex}`}
                                             isMinimal={isMinimal}
                                         />
-                                    ),
-                            )}
+                                    );
+                                })}
 
-                            {row.map((total, totalColIndex) => {
-                                const value = data.pivotConfig.metricsAsRows
-                                    ? getMetricAsRowColumnTotalValueFromAxis(
-                                          total,
-                                          totalRowIndex,
+                                {hasRowTotals
+                                    ? data.rowTotalFields?.[0].map(
+                                          (_, index) => (
+                                              <Table.Cell
+                                                  key={`footer-empty-${totalRowIndex}-${index}`}
+                                                  isMinimal={isMinimal}
+                                              />
+                                          ),
                                       )
-                                    : getColumnTotalValueFromAxis(
-                                          total,
-                                          totalColIndex,
-                                      );
-                                return value ? (
-                                    <Table.CellHead
-                                        key={`column-total-${totalRowIndex}-${totalColIndex}`}
-                                        withAlignRight
-                                        isMinimal={isMinimal}
-                                        withBoldFont
-                                        withInteractions
-                                        withValue={value.formatted}
-                                        withMenu={(
-                                            {
-                                                isOpen,
-                                                onClose,
-                                                onCopy,
-                                            }: MenuCallbackProps,
-                                            render: RenderCallback,
-                                        ) => (
-                                            <TotalCellMenu
-                                                opened={isOpen}
-                                                onClose={onClose}
-                                                onCopy={onCopy}
-                                            >
-                                                {render()}
-                                            </TotalCellMenu>
-                                        )}
-                                    >
-                                        {value.formatted}
-                                    </Table.CellHead>
-                                ) : (
-                                    <Table.Cell
-                                        key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                        isMinimal={isMinimal}
-                                    />
-                                );
-                            })}
-
-                            {hasRowTotals
-                                ? data.rowTotalFields?.[0].map((_, index) => (
-                                      <Table.Cell
-                                          key={`footer-empty-${totalRowIndex}-${index}`}
-                                          isMinimal={isMinimal}
-                                      />
-                                  ))
-                                : null}
-                        </Table.Row>
-                    ))}
+                                    : null}
+                            </Table.Row>
+                        );
+                    })}
                 </Table.Footer>
             ) : null}
         </Table>
