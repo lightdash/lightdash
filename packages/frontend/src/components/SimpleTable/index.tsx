@@ -10,7 +10,7 @@ import {
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
-import { LoadingChart } from '../SimpleChart';
+import LoadingChart from '../common/LoadingChart';
 import PivotTable from '../common/PivotTable';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import Table from '../common/Table';
@@ -297,7 +297,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 data={resultsData?.rows || []}
                 totalRowsCount={resultsData?.totalResults || 0}
                 isFetchingRows={!!resultsData?.isFetchingRows}
-                loadingState={LoadingChart}
+                loadingState={() => <LoadingChart />}
                 emptyState={isDashboard ? DashboardEmptyState : undefined}
                 fetchMoreRows={resultsData?.fetchMoreRows || noop}
                 columns={columns}
