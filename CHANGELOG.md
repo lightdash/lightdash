@@ -1,3 +1,10 @@
+## [0.2278.5](https://github.com/lightdash/lightdash/compare/0.2278.4...0.2278.5) (2025-12-25)
+
+
+### Bug Fixes
+
+* disable space access in embed mode ([#19087](https://github.com/lightdash/lightdash/issues/19087)) ([fcf5f2b](https://github.com/lightdash/lightdash/commit/fcf5f2ba6b80da4fdfbf82a8322b1f76d7e3f1ac)), closes [#19083](https://github.com/lightdash/lightdash/issues/19083)
+
 ## [0.2278.4](https://github.com/lightdash/lightdash/compare/0.2278.3...0.2278.4) (2025-12-25)
 
 
