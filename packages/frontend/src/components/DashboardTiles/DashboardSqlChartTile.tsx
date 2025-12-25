@@ -26,7 +26,6 @@ import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFilter
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
-import { formatChartErrorMessage } from '../../utils/chartErrorUtils';
 import ChartView from '../DataViz/visualizations/ChartView';
 import { Table } from '../DataViz/visualizations/Table';
 import LinkMenuItem from '../common/LinkMenuItem';
@@ -193,16 +192,15 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                 chartName={tile.properties.chartName ?? ''}
                 tile={tile}
                 isLoading={!!savedSqlUuid && isChartLoading}
+                hasError
                 title={tileTitle}
                 {...rest}
             >
                 {(!savedSqlUuid || !isChartLoading) && (
                     <SuboptimalState
                         icon={IconAlertCircle}
-                        title={formatChartErrorMessage(
-                            tile.properties.chartName,
-                            errorMessage,
-                        )}
+                        title={tileTitle}
+                        description={errorMessage}
                     />
                 )}
             </TileBase>
@@ -218,6 +216,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                 tile={tile}
                 title={tile.properties.title || tile.properties.chartName || ''}
                 isLoading={isChartResultsLoading}
+                hasError={!!chartResultsError}
                 {...rest}
                 titleHref={`/projects/${projectUuid}/sql-runner/${chartData.slug}`}
                 extraMenuItems={
@@ -235,11 +234,11 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                 {chartResultsError && (
                     <SuboptimalState
                         icon={IconAlertCircle}
-                        title={formatChartErrorMessage(
-                            tile.properties.chartName,
+                        title={tile.properties.chartName}
+                        description={
                             chartResultsError?.error?.message ||
-                                'No data available',
-                        )}
+                            'No data available'
+                        }
                     />
                 )}
             </TileBase>

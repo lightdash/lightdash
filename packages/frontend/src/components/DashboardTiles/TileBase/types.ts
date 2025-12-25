@@ -11,6 +11,7 @@ export type TileBaseProps<T> = {
     description?: string | null;
     tile: T;
     isLoading?: boolean;
+    hasError?: boolean;
     extraMenuItems?: ReactNode;
     onDelete: (tile: T) => void;
     onEdit: (tile: T) => void;

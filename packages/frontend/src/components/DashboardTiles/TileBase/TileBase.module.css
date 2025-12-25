@@ -19,6 +19,11 @@
     &[data-with-edit-mode='true'] {
         border: 1px dashed var(--mantine-color-blue-5) !important;
     }
+
+    &[data-has-error='true'] {
+        border: 1px dashed var(--mantine-color-ldGray-3) !important;
+        background: transparent !important;
+    }
 }
 
 .dragHandleIcon {

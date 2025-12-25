@@ -72,7 +72,6 @@ import React, {
 } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
-import { formatChartErrorMessage } from '../../utils/chartErrorUtils';
 import { type EChartsReact } from '../EChartsReactWrapper';
 
 type ClientSideError = {
@@ -1873,6 +1872,7 @@ export const GenericDashboardChartTile: FC<
                 title={tileTitle}
                 isEditMode={isEditMode}
                 tile={tile}
+                hasError
                 extraMenuItems={
                     tile.properties.savedChartUuid && (
                         <Tooltip
@@ -1892,13 +1892,9 @@ export const GenericDashboardChartTile: FC<
             >
                 <SuboptimalState
                     icon={IconAlertCircle}
-                    title={formatChartErrorMessage(
-                        dashboardChartReadyQuery?.chart?.name ||
-                            tile.properties.chartName ||
-                            undefined,
-                        error?.error?.message || 'No data available',
-                    )}
-                ></SuboptimalState>
+                    title={tileTitle}
+                    description={error?.error?.message || 'No data available'}
+                />
             </TileBase>
         );
     }
