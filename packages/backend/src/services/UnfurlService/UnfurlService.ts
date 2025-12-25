@@ -15,6 +15,7 @@ import {
     ParameterError,
     QueryHistoryStatus,
     RequestMethod,
+    SCREENSHOT_SELECTORS,
     ScreenshotError,
     SessionStorageKeys,
     SessionUser,
@@ -299,10 +300,13 @@ export class UnfurlService extends BaseService {
                 self.logger.info(
                     'Waiting for screenshot ready indicator (SCHEDULER_USE_SCREENSHOT_READY_INDICATOR=true)',
                 );
-                await page.waitForSelector('#lightdash-ready-indicator', {
-                    state: 'attached',
-                    timeout,
-                });
+                await page.waitForSelector(
+                    SCREENSHOT_SELECTORS.READY_INDICATOR,
+                    {
+                        state: 'attached',
+                        timeout,
+                    },
+                );
                 self.logger.info(
                     'Screenshot ready indicator found - dashboard is ready',
                 );
@@ -311,12 +315,12 @@ export class UnfurlService extends BaseService {
 
             // Legacy approach: wait for loading overlays
             // Wait for all the loading overlays to be in the DOM
-            await page.waitForSelector('.loading_chart_overlay', {
+            await page.waitForSelector(SCREENSHOT_SELECTORS.LOADING_OVERLAY, {
                 state: 'attached',
             });
 
             // Wait for the loading overlay to be hidden (loading is complete)
-            await page.waitForSelector('.loading_chart_overlay', {
+            await page.waitForSelector(SCREENSHOT_SELECTORS.LOADING_OVERLAY, {
                 state: 'hidden',
             });
         }
@@ -1091,7 +1095,7 @@ export class UnfurlService extends BaseService {
                             'Waiting for screenshot ready indicator (SCHEDULER_USE_SCREENSHOT_READY_INDICATOR=true)',
                         );
                         await page.waitForSelector(
-                            '#lightdash-ready-indicator',
+                            SCREENSHOT_SELECTORS.READY_INDICATOR,
                             {
                                 state: 'attached',
                                 timeout: RESPONSE_TIMEOUT_MS,
@@ -1104,7 +1108,7 @@ export class UnfurlService extends BaseService {
                         if (lightdashPage === LightdashPage.DASHBOARD) {
                             // Wait for markdown tiles specifically
                             const markdownTiles = await page
-                                .locator('.markdown-tile')
+                                .locator(SCREENSHOT_SELECTORS.MARKDOWN_TILE)
                                 .all();
                             await Promise.all(
                                 markdownTiles.map((tile) =>
@@ -1112,7 +1116,7 @@ export class UnfurlService extends BaseService {
                                 ),
                             );
                             const loadingChartOverlays = await page
-                                .locator('.loading_chart_overlay')
+                                .locator(SCREENSHOT_SELECTORS.LOADING_OVERLAY)
                                 .all();
                             await Promise.all(
                                 loadingChartOverlays.map(
@@ -1128,7 +1132,7 @@ export class UnfurlService extends BaseService {
                         // If some charts are still loading even though their API requests have finished(or past the timeout), we wait for them to finish
                         // Reference: https://playwright.dev/docs/api/class-locator#locator-all
                         const loadingCharts = await page
-                            .locator('.loading_chart')
+                            .locator(SCREENSHOT_SELECTORS.LOADING_CHART)
                             .all();
                         await Promise.all(
                             loadingCharts.map((loadingChart) =>
@@ -1147,7 +1151,7 @@ export class UnfurlService extends BaseService {
                     if (lightdashPage === LightdashPage.EXPLORE) {
                         finalSelector = `[data-testid="visualization"]`;
                     } else if (lightdashPage === LightdashPage.DASHBOARD) {
-                        finalSelector = '.react-grid-layout';
+                        finalSelector = SCREENSHOT_SELECTORS.DASHBOARD_GRID;
                     }
 
                     const fullPage = await page.locator(finalSelector);

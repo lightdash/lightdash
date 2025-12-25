@@ -60,6 +60,7 @@ export * from './compiler/filtersCompiler';
 export * from './compiler/lightdashModelConverter';
 export * from './compiler/parameters';
 export * from './compiler/translator';
+export * from './constants/screenshot';
 export * from './constants/sessionStorageKeys';
 export * from './constants/sqlRunner';
 export { default as DbtSchemaEditor } from './dbt/DbtSchemaEditor/DbtSchemaEditor';

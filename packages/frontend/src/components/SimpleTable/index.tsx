@@ -10,7 +10,7 @@ import {
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
-import { LoadingChart } from '../SimpleChart';
+import LoadingChart from '../common/LoadingChart';
 import PivotTable from '../common/PivotTable';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import Table from '../common/Table';

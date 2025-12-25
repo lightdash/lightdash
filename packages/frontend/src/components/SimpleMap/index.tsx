@@ -26,6 +26,7 @@ import type { Topology } from 'topojson-specification';
 import useLeafletMapConfig from '../../hooks/leaflet/useLeafletMapConfig';
 import { isMapVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import HeatmapLayer from './HeatmapLayer';
 import MapLegend from './MapLegend';
@@ -92,16 +93,6 @@ const EmptyChart: FC<{ locationType?: MapChartType }> = ({ locationType }) => {
         </div>
     );
 };
-
-const LoadingChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="Loading chart"
-            loading
-            className="loading_chart"
-        />
-    </div>
-);
 
 type SimpleMapProps = {
     isInDashboard: boolean;
@@ -290,8 +281,8 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         const scatterValueRange = useMemo(() => {
             const values = scatterData
-            .map((d) => d.value)
-            .filter((v): v is number => v !== null);
+                .map((d) => d.value)
+                .filter((v): v is number => v !== null);
             return {
                 min: values.length > 0 ? Math.min(...values, 0) : 0,
                 max: values.length > 0 ? Math.max(...values, 1) : 1,
@@ -311,10 +302,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
             const { min, max } = scatterValueRange;
             return scatterData.map((point) => {
                 // Use 0.5 scale for non-numeric values
-            const scale =
-                point.value === null
-                    ? 0.5
-                    :max === min ? 0.5 : (point.value - min) / (max - min);
+                const scale =
+                    point.value === null
+                        ? 0.5
+                        : max === min
+                        ? 0.5
+                        : (point.value - min) / (max - min);
                 return [point.lat, point.lon, scale];
             });
         }, [scatterData, scatterValueRange]);
@@ -465,12 +458,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         zoom={mapConfig.zoom}
                         style={{ height: '100%', width: '100%' }}
                         scrollWheelZoom
-                    minZoom={2}
-                    maxBounds={[
-                        [-90, -180],
-                        [90, 180],
-                    ]}
-                    maxBoundsViscosity={1.0}>
+                        minZoom={2}
+                        maxBounds={[
+                            [-90, -180],
+                            [90, 180],
+                        ]}
+                        maxBoundsViscosity={1.0}
+                    >
                         <MapRefUpdater mapRef={leafletMapRef} />
                         <MapExtentTracker
                             saveMapExtent={
@@ -497,19 +491,22 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         ) : (
                             sizeScale &&
                             scatterData.map((point, idx) => {
-                                const radius = sizeScale(point.sizeValue);// Use default color (middle of scale) for non-numeric values
-                                const color =point.value !== null
-                                    ? getColorForValue(
-                                    point.value,
-                                    scatterValueRange.min,
-                                    scatterValueRange.max,
-                                    mapConfig.colors.scale,
-                                )
-                                : mapConfig.colors.scale[
-                                          Math.floor(
-                                              mapConfig.colors.scale.length / 2,
+                                const radius = sizeScale(point.sizeValue); // Use default color (middle of scale) for non-numeric values
+                                const color =
+                                    point.value !== null
+                                        ? getColorForValue(
+                                              point.value,
+                                              scatterValueRange.min,
+                                              scatterValueRange.max,
+                                              mapConfig.colors.scale,
                                           )
-                                      ];return (
+                                        : mapConfig.colors.scale[
+                                              Math.floor(
+                                                  mapConfig.colors.scale
+                                                      .length / 2,
+                                              )
+                                          ];
+                                return (
                                     <CircleMarker
                                         key={idx}
                                         center={[point.lat, point.lon]}
@@ -578,12 +575,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         zoom={mapConfig.zoom}
                         style={{ height: '100%', width: '100%' }}
                         scrollWheelZoom
-                    minZoom={2}
-                    maxBounds={[
-                        [-90, -180],
-                        [90, 180],
-                    ]}
-                    maxBoundsViscosity={1.0}>
+                        minZoom={2}
+                        maxBounds={[
+                            [-90, -180],
+                            [90, 180],
+                        ]}
+                        maxBoundsViscosity={1.0}
+                    >
                         <MapRefUpdater mapRef={leafletMapRef} />
                         <MapExtentTracker
                             saveMapExtent={
