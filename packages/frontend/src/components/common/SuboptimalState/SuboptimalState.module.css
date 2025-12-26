@@ -1,0 +1,26 @@
+.container {
+    container-type: size;
+    container-name: suboptimal-state;
+}
+
+.supportIcon {
+    flex-shrink: 0;
+    @container suboptimal-state (max-height: 200px) {
+        display: none;
+    }
+}
+
+.title {
+    @container suboptimal-state (max-height: 200px) {
+        --text-fz: var(--mantine-font-size-sm) !important;
+        /*a bit smaller lh to fit content*/
+        --text-lh: var(--mantine-line-height-xs) !important;
+    }
+}
+
+.description {
+    @container suboptimal-state (max-height: 200px) {
+        /*a bit smaller lh to fit content*/
+        line-height: 1.2 !important;
+    }
+}
