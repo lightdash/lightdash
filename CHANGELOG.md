@@ -1,3 +1,18 @@
+# [0.2282.0](https://github.com/lightdash/lightdash/compare/0.2281.0...0.2282.0) (2025-12-26)
+
+
+### Bug Fixes
+
+* skip Sentry for stream timeout errors in AI agent controller ([#19109](https://github.com/lightdash/lightdash/issues/19109)) ([2bcb6f4](https://github.com/lightdash/lightdash/commit/2bcb6f42ea55bd6685edf069bcc9178cd879319a))
+* tiles with error styles should respect edit mode ([#19110](https://github.com/lightdash/lightdash/issues/19110)) ([f302572](https://github.com/lightdash/lightdash/commit/f30257207fe60575cdb755fc406ccd2885d790cf)), closes [#19099](https://github.com/lightdash/lightdash/issues/19099)
+
+
+### Features
+
+* improve dashboard table tile empty state ([#19108](https://github.com/lightdash/lightdash/issues/19108)) ([67d4fa8](https://github.com/lightdash/lightdash/commit/67d4fa8b4b42468ea715c606e251aba72bd3c046))
+* unify dashboard loading state ([#19082](https://github.com/lightdash/lightdash/issues/19082)) ([1c5daed](https://github.com/lightdash/lightdash/commit/1c5daedecae2649b1bc7975821424914707f75da)), closes [#19081](https://github.com/lightdash/lightdash/issues/19081)
+* use inter as primary font ([#19105](https://github.com/lightdash/lightdash/issues/19105)) ([33ececb](https://github.com/lightdash/lightdash/commit/33ececbceffbb3c14e4358d60612394732645a29)), closes [#18007](https://github.com/lightdash/lightdash/issues/18007)
+
 # [0.2281.0](https://github.com/lightdash/lightdash/compare/0.2280.2...0.2281.0) (2025-12-26)
 
 
