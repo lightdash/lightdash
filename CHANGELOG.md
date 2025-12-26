@@ -1,3 +1,13 @@
+## [0.2282.1](https://github.com/lightdash/lightdash/compare/0.2282.0...0.2282.1) (2025-12-26)
+
+
+### Bug Fixes
+
+* improve tooltip data lookup for stacked charts ([#19103](https://github.com/lightdash/lightdash/issues/19103)) ([e245780](https://github.com/lightdash/lightdash/commit/e24578075da9ee6c73aca88f88274aae3a15c9b7)), closes [#18944](https://github.com/lightdash/lightdash/issues/18944)
+* show empty state instead of blank custom viz ([#19111](https://github.com/lightdash/lightdash/issues/19111)) ([98569a2](https://github.com/lightdash/lightdash/commit/98569a2e25bbbb211e8eb8b557c3eeb07d389f12))
+* show empty state instead of blank pie chart ([#19112](https://github.com/lightdash/lightdash/issues/19112)) ([b88bc67](https://github.com/lightdash/lightdash/commit/b88bc67a93f59078ce3d742cd8c44de72f2fc54c))
+* show empty state instead of blank treemap ([#19113](https://github.com/lightdash/lightdash/issues/19113)) ([44a534d](https://github.com/lightdash/lightdash/commit/44a534da93871df7724455b5612f53ebb8ed7c3f))
+
 # [0.2282.0](https://github.com/lightdash/lightdash/compare/0.2281.0...0.2282.0) (2025-12-26)
 
 
