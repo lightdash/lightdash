@@ -1,3 +1,10 @@
+## [0.2280.2](https://github.com/lightdash/lightdash/compare/0.2280.1...0.2280.2) (2025-12-26)
+
+
+### Bug Fixes
+
+* X-axis shows years outside dataset range when grouping by YEAR in bar charts ([#19090](https://github.com/lightdash/lightdash/issues/19090)) ([c6cb1d7](https://github.com/lightdash/lightdash/commit/c6cb1d7edc259245f19f784c45a59c44ae456b50))
+
 ## [0.2280.1](https://github.com/lightdash/lightdash/compare/0.2280.0...0.2280.1) (2025-12-26)
 
 
