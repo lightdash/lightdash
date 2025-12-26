@@ -217,5 +217,111 @@ describe('Embed Dashboard JWT API', () => {
                 });
             });
         });
+
+        describe('Calculate Total/Subtotals from Raw Query (Explore Mode)', () => {
+            // These endpoints support embed Explore mode where users build
+            // queries ad-hoc without a saved chart. The metricQuery is sent
+            // directly from the frontend.
+
+            const testMetricQuery = {
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_total_order_amount'],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+            };
+
+            it('should calculate totals from raw metricQuery with embed JWT', () => {
+                cy.get<string>('@dashboardJwtToken').then((token) => {
+                    cy.request({
+                        url: `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-total`,
+                        headers: {
+                            'Lightdash-Embed-Token': token as string,
+                            'Content-type': 'application/json',
+                        },
+                        method: 'POST',
+                        body: {
+                            explore: 'orders',
+                            metricQuery: testMetricQuery,
+                        },
+                        failOnStatusCode: false,
+                    }).then((resp) => {
+                        // Should succeed - embed JWT can calculate totals from raw query
+                        expect(resp.status).to.eq(200);
+                        expect(resp.body.status).to.eq('ok');
+                        expect(resp.body.results).to.be.an('object');
+                    });
+                });
+            });
+
+            it('should calculate subtotals from raw metricQuery with embed JWT', () => {
+                cy.get<string>('@dashboardJwtToken').then((token) => {
+                    cy.request({
+                        url: `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-subtotals`,
+                        headers: {
+                            'Lightdash-Embed-Token': token as string,
+                            'Content-type': 'application/json',
+                        },
+                        method: 'POST',
+                        body: {
+                            explore: 'orders',
+                            metricQuery: testMetricQuery,
+                            columnOrder: [
+                                'orders_status',
+                                'orders_total_order_amount',
+                            ],
+                        },
+                        failOnStatusCode: false,
+                    }).then((resp) => {
+                        // Should succeed - embed JWT can calculate subtotals from raw query
+                        expect(resp.status).to.eq(200);
+                        expect(resp.body.status).to.eq('ok');
+                        expect(resp.body.results).to.be.an('object');
+                    });
+                });
+            });
+
+            it('should fail to calculate totals without embed JWT', () => {
+                cy.request({
+                    url: `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-total`,
+                    headers: {
+                        'Content-type': 'application/json',
+                    },
+                    method: 'POST',
+                    body: {
+                        explore: 'orders',
+                        metricQuery: testMetricQuery,
+                    },
+                    failOnStatusCode: false,
+                }).then((resp) => {
+                    // Should fail - no JWT token provided
+                    expect(resp.status).to.eq(403);
+                });
+            });
+
+            it('should fail to calculate subtotals without embed JWT', () => {
+                cy.request({
+                    url: `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-subtotals`,
+                    headers: {
+                        'Content-type': 'application/json',
+                    },
+                    method: 'POST',
+                    body: {
+                        explore: 'orders',
+                        metricQuery: testMetricQuery,
+                        columnOrder: [
+                            'orders_status',
+                            'orders_total_order_amount',
+                        ],
+                    },
+                    failOnStatusCode: false,
+                }).then((resp) => {
+                    // Should fail - no JWT token provided
+                    expect(resp.status).to.eq(403);
+                });
+            });
+        });
     });
 });
