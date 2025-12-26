@@ -442,6 +442,11 @@ export class AiAgentController extends BaseController {
 
         // If client disconnects, continue consuming the stream so side-effects complete
         let hasConsumed = false;
+        const isStreamTimeoutError = (error: unknown) =>
+            error instanceof Error &&
+            (error.name === 'BodyTimeoutError' ||
+                (error.name === 'TypeError' && error.message === 'terminated'));
+
         const handleClientDisconnect = (err: Error | undefined) => {
             if (hasConsumed) return;
             hasConsumed = true;
@@ -450,7 +455,7 @@ export class AiAgentController extends BaseController {
                     err ? `with error: ${err.message}` : ''
                 }, consuming stream`,
             );
-            if (err) {
+            if (err && !isStreamTimeoutError(err)) {
                 Sentry.captureException(err, {
                     tags: {
                         errorType: 'AiAgentStreamError',
@@ -459,12 +464,14 @@ export class AiAgentController extends BaseController {
             }
             void stream.consumeStream({
                 onError: (error) => {
-                    Logger.error('Error consuming stream');
-                    Sentry.captureException(error, {
-                        tags: {
-                            errorType: 'AiAgentStreamError',
-                        },
-                    });
+                    Logger.error(`Error consuming stream ${String(error)}`);
+                    if (!isStreamTimeoutError(error)) {
+                        Sentry.captureException(error, {
+                            tags: {
+                                errorType: 'AiAgentStreamError',
+                            },
+                        });
+                    }
                 },
             });
         };
