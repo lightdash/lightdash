@@ -13,6 +13,7 @@ import {
     Text,
     Tooltip,
     getDefaultZIndex,
+    rem,
 } from '@mantine-8/core';
 import { useHover, useToggle } from '@mantine-8/hooks';
 import { Menu } from '@mantine/core';
@@ -236,11 +237,11 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
                 data-with-transparent-border={transparent}
                 data-with-edit-mode={isEditMode}
                 data-has-error={hasError}
+                data-with-shadow={!isEditMode && !transparent}
                 h="100%"
                 p={transparent ? 0 : 'md'}
                 bg={transparent ? 'transparent' : 'background'}
-                shadow={isEditMode && !transparent ? 'xs' : '0'}
-                radius="sm"
+                radius={rem(12)}
             >
                 <LoadingOverlay
                     // ! Very important to have this class name on the tile loading overlay, otherwise the unfurl service will not be able to find it
