@@ -115,6 +115,7 @@ const MarkdownTile: FC<Props> = (props) => {
                     '.wmde-markdown': {
                         fontSize: '14px',
                         backgroundColor: 'transparent',
+                        fontFamily: theme.fontFamily,
                     },
                 }}
             >

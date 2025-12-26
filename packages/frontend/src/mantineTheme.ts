@@ -164,6 +164,7 @@ export const getMantineThemeOverride = (
         },
 
         fontFamily: [
+            'Inter',
             '-apple-system',
             'BlinkMacSystemFont',
             'Segoe UI',
@@ -357,6 +358,9 @@ export const getMantineThemeOverride = (
             '.ace_editor *': {
                 fontFamily:
                     "Menlo, 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace",
+            },
+            '.wmde-markdown, .wmde-markdown-var': {
+                fontFamily: theme.fontFamily,
             },
             '@keyframes fadeIn': {
                 from: { opacity: 0 },

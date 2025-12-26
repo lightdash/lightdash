@@ -61,7 +61,6 @@ export const Table = <T extends IResultsRunner>({
             {...flexProps}
             sx={{
                 overflow: 'auto',
-                fontFamily: "'Inter', sans-serif",
                 fontFeatureSettings: "'tnum'",
                 flexGrow: 1,
                 ...flexProps?.sx,

@@ -869,8 +869,6 @@ const PivotTable: FC<PivotTableProps> = ({
                                                             paddingRight:
                                                                 theme.spacing
                                                                     .xxs,
-                                                            fontFamily:
-                                                                "'Inter', sans-serif",
                                                             fontFeatureSettings:
                                                                 "'tnum'",
                                                         },
