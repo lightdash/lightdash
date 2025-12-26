@@ -1,3 +1,10 @@
+## [0.2280.1](https://github.com/lightdash/lightdash/compare/0.2280.0...0.2280.1) (2025-12-26)
+
+
+### Bug Fixes
+
+* wrap text without parent elements into spans to prevent NotFoundError ([#19104](https://github.com/lightdash/lightdash/issues/19104)) ([de4efe7](https://github.com/lightdash/lightdash/commit/de4efe7cf5fe4716ff4e9b0c7260f077be8f57ee))
+
 # [0.2280.0](https://github.com/lightdash/lightdash/compare/0.2279.0...0.2280.0) (2025-12-26)
 
 
