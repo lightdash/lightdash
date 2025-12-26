@@ -10,7 +10,6 @@ import {
     Card,
     getDefaultZIndex,
     Group,
-    LoadingOverlay,
     Paper,
     Text,
     Tooltip,
@@ -31,6 +30,7 @@ import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/Delet
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';
 import MoveTileToTabModal from '../TileForms/MoveTileToTabModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
+import LoadingSkeletonOverlay from './LoadingSkeletonOverlay';
 import styles from './TileBase.module.css';
 import {
     ChartContainer,
@@ -49,6 +49,7 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
     tile,
     isLoading = false,
     hasError = false,
+    chartKind,
     extraMenuItems = null,
     onDelete,
     onEdit,
@@ -243,11 +244,13 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
                 shadow={isEditMode && !transparent ? 'xs' : '0'}
                 radius="sm"
             >
-                <LoadingOverlay
+                <LoadingSkeletonOverlay
                     // ! Very important to have this class name on the tile loading overlay, otherwise the unfurl service will not be able to find it
                     className={LOADING_CHART_OVERLAY_CLASS}
+                    zIndex={1}
+                    hasTitle={!hideTitle}
+                    chartKind={chartKind}
                     visible={isLoading ?? false}
-                    zIndex={getDefaultZIndex('modal') - 10}
                 />
 
                 <HeaderContainer
