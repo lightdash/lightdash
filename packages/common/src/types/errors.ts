@@ -73,17 +73,6 @@ export class AuthorizationError extends LightdashError {
     }
 }
 
-export class NotExistsError extends LightdashError {
-    constructor(message: string) {
-        super({
-            message,
-            name: 'NotExistsError',
-            statusCode: 404,
-            data: {},
-        });
-    }
-}
-
 export class ExpiredError extends LightdashError {
     constructor(message: string) {
         super({

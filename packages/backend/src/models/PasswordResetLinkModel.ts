@@ -1,4 +1,4 @@
-import { NotExistsError, PasswordResetLink } from '@lightdash/common';
+import { NotFoundError, PasswordResetLink } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { URL } from 'url';
@@ -47,7 +47,7 @@ export class PasswordResetLinkModel {
             ])
             .where('code_hash', codeHash);
         if (links.length === 0) {
-            throw new NotExistsError('No password reset link found');
+            throw new NotFoundError('No password reset link found');
         }
         const passwordResetLink = links[0];
         return {
@@ -69,7 +69,7 @@ export class PasswordResetLinkModel {
             .where('email', email)
             .select('*');
         if (emails.length === 0) {
-            throw new NotExistsError('Cannot find email');
+            throw new NotFoundError('Cannot find email');
         }
         const result = emails[0];
         const links = await this.database(PasswordResetTableName)

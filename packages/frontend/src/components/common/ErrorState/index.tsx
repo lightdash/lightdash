@@ -50,7 +50,7 @@ const ErrorState: FC<{
                         title: 'Authorization error',
                         description,
                     };
-                case 'NotExistsError':
+                case 'NotFoundError':
                     return {
                         icon: IconAlertCircle,
                         title: 'Not found',

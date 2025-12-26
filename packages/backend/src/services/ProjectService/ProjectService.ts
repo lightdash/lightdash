@@ -111,7 +111,6 @@ import {
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
     normalizeIndexColumns,
-    NotExistsError,
     NotFoundError,
     NotSupportedError,
     OpenIdIdentityIssuerType,
@@ -3716,15 +3715,15 @@ export class ProjectService extends BaseService {
         }
 
         if (!explore) {
-            throw new NotExistsError(`Explore ${table} does not exist`);
+            throw new NotFoundError(`Explore ${table} does not exist`);
         } else if (isExploreError(explore)) {
-            throw new NotExistsError(`Explore ${table} has errors`);
+            throw new NotFoundError(`Explore ${table} has errors`);
         }
 
         const field = findFieldByIdInExplore(explore, fieldId);
 
         if (!field) {
-            throw new NotExistsError(`Can't dimension with id: ${fieldId}`);
+            throw new NotFoundError(`Can't dimension with id: ${fieldId}`);
         }
 
         if (!isDimension(field)) {
@@ -4422,12 +4421,12 @@ export class ProjectService extends BaseService {
                 const explore = exploresMap[exploreName];
 
                 if (!explore) {
-                    throw new NotExistsError(
+                    throw new NotFoundError(
                         `Explore "${exploreName}" does not exist.`,
                     );
                 }
                 if (isExploreError(explore)) {
-                    throw new NotExistsError(
+                    throw new NotFoundError(
                         `Explore "${exploreName}" has an error.`,
                     );
                 }

@@ -14,7 +14,6 @@ import {
     ExploreError,
     ExploreType,
     IdContentMapping,
-    NotExistsError,
     NotFoundError,
     OrganizationProject,
     ParameterError,
@@ -247,7 +246,7 @@ export class ProjectModel {
     async getSingleProjectUuidInInstance(): Promise<string> {
         const projects = await this.database('projects').select('*');
         if (projects.length === 0) {
-            throw new NotExistsError('Cannot find project');
+            throw new NotFoundError('Cannot find project');
         }
         if (projects.length > 1) {
             throw new ParameterError(
@@ -264,7 +263,7 @@ export class ProjectModel {
             .where('organization_uuid', organizationUuid)
             .select('*');
         if (orgs.length === 0) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotFoundError('Cannot find organization');
         }
 
         const organizationId = orgs[0].organization_id;
@@ -416,7 +415,7 @@ export class ProjectModel {
             .where('organization_uuid', organizationUuid)
             .select('*');
         if (orgs.length === 0) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotFoundError('Cannot find organization');
         }
 
         const projects = await this.database('projects')
@@ -446,7 +445,7 @@ export class ProjectModel {
             .where('organization_uuid', organizationUuid)
             .select('*');
         if (orgs.length === 0) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotFoundError('Cannot find organization');
         }
         return this.database.transaction(async (trx) => {
             let encryptedCredentials: Buffer;
@@ -689,13 +688,13 @@ export class ProjectModel {
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
                 if (projects.length === 0) {
-                    throw new NotExistsError(
+                    throw new NotFoundError(
                         `Cannot find project with id: ${projectUuid}`,
                     );
                 }
                 const [project] = projects;
                 if (!project.dbt_connection) {
-                    throw new NotExistsError(
+                    throw new NotFoundError(
                         'Project has no valid dbt credentials',
                     );
                 }
@@ -789,7 +788,7 @@ export class ProjectModel {
             .where('projects.project_uuid', projectUuid)
             .first();
         if (!project) {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 `Cannot find project with id: ${projectUuid}`,
             );
         }
@@ -863,7 +862,7 @@ export class ProjectModel {
             .select('warehouse_connection');
 
         if (!orgCredentials) {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 'Organization warehouse credentials not found',
             );
         }
@@ -933,7 +932,7 @@ export class ProjectModel {
             .select(['table_selection_type', 'table_selection_value'])
             .where('project_uuid', projectUuid);
         if (projects.length === 0) {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 `Cannot find project with id: ${projectUuid}`,
             );
         }
@@ -1173,7 +1172,7 @@ export class ProjectModel {
         );
         const cachedExplore = cachedExplores[exploreName];
         if (cachedExplore === undefined) {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 `Explore "${exploreName}" does not exist.`,
             );
         }
@@ -1467,7 +1466,7 @@ export class ProjectModel {
                     project.organization_id,
                 );
             if (user === undefined) {
-                throw new NotExistsError(
+                throw new NotFoundError(
                     `Can't find user with email ${email} in the organization`,
                 );
             }
@@ -1588,7 +1587,7 @@ export class ProjectModel {
             ])
             .where('project_uuid', projectUuid);
         if (row === undefined) {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 `Cannot find any warehouse credentials for project.`,
             );
         }
