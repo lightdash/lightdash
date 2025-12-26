@@ -21,7 +21,7 @@
     }
 
     &[data-has-error='true'] {
-        border: 1px dashed var(--mantine-color-ldGray-3) !important;
+        border-style: dashed !important;
         background: transparent !important;
     }
 }
