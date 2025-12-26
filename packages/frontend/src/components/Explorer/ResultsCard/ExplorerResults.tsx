@@ -97,12 +97,27 @@ export const ExplorerResults = memo(() => {
         const isSqlPivotEnabled = !!useSqlPivotResults?.enabled;
         const hasUnpivotedQuery = !!unpivotedQuery?.data?.queryUuid;
 
-        // Only use unpivoted data when SQL pivot is enabled
-        const shouldUseUnpivotedData =
-            isSqlPivotEnabled &&
-            hasPivotConfig &&
-            hasUnpivotedQuery &&
-            unpivotedEnabled;
+        // Check if we need unpivoted data (regardless of whether it's ready)
+        const needsUnpivotedData =
+            isSqlPivotEnabled && hasPivotConfig && unpivotedEnabled;
+
+        // Only use unpivoted data when it's ready
+        const shouldUseUnpivotedData = needsUnpivotedData && hasUnpivotedQuery;
+
+        // When we need unpivoted data but it's not ready yet,
+        // show loading state instead of falling back to pivoted main query data.
+        // The main query has a different row structure (pivoted) that would cause
+        // the first column to show "-" because the pivot dimension key is missing.
+        if (needsUnpivotedData && !hasUnpivotedQuery) {
+            return {
+                rows: [],
+                totalResults: undefined,
+                isFetchingRows: true,
+                fetchMoreRows: () => {},
+                status: 'loading' as const,
+                apiError: undefined,
+            };
+        }
 
         if (shouldUseUnpivotedData) {
             return {
