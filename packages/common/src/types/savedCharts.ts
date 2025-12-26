@@ -359,6 +359,8 @@ export type CompleteEChartsConfig = {
     yAxis: Axis[];
     tooltip?: string;
     showAxisTicks?: boolean;
+    axisLabelFontSize?: number;
+    axisTitleFontSize?: number;
 };
 
 export type EChartsConfig = Partial<CompleteEChartsConfig>;
