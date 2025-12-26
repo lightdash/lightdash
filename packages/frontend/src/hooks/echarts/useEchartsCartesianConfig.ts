@@ -1480,6 +1480,11 @@ const getEchartAxes = ({
         leftAxisType,
     );
 
+    const axisLabelFontSize =
+        validCartesianConfig?.eChartsConfig?.axisLabelFontSize;
+    const axisTitleFontSize =
+        validCartesianConfig?.eChartsConfig?.axisTitleFontSize;
+
     const bottomAxisFormatterConfig = getAxisFormatterConfig({
         axisItem: bottomAxisXField,
         longestLabelWidth: calculateWidthText(longestValueXAxisBottom),
@@ -1494,7 +1499,7 @@ const getEchartAxes = ({
         showXAxis && bottomAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(),
+                      ...getAxisLabelStyle(axisLabelFontSize),
                       ...bottomAxisFormatterConfig.axisLabel,
                   },
               }
@@ -1514,7 +1519,7 @@ const getEchartAxes = ({
         showXAxis && topAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(),
+                      ...getAxisLabelStyle(axisLabelFontSize),
                       ...topAxisFormatterConfig.axisLabel,
                   },
               }
@@ -1533,7 +1538,7 @@ const getEchartAxes = ({
         showYAxis && leftAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(),
+                      ...getAxisLabelStyle(axisLabelFontSize),
                       ...leftAxisFormatterConfig.axisLabel,
                   },
               }
@@ -1552,7 +1557,7 @@ const getEchartAxes = ({
         showYAxis && rightAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(),
+                      ...getAxisLabelStyle(axisLabelFontSize),
                       ...rightAxisFormatterConfig.axisLabel,
                   },
               }
@@ -1716,7 +1721,7 @@ const getEchartAxes = ({
                                       getItemLabelWithoutTableName(xAxisItem)
                                     : undefined),
                           nameLocation: 'center',
-                          nameTextStyle: getAxisTitleStyle(),
+                          nameTextStyle: getAxisTitleStyle(axisTitleFontSize),
                       }
                     : {}),
                 ...bottomAxisConfigWithStyle,
@@ -1776,7 +1781,7 @@ const getEchartAxes = ({
                                 })
                               : undefined,
                           nameLocation: 'center',
-                          nameTextStyle: getAxisTitleStyle(),
+                          nameTextStyle: getAxisTitleStyle(axisTitleFontSize),
                       }
                     : {}),
                 min:
@@ -1828,7 +1833,7 @@ const getEchartAxes = ({
                                 }),
                           nameLocation: 'center',
                           nameTextStyle: {
-                              ...getAxisTitleStyle(),
+                              ...getAxisTitleStyle(axisTitleFontSize),
                               align: 'center',
                           },
                       }
@@ -1892,7 +1897,7 @@ const getEchartAxes = ({
                           nameLocation: 'center',
                           nameRotate: -90,
                           nameTextStyle: {
-                              ...getAxisTitleStyle(),
+                              ...getAxisTitleStyle(axisTitleFontSize),
                               align: 'center',
                           },
                       }

@@ -9,6 +9,7 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import {
+    Button,
     Checkbox,
     Group,
     NumberInput,
@@ -74,6 +75,8 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setShowXAxis,
         setShowYAxis,
         setShowAxisTicks,
+        setAxisLabelFontSize,
+        setAxisTitleFontSize,
         setXAxisSort,
         setXAxisLabelRotation,
         setScrollableChart,
@@ -408,6 +411,72 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             setShowAxisTicks(e.currentTarget.checked);
                         }}
                     />
+                </Config.Section>
+            </Config>
+            <Config>
+                <Config.Section>
+                    <Config.Heading>Tick label size (px)</Config.Heading>
+                    <Group spacing="xs">
+                        <NumberInput
+                            value={
+                                dirtyEchartsConfig?.axisLabelFontSize ?? 11.5
+                            }
+                            min={8}
+                            max={24}
+                            step={0.5}
+                            precision={1}
+                            maw={60}
+                            onChange={(value) => {
+                                setAxisLabelFontSize(
+                                    typeof value === 'number'
+                                        ? value
+                                        : undefined,
+                                );
+                            }}
+                        />
+                        {dirtyEchartsConfig?.axisLabelFontSize !==
+                            undefined && (
+                            <Button
+                                variant="subtle"
+                                size="xs"
+                                onClick={() => setAxisLabelFontSize(undefined)}
+                            >
+                                Reset
+                            </Button>
+                        )}
+                    </Group>
+                </Config.Section>
+            </Config>
+            <Config>
+                <Config.Section>
+                    <Config.Heading>Axis title size (px)</Config.Heading>
+                    <Group spacing="xs">
+                        <NumberInput
+                            value={dirtyEchartsConfig?.axisTitleFontSize ?? 12}
+                            min={8}
+                            max={24}
+                            step={0.5}
+                            precision={1}
+                            maw={60}
+                            onChange={(value) => {
+                                setAxisTitleFontSize(
+                                    typeof value === 'number'
+                                        ? value
+                                        : undefined,
+                                );
+                            }}
+                        />
+                        {dirtyEchartsConfig?.axisTitleFontSize !==
+                            undefined && (
+                            <Button
+                                variant="subtle"
+                                size="xs"
+                                onClick={() => setAxisTitleFontSize(undefined)}
+                            >
+                                Reset
+                            </Button>
+                        )}
+                    </Group>
                 </Config.Section>
             </Config>
         </Stack>
