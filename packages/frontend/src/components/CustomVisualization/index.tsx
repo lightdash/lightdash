@@ -1,5 +1,5 @@
 import { Anchor, Text } from '@mantine/core';
-import { IconChartBarOff } from '@tabler/icons-react';
+import { IconGraphOff } from '@tabler/icons-react';
 import { Suspense, lazy, useEffect, useRef, type FC } from 'react';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
@@ -76,7 +76,7 @@ const CustomVisualization: FC<Props> = ({
                             create your chart.
                         </Text>
                     }
-                    icon={IconChartBarOff}
+                    icon={IconGraphOff}
                 />
             </div>
         );
@@ -86,6 +86,19 @@ const CustomVisualization: FC<Props> = ({
     // configuration for the chart. We should consider renaming it generally.
     const visProps =
         visualizationConfig.chartConfig as CustomVisualizationConfigAndData;
+
+    // Show empty state if there's no data
+    if (!visProps.series || visProps.series.length === 0) {
+        return (
+            <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+                <SuboptimalState
+                    title="No data available"
+                    description="Query metrics and dimensions with results."
+                    icon={IconGraphOff}
+                />
+            </div>
+        );
+    }
 
     const data = { values: visProps.series };
 
