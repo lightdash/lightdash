@@ -91,7 +91,7 @@ const ApiErrorDisplay = ({
             </Group>
         </Stack>
     ) : (
-        <>{apiError.message}</>
+        <span>{apiError.message}</span>
     );
 };
 

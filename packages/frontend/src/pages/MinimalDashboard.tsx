@@ -320,20 +320,20 @@ const MinimalDashboard: FC = () => {
     }, [dashboard?.tiles, schedulerTabsSelected, activeTab, sortedTabs]);
 
     if (isDashboardError || isSchedulerError) {
-        if (dashboardError) return <>{dashboardError.error.message}</>;
-        if (schedulerError) return <>{schedulerError.error.message}</>;
+        if (dashboardError) return <span>{dashboardError.error.message}</span>;
+        if (schedulerError) return <span>{schedulerError.error.message}</span>;
     }
 
     if (!dashboard) {
-        return <>Loading...</>;
+        return <span>Loading...</span>;
     }
 
     if (schedulerUuid && !scheduler) {
-        return <>Loading...</>;
+        return <span>Loading...</span>;
     }
 
     if (dashboard.tiles.length === 0) {
-        return <>No tiles</>;
+        return <span>No tiles</span>;
     }
 
     const isTabEmpty =

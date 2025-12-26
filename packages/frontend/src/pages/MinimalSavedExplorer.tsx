@@ -157,7 +157,7 @@ const MinimalSavedExplorer: FC<Props> = ({
     }
 
     if (isError) {
-        return <>{error.error.message}</>;
+        return <span>{error.error.message}</span>;
     }
 
     return (
