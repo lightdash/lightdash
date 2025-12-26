@@ -1,7 +1,11 @@
 import { type ApiErrorDetail } from '@lightdash/common';
 import { Text } from '@mantine/core';
 import { Prism } from '@mantine/prism';
-import { IconAlertCircle, IconLock } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconLock,
+    IconMoodPuzzled,
+} from '@tabler/icons-react';
 import React, { useMemo, type ComponentProps, type FC } from 'react';
 import SuboptimalState from '../SuboptimalState/SuboptimalState';
 
@@ -52,7 +56,7 @@ const ErrorState: FC<{
                     };
                 case 'NotFoundError':
                     return {
-                        icon: IconAlertCircle,
+                        icon: IconMoodPuzzled,
                         title: 'Not found',
                         description,
                     };

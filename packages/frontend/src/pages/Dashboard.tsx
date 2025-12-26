@@ -4,7 +4,7 @@ import {
     type DashboardTile,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
-import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
+import { Button, Group, Modal, Stack, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { captureException } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -20,7 +20,7 @@ import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModa
 import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
 import Page from '../components/common/Page/Page';
-import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
 import DashboardHeaderV1 from '../features/dashboardHeader/dashboardHeaderV1';
 import DashboardHeaderV2 from '../features/dashboardHeader/dashboardHeaderV2';
@@ -556,14 +556,24 @@ const Dashboard: FC = () => {
         (c) => c.hasTilesThatSupportFilters,
     );
 
+    if (isDashboardLoading) {
+        return <PageSpinner />;
+    }
+
     if (dashboardError) {
         return <ErrorState error={dashboardError.error} />;
     }
-    if (dashboard === undefined) {
+
+    if (!dashboard) {
         return (
-            <Box mt="md">
-                <SuboptimalState title="Loading..." loading />
-            </Box>
+            <ErrorState
+                error={{
+                    name: 'NotExistsError',
+                    statusCode: 404,
+                    message: 'Dashboard not found',
+                    data: {},
+                }}
+            />
         );
     }
 
