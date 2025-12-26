@@ -2633,6 +2633,7 @@ const useEchartsCartesianConfig = (
                 tooltipHtmlTemplate: tooltipConfig,
                 pivotValuesColumnsMap,
                 parameters,
+                rows: dataToRender,
             }),
         };
     }, [
@@ -2645,6 +2646,7 @@ const useEchartsCartesianConfig = (
         originalValues,
         parameters,
         series,
+        dataToRender,
     ]);
 
     const currentGrid = useMemo(() => {
