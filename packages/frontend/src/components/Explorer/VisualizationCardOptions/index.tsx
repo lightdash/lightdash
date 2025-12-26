@@ -13,6 +13,7 @@ import {
     IconChartDots,
     IconChartLine,
     IconChartPie,
+    IconChartSankey,
     IconChartTreemap,
     IconChevronDown,
     IconCode,
@@ -191,6 +192,11 @@ const VisualizationCardOptions: FC = memo(() => {
                 return {
                     text: 'Map (Beta)',
                     icon: <MantineIcon icon={IconMap} color="ldGray" />,
+                };
+            case ChartType.SANKEY:
+                return {
+                    text: 'Sankey chart',
+                    icon: <MantineIcon icon={IconChartSankey} color="ldGray" />,
                 };
             case ChartType.CUSTOM:
                 return {
@@ -437,6 +443,23 @@ const VisualizationCardOptions: FC = memo(() => {
                         </Group>
                     </Menu.Item>
                 )}
+
+                <Menu.Item
+                    disabled={disabled}
+                    color={
+                        isMapVisualizationConfig(visualizationConfig)
+                            ? 'blue'
+                            : undefined
+                    }
+                    icon={<MantineIcon icon={IconChartSankey} />}
+                    onClick={() => {
+                        setStacking(undefined);
+                        setCartesianType(undefined);
+                        setChartType(ChartType.SANKEY);
+                    }}
+                >
+                    Sankey
+                </Menu.Item>
 
                 <Menu.Item
                     disabled={disabled}
