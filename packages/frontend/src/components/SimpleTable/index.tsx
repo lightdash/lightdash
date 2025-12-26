@@ -1,7 +1,7 @@
 import { FeatureFlags } from '@lightdash/common';
 import { Box, Button, Flex, Text } from '@mantine/core';
 import { noop } from '@mantine/utils';
-import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
+import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
 import { type FC, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
     isChunkLoadError,
@@ -170,6 +170,16 @@ const SimpleTable: FC<SimpleTableProps> = ({
         [isDashboard, itemsMap, minimal, tileUuid],
     );
 
+    const DashboardEmptyState = useCallback(() => {
+        return (
+            <SuboptimalState
+                icon={IconTable}
+                title="No results"
+                description="This query ran successfully but returned no results"
+            />
+        );
+    }, []);
+
     useEffect(() => {
         if (shouldPaginateResults) return;
 
@@ -288,6 +298,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 totalRowsCount={resultsData?.totalResults || 0}
                 isFetchingRows={!!resultsData?.isFetchingRows}
                 loadingState={LoadingChart}
+                emptyState={isDashboard ? DashboardEmptyState : undefined}
                 fetchMoreRows={resultsData?.fetchMoreRows || noop}
                 columns={columns}
                 columnOrder={columnOrder}
