@@ -86,6 +86,31 @@ const postCalculateTotalForEmbed = async (
     });
 };
 
+/**
+ * Calculate totals from a raw metric query in embed context.
+ * Used when exploring data directly (not from a saved chart).
+ */
+const postCalculateTotalFromQueryForEmbed = async (
+    projectUuid: string,
+    metricQuery: MetricQuery,
+    explore: string,
+    parameters?: ParametersValuesMap,
+): Promise<ApiCalculateTotalResponse['results']> => {
+    const timezoneFixPayload: CalculateTotalFromQuery = {
+        explore,
+        metricQuery: {
+            ...metricQuery,
+            filters: convertDateFilters(metricQuery.filters),
+        },
+        parameters,
+    };
+    return lightdashApi<ApiCalculateTotalResponse['results']>({
+        url: `/embed/${projectUuid}/calculate-total`,
+        method: 'POST',
+        body: JSON.stringify(timezoneFixPayload),
+    });
+};
+
 const getCalculationColumnFields = (
     selectedItemIds: string[],
     itemsMap: ItemsMap,
@@ -147,6 +172,7 @@ export const useCalculateTotal = ({
     return useQuery<ApiCalculateTotalResponse['results'], ApiError>({
         queryKey: ['calculate_total', projectUuid, queryKey],
         queryFn: () =>
+            // Embed mode with saved chart
             embedToken && projectUuid && savedChartUuid
                 ? postCalculateTotalForEmbed(
                       projectUuid,
@@ -154,14 +180,24 @@ export const useCalculateTotal = ({
                       dashboardFilters,
                       invalidateCache,
                   )
-                : savedChartUuid
+                : // Embed mode with raw query (Explore)
+                embedToken && projectUuid && metricQuery && explore
+                ? postCalculateTotalFromQueryForEmbed(
+                      projectUuid,
+                      metricQuery,
+                      explore,
+                      parameters,
+                  )
+                : // Regular mode with saved chart
+                savedChartUuid
                 ? calculateTotalFromSavedChart(
                       savedChartUuid,
                       dashboardFilters,
                       invalidateCache,
                       parameters,
                   )
-                : projectUuid
+                : // Regular mode with raw query
+                projectUuid
                 ? calculateTotalFromQuery(
                       projectUuid,
                       metricQuery,

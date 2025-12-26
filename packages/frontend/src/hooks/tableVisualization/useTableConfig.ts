@@ -222,8 +222,7 @@ const useTableConfig = (
                   itemsMap,
                   showColumnCalculation:
                       tableChartConfig?.showColumnCalculation,
-                  // embed token is not necessary here because embeds don't use metricQuery for table calculations
-                  embedToken: undefined,
+                  embedToken,
                   parameters,
               },
     );
@@ -246,7 +245,7 @@ const useTableConfig = (
                   showSubtotals,
                   columnOrder,
                   pivotDimensions,
-                  embedToken: undefined,
+                  embedToken,
                   parameters,
                   dateZoom,
               },
