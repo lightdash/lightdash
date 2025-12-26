@@ -1,3 +1,11 @@
+# [0.2280.0](https://github.com/lightdash/lightdash/compare/0.2279.0...0.2280.0) (2025-12-26)
+
+
+### Features
+
+* add calculate total and subtotals endpoints for embed mode ([#19098](https://github.com/lightdash/lightdash/issues/19098)) ([11cee29](https://github.com/lightdash/lightdash/commit/11cee2936b8cb15766a1289f13a6a126b18727b1)), closes [#19101](https://github.com/lightdash/lightdash/issues/19101)
+* add total/subtotal calculation tests for embed dashboard JWT API ([#19102](https://github.com/lightdash/lightdash/issues/19102)) ([ea42b29](https://github.com/lightdash/lightdash/commit/ea42b29b0153412e2ec70e9c7779b2e343a4ae2f))
+
 # [0.2279.0](https://github.com/lightdash/lightdash/compare/0.2278.6...0.2279.0) (2025-12-25)
 
 
