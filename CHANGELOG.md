@@ -1,3 +1,10 @@
+## [0.2282.2](https://github.com/lightdash/lightdash/compare/0.2282.1...0.2282.2) (2025-12-26)
+
+
+### Bug Fixes
+
+* mobile app colors not working as expected ([#19114](https://github.com/lightdash/lightdash/issues/19114)) ([f2cde83](https://github.com/lightdash/lightdash/commit/f2cde8377a5e9ccf4406bd14ad928cde759594a7))
+
 ## [0.2282.1](https://github.com/lightdash/lightdash/compare/0.2282.0...0.2282.1) (2025-12-26)
 
 
