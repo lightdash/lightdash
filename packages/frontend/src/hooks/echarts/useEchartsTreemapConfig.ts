@@ -129,10 +129,10 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
                 },
                 rich: {
                     white: {
-                        color: 'white',
+                        color: vizThemeColors.WHITE,
                     },
                     black: {
-                        color: 'black',
+                        color: vizThemeColors.FOREGROUND,
                     },
                 },
             },
