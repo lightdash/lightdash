@@ -1,3 +1,10 @@
+# [0.2281.0](https://github.com/lightdash/lightdash/compare/0.2280.2...0.2281.0) (2025-12-26)
+
+
+### Features
+
+* add customizable font sizes for chart axis labels and titles ([#19107](https://github.com/lightdash/lightdash/issues/19107)) ([e1cdc68](https://github.com/lightdash/lightdash/commit/e1cdc68c6c37f7aa8e577145a7220b8e67a6d5fb))
+
 ## [0.2280.2](https://github.com/lightdash/lightdash/compare/0.2280.1...0.2280.2) (2025-12-26)
 
 
