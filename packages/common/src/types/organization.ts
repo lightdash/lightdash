@@ -67,6 +67,7 @@ export type OrganizationProject = {
     type: ProjectType;
     createdByUserUuid: string | null;
     createdAt: Date;
+    createdVia?: string | null;
     upstreamProjectUuid: string | null;
     warehouseType?: WarehouseTypes;
 };

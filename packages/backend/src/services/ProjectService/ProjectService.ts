@@ -1402,6 +1402,7 @@ export class ProjectService extends BaseService {
                 user.userUuid,
                 user.organizationUuid,
                 createProject,
+                method,
             );
 
         // Do not give this user admin permissions on this new project,

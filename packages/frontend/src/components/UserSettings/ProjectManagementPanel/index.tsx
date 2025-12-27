@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ProjectType,
+    RequestMethod,
     assertUnreachable,
     type OrganizationProject,
 } from '@lightdash/common';
@@ -26,6 +27,7 @@ import {
     useActiveProject,
     useUpdateActiveProjectMutation,
 } from '../../../hooks/useActiveProject';
+import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjects } from '../../../hooks/useProjects';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
@@ -34,8 +36,29 @@ import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { ProjectDeleteModal } from '../DeleteProjectPanel/DeleteProjectModal';
 import { ProjectDeleteInBulkModal } from '../DeleteProjectPanel/ProjectDeleteInBulkModal';
 
+const formatDate = (date: Date): string => {
+    return new Intl.DateTimeFormat('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).format(new Date(date));
+};
+
+const formatCreationMethod = (method?: string | null): string => {
+    if (!method || method === RequestMethod.UNKNOWN) return 'Unknown';
+    if (method === RequestMethod.CLI || method === RequestMethod.CLI_CI)
+        return 'CLI';
+    if (method === RequestMethod.WEB_APP) return 'UI';
+    if (method === RequestMethod.HEADLESS_BROWSER) return 'Headless';
+    if (method === RequestMethod.BACKEND) return 'Backend';
+    return method;
+};
+
 type ProjectListItemProps = {
     project: OrganizationProject;
+    creatorName: string;
     isCurrentProject: boolean;
     isBulkActionActive: boolean;
     isSelected: boolean;
@@ -45,6 +68,7 @@ type ProjectListItemProps = {
 
 const ProjectListItem: FC<ProjectListItemProps> = ({
     project,
+    creatorName,
     isCurrentProject,
     isBulkActionActive,
     isSelected,
@@ -96,6 +120,24 @@ const ProjectListItem: FC<ProjectListItemProps> = ({
             <Text component="td" fw={500}>
                 {project.name}
             </Text>
+
+            <td>
+                <Text size="sm" color="dimmed">
+                    {creatorName}
+                </Text>
+            </td>
+
+            <td>
+                <Text size="sm" color="dimmed">
+                    {formatDate(project.createdAt)}
+                </Text>
+            </td>
+
+            <td>
+                <Text size="sm" color="dimmed">
+                    {formatCreationMethod(project.createdVia)}
+                </Text>
+            </td>
 
             <td>
                 <Group spacing="xs">
@@ -182,6 +224,7 @@ const ProjectManagementPanel: FC = () => {
         useProjects();
     const { data: lastProjectUuid, isInitialLoading: isLoadingLastProject } =
         useActiveProject();
+    const { data: organizationUsers = [] } = useOrganizationUsers();
 
     const [deletingProjectUuid, setDeletingProjectUuid] = useState<string>();
     const [deletingProjectInBulk, setDeletingProjectInBulk] = useState(false);
@@ -189,6 +232,19 @@ const ProjectManagementPanel: FC = () => {
     const [activeTab, setActiveTab] = useState<TabsValue>(TabsValue.ALL);
 
     const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+
+    const getUserName = useCallback(
+        (userUuid: string | null) => {
+            if (!userUuid) return 'Unknown';
+            const orgUser = organizationUsers.find(
+                (u) => u.userUuid === userUuid,
+            );
+            if (!orgUser) return 'Unknown';
+            return `${orgUser.firstName} ${orgUser.lastName}`.trim() ||
+                orgUser.email;
+        },
+        [organizationUsers],
+    );
 
     const handleTabChange = useCallback((value: TabsValue) => {
         setSelectedProjects([]);
@@ -328,6 +384,9 @@ const ProjectManagementPanel: FC = () => {
                                 </div>
                             </th>
                             <th>Name</th>
+                            <th>Created By</th>
+                            <th>Created</th>
+                            <th>Method</th>
                             <th></th>
                             <th></th>
                         </tr>
@@ -337,6 +396,9 @@ const ProjectManagementPanel: FC = () => {
                             <ProjectListItem
                                 key={project.projectUuid}
                                 project={project}
+                                creatorName={getUserName(
+                                    project.createdByUserUuid,
+                                )}
                                 isCurrentProject={
                                     lastProject?.projectUuid ===
                                     project.projectUuid
