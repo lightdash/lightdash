@@ -28,12 +28,16 @@ import {
     isMetric,
     isNonAggregateMetric,
     isPostCalculationMetric,
+    isPreviousPeriod,
+    isRollingPeriod,
+    isValidRollingWindowSize,
     ItemsMap,
     lightdashVariablePattern,
     MetricFilterRule,
     parseAllReferences,
     PivotConfiguration,
     POP_PREVIOUS_PERIOD_SUFFIX,
+    POP_ROLLING_PERIOD_SUFFIX,
     QueryWarning,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
@@ -1321,7 +1325,12 @@ export class MetricQueryBuilder {
                     metrics: metricsInCte.map((metric) => getItemId(metric)),
                 });
 
-                if (periodOverPeriod?.field) {
+                if (
+                    periodOverPeriod?.field &&
+                    isPreviousPeriod(periodOverPeriod)
+                ) {
+                    // Only handle previous period in experimental metrics path
+                    // Rolling period uses simple window functions in the main path
                     const popFieldId = getItemId(periodOverPeriod?.field);
                     /**
                      * CTE to get min and max date in deduplicated keys
@@ -1506,7 +1515,12 @@ export class MetricQueryBuilder {
             }
             // Create PoP CTEs for unaffected metrics
             const popUnaffectedMetricsCteName = `cte_pop_unaffected`;
-            if (periodOverPeriod?.field && hasUnaffectedCte) {
+            if (
+                periodOverPeriod?.field &&
+                hasUnaffectedCte &&
+                isPreviousPeriod(periodOverPeriod)
+            ) {
+                // Only handle previous period in experimental metrics path
                 const popFieldId = getItemId(periodOverPeriod?.field);
 
                 /**
@@ -1692,7 +1706,9 @@ export class MetricQueryBuilder {
                                         `${unaffectedMetricsCteName}.${alias}`,
                                         `${popMetricCte.name}.${alias}`,
                                         '=',
-                                        periodOverPeriod.periodOffset || 1,
+                                        isPreviousPeriod(periodOverPeriod)
+                                            ? periodOverPeriod.periodOffset || 1
+                                            : periodOverPeriod.windowSize,
                                         periodOverPeriod.granularity,
                                         true,
                                     )})`;
@@ -2104,130 +2120,180 @@ export class MetricQueryBuilder {
             finalSelectParts = experimentalMetricsCteSQL.finalSelectParts;
             ctes.push(...experimentalMetricsCteSQL.ctes);
         } else if (compiledMetricQuery.periodOverPeriod?.field) {
-            // 1. Wrap finalSelectParts as a CTE
-            // 2. Generate pop CTEs based on this CTE
-            // 3. Create new finalSelectParts that joins everything
-
             const { periodOverPeriod } = compiledMetricQuery;
-            const fieldQuoteChar =
-                this.args.warehouseSqlBuilder.getFieldQuoteChar();
-            const stringQuoteChar =
-                this.args.warehouseSqlBuilder.getStringQuoteChar();
-            const adapterType: SupportedDbtAdapter =
-                this.args.warehouseSqlBuilder.getAdapterType();
-            const startOfWeek = this.args.warehouseSqlBuilder.getStartOfWeek();
 
-            // Wrap current finalSelectParts as base CTE
-            const baseCteName = 'base_metrics';
-            ctes.push(
-                MetricQueryBuilder.wrapAsCte(baseCteName, finalSelectParts),
-            );
+            // Check if this is a rolling period comparison
+            if (isRollingPeriod(periodOverPeriod)) {
+                // Validate window size
+                if (!isValidRollingWindowSize(periodOverPeriod.windowSize)) {
+                    throw new CompileError(
+                        `Invalid rolling period window size: ${periodOverPeriod.windowSize}. Must be an integer between 2 and 365.`,
+                    );
+                }
 
-            const popFieldId = getItemId(periodOverPeriod.field);
+                // Handle rolling period with window functions
+                const fieldQuoteChar =
+                    this.args.warehouseSqlBuilder.getFieldQuoteChar();
+                const popFieldId = getItemId(periodOverPeriod.field);
 
-            // Create pop_min_max CTE to get date range
-            const popMinMaxCteName = 'pop_min_max';
-            const popMinMaxCteParts = [
-                `SELECT`,
-                [
-                    `MIN(${baseCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
-                    `MAX(${baseCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
-                ].join(',\n'),
-                `FROM ${baseCteName}`,
-            ];
-            ctes.push(
-                `${popMinMaxCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
-                    popMinMaxCteParts,
-                )}\n)`,
-            );
+                // Wrap current finalSelectParts as base CTE
+                const baseCteName = 'base_metrics';
+                ctes.push(
+                    MetricQueryBuilder.wrapAsCte(baseCteName, finalSelectParts),
+                );
 
-            // Create pop CTE with previous period data
-            const popCteName = 'pop_metrics';
-            const popField = getDimensionFromId(
-                popFieldId,
-                explore,
-                adapterType,
-                startOfWeek,
-            );
+                // Create rolling period CTE with window functions
+                const rollingCteName = 'rolling_metrics';
+                const rollingMetricSelects = compiledMetricQuery.metrics.map(
+                    (metricId) =>
+                        `  AVG(${fieldQuoteChar}${metricId}${fieldQuoteChar}) OVER (
+                            ORDER BY ${fieldQuoteChar}${popFieldId}${fieldQuoteChar}
+                            ROWS BETWEEN ${
+                                periodOverPeriod.windowSize - 1
+                            } PRECEDING AND CURRENT ROW
+                        ) AS ${fieldQuoteChar}${metricId}${POP_ROLLING_PERIOD_SUFFIX}${fieldQuoteChar}`,
+                );
 
-            // Build pop CTE with same structure as base but filtered for previous period
-            const popCteParts = [
-                `SELECT\n${[
-                    ...Object.values(dimensionsSQL.selects),
-                    ...metricsSQL.selects.map((select) =>
-                        // rename metric to include pop prefix
-                        select.replace(
-                            new RegExp(`${fieldQuoteChar}$`),
-                            `${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
+                const rollingCteParts = [
+                    `SELECT`,
+                    [`  ${baseCteName}.*`, ...rollingMetricSelects].join(',\n'),
+                    `FROM ${baseCteName}`,
+                ];
+
+                ctes.push(
+                    `${rollingCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                        rollingCteParts,
+                    )}\n)`,
+                );
+
+                // Update finalSelectParts to select from rolling CTE
+                finalSelectParts = [`SELECT`, `  *`, `FROM ${rollingCteName}`];
+            } else if (isPreviousPeriod(periodOverPeriod)) {
+                // Handle previous period with CTEs and joins (existing logic)
+                // 1. Wrap finalSelectParts as a CTE
+                // 2. Generate pop CTEs based on this CTE
+                // 3. Create new finalSelectParts that joins everything
+                const fieldQuoteChar =
+                    this.args.warehouseSqlBuilder.getFieldQuoteChar();
+                const stringQuoteChar =
+                    this.args.warehouseSqlBuilder.getStringQuoteChar();
+                const adapterType: SupportedDbtAdapter =
+                    this.args.warehouseSqlBuilder.getAdapterType();
+                const startOfWeek =
+                    this.args.warehouseSqlBuilder.getStartOfWeek();
+
+                // Wrap current finalSelectParts as base CTE
+                const baseCteName = 'base_metrics';
+                ctes.push(
+                    MetricQueryBuilder.wrapAsCte(baseCteName, finalSelectParts),
+                );
+
+                const popFieldId = getItemId(periodOverPeriod.field);
+
+                // Create pop_min_max CTE to get date range
+                const popMinMaxCteName = 'pop_min_max';
+                const popMinMaxCteParts = [
+                    `SELECT`,
+                    [
+                        `MIN(${baseCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as min_date`,
+                        `MAX(${baseCteName}.${fieldQuoteChar}${popFieldId}${fieldQuoteChar}) as max_date`,
+                    ].join(',\n'),
+                    `FROM ${baseCteName}`,
+                ];
+                ctes.push(
+                    `${popMinMaxCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                        popMinMaxCteParts,
+                    )}\n)`,
+                );
+
+                // Create pop CTE with previous period data
+                const popCteName = 'pop_metrics';
+                const popField = getDimensionFromId(
+                    popFieldId,
+                    explore,
+                    adapterType,
+                    startOfWeek,
+                );
+
+                // Build pop CTE with same structure as base but filtered for previous period
+                const popCteParts = [
+                    `SELECT\n${[
+                        ...Object.values(dimensionsSQL.selects),
+                        ...metricsSQL.selects.map((select) =>
+                            // rename metric to include pop prefix
+                            select.replace(
+                                new RegExp(`${fieldQuoteChar}$`),
+                                `${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
+                            ),
                         ),
-                    ),
-                ].join(',\n')}`,
-                sqlFrom,
-                joins.joinSQL,
-                ...dimensionsSQL.joins,
-                ...[`LEFT JOIN ${popMinMaxCteName} ON TRUE`],
-                `WHERE ${getIntervalSyntax(
-                    adapterType,
-                    popField.compiledSql,
-                    `${popMinMaxCteName}.min_date`,
-                    '>=',
-                    periodOverPeriod.periodOffset || 1,
-                    periodOverPeriod.granularity,
-                    false,
-                )} AND ${getIntervalSyntax(
-                    adapterType,
-                    popField.compiledSql,
-                    `${popMinMaxCteName}.max_date`,
-                    '<=',
-                    periodOverPeriod.periodOffset || 1,
-                    periodOverPeriod.granularity,
-                    false,
-                )}`,
-                dimensionsSQL.groupBySQL,
-            ];
+                    ].join(',\n')}`,
+                    sqlFrom,
+                    joins.joinSQL,
+                    ...dimensionsSQL.joins,
+                    ...[`LEFT JOIN ${popMinMaxCteName} ON TRUE`],
+                    `WHERE ${getIntervalSyntax(
+                        adapterType,
+                        popField.compiledSql,
+                        `${popMinMaxCteName}.min_date`,
+                        '>=',
+                        periodOverPeriod.periodOffset || 1,
+                        periodOverPeriod.granularity,
+                        false,
+                    )} AND ${getIntervalSyntax(
+                        adapterType,
+                        popField.compiledSql,
+                        `${popMinMaxCteName}.max_date`,
+                        '<=',
+                        periodOverPeriod.periodOffset || 1,
+                        periodOverPeriod.granularity,
+                        false,
+                    )}`,
+                    dimensionsSQL.groupBySQL,
+                ];
 
-            ctes.push(
-                `${popCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
-                    popCteParts,
-                )}\n)`,
-            );
+                ctes.push(
+                    `${popCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                        popCteParts,
+                    )}\n)`,
+                );
 
-            // Create new finalSelectParts that joins base CTE with pop CTE
-            const popMetricSelects = compiledMetricQuery.metrics.map(
-                (metricId) =>
-                    `  ${popCteName}.${fieldQuoteChar}${metricId}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar} AS ${fieldQuoteChar}${metricId}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
-            );
-            // Get dimension aliases from dimensionSelects
-            const dimensionAlias = Object.keys(dimensionsSQL.selects).map(
-                (alias) => `${fieldQuoteChar}${alias}${fieldQuoteChar}`,
-            );
-            // With dimensions: join on dimensions with interval adjustment for pop field
-            finalSelectParts = [
-                `SELECT`,
-                [`  ${baseCteName}.*`, ...popMetricSelects].join(',\n'),
-                `FROM ${baseCteName}`,
-                `INNER JOIN ${popCteName} ON ${dimensionAlias
-                    .map((alias) => {
-                        if (
-                            alias ===
-                            `${fieldQuoteChar}${popFieldId}${fieldQuoteChar}`
-                        ) {
-                            // Join on pop field with interval difference
-                            return `( ${getIntervalSyntax(
-                                adapterType,
-                                `${baseCteName}.${alias}`,
-                                `${popCteName}.${alias}`,
-                                '=',
-                                periodOverPeriod.periodOffset || 1,
-                                periodOverPeriod.granularity,
-                                true,
-                            )})`;
-                        }
-                        // Default to joining on all dimensions
-                        return `( ${baseCteName}.${alias} = ${popCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${popCteName}.${alias} IS NULL ) )`;
-                    })
-                    .join(' AND ')}`,
-            ];
+                // Create new finalSelectParts that joins base CTE with pop CTE
+                const popMetricSelects = compiledMetricQuery.metrics.map(
+                    (metricId) =>
+                        `  ${popCteName}.${fieldQuoteChar}${metricId}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar} AS ${fieldQuoteChar}${metricId}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
+                );
+                // Get dimension aliases from dimensionSelects
+                const dimensionAlias = Object.keys(dimensionsSQL.selects).map(
+                    (alias) => `${fieldQuoteChar}${alias}${fieldQuoteChar}`,
+                );
+                // With dimensions: join on dimensions with interval adjustment for pop field
+                finalSelectParts = [
+                    `SELECT`,
+                    [`  ${baseCteName}.*`, ...popMetricSelects].join(',\n'),
+                    `FROM ${baseCteName}`,
+                    `INNER JOIN ${popCteName} ON ${dimensionAlias
+                        .map((alias) => {
+                            if (
+                                alias ===
+                                `${fieldQuoteChar}${popFieldId}${fieldQuoteChar}`
+                            ) {
+                                // Join on pop field with interval difference
+                                return `( ${getIntervalSyntax(
+                                    adapterType,
+                                    `${baseCteName}.${alias}`,
+                                    `${popCteName}.${alias}`,
+                                    '=',
+                                    periodOverPeriod.periodOffset || 1,
+                                    periodOverPeriod.granularity,
+                                    true,
+                                )})`;
+                            }
+                            // Default to joining on all dimensions
+                            return `( ${baseCteName}.${alias} = ${popCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${popCteName}.${alias} IS NULL ) )`;
+                        })
+                        .join(' AND ')}`,
+                ];
+            }
         }
         warnings.push(...experimentalMetricsCteSQL.warnings);
 

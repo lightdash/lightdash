@@ -8,7 +8,6 @@ import {
     type ItemsMap,
 } from '@lightdash/common';
 import {
-    Badge,
     Button,
     Group,
     NumberInput,
@@ -100,9 +99,23 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
             : null,
     );
 
-    // Track period offset
+    // Track period type (previousPeriod or rollingPeriod)
+    const [periodType, setPeriodType] = useState<
+        'previousPeriod' | 'rollingPeriod'
+    >(periodOverPeriod?.type ?? 'previousPeriod');
+
+    // Track period offset (for previous period)
     const [periodOffset, setPeriodOffset] = useState<number>(
-        periodOverPeriod?.periodOffset ?? 1,
+        periodOverPeriod?.type === 'previousPeriod'
+            ? periodOverPeriod?.periodOffset ?? 1
+            : 1,
+    );
+
+    // Track window size (for rolling period)
+    const [windowSize, setWindowSize] = useState<number>(
+        periodOverPeriod?.type === 'rollingPeriod'
+            ? periodOverPeriod?.windowSize ?? 7
+            : 7,
     );
 
     // Get the selected dimension object
@@ -138,29 +151,52 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
     const handleApply = useCallback(() => {
         if (!selectedDimensionObj || !selectedGranularity) return;
 
-        dispatch(
-            explorerActions.setPeriodOverPeriod({
-                type: 'previousPeriod',
-                granularity: selectedGranularity,
-                periodOffset: periodOffset,
-                field: {
-                    name: selectedDimensionObj.name,
-                    table: selectedDimensionObj.table,
-                },
-            }),
-        );
+        if (periodType === 'rollingPeriod') {
+            dispatch(
+                explorerActions.setPeriodOverPeriod({
+                    type: 'rollingPeriod',
+                    granularity: selectedGranularity,
+                    windowSize: windowSize,
+                    field: {
+                        name: selectedDimensionObj.name,
+                        table: selectedDimensionObj.table,
+                    },
+                }),
+            );
+        } else {
+            dispatch(
+                explorerActions.setPeriodOverPeriod({
+                    type: 'previousPeriod',
+                    granularity: selectedGranularity,
+                    periodOffset: periodOffset,
+                    field: {
+                        name: selectedDimensionObj.name,
+                        table: selectedDimensionObj.table,
+                    },
+                }),
+            );
+        }
 
         // Request query execution (works regardless of auto-fetch setting)
         dispatch(explorerActions.requestQueryExecution());
 
         setOpened(false);
-    }, [dispatch, selectedDimensionObj, selectedGranularity, periodOffset]);
+    }, [
+        dispatch,
+        selectedDimensionObj,
+        selectedGranularity,
+        periodType,
+        periodOffset,
+        windowSize,
+    ]);
 
     const handleClear = useCallback(() => {
         dispatch(explorerActions.setPeriodOverPeriod(undefined));
         dispatch(explorerActions.requestQueryExecution());
         setSelectedTimeDimension(null);
+        setPeriodType('previousPeriod');
         setPeriodOffset(1);
+        setWindowSize(7);
         setOpened(false);
     }, [dispatch]);
 
@@ -179,12 +215,19 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                     setSelectedTimeDimension(
                         `${periodOverPeriod.field.table}.${periodOverPeriod.field.name}`,
                     );
-                    setPeriodOffset(periodOverPeriod.periodOffset ?? 1);
+                    setPeriodType(periodOverPeriod.type);
+                    if (periodOverPeriod.type === 'previousPeriod') {
+                        setPeriodOffset(periodOverPeriod.periodOffset ?? 1);
+                    } else if (periodOverPeriod.type === 'rollingPeriod') {
+                        setWindowSize(periodOverPeriod.windowSize ?? 7);
+                    }
                 } else if (availableTimeDimensions.length > 0) {
                     setSelectedTimeDimension(
                         getItemId(availableTimeDimensions[0]),
                     );
+                    setPeriodType('previousPeriod');
                     setPeriodOffset(1);
+                    setWindowSize(7);
                 }
             }
         },
@@ -263,7 +306,16 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
 
                     {selectedDimensionObj && (
                         <>
-                            <Radio.Group value="previousPeriod">
+                            <Radio.Group
+                                value={periodType}
+                                onChange={(value) =>
+                                    setPeriodType(
+                                        value as
+                                            | 'previousPeriod'
+                                            | 'rollingPeriod',
+                                    )
+                                }
+                            >
                                 <Stack spacing="xs">
                                     <Radio
                                         value="previousPeriod"
@@ -300,47 +352,91 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                                             },
                                         }}
                                     />
-                                    <Group noWrap spacing="xs" pl="28px">
-                                        <NumberInput
-                                            label="Period offset"
-                                            placeholder="Enter offset"
-                                            value={periodOffset}
-                                            onChange={(value) => {
-                                                if (
-                                                    value !== null &&
-                                                    value &&
-                                                    value >= 1
-                                                ) {
-                                                    setPeriodOffset(value ?? 1);
-                                                }
-                                            }}
-                                            min={1}
-                                            size="xs"
-                                            w={100}
-                                        />
+                                    {periodType === 'previousPeriod' && (
+                                        <Group noWrap spacing="xs" pl="28px">
+                                            <NumberInput
+                                                label="Period offset"
+                                                placeholder="Enter offset"
+                                                value={periodOffset}
+                                                onChange={(value) => {
+                                                    if (
+                                                        value !== null &&
+                                                        value &&
+                                                        value >= 1
+                                                    ) {
+                                                        setPeriodOffset(
+                                                            value ?? 1,
+                                                        );
+                                                    }
+                                                }}
+                                                min={1}
+                                                size="xs"
+                                                w={100}
+                                            />
 
-                                        <Text size="xs" fw={500} mt="md">
-                                            {granularityLabel}(s)
-                                        </Text>
-                                    </Group>
+                                            <Text size="xs" fw={500} mt="md">
+                                                {granularityLabel}(s)
+                                            </Text>
+                                        </Group>
+                                    )}
                                     <Radio
-                                        value="rolling"
-                                        disabled
+                                        value="rollingPeriod"
                                         label={
-                                            <Group spacing={2}>
+                                            <Stack spacing={2}>
                                                 <Text
                                                     size="sm"
                                                     fw={500}
-                                                    c="dimmed"
+                                                    c="gray.8"
                                                 >
                                                     Rolling period
                                                 </Text>
-                                                <Badge size="xs" color="gray">
-                                                    Coming soon
-                                                </Badge>
-                                            </Group>
+                                                {granularityLabel && (
+                                                    <Text
+                                                        size="xs"
+                                                        c="dimmed"
+                                                        lh={1.5}
+                                                    >
+                                                        Calculate moving average
+                                                        over a sliding window
+                                                    </Text>
+                                                )}
+                                            </Stack>
                                         }
+                                        styles={{
+                                            label: {
+                                                cursor: 'pointer',
+                                                paddingLeft: 8,
+                                            },
+                                            radio: {
+                                                cursor: 'pointer',
+                                            },
+                                        }}
                                     />
+                                    {periodType === 'rollingPeriod' && (
+                                        <Group noWrap spacing="xs" pl="28px">
+                                            <NumberInput
+                                                label="Window size"
+                                                placeholder="Enter window size"
+                                                description={`Number of ${granularityLabel?.toLowerCase()}s to average`}
+                                                value={windowSize}
+                                                onChange={(value) => {
+                                                    if (
+                                                        value !== null &&
+                                                        value &&
+                                                        value >= 2
+                                                    ) {
+                                                        setWindowSize(
+                                                            value ?? 7,
+                                                        );
+                                                    }
+                                                }}
+                                                min={2}
+                                                max={365}
+                                                size="xs"
+                                                w={100}
+                                            />
+                                        </Group>
+                                    )}
                                 </Stack>
                             </Radio.Group>
                         </>
