@@ -4,6 +4,7 @@ import {
     ApiContentResponse,
     ApiErrorPayload,
     ApiSuccessEmpty,
+    ContentActionDelete,
     ContentActionMove,
     ContentType,
     ParameterError,
@@ -132,6 +133,32 @@ export class ContentController extends BaseController {
                 body.content,
                 body.action.targetSpaceUuid,
             );
+
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Delete multiple items (Charts, Dashboards, Spaces)
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/bulk-action/:projectUuid/delete')
+    @OperationId('Bulk delete content')
+    @Tags('Content', 'Bulk action', 'Delete content')
+    async bulkDeleteContent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiContentBulkActionBody<ContentActionDelete>,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+
+        if (body.action.type !== 'delete') {
+            throw new ParameterError('Invalid action type');
+        }
+
+        await this.services
+            .getContentService()
+            .bulkDelete(req.user!, projectUuid, body.content);
 
         return { status: 'ok', results: undefined };
     }
