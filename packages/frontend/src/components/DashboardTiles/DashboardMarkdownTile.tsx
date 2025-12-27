@@ -1,4 +1,8 @@
-import { FeatureFlags, type DashboardMarkdownTile } from '@lightdash/common';
+import {
+    FeatureFlags,
+    MARKDOWN_TILE_CLASS,
+    type DashboardMarkdownTile,
+} from '@lightdash/common';
 import { Menu, Text, useMantineTheme } from '@mantine/core';
 import { IconCopy } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
@@ -121,7 +125,7 @@ const MarkdownTile: FC<Props> = (props) => {
             >
                 <div data-color-mode={theme.colorScheme}>
                     <MarkdownPreview
-                        className="markdown-tile"
+                        className={MARKDOWN_TILE_CLASS}
                         source={content}
                         rehypePlugins={[
                             [rehypeExternalLinks, { target: '_blank' }],

@@ -1,6 +1,7 @@
 import {
     DashboardTileTypes,
     isDashboardChartTileType,
+    LOADING_CHART_OVERLAY_CLASS,
     type Dashboard,
 } from '@lightdash/common';
 import {
@@ -8,12 +9,12 @@ import {
     Box,
     Card,
     Flex,
+    getDefaultZIndex,
     Group,
     LoadingOverlay,
     Menu,
     Text,
     Tooltip,
-    getDefaultZIndex,
 } from '@mantine/core';
 import { useHover, useToggle } from '@mantine/hooks';
 import {
@@ -120,7 +121,7 @@ const TileBaseV1 = <T extends Dashboard['tiles'][number]>({
             >
                 <LoadingOverlay
                     // ! Very important to have this class name on the tile loading overlay, otherwise the unfurl service will not be able to find it
-                    className="loading_chart_overlay"
+                    className={LOADING_CHART_OVERLAY_CLASS}
                     visible={isLoading ?? false}
                     zIndex={getDefaultZIndex('modal') - 10}
                 />

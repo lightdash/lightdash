@@ -1,3 +1,4 @@
+import { SCREENSHOT_READY_INDICATOR_ID } from '@lightdash/common';
 import { type FC } from 'react';
 
 type ScreenshotReadyIndicatorProps = {
@@ -21,7 +22,7 @@ const ScreenshotReadyIndicator: FC<ScreenshotReadyIndicatorProps> = ({
 
     return (
         <div
-            id="lightdash-ready-indicator"
+            id={SCREENSHOT_READY_INDICATOR_ID}
             data-status={status}
             data-tiles-total={tilesTotal}
             data-tiles-ready={tilesReady}
