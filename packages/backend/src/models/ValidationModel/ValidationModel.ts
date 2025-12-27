@@ -20,6 +20,7 @@ import {
     DashboardTable,
     DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
+import { ProjectTableName } from '../../database/entities/projects';
 import {
     SavedChartsTableName,
     SavedChartTable,
@@ -43,13 +44,35 @@ export class ValidationModel {
         this.database = args.database;
     }
 
-    async create(
+    async create({
+        projectUuid,
+        validations,
+        jobId,
+    }: {
+        projectUuid: string;
+        validations: CreateValidation[];
+        jobId?: string;
+    }): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            // Lock the project to avoid concurrent validation updates
+            await trx(ProjectTableName)
+                .where('project_uuid', projectUuid)
+                .forUpdate();
+
+            if (validations.length > 0) {
+                await ValidationModel.create(trx, validations, jobId);
+            }
+        });
+    }
+
+    static async create(
+        transaction: Knex.Transaction,
         validations: CreateValidation[],
         jobId?: string,
     ): Promise<void> {
         if (validations.length > 0) {
             try {
-                await this.database.batchInsert(
+                await transaction.batchInsert(
                     ValidationTableName,
                     validations.map((validation) => ({
                         project_uuid: validation.projectUuid,
@@ -90,10 +113,24 @@ export class ValidationModel {
         }
     }
 
-    async delete(projectUuid: string): Promise<void> {
-        await this.database(ValidationTableName)
-            .where({ project_uuid: projectUuid })
-            .delete();
+    async replaceProjectValidations(
+        projectUuid: string,
+        validations: CreateValidation[],
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            // Lock the project to avoid concurrent validation updates
+            await trx(ProjectTableName)
+                .where('project_uuid', projectUuid)
+                .forUpdate();
+
+            await trx(ValidationTableName)
+                .where({ project_uuid: projectUuid })
+                .delete();
+
+            if (validations.length > 0) {
+                await ValidationModel.create(trx, validations);
+            }
+        });
     }
 
     async getByValidationId(
