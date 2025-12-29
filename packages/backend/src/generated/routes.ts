@@ -3744,6 +3744,20 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                axisLabelFontSize: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                axisTitleFontSize: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },
@@ -7183,7 +7197,7 @@ const models: TsoaRoute.Models = {
                                                                                             'nestedObjectLiteral',
                                                                                         nestedProperties:
                                                                                             {
-                                                                                                chartUsage:
+                                                                                                searchRank:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -7206,7 +7220,7 @@ const models: TsoaRoute.Models = {
                                                                                                                 },
                                                                                                             ],
                                                                                                     },
-                                                                                                searchRank:
+                                                                                                chartUsage:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -7236,6 +7250,12 @@ const models: TsoaRoute.Models = {
                                                                                                         required:
                                                                                                             true,
                                                                                                     },
+                                                                                                label: {
+                                                                                                    dataType:
+                                                                                                        'string',
+                                                                                                    required:
+                                                                                                        true,
+                                                                                                },
                                                                                                 tableName:
                                                                                                     {
                                                                                                         dataType:
@@ -7243,12 +7263,6 @@ const models: TsoaRoute.Models = {
                                                                                                         required:
                                                                                                             true,
                                                                                                     },
-                                                                                                label: {
-                                                                                                    dataType:
-                                                                                                        'string',
-                                                                                                    required:
-                                                                                                        true,
-                                                                                                },
                                                                                                 name: {
                                                                                                     dataType:
                                                                                                         'string',
@@ -7452,7 +7466,7 @@ const models: TsoaRoute.Models = {
                                                                                                 'nestedObjectLiteral',
                                                                                             nestedProperties:
                                                                                                 {
-                                                                                                    chartUsage:
+                                                                                                    searchRank:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'union',
@@ -7475,7 +7489,7 @@ const models: TsoaRoute.Models = {
                                                                                                                     },
                                                                                                                 ],
                                                                                                         },
-                                                                                                    searchRank:
+                                                                                                    chartUsage:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'union',
@@ -7505,6 +7519,12 @@ const models: TsoaRoute.Models = {
                                                                                                             required:
                                                                                                                 true,
                                                                                                         },
+                                                                                                    label: {
+                                                                                                        dataType:
+                                                                                                            'string',
+                                                                                                        required:
+                                                                                                            true,
+                                                                                                    },
                                                                                                     tableName:
                                                                                                         {
                                                                                                             dataType:
@@ -7512,12 +7532,6 @@ const models: TsoaRoute.Models = {
                                                                                                             required:
                                                                                                                 true,
                                                                                                         },
-                                                                                                    label: {
-                                                                                                        dataType:
-                                                                                                            'string',
-                                                                                                        required:
-                                                                                                            true,
-                                                                                                    },
                                                                                                     name: {
                                                                                                         dataType:
                                                                                                             'string',
@@ -18787,6 +18801,80 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 role: { ref: 'OrganizationMemberRole', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UserSchedulersSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                byProject: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            count: { dataType: 'double', required: true },
+                            projectName: { dataType: 'string', required: true },
+                            projectUuid: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
+                totalCount: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_UserSchedulersSummary_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'UserSchedulersSummary', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiUserSchedulersSummaryResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_UserSchedulersSummary_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess__reassignedCount-number__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        reassignedCount: { dataType: 'double', required: true },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiReassignUserSchedulersResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess__reassignedCount-number__', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ReassignUserSchedulersRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                newOwnerUserUuid: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -39573,6 +39661,134 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'deleteUser',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_getUserSchedulersSummary: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        userUuid: {
+            in: 'path',
+            name: 'userUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/org/user/:userUuid/schedulers-summary',
+        ...fetchMiddlewares<RequestHandler>(OrganizationController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationController.prototype.getUserSchedulersSummary,
+        ),
+
+        async function OrganizationController_getUserSchedulersSummary(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationController_getUserSchedulersSummary,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getUserSchedulersSummary',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationController_reassignUserSchedulers: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        userUuid: {
+            in: 'path',
+            name: 'userUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ReassignUserSchedulersRequest',
+        },
+    };
+    app.patch(
+        '/api/v1/org/user/:userUuid/reassign-schedulers',
+        ...fetchMiddlewares<RequestHandler>(OrganizationController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationController.prototype.reassignUserSchedulers,
+        ),
+
+        async function OrganizationController_reassignUserSchedulers(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationController_reassignUserSchedulers,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationController>(
+                        OrganizationController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'reassignUserSchedulers',
                     controller,
                     response,
                     next,

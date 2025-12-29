@@ -4115,6 +4115,14 @@
                     },
                     "showAxisTicks": {
                         "type": "boolean"
+                    },
+                    "axisLabelFontSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "axisTitleFontSize": {
+                        "type": "number",
+                        "format": "double"
                     }
                 },
                 "type": "object",
@@ -7978,12 +7986,12 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -7991,10 +7999,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -8003,8 +8011,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -8098,12 +8106,12 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "chartUsage": {
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "searchRank": {
+                                                                                    "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -8111,10 +8119,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -8123,8 +8131,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "tableName",
                                                                                     "label",
+                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -19551,6 +19559,85 @@
                 "required": ["role"],
                 "type": "object"
             },
+            "UserSchedulersSummary": {
+                "properties": {
+                    "byProject": {
+                        "items": {
+                            "properties": {
+                                "count": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "projectName": {
+                                    "type": "string"
+                                },
+                                "projectUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["count", "projectName", "projectUuid"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "totalCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["byProject", "totalCount"],
+                "type": "object"
+            },
+            "ApiSuccess_UserSchedulersSummary_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/UserSchedulersSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUserSchedulersSummaryResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_UserSchedulersSummary_"
+            },
+            "ApiSuccess__reassignedCount-number__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "reassignedCount": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["reassignedCount"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiReassignUserSchedulersResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__reassignedCount-number__"
+            },
+            "ReassignUserSchedulersRequest": {
+                "properties": {
+                    "newOwnerUserUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["newOwnerUserUuid"],
+                "type": "object"
+            },
             "OrganizationMemberRole.EDITOR": {
                 "enum": ["editor"],
                 "type": "string"
@@ -23699,7 +23786,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2279.0",
+        "version": "0.2282.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -33399,6 +33486,102 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/org/user/{userUuid}/schedulers-summary": {
+            "get": {
+                "operationId": "GetUserSchedulersSummary",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUserSchedulersSummaryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets a summary of scheduled deliveries owned by a user across all projects",
+                "summary": "Get user schedulers",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the user",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/org/user/{userUuid}/reassign-schedulers": {
+            "patch": {
+                "operationId": "ReassignUserSchedulers",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiReassignUserSchedulersResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Reassigns all scheduled deliveries from one user to another",
+                "summary": "Reassign schedulers",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the user whose schedulers will be reassigned",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "the new owner details",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReassignUserSchedulersRequest",
+                                "description": "the new owner details"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/org/allowedEmailDomains": {
