@@ -156,7 +156,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                     py="md"
                     {...modalHeaderProps}
                 >
-                    <Group gap="sm" flex={1}>
+                    <Group gap="sm" flex={1} wrap="nowrap" align="flex-start">
                         {icon ? (
                             <Paper p="6px" withBorder radius="md">
                                 <MantineIcon icon={icon} size="md" />
