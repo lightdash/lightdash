@@ -7,7 +7,7 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -61,8 +61,8 @@ const InviteSuccess: FC<{
                 onClose?.();
             }}
         >
-            <Stack spacing="md">
-                <Text>{message}</Text>
+            <Stack>
+                <Text size="sm">{message}</Text>
                 <TextInput
                     id="invite-link-input"
                     readOnly
