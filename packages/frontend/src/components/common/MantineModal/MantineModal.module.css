@@ -1,0 +1,15 @@
+.header {
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+    flex-shrink: 0;
+}
+
+.body {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.actions {
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+    flex-shrink: 0;
+}

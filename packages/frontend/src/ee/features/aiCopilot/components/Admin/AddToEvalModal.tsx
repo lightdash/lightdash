@@ -4,7 +4,6 @@ import {
 } from '@lightdash/common';
 import {
     Button,
-    Group,
     Loader,
     Select,
     Stack,
@@ -100,16 +99,63 @@ export const AddToEvalModal: FC<AddToEvalModalProps> = ({
         }
     };
 
+    const handleClose = () => {
+        onClose();
+        form.reset();
+        setCreateMode(false);
+    };
+
     return (
         <MantineModal
             opened={isOpen}
-            onClose={() => {
-                onClose();
-                form.reset();
-                setCreateMode(false);
-            }}
+            onClose={handleClose}
+            icon={IconPlus}
             title="Add Prompt to Evaluation Set"
             size="lg"
+            leftActions={
+                !createMode ? (
+                    <Button
+                        variant="subtle"
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        onClick={() => {
+                            setCreateMode(true);
+                            form.setFieldValue('selectedEvalUuid', '');
+                        }}
+                    >
+                        New Evaluation
+                    </Button>
+                ) : (
+                    <Button
+                        variant="subtle"
+                        size="xs"
+                        leftSection={<MantineIcon icon={IconArrowLeft} />}
+                        onClick={() => {
+                            setCreateMode(false);
+                            form.setFieldValue('newEvalName', '');
+                        }}
+                    >
+                        Back
+                    </Button>
+                )
+            }
+            description={
+                createMode
+                    ? 'Create a new evaluation set and add the prompt to it.'
+                    : 'Add this prompt to an existing evaluation set.'
+            }
+            actions={
+                <Button
+                    type="submit"
+                    form="add-to-eval-form"
+                    loading={
+                        createEvaluationMutation.isLoading ||
+                        appendToEvaluationMutation.isLoading
+                    }
+                >
+                    {createMode ? 'Create & Add' : 'Add'}
+                </Button>
+            }
         >
             {isLoadingEvals ? (
                 <Stack align="center" py="lg">
@@ -119,13 +165,11 @@ export const AddToEvalModal: FC<AddToEvalModalProps> = ({
                     </Text>
                 </Stack>
             ) : (
-                <form onSubmit={form.onSubmit(handleSubmit)}>
+                <form
+                    id="add-to-eval-form"
+                    onSubmit={form.onSubmit(handleSubmit)}
+                >
                     <Stack>
-                        <Text size="sm" c="dimmed">
-                            Add this prompt to an evaluation set to test agent
-                            performance.
-                        </Text>
-
                         {!createMode ? (
                             <Select
                                 label="Select Evaluation"
@@ -146,65 +190,6 @@ export const AddToEvalModal: FC<AddToEvalModalProps> = ({
                                 {...form.getInputProps('newEvalName')}
                             />
                         )}
-
-                        <Group justify="space-between" mt="md">
-                            {!createMode ? (
-                                <Button
-                                    variant="subtle"
-                                    size="xs"
-                                    leftSection={
-                                        <MantineIcon icon={IconPlus} />
-                                    }
-                                    onClick={() => {
-                                        setCreateMode(true);
-                                        form.setFieldValue(
-                                            'selectedEvalUuid',
-                                            '',
-                                        );
-                                    }}
-                                >
-                                    New Evaluation
-                                </Button>
-                            ) : (
-                                <Button
-                                    variant="subtle"
-                                    size="xs"
-                                    leftSection={
-                                        <MantineIcon icon={IconArrowLeft} />
-                                    }
-                                    onClick={() => {
-                                        setCreateMode(false);
-                                        form.setFieldValue('newEvalName', '');
-                                    }}
-                                >
-                                    Back
-                                </Button>
-                            )}
-
-                            <Group>
-                                <Button
-                                    variant="subtle"
-                                    onClick={() => {
-                                        onClose();
-                                        form.reset();
-                                        setCreateMode(false);
-                                    }}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    loading={
-                                        createEvaluationMutation.isLoading ||
-                                        appendToEvaluationMutation.isLoading
-                                    }
-                                >
-                                    {createMode
-                                        ? 'Create & Add'
-                                        : 'Add to Eval'}
-                                </Button>
-                            </Group>
-                        </Group>
                     </Stack>
                 </form>
             )}

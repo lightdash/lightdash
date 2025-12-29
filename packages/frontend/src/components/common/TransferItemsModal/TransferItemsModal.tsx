@@ -3,13 +3,14 @@ import {
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Alert, Box, Button, Group, LoadingOverlay, Text } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import { Button, LoadingOverlay, Text } from '@mantine-8/core';
+import { IconFolderShare, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import MantineIcon from '../MantineIcon';
 import MantineModal, { type MantineModalProps } from '../MantineModal';
+import Callout from '../Callout';
 import SpaceCreationForm from '../SpaceSelector/SpaceCreationForm';
 import SpaceSelector from '../SpaceSelector/SpaceSelector';
 
@@ -130,52 +131,39 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
             title={`Move ${getItemsText(items).type}`}
             opened={opened}
             onClose={onClose}
+            icon={IconFolderShare}
             size="xl"
+            leftActions={
+                !isCreatingNewSpace ? (
+                    <Button
+                        variant="subtle"
+                        size="xs"
+                        onClick={openCreateSpaceForm}
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                    >
+                        New Space
+                    </Button>
+                ) : null
+            }
             actions={
-                <>
-                    {!isCreatingNewSpace ? (
-                        <Button
-                            variant="subtle"
-                            size="xs"
-                            onClick={openCreateSpaceForm}
-                            leftIcon={<MantineIcon icon={IconPlus} />}
-                        >
-                            New Space
-                        </Button>
-                    ) : null}
-
-                    <Box sx={{ flexGrow: 1 }} />
-
-                    <Group position="right">
-                        <Button
-                            variant="default"
-                            onClick={onClose}
-                            disabled={createSpaceMutation.isLoading}
-                        >
-                            Cancel
-                        </Button>
-
-                        {isCreatingNewSpace ? (
-                            <Button
-                                loading={createSpaceMutation.isLoading}
-                                disabled={newSpaceName.length === 0}
-                                onClick={createSpace}
-                            >
-                                Create space & move
-                            </Button>
-                        ) : (
-                            <Button
-                                disabled={
-                                    !selectedSpaceUuid &&
-                                    !allSelectedItemsAreSpaces
-                                }
-                                onClick={handleConfirm}
-                            >
-                                Confirm
-                            </Button>
-                        )}
-                    </Group>
-                </>
+                isCreatingNewSpace ? (
+                    <Button
+                        loading={createSpaceMutation.isLoading}
+                        disabled={newSpaceName.length === 0}
+                        onClick={createSpace}
+                    >
+                        Create space & move
+                    </Button>
+                ) : (
+                    <Button
+                        disabled={
+                            !selectedSpaceUuid && !allSelectedItemsAreSpaces
+                        }
+                        onClick={handleConfirm}
+                    >
+                        Confirm
+                    </Button>
+                )
             }
         >
             <LoadingOverlay
@@ -210,17 +198,12 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                         isRootSelectionEnabled={allSelectedItemsAreSpaces}
                     >
                         {!isCreatingNewSpace && selectedSpaceLabel ? (
-                            <Alert color="gray" sx={{ flexShrink: 0 }}>
-                                <Text fw={500}>
-                                    Move {getItemsText(items).name}
-                                    {' to '}
-                                    {!isCreatingNewSpace ? (
-                                        <ItemName name={selectedSpaceLabel} />
-                                    ) : (
-                                        ''
-                                    )}
+                            <Callout variant="info">
+                                <Text fw={500} fz="sm">
+                                    Move {getItemsText(items).name} to{' '}
+                                    <ItemName name={selectedSpaceLabel} />
                                 </Text>
-                            </Alert>
+                            </Callout>
                         ) : null}
                     </SpaceSelector>
                 </>

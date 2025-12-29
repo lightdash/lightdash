@@ -1,12 +1,11 @@
 import { type Dashboard } from '@lightdash/common';
 import {
     Button,
-    Group,
     Stack,
     TextInput,
     Textarea,
     type ModalProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
@@ -69,20 +68,14 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
             {...modalProps}
             icon={IconLayoutDashboard}
             actions={
-                <Group position="right">
-                    <Button variant="outline" onClick={modalProps.onClose}>
-                        Cancel
-                    </Button>
-
-                    <Button
-                        disabled={!form.isValid()}
-                        loading={isUpdating}
-                        type="submit"
-                        form="update-dashboard"
-                    >
-                        Save
-                    </Button>
-                </Group>
+                <Button
+                    disabled={!form.isValid()}
+                    loading={isUpdating}
+                    type="submit"
+                    form="update-dashboard"
+                >
+                    Save
+                </Button>
             }
         >
             <form
@@ -90,7 +83,7 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
                 title="Update Dashboard"
                 onSubmit={handleConfirm}
             >
-                <Stack spacing="lg">
+                <Stack>
                     <TextInput
                         label="Name"
                         required
