@@ -3,18 +3,7 @@ import {
     type GroupWithMembers,
     type UpdateGroupWithMembers,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Loader,
-    Modal,
-    MultiSelect,
-    Paper,
-    Stack,
-    TextInput,
-    Title,
-    type ModalProps,
-} from '@mantine-8/core';
+import { Button, Loader, MultiSelect, Stack, TextInput } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconUsersGroup } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
@@ -24,11 +13,21 @@ import {
 } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import useApp from '../../../providers/App/useApp';
-import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 
-const CreateGroupModal: FC<
-    ModalProps & { isEditing?: boolean; groupToEdit?: GroupWithMembers }
-> = ({ opened, onClose, isEditing, groupToEdit }) => {
+type CreateGroupModalProps = {
+    opened: boolean;
+    onClose: () => void;
+    isEditing?: boolean;
+    groupToEdit?: GroupWithMembers;
+};
+
+const CreateGroupModal: FC<CreateGroupModalProps> = ({
+    opened,
+    onClose,
+    isEditing,
+    groupToEdit,
+}) => {
     const form = useForm<CreateGroup>({
         initialValues: {
             name: groupToEdit?.name ?? '',
@@ -84,24 +83,24 @@ const CreateGroupModal: FC<
     const isLoading = isLoadingCreate || isLoadingUpdate;
 
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            title={
-                <Group gap="xs">
-                    <Paper p="xxs" withBorder>
-                        <MantineIcon size="lg" icon={IconUsersGroup} />
-                    </Paper>
-                    <Title order={4}>
-                        {isEditing
-                            ? `Editing ${groupToEdit?.name}`
-                            : `Create group`}
-                    </Title>
-                </Group>
-            }
+            title={isEditing ? `Editing ${groupToEdit?.name}` : 'Create group'}
+            icon={IconUsersGroup}
             size="lg"
+            actions={
+                <Button
+                    disabled={isLoading || !form.isDirty()}
+                    type="submit"
+                    form="create_edit_group"
+                >
+                    {isEditing ? 'Save' : 'Create group'}
+                </Button>
+            }
         >
             <form
+                id="create_edit_group"
                 name="create_edit_group"
                 onSubmit={form.onSubmit((values: CreateGroup) =>
                     isEditing && groupToEdit
@@ -143,17 +142,9 @@ const CreateGroupModal: FC<
                             });
                         }}
                     />
-
-                    <Button
-                        disabled={isLoading || !form.isDirty()}
-                        type="submit"
-                        style={{ alignSelf: 'end' }}
-                    >
-                        {isEditing ? 'Save' : 'Create group'}
-                    </Button>
                 </Stack>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };
 
