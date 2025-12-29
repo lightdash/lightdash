@@ -1,31 +1,23 @@
 import { type Dashboard, type DashboardTab } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Modal,
-    Select,
-    Stack,
-    Text,
-    Title,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, Select, Stack, Text, type ModalProps } from '@mantine-8/core';
 import { IconArrowAutofitContent } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
-import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 
 type Tile = Dashboard['tiles'][number];
-type Props = ModalProps & {
+type Props = Pick<ModalProps, 'opened' | 'onClose' | 'className'> & {
     tile: Tile;
     tabs?: DashboardTab[];
     onConfirm: (tile: Tile) => void;
 };
 
 const MoveTileToTabModal: FC<Props> = ({
+    opened,
+    onClose,
     tabs,
     tile,
-    onClose,
     onConfirm,
-    ...modalProps
+    className,
 }) => {
     const [selectedTabId, setSelectedTabId] = useState<string | null>(null);
 
@@ -39,22 +31,21 @@ const MoveTileToTabModal: FC<Props> = ({
             });
         }
     }, [onConfirm, selectedTabId, tile]);
+
     return (
-        <Modal
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        size="lg"
-                        color="blue.8"
-                        icon={IconArrowAutofitContent}
-                    />
-                    <Title order={4}>Move tile to another tab</Title>
-                </Group>
-            }
-            {...modalProps}
+        <MantineModal
+            opened={opened}
             onClose={onClose}
+            title="Move tile to another tab"
+            icon={IconArrowAutofitContent}
+            actions={
+                <Button onClick={handleConfirm} disabled={!selectedTabId}>
+                    Move
+                </Button>
+            }
+            modalRootProps={{ className }}
         >
-            <Stack spacing="lg" pt="sm">
+            <Stack gap="md">
                 {tabs && tabs.length ? (
                     <Select
                         label="Select tab to move this tile to"
@@ -66,24 +57,13 @@ const MoveTileToTabModal: FC<Props> = ({
                                 value: tab.uuid,
                                 label: tab.name,
                             }))}
-                        withinPortal
                         onChange={(value) => setSelectedTabId(value)}
                     />
                 ) : (
                     <Text>No tabs available</Text>
                 )}
-
-                <Group position="right" mt="sm">
-                    <Button variant="outline" onClick={onClose}>
-                        Cancel
-                    </Button>
-
-                    <Button onClick={handleConfirm} disabled={!selectedTabId}>
-                        Move
-                    </Button>
-                </Group>
             </Stack>
-        </Modal>
+        </MantineModal>
     );
 };
 

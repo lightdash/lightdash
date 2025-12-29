@@ -6,25 +6,22 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import {
-    Alert,
     Button,
-    Group,
     List,
-    Modal,
     Radio,
     Select,
     Stack,
     Text,
-    Title,
     type ModalProps,
-} from '@mantine/core';
-import { IconAlertCircle, IconTrash } from '@tabler/icons-react';
+} from '@mantine-8/core';
+import { IconTrash } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import MantineIcon from '../../components/common/MantineIcon';
+import Callout from '../../components/common/Callout';
+import MantineModal from '../../components/common/MantineModal';
 import { useDashboardSchedulers } from '../../features/scheduler/hooks/useDashboardSchedulers';
 import useToaster from '../../hooks/toaster/useToaster';
 
-type AddProps = ModalProps & {
+type DeleteProps = Pick<ModalProps, 'opened' | 'onClose'> & {
     tab: DashboardTab;
     dashboardTiles: DashboardTile[] | undefined;
     dashboardTabs: DashboardTab[] | undefined;
@@ -38,15 +35,15 @@ enum RemoveActions {
     DELETE = 'delete',
 }
 
-export const TabDeleteModal: FC<AddProps> = ({
+export const TabDeleteModal: FC<DeleteProps> = ({
+    opened,
+    onClose,
     tab,
     dashboardTiles,
     dashboardTabs,
     dashboardUuid,
-    onClose: handleClose,
-    onDeleteTab: handleDeleteTab,
-    onMoveTile: handleMoveTile,
-    ...modalProps
+    onDeleteTab,
+    onMoveTile,
 }) => {
     const [removeAction, setRemoveAction] = useState('move');
     const [destinationTabId, setDestinationTabId] = useState<
@@ -76,7 +73,7 @@ export const TabDeleteModal: FC<AddProps> = ({
     );
 
     useEffect(() => {
-        if (modalProps.opened) {
+        if (opened) {
             setRemoveAction(RemoveActions.MOVE);
             const destinationTab =
                 destinationTabs.length === 1
@@ -84,7 +81,7 @@ export const TabDeleteModal: FC<AddProps> = ({
                     : undefined;
             setDestinationTabId(destinationTab);
         }
-    }, [modalProps.opened, destinationTabs]);
+    }, [opened, destinationTabs]);
 
     const { showToastSuccess } = useToaster();
 
@@ -106,12 +103,12 @@ export const TabDeleteModal: FC<AddProps> = ({
     );
 
     const handleSubmit = useCallback(() => {
-        handleClose();
+        onClose();
         const numTiles = tilesToRemove.length || 0;
         let toastMessage = '';
         if (removeAction === RemoveActions.MOVE) {
             tilesToRemove.forEach((tile) => {
-                handleMoveTile({
+                onMoveTile({
                     ...tile,
                     x: 0,
                     y: 0,
@@ -124,33 +121,46 @@ export const TabDeleteModal: FC<AddProps> = ({
         } else {
             toastMessage = `Tab "${tab.name}" was removed and ${numTiles} tile${pluralTiles} deleted.`;
         }
-        handleDeleteTab(tab.uuid);
+        onDeleteTab(tab.uuid);
         showToastSuccess({ title: toastMessage });
     }, [
-        handleClose,
+        onClose,
         tilesToRemove,
         removeAction,
-        handleDeleteTab,
+        onDeleteTab,
         tab.uuid,
         tab.name,
         showToastSuccess,
         pluralTiles,
-        handleMoveTile,
+        onMoveTile,
         destinationTabId,
     ]);
 
     return (
-        <Modal
-            title={
-                <Group spacing="xs">
-                    <MantineIcon icon={IconTrash} color="red" size="lg" />
-                    <Title order={4}>Remove tab</Title>
-                </Group>
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title="Remove tab"
+            icon={IconTrash}
+            actions={
+                <Button
+                    color={
+                        removeAction === RemoveActions.DELETE
+                            ? 'red'
+                            : undefined
+                    }
+                    disabled={
+                        removeAction === RemoveActions.MOVE && !destinationTabId
+                    }
+                    onClick={handleSubmit}
+                >
+                    {removeAction === RemoveActions.MOVE
+                        ? 'Transfer'
+                        : 'Delete tiles'}
+                </Button>
             }
-            {...modalProps}
-            onClose={handleClose}
         >
-            <Stack spacing="lg" pt="sm">
+            <Stack gap="md">
                 <Text>
                     What would you like to do with the tiles in this tab before
                     removing it?
@@ -158,26 +168,16 @@ export const TabDeleteModal: FC<AddProps> = ({
                 <Radio.Group
                     size="xs"
                     value={removeAction}
-                    onChange={(val: RemoveActions) => setRemoveAction(val)}
+                    onChange={(val: string) => setRemoveAction(val)}
                 >
-                    <Stack spacing="xs" mt={0}>
+                    <Stack gap="xs" mt={0}>
                         <Radio
                             label="Delete all tiles in this tab"
                             value={RemoveActions.DELETE}
-                            styles={(theme) => ({
-                                label: {
-                                    paddingLeft: theme.spacing.xs,
-                                },
-                            })}
                         />
                         <Radio
                             label="Transfer all tiles to another tab"
                             value={RemoveActions.MOVE}
-                            styles={(theme) => ({
-                                label: {
-                                    paddingLeft: theme.spacing.xs,
-                                },
-                            })}
                         />
                         {dashboardTabs?.length &&
                             removeAction === RemoveActions.MOVE && (
@@ -191,24 +191,18 @@ export const TabDeleteModal: FC<AddProps> = ({
                                         value: otherTab.uuid,
                                         label: otherTab.name,
                                     }))}
-                                    withinPortal
-                                    styles={(theme) => ({
-                                        root: {
-                                            paddingLeft: theme.spacing.xl,
-                                        },
-                                    })}
+                                    ml="xl"
                                 />
                             )}
                     </Stack>
                 </Radio.Group>
 
                 {affectedSchedulers.length > 0 && (
-                    <Alert
-                        color="orange"
-                        icon={<IconAlertCircle size={16} />}
+                    <Callout
+                        variant="warning"
                         title="Warning: Scheduled deliveries affected"
                     >
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                             <Text size="sm">
                                 This tab is currently used by{' '}
                                 <Text fw={600} span>
@@ -228,7 +222,7 @@ export const TabDeleteModal: FC<AddProps> = ({
                                 ))}
                             </List>
                         </Stack>
-                    </Alert>
+                    </Callout>
                 )}
 
                 {removeAction === RemoveActions.DELETE && (
@@ -239,7 +233,7 @@ export const TabDeleteModal: FC<AddProps> = ({
                             <b>{tilesToRemove?.length}</b> tile{pluralTiles}?
                         </Text>
                         {newSavedCharts.length > 0 && (
-                            <Group spacing="xs">
+                            <Stack gap="xs">
                                 <Text>
                                     On save, this action will also permanently
                                     delete the following
@@ -257,35 +251,11 @@ export const TabDeleteModal: FC<AddProps> = ({
                                         </List.Item>
                                     ))}
                                 </List>
-                            </Group>
+                            </Stack>
                         )}
                     </>
                 )}
-
-                <Group position="right" mt="sm">
-                    <Button variant="outline" onClick={handleClose}>
-                        Cancel
-                    </Button>
-
-                    <Button
-                        type="submit"
-                        color={
-                            removeAction === RemoveActions.DELETE
-                                ? 'red'
-                                : 'unset'
-                        }
-                        disabled={
-                            removeAction === RemoveActions.MOVE &&
-                            !destinationTabId
-                        }
-                        onClick={handleSubmit}
-                    >
-                        {removeAction === RemoveActions.MOVE
-                            ? 'Transfer'
-                            : 'Delete tiles'}
-                    </Button>
-                </Group>
             </Stack>
-        </Modal>
+        </MantineModal>
     );
 };

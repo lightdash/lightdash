@@ -18,7 +18,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
-import { TabAddModal } from './AddTabModal';
+import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
@@ -531,7 +531,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         dashboardTabs={dashboardTabs}
                                     />
                                 )}
-                                <TabAddModal
+                                <AddTabModal
                                     onClose={() => setAddingTab(false)}
                                     opened={addingTab}
                                     onConfirm={(name) => {

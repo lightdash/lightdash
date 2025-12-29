@@ -27,7 +27,7 @@ import { SectionName } from '../../types/Events';
 import { DashboardFiltersBar } from '../dashboardFiltersV2/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFiltersV2/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFiltersV2/FilterConfiguration/utils';
-import { TabAddModal } from './AddTabModal';
+import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
@@ -703,7 +703,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                         dashboardTabs={dashboardTabs}
                                     />
                                 )}
-                                <TabAddModal
+                                <AddTabModal
                                     onClose={() => setAddingTab(false)}
                                     opened={addingTab}
                                     onConfirm={(name) => {
