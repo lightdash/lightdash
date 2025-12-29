@@ -1,3 +1,10 @@
+# [0.2283.0](https://github.com/lightdash/lightdash/compare/0.2282.5...0.2283.0) (2025-12-29)
+
+
+### Features
+
+* add max height and scroll to filter inputs ([#19128](https://github.com/lightdash/lightdash/issues/19128)) ([7faebac](https://github.com/lightdash/lightdash/commit/7faebac212878ff9503946ab543b2642f8359355))
+
 ## [0.2282.5](https://github.com/lightdash/lightdash/compare/0.2282.4...0.2282.5) (2025-12-29)
 
 
