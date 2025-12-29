@@ -1,25 +1,17 @@
 import {
+    assertUnreachable,
     ChartKind,
     ChartSourceType,
     DashboardTileTypes,
-    assertUnreachable,
     defaultTileSize,
     type ChartContent,
     type Dashboard,
 } from '@lightdash/common';
+import { Button, Group, Loader, Stack, Text, Tooltip } from '@mantine-8/core';
 import {
-    Button,
-    Flex,
-    Group,
-    Loader,
-    Modal,
+    getDefaultZIndex,
     MultiSelect,
     ScrollArea,
-    Stack,
-    Text,
-    Title,
-    Tooltip,
-    getDefaultZIndex,
     type ScrollAreaProps,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
@@ -38,7 +30,7 @@ import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 import { ChartIcon } from '../../common/ResourceIcon';
 
 type Props = {
@@ -67,14 +59,14 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
         ref,
     ) => (
         <div ref={ref} {...others}>
-            <Stack spacing="one">
+            <Stack gap="1">
                 <Tooltip
                     label={tooltipLabel}
                     disabled={!tooltipLabel}
                     position="top-start"
                     withinPortal
                 >
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <ChartIcon
                             chartKind={chartKind ?? ChartKind.VERTICAL_BAR}
                             color={disabled ? 'ldGray.5' : undefined}
@@ -236,127 +228,107 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     if (!savedQueries || !dashboardTiles || isInitialLoading) return null;
 
     return (
-        <Modal
-            size="lg"
-            opened={true}
+        <MantineModal
+            opened
             onClose={onClose}
-            title={
-                <Flex align="center" gap="xs">
-                    <MantineIcon
-                        icon={IconChartAreaLine}
-                        size="lg"
-                        color="blue.6"
-                    />
-
-                    <Title order={4}>Add saved charts</Title>
-                </Flex>
-            }
-            withCloseButton
-            closeOnClickOutside={false}
-        >
-            <Stack spacing="md">
-                <form
-                    id="add-saved-charts-to-dashboard"
-                    onSubmit={handleSubmit}
+            title="Add saved charts"
+            icon={IconChartAreaLine}
+            size="lg"
+            modalRootProps={{ closeOnClickOutside: false }}
+            actions={
+                <Button
+                    type="submit"
+                    form="add-saved-charts-to-dashboard"
+                    disabled={
+                        isInitialLoading ||
+                        form.values.savedChartsUuids.length === 0
+                    }
                 >
-                    <MultiSelect
-                        styles={(theme) => ({
-                            separator: {
-                                position: 'sticky',
-                                top: 0,
-                                backgroundColor:
-                                    theme.colorScheme === 'dark'
-                                        ? 'var(--mantine-color-dark-6)'
-                                        : 'var(--mantine-color-white)',
-                                zIndex: getDefaultZIndex('modal'),
-                            },
-                            separatorLabel: {
-                                color: theme.colors.ldGray[6],
-                                fontWeight: 500,
-                                backgroundColor:
-                                    theme.colorScheme === 'dark'
-                                        ? 'var(--mantine-color-dark-6)'
-                                        : 'var(--mantine-color-white)',
-                            },
-                            item: {
-                                paddingTop: 4,
-                                paddingBottom: 4,
-                            },
-                        })}
-                        id="saved-charts"
-                        label={`Select the charts you want to add to this dashboard`}
-                        data={allSavedCharts}
-                        disabled={isInitialLoading}
-                        defaultValue={[]}
-                        placeholder="Search..."
-                        required
-                        searchable
-                        withinPortal
-                        itemComponent={SelectItem}
-                        nothingFound="No charts found"
-                        clearable
-                        clearSearchOnChange
-                        clearSearchOnBlur
-                        searchValue={searchQuery}
-                        onSearchChange={setSearchQuery}
-                        maxDropdownHeight={300}
-                        rightSection={
-                            isFetching && <Loader size="xs" color="gray" />
-                        }
-                        dropdownComponent={({
-                            children,
-                            ...rest
-                        }: ScrollAreaProps) => (
-                            <ScrollArea {...rest} viewportRef={selectScrollRef}>
-                                <>
-                                    {children}
-                                    {hasNextPage && (
-                                        <Button
-                                            size="xs"
-                                            variant="white"
-                                            onClick={async () => {
-                                                await fetchNextPage();
-                                            }}
-                                            disabled={isFetching}
-                                        >
-                                            <Text>Load more</Text>
-                                        </Button>
-                                    )}
-                                </>
-                            </ScrollArea>
-                        )}
-                        filter={(searchString, selected, item) => {
-                            return Boolean(
-                                selected ||
-                                    item.label
-                                        ?.toLowerCase()
-                                        .includes(searchString.toLowerCase()),
-                            );
-                        }}
-                        {...form.getInputProps('savedChartsUuids')}
-                    />
-                    <Group spacing="xs" position="right" mt="md">
-                        <Button
-                            onClick={() => {
-                                if (onClose) onClose();
-                            }}
-                            variant="outline"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={
-                                isInitialLoading ||
-                                form.values.savedChartsUuids.length === 0
-                            }
-                        >
-                            Add
-                        </Button>
-                    </Group>
-                </form>
-            </Stack>
-        </Modal>
+                    Add
+                </Button>
+            }
+        >
+            <form id="add-saved-charts-to-dashboard" onSubmit={handleSubmit}>
+                <MultiSelect
+                    radius="md"
+                    styles={(theme) => ({
+                        separator: {
+                            position: 'sticky',
+                            top: 0,
+                            backgroundColor:
+                                theme.colorScheme === 'dark'
+                                    ? 'var(--mantine-color-dark-6)'
+                                    : 'var(--mantine-color-white)',
+                            zIndex: getDefaultZIndex('modal'),
+                        },
+                        separatorLabel: {
+                            color: theme.colors.ldGray[6],
+                            fontWeight: 500,
+                            backgroundColor:
+                                theme.colorScheme === 'dark'
+                                    ? 'var(--mantine-color-dark-6)'
+                                    : 'var(--mantine-color-white)',
+                        },
+                        item: {
+                            paddingTop: 4,
+                            paddingBottom: 4,
+                        },
+                    })}
+                    id="saved-charts"
+                    label={`Select the charts you want to add to this dashboard`}
+                    data={allSavedCharts}
+                    disabled={isInitialLoading}
+                    defaultValue={[]}
+                    placeholder="Search..."
+                    required
+                    searchable
+                    withinPortal
+                    itemComponent={SelectItem}
+                    nothingFound="No charts found"
+                    clearable
+                    clearSearchOnChange
+                    clearSearchOnBlur
+                    searchValue={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    maxDropdownHeight={300}
+                    rightSection={
+                        isFetching && <Loader size="xs" color="gray" />
+                    }
+                    dropdownComponent={({
+                        children,
+                        ...rest
+                    }: ScrollAreaProps) => (
+                        <ScrollArea {...rest} viewportRef={selectScrollRef}>
+                            <>
+                                {children}
+                                {hasNextPage && (
+                                    <Button
+                                        size="xs"
+                                        variant="subtle"
+                                        fullWidth
+                                        onClick={async () => {
+                                            await fetchNextPage();
+                                        }}
+                                        disabled={isFetching}
+                                    >
+                                        Load more
+                                    </Button>
+                                )}
+                            </>
+                        </ScrollArea>
+                    )}
+                    filter={(searchString, selected, item) => {
+                        return Boolean(
+                            selected ||
+                                item.label
+                                    ?.toLowerCase()
+                                    .includes(searchString.toLowerCase()),
+                        );
+                    }}
+                    {...form.getInputProps('savedChartsUuids')}
+                />
+            </form>
+        </MantineModal>
     );
 };
 
