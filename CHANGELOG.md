@@ -1,3 +1,10 @@
+## [0.2282.4](https://github.com/lightdash/lightdash/compare/0.2282.3...0.2282.4) (2025-12-29)
+
+
+### Bug Fixes
+
+* explicitly pass pivotConfiguration in getDownloadQueryUuid ([#19115](https://github.com/lightdash/lightdash/issues/19115)) ([c961c56](https://github.com/lightdash/lightdash/commit/c961c56b3321039d80ee3ab8e9487384d2e91685)), closes [#19117](https://github.com/lightdash/lightdash/issues/19117)
+
 ## [0.2282.3](https://github.com/lightdash/lightdash/compare/0.2282.2...0.2282.3) (2025-12-29)
 
 
