@@ -14,16 +14,13 @@ import {
     Group,
     Input,
     Loader,
-    MantineProvider,
-    Modal,
     Select,
     Stack,
     Text,
     Textarea,
     TextInput,
     Tooltip,
-    useMantineColorScheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import {
     IconExternalLink,
     IconHelpCircle,
@@ -47,6 +44,7 @@ import { useCreatePreviewMutation } from '../../hooks/useProjectPreview';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
+import MantineModal from '../common/MantineModal';
 import DocumentationHelpButton from '../DocumentationHelpButton';
 import FormCollapseButton from '../ProjectConnection/FormCollapseButton';
 
@@ -180,7 +178,7 @@ const EnvironmentVariablesInput: FC<EnvironmentVariablesInputProps> = ({
                 <Button
                     size="sm"
                     onClick={handleAddVariable}
-                    leftIcon={<MantineIcon icon={IconPlus} />}
+                    leftSection={<MantineIcon icon={IconPlus} />}
                     disabled={disabled}
                     variant="outline"
                 >
@@ -198,7 +196,6 @@ type Props = {
 
 const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
     const { user } = useApp();
-    const { colorScheme } = useMantineColorScheme();
 
     const { isInitialLoading: isLoadingProjects, data: projects } =
         useProjects();
@@ -208,9 +205,11 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
         useCreatePreviewMutation();
 
     const [isOpen, setIsOpen] = useState(false);
-    const [selectedProjectUuid, setSelectedProjectUuid] = useState<string>();
+    const [selectedProjectUuid, setSelectedProjectUuid] = useState<
+        string | null
+    >(null);
     const [previewName, setPreviewName] = useState('');
-    const [selectedBranch, setSelectedBranch] = useState<string>();
+    const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
     const [schema, setSchema] = useState<string>();
     const [environment, setEnvironment] = useState<
         DbtProjectEnvironmentVariable[]
@@ -249,29 +248,31 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                     }),
                 );
 
-                return {
+                const item: {
+                    value: string;
+                    label: string;
+                    disabled: boolean;
+                    group?: string;
+                } = {
                     value: project.projectUuid,
                     label: project.name,
-                    group: userCannotCreatePreview
-                        ? 'Requires Developer Access'
-                        : undefined,
                     disabled: userCannotCreatePreview,
                 };
+
+                if (userCannotCreatePreview) {
+                    item.group = 'Requires Developer Access';
+                }
+
+                return item;
             })
             .sort((a, b) =>
                 a.disabled === b.disabled ? 0 : a.disabled ? 1 : -1,
             );
     }, [isLoadingProjects, projects, user.data]);
 
-    const selectedProject = useMemo(() => {
-        if (selectedProjectUuid && projects) {
-            return projects.find(
-                (project) => project.projectUuid === selectedProjectUuid,
-            );
-        }
-    }, [projects, selectedProjectUuid]);
-
-    const { data: projectDetails } = useProject(selectedProjectUuid);
+    const { data: projectDetails } = useProject(
+        selectedProjectUuid ?? undefined,
+    );
     const hasGitIntegration = useMemo(() => {
         return [DbtProjectType.GITHUB, DbtProjectType.GITLAB].includes(
             projectDetails?.dbtConnection?.type as DbtProjectType,
@@ -370,7 +371,7 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
             projectUuid: selectedProjectUuid,
             name: previewName,
             dbtConnectionOverrides: {
-                branch: selectedBranch,
+                branch: selectedBranch ?? undefined,
                 environment,
                 manifest: finalManifest,
             },
@@ -390,289 +391,241 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
         reduceManifest,
     ]);
 
-    const branches = useBranches(selectedProjectUuid);
+    const branches = useBranches(selectedProjectUuid ?? undefined);
+
+    const modalTitle = 'Create a preview project';
 
     return (
-        <MantineProvider inherit theme={{ colorScheme }}>
-            <Modal
-                size="lg"
-                opened={isOpened}
-                onClose={() => onClose()}
-                title={
-                    <Text fw={500}>
-                        Create a preview project
-                        {selectedProject ? (
-                            <Text span>
-                                {' '}
-                                from{' '}
-                                <Text span fw={600}>
-                                    {selectedProject.name}
-                                </Text>
-                            </Text>
-                        ) : (
-                            ''
-                        )}
-                    </Text>
-                }
-            >
-                <Stack>
-                    <Stack spacing="sm">
-                        <div>
-                            <Text>
-                                This will create a preview project
-                                {selectedProject ? (
-                                    <Text span>
-                                        {' '}
-                                        from{' '}
-                                        <Text span fw={500}>
-                                            {selectedProject.name}
-                                        </Text>
-                                    </Text>
-                                ) : null}
-                            </Text>
+        <MantineModal
+            size="xl"
+            icon={IconPlus}
+            opened={isOpened}
+            onClose={onClose}
+            title={modalTitle}
+            actions={
+                <Button
+                    disabled={
+                        isPreviewCreating ||
+                        !selectedProjectUuid ||
+                        !previewName
+                    }
+                    loading={isPreviewCreating}
+                    onClick={handleCreatePreview}
+                >
+                    {isPreviewCreating ? 'Creating preview' : 'Create preview'}
+                </Button>
+            }
+            leftActions={
+                <Anchor
+                    href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview/"
+                    target="_blank"
+                    fz="sm"
+                >
+                    <Group gap="xs" align="center">
+                        Learn more about preview projects{' '}
+                        <MantineIcon icon={IconExternalLink} />
+                    </Group>
+                </Anchor>
+            }
+        >
+            <Stack gap="sm">
+                <Select
+                    label="Upstream Project"
+                    description="The project that will be used to create the preview project"
+                    placeholder="Select project"
+                    searchable
+                    value={selectedProjectUuid}
+                    disabled={isLoadingActiveProjectUuid || isLoadingProjects}
+                    data={regularProjectList}
+                    onChange={(value) => {
+                        if (value) handleSelectProject(value);
+                    }}
+                />
 
-                            <Anchor
-                                href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview/"
-                                target="_blank"
+                <TextInput
+                    label="Preview Project Name"
+                    placeholder="Enter preview name"
+                    value={previewName}
+                    disabled={isPreviewCreating}
+                    onChange={(e) => {
+                        setPreviewName(e.currentTarget.value);
+                    }}
+                    rightSection={
+                        <Tooltip label="Generate unique name">
+                            <ActionIcon
+                                color="foreground.9"
+                                variant="subtle"
+                                onClick={() =>
+                                    setPreviewName(handleGeneratePreviewName())
+                                }
                             >
-                                Learn more about preview projects{' '}
-                                <MantineIcon
-                                    size="sm"
-                                    icon={IconExternalLink}
-                                    display="inline-block"
-                                />
-                            </Anchor>
-                        </div>
-
+                                <MantineIcon icon={IconRefresh} />
+                            </ActionIcon>
+                        </Tooltip>
+                    }
+                />
+                {hasGitIntegration ? (
+                    <>
                         <Select
-                            withinPortal
-                            label="Project"
-                            placeholder="Select project"
-                            searchable
-                            value={selectedProjectUuid}
-                            disabled={
-                                isLoadingActiveProjectUuid || isLoadingProjects
+                            label="Branch"
+                            placeholder={
+                                branches.isLoading
+                                    ? 'Loading branches...'
+                                    : branches.isError
+                                      ? 'Failed to load branches'
+                                      : 'Select branch'
                             }
-                            data={regularProjectList}
+                            searchable
+                            value={selectedBranch}
+                            readOnly={isPreviewCreating}
+                            disabled={
+                                branches.isError ||
+                                (branches.isSuccess &&
+                                    (!branches.data ||
+                                        branches.data.length <= 0))
+                            }
+                            data={branches.data ?? []}
                             onChange={(value) => {
-                                if (value) handleSelectProject(value);
-                            }}
-                        />
-
-                        <TextInput
-                            label="Preview name"
-                            placeholder="Enter preview name"
-                            value={previewName}
-                            disabled={isPreviewCreating}
-                            onChange={(e) => {
-                                setPreviewName(e.currentTarget.value);
+                                setSelectedBranch(value);
                             }}
                             rightSection={
-                                <Tooltip
-                                    withinPortal
-                                    label="Generate unique name"
-                                >
-                                    <ActionIcon
-                                        onClick={() =>
-                                            setPreviewName(
-                                                handleGeneratePreviewName(),
-                                            )
-                                        }
-                                    >
-                                        <MantineIcon icon={IconRefresh} />
-                                    </ActionIcon>
-                                </Tooltip>
+                                branches.isFetching && (
+                                    <Loader size="xs" color="ldGray.6" />
+                                )
                             }
+                            error={
+                                branches.isError ? (
+                                    <Group gap="xs" align="center">
+                                        <Text size="xs">
+                                            The project will use the default
+                                            branch.
+                                        </Text>
+                                        <Tooltip
+                                            label={
+                                                branches.error?.error
+                                                    ?.message ||
+                                                'Failed to fetch branches'
+                                            }
+                                            multiline
+                                            w={250}
+                                        >
+                                            <ActionIcon
+                                                size="xs"
+                                                color="red"
+                                                variant="transparent"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconHelpCircle}
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    </Group>
+                                ) : undefined
+                            }
+                        />{' '}
+                        {/* only show if branch changed + change label based on warehouse type? + get value from dbt cloud api */}
+                        <TextInput
+                            label="Schema/Dataset"
+                            placeholder="Change this if you want to override the default schema"
+                            value={schema}
+                            disabled={isPreviewCreating}
+                            onChange={(e) => {
+                                setSchema(e.currentTarget.value);
+                            }}
                         />
-                        {hasGitIntegration ? (
-                            <>
-                                <Select
-                                    withinPortal
-                                    label="Branch"
-                                    placeholder={
-                                        branches.isLoading
-                                            ? 'Loading branches...'
-                                            : branches.isError
-                                            ? 'Failed to load branches'
-                                            : 'Select branch'
+                        {isOpen && (
+                            <Stack>
+                                {/* only show if branch changed + check if project dbt connection type has environment + advanced option */}
+                                <EnvironmentVariablesInput
+                                    label="Environment Variables"
+                                    value={environment}
+                                    onChange={(newVariables) =>
+                                        setEnvironment(newVariables)
                                     }
-                                    searchable
-                                    value={selectedBranch}
-                                    readOnly={isPreviewCreating}
-                                    disabled={
-                                        branches.isError ||
-                                        (branches.isSuccess &&
-                                            (!branches.data ||
-                                                branches.data.length <= 0))
-                                    }
-                                    data={branches.data ?? []}
-                                    onChange={(value) => {
-                                        setSelectedBranch(value ?? undefined);
-                                    }}
-                                    rightSection={
-                                        branches.isFetching && (
-                                            <Loader size="xs" color="gray" />
+                                    disabled={isPreviewCreating}
+                                />
+
+                                <Textarea
+                                    label="Custom manifest.json (optional)"
+                                    placeholder="Paste your manifest.json content here..."
+                                    value={manifestJson}
+                                    onChange={(e) =>
+                                        handleManifestChange(
+                                            e.currentTarget.value,
                                         )
                                     }
-                                    error={
-                                        branches.isError ? (
-                                            <Group spacing="xs" align="center">
-                                                <Text size="xs">
-                                                    The project will use the
-                                                    default branch.
-                                                </Text>
-                                                <Tooltip
-                                                    withinPortal
-                                                    label={
-                                                        branches.error?.error
-                                                            ?.message ||
-                                                        'Failed to fetch branches'
-                                                    }
-                                                    multiline
-                                                    w={250}
-                                                >
-                                                    <ActionIcon
-                                                        size="xs"
-                                                        color="red"
-                                                        variant="transparent"
-                                                    >
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconHelpCircle
-                                                            }
-                                                        />
-                                                    </ActionIcon>
-                                                </Tooltip>
-                                            </Group>
-                                        ) : undefined
-                                    }
-                                />{' '}
-                                {/* only show if branch changed + change label based on warehouse type? + get value from dbt cloud api */}
-                                <TextInput
-                                    label="Schema/Dataset"
-                                    placeholder="Change this if you want to override the default schema"
-                                    value={schema}
+                                    minRows={8}
+                                    maxRows={15}
                                     disabled={isPreviewCreating}
-                                    onChange={(e) => {
-                                        setSchema(e.currentTarget.value);
-                                    }}
+                                    error={manifestError}
+                                    description="Upload a custom manifest.json instead of generating one from the dbt project. This allows you to use pre-compiled dbt models."
                                 />
-                                {isOpen && (
-                                    <Stack>
-                                        {/* only show if branch changed + check if project dbt connection type has environment + advanced option */}
-                                        <EnvironmentVariablesInput
-                                            label="Environment Variables"
-                                            value={environment}
-                                            onChange={(newVariables) =>
-                                                setEnvironment(newVariables)
-                                            }
-                                            disabled={isPreviewCreating}
-                                        />
-
-                                        <Textarea
-                                            label="Custom manifest.json (optional)"
-                                            placeholder="Paste your manifest.json content here..."
-                                            value={manifestJson}
-                                            onChange={(e) =>
-                                                handleManifestChange(
-                                                    e.currentTarget.value,
-                                                )
-                                            }
-                                            minRows={8}
-                                            maxRows={15}
-                                            disabled={isPreviewCreating}
-                                            error={manifestError}
-                                            description="Upload a custom manifest.json instead of generating one from the dbt project. This allows you to use pre-compiled dbt models."
-                                        />
-                                    </Stack>
-                                )}
-                                <FormCollapseButton
-                                    isSectionOpen={isOpen}
-                                    onClick={() => {
-                                        setIsOpen(!isOpen);
-                                    }}
-                                >
-                                    Advanced configuration options
-                                </FormCollapseButton>
-                            </>
-                        ) : (
-                            <>
-                                <Text color="ldGray.6">
-                                    This{' '}
-                                    <Text span weight={600}>
-                                        {projectDetails?.dbtConnection?.type
-                                            ? DbtProjectTypeLabels[
-                                                  projectDetails.dbtConnection
-                                                      .type
-                                              ]
-                                            : 'unknown'}
-                                    </Text>{' '}
-                                    project will copy the same connection
-                                    details as the parent project. To change the
-                                    branch of the source code, switch to Github
-                                    or GitLab connection on{' '}
-                                    <Anchor
-                                        target="_blank"
-                                        href={`/generalSettings/projectManagement/${selectedProjectUuid}/settings`}
-                                    >
-                                        project settings
-                                    </Anchor>{' '}
-                                    .
-                                </Text>
-
-                                {isOpen && (
-                                    <Stack>
-                                        <Textarea
-                                            label="Custom manifest.json (optional)"
-                                            placeholder="Paste your manifest.json content here..."
-                                            value={manifestJson}
-                                            onChange={(e) =>
-                                                handleManifestChange(
-                                                    e.currentTarget.value,
-                                                )
-                                            }
-                                            minRows={8}
-                                            maxRows={15}
-                                            disabled={isPreviewCreating}
-                                            error={manifestError}
-                                            description="Upload a custom manifest.json instead of generating one from the dbt project. This allows you to use pre-compiled dbt models."
-                                        />
-                                    </Stack>
-                                )}
-                                <FormCollapseButton
-                                    isSectionOpen={isOpen}
-                                    onClick={() => {
-                                        setIsOpen(!isOpen);
-                                    }}
-                                >
-                                    Advanced configuration options
-                                </FormCollapseButton>
-                            </>
+                            </Stack>
                         )}
-                    </Stack>
-
-                    <Group position="right">
-                        <Button variant="outline" onClick={onClose}>
-                            Cancel
-                        </Button>
-
-                        <Button
-                            disabled={
-                                isPreviewCreating ||
-                                !selectedProjectUuid ||
-                                !previewName
-                            }
-                            loading={isPreviewCreating}
-                            onClick={handleCreatePreview}
+                        <FormCollapseButton
+                            isSectionOpen={isOpen}
+                            onClick={() => {
+                                setIsOpen(!isOpen);
+                            }}
                         >
-                            {isPreviewCreating
-                                ? 'Creating preview'
-                                : 'Create preview'}
-                        </Button>
-                    </Group>
-                </Stack>
-            </Modal>
-        </MantineProvider>
+                            Advanced configuration options
+                        </FormCollapseButton>
+                    </>
+                ) : (
+                    <>
+                        <Text c="ldGray.6" fz="sm">
+                            This{' '}
+                            <Text span fw={600} fz="sm">
+                                {projectDetails?.dbtConnection?.type
+                                    ? DbtProjectTypeLabels[
+                                          projectDetails.dbtConnection.type
+                                      ]
+                                    : 'unknown'}
+                            </Text>{' '}
+                            project will copy the same connection details as its
+                            upstream project. To change the branch of the source
+                            code, switch to Github or GitLab connection on{' '}
+                            <Anchor
+                                target="_blank"
+                                fz="sm"
+                                href={`/generalSettings/projectManagement/${selectedProjectUuid}/settings`}
+                            >
+                                project settings
+                            </Anchor>
+                            .
+                        </Text>
+
+                        {isOpen && (
+                            <Stack>
+                                <Textarea
+                                    label="Custom manifest.json (optional)"
+                                    placeholder="Paste your manifest.json content here..."
+                                    description="Upload a custom manifest.json instead of generating one from the dbt project. This allows you to use pre-compiled dbt models."
+                                    value={manifestJson}
+                                    onChange={(e) =>
+                                        handleManifestChange(
+                                            e.currentTarget.value,
+                                        )
+                                    }
+                                    minRows={8}
+                                    maxRows={15}
+                                    disabled={isPreviewCreating}
+                                    error={manifestError}
+                                />
+                            </Stack>
+                        )}
+                        <FormCollapseButton
+                            isSectionOpen={isOpen}
+                            onClick={() => {
+                                setIsOpen(!isOpen);
+                            }}
+                        >
+                            Advanced configuration options
+                        </FormCollapseButton>
+                    </>
+                )}
+            </Stack>
+        </MantineModal>
     );
 };
 

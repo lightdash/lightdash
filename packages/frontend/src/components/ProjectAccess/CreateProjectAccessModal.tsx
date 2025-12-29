@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { validateEmail, type InviteLink } from '@lightdash/common';
-
-import { Button, Group, Modal, Select, Title } from '@mantine/core';
+import { Button, Group } from '@mantine-8/core';
+import { Select } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconUserPlus } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
@@ -17,7 +17,7 @@ import {
     PageType,
 } from '../../types/Events';
 import InviteSuccess from '../UserSettings/UsersAndGroupsPanel/InviteSuccess';
-import MantineIcon from '../common/MantineIcon';
+import MantineModal from '../common/MantineModal';
 
 interface Props {
     projectUuid: string;
@@ -84,18 +84,25 @@ const CreateProjectAccessModal: FC<Props> = ({
         }),
     );
 
+    const formId = 'add-user-to-project';
+
     return (
-        <Modal
+        <MantineModal
             opened
             onClose={onClose}
-            keepMounted={false}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon size="lg" icon={IconUserPlus} />
-                    <Title order={4}>Add user access</Title>
-                </Group>
-            }
+            title="Add user access"
+            icon={IconUserPlus}
             size="lg"
+            actions={
+                <Button
+                    type="submit"
+                    form={formId}
+                    disabled={isLoading}
+                    loading={isLoading}
+                >
+                    Give access
+                </Button>
+            }
         >
             <TrackPage
                 name={PageName.PROJECT_ADD_USER}
@@ -103,16 +110,17 @@ const CreateProjectAccessModal: FC<Props> = ({
                 category={CategoryName.SETTINGS}
             >
                 <form
-                    name="add_user_to_project"
+                    id={formId}
                     onSubmit={form.onSubmit(
                         (values: { userId: string; roleId: string }) =>
                             handleSubmit(values),
                     )}
                 >
-                    <Group align="flex-end" spacing="xs">
+                    <Group align="flex-end" gap="xs">
                         <Select
-                            name={'email'}
+                            name="email"
                             withinPortal
+                            radius="md"
                             label="Enter user email address"
                             placeholder="example@gmail.com"
                             nothingFound="Nothing found"
@@ -145,18 +153,17 @@ const CreateProjectAccessModal: FC<Props> = ({
                             {...form.getInputProps('userId')}
                             sx={{ flexGrow: 1 }}
                         />
+
                         <Select
                             data={roles}
                             disabled={isLoading}
                             required
+                            radius="md"
                             placeholder="Select role"
                             dropdownPosition="bottom"
                             withinPortal
                             {...form.getInputProps('roleId')}
                         />
-                        <Button disabled={isLoading} type="submit">
-                            Give access
-                        </Button>
                     </Group>
                 </form>
 
@@ -164,7 +171,7 @@ const CreateProjectAccessModal: FC<Props> = ({
                     <InviteSuccess invite={inviteLink} hasMarginTop />
                 )}
             </TrackPage>
-        </Modal>
+        </MantineModal>
     );
 };
 
