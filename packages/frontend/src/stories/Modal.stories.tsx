@@ -2,22 +2,27 @@ import type { Meta, StoryObj } from '@storybook/react';
 
 import {
     Button,
+    Divider,
     Group,
     List,
     ScrollArea,
     Stack,
+    Table,
     Text,
     TextInput,
     Textarea,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
+    IconExternalLink,
     IconFolderShare,
     IconLayoutDashboard,
     IconList,
     IconPlus,
     IconSend,
     IconSettings,
+    IconShare2,
+    IconStack,
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
@@ -555,5 +560,165 @@ export const MultipleScrollableSections: Story = {
             </Stack>
         ),
         actions: <Button>Transfer All</Button>,
+    },
+};
+
+// Sample data for the fullscreen table
+const sampleData = [
+    {
+        id: 1,
+        date: '2024-01-15',
+        customer: 'Acme Corp',
+        product: 'Enterprise Plan',
+        revenue: '$12,500',
+        status: 'Completed',
+    },
+    {
+        id: 2,
+        date: '2024-01-14',
+        customer: 'TechStart Inc',
+        product: 'Pro Plan',
+        revenue: '$4,200',
+        status: 'Completed',
+    },
+    {
+        id: 3,
+        date: '2024-01-14',
+        customer: 'Global Solutions',
+        product: 'Enterprise Plan',
+        revenue: '$18,750',
+        status: 'Pending',
+    },
+    {
+        id: 4,
+        date: '2024-01-13',
+        customer: 'Startup Labs',
+        product: 'Starter Plan',
+        revenue: '$990',
+        status: 'Completed',
+    },
+    {
+        id: 5,
+        date: '2024-01-13',
+        customer: 'DataFlow Systems',
+        product: 'Pro Plan',
+        revenue: '$4,200',
+        status: 'Completed',
+    },
+    {
+        id: 6,
+        date: '2024-01-12',
+        customer: 'Cloud Nine Ltd',
+        product: 'Enterprise Plan',
+        revenue: '$15,000',
+        status: 'Refunded',
+    },
+    {
+        id: 7,
+        date: '2024-01-12',
+        customer: 'Innovation Hub',
+        product: 'Pro Plan',
+        revenue: '$4,200',
+        status: 'Completed',
+    },
+    {
+        id: 8,
+        date: '2024-01-11',
+        customer: 'Digital Dynamics',
+        product: 'Starter Plan',
+        revenue: '$990',
+        status: 'Completed',
+    },
+    {
+        id: 9,
+        date: '2024-01-11',
+        customer: 'Future Tech',
+        product: 'Enterprise Plan',
+        revenue: '$22,000',
+        status: 'Pending',
+    },
+    {
+        id: 10,
+        date: '2024-01-10',
+        customer: 'Smart Systems',
+        product: 'Pro Plan',
+        revenue: '$4,200',
+        status: 'Completed',
+    },
+];
+
+/**
+ * Fullscreen modal for data viewers.
+ * Uses `fullScreen` prop to take up nearly the entire viewport.
+ * Header actions are placed using the `headerActions` prop.
+ * Perfect for tables, data exploration, and detailed views.
+ */
+export const FullScreenDataViewer: Story = {
+    render: () => {
+        const [opened, setOpened] = useState(true);
+
+        const headerActions = (
+            <Group gap="sm">
+                <Button
+                    leftSection={<MantineIcon icon={IconShare2} />}
+                    variant="light"
+                    color="ldDark.7"
+                    size="compact-sm"
+                >
+                    Export CSV
+                </Button>
+                <Divider orientation="vertical" />
+                <Button
+                    leftSection={<MantineIcon icon={IconExternalLink} />}
+                    variant="light"
+                    radius="md"
+                    size="compact-sm"
+                >
+                    Explore from here
+                </Button>
+            </Group>
+        );
+
+        return (
+            <>
+                <Button onClick={() => setOpened(true)}>
+                    Open Fullscreen Modal
+                </Button>
+
+                <MantineModal
+                    opened={opened}
+                    onClose={() => setOpened(false)}
+                    title="View underlying data"
+                    icon={IconStack}
+                    fullScreen
+                    headerActions={headerActions}
+                    cancelLabel={false}
+                    modalBodyProps={{ px: 'md', py: 'sm' }}
+                >
+                    <Table striped highlightOnHover withTableBorder>
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>Date</Table.Th>
+                                <Table.Th>Customer</Table.Th>
+                                <Table.Th>Product</Table.Th>
+                                <Table.Th>Revenue</Table.Th>
+                                <Table.Th>Status</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {sampleData.map((row) => (
+                                <Table.Tr key={row.id}>
+                                    <Table.Td>{row.date}</Table.Td>
+                                    <Table.Td>{row.customer}</Table.Td>
+                                    <Table.Td>{row.product}</Table.Td>
+                                    <Table.Td>{row.revenue}</Table.Td>
+                                    <Table.Td>{row.status}</Table.Td>
+                                </Table.Tr>
+                            ))}
+                        </Table.Tbody>
+                    </Table>
+                </MantineModal>
+            </>
+        );
     },
 };
