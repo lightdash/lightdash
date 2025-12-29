@@ -1094,6 +1094,12 @@ export class SavedChartService
             throw new ParameterError('Timezone string is not valid');
         }
 
+        if (!newScheduler.targets || !Array.isArray(newScheduler.targets)) {
+            throw new ParameterError(
+                'Targets is required and must be an array',
+            );
+        }
+
         const { projectUuid, organizationUuid } =
             await this.checkCreateScheduledDeliveryAccess(user, chartUuid);
         const scheduler = await this.schedulerModel.createScheduler({

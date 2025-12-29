@@ -1,8 +1,9 @@
-import { type ResultRow } from '@lightdash/common';
+import { TimeFrames, type Field, type ResultRow } from '@lightdash/common';
 import { describe, expect, test, vi } from 'vitest';
 import {
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
+    getCategoryDateAxisConfig,
     getMinAndMaxValues,
 } from './useEchartsCartesianConfig';
 
@@ -276,5 +277,128 @@ describe('getMinAndMaxValues', () => {
         expect(
             getMinAndMaxValues(axes, [...resultRow, ...resultRow2]),
         ).toStrictEqual([0, 0]);
+    });
+});
+
+describe('getCategoryDateAxisConfig', () => {
+    const axisId = 'date_axis';
+
+    const createRows = (dates: string[]): ResultRow[] =>
+        dates.map((d) => ({
+            [axisId]: { value: { raw: d, formatted: d } },
+        }));
+
+    const createAxisField = (timeInterval: TimeFrames) =>
+        ({
+            timeInterval,
+            name: 'test_date',
+            table: 'test_table',
+        } as unknown as Field);
+
+    test('returns empty object when axisType is not category', () => {
+        const result = getCategoryDateAxisConfig(
+            axisId,
+            createAxisField(TimeFrames.YEAR),
+            createRows(['2024-01-01', '2025-01-01']),
+            'time',
+        );
+        expect(result).toEqual({});
+    });
+
+    test('returns empty object when axisField has no timeInterval', () => {
+        const result = getCategoryDateAxisConfig(
+            axisId,
+            { name: 'test', table: 'test' } as never,
+            createRows(['2024-01-01', '2025-01-01']),
+            'category',
+        );
+        expect(result).toEqual({});
+    });
+
+    describe('YEAR interval', () => {
+        test('generates continuous year range', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.YEAR),
+                createRows(['2024-01-01', '2026-01-01']),
+                'category',
+            );
+            expect(result.data).toHaveLength(3);
+            expect(result.data?.[0]).toContain('2024');
+            expect(result.data?.[1]).toContain('2025');
+            expect(result.data?.[2]).toContain('2026');
+        });
+
+        test('handles single year', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.YEAR),
+                createRows(['2024-01-01']),
+                'category',
+            );
+            expect(result.data).toHaveLength(1);
+            expect(result.data?.[0]).toContain('2024');
+        });
+    });
+
+    describe('QUARTER interval', () => {
+        test('generates continuous quarter range', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.QUARTER),
+                createRows(['2024-01-01', '2024-10-01']),
+                'category',
+            );
+            expect(result.data).toHaveLength(4); // Q1, Q2, Q3, Q4
+        });
+
+        test('handles quarters spanning year boundary', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.QUARTER),
+                createRows(['2024-10-01', '2025-04-01']),
+                'category',
+            );
+            expect(result.data).toHaveLength(3); // Q4 2024, Q1 2025, Q2 2025
+        });
+    });
+
+    describe('MONTH interval', () => {
+        test('generates continuous month range', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.MONTH),
+                createRows(['2024-01-01', '2024-03-01']),
+                'category',
+            );
+            expect(result.data).toHaveLength(3); // Jan, Feb, Mar
+        });
+
+        test('handles months spanning year boundary', () => {
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.MONTH),
+                createRows(['2024-11-01', '2025-02-01']),
+                'category',
+            );
+            expect(result.data).toHaveLength(4); // Nov, Dec, Jan, Feb
+        });
+    });
+
+    describe('WEEK interval', () => {
+        test('generates continuous week range', () => {
+            const rows = createRows([
+                '2024-01-01T00:00:00.000Z',
+                '2024-01-22T00:00:00.000Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.WEEK),
+                rows,
+                'category',
+            );
+            // 21 days = 3 weeks, so 4 data points: Jan 1, 8, 15, 22
+            expect(result.data).toHaveLength(4);
+        });
     });
 });

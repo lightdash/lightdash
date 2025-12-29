@@ -280,6 +280,7 @@ const useEchartsPieConfig = (
 
     if (!itemsMap) return;
     if (!eChartsOption || !pieSeriesOption) return;
+    if (!seriesData || seriesData.length === 0) return;
 
     return { eChartsOption, pieSeriesOption };
 };

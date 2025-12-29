@@ -19,7 +19,6 @@ import {
     isValidTimezone,
     KnexPaginateArgs,
     KnexPaginatedData,
-    NotExistsError,
     NotFoundError,
     ParameterError,
     ScheduledJobs,
@@ -367,6 +366,15 @@ export class SchedulerService extends BaseService {
             throw new ParameterError('Timezone string is not valid');
         }
 
+        if (
+            !updatedScheduler.targets ||
+            !Array.isArray(updatedScheduler.targets)
+        ) {
+            throw new ParameterError(
+                'Targets is required and must be an array',
+            );
+        }
+
         const {
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
@@ -646,7 +654,7 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
         if (job.status === 'error') {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 job.details?.error ?? 'Unable to download CSV',
             );
         }

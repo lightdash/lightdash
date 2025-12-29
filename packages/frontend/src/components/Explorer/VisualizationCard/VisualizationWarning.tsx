@@ -6,6 +6,7 @@ import {
     type ChartConfig,
     type ItemsMap,
     type MetricQuery,
+    type PivotConfiguration,
 } from '@lightdash/common';
 import { Badge, List, Tooltip } from '@mantine-8/core';
 import { IconAlertCircle } from '@tabler/icons-react';
@@ -16,7 +17,7 @@ import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 import MantineIcon from '../../common/MantineIcon';
 
 export type PivotMismatchWarningProps = {
-    pivotDimensions: string[] | undefined;
+    dirtyPivotConfiguration: PivotConfiguration | undefined;
     chartConfig: ChartConfig;
     resultsData: Pick<
         InfiniteQueryResults,
@@ -30,7 +31,7 @@ export type PivotMismatchWarningProps = {
 };
 
 const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
-    pivotDimensions,
+    dirtyPivotConfiguration,
     chartConfig,
     resultsData,
     isLoading,
@@ -41,8 +42,11 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
     );
 
     const dirtyPivotDimensions = useMemo(
-        () => pivotDimensions ?? [],
-        [pivotDimensions],
+        () =>
+            (dirtyPivotConfiguration?.groupByColumns ?? []).map(
+                (c: { reference: string }) => c.reference,
+            ),
+        [dirtyPivotConfiguration],
     );
 
     const isQueryFetching = Boolean(

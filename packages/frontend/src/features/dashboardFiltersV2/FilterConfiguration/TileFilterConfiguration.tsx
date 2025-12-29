@@ -14,9 +14,12 @@ import {
     type DashboardTile,
     type Field,
 } from '@lightdash/common';
+import { Group } from '@mantine-8/core';
 import {
+    ActionIcon,
     Box,
     Checkbox,
+    Collapse,
     Flex,
     Select,
     Stack,
@@ -25,7 +28,8 @@ import {
     useMantineTheme,
     type PopoverProps,
 } from '@mantine/core';
-import { useCallback, useMemo, type FC } from 'react';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
@@ -87,6 +91,9 @@ const TileFilterConfiguration: FC<Props> = ({
     onToggleAll,
 }) => {
     const theme = useMantineTheme();
+    const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>(
+        {},
+    );
     const sqlChartTilesMetadata = useDashboardContext(
         (c) => c.sqlChartTilesMetadata,
     );
@@ -312,11 +319,13 @@ const TileFilterConfiguration: FC<Props> = ({
 
     const TabToggle = ({
         tileList,
+        tabUuid,
         tabName,
         label,
         disabled,
     }: {
         tileList: Array<TileWithTargetFields | TileWithTargetColumns>;
+        tabUuid: string;
         tabName: string;
         label: string;
         disabled?: boolean;
@@ -329,6 +338,8 @@ const TileFilterConfiguration: FC<Props> = ({
         const hasAnyExactMatch = tileList.some((tile) => tile.hasExactMatch);
         // Disable if no tiles OR if unchecked and no exact matches available
         const isDisabled = disabled || (!shouldBeChecked && !hasAnyExactMatch);
+        const isCollapsed = collapsedTabs[tabUuid] ?? true;
+        const selectedCount = tileList.filter((tile) => tile.checked).length;
 
         const getTooltipLabel = () => {
             if (disabled) return 'No chart tiles in this tab';
@@ -339,36 +350,66 @@ const TileFilterConfiguration: FC<Props> = ({
             return `Check to turn filter on for tab '${tabName}'`;
         };
 
+        const toggleCollapse = () => {
+            setCollapsedTabs((prev) => ({
+                ...prev,
+                [tabUuid]: !(prev[tabUuid] ?? true),
+            }));
+        };
+
         return (
-            <Tooltip label={getTooltipLabel()} position="top-start">
-                <Box>
-                    <Checkbox
-                        size="xs"
-                        checked={isDisabled ? false : shouldBeChecked}
-                        indeterminate={isDisabled ? false : isIndeterminate}
-                        disabled={isDisabled}
-                        label={label}
-                        styles={{
-                            label: {
-                                paddingLeft: theme.spacing.xs,
-                            },
-                        }}
-                        onChange={() => {
-                            if (isIndeterminate) {
-                                onToggleAll(false, tileUuids);
-                            } else if (isAllChecked) {
-                                onToggleAll(false, tileUuids);
-                            } else {
-                                // When toggling ON, only include tiles with exact field match
-                                const exactMatchTileUuids = tileList
-                                    .filter((tile) => tile.hasExactMatch)
-                                    .map((tile) => tile.tileUuid);
-                                onToggleAll(true, exactMatchTileUuids);
-                            }
-                        }}
+            <Flex align="center" gap="xxs">
+                <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    onClick={toggleCollapse}
+                    aria-label={isCollapsed ? 'Expand tab' : 'Collapse tab'}
+                >
+                    <MantineIcon
+                        icon={isCollapsed ? IconChevronRight : IconChevronDown}
                     />
-                </Box>
-            </Tooltip>
+                </ActionIcon>
+                <Tooltip label={getTooltipLabel()} position="top-start">
+                    <Box>
+                        <Checkbox
+                            size="xs"
+                            checked={isDisabled ? false : shouldBeChecked}
+                            indeterminate={isDisabled ? false : isIndeterminate}
+                            disabled={isDisabled}
+                            label={
+                                <Group gap="xs">
+                                    <Text>{label}</Text>
+
+                                    {isCollapsed && (
+                                        <Text c="dimmed">
+                                            ({selectedCount} of{' '}
+                                            {tileList.length} selected)
+                                        </Text>
+                                    )}
+                                </Group>
+                            }
+                            styles={{
+                                label: {
+                                    paddingLeft: theme.spacing.xs,
+                                },
+                            }}
+                            onChange={() => {
+                                if (isIndeterminate) {
+                                    onToggleAll(false, tileUuids);
+                                } else if (isAllChecked) {
+                                    onToggleAll(false, tileUuids);
+                                } else {
+                                    // When toggling ON, only include tiles with exact field match
+                                    const exactMatchTileUuids = tileList
+                                        .filter((tile) => tile.hasExactMatch)
+                                        .map((tile) => tile.tileUuid);
+                                    onToggleAll(true, exactMatchTileUuids);
+                                }
+                            }}
+                        />
+                    </Box>
+                </Tooltip>
+            </Flex>
         );
     };
 
@@ -385,7 +426,7 @@ const TileFilterConfiguration: FC<Props> = ({
                     size="xs"
                     color="dimmed"
                     mt={isNested ? 'lg' : undefined}
-                    ml={isNested ? 'xl' : undefined}
+                    ml={isNested ? 22 : undefined}
                 >
                     No chart tiles in this tab
                 </Text>
@@ -396,7 +437,7 @@ const TileFilterConfiguration: FC<Props> = ({
             <Stack
                 spacing="md"
                 mt={isNested ? 'lg' : undefined}
-                ml={isNested ? 'xl' : undefined}
+                ml={isNested ? 22 : undefined}
             >
                 {tileList.map((value) => {
                     // Only disable if no type-compatible fields AND not already checked
@@ -560,21 +601,25 @@ const TileFilterConfiguration: FC<Props> = ({
 
     const tileList =
         tabs.length > 1 ? (
-            tabs.map((tab, index) => {
+            tabs.map((tab) => {
                 const tabTiles = filteredTileTargetList(tab.uuid);
+                const isCollapsed = collapsedTabs[tab.uuid] ?? true;
                 return (
-                    <div key={index}>
+                    <div key={tab.uuid}>
                         <TabToggle
                             tileList={tabTiles}
+                            tabUuid={tab.uuid}
                             tabName={tab.name}
                             label={tab.name}
                             disabled={tabTiles.length === 0}
                         />
 
-                        <StackSubComponent
-                            tileList={tabTiles}
-                            isNested={true}
-                        />
+                        <Collapse in={!isCollapsed}>
+                            <StackSubComponent
+                                tileList={tabTiles}
+                                isNested={true}
+                            />
+                        </Collapse>
                     </div>
                 );
             })

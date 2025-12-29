@@ -300,15 +300,24 @@ const FilterStringAutoComplete: FC<Props> = ({
                         <Text c="blue.6">Add "{query}"</Text>
                     </Group>
                 )}
-                styles={{
+                styles={(theme) => ({
                     item: {
                         // makes add new item button sticky to bottom
                         '&:last-child:not([value])': {
                             position: 'sticky',
                             bottom: 4,
+                            zIndex: 10,
+                            backgroundColor:
+                                theme.colorScheme === 'dark'
+                                    ? theme.colors.dark[6]
+                                    : theme.white,
+                            boxShadow: `0 -1px 0 0 ${theme.colors.ldGray[2]}`,
+                            paddingTop: theme.spacing.xs,
+                            borderRadius: 0,
+                            marginTop: theme.spacing.xs,
                         },
                     },
-                }}
+                })}
                 disableSelectedItemFiltering
                 searchable
                 clearable={singleValue}

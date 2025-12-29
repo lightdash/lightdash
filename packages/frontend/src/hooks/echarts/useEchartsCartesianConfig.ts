@@ -8,6 +8,7 @@ import {
     CustomFormatType,
     DimensionType,
     evaluateConditionalFormatExpression,
+    FeatureFlags,
     formatItemValue,
     formatNumberValue,
     formatValueWithExpression,
@@ -87,6 +88,8 @@ import { useVisualizationContext } from '../../components/LightdashVisualization
 import {
     defaultAxisLabelGap,
     defaultGrid,
+    defaultGridLegacy,
+    legendTopSpacing,
 } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import {
@@ -94,6 +97,7 @@ import {
     getPlottedData,
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
+import { useFeatureFlagEnabled } from '../useFeatureFlagEnabled';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import {
     computeSeriesColorsWithPop,
@@ -130,10 +134,16 @@ const getLabelFromField = (fields: ItemsMap, key: string | undefined) => {
     }
 };
 
-export const getAxisTypeFromField = (
-    item?: ItemsMap[string],
-    hasReferenceLine?: boolean,
-): string => {
+const addPx = (pxValue: string, amount: number): string => {
+    const base = parseInt(pxValue.replace('px', ''), 10);
+    return `${base + amount}px`;
+};
+
+const isPxValue = (value: string): boolean => {
+    return value.endsWith('px');
+};
+
+export const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
     if (item && isCustomBinDimension(item)) return 'category';
     if (item && isTableCalculation(item) && !item.type) return 'value';
     if (
@@ -166,16 +176,6 @@ export const getAxisTypeFromField = (
             case MetricType.DATE:
             case TableCalculationType.DATE:
             case TableCalculationType.TIMESTAMP:
-                // Use categorical axis for weeks only. Echarts handles the
-                // other time frames well with a time axis
-                // For week intervals, only switch to time axis if there's a reference line on this specific axis
-                if (
-                    'timeInterval' in item &&
-                    item.timeInterval === TimeFrames.WEEK &&
-                    !hasReferenceLine
-                ) {
-                    return 'category';
-                }
                 return 'time';
             default: {
                 return 'category';
@@ -185,6 +185,15 @@ export const getAxisTypeFromField = (
         return 'value';
     }
 };
+
+// Time intervals that benefit from category axis in bar charts.
+// These must match intervals handled by getCategoryDateAxisConfig.
+const TIME_INTERVALS_FOR_CATEGORY_AXIS: TimeFrames[] = [
+    TimeFrames.WEEK,
+    TimeFrames.MONTH,
+    TimeFrames.QUARTER,
+    TimeFrames.YEAR,
+];
 
 type GetAxisTypeArg = {
     validCartesianConfig: CartesianChart;
@@ -202,48 +211,49 @@ const getAxisType = ({
     rightAxisYId,
     leftAxisYId,
 }: GetAxisTypeArg) => {
-    const hasReferenceLine = (
-        axisId: string | undefined,
-        isXAxis: boolean = false,
-    ) => {
-        if (axisId === undefined) return false;
-        return validCartesianConfig.eChartsConfig.series?.some((serie) => {
-            if (
-                serie.markLine === undefined ||
-                serie.markLine.data === undefined ||
-                serie.markLine.data.length === 0
-            ) {
-                return false;
-            }
+    const hasBarSeries = validCartesianConfig.eChartsConfig.series?.some(
+        (serie) => serie.type === CartesianSeriesType.BAR,
+    );
 
-            // Check if any reference line data affects the specified axis
-            return serie.markLine.data.some((markData) => {
-                if (isXAxis) {
-                    // X-axis reference lines are vertical lines (have xAxis value)
-                    return markData.xAxis !== undefined;
-                } else {
-                    // Y-axis reference lines are horizontal lines (have yAxis value)
-                    return markData.yAxis !== undefined;
-                }
-            });
+    // Check if axis has reference lines (which need continuous 'time' axis for positioning)
+    const hasReferenceLine = (axisId?: string, isXAxis: boolean = false) => {
+        if (!axisId) return false;
+        return validCartesianConfig.eChartsConfig.series?.some((serie) => {
+            if (!serie.markLine?.data?.length) return false;
+            return serie.markLine.data.some((markData) =>
+                isXAxis
+                    ? markData.xAxis !== undefined
+                    : markData.yAxis !== undefined,
+            );
         });
     };
-    const topAxisType = getAxisTypeFromField(
-        topAxisXId ? itemsMap[topAxisXId] : undefined,
-        hasReferenceLine(topAxisXId, true), // X-axis reference lines
-    );
+
+    // For bar charts with time axis, use category axis to prevent
+    // ECharts from extending axis beyond data range.
+    // Exception: keep 'time' axis if there's a reference line (needs continuous positioning)
+    const inferAxisType = (axisId?: string, isXAxis: boolean = false) => {
+        const field = axisId ? itemsMap[axisId] : undefined;
+        const axisType = getAxisTypeFromField(field);
+        const shouldUseCategory =
+            axisType === 'time' &&
+            hasBarSeries &&
+            !hasReferenceLine(axisId, isXAxis) &&
+            field &&
+            'timeInterval' in field &&
+            TIME_INTERVALS_FOR_CATEGORY_AXIS.includes(
+                field.timeInterval as TimeFrames,
+            );
+        return shouldUseCategory ? 'category' : axisType;
+    };
+
+    const topAxisType = inferAxisType(topAxisXId, true);
     const bottomAxisType =
         bottomAxisXId === EMPTY_X_AXIS
             ? 'category'
-            : getAxisTypeFromField(
-                  bottomAxisXId ? itemsMap[bottomAxisXId] : undefined,
-                  hasReferenceLine(bottomAxisXId, true), // X-axis reference lines
-              );
+            : inferAxisType(bottomAxisXId, true);
+
     // horizontal bar chart needs the type 'category' in the left/right axis
-    const defaultRightAxisType = getAxisTypeFromField(
-        rightAxisYId ? itemsMap[rightAxisYId] : undefined,
-        hasReferenceLine(rightAxisYId, false), // Y-axis reference lines
-    );
+    const defaultRightAxisType = inferAxisType(rightAxisYId, false);
     const rightAxisType =
         validCartesianConfig.layout.flipAxes &&
         defaultRightAxisType === 'value' &&
@@ -254,10 +264,8 @@ const getAxisType = ({
         )?.type === CartesianSeriesType.BAR
             ? 'category'
             : defaultRightAxisType;
-    const defaultLeftAxisType = getAxisTypeFromField(
-        leftAxisYId ? itemsMap[leftAxisYId] : undefined,
-        hasReferenceLine(leftAxisYId, false), // Y-axis reference lines
-    );
+
+    const defaultLeftAxisType = inferAxisType(leftAxisYId, false);
     const leftAxisType =
         validCartesianConfig.layout.flipAxes &&
         defaultLeftAxisType === 'value' &&
@@ -1197,33 +1205,86 @@ const getLongestLabel = ({
     return findLongest(allValues);
 };
 
-const getWeekAxisConfig = (
+/**
+ * Generate continuous date range config for category axes with date intervals.
+ * This ensures bar charts only show data points that exist in the dataset,
+ * preventing ECharts from auto-extending the axis range.
+ */
+export const getCategoryDateAxisConfig = (
     axisId?: string,
     axisField?: Field | TableCalculation | CustomDimension,
     rows?: ResultRow[],
     axisType?: string,
 ) => {
-    if (!axisId || !rows || !axisField) return {};
-    if (
-        'timeInterval' in axisField &&
-        axisField.timeInterval === TimeFrames.WEEK &&
-        axisType === 'category' // Only apply week config for category axes
-    ) {
-        const [minX, maxX] = getMinAndMaxValues([axisId], rows || []);
-        const continuousWeekRange = [];
+    if (!axisId || !rows || !axisField || axisType !== 'category') return {};
+    if (!('timeInterval' in axisField)) return {};
+
+    const { timeInterval } = axisField;
+    const [minX, maxX] = getMinAndMaxValues([axisId], rows || []);
+
+    // Guard against invalid dates to prevent infinite loops
+    const minDateValue = dayjs.utc(minX);
+    const maxDateValue = dayjs.utc(maxX);
+    if (!minDateValue.isValid() || !maxDateValue.isValid()) return {};
+
+    if (timeInterval === TimeFrames.WEEK) {
+        const continuousRange: string[] = [];
         let nextDate = dayjs.utc(minX);
         while (nextDate.isBefore(dayjs(maxX))) {
-            continuousWeekRange.push(nextDate.format());
+            continuousRange.push(nextDate.format());
             nextDate = nextDate.add(1, 'week');
         }
-        continuousWeekRange.push(dayjs.utc(maxX).format());
+        continuousRange.push(dayjs.utc(maxX).format());
         return {
-            data: continuousWeekRange,
+            data: continuousRange,
             axisTick: { alignWithLabel: true, interval: 0 },
         };
-    } else {
-        return {};
     }
+
+    if (timeInterval === TimeFrames.YEAR) {
+        const continuousRange: string[] = [];
+        let nextDate = dayjs.utc(minX).startOf('year');
+        const endDate = dayjs.utc(maxX).startOf('year');
+        while (!nextDate.isAfter(endDate)) {
+            continuousRange.push(nextDate.format());
+            nextDate = nextDate.add(1, 'year');
+        }
+        return {
+            data: continuousRange,
+            axisTick: { alignWithLabel: true, interval: 0 },
+        };
+    }
+
+    if (timeInterval === TimeFrames.QUARTER) {
+        const continuousRange: string[] = [];
+        let nextDate = dayjs.utc(minX).startOf('quarter');
+        const endDate = dayjs.utc(maxX).startOf('quarter');
+        while (!nextDate.isAfter(endDate)) {
+            continuousRange.push(nextDate.format());
+            // dayjs requires quarterOfYear plugin for .add(1, 'quarter')
+            nextDate = nextDate.add(3, 'months');
+        }
+        return {
+            data: continuousRange,
+            axisTick: { alignWithLabel: true, interval: 0 },
+        };
+    }
+
+    if (timeInterval === TimeFrames.MONTH) {
+        const continuousRange: string[] = [];
+        let nextDate = dayjs.utc(minX).startOf('month');
+        const endDate = dayjs.utc(maxX).startOf('month');
+        while (!nextDate.isAfter(endDate)) {
+            continuousRange.push(nextDate.format());
+            nextDate = nextDate.add(1, 'month');
+        }
+        return {
+            data: continuousRange,
+            axisTick: { alignWithLabel: true, interval: 0 },
+        };
+    }
+
+    return {};
 };
 
 const getEchartAxes = ({
@@ -1394,30 +1455,35 @@ const getEchartAxes = ({
         itemsMap,
         resultsData?.pivotDetails,
     );
-    const bottomAxisExtraConfig = getWeekAxisConfig(
+    const bottomAxisExtraConfig = getCategoryDateAxisConfig(
         bottomAxisXId,
         bottomAxisXField,
         resultsData?.rows,
         bottomAxisType,
     );
-    const topAxisExtraConfig = getWeekAxisConfig(
+    const topAxisExtraConfig = getCategoryDateAxisConfig(
         topAxisXId,
         topAxisXField,
         resultsData?.rows,
         topAxisType,
     );
-    const rightAxisExtraConfig = getWeekAxisConfig(
+    const rightAxisExtraConfig = getCategoryDateAxisConfig(
         rightAxisYId,
         rightAxisYField,
         resultsData?.rows,
         rightAxisType,
     );
-    const leftAxisExtraConfig = getWeekAxisConfig(
+    const leftAxisExtraConfig = getCategoryDateAxisConfig(
         leftAxisYId,
         leftAxisYField,
         resultsData?.rows,
         leftAxisType,
     );
+
+    const axisLabelFontSize =
+        validCartesianConfig?.eChartsConfig?.axisLabelFontSize;
+    const axisTitleFontSize =
+        validCartesianConfig?.eChartsConfig?.axisTitleFontSize;
 
     const bottomAxisFormatterConfig = getAxisFormatterConfig({
         axisItem: bottomAxisXField,
@@ -1433,7 +1499,7 @@ const getEchartAxes = ({
         showXAxis && bottomAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(),
+                      ...getAxisLabelStyle(axisLabelFontSize),
                       ...bottomAxisFormatterConfig.axisLabel,
                   },
               }
@@ -1453,7 +1519,7 @@ const getEchartAxes = ({
         showXAxis && topAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(),
+                      ...getAxisLabelStyle(axisLabelFontSize),
                       ...topAxisFormatterConfig.axisLabel,
                   },
               }
@@ -1472,7 +1538,7 @@ const getEchartAxes = ({
         showYAxis && leftAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(),
+                      ...getAxisLabelStyle(axisLabelFontSize),
                       ...leftAxisFormatterConfig.axisLabel,
                   },
               }
@@ -1491,7 +1557,7 @@ const getEchartAxes = ({
         showYAxis && rightAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
-                      ...getAxisLabelStyle(),
+                      ...getAxisLabelStyle(axisLabelFontSize),
                       ...rightAxisFormatterConfig.axisLabel,
                   },
               }
@@ -1655,7 +1721,7 @@ const getEchartAxes = ({
                                       getItemLabelWithoutTableName(xAxisItem)
                                     : undefined),
                           nameLocation: 'center',
-                          nameTextStyle: getAxisTitleStyle(),
+                          nameTextStyle: getAxisTitleStyle(axisTitleFontSize),
                       }
                     : {}),
                 ...bottomAxisConfigWithStyle,
@@ -1715,7 +1781,7 @@ const getEchartAxes = ({
                                 })
                               : undefined,
                           nameLocation: 'center',
-                          nameTextStyle: getAxisTitleStyle(),
+                          nameTextStyle: getAxisTitleStyle(axisTitleFontSize),
                       }
                     : {}),
                 min:
@@ -1767,7 +1833,7 @@ const getEchartAxes = ({
                                 }),
                           nameLocation: 'center',
                           nameTextStyle: {
-                              ...getAxisTitleStyle(),
+                              ...getAxisTitleStyle(axisTitleFontSize),
                               align: 'center',
                           },
                       }
@@ -1831,7 +1897,7 @@ const getEchartAxes = ({
                           nameLocation: 'center',
                           nameRotate: -90,
                           nameTextStyle: {
-                              ...getAxisTitleStyle(),
+                              ...getAxisTitleStyle(axisTitleFontSize),
                               align: 'center',
                           },
                       }
@@ -2003,6 +2069,9 @@ const useEchartsCartesianConfig = (
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
+    );
 
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
@@ -2564,6 +2633,7 @@ const useEchartsCartesianConfig = (
                 tooltipHtmlTemplate: tooltipConfig,
                 pivotValuesColumnsMap,
                 parameters,
+                rows: dataToRender,
             }),
         };
     }, [
@@ -2576,6 +2646,7 @@ const useEchartsCartesianConfig = (
         originalValues,
         parameters,
         series,
+        dataToRender,
     ]);
 
     const currentGrid = useMemo(() => {
@@ -2583,10 +2654,37 @@ const useEchartsCartesianConfig = (
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
         const flipAxes = validCartesianConfig?.layout?.flipAxes;
 
-        const grid = {
-            ...defaultGrid,
+        const baseGrid = isDashboardRedesignEnabled
+            ? defaultGrid
+            : defaultGridLegacy;
+
+        const grid: {
+            containLabel: boolean;
+            left: string;
+            right: string;
+            top: string;
+            bottom: string;
+        } = {
+            ...baseGrid,
             ...removeEmptyProperties(validCartesianConfig?.eChartsConfig.grid),
         };
+
+        if (isDashboardRedesignEnabled) {
+            const legendConfig = removeEmptyProperties(
+                validCartesianConfig?.eChartsConfig.legend,
+            );
+            const isLegendShown = legendConfig
+                ? 'show' in legendConfig
+                    ? legendConfig.show !== false
+                    : true
+                : series.length > 1;
+
+            const hasExplicitTop =
+                validCartesianConfig?.eChartsConfig.grid?.top !== undefined;
+            if (isLegendShown && !hasExplicitTop && isPxValue(grid.top)) {
+                grid.top = addPx(grid.top, legendTopSpacing);
+            }
+        }
 
         const gridLeft = grid.left;
         const gridRight = grid.right;
@@ -2649,39 +2747,31 @@ const useEchartsCartesianConfig = (
         // Only works for px values, percentage values are not supported because it cannot use calc()
         return {
             ...grid,
-            left: gridLeft.includes('px')
-                ? `${
-                      parseInt(gridLeft.replace('px', '')) +
-                      defaultAxisLabelGap +
-                      extraLeftPadding
-                  }px`
+            left: isPxValue(gridLeft)
+                ? addPx(gridLeft, defaultAxisLabelGap + extraLeftPadding)
                 : grid.left,
             right:
-                gridRight.includes('px') && !enableDataZoom
-                    ? `${
-                          parseInt(gridRight.replace('px', '')) +
-                          defaultAxisLabelGap +
-                          extraRightPadding
-                      }px`
-                    : gridRight.includes('px') && enableDataZoom && flipAxes
-                    ? `${
-                          parseInt(gridRight.replace('px', '')) +
-                          defaultAxisLabelGap +
-                          extraRightPadding +
-                          30
-                      }px`
+                isPxValue(gridRight) && !enableDataZoom
+                    ? addPx(gridRight, defaultAxisLabelGap + extraRightPadding)
+                    : isPxValue(gridRight) && enableDataZoom && flipAxes
+                    ? addPx(
+                          gridRight,
+                          defaultAxisLabelGap + extraRightPadding + 30,
+                      )
                     : grid.right,
             // Add extra bottom spacing for dataZoom slider when not flipped
             bottom:
-                enableDataZoom && !flipAxes && gridBottom.includes('px')
-                    ? `${parseInt(gridBottom.replace('px', '')) + 30}px`
+                enableDataZoom && !flipAxes && isPxValue(gridBottom)
+                    ? addPx(gridBottom, 30)
                     : grid.bottom,
         };
     }, [
         validCartesianConfig?.eChartsConfig.grid,
         validCartesianConfig?.eChartsConfig?.xAxis,
+        validCartesianConfig?.eChartsConfig.legend,
         validCartesianConfig?.layout?.flipAxes,
         series,
+        isDashboardRedesignEnabled,
     ]);
 
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();

@@ -73,17 +73,6 @@ export class AuthorizationError extends LightdashError {
     }
 }
 
-export class NotExistsError extends LightdashError {
-    constructor(message: string) {
-        super({
-            message,
-            name: 'NotExistsError',
-            statusCode: 404,
-            data: {},
-        });
-    }
-}
-
 export class ExpiredError extends LightdashError {
     constructor(message: string) {
         super({
@@ -695,6 +684,17 @@ export class ChangesetConflictError extends LightdashError {
             name: 'ChangesetConflictError',
             statusCode: 409,
             data,
+        });
+    }
+}
+
+export class InvalidSpaceStateError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'InvalidSpaceStateError',
+            statusCode: 500,
+            data: {},
         });
     }
 }

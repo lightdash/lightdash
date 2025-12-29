@@ -9,7 +9,7 @@ import {
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
-    NotExistsError,
+    NotFoundError,
     SessionUser,
     SummaryContent,
 } from '@lightdash/common';
@@ -82,7 +82,7 @@ export class ContentService extends BaseService {
     ): Promise<KnexPaginatedData<SummaryContent[]>> {
         const { organizationUuid } = user;
         if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
+            throw new NotFoundError('Organization not found');
         }
         const projectUuids = (
             await wrapSentryTransaction(
@@ -148,7 +148,7 @@ export class ContentService extends BaseService {
         targetSpaceUuid: string | null,
     ) {
         if (user.organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
+            throw new NotFoundError('Organization not found');
         }
 
         const { organizationUuid } = await this.projectModel.getSummary(
@@ -239,7 +239,7 @@ export class ContentService extends BaseService {
         targetSpaceUuid: string | null,
     ) {
         if (user.organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
+            throw new NotFoundError('Organization not found');
         }
 
         const { organizationUuid } = await this.projectModel.getSummary(

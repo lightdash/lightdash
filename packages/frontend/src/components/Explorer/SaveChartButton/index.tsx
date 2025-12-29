@@ -2,7 +2,6 @@ import { getItemId, getMetrics } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine-8/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
 import {
     useAmbientAiEnabled,
     useGenerateChartMetadata,
@@ -16,6 +15,7 @@ import {
 } from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import MantineIcon from '../../common/MantineIcon';
@@ -26,7 +26,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean; disabled?: boolean }> = ({
     disabled,
 }) => {
     const isAmbientAiEnabled = useAmbientAiEnabled();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const savedChart = useExplorerSelector(selectSavedChart);

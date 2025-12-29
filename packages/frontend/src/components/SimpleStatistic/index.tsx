@@ -280,13 +280,6 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                 setRef(elem);
             }}
             {...wrapperProps}
-            styles={{
-                root: {
-                    // TODO: remove this once Inter is the default font
-                    fontFamily:
-                        'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                },
-            }}
         >
             <Flex style={{ flexShrink: 1 }} justify="center" align="center">
                 {shouldHideContextMenu ? (

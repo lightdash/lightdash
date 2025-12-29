@@ -12,7 +12,6 @@ import {
     LightdashUser,
     LightdashUserWithAbilityRules,
     MemberAbility,
-    NotExistsError,
     NotFoundError,
     OpenIdIdentityIssuerType,
     OpenIdUser,
@@ -646,7 +645,7 @@ export class UserModel {
             .where('organization_uuid', organizationUuid)
             .select('organization_id');
         if (!org) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotFoundError('Cannot find organization');
         }
         const email = isOpenIdUser(createUser)
             ? createUser.openId.email
@@ -854,7 +853,7 @@ export class UserModel {
         const user = await this.findSessionUserByUUID(userUuid);
 
         if (!user?.userId) {
-            throw new NotExistsError('User is missing user_id');
+            throw new NotFoundError('User is missing user_id');
         }
 
         await this.database(PasswordLoginTableName)
@@ -928,7 +927,7 @@ export class UserModel {
             .select('user_id')
             .first();
         if (!user) {
-            throw new NotExistsError('Cannot find user');
+            throw new NotFoundError('Cannot find user');
         }
         return this.database(PasswordLoginTableName)
             .where({
@@ -952,14 +951,14 @@ export class UserModel {
             .where('organization_uuid', organizationUuid)
             .select('organization_id');
         if (!org) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotFoundError('Cannot find organization');
         }
 
         const [user] = await this.database(UserTableName)
             .where('user_uuid', userUuid)
             .select('user_id');
         if (!user) {
-            throw new NotExistsError('Cannot find user');
+            throw new NotFoundError('Cannot find user');
         }
 
         await this.database.transaction(async (trx) => {
@@ -1019,11 +1018,11 @@ export class UserModel {
             .select('refresh_token');
 
         if (!row) {
-            throw new NotExistsError('Cannot find user with refresh token');
+            throw new NotFoundError('Cannot find user with refresh token');
         }
 
         if (!row.refresh_token) {
-            throw new NotExistsError('Cannot find refresh token');
+            throw new NotFoundError('Cannot find refresh token');
         }
 
         return row.refresh_token;

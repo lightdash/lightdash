@@ -29,7 +29,6 @@ import {
     LoginOptions,
     LoginOptionTypes,
     MissingConfigError,
-    NotExistsError,
     NotFoundError,
     NotImplementedError,
     OpenIdIdentityIssuerType,
@@ -376,7 +375,7 @@ export class UserService extends BaseService {
         const { expiresAt, email, role } = createInviteLink;
         const inviteCode = nanoid(30);
         if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
+            throw new NotFoundError('Organization not found');
         }
 
         const existingUserWithEmail = await this.userModel.findUserByEmail(
@@ -473,7 +472,7 @@ export class UserService extends BaseService {
             throw new ForbiddenError();
         }
         if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
+            throw new NotFoundError('Organization not found');
         }
         await this.inviteLinkModel.deleteByOrganization(organizationUuid);
         this.analytics.track({
@@ -1035,7 +1034,7 @@ export class UserService extends BaseService {
             try {
                 await this.inviteLinkModel.deleteByCode(inviteLink.inviteCode);
             } catch (e) {
-                throw new NotExistsError('Invite link not found');
+                throw new NotFoundError('Invite link not found');
             }
             throw new ExpiredError('Invite link expired');
         }
@@ -1245,9 +1244,9 @@ export class UserService extends BaseService {
             try {
                 await this.passwordResetLinkModel.deleteByCode(link.code);
             } catch (e) {
-                throw new NotExistsError('Password reset link not found');
+                throw new NotFoundError('Password reset link not found');
             }
-            throw new NotExistsError('Password reset link expired');
+            throw new NotFoundError('Password reset link expired');
         }
     }
 
@@ -1272,7 +1271,7 @@ export class UserService extends BaseService {
     async resetPassword(data: PasswordReset): Promise<void> {
         const link = await this.passwordResetLinkModel.getByCode(data.code);
         if (link.isExpired) {
-            throw new NotExistsError('Password reset link expired');
+            throw new NotFoundError('Password reset link expired');
         }
         const user = await this.userModel.findUserByEmail(link.email);
         if (user) {
@@ -1506,7 +1505,7 @@ export class UserService extends BaseService {
             userUuid,
         );
         if (organizations.length === 0) {
-            throw new NotExistsError('User not part of any organization');
+            throw new NotFoundError('User not part of any organization');
         } else if (organizations.length > 1) {
             throw new ForbiddenError('User is part of multiple organizations');
         }

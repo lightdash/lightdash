@@ -8,7 +8,7 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import React from 'react';
-import { useParams } from 'react-router';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 
@@ -30,7 +30,7 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
 }) => {
     const { user } = useApp();
     const organizationUuid = user.data?.organizationUuid;
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     return (
         <Menu

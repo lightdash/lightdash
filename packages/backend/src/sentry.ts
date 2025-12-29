@@ -9,7 +9,6 @@ export const IGNORE_ERRORS = [
     'FieldReferenceError',
     'NotEnoughResults',
     'CompileError',
-    'NotExistsError',
     'NotFoundError',
     'ForbiddenError',
     'TokenError',

@@ -7,7 +7,7 @@ import {
     ExploreError,
     ExploreType,
     FieldSearchResult,
-    NotExistsError,
+    NotFoundError,
     SavedChartSearchResult,
     SearchFilters,
     SearchItemType,
@@ -1060,7 +1060,7 @@ export class SearchModel {
             .where('project_uuid', projectUuid)
             .limit(1);
         if (projects.length === 0) {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 `Cannot find project with id: ${projectUuid}`,
             );
         }
