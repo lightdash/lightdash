@@ -1172,9 +1172,7 @@ export class ProjectModel {
         );
         const cachedExplore = cachedExplores[exploreName];
         if (cachedExplore === undefined) {
-            throw new NotFoundError(
-                `Explore "${exploreName}" does not exist.`,
-            );
+            throw new NotFoundError(`Explore "${exploreName}" does not exist.`);
         }
         return cachedExplore;
     }
@@ -1623,7 +1621,7 @@ export class ProjectModel {
         spaces: Pick<SpaceSummary, 'uuid'>[],
     ) {
         Logger.info(
-            `Duplicating content from ${projectUuid} to ${previewProjectUuid}`,
+            `Copying content from ${projectUuid} to ${previewProjectUuid}`,
         );
 
         return this.database.transaction(async (trx) => {
@@ -1643,7 +1641,7 @@ export class ProjectModel {
             );
 
             Logger.info(
-                `Duplicating ${spaces.length} spaces on ${previewProjectUuid}`,
+                `Copying ${spaces.length} spaces on ${previewProjectUuid}`,
             );
             const spaceIds = dbSpaces.map((s) => s.space_id);
             const spaceUuids = dbSpaces.map((s) => s.space_uuid);
@@ -1732,7 +1730,7 @@ export class ProjectModel {
             );
 
             Logger.info(
-                `Duplicating ${spaceGroupAccesses.length} space group accesses on ${previewProjectUuid}`,
+                `Copying ${spaceGroupAccesses.length} space group accesses on ${previewProjectUuid}`,
             );
 
             const newSpaceGroupAccesses =
@@ -1758,7 +1756,7 @@ export class ProjectModel {
 
             if (virtualViews.length > 0) {
                 Logger.info(
-                    `Duplicating ${virtualViews.length} virtual views into ${previewProjectUuid}`,
+                    `Copying ${virtualViews.length} virtual views into ${previewProjectUuid}`,
                 );
 
                 await trx(CachedExploreTableName).insert(
@@ -1783,7 +1781,7 @@ export class ProjectModel {
                 .select<DbSavedSql[]>('saved_sql.*');
 
             Logger.info(
-                `Duplicating ${savedSQLs.length} SQL queries on ${previewProjectUuid}`,
+                `Copying ${savedSQLs.length} SQL queries on ${previewProjectUuid}`,
             );
 
             // Define the type for the new saved SQLs
@@ -1851,7 +1849,7 @@ export class ProjectModel {
                 .select<DbSavedSql[]>('saved_sql.*');
 
             Logger.info(
-                `Duplicating ${savedSQLInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
+                `Copying ${savedSQLInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
             );
 
             // Create the saved SQLs in the dashboards
@@ -1954,7 +1952,7 @@ export class ProjectModel {
                 .select<DbSavedChart[]>('saved_queries.*');
 
             Logger.info(
-                `Duplicating ${charts.length} charts on ${previewProjectUuid}`,
+                `Copying ${charts.length} charts on ${previewProjectUuid}`,
             );
             type CloneChart = InsertChart & {
                 search_vector?: string;
@@ -2001,7 +1999,7 @@ export class ProjectModel {
                 .select<DbSavedChart[]>('saved_queries.*');
 
             Logger.info(
-                `Duplicating ${chartsInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
+                `Copying ${chartsInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
             );
 
             // We also copy charts in dashboards, we will replace the dashboard_uuid later
@@ -2180,7 +2178,7 @@ export class ProjectModel {
             const dashboardIds = dashboards.map((d) => d.dashboard_id);
 
             Logger.info(
-                `Duplicating ${dashboards.length} dashboards on ${previewProjectUuid}`,
+                `Copying ${dashboards.length} dashboards on ${previewProjectUuid}`,
             );
 
             const newDashboards =
@@ -2265,7 +2263,7 @@ export class ProjectModel {
             );
 
             Logger.info(
-                `Duplicating ${dashboardTabs.length} dashboard tabs on ${previewProjectUuid}`,
+                `Copying ${dashboardTabs.length} dashboard tabs on ${previewProjectUuid}`,
             );
             let newDashboardTabs: DbDashboardTabs[] = [];
             if (dashboardTabs.length > 0) {
@@ -2296,7 +2294,7 @@ export class ProjectModel {
             );
 
             Logger.info(
-                `Duplicating ${dashboardViews.length} dashboard views on ${previewProjectUuid}`,
+                `Copying ${dashboardViews.length} dashboard views on ${previewProjectUuid}`,
             );
 
             if (dashboardViews.length > 0) {
@@ -2317,7 +2315,7 @@ export class ProjectModel {
             );
 
             Logger.info(
-                `Duplicating ${dashboardTiles.length} dashboard tiles on ${previewProjectUuid}`,
+                `Copying ${dashboardTiles.length} dashboard tiles on ${previewProjectUuid}`,
             );
 
             const dashboardTileUuids = dashboardTiles.map(
@@ -2456,7 +2454,7 @@ export class ProjectModel {
                     .select<DbAiAgent[]>('*');
 
                 Logger.info(
-                    `Duplicating ${aiAgents.length} AI agents on ${previewProjectUuid}`,
+                    `Copying ${aiAgents.length} AI agents on ${previewProjectUuid}`,
                 );
 
                 type CloneAiAgent = Omit<
