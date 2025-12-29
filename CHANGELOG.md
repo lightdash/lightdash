@@ -1,3 +1,10 @@
+# [0.2284.0](https://github.com/lightdash/lightdash/compare/0.2283.0...0.2284.0) (2025-12-29)
+
+
+### Features
+
+* add actions to map popovers ([#18957](https://github.com/lightdash/lightdash/issues/18957)) ([0fc21f9](https://github.com/lightdash/lightdash/commit/0fc21f93bc0eceb5904e96d7e4f85e98832ce86a))
+
 # [0.2283.0](https://github.com/lightdash/lightdash/compare/0.2282.5...0.2283.0) (2025-12-29)
 
 
