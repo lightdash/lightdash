@@ -19613,12 +19613,15 @@
                         },
                         "type": "array"
                     },
+                    "hasGsheetsSchedulers": {
+                        "type": "boolean"
+                    },
                     "totalCount": {
                         "type": "number",
                         "format": "double"
                     }
                 },
-                "required": ["byProject", "totalCount"],
+                "required": ["byProject", "hasGsheetsSchedulers", "totalCount"],
                 "type": "object"
             },
             "ApiSuccess_UserSchedulersSummary_": {
@@ -23819,7 +23822,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2287.0",
+        "version": "0.2288.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -33341,6 +33344,14 @@
                         "required": false,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "googleOidcOnly",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
                         }
                     }
                 ]

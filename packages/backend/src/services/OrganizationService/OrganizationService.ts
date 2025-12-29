@@ -218,6 +218,7 @@ export class OrganizationService extends BaseService {
         paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
         projectUuid?: string,
+        googleOidcOnly?: boolean,
     ): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         const { organizationUuid } = user;
 
@@ -239,11 +240,13 @@ export class OrganizationService extends BaseService {
                   includeGroups,
                   paginateArgs,
                   searchQuery,
+                  googleOidcOnly,
               )
             : await this.organizationMemberProfileModel.getOrganizationMembers({
                   organizationUuid,
                   paginateArgs,
                   searchQuery,
+                  googleOidcOnly,
               });
 
         let members = organizationMembers.filter((member) =>

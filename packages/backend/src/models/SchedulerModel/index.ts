@@ -1822,10 +1822,12 @@ export class SchedulerModel {
                 `${ProjectTableName}.name`,
             );
 
-        const [chartResults, dashboardResults] = await Promise.all([
-            chartSchedulersQuery,
-            dashboardSchedulersQuery,
-        ]);
+        const [chartResults, dashboardResults, hasGsheetsSchedulers] =
+            await Promise.all([
+                chartSchedulersQuery,
+                dashboardSchedulersQuery,
+                this.hasGsheetsSchedulersByOwner(userUuid),
+            ]);
 
         // Merge results by project
         const projectMap = new Map<
@@ -1857,6 +1859,7 @@ export class SchedulerModel {
 
         return {
             totalCount,
+            hasGsheetsSchedulers,
             byProject,
         };
     }
@@ -1873,7 +1876,9 @@ export class SchedulerModel {
         // Get scheduler UUIDs that belong to the specified projects
         // Chart schedulers (including charts inside dashboards)
         const chartSchedulerUuids = await this.database(SchedulerTableName)
-            .select(`${SchedulerTableName}.scheduler_uuid`)
+            .select<{ scheduler_uuid: string }[]>(
+                `${SchedulerTableName}.scheduler_uuid`,
+            )
             .innerJoin(
                 SavedChartsTableName,
                 `${SavedChartsTableName}.saved_query_uuid`,
@@ -1909,7 +1914,9 @@ export class SchedulerModel {
 
         // Dashboard schedulers
         const dashboardSchedulerUuids = await this.database(SchedulerTableName)
-            .select(`${SchedulerTableName}.scheduler_uuid`)
+            .select<{ scheduler_uuid: string }[]>(
+                `${SchedulerTableName}.scheduler_uuid`,
+            )
             .innerJoin(
                 DashboardsTableName,
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -1946,5 +1953,17 @@ export class SchedulerModel {
             .whereIn('scheduler_uuid', allSchedulerUuids);
 
         return updatedCount;
+    }
+
+    /**
+     * Check if a user has any GSHEETS format schedulers.
+     */
+    async hasGsheetsSchedulersByOwner(userUuid: string): Promise<boolean> {
+        const result = await this.database(SchedulerTableName)
+            .where('created_by', userUuid)
+            .where('format', SchedulerFormat.GSHEETS)
+            .first();
+
+        return !!result;
     }
 }

@@ -18832,6 +18832,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                hasGsheetsSchedulers: { dataType: 'boolean', required: true },
                 totalCount: { dataType: 'double', required: true },
             },
             validators: {},
@@ -39387,6 +39388,11 @@ export function RegisterRoutes(app: Router) {
         page: { in: 'query', name: 'page', dataType: 'double' },
         searchQuery: { in: 'query', name: 'searchQuery', dataType: 'string' },
         projectUuid: { in: 'query', name: 'projectUuid', dataType: 'string' },
+        googleOidcOnly: {
+            in: 'query',
+            name: 'googleOidcOnly',
+            dataType: 'boolean',
+        },
     };
     app.get(
         '/api/v1/org/users',

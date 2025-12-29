@@ -23,6 +23,8 @@ type UserSelectProps = {
     label?: string;
     placeholder?: string;
     disabled?: boolean;
+    /** When true, only shows users with an active Google connection (refresh token) */
+    requireGoogleToken?: boolean;
 };
 
 export const UserSelect: FC<UserSelectProps> = ({
@@ -32,6 +34,7 @@ export const UserSelect: FC<UserSelectProps> = ({
     label,
     placeholder = 'Search for a user...',
     disabled = false,
+    requireGoogleToken = false,
 }) => {
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearchValue] = useDebouncedValue(searchValue, 300);
@@ -47,6 +50,7 @@ export const UserSelect: FC<UserSelectProps> = ({
         {
             searchInput: debouncedSearchValue,
             pageSize: DEFAULT_PAGE_SIZE,
+            googleOidcOnly: requireGoogleToken || undefined,
         },
         { keepPreviousData: true },
     );
@@ -123,7 +127,11 @@ export const UserSelect: FC<UserSelectProps> = ({
             value={value}
             onChange={handleChange}
             data={selectData}
-            nothingFoundMessage="No users found"
+            nothingFoundMessage={
+                requireGoogleToken
+                    ? 'No users with an active Google connection found'
+                    : 'No users found'
+            }
             maxDropdownHeight={250}
             disabled={disabled}
             rightSection={

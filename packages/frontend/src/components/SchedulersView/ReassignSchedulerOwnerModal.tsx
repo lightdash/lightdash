@@ -1,6 +1,8 @@
 import { Button, Group, Modal, Stack, Text } from '@mantine-8/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { useSchedulerReassignOwnerMutation } from '../../features/scheduler/hooks/useSchedulerReassignOwnerMutation';
+import MantineIcon from '../common/MantineIcon';
 import { UserSelect } from '../common/UserSelect';
 
 type ReassignSchedulerOwnerModalProps = {
@@ -10,6 +12,8 @@ type ReassignSchedulerOwnerModalProps = {
     schedulerUuids: string[];
     excludedUserUuid?: string;
     onSuccess?: () => void;
+    /** When true, only shows users with an active Google connection */
+    hasGsheetsSchedulers?: boolean;
 };
 
 const ReassignSchedulerOwnerModal: FC<ReassignSchedulerOwnerModalProps> = ({
@@ -19,6 +23,7 @@ const ReassignSchedulerOwnerModal: FC<ReassignSchedulerOwnerModalProps> = ({
     schedulerUuids,
     excludedUserUuid,
     onSuccess,
+    hasGsheetsSchedulers = false,
 }) => {
     const [selectedUserUuid, setSelectedUserUuid] = useState<string | null>(
         null,
@@ -81,7 +86,22 @@ const ReassignSchedulerOwnerModal: FC<ReassignSchedulerOwnerModalProps> = ({
                     value={selectedUserUuid}
                     onChange={setSelectedUserUuid}
                     excludedUserUuid={excludedUserUuid}
+                    requireGoogleToken={hasGsheetsSchedulers}
                 />
+
+                {hasGsheetsSchedulers && (
+                    <Group gap="xs" wrap="nowrap">
+                        <MantineIcon
+                            icon={IconInfoCircle}
+                            color="ldGray.6"
+                            size="lg"
+                        />
+                        <Text fz="xs" c="dimmed">
+                            You can only transfer ownership of a Google Sheets
+                            sync to a user with an active Google connection.
+                        </Text>
+                    </Group>
+                )}
 
                 <Group justify="flex-end" gap="sm">
                     <Button variant="default" onClick={handleClose}>
