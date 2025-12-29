@@ -1,3 +1,10 @@
+## [0.2282.3](https://github.com/lightdash/lightdash/compare/0.2282.2...0.2282.3) (2025-12-29)
+
+
+### Bug Fixes
+
+* prevent tile positions from scaling incorrectly across breakpoints ([#19062](https://github.com/lightdash/lightdash/issues/19062)) ([0aa8c1a](https://github.com/lightdash/lightdash/commit/0aa8c1ab58f837ea3b75fd9126fadc50ad997f23))
+
 ## [0.2282.2](https://github.com/lightdash/lightdash/compare/0.2282.1...0.2282.2) (2025-12-26)
 
 
