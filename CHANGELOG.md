@@ -1,3 +1,10 @@
+## [0.2282.5](https://github.com/lightdash/lightdash/compare/0.2282.4...0.2282.5) (2025-12-29)
+
+
+### Bug Fixes
+
+* show loading state when unpivoted data is needed but not ready ([#19116](https://github.com/lightdash/lightdash/issues/19116)) ([b8f7bd3](https://github.com/lightdash/lightdash/commit/b8f7bd38d6a0f2ba1dfe77cd393fdc0f7b91513b)), closes [#19117](https://github.com/lightdash/lightdash/issues/19117)
+
 ## [0.2282.4](https://github.com/lightdash/lightdash/compare/0.2282.3...0.2282.4) (2025-12-29)
 
 
