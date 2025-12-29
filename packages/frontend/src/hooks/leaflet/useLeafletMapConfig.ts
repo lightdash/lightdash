@@ -1,7 +1,9 @@
 import {
+    getItemLabelWithoutTableName,
     MapChartLocation,
     MapChartType,
     MapTileBackground,
+    type MapFieldConfig,
 } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
 import { useMemo } from 'react';
@@ -24,6 +26,14 @@ export type ScatterPoint = {
 export type RegionData = {
     name: string;
     value: number;
+    rowData: Record<string, any>;
+};
+
+// Field info for rendering in tooltips
+export type TooltipFieldInfo = {
+    fieldId: string;
+    label: string;
+    visible: boolean;
 };
 
 export type TileConfig = {
@@ -57,6 +67,8 @@ export type LeafletMapConfig = {
     showLegend: boolean;
     valueRange: { min: number; max: number } | null;
     valueFieldLabel: string | null;
+    // Field configuration for tooltips
+    tooltipFields: TooltipFieldInfo[];
 };
 
 const getGeoJsonUrl = (
@@ -183,7 +195,43 @@ const useLeafletMapConfig = ({
             tileBackground,
             backgroundColor,
             showLegend,
+            fieldConfig,
         } = chartConfig.validConfig || {};
+
+        // Helper to check if a field is a lat/lon field (should be excluded from tooltips)
+        const isLatLonField = (fieldId: string): boolean => {
+            // First check if it's the selected lat/lon field
+            if (fieldId === latitudeFieldId || fieldId === longitudeFieldId) {
+                return true;
+            }
+            // Then check by label pattern
+            const item = itemsMap?.[fieldId];
+            if (!item) return false;
+            const label = getItemLabelWithoutTableName(item).toLowerCase();
+            return (
+                label === 'lat' ||
+                label === 'latitude' ||
+                label === 'lon' ||
+                label === 'long' ||
+                label === 'longitude'
+            );
+        };
+
+        // Build tooltip field info from itemsMap and fieldConfig, excluding lat/lon fields
+        const tooltipFields: TooltipFieldInfo[] = itemsMap
+            ? Object.entries(itemsMap)
+                  .filter(([fieldId]) => !isLatLonField(fieldId))
+                  .map(([fieldId, item]) => {
+                      const config: MapFieldConfig | undefined =
+                          fieldConfig?.[fieldId];
+
+                      const defaultLabel = getItemLabelWithoutTableName(item);
+                      const label = config?.label || defaultLabel;
+
+                      const visible = config?.visible !== false;
+                      return { fieldId, label, visible };
+                  })
+            : [];
 
         const mapType = configMapType || MapChartLocation.WORLD;
         const isLatLong =
@@ -217,10 +265,10 @@ const useLeafletMapConfig = ({
                               rawValue
                             : 1;
 
-                        // Use sizeFieldId if set, otherwise fall back to numeric value or 1
+                        // Use sizeFieldId if set, otherwise use constant size
                         const sizeValue = sizeFieldId
                             ? Number(row[sizeFieldId]?.value.raw)
-                            : value ?? 1;
+                            : 1;
 
                         if (isNaN(lat) || isNaN(lon)) return null;
 
@@ -253,6 +301,7 @@ const useLeafletMapConfig = ({
                         return {
                             name: locationName,
                             value: isNaN(value) ? 0 : value,
+                            rowData: row as Record<string, any>,
                         };
                     })
                     .filter((d): d is RegionData => d !== null);
@@ -339,6 +388,7 @@ const useLeafletMapConfig = ({
             showLegend: showLegend ?? false,
             valueRange,
             valueFieldLabel,
+            tooltipFields,
         };
     }, [chartConfig, resultsData, theme, itemsMap]);
 };

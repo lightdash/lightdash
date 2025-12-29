@@ -109,6 +109,7 @@ export const Display: FC = memo(() => {
             setMinBubbleSize,
             setMaxBubbleSize,
             setSizeFieldId,
+            setValueFieldId,
             setHeatmapConfig,
             setTileBackground,
             setBackgroundColor,
@@ -146,9 +147,30 @@ export const Display: FC = memo(() => {
         <Stack>
             <Config>
                 <Config.Section>
-                    <Config.Heading>
+                    <Config.Heading>Colors</Config.Heading>
+                    {!isHeatmap && (
+                        <Config.Section>
+                            <FieldSelect
+                                label="Color based on"
+                                placeholder="Select field (optional)"
+                                item={valueField}
+                                items={availableFields}
+                                onChange={(newField) =>
+                                    setValueFieldId(
+                                        newField
+                                            ? getItemId(newField)
+                                            : undefined,
+                                    )
+                                }
+                                hasGrouping
+                                clearable
+                                mb="sm"
+                            />
+                        </Config.Section>
+                    )}
+                    <Config.Label>
                         {showColorRange ? 'Color range' : 'Color'}
-                    </Config.Heading>
+                    </Config.Label>
                     {showColorRange ? (
                         <Group spacing="xs" align="flex-start">
                             {colors.map((color, index) => {
@@ -203,62 +225,6 @@ export const Display: FC = memo(() => {
                                 );
                             }}
                         />
-                    )}
-                </Config.Section>
-            </Config>
-
-            <Config>
-                <Config.Section>
-                    <Config.Heading>Legend</Config.Heading>
-                    <Config.Group>
-                        <Config.Label>Show legend</Config.Label>
-                        <Switch
-                            checked={validConfig.showLegend ?? false}
-                            onChange={(e) =>
-                                setShowLegend(e.currentTarget.checked)
-                            }
-                        />
-                    </Config.Group>
-                </Config.Section>
-            </Config>
-
-            <Config>
-                <Config.Section>
-                    <Config.Heading>Background map</Config.Heading>
-                    <Select
-                        data={[
-                            { value: MapTileBackground.NONE, label: 'None' },
-
-                            { value: MapTileBackground.LIGHT, label: 'Light' },
-                            {
-                                value: MapTileBackground.OPENSTREETMAP,
-                                label: 'OpenStreetMap',
-                            },
-                            { value: MapTileBackground.DARK, label: 'Dark' },
-                            {
-                                value: MapTileBackground.SATELLITE,
-                                label: 'Satellite',
-                            },
-                        ]}
-                        value={
-                            validConfig.tileBackground ??
-                            MapTileBackground.LIGHT
-                        }
-                        onChange={(value) =>
-                            setTileBackground(
-                                (value as MapTileBackground) || undefined,
-                            )
-                        }
-                    />
-                    {isBackgroundNone && (
-                        <Config.Group>
-                            <Config.Label>Background color</Config.Label>
-                            <ColorSelector
-                                color={validConfig.backgroundColor ?? '#f3f3f3'}
-                                swatches={ECHARTS_DEFAULT_COLORS}
-                                onColorChange={setBackgroundColor}
-                            />
-                        </Config.Group>
                     )}
                 </Config.Section>
             </Config>
@@ -400,6 +366,61 @@ export const Display: FC = memo(() => {
                             }
                         />
                     </Config.Group>
+                </Config.Section>
+            </Config>
+
+            <Config>
+                <Config.Section>
+                    <Config.Heading>Legend</Config.Heading>
+                    <Config.Group>
+                        <Config.Label>Show legend</Config.Label>
+                        <Switch
+                            checked={validConfig.showLegend ?? false}
+                            onChange={(e) =>
+                                setShowLegend(e.currentTarget.checked)
+                            }
+                        />
+                    </Config.Group>
+                </Config.Section>
+            </Config>
+
+            <Config>
+                <Config.Section>
+                    <Config.Heading>Background map</Config.Heading>
+                    <Select
+                        data={[
+                            { value: MapTileBackground.NONE, label: 'None' },
+                            { value: MapTileBackground.LIGHT, label: 'Light' },
+                            {
+                                value: MapTileBackground.OPENSTREETMAP,
+                                label: 'OpenStreetMap',
+                            },
+                            { value: MapTileBackground.DARK, label: 'Dark' },
+                            {
+                                value: MapTileBackground.SATELLITE,
+                                label: 'Satellite',
+                            },
+                        ]}
+                        value={
+                            validConfig.tileBackground ??
+                            MapTileBackground.LIGHT
+                        }
+                        onChange={(value) =>
+                            setTileBackground(
+                                (value as MapTileBackground) || undefined,
+                            )
+                        }
+                    />
+                    {isBackgroundNone && (
+                        <Config.Group>
+                            <Config.Label>Background color</Config.Label>
+                            <ColorSelector
+                                color={validConfig.backgroundColor ?? '#f3f3f3'}
+                                swatches={ECHARTS_DEFAULT_COLORS}
+                                onColorChange={setBackgroundColor}
+                            />
+                        </Config.Group>
+                    )}
                 </Config.Section>
             </Config>
         </Stack>
