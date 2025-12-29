@@ -1,20 +1,19 @@
 import { type SavedChart } from '@lightdash/common';
 import {
     Button,
-    Group,
-    Modal,
     Stack,
     TextInput,
     Textarea,
-    Title,
     type ModalProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
+import { IconCopy } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import {
     useDuplicateChartMutation,
     useSavedQuery,
 } from '../../../hooks/useSavedQuery';
+import MantineModal from '../MantineModal';
 
 interface ChartDuplicateModalProps extends ModalProps {
     uuid: string;
@@ -68,9 +67,28 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
     });
 
     return (
-        <Modal title={<Title order={4}>Duplicate Chart</Title>} {...modalProps}>
-            <form title="Duplicate Chart" onSubmit={handleConfirm}>
-                <Stack spacing="lg" pt="sm">
+        <MantineModal
+            opened={modalProps.opened}
+            onClose={modalProps.onClose}
+            title="Duplicate Chart"
+            icon={IconCopy}
+            actions={
+                <Button
+                    disabled={!form.isValid()}
+                    loading={isLoading}
+                    type="submit"
+                    form="duplicate-chart-form"
+                >
+                    Create duplicate
+                </Button>
+            }
+        >
+            <form
+                id="duplicate-chart-form"
+                title="Duplicate Chart"
+                onSubmit={handleConfirm}
+            >
+                <Stack>
                     <TextInput
                         label="Chart name"
                         required
@@ -89,23 +107,9 @@ const ChartDuplicateModal: FC<ChartDuplicateModalProps> = ({
                         {...form.getInputProps('description')}
                         value={form.values.description ?? ''}
                     />
-
-                    <Group position="right" mt="sm">
-                        <Button variant="outline" onClick={modalProps.onClose}>
-                            Cancel
-                        </Button>
-
-                        <Button
-                            disabled={!form.isValid()}
-                            loading={isLoading}
-                            type="submit"
-                        >
-                            Create duplicate
-                        </Button>
-                    </Group>
                 </Stack>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };
 
