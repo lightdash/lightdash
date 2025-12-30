@@ -3,13 +3,11 @@ import {
     Box,
     Button,
     Card,
-    Modal,
     Stack,
     Text,
-    Title,
     useMantineTheme,
-} from '@mantine/core';
-import { IconCircleCheckFilled } from '@tabler/icons-react';
+} from '@mantine-8/core';
+import { IconCircleCheckFilled, IconMail } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
@@ -17,6 +15,7 @@ import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
 import { SuccessIconBounce } from '../components/RegisterForms/ProjectConnectFlow.styles';
 import VerifyEmailForm from '../components/RegisterForms/VerifyEmailForm';
+import MantineModal from '../components/common/MantineModal';
 import Page from '../components/common/Page/Page';
 import { useEmailStatus } from '../hooks/useEmailVerification';
 import useApp from '../providers/App/useApp';
@@ -28,15 +27,15 @@ const VerificationSuccess: FC<{
 }> = ({ isOpen, onClose, onContinue }) => {
     const theme = useMantineTheme();
     return (
-        <Modal
+        <MantineModal
             size="sm"
             opened={isOpen}
             onClose={onClose}
-            withCloseButton={false}
+            title="Great, you're verified! 🎉"
+            cancelLabel={false}
+            actions={<Button onClick={onContinue}>Continue</Button>}
         >
             <Stack align="center" my="md">
-                <Title order={3}>Great, you're verified! 🎉</Title>
-
                 <SuccessIconBounce
                     icon={IconCircleCheckFilled}
                     size={64}
@@ -44,9 +43,8 @@ const VerificationSuccess: FC<{
                         color: theme.colors.green[6],
                     }}
                 />
-                <Button onClick={onContinue}>Continue</Button>
             </Stack>
-        </Modal>
+        </MantineModal>
     );
 };
 
@@ -74,7 +72,7 @@ const VerifyEmailPage: FC = () => {
                         statusLoading={statusLoading}
                     />
                 </Card>
-                <Text color="ldGray.6" ta="center" px="xs">
+                <Text c="ldGray.6" ta="center" px="xs">
                     You need to verify your email to get access to Lightdash. If
                     you need help, you can{' '}
                     <Anchor onClick={() => showIntercom()}>
@@ -103,11 +101,15 @@ export const VerifyEmailModal: FC<{
     isLoading: boolean;
 }> = ({ opened, onClose, isLoading }) => {
     return (
-        <Modal opened={opened} onClose={onClose}>
-            <Box my="md">
-                <VerifyEmailForm isLoading={isLoading} />
-            </Box>
-        </Modal>
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title="Verify your email"
+            cancelLabel={false}
+            icon={IconMail}
+        >
+            <VerifyEmailForm isLoading={isLoading} />
+        </MantineModal>
     );
 };
 

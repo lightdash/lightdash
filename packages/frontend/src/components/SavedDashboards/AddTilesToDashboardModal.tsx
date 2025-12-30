@@ -8,13 +8,11 @@ import {
     Anchor,
     Button,
     Group,
-    Modal,
     Select,
     Stack,
     TextInput,
     Textarea,
-    Title,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
     IconArrowLeft,
@@ -37,6 +35,7 @@ import {
     useSpaceSummaries,
 } from '../../hooks/useSpaces';
 import MantineIcon from '../common/MantineIcon';
+import MantineModal from '../common/MantineModal';
 
 interface AddTilesToDashboardModalProps {
     isOpen: boolean;
@@ -44,13 +43,6 @@ interface AddTilesToDashboardModalProps {
     uuid: string;
     dashboardTileType: DashboardTileTypes;
     onClose?: () => void;
-}
-
-interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
-    label: string;
-    value: string;
-    disabled?: boolean;
-    spaceUuid: string;
 }
 
 const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
@@ -169,14 +161,33 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     const currentSpace = spaces?.find((s) => s.uuid === tile?.props.spaceUuid);
 
     const dashboardSelectItems = useMemo(() => {
-        return (
-            dashboards?.map<ItemProps>((d) => ({
+        if (!dashboards || !spaces) return [];
+
+        // Group dashboards by space
+        const groupedBySpace = dashboards.reduce<
+            Record<
+                string,
+                { value: string; label: string; spaceUuid: string }[]
+            >
+        >((acc, d) => {
+            const spaceName =
+                spaces.find((s) => s.uuid === d.spaceUuid)?.name ?? 'Other';
+            if (!acc[spaceName]) {
+                acc[spaceName] = [];
+            }
+            acc[spaceName].push({
                 value: d.uuid,
                 label: d.name,
-                group: spaces?.find((s) => s.uuid === d.spaceUuid)?.name,
-                spaceUuid: d.spaceUuid, // ? Adding spaceUuid here for simplicity of selecting the default value in the select
-            })) ?? []
-        );
+                spaceUuid: d.spaceUuid,
+            });
+            return acc;
+        }, {});
+
+        // Convert to Mantine 8 grouped format
+        return Object.entries(groupedBySpace).map(([group, items]) => ({
+            group,
+            items,
+        }));
     }, [dashboards, spaces]);
 
     const form = useForm({
@@ -264,13 +275,11 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         },
     );
 
-    const defaultSelectValue = useMemo(
-        () =>
-            dashboardSelectItems.find(
-                (d) => d.spaceUuid === currentSpace?.uuid && !d.disabled,
-            )?.value,
-        [currentSpace?.uuid, dashboardSelectItems],
-    );
+    const defaultSelectValue = useMemo(() => {
+        // Flatten grouped items to find the default value
+        const allItems = dashboardSelectItems.flatMap((group) => group.items);
+        return allItems.find((d) => d.spaceUuid === currentSpace?.uuid)?.value;
+    }, [currentSpace?.uuid, dashboardSelectItems]);
 
     useEffect(() => {
         if (defaultSelectValue && !form.values.dashboardUuid) {
@@ -286,152 +295,122 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         isCreatingNewDashboard || dashboards.length === 0;
     const showNewSpaceInput = isCreatingNewSpace || spaces.length === 0;
 
+    const ADD_TO_DASHBOARD_FORM_ID = 'add-to-dashboard-form';
+
+    const isSubmitDisabled =
+        (isCreatingNewDashboard &&
+            form.getInputProps('dashboardName').value === '') ||
+        (isCreatingNewSpace && form.getInputProps('spaceName').value === '') ||
+        (!isCreatingNewDashboard &&
+            form.getInputProps('dashboardUuid').value &&
+            (isLoadingSelectedDashboard ||
+                isSelectedDashboardError ||
+                !selectedDashboard));
+
     return (
-        <Modal
+        <MantineModal
             opened={isOpen}
             onClose={() => onClose?.()}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        icon={IconLayoutDashboard}
-                        size="lg"
-                        color="green.8"
-                    />
-                    <Title order={4}>Add chart to dashboard</Title>
-                </Group>
+            title="Add chart to dashboard"
+            icon={IconLayoutDashboard}
+            actions={
+                <Button
+                    type="submit"
+                    form={ADD_TO_DASHBOARD_FORM_ID}
+                    loading={isLoading || isLoadingSelectedDashboard}
+                    disabled={isSubmitDisabled}
+                >
+                    Add to dashboard
+                </Button>
             }
-            withCloseButton
         >
-            <Stack spacing="md" mih="100%">
-                <form onSubmit={handleSubmit}>
-                    {!showNewDashboardInput ? (
-                        <Stack spacing="md">
-                            <Select
-                                id="select-dashboard"
-                                label="Select a dashboard"
-                                data={dashboardSelectItems}
-                                searchable
-                                nothingFound="No matching dashboards found"
-                                filter={(value, dashboard) =>
-                                    !!dashboard.label
-                                        ?.toLowerCase()
-                                        .includes(value.toLowerCase().trim())
-                                }
-                                withinPortal
-                                required
-                                {...form.getInputProps('dashboardUuid')}
-                            />
-                            <Anchor
-                                component="span"
-                                onClick={() => setIsCreatingNewDashboard(true)}
-                            >
-                                <Group spacing="two">
-                                    <MantineIcon icon={IconPlus} />
-                                    Create new dashboard
-                                </Group>
-                            </Anchor>
-                        </Stack>
-                    ) : (
-                        <Stack spacing="md">
-                            <TextInput
-                                id="dashboard-name"
-                                label="Name your dashboard"
-                                placeholder="eg. KPI dashboard"
-                                required
-                                {...form.getInputProps('dashboardName')}
-                            />
-                            <Textarea
-                                id="dashboard-description"
-                                label="Dashboard description"
-                                placeholder="A few words to give your team some context"
-                                autosize
-                                maxRows={3}
-                                style={{ overflowY: 'auto' }}
-                                {...form.getInputProps('dashboardDescription')}
-                            />
-                            {!isLoadingSpaces && !showNewSpaceInput ? (
-                                <>
-                                    <Select
-                                        id="select-space"
-                                        label="Select a space"
-                                        data={spaces.map((space) => ({
-                                            value: space.uuid,
-                                            label: space.name,
-                                        }))}
-                                        defaultValue={currentSpace?.uuid}
-                                        required
-                                        withinPortal
-                                        {...form.getInputProps('spaceUuid')}
-                                    />
-                                    <Anchor
-                                        component="span"
-                                        onClick={() =>
-                                            setIsCreatingNewSpace(true)
-                                        }
-                                    >
-                                        <Group spacing="two">
-                                            <MantineIcon icon={IconPlus} />
-                                            Create new space
-                                        </Group>
-                                    </Anchor>
-                                </>
-                            ) : (
-                                <>
-                                    <TextInput
-                                        id="new-space"
-                                        label="Name your new space"
-                                        placeholder="eg. KPIs"
-                                        required
-                                        {...form.getInputProps('spaceName')}
-                                    />
-                                    <Anchor
-                                        component="span"
-                                        onClick={() =>
-                                            setIsCreatingNewSpace(false)
-                                        }
-                                    >
-                                        <Group spacing="two">
-                                            <MantineIcon icon={IconArrowLeft} />
-                                            Save to existing space
-                                        </Group>
-                                    </Anchor>
-                                </>
-                            )}
-                        </Stack>
-                    )}
-                    <Group spacing="xs" position="right" mt="md">
-                        <Button
-                            onClick={() => {
-                                if (onClose) onClose();
-                                setIsCreatingNewDashboard(false);
-                            }}
-                            variant="outline"
+            <form id={ADD_TO_DASHBOARD_FORM_ID} onSubmit={handleSubmit}>
+                {!showNewDashboardInput ? (
+                    <Stack gap="md">
+                        <Select
+                            id="select-dashboard"
+                            label="Select a dashboard"
+                            data={dashboardSelectItems}
+                            searchable
+                            nothingFoundMessage="No matching dashboards found"
+                            required
+                            {...form.getInputProps('dashboardUuid')}
+                        />
+                        <Anchor
+                            component="span"
+                            onClick={() => setIsCreatingNewDashboard(true)}
                         >
-                            Cancel
-                        </Button>
-                        <Button
-                            type="submit"
-                            loading={isLoading || isLoadingSelectedDashboard}
-                            disabled={
-                                (isCreatingNewDashboard &&
-                                    form.getInputProps('dashboardName')
-                                        .value === '') ||
-                                (isCreatingNewSpace &&
-                                    form.getInputProps('spaceName').value ===
-                                        '') ||
-                                (!isCreatingNewDashboard &&
-                                    form.getInputProps('dashboardUuid').value &&
-                                    (isLoadingSelectedDashboard ||
-                                        isSelectedDashboardError ||
-                                        !selectedDashboard))
-                            }
-                        >
-                            Add to dashboard
-                        </Button>
-                    </Group>
-                </form>
-            </Stack>
-        </Modal>
+                            <Group gap="two">
+                                <MantineIcon icon={IconPlus} />
+                                Create new dashboard
+                            </Group>
+                        </Anchor>
+                    </Stack>
+                ) : (
+                    <Stack gap="md">
+                        <TextInput
+                            id="dashboard-name"
+                            label="Name your dashboard"
+                            placeholder="eg. KPI dashboard"
+                            required
+                            {...form.getInputProps('dashboardName')}
+                        />
+                        <Textarea
+                            id="dashboard-description"
+                            label="Dashboard description"
+                            placeholder="A few words to give your team some context"
+                            autosize
+                            maxRows={3}
+                            style={{ overflowY: 'auto' }}
+                            {...form.getInputProps('dashboardDescription')}
+                        />
+                        {!isLoadingSpaces && !showNewSpaceInput ? (
+                            <>
+                                <Select
+                                    id="select-space"
+                                    label="Select a space"
+                                    data={spaces.map((space) => ({
+                                        value: space.uuid,
+                                        label: space.name,
+                                    }))}
+                                    defaultValue={currentSpace?.uuid}
+                                    required
+                                    {...form.getInputProps('spaceUuid')}
+                                />
+                                <Anchor
+                                    component="span"
+                                    onClick={() => setIsCreatingNewSpace(true)}
+                                >
+                                    <Group gap="two">
+                                        <MantineIcon icon={IconPlus} />
+                                        Create new space
+                                    </Group>
+                                </Anchor>
+                            </>
+                        ) : (
+                            <>
+                                <TextInput
+                                    id="new-space"
+                                    label="Name your new space"
+                                    placeholder="eg. KPIs"
+                                    required
+                                    {...form.getInputProps('spaceName')}
+                                />
+                                <Anchor
+                                    component="span"
+                                    onClick={() => setIsCreatingNewSpace(false)}
+                                >
+                                    <Group gap="two">
+                                        <MantineIcon icon={IconArrowLeft} />
+                                        Save to existing space
+                                    </Group>
+                                </Anchor>
+                            </>
+                        )}
+                    </Stack>
+                )}
+            </form>
+        </MantineModal>
     );
 };
 
