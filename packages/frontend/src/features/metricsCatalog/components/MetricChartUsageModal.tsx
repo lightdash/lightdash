@@ -1,20 +1,15 @@
-import {
-    Anchor,
-    Group,
-    List,
-    Modal,
-    Stack,
-    Text,
-    type ModalProps,
-} from '@mantine/core';
+import { Anchor, List, Stack, Text } from '@mantine-8/core';
 import { IconDeviceAnalytics } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricChartAnalytics } from '../hooks/useMetricChartAnalytics';
-type Props = ModalProps;
+
+type Props = Pick<MantineModalProps, 'opened' | 'onClose'>;
 
 export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
     const { track } = useTracking();
@@ -38,83 +33,53 @@ export const MetricChartUsageModal: FC<Props> = ({ opened, onClose }) => {
     });
 
     return (
-        <Modal.Root
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            yOffset={200}
-            scrollAreaComponent={undefined}
-            size="lg"
+            title="Metric Usage"
+            icon={IconDeviceAnalytics}
+            cancelLabel={false}
         >
-            <Modal.Overlay />
-            <Modal.Content sx={{ overflow: 'hidden' }} radius="md">
-                <Modal.Header
-                    sx={(theme) => ({
-                        borderBottom: `1px solid ${theme.colors.ldGray[4]}`,
-                    })}
-                >
-                    <Group spacing="xs">
-                        <MantineIcon
-                            icon={IconDeviceAnalytics}
-                            size="lg"
-                            color="ldGray.7"
-                        />
-                        <Text fw={500}>Metric Usage</Text>
-                    </Group>
-                    <Modal.CloseButton />
-                </Modal.Header>
-                <Modal.Body
-                    p={0}
-                    mah={300}
-                    h="100%"
-                    sx={{
-                        overflowY: 'auto',
-                    }}
-                >
-                    <Stack spacing="xs" p="md">
-                        <Text>
-                            This metric is used in the following charts:
-                        </Text>
-                        {isLoading ? (
-                            <Text size="sm" color="dimmed">
-                                Loading...
-                            </Text>
-                        ) : analytics?.charts.length === 0 ? (
-                            <Text size="sm" color="dimmed">
-                                No charts found using this metric
-                            </Text>
-                        ) : (
-                            <List pl="sm">
-                                {analytics?.charts.map((chart) => (
-                                    <List.Item key={chart.uuid} fz="sm">
-                                        <Anchor
-                                            href={`/projects/${projectUuid}/saved/${chart.uuid}`}
-                                            target="_blank"
-                                            onClick={() => {
-                                                track({
-                                                    name: EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED,
-                                                    properties: {
-                                                        userId: userUuid,
-                                                        organizationId:
-                                                            organizationUuid,
-                                                        projectId: projectUuid,
-                                                        metricName:
-                                                            activeMetric?.name,
-                                                        tableName:
-                                                            activeMetric?.tableName,
-                                                        chartId: chart.uuid,
-                                                    },
-                                                });
-                                            }}
-                                        >
-                                            {chart.name}
-                                        </Anchor>
-                                    </List.Item>
-                                ))}
-                            </List>
-                        )}
-                    </Stack>
-                </Modal.Body>
-            </Modal.Content>
-        </Modal.Root>
+            <Stack gap="xs">
+                <Text>This metric is used in the following charts:</Text>
+                {isLoading ? (
+                    <Text size="sm" c="dimmed">
+                        Loading...
+                    </Text>
+                ) : analytics?.charts.length === 0 ? (
+                    <Text size="sm" c="dimmed">
+                        No charts found using this metric
+                    </Text>
+                ) : (
+                    <List pl="sm">
+                        {analytics?.charts.map((chart) => (
+                            <List.Item key={chart.uuid} fz="sm">
+                                <Anchor
+                                    href={`/projects/${projectUuid}/saved/${chart.uuid}`}
+                                    target="_blank"
+                                    onClick={() => {
+                                        track({
+                                            name: EventName.METRICS_CATALOG_CHART_USAGE_CHART_CLICKED,
+                                            properties: {
+                                                userId: userUuid,
+                                                organizationId:
+                                                    organizationUuid,
+                                                projectId: projectUuid,
+                                                metricName: activeMetric?.name,
+                                                tableName:
+                                                    activeMetric?.tableName,
+                                                chartId: chart.uuid,
+                                            },
+                                        });
+                                    }}
+                                >
+                                    {chart.name}
+                                </Anchor>
+                            </List.Item>
+                        ))}
+                    </List>
+                )}
+            </Stack>
+        </MantineModal>
     );
 };
