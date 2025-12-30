@@ -13,7 +13,7 @@ import {
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
 import { getConfig } from '../../config';
-import { CLI_VERSION } from '../../env';
+import { CLI_VERSION, getUpdateInstructions } from '../../env';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 import { buildRequestHeaders } from '../utils';
@@ -203,8 +203,8 @@ export const checkLightdashVersion = async (): Promise<void> => {
                     health.version
                 }) on ${
                     config.context?.serverUrl
-                }.\n         Some commands may fail, consider upgrading your CLI by doing: ${styles.secondary(
-                    `npm install -g @lightdash/cli@${health.version}`,
+                }.\n         Some commands may fail, consider upgrading your CLI by ${styles.secondary(
+                    getUpdateInstructions(health.version),
                 )}`,
             );
         }
