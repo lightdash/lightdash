@@ -722,7 +722,7 @@ const SavedChartsHeader: FC = () => {
 
             {unsavedChartVersion && (
                 <ChartCreateModal
-                    isOpen={isQueryModalOpen}
+                    opened={isQueryModalOpen}
                     savedData={unsavedChartVersion}
                     onClose={queryModalHandlers.close}
                     onConfirm={queryModalHandlers.close}

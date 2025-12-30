@@ -1,0 +1,7 @@
+.footer {
+    position: sticky;
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+    bottom: 0;
+    z-index: 2;
+    padding: var(--mantine-spacing-md);
+}

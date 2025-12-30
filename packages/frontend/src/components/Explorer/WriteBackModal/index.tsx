@@ -10,24 +10,24 @@ import {
     Checkbox,
     Group,
     List,
-    Modal,
+    Paper,
     Stack,
     Text,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { Prism } from '@mantine/prism';
-import { IconGitBranch, IconInfoCircle } from '@tabler/icons-react';
+import { IconGitBranch } from '@tabler/icons-react';
 import * as yaml from 'js-yaml';
 import { memo, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
-
 import {
     explorerActions,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
-import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
+import { PolymorphicGroupButton } from '../../common/PolymorphicGroupButton';
 import { CreatedPullRequestModalContent } from './CreatedPullRequestModalContent';
 import {
     useIsGitProject,
@@ -140,73 +140,14 @@ export const SingleItemModalContent = ({
     const itemLabel = getItemLabel(item);
 
     return (
-        <Modal
-            size="lg"
-            onClick={(e) => e.stopPropagation()}
+        <MantineModal
+            size="xl"
             opened={true}
             onClose={handleClose}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        icon={IconGitBranch}
-                        size="lg"
-                        color="ldGray.7"
-                    />
-                    <Text fw={500}>Write back to dbt</Text>
-                    <Tooltip
-                        variant="xs"
-                        withinPortal
-                        multiline
-                        maw={300}
-                        label={`Convert this ${texts[type].name} into a ${texts[type].baseName} in your dbt project. This will create a new branch and open a pull request.`}
-                    >
-                        <MantineIcon
-                            color="ldGray.7"
-                            icon={IconInfoCircle}
-                            size={16}
-                        />
-                    </Tooltip>
-                </Group>
-            }
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
-                body: { padding: 0 },
-            })}
-        >
-            <Stack p="md">
-                <Text>
-                    Create a pull request in your dbt project's git repository
-                    for the following {texts[type].name}:
-                </Text>
-                <List spacing="xs" pl="xs">
-                    <List.Item fz="xs" ff="monospace">
-                        {itemLabel}
-                    </List.Item>
-                </List>
-                <CollapsableCard
-                    isOpen={showDiff}
-                    title={`Show ${texts[type].baseName} code`}
-                    onToggle={() => setShowDiff(!showDiff)}
-                >
-                    <Stack ml={36}>
-                        <Prism language="yaml" withLineNumbers trim={false}>
-                            {error || previewCode}
-                        </Prism>
-                    </Stack>
-                </CollapsableCard>
-            </Stack>
-
-            <Group position="right" w="100%" p="md">
-                <Button
-                    color="ldGray.7"
-                    onClick={handleClose}
-                    variant="outline"
-                    disabled={isLoading}
-                    size="xs"
-                >
-                    Cancel
-                </Button>
-
+            title="Write back to dbt"
+            icon={IconGitBranch}
+            description={`Convert this ${texts[type].name} into a ${texts[type].baseName} in your dbt project. This will create a new branch and open a pull request.`}
+            actions={
                 <Tooltip
                     label={errorTooltipLabel}
                     disabled={disableErrorTooltip}
@@ -234,8 +175,31 @@ export const SingleItemModalContent = ({
                         </Button>
                     </div>
                 </Tooltip>
-            </Group>
-        </Modal>
+            }
+        >
+            <Stack>
+                <Text fz="sm">
+                    Create a pull request in your dbt project's git repository
+                    for the following {texts[type].name}:
+                </Text>
+                <List spacing="xs" pl="xs">
+                    <List.Item fz="xs" ff="monospace">
+                        {itemLabel}
+                    </List.Item>
+                </List>
+                <CollapsableCard
+                    isOpen={showDiff}
+                    title={`Show ${texts[type].baseName} code`}
+                    onToggle={() => setShowDiff(!showDiff)}
+                >
+                    <Stack ml={36}>
+                        <Prism language="yaml" withLineNumbers trim={false}>
+                            {error || previewCode}
+                        </Prism>
+                    </Stack>
+                </CollapsableCard>
+            </Stack>
+        </MantineModal>
     );
 };
 
@@ -328,137 +292,14 @@ const MultipleItemsModalContent = ({
     const buttonDisabled =
         isLoading || !disableErrorTooltip || selectedItemIds.length === 0;
     return (
-        <Modal
-            size="xl"
-            onClick={(e) => e.stopPropagation()}
+        <MantineModal
+            size="auto"
             opened={true}
             onClose={handleClose}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        icon={IconGitBranch}
-                        size="lg"
-                        color="ldGray.7"
-                    />
-                    <Text fw={500}>Write back to dbt</Text>
-                </Group>
-            }
-            styles={() => ({
-                body: { padding: 0, height: '435px' },
-            })}
-        >
-            <Text
-                pl="md"
-                pb="sm"
-                fz="s"
-                color="ldGray.7"
-                sx={(theme) => ({
-                    borderBottom: `1px solid ${theme.colors.ldGray[4]}`,
-                })}
-            >
-                Create a pull request in your dbt project's git repository for
-                the following {texts[type].baseName}s
-            </Text>
-
-            <Stack p="md">
-                <Group align="flex-start" h="305px">
-                    <Stack w="30%" h="100%">
-                        <Text>
-                            Available {texts[type].name}s (
-                            {selectedItemIds.length} selected)
-                        </Text>
-
-                        <Stack
-                            h="100%"
-                            p="sm"
-                            sx={{
-                                border: '1px solid #e0e0e0',
-                                borderRadius: '4px',
-                                overflowY: 'auto',
-                            }}
-                        >
-                            {items.map((item) => {
-                                const itemId = getItemId(item);
-                                const itemLabel = getItemLabel(item);
-                                return (
-                                    <Tooltip
-                                        label={itemLabel}
-                                        key={itemId}
-                                        position="right"
-                                    >
-                                        <Group
-                                            noWrap
-                                            key={itemId}
-                                            onClick={() =>
-                                                setSelectedItemIds(
-                                                    !selectedItemIds.includes(
-                                                        itemId,
-                                                    )
-                                                        ? [
-                                                              ...selectedItemIds,
-                                                              itemId,
-                                                          ]
-                                                        : selectedItemIds.filter(
-                                                              (name) =>
-                                                                  name !==
-                                                                  itemId,
-                                                          ),
-                                                )
-                                            }
-                                            sx={{ cursor: 'pointer' }}
-                                        >
-                                            <Checkbox
-                                                size="xs"
-                                                checked={selectedItemIds.includes(
-                                                    itemId,
-                                                )}
-                                            />
-                                            <Text truncate="end">
-                                                {itemLabel}
-                                            </Text>
-                                        </Group>
-                                    </Tooltip>
-                                );
-                            })}
-                        </Stack>
-                    </Stack>
-                    <Stack w="calc(70% - 18px)" h="100%">
-                        <Text>
-                            {capitalize(texts[type].baseName)} YAML to be
-                            created:
-                        </Text>
-
-                        <Stack
-                            h="100%"
-                            sx={{
-                                overflowY: 'auto',
-                                border: '1px solid #e0e0e0',
-                                borderRadius: '4px',
-                            }}
-                        >
-                            <Prism
-                                language="yaml"
-                                trim={false}
-                                noCopy={previewCode === ''}
-                            >
-                                {error || previewCode}
-                            </Prism>
-                        </Stack>
-                    </Stack>
-                </Group>
-            </Stack>
-
-            <Group position="right" w="100%" p="md">
-                <Button
-                    color="ldGray.7"
-                    onClick={handleClose}
-                    variant="outline"
-                    disabled={isLoading}
-                    size="xs"
-                >
-                    Cancel
-                </Button>
-
+            title="Write back to dbt"
+            icon={IconGitBranch}
+            description={`Create a pull request in your dbt project's git repository for the following ${texts[type].baseName}s`}
+            actions={
                 <Tooltip
                     label={errorTooltipLabel}
                     disabled={disableErrorTooltip}
@@ -490,8 +331,88 @@ const MultipleItemsModalContent = ({
                         </Button>
                     </div>
                 </Tooltip>
+            }
+        >
+            <Group align="flex-start" h="305px">
+                <Stack w="30%" h="100%">
+                    <Text>
+                        Available {texts[type].name}s ({selectedItemIds.length}{' '}
+                        selected)
+                    </Text>
+
+                    <Stack
+                        h="100%"
+                        p="sm"
+                        style={{
+                            border: '1px solid var(--mantine-color-ldGray-3)',
+                            borderRadius: '4px',
+                            overflowY: 'auto',
+                        }}
+                    >
+                        {items.map((item) => {
+                            const itemId = getItemId(item);
+                            const itemLabel = getItemLabel(item);
+                            return (
+                                <Tooltip
+                                    label={itemLabel}
+                                    key={itemId}
+                                    position="right"
+                                >
+                                    <PolymorphicGroupButton
+                                        wrap="nowrap"
+                                        key={itemId}
+                                        onClick={() =>
+                                            setSelectedItemIds(
+                                                !selectedItemIds.includes(
+                                                    itemId,
+                                                )
+                                                    ? [
+                                                          ...selectedItemIds,
+                                                          itemId,
+                                                      ]
+                                                    : selectedItemIds.filter(
+                                                          (name) =>
+                                                              name !== itemId,
+                                                      ),
+                                            )
+                                        }
+                                    >
+                                        <Checkbox
+                                            size="xs"
+                                            checked={selectedItemIds.includes(
+                                                itemId,
+                                            )}
+                                        />
+                                        <Text truncate="end">{itemLabel}</Text>
+                                    </PolymorphicGroupButton>
+                                </Tooltip>
+                            );
+                        })}
+                    </Stack>
+                </Stack>
+                <Stack w="calc(70% - 18px)" h="100%">
+                    <Text>
+                        {capitalize(texts[type].baseName)} YAML to be created:
+                    </Text>
+
+                    <Paper
+                        h="100%"
+                        withBorder
+                        style={{
+                            overflowY: 'auto',
+                        }}
+                    >
+                        <Prism
+                            language="yaml"
+                            trim={false}
+                            noCopy={previewCode === ''}
+                        >
+                            {error || previewCode}
+                        </Prism>
+                    </Paper>
+                </Stack>
             </Group>
-        </Modal>
+        </MantineModal>
     );
 };
 
