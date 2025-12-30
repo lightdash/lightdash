@@ -1,7 +1,18 @@
+.tabsRoot {
+    --tabs-stuck: 0;
+
+    &:has(.stickyTabsAndFilters[data-is-stuck='true']) {
+        --tabs-stuck: 1;
+    }
+}
+
 /* Wrapper for tabs and filters - always sticky together */
 .stickyTabsAndFilters {
     position: sticky;
     top: 0;
+    border-bottom: 1px solid transparent;
+    z-index: var(--dashboard-tabs-zindex);
+    transform: translate3d(0, 0, 0);
 
     /* When header is sticky above (edit mode), position below it */
     &[data-has-header-above='true'] {
@@ -9,8 +20,7 @@
     }
 
     &[data-is-stuck='true'] {
-        z-index: var(--dashboard-tabs-zindex);
-        border-bottom: 1px solid var(--mantine-color-ldGray-3);
+        border-color: var(--mantine-color-ldGray-3);
     }
 }
 
