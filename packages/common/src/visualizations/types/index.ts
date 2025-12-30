@@ -340,9 +340,26 @@ export type EChartsSeries = {
         position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
         formatter?: (param: { data: Record<string, unknown> }) => string;
     };
-    labelLayout?: {
-        hideOverlap?: boolean;
-    };
+    labelLayout?:
+        | {
+              hideOverlap?: boolean;
+          }
+        | ((params: {
+              rect: { x: number; y: number; width: number; height: number };
+              labelRect: {
+                  x: number;
+                  y: number;
+                  width: number;
+                  height: number;
+              };
+          }) =>
+              | {
+                    x?: number;
+                    y?: number;
+                    fontSize?: number;
+                    labelLinePoints?: number[][];
+                }
+              | undefined);
     tooltip?: {
         show?: boolean;
         valueFormatter?: (value: unknown) => string;

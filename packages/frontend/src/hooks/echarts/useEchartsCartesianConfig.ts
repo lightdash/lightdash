@@ -738,6 +738,54 @@ const isPrimaryYAxis = (series: Series) => {
     return (series.yAxisIndex ?? 0) === 0;
 };
 
+/**
+ * Create a labelLayout configuration for stacked bar charts.
+ * When showOverlappingLabels is enabled, uses smaller font for labels that don't fit
+ * in small segments to keep them visible.
+ *
+ * @param isStacked - Whether the series is part of a stack
+ * @param flipAxes - Whether the chart is horizontal (flipped)
+ * @param showOverlappingLabels - Force display labels even when they don't fit
+ */
+const createStackedBarLabelLayout = ({
+    isStacked,
+    flipAxes,
+    showOverlappingLabels,
+}: {
+    isStacked: boolean;
+    flipAxes: boolean;
+    showOverlappingLabels: boolean;
+}):
+    | { hideOverlap: boolean }
+    | ((params: {
+          rect: { x: number; y: number; width: number; height: number };
+          labelRect: { x: number; y: number; width: number; height: number };
+      }) => { fontSize?: number } | undefined) => {
+    // Only apply small-font treatment when showOverlappingLabels is enabled for stacked bars
+    if (!isStacked || !showOverlappingLabels) {
+        return { hideOverlap: true };
+    }
+
+    // Return callback function for dynamic font sizing
+    return (params) => {
+        const { rect, labelRect } = params;
+
+        // Check if label fits inside the segment at normal size
+        const segmentSize = flipAxes ? rect.width : rect.height;
+        const labelSize = flipAxes ? labelRect.width : labelRect.height;
+        const padding = 4;
+
+        const labelFits = labelSize + padding <= segmentSize;
+
+        if (labelFits) {
+            return undefined; // Keep default size
+        }
+
+        // Label doesn't fit - use smaller font
+        return { fontSize: 8 };
+    };
+};
+
 const getPivotSeries = ({
     series,
     pivotReference,
@@ -836,9 +884,11 @@ const getPivotSeries = ({
                         },
                     }),
             },
-            labelLayout: {
-                hideOverlap: true,
-            },
+            labelLayout: createStackedBarLabelLayout({
+                isStacked: !!series.stack,
+                flipAxes: !!flipAxes,
+                showOverlappingLabels: !!series.label?.showOverlappingLabels,
+            }),
         }),
     };
 };
@@ -998,9 +1048,11 @@ const getSimpleSeries = ({
                     },
                 }),
         },
-        labelLayout: {
-            hideOverlap: true,
-        },
+        labelLayout: createStackedBarLabelLayout({
+            isStacked: !!series.stack,
+            flipAxes: !!flipAxes,
+            showOverlappingLabels: !!series.label?.showOverlappingLabels,
+        }),
     }),
     ...(series.markLine && {
         markLine: applyReadableColorsToMarkLine(
