@@ -1,3 +1,10 @@
+# [0.2288.0](https://github.com/lightdash/lightdash/compare/0.2287.1...0.2288.0) (2025-12-30)
+
+
+### Features
+
+* add controls for heatmap ([#19028](https://github.com/lightdash/lightdash/issues/19028)) ([08f883d](https://github.com/lightdash/lightdash/commit/08f883dbe9a5b79e664e5252217c9c553bb96e16))
+
 ## [0.2287.1](https://github.com/lightdash/lightdash/compare/0.2287.0...0.2287.1) (2025-12-30)
 
 
