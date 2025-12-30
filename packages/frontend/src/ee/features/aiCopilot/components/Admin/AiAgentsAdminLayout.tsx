@@ -253,7 +253,6 @@ export const AiAgentsAdminLayout = () => {
                                     isOpen={isSidebarOpen}
                                     onClose={handleCloseSidebar}
                                     showAddToEvalsButton
-                                    renderArtifactsInline
                                 />
                             )}
                         </Panel>

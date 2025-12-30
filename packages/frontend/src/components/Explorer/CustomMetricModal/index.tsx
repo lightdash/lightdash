@@ -18,14 +18,13 @@ import {
 import {
     Accordion,
     Button,
-    Modal,
     NumberInput,
     Stack,
     Text,
     TextInput,
-    Title,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
+import { IconSparkles } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { type ValueOf } from 'type-fest';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,6 +38,7 @@ import {
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
+import MantineModal from '../../common/MantineModal';
 import { FormatForm } from '../FormatForm';
 import { FilterForm, type MetricFilterRuleWithFieldId } from './FilterForm';
 import { useDataForFiltersProvider } from './hooks/useDataForFiltersProvider';
@@ -171,8 +171,8 @@ export const CustomMetricModal = memo(() => {
                 isEditing
                     ? label
                     : customMetricType
-                    ? `${friendlyName(customMetricType)} of ${label}`
-                    : '',
+                      ? `${friendlyName(customMetricType)} of ${label}`
+                      : '',
             );
         }
     }, [setFieldValue, item, customMetricType, isEditing]);
@@ -292,24 +292,35 @@ export const CustomMetricModal = memo(() => {
         value: ValueOf<CustomFormat>,
     ) => form.setFieldValue(`format.${path}`, value);
 
+    const CUSTOM_METRIC_FORM_ID = 'custom-metric-form';
+
     if (!isOpen) {
         return null;
     }
 
     return item ? (
-        <Modal
+        <MantineModal
             size="xl"
-            onClick={(e) => e.stopPropagation()}
             opened={isOpen}
             onClose={handleClose}
-            title={
-                <Title order={4}>
-                    {isEditing ? 'Edit' : 'Create'} Custom Metric
-                </Title>
+            title={`${isEditing ? 'Edit' : 'Create'} Custom Metric`}
+            icon={IconSparkles}
+            actions={
+                <Button
+                    type="submit"
+                    form={CUSTOM_METRIC_FORM_ID}
+                    disabled={!form.isValid()}
+                >
+                    {isEditing ? 'Save changes' : 'Create'}
+                </Button>
             }
         >
-            <form onSubmit={handleOnSubmit}>
-                <Stack>
+            <form
+                id={CUSTOM_METRIC_FORM_ID}
+                onSubmit={handleOnSubmit}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <Stack gap="md">
                     <TextInput
                         label="Label"
                         required
@@ -326,7 +337,12 @@ export const CustomMetricModal = memo(() => {
                             {...form.getInputProps('percentile')}
                         />
                     )}
-                    <Accordion chevronPosition="left" chevronSize="xs">
+                    <Accordion
+                        chevronPosition="left"
+                        chevronSize="xs"
+                        variant="separated"
+                        radius="md"
+                    >
                         {canApplyFormatting && (
                             <Accordion.Item value="format">
                                 <Accordion.Control>
@@ -354,12 +370,7 @@ export const CustomMetricModal = memo(() => {
                                             ? `(${customMetricFiltersWithIds.length}) `
                                             : ' '}
                                     </Text>
-                                    <Text
-                                        span
-                                        fz="xs"
-                                        color="ldGray.5"
-                                        fw={400}
-                                    >
+                                    <Text span fz="xs" c="ldGray.5" fw={400}>
                                         (optional)
                                     </Text>
                                 </Text>
@@ -390,16 +401,8 @@ export const CustomMetricModal = memo(() => {
                             </Accordion.Panel>
                         </Accordion.Item>
                     </Accordion>
-                    <Button
-                        display="block"
-                        ml="auto"
-                        type="submit"
-                        disabled={!form.isValid()}
-                    >
-                        {isEditing ? 'Save changes' : 'Create'}
-                    </Button>
                 </Stack>
             </form>
-        </Modal>
+        </MantineModal>
     ) : null;
 });

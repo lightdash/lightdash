@@ -7,16 +7,12 @@ import {
     ActionIcon,
     Button,
     CopyButton,
-    Flex,
     Group,
-    Modal,
     Paper,
-    Stack,
     Table,
     Text,
-    Title,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import {
     IconCheck,
     IconCopy,
@@ -31,6 +27,7 @@ import {
     type SetStateAction,
 } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import MantineModal from '../../../../../components/common/MantineModal';
 import { useTableStyles } from '../../../../../hooks/styles/useTableStyles';
 import {
     useDeleteScimToken,
@@ -50,7 +47,7 @@ const TokenItem: FC<{
                 </Text>
 
                 <td>
-                    <Group align="center" position="left" spacing="xs">
+                    <Group align="center" justify="flex-start" gap="xs">
                         <span>
                             {expiresAt
                                 ? formatDate(expiresAt)
@@ -87,7 +84,7 @@ const TokenItem: FC<{
                     )}
                 </td>
                 <td>
-                    <Group align="center" position="left" spacing="xs">
+                    <Group align="center" justify="flex-start" gap="xs">
                         <Tooltip
                             withinPortal
                             position="top"
@@ -106,10 +103,10 @@ const TokenItem: FC<{
                                     <ActionIcon
                                         size="xs"
                                         onClick={copy}
-                                        variant={'transparent'}
+                                        variant="transparent"
                                     >
                                         <MantineIcon
-                                            color={'ldGray.6'}
+                                            color="ldGray.6"
                                             icon={copied ? IconCheck : IconCopy}
                                         />
                                     </ActionIcon>
@@ -152,7 +149,7 @@ export const TokensTable = () => {
 
     return (
         <>
-            <Paper withBorder sx={{ overflow: 'hidden' }}>
+            <Paper withBorder style={{ overflow: 'hidden' }}>
                 <Table className={cx(classes.root, classes.alignLastTdRight)}>
                     <thead>
                         <tr>
@@ -175,46 +172,33 @@ export const TokensTable = () => {
                 </Table>
             </Paper>
 
-            <Modal
+            <MantineModal
                 opened={!!tokenToDelete}
                 onClose={() => !isDeleting && setTokenToDelete(undefined)}
-                title={
-                    <Title order={4}>
-                        Delete token {tokenToDelete?.description}
-                    </Title>
+                title={`Delete token ${tokenToDelete?.description}`}
+                icon={IconTrash}
+                cancelDisabled={isDeleting}
+                actions={
+                    <Button
+                        color="red"
+                        loading={isDeleting}
+                        onClick={() => {
+                            mutate(tokenToDelete?.uuid ?? '');
+                        }}
+                    >
+                        Delete
+                    </Button>
                 }
             >
-                <Stack spacing="xl">
-                    <Text>
-                        Are you sure? This will permanently delete the
-                        <Text fw={600} component="span">
-                            {' '}
-                            {tokenToDelete?.description}{' '}
-                        </Text>
-                        token.
+                <Text>
+                    Are you sure? This will permanently delete the
+                    <Text fw={600} component="span">
+                        {' '}
+                        {tokenToDelete?.description}{' '}
                     </Text>
-
-                    <Flex gap="sm" justify="flex-end">
-                        <Button
-                            color="dark"
-                            variant="outline"
-                            disabled={isDeleting}
-                            onClick={() => setTokenToDelete(undefined)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            color="red"
-                            disabled={isDeleting}
-                            onClick={() => {
-                                mutate(tokenToDelete?.uuid ?? '');
-                            }}
-                        >
-                            Delete
-                        </Button>
-                    </Flex>
-                </Stack>
-            </Modal>
+                    token.
+                </Text>
+            </MantineModal>
         </>
     );
 };
