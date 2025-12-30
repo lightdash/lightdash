@@ -5,22 +5,18 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Button,
     CopyButton,
-    Flex,
     Group,
     Menu,
-    Modal,
     Paper,
     Select,
     Stack,
     Table,
     Text,
     TextInput,
-    Title,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
     IconCheck,
@@ -45,7 +41,9 @@ import {
     useRotateAccessToken,
 } from '../../../hooks/useAccessToken';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
+import Callout from '../../common/Callout';
 import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 import { useExpireOptions } from './useExpireOptions';
 
 const TokenItem: FC<{
@@ -58,12 +56,12 @@ const TokenItem: FC<{
 
     return (
         <>
-            <tr>
-                <Text component="td" fw={500}>
-                    {description}
-                </Text>
-                <td>
-                    <Group align="center" position="left" spacing="xs">
+            <Table.Tr>
+                <Table.Td>
+                    <Text fw={500}>{description}</Text>
+                </Table.Td>
+                <Table.Td>
+                    <Group align="center" justify="flex-start" gap="xs">
                         <span>
                             {expiresAt ? (
                                 <Tooltip
@@ -96,8 +94,8 @@ const TokenItem: FC<{
                             </Tooltip>
                         )}
                     </Group>
-                </td>
-                <td>
+                </Table.Td>
+                <Table.Td>
                     {lastUsedAt && (
                         <Tooltip
                             withinPortal
@@ -108,8 +106,8 @@ const TokenItem: FC<{
                             <Text>{formatDate(lastUsedAt)}</Text>
                         </Tooltip>
                     )}
-                </td>
-                <td width="1%">
+                </Table.Td>
+                <Table.Td w="1%">
                     <Menu withinPortal position="bottom-end">
                         <Menu.Target>
                             <ActionIcon
@@ -122,21 +120,23 @@ const TokenItem: FC<{
                         </Menu.Target>
                         <Menu.Dropdown>
                             <Menu.Item
-                                icon={<MantineIcon icon={IconCopy} />}
+                                leftSection={<MantineIcon icon={IconCopy} />}
                                 onClick={() => setTokenToCopy(token)}
                             >
                                 Copy token UUID
                             </Menu.Item>
                             {token.expiresAt && (
                                 <Menu.Item
-                                    icon={<MantineIcon icon={IconRefresh} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconRefresh} />
+                                    }
                                     onClick={() => setTokenToRotate(token)}
                                 >
                                     Rotate token
                                 </Menu.Item>
                             )}
                             <Menu.Item
-                                icon={<MantineIcon icon={IconTrash} />}
+                                leftSection={<MantineIcon icon={IconTrash} />}
                                 color="red"
                                 onClick={() => setTokenToDelete(token)}
                             >
@@ -144,16 +144,23 @@ const TokenItem: FC<{
                             </Menu.Item>
                         </Menu.Dropdown>
                     </Menu>
-                </td>
-            </tr>
+                </Table.Td>
+            </Table.Tr>
         </>
     );
 };
 
+const ROTATE_TOKEN_FORM_ID = 'rotate-token-form';
+
+interface RotateFormState {
+    isLoading: boolean;
+    isSuccess: boolean;
+}
+
 const RotateTokenForm: FC<{
     token: PersonalAccessToken | undefined;
-    onCancel: () => void;
-}> = ({ token, onCancel }) => {
+    onStateChange: (state: RotateFormState) => void;
+}> = ({ token, onStateChange }) => {
     const {
         mutate: rotateToken,
         isLoading,
@@ -189,12 +196,17 @@ const RotateTokenForm: FC<{
         onRotate(dateWhenExpires.toISOString());
     });
 
+    // Report state changes to parent for modal actions
+    useEffect(() => {
+        onStateChange({ isLoading, isSuccess });
+    }, [isLoading, isSuccess, onStateChange]);
+
     if (isSuccess && rotatedTokenData) {
         return (
-            <Stack spacing="md">
-                <Alert icon={<MantineIcon icon={IconCheck} />} color="green">
-                    Token rotated successfully! Your old token is now invalid.
-                </Alert>
+            <Stack gap="md">
+                <Callout variant="success" title="Token rotated successfully!">
+                    Your old token is now invalid.
+                </Callout>
 
                 <TextInput
                     label="New Token"
@@ -223,58 +235,35 @@ const RotateTokenForm: FC<{
                     }
                 />
 
-                <Alert icon={<MantineIcon icon={IconInfoCircle} />}>
-                    Make sure to copy your new token now. You won't be able to
-                    see it again!
-                </Alert>
-
-                <Flex gap="sm" justify="flex-end">
-                    <Button onClick={onCancel}>Done</Button>
-                </Flex>
+                <Callout
+                    variant="info"
+                    title="Make sure to copy your new token now"
+                >
+                    You won't be able to see it again! Your old token is now
+                    invalid.
+                </Callout>
             </Stack>
         );
     }
 
     return (
-        <form onSubmit={handleOnSubmit}>
-            <Stack spacing="md">
-                <Alert
-                    icon={<MantineIcon icon={IconInfoCircle} />}
-                    color="blue"
-                    variant="light"
+        <form id={ROTATE_TOKEN_FORM_ID} onSubmit={handleOnSubmit}>
+            <Stack gap="md">
+                <Callout
+                    variant="info"
+                    title={`Rotating token for "${token?.description}"`}
                 >
-                    <Stack spacing="xs">
-                        <Text fw={500}>
-                            Rotating token: {token?.description}
-                        </Text>
-                        <Text size="sm">
-                            This will generate a new token and invalidate the
-                            current one. You must specify a new expiration date.
-                        </Text>
-                    </Stack>
-                </Alert>
+                    This will generate a new token and invalidate the current
+                    one. You must specify a new expiration date.
+                </Callout>
 
                 <Select
-                    withinPortal
                     label="New Expiration"
                     data={expireOptions}
                     required
                     disabled={isLoading}
                     {...form.getInputProps('expiresAt')}
                 />
-
-                <Flex gap="sm" justify="flex-end">
-                    <Button
-                        variant="outline"
-                        onClick={onCancel}
-                        disabled={isLoading}
-                    >
-                        Cancel
-                    </Button>
-                    <Button type="submit" loading={isLoading} color="blue">
-                        Rotate Token
-                    </Button>
-                </Flex>
             </Stack>
         </form>
     );
@@ -294,8 +283,17 @@ export const TokensTable = () => {
     const [tokenToRotate, setTokenToRotate] = useState<
         PersonalAccessToken | undefined
     >();
+    const [rotateFormState, setRotateFormState] = useState<RotateFormState>({
+        isLoading: false,
+        isSuccess: false,
+    });
 
     const { mutate, isLoading: isDeleting, isSuccess } = useDeleteAccessToken();
+
+    const handleCloseRotateModal = useCallback(() => {
+        setTokenToRotate(undefined);
+        setRotateFormState({ isLoading: false, isSuccess: false });
+    }, []);
 
     useEffect(() => {
         if (isSuccess) {
@@ -305,17 +303,17 @@ export const TokensTable = () => {
 
     return (
         <>
-            <Paper withBorder sx={{ overflow: 'hidden' }}>
+            <Paper withBorder style={{ overflow: 'hidden' }}>
                 <Table className={cx(classes.root, classes.alignLastTdRight)}>
-                    <thead>
-                        <tr>
-                            <th>Description</th>
-                            <th>Expiration date</th>
-                            <th>Last used at</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                    <Table.Thead>
+                        <Table.Tr>
+                            <Table.Th>Description</Table.Th>
+                            <Table.Th>Expiration date</Table.Th>
+                            <Table.Th>Last used at</Table.Th>
+                            <Table.Th></Table.Th>
+                        </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
                         {data?.map((token) => (
                             <TokenItem
                                 key={token.uuid}
@@ -325,100 +323,80 @@ export const TokensTable = () => {
                                 setTokenToRotate={setTokenToRotate}
                             />
                         ))}
-                    </tbody>
+                    </Table.Tbody>
                 </Table>
             </Paper>
 
-            <Modal
+            <MantineModal
                 opened={!!tokenToDelete}
                 onClose={() => !isDeleting && setTokenToDelete(undefined)}
-                title={
-                    <Title order={4}>
-                        Delete token {tokenToDelete?.description}
-                    </Title>
+                title={`Delete token ${tokenToDelete?.description}`}
+                icon={IconTrash}
+                cancelDisabled={isDeleting}
+                actions={
+                    <Button
+                        color="red"
+                        disabled={isDeleting}
+                        onClick={() => {
+                            mutate(tokenToDelete?.uuid ?? '');
+                        }}
+                    >
+                        Delete
+                    </Button>
                 }
             >
-                <Stack spacing="xl">
-                    <Text>
-                        Are you sure? This will permanently delete the
-                        <Text fw={600} component="span">
-                            {' '}
-                            {tokenToDelete?.description}{' '}
-                        </Text>
-                        token.
+                <Text>
+                    Are you sure? This will permanently delete the
+                    <Text fw={600} component="span">
+                        {' '}
+                        {tokenToDelete?.description}{' '}
                     </Text>
+                    token.
+                </Text>
+            </MantineModal>
 
-                    <Flex gap="sm" justify="flex-end">
-                        <Button
-                            color="dark"
-                            variant="outline"
-                            disabled={isDeleting}
-                            onClick={() => setTokenToDelete(undefined)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            color="red"
-                            disabled={isDeleting}
-                            onClick={() => {
-                                mutate(tokenToDelete?.uuid ?? '');
-                            }}
-                        >
-                            Delete
-                        </Button>
-                    </Flex>
-                </Stack>
-            </Modal>
-
-            <Modal
+            <MantineModal
                 opened={!!tokenToCopy}
                 onClose={() => setTokenToCopy(undefined)}
-                title={
-                    <Title order={4}>
-                        Token UUID{' '}
-                        {tokenToCopy?.description
-                            ? `for "${tokenToCopy.description}"`
-                            : ''}
-                    </Title>
-                }
+                title={`Token UUID ${
+                    tokenToCopy?.description
+                        ? `for "${tokenToCopy.description}"`
+                        : ''
+                }`}
+                icon={IconInfoCircle}
                 size="md"
-            >
-                <Stack spacing="lg">
-                    <Alert
-                        icon={<MantineIcon icon={IconInfoCircle} />}
-                        color="blue"
-                        variant="light"
+                cancelLabel={false}
+                actions={
+                    <Button
+                        variant="default"
+                        onClick={() => setTokenToCopy(undefined)}
                     >
-                        <Stack spacing="xs">
-                            <Text fw={500}>What is a token UUID?</Text>
-                            <Text size="sm">
-                                The UUID is a unique identifier for your token,
-                                used for token rotation via the CLI{' '}
-                                <DocumentationHelpButton
-                                    href="https://docs.lightdash.com/references/personal_tokens#rotating-a-personal-access-token"
-                                    tooltipProps={{
-                                        label: 'Learn about token rotation',
-                                    }}
-                                />
-                                . This is <strong>not</strong> your Personal
-                                Access Token value.
-                            </Text>
-                        </Stack>
-                    </Alert>
-
-                    <Group spacing="sm">
-                        <Text
-                            family="monospace"
-                            size="sm"
-                            bg="white"
-                            p="xs"
-                            style={{
-                                borderRadius: 4,
-                                border: '1px solid #e9ecef',
-                            }}
-                        >
-                            {tokenToCopy?.uuid}
+                        Done
+                    </Button>
+                }
+            >
+                <Stack gap="lg">
+                    <Callout variant="info" title="What is a token UUID?">
+                        <Text size="sm">
+                            The UUID is a unique identifier for your token, used
+                            for token rotation via the CLI{' '}
+                            <DocumentationHelpButton
+                                href="https://docs.lightdash.com/references/personal_tokens#rotating-a-personal-access-token"
+                                tooltipProps={{
+                                    label: 'Learn about token rotation',
+                                }}
+                            />
+                            . This is <strong>not</strong> your Personal Access
+                            Token value.
                         </Text>
+                    </Callout>
+
+                    <Group gap="sm">
+                        <Paper p="xs" withBorder bg="ldGray.0">
+                            <Text ff="monospace" size="sm">
+                                {tokenToCopy?.uuid}
+                            </Text>
+                        </Paper>
                         <CopyButton value={tokenToCopy?.uuid ?? ''}>
                             {({ copied, copy }) => (
                                 <Tooltip
@@ -440,32 +418,39 @@ export const TokensTable = () => {
                             )}
                         </CopyButton>
                     </Group>
-
-                    <Flex gap="sm" justify="flex-end">
-                        <Button
-                            variant="light"
-                            onClick={() => setTokenToCopy(undefined)}
-                        >
-                            Done
-                        </Button>
-                    </Flex>
                 </Stack>
-            </Modal>
+            </MantineModal>
 
-            <Modal
+            <MantineModal
                 opened={!!tokenToRotate}
-                onClose={() => setTokenToRotate(undefined)}
-                title={<Title order={4}>Rotate token</Title>}
+                onClose={handleCloseRotateModal}
+                title="Rotate token"
+                icon={IconRefresh}
                 size="md"
+                cancelLabel={rotateFormState.isSuccess ? false : 'Cancel'}
+                cancelDisabled={rotateFormState.isLoading}
+                actions={
+                    rotateFormState.isSuccess ? (
+                        <Button onClick={handleCloseRotateModal}>Done</Button>
+                    ) : (
+                        <Button
+                            type="submit"
+                            form={ROTATE_TOKEN_FORM_ID}
+                            loading={rotateFormState.isLoading}
+                        >
+                            Rotate Token
+                        </Button>
+                    )
+                }
             >
                 {!!tokenToRotate ? (
                     <RotateTokenForm
                         key={tokenToRotate?.uuid}
                         token={tokenToRotate}
-                        onCancel={() => setTokenToRotate(undefined)}
+                        onStateChange={setRotateFormState}
                     />
                 ) : null}
-            </Modal>
+            </MantineModal>
         </>
     );
 };
