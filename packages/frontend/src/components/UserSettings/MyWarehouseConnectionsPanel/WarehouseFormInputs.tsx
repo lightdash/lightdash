@@ -2,7 +2,7 @@ import {
     WarehouseTypes,
     type UpsertUserWarehouseCredentials,
 } from '@lightdash/common';
-import { PasswordInput, TextInput } from '@mantine/core';
+import { PasswordInput, TextInput } from '@mantine-8/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
 import { useGoogleLoginPopup } from '../../../hooks/gdrive/useGdrive';

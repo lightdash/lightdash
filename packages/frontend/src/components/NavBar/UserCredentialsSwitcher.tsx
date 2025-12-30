@@ -3,7 +3,6 @@ import {
     MantineProvider,
     Menu,
     Text,
-    Title,
     useMantineTheme,
 } from '@mantine/core';
 import { IconCheck, IconDatabaseCog, IconPlus } from '@tabler/icons-react';
@@ -197,14 +196,11 @@ const UserCredentialsSwitcher = () => {
                     <CreateCredentialsModal
                         opened={isCreatingCredentials}
                         title={
-                            showCreateModalOnPageLoad ? (
-                                <Title order={4}>
-                                    Login to{' '}
-                                    {getWarehouseLabel(
-                                        activeProject.warehouseConnection?.type,
-                                    )}
-                                </Title>
-                            ) : undefined
+                            showCreateModalOnPageLoad
+                                ? `Login to ${getWarehouseLabel(
+                                      activeProject.warehouseConnection?.type,
+                                  )}`
+                                : undefined
                         }
                         description={
                             showCreateModalOnPageLoad ? (

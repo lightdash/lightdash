@@ -5,7 +5,7 @@ import {
     Switch,
     TextInput,
     Textarea,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -39,7 +39,7 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
     const [isOpen, toggleOpen] = useToggle(false);
 
     return (
-        <Stack spacing="xs">
+        <Stack gap="xs">
             {showName && (
                 <TextInput
                     required
@@ -113,7 +113,7 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
             />
 
             <FormSection isOpen={isOpen} name="advanced">
-                <Stack spacing="xs" style={{ marginTop: '8px' }}>
+                <Stack gap="xs" mt="xs">
                     <Switch
                         size="xs"
                         label="Always use this warehouse"
@@ -148,6 +148,7 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
                                     target="_blank"
                                     href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
                                     rel="noreferrer"
+                                    fz="9"
                                 >
                                     dbt documentation
                                 </Anchor>
@@ -174,6 +175,7 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
                                     target="_blank"
                                     href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
                                     rel="noreferrer"
+                                    fz="9"
                                 >
                                     dbt documentation
                                 </Anchor>
