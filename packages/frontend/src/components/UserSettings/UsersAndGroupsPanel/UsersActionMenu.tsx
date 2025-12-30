@@ -8,18 +8,11 @@ import {
     Card,
     Group,
     Menu,
-    Modal,
-    Paper,
     Stack,
     Text,
     Title,
 } from '@mantine-8/core';
-import {
-    IconAlertCircle,
-    IconDots,
-    IconMail,
-    IconTrash,
-} from '@tabler/icons-react';
+import { IconDots, IconMail, IconTrash } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
 import type { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
@@ -27,6 +20,7 @@ import { useDeleteOrganizationUserMutation } from '../../../hooks/useOrganizatio
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 
 interface UsersActionMenuProps {
     user: OrganizationMemberProfile | OrganizationMemberProfileWithGroups;
@@ -136,24 +130,28 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                 </Menu.Dropdown>
             </Menu>
 
-            <Modal
+            <MantineModal
                 opened={isDeleteDialogOpen}
                 onClose={() =>
                     !isDeleting ? setIsDeleteDialogOpen(false) : undefined
                 }
-                title={
-                    <Group gap="xs">
-                        <Paper>
-                            <MantineIcon icon={IconAlertCircle} color="red" />
-                        </Paper>
-                        <Title order={4}>Delete user</Title>
-                    </Group>
+                title="Delete user"
+                icon={IconTrash}
+                cancelDisabled={isDeleting}
+                actions={
+                    <Button
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        color="red"
+                    >
+                        Delete
+                    </Button>
                 }
             >
                 <Stack gap="xs">
                     <Text>Are you sure you want to delete this user?</Text>
                     <Group gap="xs">
-                        <MantineIcon icon={IconAlertCircle} color="gray" />
+                        <MantineIcon icon={IconTrash} color="gray" />
                         <Text fz="xs" c="ldGray.6" span>
                             Scheduled deliveries created by this user will also
                             be deleted.
@@ -162,25 +160,8 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                     <Card withBorder>
                         <UserNameDisplay user={user} />
                     </Card>
-                    <Group gap="xs" justify="right" mt="md">
-                        <Button
-                            disabled={isDeleting}
-                            onClick={() => setIsDeleteDialogOpen(false)}
-                            variant="outline"
-                            color="dark"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleDelete}
-                            disabled={isDeleting}
-                            color="red"
-                        >
-                            Delete
-                        </Button>
-                    </Group>
                 </Stack>
-            </Modal>
+            </MantineModal>
         </>
     );
 };

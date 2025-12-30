@@ -43,16 +43,40 @@ export type SchedulerColumnName =
     | 'deliveryStarted'
     | 'status';
 
+export const getSchedulerIconRaw = (item: { format: SchedulerFormat }) => {
+    switch (item.format) {
+        case SchedulerFormat.CSV:
+            return IconCsv;
+        case SchedulerFormat.XLSX:
+            return IconFileTypeXls;
+        case SchedulerFormat.IMAGE:
+            return IconPhoto;
+        case SchedulerFormat.GSHEETS:
+            return GSheetsIconFilled;
+        default:
+            return assertUnreachable(
+                item.format,
+                'Resource type not supported',
+            );
+    }
+};
+
 export const getSchedulerIcon = (item: { format: SchedulerFormat }) => {
     switch (item.format) {
         case SchedulerFormat.CSV:
-            return <IconBox icon={IconCsv} color="indigo.6" />;
+            return (
+                <IconBox icon={getSchedulerIconRaw(item)} color="indigo.6" />
+            );
         case SchedulerFormat.XLSX:
-            return <IconBox icon={IconFileTypeXls} color="indigo.6" />;
+            return (
+                <IconBox icon={getSchedulerIconRaw(item)} color="indigo.6" />
+            );
         case SchedulerFormat.IMAGE:
-            return <IconBox icon={IconPhoto} color="indigo.6" />;
+            return (
+                <IconBox icon={getSchedulerIconRaw(item)} color="indigo.6" />
+            );
         case SchedulerFormat.GSHEETS:
-            return <IconBox icon={GSheetsIconFilled} color="green" />;
+            return <IconBox icon={getSchedulerIconRaw(item)} color="green" />;
         default:
             return assertUnreachable(
                 item.format,

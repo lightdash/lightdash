@@ -1,23 +1,10 @@
 import { type GroupWithMembers } from '@lightdash/common';
-import {
-    ActionIcon,
-    Button,
-    Group,
-    Menu,
-    Modal,
-    Stack,
-    Text,
-    Title,
-} from '@mantine-8/core';
-import {
-    IconAlertCircle,
-    IconDots,
-    IconEdit,
-    IconTrash,
-} from '@tabler/icons-react';
+import { ActionIcon, Button, Menu } from '@mantine-8/core';
+import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { useGroupDeleteMutation } from '../../../hooks/useOrganizationGroups';
 import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 
 interface GroupsActionMenuProps {
     group: GroupWithMembers;
@@ -80,43 +67,25 @@ const GroupsActionMenu: FC<GroupsActionMenuProps> = ({
                 </Menu.Dropdown>
             </Menu>
 
-            <Modal
+            <MantineModal
                 opened={isDeleteDialogOpen}
                 onClose={() =>
                     !isDeleting ? setIsDeleteDialogOpen(false) : undefined
                 }
-                title={
-                    <Group gap="xs">
-                        <MantineIcon
-                            size="lg"
-                            icon={IconAlertCircle}
-                            color="red"
-                        />
-                        <Title order={4}>Delete group "{group.name}"</Title>
-                    </Group>
+                title={`Delete group "${group.name}"`}
+                icon={IconTrash}
+                description="Are you sure you want to delete this group?"
+                cancelDisabled={isDeleting}
+                actions={
+                    <Button
+                        onClick={handleDelete}
+                        disabled={isDeleting}
+                        color="red"
+                    >
+                        Delete
+                    </Button>
                 }
-            >
-                <Stack gap="xs">
-                    <Text>Are you sure you want to delete this group?</Text>
-                    <Group gap="xs" justify="right">
-                        <Button
-                            disabled={isDeleting}
-                            onClick={() => setIsDeleteDialogOpen(false)}
-                            variant="outline"
-                            color="dark"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleDelete}
-                            disabled={isDeleting}
-                            color="red"
-                        >
-                            Delete
-                        </Button>
-                    </Group>
-                </Stack>
-            </Modal>
+            />
         </>
     );
 };
