@@ -4,6 +4,7 @@ import {
     Loader,
     Modal,
     MultiSelect,
+    PasswordInput,
     Pill,
     ScrollArea,
     Select,
@@ -215,6 +216,12 @@ export const getMantine8ThemeOverride = (
                     if (props.variant === 'subtle')
                         return subtleInputStyles(theme);
                     return {};
+                },
+            }),
+
+            PasswordInput: PasswordInput.extend({
+                defaultProps: {
+                    radius: 'md',
                 },
             }),
 

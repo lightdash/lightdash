@@ -4,18 +4,24 @@ import {
     type CreateOrganizationWarehouseCredentials,
     type OrganizationWarehouseCredentials,
 } from '@lightdash/common';
-import { Button, Group, Modal, Title, type ModalProps } from '@mantine/core';
+import { Button, Stack } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
+import { IconPlus } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { useCreateOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../common/MantineModal';
 import { SnowflakeCredentialsForm } from './SnowflakeCredentialsForm';
 
-type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
-    title?: React.ReactNode;
+type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
+    title?: string;
     description?: React.ReactNode;
     nameValue?: string;
     onSuccess?: (data: OrganizationWarehouseCredentials) => void;
 };
+
+const FORM_ID = 'create-org-credentials-form';
 
 export const CreateCredentialsModal: FC<Props> = ({
     opened,
@@ -49,14 +55,28 @@ export const CreateCredentialsModal: FC<Props> = ({
             },
         },
     });
+
     return (
-        <Modal
-            size="lg"
-            title={title || <Title order={4}>Add new credentials</Title>}
+        <MantineModal
             opened={opened}
             onClose={onClose}
+            title={title ?? 'Add new credentials'}
+            icon={IconPlus}
+            size="lg"
+            cancelDisabled={isSaving}
+            actions={
+                <Button
+                    type="submit"
+                    form={FORM_ID}
+                    disabled={isSaving || !isAuthenticated}
+                    loading={isSaving}
+                >
+                    Save credentials
+                </Button>
+            }
         >
             <form
+                id={FORM_ID}
                 onSubmit={form.onSubmit(async (formData) => {
                     const result = await mutateAsync({
                         name: nameValue || formData.name,
@@ -67,35 +87,17 @@ export const CreateCredentialsModal: FC<Props> = ({
                     onClose();
                 })}
             >
-                {description}
+                <Stack gap="xs">
+                    {description}
 
-                <SnowflakeCredentialsForm
-                    form={form}
-                    disabled={isSaving}
-                    showName={!nameValue}
-                    onAuthenticated={setIsAuthenticated}
-                />
-
-                <Group position="right" spacing="xs" mt="sm">
-                    <Button
-                        size="xs"
-                        variant="outline"
-                        color="dark"
-                        onClick={onClose}
+                    <SnowflakeCredentialsForm
+                        form={form}
                         disabled={isSaving}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        size="xs"
-                        type="submit"
-                        disabled={isSaving || !isAuthenticated}
-                        loading={isSaving}
-                    >
-                        Save credentials
-                    </Button>
-                </Group>
+                        showName={!nameValue}
+                        onAuthenticated={setIsAuthenticated}
+                    />
+                </Stack>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };
