@@ -8,7 +8,6 @@ import {
     Group,
     JsonInput,
     LoadingOverlay,
-    Modal,
     Pagination,
     Paper,
     Stack,
@@ -24,6 +23,7 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useTableStyles } from '../../hooks/styles/useTableStyles';
 import { useProjectParametersList } from '../../hooks/useProjectParameters';
 import MantineIcon from '../common/MantineIcon';
+import MantineModal from '../common/MantineModal';
 import { SettingsCard } from '../common/Settings/SettingsCard';
 import { DEFAULT_PAGE_SIZE } from '../common/Table/constants';
 
@@ -44,18 +44,13 @@ const ConfigModal: FC<ConfigModalProps> = ({
     opened,
     onClose,
 }) => (
-    <Modal
+    <MantineModal
         opened={opened}
         onClose={onClose}
-        title={
-            <Group gap="xs">
-                <MantineIcon size="lg" icon={IconVariable} />
-                <Title order={4}>
-                    Parameter configuration: {parameterName}
-                </Title>
-            </Group>
-        }
+        title={`Parameter configuration: ${parameterName}`}
+        icon={IconVariable}
         size="lg"
+        cancelLabel={false}
     >
         <JsonInput
             value={JSON.stringify(config, null, 2)}
@@ -64,7 +59,7 @@ const ConfigModal: FC<ConfigModalProps> = ({
             readOnly
             autosize
         />
-    </Modal>
+    </MantineModal>
 );
 
 const ProjectParameters: FC<ProjectParametersProps> = ({ projectUuid }) => {

@@ -8,10 +8,7 @@ import {
     Button,
     Divider,
     Group,
-    Modal,
-    Stack,
     Text,
-    Title,
 } from '@mantine-8/core';
 import { IconBook, IconInfoCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
@@ -25,6 +22,7 @@ import Logo from '../svgs/grey-icon-logo.svg?react';
 import { PageName, PageType, SectionName } from '../types/Events';
 import MantineIcon from './common/MantineIcon';
 import MantineLinkButton from './common/MantineLinkButton';
+import MantineModal from './common/MantineModal';
 import {
     FOOTER_HEIGHT,
     FOOTER_MARGIN,
@@ -117,13 +115,28 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                 </Group>
             </Box>
 
-            <Modal
+            <MantineModal
                 opened={isOpen}
                 onClose={() => setIsOpen(false)}
-                title={
-                    <Group align="center" justify="flex-start" gap="xs">
-                        <IconInfoCircle size={17} color="gray" /> About
-                        Lightdash
+                title="About Lightdash"
+                icon={IconInfoCircle}
+                cancelLabel={false}
+                actions={
+                    <Group gap="sm">
+                        <MantineLinkButton
+                            href="https://docs.lightdash.com/"
+                            target="_blank"
+                            variant="default"
+                        >
+                            Docs
+                        </MantineLinkButton>
+                        <MantineLinkButton
+                            href="https://github.com/lightdash/lightdash"
+                            target="_blank"
+                            variant="default"
+                        >
+                            Github
+                        </MantineLinkButton>
                     </Group>
                 }
             >
@@ -131,56 +144,37 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                     name={PageName.ABOUT_LIGHTDASH}
                     type={PageType.MODAL}
                 >
-                    <Stack mx="xs">
-                        <Title order={5} fw={500}>
-                            <b>Version:</b>{' '}
-                            {healthState.data
-                                ? `v${healthState.data.version}`
-                                : 'n/a'}
-                        </Title>
-                        {showUpdateBadge && (
-                            <Alert
-                                title="New version available!"
-                                color="blue"
-                                icon={<IconInfoCircle size={17} />}
-                            >
-                                <Text c="blue">
-                                    The version v
-                                    {healthState.data?.latest.version} is now
-                                    available. Please follow the instructions in
-                                    the{' '}
-                                    <Anchor
-                                        href="https://docs.lightdash.com/self-host/update-lightdash"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        underline="always" // Required: link isn't differentiated from blue text without underline
-                                    >
-                                        How to update version
-                                    </Anchor>{' '}
-                                    documentation.
-                                </Text>
-                            </Alert>
-                        )}
-
-                        <Group justify="flex-end">
-                            <MantineLinkButton
-                                href="https://docs.lightdash.com/"
-                                target="_blank"
-                                variant="default"
-                            >
-                                Docs
-                            </MantineLinkButton>
-                            <MantineLinkButton
-                                href="https://github.com/lightdash/lightdash"
-                                target="_blank"
-                                variant="default"
-                            >
-                                Github
-                            </MantineLinkButton>
-                        </Group>
-                    </Stack>
+                    <Text fw={500}>
+                        <b>Version:</b>{' '}
+                        {healthState.data
+                            ? `v${healthState.data.version}`
+                            : 'n/a'}
+                    </Text>
+                    {showUpdateBadge && (
+                        <Alert
+                            title="New version available!"
+                            color="blue"
+                            icon={<IconInfoCircle size={17} />}
+                        >
+                            <Text c="blue">
+                                The version v
+                                {healthState.data?.latest.version} is now
+                                available. Please follow the instructions in
+                                the{' '}
+                                <Anchor
+                                    href="https://docs.lightdash.com/self-host/update-lightdash"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    underline="always"
+                                >
+                                    How to update version
+                                </Anchor>{' '}
+                                documentation.
+                            </Text>
+                        </Alert>
+                    )}
                 </TrackPage>
-            </Modal>
+            </MantineModal>
         </TrackSection>
     );
 };
