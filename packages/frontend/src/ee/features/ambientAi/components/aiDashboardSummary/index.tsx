@@ -1,9 +1,10 @@
 import { type DashboardSummary } from '@lightdash/common';
-import { Button, Modal, Tooltip } from '@mantine-8/core';
+import { Button, Tooltip } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import { IconWand } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import MantineModal from '../../../../../components/common/MantineModal';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import {
     useCreateDashboardSummary,
@@ -79,15 +80,15 @@ const AIDashboardSummary: FC<DashboardAIProps> = ({
 
     return (
         <>
-            <Modal
+            <MantineModal
                 opened={opened}
                 onClose={closeModal}
                 size="xl"
                 title={
-                    summary
-                        ? 'Dashboard Summary'
-                        : 'Generated Dashboard Summary'
+                    summary ? 'Dashboard Summary' : 'Generate Dashboard Summary'
                 }
+                icon={IconWand}
+                cancelLabel={false}
             >
                 {summary && !isRegenerating ? (
                     <SummaryPreview
@@ -103,7 +104,7 @@ const AIDashboardSummary: FC<DashboardAIProps> = ({
                         handleCancel={cancelContextInput}
                     />
                 )}
-            </Modal>
+            </MantineModal>
 
             <Tooltip
                 label={

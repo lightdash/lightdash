@@ -23,6 +23,7 @@ const ApiErrorDisplay = ({
         case 'SnowflakeTokenError':
             return (
                 <>
+                    {/* FIXME: Replace with MantineModal when we migrate fully to Mantine 8 */}
                     <Modal
                         opened={true}
                         onClose={() => onClose?.()}
