@@ -1,14 +1,14 @@
-import { Button, Group, Stack, Text } from '@mantine/core';
-import { useCallback, useEffect } from 'react';
+import { Text } from '@mantine-8/core';
+import { useEffect, type FormEvent } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useScheduler } from '../../../features/scheduler/hooks/useScheduler';
 import { useSchedulersDeleteMutation } from '../../../features/scheduler/hooks/useSchedulersDeleteMutation';
-import { SyncModalAction } from '../providers/types';
+import { SYNC_FORM_ID, SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
 
 export const SyncModalDelete = () => {
-    const { currentSchedulerUuid, setAction } = useSyncModal();
+    const { currentSchedulerUuid, setAction, setIsDeleting } = useSyncModal();
     const scheduler = useScheduler(currentSchedulerUuid ?? '');
     const {
         mutate: deleteScheduler,
@@ -16,16 +16,22 @@ export const SyncModalDelete = () => {
         isSuccess: isSchedulerDeleteSuccessful,
     } = useSchedulersDeleteMutation();
 
+    // Sync loading state to context for external footer rendering
+    useEffect(() => {
+        setIsDeleting(isLoading);
+    }, [isLoading, setIsDeleting]);
+
     useEffect(() => {
         if (isSchedulerDeleteSuccessful) {
             setAction(SyncModalAction.VIEW);
         }
     }, [isSchedulerDeleteSuccessful, setAction]);
 
-    const handleConfirm = useCallback(() => {
+    const handleSubmit = (e: FormEvent) => {
+        e.preventDefault();
         if (!currentSchedulerUuid) return;
         deleteScheduler(currentSchedulerUuid);
-    }, [deleteScheduler, currentSchedulerUuid]);
+    };
 
     if (scheduler.isInitialLoading) {
         return <SuboptimalState title="Loading sync" loading />;
@@ -36,30 +42,10 @@ export const SyncModalDelete = () => {
     }
 
     return (
-        <Stack spacing="lg">
+        <form id={SYNC_FORM_ID} onSubmit={handleSubmit}>
             <Text>
                 Are you sure you want to delete <b>"{scheduler.data?.name}"</b>?
             </Text>
-
-            <Group position="apart">
-                <Button
-                    variant="outline"
-                    color="dark"
-                    onClick={() => setAction(SyncModalAction.VIEW)}
-                >
-                    Cancel
-                </Button>
-
-                {scheduler.isSuccess && (
-                    <Button
-                        color="red"
-                        loading={isLoading}
-                        onClick={handleConfirm}
-                    >
-                        Delete
-                    </Button>
-                )}
-            </Group>
-        </Stack>
+        </form>
     );
 };

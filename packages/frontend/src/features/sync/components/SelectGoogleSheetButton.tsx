@@ -1,19 +1,25 @@
 import {
     Anchor,
-    Badge,
-    Button,
+    Box,
     CloseButton,
-    Flex,
+    Group,
+    Text,
     Tooltip,
-} from '@mantine/core';
-import { IconExternalLink } from '@tabler/icons-react';
+} from '@mantine-8/core';
+import {
+    IconExternalLink,
+    IconInfoCircle,
+    IconPlus,
+} from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
 import useDrivePicker from 'react-google-drive-picker';
 import { useFormContext } from 'react-hook-form';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';
+import classes from './SelectGoogleSheetButton.module.css';
 
 export const SelectGoogleSheetButton: FC = () => {
     const methods = useFormContext();
@@ -74,50 +80,65 @@ export const SelectGoogleSheetButton: FC = () => {
 
     if (googleDriveId) {
         return (
-            <Badge
-                py="md"
-                radius="sm"
-                leftSection={<MantineIcon icon={GSheetsIcon} />}
-                styles={{
-                    root: {
-                        color: 'black',
-                        textTransform: 'none',
-                        fontWeight: 450,
-                    },
-                    leftSection: {
-                        marginRight: 8,
-                    },
-                }}
-                size="md"
-                color="green.4"
-                rightSection={
-                    <Flex>
-                        <Anchor
-                            href={googleDriveUrl}
-                            target="_blank"
-                            m={1}
-                            mr={10}
-                        >
-                            <IconExternalLink size={20} />
-                        </Anchor>
-                        <CloseButton
-                            onClick={() => {
-                                methods.setValue('options.gdriveId', '');
-                                methods.setValue('options.gdriveName', '');
-                                methods.setValue('options.url', '');
-                                methods.setValue(
-                                    'options.gdriveOrganizationName',
-                                    '',
-                                );
-                            }}
-                        />
-                    </Flex>
-                }
+            <Box
+                className={`${classes.sheetSelector} ${classes.sheetSelectorFilled}`}
             >
-                {googleDriveName} ({googleDriveId})
-            </Badge>
+                <Group gap="sm" wrap="nowrap" justify="space-between" w="100%">
+                    <Group gap="xs" wrap="nowrap">
+                        <MantineIcon icon={GSheetsIcon} size={16} />
+                        <Text size="sm" fw={500}>
+                            {googleDriveName}
+                        </Text>
+                        <Tooltip
+                            withinPortal
+                            label={googleDriveId}
+                            multiline
+                            style={{ wordBreak: 'break-word' }}
+                        >
+                            <MantineIcon
+                                color="ldGray.6"
+                                icon={IconInfoCircle}
+                                size={'md'}
+                            />
+                        </Tooltip>
+                    </Group>
+                    <Group gap={6} wrap="nowrap">
+                        <Tooltip withinPortal label="Open in Google Sheets">
+                            <Anchor
+                                href={googleDriveUrl}
+                                target="_blank"
+                                display="flex"
+                                style={{ alignItems: 'center' }}
+                            >
+                                <MantineIcon
+                                    icon={IconExternalLink}
+                                    color="ldGray.8"
+                                    size={16}
+                                />
+                            </Anchor>
+                        </Tooltip>
+                        <Tooltip withinPortal label="Remove">
+                            <CloseButton
+                                size="sm"
+                                variant="subtle"
+                                c="ldGray.6"
+                                onClick={() => {
+                                    methods.setValue('options.gdriveId', '');
+                                    methods.setValue('options.gdriveName', '');
+                                    methods.setValue('options.url', '');
+                                    methods.setValue(
+                                        'options.gdriveOrganizationName',
+                                        '',
+                                    );
+                                }}
+                            />
+                        </Tooltip>
+                    </Group>
+                </Group>
+            </Box>
         );
     }
+
     return (
         <Tooltip
             withinPortal
@@ -125,14 +146,19 @@ export const SelectGoogleSheetButton: FC = () => {
             w={300}
             label="Please ensure you have a Google Sheet already created in your Drive to set as the destination for your results"
         >
-            <Button
-                size="xs"
-                onClick={() => {
-                    mutate();
-                }}
+            <PolymorphicGroupButton
+                component="button"
+                type="button"
+                onClick={() => mutate()}
+                className={`${classes.sheetSelector} ${classes.sheetSelectorEmpty}`}
+                gap="sm"
+                wrap="nowrap"
             >
-                Select Google Sheet via Google drive
-            </Button>
+                <MantineIcon icon={IconPlus} size="md" color="ldGray.5" />
+                <Text size="sm" c="dimmed">
+                    Select Google Sheet
+                </Text>
+            </PolymorphicGroupButton>
         </Tooltip>
     );
 };

@@ -1,0 +1,20 @@
+.sheetSelector {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: var(--mantine-radius-md);
+}
+
+.sheetSelectorEmpty {
+    border: 1px dashed var(--mantine-color-ldGray-4);
+    background-color: var(--mantine-color-ldGray-0);
+    transition: all 150ms ease;
+}
+
+.sheetSelectorEmpty:hover {
+    border-color: var(--mantine-color-ldGray-5);
+    background-color: var(--mantine-color-ldGray-1);
+}
+
+.sheetSelectorFilled {
+    background-color: var(--mantine-color-green-light);
+}
