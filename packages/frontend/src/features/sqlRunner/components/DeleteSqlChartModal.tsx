@@ -1,17 +1,12 @@
-import {
-    Button,
-    Group,
-    Modal,
-    Stack,
-    Text,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, Text } from '@mantine-8/core';
 import { IconChartBar } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 import { useDeleteSqlChartMutation } from '../hooks/useSavedSqlCharts';
 
-type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
+type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     projectUuid: string;
     savedSqlUuid: string;
     name: string;
@@ -38,47 +33,28 @@ export const DeleteSqlChartModal: FC<Props> = ({
     }, [isSuccess, onClose, onSuccess]);
 
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            keepMounted={false}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        icon={IconChartBar}
-                        size="lg"
-                        color="ldGray.7"
-                    />
-                    <Text fw={500}>Delete chart</Text>
-                </Group>
+            title="Delete chart"
+            icon={IconChartBar}
+            actions={
+                <Button
+                    loading={isLoading}
+                    color="red"
+                    onClick={() => mutate()}
+                >
+                    Delete
+                </Button>
             }
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
-            })}
         >
-            <Stack pt="sm">
-                <Text>
-                    Are you sure you want to delete the chart{' '}
-                    <Text span fw={600}>
-                        "{name}"
-                    </Text>
-                    ?
+            <Text>
+                Are you sure you want to delete the chart{' '}
+                <Text span fw={600}>
+                    "{name}"
                 </Text>
-
-                <Group position="right" mt="sm">
-                    <Button color="dark" variant="outline" onClick={onClose}>
-                        Cancel
-                    </Button>
-
-                    <Button
-                        loading={isLoading}
-                        color="red"
-                        onClick={() => mutate()}
-                    >
-                        Delete
-                    </Button>
-                </Group>
-            </Stack>
-        </Modal>
+                ?
+            </Text>
+        </MantineModal>
     );
 };
