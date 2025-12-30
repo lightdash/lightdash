@@ -1,13 +1,12 @@
 import { type ItemsMap } from '@lightdash/common';
-import { Group, Modal, Text } from '@mantine/core';
 import { IconBell, IconSend } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
-import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
 import SchedulerModalContent from './SchedulerModalContent';
 
 const SchedulersModal: FC<
-    Omit<React.ComponentProps<typeof SchedulerModalContent>, 'onClose'> & {
+    React.ComponentProps<typeof SchedulerModalContent> & {
         name: string;
         onClose?: () => void;
         isOpen?: boolean;
@@ -27,59 +26,37 @@ const SchedulersModal: FC<
     onClose = () => {},
 }) => {
     return (
-        <Modal
+        <MantineModal
             opened={isOpen}
             onClose={onClose}
             size="xl"
-            yOffset={65}
-            title={
-                isThresholdAlert ? (
-                    <Group spacing="xs">
-                        <MantineIcon
-                            icon={IconBell}
-                            size="lg"
-                            color="ldGray.7"
-                        />
-                        <Text fw={600}>Alerts</Text>
-                        <DocumentationHelpButton
-                            href="https://docs.lightdash.com/guides/how-to-create-alerts"
-                            pos="relative"
-                            top="2px"
-                        />
-                    </Group>
-                ) : (
-                    <Group spacing="xs">
-                        <MantineIcon
-                            icon={IconSend}
-                            size="lg"
-                            color="ldGray.7"
-                        />
-                        <Text fw={600}>Scheduled deliveries</Text>
-                        <DocumentationHelpButton
-                            href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries"
-                            pos="relative"
-                            top="2px"
-                        />
-                    </Group>
-                )
+            title={isThresholdAlert ? 'Alerts' : 'Scheduled deliveries'}
+            icon={isThresholdAlert ? IconBell : IconSend}
+            headerActions={
+                <DocumentationHelpButton
+                    href={
+                        isThresholdAlert
+                            ? 'https://docs.lightdash.com/guides/how-to-create-alerts'
+                            : 'https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries'
+                    }
+                    pos="relative"
+                    top="2px"
+                />
             }
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
-                body: { padding: 0 },
-            })}
+            cancelLabel={false}
+            modalBodyProps={{ px: 0, py: 0, bg: 'ldGray.0' }}
         >
             <SchedulerModalContent
                 resourceUuid={resourceUuid}
                 schedulersQuery={schedulersQuery}
                 createMutation={createMutation}
-                onClose={onClose}
                 isChart={isChart}
                 isThresholdAlert={isThresholdAlert}
                 itemsMap={itemsMap}
                 currentParameterValues={currentParameterValues}
                 availableParameters={availableParameters}
             />
-        </Modal>
+        </MantineModal>
     );
 };
 
