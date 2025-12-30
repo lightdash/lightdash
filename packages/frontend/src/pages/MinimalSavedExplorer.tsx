@@ -71,8 +71,9 @@ const MinimalExplorerContent = memo(() => {
             isLoadingQueryResults ||
             health.isInitialLoading ||
             !health.data
-        )
+        ) {
             return;
+        }
         setIsScreenshotReady(true);
         hasSignaledReady.current = true;
     }, [
@@ -112,7 +113,7 @@ const MinimalExplorerContent = memo(() => {
                 </Box>
             </MantineProvider>
 
-            {isScreenshotReady && (
+            {isScreenshotReady && !isLoadingQueryResults && (
                 <ScreenshotReadyIndicator
                     tilesTotal={1}
                     tilesReady={1}
