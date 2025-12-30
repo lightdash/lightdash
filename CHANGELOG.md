@@ -1,3 +1,10 @@
+## [0.2284.1](https://github.com/lightdash/lightdash/compare/0.2284.0...0.2284.1) (2025-12-30)
+
+
+### Bug Fixes
+
+* enable resizing of schedulers table columns ([#19146](https://github.com/lightdash/lightdash/issues/19146)) ([33a8f1e](https://github.com/lightdash/lightdash/commit/33a8f1e86917b00591a194634d7bf45dbb3517d9))
+
 # [0.2284.0](https://github.com/lightdash/lightdash/compare/0.2283.0...0.2284.0) (2025-12-29)
 
 
