@@ -96,7 +96,10 @@ const NavBar = memo(() => {
         <MantineProvider theme={darkTheme}>
             {isCurrentProjectPreview && <PreviewBanner />}
             {/* hack to make navbar fixed and maintain space */}
-            <Box h={!isFullscreen ? headerContainerHeight : 0} />
+            <Box
+                className="navbar-spacer"
+                h={!isFullscreen ? headerContainerHeight : 0}
+            />
             <Header
                 height={NAVBAR_HEIGHT}
                 fixed

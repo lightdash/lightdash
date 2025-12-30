@@ -1,4 +1,5 @@
 import '@mantine-8/core/styles.css';
+import './styles/navbar-hiding.css';
 
 // eslint-disable-next-line import/order
 import { scan } from 'react-scan'; // react-scan has to be imported before react
