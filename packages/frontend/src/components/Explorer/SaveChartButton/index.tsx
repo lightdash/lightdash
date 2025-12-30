@@ -156,7 +156,7 @@ const SaveChartButton: FC<{ isExplorer?: boolean; disabled?: boolean }> = ({
 
             {unsavedChartVersion && (
                 <ChartCreateModal
-                    isOpen={isQueryModalOpen}
+                    opened={isQueryModalOpen}
                     savedData={unsavedChartVersion}
                     onClose={() => {
                         setIsQueryModalOpen(false);
