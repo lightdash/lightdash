@@ -1,3 +1,10 @@
+# [0.2289.0](https://github.com/lightdash/lightdash/compare/0.2288.0...0.2289.0) (2025-12-30)
+
+
+### Features
+
+* reassign schedulers on user delete ([#19133](https://github.com/lightdash/lightdash/issues/19133)) ([ba22021](https://github.com/lightdash/lightdash/commit/ba22021b62f0d193e3b0b4ace8c291c72e4138b3))
+
 # [0.2288.0](https://github.com/lightdash/lightdash/compare/0.2287.1...0.2288.0) (2025-12-30)
 
 
