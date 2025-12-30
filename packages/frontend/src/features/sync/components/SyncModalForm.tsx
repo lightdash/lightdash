@@ -8,16 +8,14 @@ import {
 } from '@lightdash/common';
 import {
     Box,
-    Button,
     Group,
     Input,
-    Space,
     Stack,
     Switch,
     TextInput,
     Tooltip,
-} from '@mantine/core';
-import { IconCirclesRelation, IconInfoCircle } from '@tabler/icons-react';
+} from '@mantine-8/core';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { FormProvider, useForm, useFormState } from 'react-hook-form';
 import CronInput from '../../../components/ReactHookForm/CronInput';
@@ -31,12 +29,13 @@ import { useSchedulersUpdateMutation } from '../../../features/scheduler/hooks/u
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
-import { SyncModalAction } from '../providers/types';
+import { SYNC_FORM_ID, SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
 import { SelectGoogleSheetButton } from './SelectGoogleSheetButton';
 
 export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
-    const { action, setAction, currentSchedulerUuid } = useSyncModal();
+    const { action, setAction, currentSchedulerUuid, setFormConfig } =
+        useSyncModal();
 
     const isEditing = action === SyncModalAction.EDIT;
     const {
@@ -156,6 +155,20 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
 
     const timezoneValue = methods.watch('timezone');
 
+    // Sync form config to context for external footer rendering
+    useEffect(() => {
+        setFormConfig({
+            disabled: !hasSetGoogleSheet || !isValid,
+            loading: isLoading,
+            confirmText: isEditing ? 'Save changes' : 'Sync',
+        });
+    }, [hasSetGoogleSheet, isValid, isLoading, isEditing, setFormConfig]);
+
+    // Clear form config on unmount
+    useEffect(() => {
+        return () => setFormConfig(null);
+    }, [setFormConfig]);
+
     if (isEditing && isLoadingSchedulerData) {
         return <SuboptimalState title="Loading Sync" loading />;
     }
@@ -165,10 +178,13 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     }
     return (
         <FormProvider {...methods}>
-            <form onSubmit={methods.handleSubmit(handleSubmit)}>
-                <Stack>
+            <form
+                id={SYNC_FORM_ID}
+                onSubmit={methods.handleSubmit(handleSubmit)}
+            >
+                <Stack p="md">
                     <TextInput
-                        label="Name the Sync"
+                        label="Name"
                         required
                         {...methods.register('name')}
                     />
@@ -218,12 +234,12 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
 
                     <SelectGoogleSheetButton />
 
-                    <Group>
+                    <Group gap="two">
                         <Switch
                             label="Save in a new tab"
                             checked={saveInNewTab}
                             onChange={() => setSaveInNewTab(!saveInNewTab)}
-                        ></Switch>
+                        />
                         <Tooltip
                             label={`Type a tab name to save the sync in, instead of overriding the first existing tab in the Google sheet.
                                     This will create a new tab if it doesn't exist. We will still create a tab called metadata with the Sync information.`}
@@ -234,7 +250,7 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                         >
                             <MantineIcon
                                 icon={IconInfoCircle}
-                                color="ldGray.6"
+                                color="ldGray.7"
                             />
                         </Tooltip>
                     </Group>
@@ -258,30 +274,6 @@ export const SyncModalForm: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                             })}
                         />
                     )}
-                    <Space />
-
-                    <Group position="apart">
-                        <Button
-                            variant="outline"
-                            loading={isLoading}
-                            onClick={() => setAction(SyncModalAction.VIEW)}
-                        >
-                            Cancel
-                        </Button>
-
-                        <Button
-                            type="submit"
-                            disabled={!hasSetGoogleSheet || !isValid}
-                            loading={isLoading}
-                            leftIcon={
-                                !isEditing && (
-                                    <MantineIcon icon={IconCirclesRelation} />
-                                )
-                            }
-                        >
-                            {isEditing ? 'Save changes' : 'Sync'}
-                        </Button>
-                    </Group>
                 </Stack>
             </form>
         </FormProvider>
