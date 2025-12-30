@@ -109,6 +109,7 @@ export const Display: FC = memo(() => {
             setMinBubbleSize,
             setMaxBubbleSize,
             setSizeFieldId,
+            setHeatmapConfig,
             setTileBackground,
             setBackgroundColor,
         },
@@ -321,6 +322,68 @@ export const Display: FC = memo(() => {
                                 mb="md"
                             />
                         )}
+                    </Config.Section>
+                </Config>
+            )}
+
+            {isHeatmap && (
+                <Config>
+                    <Config.Section>
+                        <Config.Heading>Heatmap</Config.Heading>
+                        <Text size="xs" mt="sm">
+                            Radius
+                        </Text>
+                        <Slider
+                            min={1}
+                            max={50}
+                            step={1}
+                            value={validConfig.heatmapConfig?.radius ?? 25}
+                            onChange={(value) =>
+                                setHeatmapConfig({ radius: value })
+                            }
+                            marks={[
+                                { value: 1, label: '1' },
+                                { value: 25, label: '25' },
+                                { value: 50, label: '50' },
+                            ]}
+                            mb="md"
+                        />
+                        <Text size="xs" mt="sm">
+                            Blur
+                        </Text>
+                        <Slider
+                            min={0}
+                            max={30}
+                            step={1}
+                            value={validConfig.heatmapConfig?.blur ?? 15}
+                            onChange={(value) =>
+                                setHeatmapConfig({ blur: value })
+                            }
+                            marks={[
+                                { value: 0, label: '0' },
+                                { value: 15, label: '15' },
+                                { value: 30, label: '30' },
+                            ]}
+                            mb="md"
+                        />
+                        <Text size="xs" mt="sm">
+                            Opacity
+                        </Text>
+                        <Slider
+                            min={0.1}
+                            max={1}
+                            step={0.1}
+                            value={validConfig.heatmapConfig?.opacity ?? 0.6}
+                            onChange={(value) =>
+                                setHeatmapConfig({ opacity: value })
+                            }
+                            marks={[
+                                { value: 0.1, label: '0.1' },
+                                { value: 0.5, label: '0.5' },
+                                { value: 1, label: '1' },
+                            ]}
+                            mb="md"
+                        />
                     </Config.Section>
                 </Config>
             )}

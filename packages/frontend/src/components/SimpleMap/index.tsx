@@ -666,9 +666,9 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                 points={heatmapPoints}
                                 options={{
                                     gradient: heatmapGradient,
-                                    radius: 25,
-                                    blur: 15,
-                                    minOpacity: 0.6,
+                                    radius: mapConfig.heatmapConfig.radius,
+                                    blur: mapConfig.heatmapConfig.blur,
+                                    minOpacity: mapConfig.heatmapConfig.opacity,
                                 }}
                             />
                         ) : (
