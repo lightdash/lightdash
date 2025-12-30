@@ -12,3 +12,8 @@ the [Frontend Style Guide](STYLE_GUIDE.md). Key points:
 -   **Colors**: Prefer default component colors (auto-theme switching). For custom colors, use `ldGray.X` and `ldDark.X`, not standard `gray.X`
 -   **Prop changes** - `spacing` → `gap`, `noWrap` → `wrap="nowrap"`, `sx` → `style` (v6)
 -   **Component docs** - Props/APIs at `https://mantine.dev/core/[component-name]/` (e.g. select, segmented-control)
+
+## 🧩 Reusable Components
+
+-   **Modals**: Always use `MantineModal` from `components/common/MantineModal`. See `stories/Modal.stories.tsx` for examples.
+-   **Alerts**: Use `AlertMessage` from `components/common/modal/AlertMessage` with variants: `danger`, `warning`, `info`
