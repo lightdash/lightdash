@@ -374,7 +374,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         SchedulerJobStatus.COMPLETED,
                                         theme,
                                     )}
-                                    <Text fz="xs" c="gray.7">
+                                    <Text fz="xs" c="ldGray.7">
                                         Completed successfully
                                     </Text>
                                 </>
@@ -384,7 +384,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         SchedulerJobStatus.ERROR,
                                         theme,
                                     )}
-                                    <Text fz="xs" c="gray.7">
+                                    <Text fz="xs" c="ldGray.7">
                                         Failed
                                     </Text>
                                 </>
@@ -398,7 +398,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                             color: theme.colors.orange[6],
                                         }}
                                     />
-                                    <Text fz="xs" c="gray.7">
+                                    <Text fz="xs" c="ldGray.7">
                                         Partial failure
                                     </Text>
                                 </>
@@ -408,7 +408,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         SchedulerJobStatus.STARTED,
                                         theme,
                                     )}
-                                    <Text fz="xs" c="gray.7">
+                                    <Text fz="xs" c="ldGray.7">
                                         Running
                                     </Text>
                                 </>
@@ -418,7 +418,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         SchedulerJobStatus.SCHEDULED,
                                         theme,
                                     )}
-                                    <Text fz="xs" c="gray.7">
+                                    <Text fz="xs" c="ldGray.7">
                                         Scheduled
                                     </Text>
                                 </>
@@ -441,7 +441,7 @@ const LogsTable: FC<LogsTableProps> = ({
                 Cell: ({ row }) => {
                     const { run } = row.original;
                     return (
-                        <Text fz="xs" c="gray.6">
+                        <Text fz="xs" c="ldGray.6">
                             {formatTime(run.scheduledTime)}
                         </Text>
                     );
@@ -461,7 +461,7 @@ const LogsTable: FC<LogsTableProps> = ({
                 Cell: ({ row }) => {
                     const { run } = row.original;
                     return (
-                        <Text fz="xs" c="gray.6">
+                        <Text fz="xs" c="ldGray.6">
                             {formatTime(run.createdAt)}
                         </Text>
                     );
