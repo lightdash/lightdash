@@ -310,6 +310,7 @@ export type Series = {
     label?: {
         show?: boolean;
         position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
+        showOverlappingLabels?: boolean;
     };
     hidden?: boolean;
     areaStyle?: Record<string, unknown>;
