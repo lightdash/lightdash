@@ -9,15 +9,8 @@ import {
     getCompactOptionsForFormatType,
     type CustomFormat,
 } from '@lightdash/common';
-import {
-    Anchor,
-    Flex,
-    NumberInput,
-    Select,
-    Stack,
-    Text,
-    TextInput,
-} from '@mantine/core';
+import { Anchor, Flex, Select, Stack, Text, TextInput } from '@mantine-8/core';
+import { NumberInput } from '@mantine/core';
 import { type GetInputProps } from '@mantine/form/lib/types';
 import { useMemo, type FC } from 'react';
 import { type ValueOf } from 'type-fest';
@@ -103,7 +96,6 @@ export const FormatForm: FC<Props> = ({
         <Stack>
             <Flex>
                 <Select
-                    withinPortal
                     w={200}
                     label="Type"
                     data={formatTypeOptions.map((type) => ({
@@ -127,7 +119,7 @@ export const FormatForm: FC<Props> = ({
                 />
 
                 {formatType !== CustomFormatType.DEFAULT && (
-                    <Text ml="md" mt={30} w={200} color="ldGray.6">
+                    <Text ml="md" mt={30} w={200} c="ldGray.6">
                         {'Looks like: '}
                         {applyCustomFormat(
                             CustomFormatType.PERCENT === formatType
@@ -180,7 +172,6 @@ export const FormatForm: FC<Props> = ({
                 <Flex>
                     {formatType === CustomFormatType.CURRENCY && (
                         <Select
-                            withinPortal
                             mr="md"
                             w={200}
                             searchable
@@ -195,6 +186,7 @@ export const FormatForm: FC<Props> = ({
                         min={0}
                         w={200}
                         label="Round"
+                        radius="md"
                         placeholder="Number of decimal places"
                         {...{
                             ...formatInputProps('round'),
@@ -208,7 +200,6 @@ export const FormatForm: FC<Props> = ({
                         }}
                     />
                     <Select
-                        withinPortal
                         w={200}
                         ml="md"
                         label="Separator style"
@@ -225,7 +216,6 @@ export const FormatForm: FC<Props> = ({
             ].includes(formatType) && (
                 <Flex>
                     <Select
-                        withinPortal
                         mr="md"
                         w={200}
                         clearable
