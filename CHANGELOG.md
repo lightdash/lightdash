@@ -1,3 +1,10 @@
+## [0.2285.2](https://github.com/lightdash/lightdash/compare/0.2285.1...0.2285.2) (2025-12-30)
+
+
+### Bug Fixes
+
+* package specific cli update message ([#19162](https://github.com/lightdash/lightdash/issues/19162)) ([9b780a3](https://github.com/lightdash/lightdash/commit/9b780a327807a11afe805c2f71b41e98159e0d00))
+
 ## [0.2285.1](https://github.com/lightdash/lightdash/compare/0.2285.0...0.2285.1) (2025-12-30)
 
 
