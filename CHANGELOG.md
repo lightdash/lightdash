@@ -1,3 +1,10 @@
+## [0.2285.1](https://github.com/lightdash/lightdash/compare/0.2285.0...0.2285.1) (2025-12-30)
+
+
+### Bug Fixes
+
+* badge click to run history and enable resizing columns in log history table ([#19157](https://github.com/lightdash/lightdash/issues/19157)) ([e171dcd](https://github.com/lightdash/lightdash/commit/e171dcd5c09e7a012fe38cda7607aff01a0c810c))
+
 # [0.2285.0](https://github.com/lightdash/lightdash/compare/0.2284.1...0.2285.0) (2025-12-30)
 
 
