@@ -1,3 +1,10 @@
+# [0.2285.0](https://github.com/lightdash/lightdash/compare/0.2284.1...0.2285.0) (2025-12-30)
+
+
+### Features
+
+* show overlapping labels ([#19148](https://github.com/lightdash/lightdash/issues/19148)) ([6c019cb](https://github.com/lightdash/lightdash/commit/6c019cbfa9511f1a024a4a32b8c5e24f235c87c3))
+
 ## [0.2284.1](https://github.com/lightdash/lightdash/compare/0.2284.0...0.2284.1) (2025-12-30)
 
 
