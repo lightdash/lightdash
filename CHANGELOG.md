@@ -1,3 +1,10 @@
+## [0.2287.1](https://github.com/lightdash/lightdash/compare/0.2287.0...0.2287.1) (2025-12-30)
+
+
+### Bug Fixes
+
+* prevent screenshot ready indicator when query results are loading ([#19166](https://github.com/lightdash/lightdash/issues/19166)) ([1788402](https://github.com/lightdash/lightdash/commit/17884028c15dfc1e72534b72037f4b9b0ca84044))
+
 # [0.2287.0](https://github.com/lightdash/lightdash/compare/0.2286.0...0.2287.0) (2025-12-30)
 
 
