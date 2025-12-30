@@ -1,5 +1,7 @@
 import { MapChartType } from '@lightdash/common';
-import { IconMap } from '@tabler/icons-react';
+import { Box, Divider, Text, UnstyledButton } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
+import { IconCopy, IconMap } from '@tabler/icons-react';
 import { scaleSqrt } from 'd3-scale';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -13,24 +15,156 @@ import {
     type FC,
     type RefObject,
 } from 'react';
+import { renderToString } from 'react-dom/server';
 import {
     CircleMarker,
     GeoJSON,
     MapContainer,
     Popup,
     TileLayer,
+    Tooltip,
     useMap,
 } from 'react-leaflet';
 import * as topojson from 'topojson-client';
 import type { Topology } from 'topojson-specification';
-import useLeafletMapConfig from '../../hooks/leaflet/useLeafletMapConfig';
+import useLeafletMapConfig, {
+    type ScatterPoint,
+} from '../../hooks/leaflet/useLeafletMapConfig';
+import useToaster from '../../hooks/toaster/useToaster';
 import { isMapVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import LoadingChart from '../common/LoadingChart';
+import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import HeatmapLayer from './HeatmapLayer';
 import MapLegend from './MapLegend';
 // eslint-disable-next-line css-modules/no-unused-class
 import classes from './SimpleMap.module.css';
+
+// Shared tooltip content component
+type MapTooltipContentProps = {
+    label: string;
+    value: string | number;
+    lat?: number;
+    lon?: number;
+};
+
+const MapTooltipContent: FC<MapTooltipContentProps> = ({
+    label,
+    value,
+    lat,
+    lon,
+}) => (
+    <Box>
+        <Text size="sm">
+            <strong>{label}:</strong> {value}
+        </Text>
+        {lat !== undefined && lon !== undefined && (
+            <Text size="xs" c="dimmed" mt="sm">
+                Lat: {lat.toFixed(4)}, Lon: {lon.toFixed(4)}
+            </Text>
+        )}
+    </Box>
+);
+
+// Shared popup content component
+type MapPopupContentProps = {
+    label: string;
+    value: string | number;
+    lat?: number;
+    lon?: number;
+    onCopy?: () => void;
+};
+
+const MapPopupContent: FC<MapPopupContentProps> = ({
+    label,
+    value,
+    lat,
+    lon,
+    onCopy,
+}) => (
+    // Force light mode colors since Leaflet popups always have white background
+    <Box mt="xl" c="dark.7">
+        <Text size="sm">
+            <strong>{label}:</strong> {value}
+        </Text>
+        {lat !== undefined && lon !== undefined && (
+            <Text size="xs" c="gray.6" mt="sm" mb="md">
+                Lat: {lat.toFixed(4)}, Lon: {lon.toFixed(4)}
+            </Text>
+        )}
+        <Divider my="xs" c="gray.3" />
+        <UnstyledButton
+            onClick={onCopy}
+            data-copy-value={value}
+            className={classes.popupActionButton}
+        >
+            <MantineIcon icon={IconCopy} />
+            <Text size="sm">Copy value</Text>
+        </UnstyledButton>
+    </Box>
+);
+
+// MapMarker component for scatter points with tooltip/popup behavior
+type MapMarkerProps = {
+    point: ScatterPoint;
+    radius: number;
+    color: string;
+    valueFieldLabel: string;
+};
+
+const MapMarker: FC<MapMarkerProps> = ({
+    point,
+    radius,
+    color,
+    valueFieldLabel,
+}) => {
+    const [isPopupOpen, setIsPopupOpen] = useState(false);
+    const clipboard = useClipboard({ timeout: 200 });
+    const { showToastSuccess } = useToaster();
+
+    const handleCopy = useCallback(() => {
+        clipboard.copy(String(point.displayValue));
+        showToastSuccess({ title: 'Copied to clipboard!' });
+    }, [clipboard, point.displayValue, showToastSuccess]);
+
+    return (
+        <CircleMarker
+            center={[point.lat, point.lon]}
+            radius={radius}
+            pathOptions={{
+                fillColor: color,
+                color: '#fff',
+                fillOpacity: 0.7,
+                weight: 1,
+            }}
+            eventHandlers={{
+                popupopen: () => setIsPopupOpen(true),
+                popupclose: () => setIsPopupOpen(false),
+            }}
+        >
+            {!isPopupOpen && (
+                <Tooltip>
+                    <MapTooltipContent
+                        label={valueFieldLabel}
+                        value={point.displayValue}
+                        lat={point.lat}
+                        lon={point.lon}
+                    />
+                </Tooltip>
+            )}
+            <Popup>
+                <MapPopupContent
+                    label={valueFieldLabel}
+                    value={point.displayValue}
+                    lat={point.lat}
+                    lon={point.lon}
+                    onCopy={handleCopy}
+                />
+            </Popup>
+        </CircleMarker>
+    );
+};
 
 // Component to capture the Leaflet map instance and store it in the ref
 const MapRefUpdater: FC<{ mapRef: RefObject<L.Map | null> }> = ({ mapRef }) => {
@@ -92,16 +226,6 @@ const EmptyChart: FC<{ locationType?: MapChartType }> = ({ locationType }) => {
         </div>
     );
 };
-
-const LoadingChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="Loading chart"
-            loading
-            className="loading_chart"
-        />
-    </div>
-);
 
 type SimpleMapProps = {
     isInDashboard: boolean;
@@ -290,8 +414,8 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         const scatterValueRange = useMemo(() => {
             const values = scatterData
-            .map((d) => d.value)
-            .filter((v): v is number => v !== null);
+                .map((d) => d.value)
+                .filter((v): v is number => v !== null);
             return {
                 min: values.length > 0 ? Math.min(...values, 0) : 0,
                 max: values.length > 0 ? Math.max(...values, 1) : 1,
@@ -311,10 +435,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
             const { min, max } = scatterValueRange;
             return scatterData.map((point) => {
                 // Use 0.5 scale for non-numeric values
-            const scale =
-                point.value === null
-                    ? 0.5
-                    :max === min ? 0.5 : (point.value - min) / (max - min);
+                const scale =
+                    point.value === null
+                        ? 0.5
+                        : max === min
+                        ? 0.5
+                        : (point.value - min) / (max - min);
                 return [point.lat, point.lon, scale];
             });
         }, [scatterData, scatterValueRange]);
@@ -330,6 +456,27 @@ const SimpleMap: FC<SimpleMapProps> = memo(
         }, [mapConfig]);
 
         const isHeatmap = mapConfig?.locationType === MapChartType.HEATMAP;
+
+        // Shared copy handler for popup buttons
+        const clipboard = useClipboard({ timeout: 200 });
+        const { showToastSuccess } = useToaster();
+
+        const handlePopupCopyClick = useCallback(
+            (e: MouseEvent) => {
+                const target = e.target as HTMLElement;
+                const button = target.closest(
+                    '[data-copy-value]',
+                ) as HTMLElement | null;
+                if (button) {
+                    const value = button.dataset.copyValue;
+                    if (value) {
+                        clipboard.copy(value);
+                        showToastSuccess({ title: 'Copied to clipboard!' });
+                    }
+                }
+            },
+            [clipboard, showToastSuccess],
+        );
 
         // Memoize choropleth/area mode calculations
         const regionData = useMemo(
@@ -406,7 +553,25 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     'Unknown';
                 const value = regionDataMap.get(name.toLowerCase());
 
+                const valueLabel = mapConfig?.valueFieldLabel || 'Value';
+                const displayValue = value !== undefined ? value : 'No data';
+                // eslint-disable-next-line testing-library/render-result-naming-convention
+                const tooltipHtml = renderToString(
+                    <MapTooltipContent
+                        label={valueLabel}
+                        value={displayValue}
+                    />,
+                );
+                // eslint-disable-next-line testing-library/render-result-naming-convention
+                const popupHtml = renderToString(
+                    <MapPopupContent label={valueLabel} value={displayValue} />,
+                );
+
                 if (layer instanceof L.Path) {
+                    // Bind both tooltip (hover) and popup (click)
+                    layer.bindTooltip(tooltipHtml);
+                    layer.bindPopup(popupHtml);
+
                     layer.on({
                         mouseover: () => {
                             layer.setStyle({
@@ -420,20 +585,31 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                 fillOpacity: 0.7,
                             });
                         },
+                        popupopen: (e) => {
+                            // Hide tooltip when popup is open
+                            layer.closeTooltip();
+                            layer.unbindTooltip();
+                            // Add click handler for copy button
+                            const popupElement = e.popup.getElement();
+                            popupElement?.addEventListener(
+                                'click',
+                                handlePopupCopyClick,
+                            );
+                        },
+                        popupclose: (e) => {
+                            // Remove click handler to prevent memory leak
+                            const popupElement = e.popup.getElement();
+                            popupElement?.removeEventListener(
+                                'click',
+                                handlePopupCopyClick,
+                            );
+                            // Re-bind tooltip when popup is closed
+                            layer.bindTooltip(tooltipHtml);
+                        },
                     });
                 }
-
-                const valueLabel = mapConfig?.valueFieldLabel || 'Value';
-                const popupContent = `
-                <div>
-                    <strong>${name}</strong><br/>
-                    ${valueLabel}: ${value !== undefined ? value : 'No data'}
-                </div>
-            `;
-
-                (layer as L.Path).bindPopup(popupContent);
             },
-            [regionDataMap, mapConfig?.valueFieldLabel],
+            [regionDataMap, mapConfig?.valueFieldLabel, handlePopupCopyClick],
         );
 
         if (isLoading) {
@@ -465,12 +641,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         zoom={mapConfig.zoom}
                         style={{ height: '100%', width: '100%' }}
                         scrollWheelZoom
-                    minZoom={2}
-                    maxBounds={[
-                        [-90, -180],
-                        [90, 180],
-                    ]}
-                    maxBoundsViscosity={1.0}>
+                        minZoom={2}
+                        maxBounds={[
+                            [-90, -180],
+                            [90, 180],
+                        ]}
+                        maxBoundsViscosity={1.0}
+                    >
                         <MapRefUpdater mapRef={leafletMapRef} />
                         <MapExtentTracker
                             saveMapExtent={
@@ -497,51 +674,32 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         ) : (
                             sizeScale &&
                             scatterData.map((point, idx) => {
-                                const radius = sizeScale(point.sizeValue);// Use default color (middle of scale) for non-numeric values
-                                const color =point.value !== null
-                                    ? getColorForValue(
-                                    point.value,
-                                    scatterValueRange.min,
-                                    scatterValueRange.max,
-                                    mapConfig.colors.scale,
-                                )
-                                : mapConfig.colors.scale[
-                                          Math.floor(
-                                              mapConfig.colors.scale.length / 2,
+                                const radius = sizeScale(point.sizeValue); // Use default color (middle of scale) for non-numeric values
+                                const color =
+                                    point.value !== null
+                                        ? getColorForValue(
+                                              point.value,
+                                              scatterValueRange.min,
+                                              scatterValueRange.max,
+                                              mapConfig.colors.scale,
                                           )
-                                      ];return (
-                                    <CircleMarker
+                                        : mapConfig.colors.scale[
+                                              Math.floor(
+                                                  mapConfig.colors.scale
+                                                      .length / 2,
+                                              )
+                                          ];
+
+                                return (
+                                    <MapMarker
                                         key={idx}
-                                        center={[point.lat, point.lon]}
+                                        point={point}
                                         radius={radius}
-                                        pathOptions={{
-                                            fillColor: color,
-                                            fillOpacity: 0.7,
-                                            color: '#fff',
-                                            weight: 1,
-                                        }}
-                                    >
-                                        <Popup>
-                                            <div>
-                                                <strong>
-                                                    {mapConfig.valueFieldLabel ||
-                                                        'Value'}
-                                                    :
-                                                </strong>{' '}
-                                                {point.displayValue}
-                                                <br />
-                                                <span
-                                                    style={{
-                                                        fontSize: '0.85em',
-                                                        opacity: 0.7,
-                                                    }}
-                                                >
-                                                    Lat: {point.lat.toFixed(4)},
-                                                    Lon: {point.lon.toFixed(4)}
-                                                </span>
-                                            </div>
-                                        </Popup>
-                                    </CircleMarker>
+                                        color={color}
+                                        valueFieldLabel={
+                                            mapConfig.valueFieldLabel || 'Value'
+                                        }
+                                    />
                                 );
                             })
                         )}
@@ -578,12 +736,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         zoom={mapConfig.zoom}
                         style={{ height: '100%', width: '100%' }}
                         scrollWheelZoom
-                    minZoom={2}
-                    maxBounds={[
-                        [-90, -180],
-                        [90, 180],
-                    ]}
-                    maxBoundsViscosity={1.0}>
+                        minZoom={2}
+                        maxBounds={[
+                            [-90, -180],
+                            [90, 180],
+                        ]}
+                        maxBoundsViscosity={1.0}
+                    >
                         <MapRefUpdater mapRef={leafletMapRef} />
                         <MapExtentTracker
                             saveMapExtent={

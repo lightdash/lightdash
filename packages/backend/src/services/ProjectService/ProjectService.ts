@@ -551,11 +551,22 @@ export class ProjectService extends BaseService {
                     return true;
                 }
 
-                throw new ForbiddenError();
+                throw new ForbiddenError(
+                    `You don't have permission to create projects in this organization. Please contact your organization admin.`,
+                    {
+                        requiredPermission: 'create:project',
+                        projectType: ProjectType.DEFAULT,
+                        organizationUuid: user.organizationUuid,
+                    },
+                );
 
-            case ProjectType.PREVIEW:
+            case ProjectType.PREVIEW: {
+                let upstreamProject: Awaited<
+                    ReturnType<ProjectModel['get']>
+                > | null = null;
+
                 if (data.upstreamProjectUuid) {
-                    const upstreamProject = await this.projectModel.get(
+                    upstreamProject = await this.projectModel.get(
                         data.upstreamProjectUuid,
                     );
                     if (
@@ -569,7 +580,13 @@ export class ProjectService extends BaseService {
                         )
                     ) {
                         throw new ForbiddenError(
-                            'Cannot access upstream project',
+                            `You don't have permission to access the upstream project "${upstreamProject.name}". You need view access to create a preview from this project.`,
+                            {
+                                requiredPermission: 'view:project',
+                                upstreamProjectUuid:
+                                    upstreamProject.projectUuid,
+                                upstreamProjectName: upstreamProject.name,
+                            },
                         );
                     }
                     if (upstreamProject.type === ProjectType.PREVIEW) {
@@ -605,7 +622,20 @@ export class ProjectService extends BaseService {
                     return true;
                 }
 
-                throw new ForbiddenError();
+                const errorMessage = upstreamProject
+                    ? `You don't have permission to create preview projects from "${upstreamProject.name}". Contact your admin to request access.`
+                    : `You don't have permission to create preview projects in this organization. Contact your admin to request access.`;
+
+                throw new ForbiddenError(errorMessage, {
+                    requiredPermission: 'create:preview_project',
+                    projectType: ProjectType.PREVIEW,
+                    organizationUuid: user.organizationUuid,
+                    ...(upstreamProject && {
+                        upstreamProjectUuid: upstreamProject.projectUuid,
+                        upstreamProjectName: upstreamProject.name,
+                    }),
+                });
+            }
 
             default:
                 return assertUnreachable(
@@ -1445,6 +1475,8 @@ export class ProjectService extends BaseService {
                     {
                         error: contentCopyError,
                         stack: e instanceof Error ? e.stack : undefined,
+                        errorData:
+                            e instanceof LightdashError ? e.data : undefined,
                     },
                 );
             }
@@ -1472,6 +1504,12 @@ export class ProjectService extends BaseService {
                 Sentry.captureException(e);
                 this.logger.error(
                     `Unable to copy table configuration on preview ${e}`,
+                    {
+                        error: e instanceof Error ? e.message : String(e),
+                        stack: e instanceof Error ? e.stack : undefined,
+                        errorData:
+                            e instanceof LightdashError ? e.data : undefined,
+                    },
                 );
             }
         }
@@ -1684,11 +1722,7 @@ export class ProjectService extends BaseService {
             if (!(error instanceof LightdashError)) {
                 Sentry.captureException(error);
             }
-            this.logger.error(
-                `Error running background job:${
-                    error instanceof Error ? error.stack : error
-                }`,
-            );
+            this.logger.error(`Error running background job: ${error}`);
             throw error;
         }
     }

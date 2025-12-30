@@ -1,3 +1,38 @@
+# [0.2284.0](https://github.com/lightdash/lightdash/compare/0.2283.0...0.2284.0) (2025-12-29)
+
+
+### Features
+
+* add actions to map popovers ([#18957](https://github.com/lightdash/lightdash/issues/18957)) ([0fc21f9](https://github.com/lightdash/lightdash/commit/0fc21f93bc0eceb5904e96d7e4f85e98832ce86a))
+
+# [0.2283.0](https://github.com/lightdash/lightdash/compare/0.2282.5...0.2283.0) (2025-12-29)
+
+
+### Features
+
+* add max height and scroll to filter inputs ([#19128](https://github.com/lightdash/lightdash/issues/19128)) ([7faebac](https://github.com/lightdash/lightdash/commit/7faebac212878ff9503946ab543b2642f8359355))
+
+## [0.2282.5](https://github.com/lightdash/lightdash/compare/0.2282.4...0.2282.5) (2025-12-29)
+
+
+### Bug Fixes
+
+* show loading state when unpivoted data is needed but not ready ([#19116](https://github.com/lightdash/lightdash/issues/19116)) ([b8f7bd3](https://github.com/lightdash/lightdash/commit/b8f7bd38d6a0f2ba1dfe77cd393fdc0f7b91513b)), closes [#19117](https://github.com/lightdash/lightdash/issues/19117)
+
+## [0.2282.4](https://github.com/lightdash/lightdash/compare/0.2282.3...0.2282.4) (2025-12-29)
+
+
+### Bug Fixes
+
+* explicitly pass pivotConfiguration in getDownloadQueryUuid ([#19115](https://github.com/lightdash/lightdash/issues/19115)) ([c961c56](https://github.com/lightdash/lightdash/commit/c961c56b3321039d80ee3ab8e9487384d2e91685)), closes [#19117](https://github.com/lightdash/lightdash/issues/19117)
+
+## [0.2282.3](https://github.com/lightdash/lightdash/compare/0.2282.2...0.2282.3) (2025-12-29)
+
+
+### Bug Fixes
+
+* prevent tile positions from scaling incorrectly across breakpoints ([#19062](https://github.com/lightdash/lightdash/issues/19062)) ([0aa8c1a](https://github.com/lightdash/lightdash/commit/0aa8c1ab58f837ea3b75fd9126fadc50ad997f23))
+
 ## [0.2282.2](https://github.com/lightdash/lightdash/compare/0.2282.1...0.2282.2) (2025-12-26)
 
 

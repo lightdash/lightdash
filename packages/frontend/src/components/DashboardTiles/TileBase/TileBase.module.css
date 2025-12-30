@@ -5,11 +5,12 @@
 
 .tileCard {
     overflow: unset;
+    box-shadow: unset;
 
     border: 1px solid
         light-dark(
-            var(--mantine-color-ldGray-1),
-            lighten(var(--mantine-color-ldDark-1), 0.05)
+            var(--mantine-color-ldGray-2),
+            lighten(var(--mantine-color-ldDark-2), 0.05)
         ) !important;
 
     &[data-with-transparent-border='true'] {
@@ -24,11 +25,86 @@
         border-style: dashed !important;
         background: transparent !important;
     }
+
+    &[data-with-shadow='true'] {
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+    }
 }
 
 .dragHandleIcon {
     cursor: grab;
     &:active {
         cursor: grabbing;
+    }
+}
+
+.tileTitle {
+    font-weight: 600;
+    font-size: 16px;
+
+    color: var(--mantine-color-foreground-0);
+    text-decoration: none;
+
+    display: block;
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    &[data-hidden='true'] {
+        display: none;
+    }
+
+    &:hover,
+    &[data-hovered='true'] {
+        white-space: normal;
+        overflow: visible;
+        z-index: 10;
+        outline: 4px solid var(--mantine-color-background-0);
+        background-color: var(--mantine-color-background-0);
+        color: var(--mantine-color-foreground-0);
+
+        &:is(a) {
+            color: var(--mantine-color-foreground-0) !important;
+            text-decoration: underline;
+        }
+    }
+
+    &:is(a) {
+        &:not([href]) {
+            cursor: default;
+            text-decoration: none;
+
+            &:hover {
+                text-decoration: none;
+            }
+        }
+    }
+}
+
+.headerContainer {
+    border-radius: var(--mantine-radius-sm);
+
+    &[data-is-edit-mode='true'] {
+        &:hover {
+            cursor: grab;
+        }
+        &:active,
+        &:focus {
+            cursor: grabbing;
+        }
+    }
+
+    &[data-is-empty='true'] {
+        position: absolute;
+        right: 16px;
+    }
+}
+
+.chartContainer {
+    overflow: hidden;
+
+    &[data-full-width='true'] {
+        margin: 0 -16px -16px -16px;
     }
 }

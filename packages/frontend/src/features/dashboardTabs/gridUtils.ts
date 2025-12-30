@@ -10,7 +10,7 @@ export type ResponsiveGridLayoutProps = {
     rowHeight: number;
 };
 
-const DEFAULT_COLS = 36;
+export const DEFAULT_COLS = 36;
 /**
  * Row height: fontSize * lineHeight + padding + borders
  */
@@ -35,6 +35,31 @@ export const getReactGridLayoutConfig = (
         isDraggable: isEditMode,
         isResizable: isEditMode,
     };
+};
+
+/**
+ * Converts layout positions from the current breakpoint's coordinate system
+ * back to the base coordinate system (DEFAULT_COLS).
+ *
+ * This is needed when saving tile positions after drag/resize operations,
+ * because react-grid-layout returns positions in the current breakpoint's
+ * column count, but we store positions in the base 36-column system.
+ *
+ * @param layout - The layout array from react-grid-layout
+ * @param currentCols - The current breakpoint's column count
+ * @returns Layout array with positions converted to base coordinates
+ */
+export const convertLayoutToBaseCoordinates = (
+    layout: Layout[],
+    currentCols: number,
+): Layout[] => {
+    const scaleFactor = currentCols / DEFAULT_COLS;
+
+    return layout.map((item) => ({
+        ...item,
+        x: Math.round(item.x / scaleFactor),
+        w: Math.round(item.w / scaleFactor),
+    }));
 };
 
 export const getResponsiveGridLayoutProps = ({
