@@ -443,7 +443,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
             },
             {
                 accessorKey: 'lastRunStatus',
-                header: 'Last Run Status',
+                header: 'Last Run',
                 enableSorting: false,
                 size: 160,
                 Header: ({ column }) => (
@@ -492,7 +492,11 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             }
                         >
                             <Badge
+                                variant="light"
                                 size="sm"
+                                radius="sm"
+                                tt="capitalize"
+                                fw={400}
                                 color={statusConfig.color}
                                 leftSection={
                                     <MantineIcon
