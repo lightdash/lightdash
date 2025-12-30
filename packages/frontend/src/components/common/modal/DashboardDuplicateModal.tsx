@@ -1,20 +1,19 @@
 import { type Dashboard } from '@lightdash/common';
 import {
     Button,
-    Group,
-    Modal,
     Stack,
     TextInput,
     Textarea,
-    Title,
     type ModalProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
+import { IconCopy } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import {
     useDashboardQuery,
     useDuplicateDashboardMutation,
 } from '../../../hooks/dashboard/useDashboard';
+import MantineModal from '../MantineModal';
 
 interface DashboardDuplicateModalProps extends ModalProps {
     uuid: string;
@@ -24,9 +23,10 @@ interface DashboardDuplicateModalProps extends ModalProps {
 type FormState = Pick<Dashboard, 'name' | 'description'>;
 
 const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
+    opened,
+    onClose,
     uuid,
     onConfirm,
-    ...modalProps
 }) => {
     const { mutateAsync: duplicateDashboard, isLoading: isUpdating } =
         useDuplicateDashboardMutation({
@@ -68,12 +68,28 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
         isInitialLoading || !dashboard || !form.initialized || isUpdating;
 
     return (
-        <Modal
-            title={<Title order={4}>Duplicate Dashboard</Title>}
-            {...modalProps}
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title="Duplicate Dashboard"
+            icon={IconCopy}
+            actions={
+                <Button
+                    disabled={!form.isValid()}
+                    loading={isLoading}
+                    type="submit"
+                    form="duplicate-dashboard-form"
+                >
+                    Create duplicate
+                </Button>
+            }
         >
-            <form title="Duplicate Dashboard" onSubmit={handleConfirm}>
-                <Stack spacing="lg" pt="sm">
+            <form
+                id="duplicate-dashboard-form"
+                title="Duplicate Dashboard"
+                onSubmit={handleConfirm}
+            >
+                <Stack>
                     <TextInput
                         label="Enter a memorable name for your dashboard"
                         required
@@ -92,23 +108,9 @@ const DashboardDuplicateModal: FC<DashboardDuplicateModalProps> = ({
                         {...form.getInputProps('description')}
                         value={form.values.description ?? ''}
                     />
-
-                    <Group position="right" mt="sm">
-                        <Button variant="outline" onClick={modalProps.onClose}>
-                            Cancel
-                        </Button>
-
-                        <Button
-                            disabled={!form.isValid()}
-                            loading={isLoading}
-                            type="submit"
-                        >
-                            Create duplicate
-                        </Button>
-                    </Group>
                 </Stack>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };
 
