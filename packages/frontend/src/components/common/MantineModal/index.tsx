@@ -1,4 +1,5 @@
 import {
+    Box,
     Button,
     Flex,
     type FlexProps,
@@ -29,6 +30,13 @@ export type MantineModalProps = {
      */
     size?: ModalRootProps['size'];
     /**
+     * Enable fullscreen mode. The modal will take up nearly the entire viewport.
+     * Useful for data viewers, tables, or content that needs maximum space.
+     * When enabled, the body will fill available height without ScrollArea constraints.
+     * @default false
+     */
+    fullScreen?: boolean;
+    /**
      * Simple text description for the modal body.
      * Use this for simple confirmation dialogs instead of children.
      * Renders above children if both are provided.
@@ -48,6 +56,11 @@ export type MantineModalProps = {
      * Useful for secondary actions like "New Space" or "Add" buttons.
      */
     leftActions?: React.ReactNode;
+    /**
+     * Action buttons to display in the header (right side, before close button).
+     * Useful for fullscreen modals with export buttons, links, etc.
+     */
+    headerActions?: React.ReactNode;
     /**
      * Label for the cancel button. Set to `false` to hide the cancel button.
      * @default "Cancel"
@@ -77,10 +90,12 @@ const MantineModal: React.FC<MantineModalProps> = ({
     title,
     icon,
     size = 'lg',
+    fullScreen = false,
     description,
     children,
     actions,
     leftActions,
+    headerActions,
     cancelLabel = 'Cancel',
     cancelDisabled = false,
     onCancel,
@@ -89,23 +104,59 @@ const MantineModal: React.FC<MantineModalProps> = ({
     modalBodyProps,
     modalActionsProps,
 }) => {
+    const renderBody = () => {
+        if (fullScreen) {
+            // Fullscreen mode: no ScrollArea, body fills available space
+            return (
+                <Modal.Body p={0} className={classes.fullScreenBody}>
+                    <Box
+                        px={modalBodyProps?.px ?? 'xl'}
+                        py={modalBodyProps?.py ?? 'md'}
+                        h="100%"
+                    >
+                        {description && <Text fz="sm">{description}</Text>}
+                        {children}
+                    </Box>
+                </Modal.Body>
+            );
+        }
+
+        // Standard mode: ScrollArea with max height
+        return (
+            <Modal.Body p={0} className={classes.body}>
+                <ScrollArea.Autosize mah="calc(80vh - 140px)" offsetScrollbars>
+                    <Stack
+                        gap="md"
+                        px={modalBodyProps?.px ?? 'xl'}
+                        py={modalBodyProps?.py ?? 'md'}
+                    >
+                        {description && <Text fz="sm">{description}</Text>}
+                        {children}
+                    </Stack>
+                </ScrollArea.Autosize>
+            </Modal.Body>
+        );
+    };
+
     return (
         <Modal.Root
             opened={opened}
             onClose={onClose}
-            size={size}
+            size={fullScreen ? 'auto' : size}
             centered
             {...modalRootProps}
         >
             <Modal.Overlay />
-            <Modal.Content>
+            <Modal.Content
+                className={fullScreen ? classes.fullScreenContent : undefined}
+            >
                 <Modal.Header
                     className={classes.header}
                     px="xl"
                     py="md"
                     {...modalHeaderProps}
                 >
-                    <Group gap="sm">
+                    <Group gap="sm" flex={1}>
                         {icon ? (
                             <Paper p="6px" withBorder radius="md">
                                 <MantineIcon icon={icon} size="md" />
@@ -115,25 +166,17 @@ const MantineModal: React.FC<MantineModalProps> = ({
                             {title}
                         </Text>
                     </Group>
+                    {headerActions ? (
+                        <Group gap="sm" mr="md">
+                            {headerActions}
+                        </Group>
+                    ) : null}
                     <Modal.CloseButton />
                 </Modal.Header>
 
-                <Modal.Body p={0} className={classes.body}>
-                    <ScrollArea.Autosize
-                        mah="calc(80vh - 140px)"
-                        offsetScrollbars
-                    >
-                        <Stack
-                            gap="md"
-                            px={modalBodyProps?.px ?? 'xl'}
-                            py={modalBodyProps?.py ?? 'md'}
-                        >
-                            {description && <Text fz="sm">{description}</Text>}
-                            {children}
-                        </Stack>
-                    </ScrollArea.Autosize>
-                </Modal.Body>
-                {actions || leftActions ? (
+                {renderBody()}
+
+                {(actions || leftActions) && !fullScreen ? (
                     <Flex
                         className={classes.actions}
                         px="xl"
