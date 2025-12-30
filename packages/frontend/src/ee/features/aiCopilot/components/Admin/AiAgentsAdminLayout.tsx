@@ -4,7 +4,6 @@ import {
     Box,
     Button,
     Group,
-    Modal,
     SegmentedControl,
     Stack,
     Text,
@@ -26,6 +25,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useLocation, useNavigate } from 'react-router';
 import LinkButton from '../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import MantineModal from '../../../../../components/common/MantineModal';
 import { NAVBAR_HEIGHT } from '../../../../../components/common/Page/constants';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import useHealth from '../../../../../hooks/health/useHealth';
@@ -260,22 +260,15 @@ export const AiAgentsAdminLayout = () => {
                     </>
                 )}
             </PanelGroup>
-            <Modal
+            <MantineModal
                 opened={isAnalyticsEmbedOpen}
                 size="xl"
                 onClose={toggleAnalyticsEmbed}
-                title={<Text fw={700}>AI Agents Insights</Text>}
-                padding="0"
-                centered
-                styles={{
-                    header: {
-                        borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                        padding: theme.spacing.md,
-                    },
-                }}
+                title="AI Agents Insights"
+                icon={IconChartDots}
             >
                 <AnalyticsEmbedDashboard />
-            </Modal>
+            </MantineModal>
         </Stack>
     );
 };

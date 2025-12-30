@@ -1,19 +1,13 @@
 import { DbtProjectType, snakeCaseName } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Modal,
-    Stack,
-    Text,
-    TextInput,
-    Tooltip,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, Stack, TextInput, Tooltip } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconInfoCircle, IconTableAlias } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 import { useGitIntegration } from '../../../hooks/gitIntegration/useGitIntegration';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
@@ -26,7 +20,9 @@ const validationSchema = z.object({
 
 type FormValues = z.infer<typeof validationSchema>;
 
-type Props = ModalProps;
+type Props = Pick<MantineModalProps, 'opened' | 'onClose'>;
+
+const FORM_ID = 'create-virtual-view-form';
 
 export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     const health = useHealth();
@@ -79,74 +75,49 @@ export const CreateVirtualViewModal: FC<Props> = ({ opened, onClose }) => {
     );
 
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            keepMounted={false}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        icon={IconTableAlias}
-                        size="lg"
-                        color="ldGray.7"
-                    />
-                    <Text fw={500}>Create virtual view</Text>
-                    <Tooltip
-                        variant="xs"
-                        withinPortal
-                        multiline
-                        maw={300}
-                        label={`Create a virtual view so others can reuse this query in Lightdash. The query won’t be saved to or managed in your dbt project. ${
-                            canWriteToDbtProject
-                                ? 'If you’re expecting to reuse this query regularly, we suggest writing it back to dbt.'
-                                : ''
-                        } `}
-                    >
-                        <MantineIcon
-                            color="ldGray.7"
-                            icon={IconInfoCircle}
-                            size={16}
-                        />
-                    </Tooltip>
-                </Group>
+            title="Create virtual view"
+            icon={IconTableAlias}
+            size="md"
+            cancelDisabled={isLoadingVirtual}
+            headerActions={
+                <Tooltip
+                    variant="xs"
+                    withinPortal
+                    multiline
+                    maw={300}
+                    label={`Create a virtual view so others can reuse this query in Lightdash. The query won't be saved to or managed in your dbt project. ${
+                        canWriteToDbtProject
+                            ? "If you're expecting to reuse this query regularly, we suggest writing it back to dbt."
+                            : ''
+                    } `}
+                >
+                    <MantineIcon color="ldGray.7" icon={IconInfoCircle} />
+                </Tooltip>
             }
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
-                body: { padding: 0 },
-            })}
+            actions={
+                <Button
+                    type="submit"
+                    form={FORM_ID}
+                    disabled={!form.values.name || !sql}
+                    loading={isLoadingVirtual}
+                >
+                    Create
+                </Button>
+            }
         >
-            <form onSubmit={form.onSubmit(handleSubmit)}>
-                <Stack p="md">
+            <form id={FORM_ID} onSubmit={form.onSubmit(handleSubmit)}>
+                <Stack>
                     <TextInput
-                        radius="md"
                         label="Name"
                         required
                         {...form.getInputProps('name')}
                         error={!!error?.error}
                     />
                 </Stack>
-
-                <Group position="right" w="100%" p="md">
-                    <Button
-                        color="ldGray.7"
-                        onClick={onClose}
-                        variant="outline"
-                        disabled={isLoadingVirtual}
-                        size="xs"
-                    >
-                        Cancel
-                    </Button>
-
-                    <Button
-                        type="submit"
-                        disabled={!form.values.name || !sql}
-                        loading={isLoadingVirtual}
-                        size="xs"
-                    >
-                        Create
-                    </Button>
-                </Group>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };
