@@ -9,19 +9,17 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Box,
     Button,
     Group,
     Menu,
-    Modal,
     Text,
     Title,
     Tooltip,
-} from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+} from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import {
-    IconAlertTriangle,
+    IconAlertCircle,
     IconArrowBack,
     IconBell,
     IconCirclePlus,
@@ -84,6 +82,7 @@ import { SectionName } from '../../../types/Events';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
 import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 import PageHeader from '../../common/Page/PageHeader';
 import { UpdatedInfo } from '../../common/PageHeader/UpdatedInfo';
 import { ResourceInfoPopup } from '../../common/ResourceInfoPopup/ResourceInfoPopup';
@@ -313,43 +312,30 @@ const SavedChartsHeader: FC = () => {
     return (
         <TrackSection name={SectionName.EXPLORER_TOP_BUTTONS}>
             {blocker.state === 'blocked' && (
-                <Modal
+                <MantineModal
                     opened
-                    withCloseButton={false}
-                    closeOnClickOutside={false}
                     onClose={() => {
                         blocker.reset();
                     }}
-                >
-                    <Alert
-                        icon={
-                            <MantineIcon size="xl" icon={IconAlertTriangle} />
-                        }
-                        color="red"
-                    >
-                        You have unsaved changes to your chart! Are you sure you
-                        want to leave without saving?
-                    </Alert>
-                    <Group position="right" mt="sm">
-                        <Button
-                            color="dark"
-                            variant="outline"
-                            onClick={() => {
-                                blocker.reset();
-                            }}
-                        >
-                            Stay
-                        </Button>
+                    title="Unsaved changes"
+                    icon={IconAlertCircle}
+                    cancelLabel="Stay"
+                    actions={
                         <Button
                             color="red"
                             onClick={() => {
                                 blocker.proceed();
                             }}
                         >
-                            Leave page
+                            Leave
                         </Button>
-                    </Group>
-                </Modal>
+                    }
+                >
+                    <Text fw={500}>
+                        You have unsaved changes to your chart! Are you sure you
+                        want to leave without saving?
+                    </Text>
+                </MantineModal>
             )}
 
             <PageHeader
@@ -360,7 +346,7 @@ const SavedChartsHeader: FC = () => {
                 <div style={{ flex: 1 }}>
                     {savedChart && projectUuid && (
                         <>
-                            <Group spacing={4}>
+                            <Group gap={4}>
                                 <TitleBreadCrumbs
                                     projectUuid={projectUuid}
                                     spaceUuid={savedChart.spaceUuid}
@@ -372,8 +358,8 @@ const SavedChartsHeader: FC = () => {
                                     c="ldDark.9"
                                     order={5}
                                     fw={600}
-                                    truncate
                                     maw={500}
+                                    lineClamp={1}
                                 >
                                     {savedChart.name}
                                 </Title>
@@ -394,7 +380,7 @@ const SavedChartsHeader: FC = () => {
                                 onClose={() => setIsRenamingChart(false)}
                                 onConfirm={() => setIsRenamingChart(false)}
                             />
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <UpdatedInfo
                                     updatedAt={savedChart.updatedAt}
                                     user={savedChart.updatedByUser}
@@ -417,14 +403,14 @@ const SavedChartsHeader: FC = () => {
                 {userTimeZonesEnabled &&
                     savedChart?.metricQuery.timezone &&
                     !isEditMode && (
-                        <Text color="gray" mr="sm" fz="xs">
+                        <Text c="gray" mr="sm" fz="xs">
                             {savedChart?.metricQuery.timezone}
                         </Text>
                     )}
                 {(userCanManageChart ||
                     userCanCreateDeliveriesAndAlerts ||
                     userCanManageExplore) && (
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         {userCanManageExplore && !isEditMode && (
                             <ExploreFromHereButton />
                         )}
@@ -436,7 +422,7 @@ const SavedChartsHeader: FC = () => {
                                         <Button
                                             variant="default"
                                             size="xs"
-                                            leftIcon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconPencil}
                                                 />
@@ -503,7 +489,7 @@ const SavedChartsHeader: FC = () => {
                                 <Menu.Label>Manage</Menu.Label>
                                 {userCanManageChart && hasUnsavedChanges && (
                                     <Menu.Item
-                                        icon={
+                                        leftSection={
                                             <MantineIcon
                                                 icon={IconCirclePlus}
                                             />
@@ -517,7 +503,7 @@ const SavedChartsHeader: FC = () => {
                                     !hasUnsavedChanges &&
                                     !chartBelongsToDashboard && (
                                         <Menu.Item
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon icon={IconCopy} />
                                             }
                                             onClick={
@@ -530,7 +516,7 @@ const SavedChartsHeader: FC = () => {
                                 {userCanManageChart &&
                                     !chartBelongsToDashboard && (
                                         <Menu.Item
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconLayoutGridAdd}
                                                 />
@@ -545,7 +531,7 @@ const SavedChartsHeader: FC = () => {
                                 {userCanManageChart &&
                                     savedChart?.dashboardUuid && (
                                         <Menu.Item
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconFolders}
                                                 />
@@ -563,7 +549,7 @@ const SavedChartsHeader: FC = () => {
                                         <Menu.Item
                                             component="button"
                                             role="menuitem"
-                                            icon={
+                                            leftSection={
                                                 isPinned ? (
                                                     <MantineIcon
                                                         icon={IconPinnedOff}
@@ -585,7 +571,7 @@ const SavedChartsHeader: FC = () => {
                                 {userCanManageChart &&
                                     !chartBelongsToDashboard && (
                                         <Menu.Item
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconFolderSymlink}
                                                 />
@@ -600,7 +586,7 @@ const SavedChartsHeader: FC = () => {
 
                                 {userCanManageChart && (
                                     <Menu.Item
-                                        icon={
+                                        leftSection={
                                             <MantineIcon icon={IconHistory} />
                                         }
                                         onClick={() =>
@@ -625,7 +611,7 @@ const SavedChartsHeader: FC = () => {
                                         <div>
                                             <Menu.Item
                                                 disabled={promoteDisabled}
-                                                icon={
+                                                leftSection={
                                                     <MantineIcon
                                                         icon={
                                                             IconDatabaseExport
@@ -649,7 +635,9 @@ const SavedChartsHeader: FC = () => {
                                 <Menu.Label>Integrations</Menu.Label>
                                 {userCanCreateDeliveriesAndAlerts && (
                                     <Menu.Item
-                                        icon={<MantineIcon icon={IconSend} />}
+                                        leftSection={
+                                            <MantineIcon icon={IconSend} />
+                                        }
                                         onClick={
                                             scheduledDeliveriesModalHandlers.open
                                         }
@@ -659,7 +647,9 @@ const SavedChartsHeader: FC = () => {
                                 )}
                                 {userCanCreateDeliveriesAndAlerts && (
                                     <Menu.Item
-                                        icon={<MantineIcon icon={IconBell} />}
+                                        leftSection={
+                                            <MantineIcon icon={IconBell} />
+                                        }
                                         onClick={
                                             thresholdAlertsModalHandlers.open
                                         }
@@ -678,7 +668,7 @@ const SavedChartsHeader: FC = () => {
                                             })}
                                         >
                                             <Menu.Item
-                                                icon={
+                                                leftSection={
                                                     <MantineIcon
                                                         icon={
                                                             IconCirclesRelation
@@ -700,7 +690,7 @@ const SavedChartsHeader: FC = () => {
 
                                         <Box>
                                             <Menu.Item
-                                                icon={
+                                                leftSection={
                                                     <MantineIcon
                                                         icon={IconTrash}
                                                         color="red"
