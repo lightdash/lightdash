@@ -1,0 +1,26 @@
+.refreshItem {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-ldGray-6);
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-xs) 0;
+    cursor: pointer;
+    width: 100%;
+}
+
+.createItem {
+    cursor: pointer;
+    padding: var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+    transition: background-color 150ms ease;
+}
+
+.createItem:hover {
+    background-color: var(--mantine-color-blue-0);
+}
+
+/* Override the parent option element when it contains our create item */
+div[role='option']:has(.createItem)[data-combobox-selected],
+div[role='option']:has(.createItem):hover,
+div[role='option']:has(.createItem):focus {
+    background-color: var(--mantine-color-blue-0) !important;
+}

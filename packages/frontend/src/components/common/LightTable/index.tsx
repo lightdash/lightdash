@@ -1,4 +1,4 @@
-import { assertUnreachable } from '@lightdash/common';
+import { assertUnreachable, FeatureFlags } from '@lightdash/common';
 import {
     Box,
     Text,
@@ -26,6 +26,7 @@ import {
 } from 'react';
 import { useScroll } from 'react-use';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { SMALL_TEXT_LENGTH } from './constants';
 import {
     useTableCellStyles,
@@ -39,6 +40,7 @@ type BoxProps = Omit<BoxPropsBase, 'component' | 'children'>;
 
 type TableProps = PolymorphicComponentProps<'table', BoxProps> & {
     containerRef: React.RefObject<HTMLDivElement | null>;
+    isDashboard?: boolean;
 };
 type TableSectionProps = PolymorphicComponentProps<
     'thead' | 'tbody' | 'tfoot',
@@ -151,9 +153,22 @@ const TableProvider: FC<
 };
 
 const TableComponent = forwardRef<HTMLTableElement, TableProps>(
-    ({ children, component = 'table', containerRef, ...rest }, ref) => {
+    (
+        {
+            children,
+            component = 'table',
+            containerRef,
+            isDashboard = false,
+            ...rest
+        },
+        ref,
+    ) => {
         const { cx, classes } = useTableStyles();
         const theme = useMantineTheme();
+        const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+            FeatureFlags.DashboardRedesign,
+        );
+        const shouldRemoveBorders = isDashboard && isDashboardRedesignEnabled;
 
         const [isContainerInitialized, setIsContainerInitialized] =
             useState(false);
@@ -192,7 +207,11 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
                 sx={{
                     overflow: 'auto',
                     border: `1px solid ${theme.colors.ldGray[3]}`,
-                    borderRadius: '4px',
+                    borderRadius: shouldRemoveBorders ? '0' : '4px',
+                    ...(shouldRemoveBorders && {
+                        borderLeft: 'none',
+                        borderRight: 'none',
+                    }),
                 }}
             >
                 <Box

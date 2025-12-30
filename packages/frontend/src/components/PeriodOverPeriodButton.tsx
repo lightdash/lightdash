@@ -278,13 +278,13 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                             setOpened(!opened);
                         }}
                         variant={periodOverPeriod ? 'light' : 'subtle'}
-                        color={periodOverPeriod ? 'blue' : 'gray'}
+                        color={periodOverPeriod ? 'blue' : 'ldDark.9'}
                         rightIcon={<BetaBadge />}
                         styles={(theme) => ({
                             root: periodOverPeriod
                                 ? {}
                                 : {
-                                      border: `1px dashed ${theme.colors.gray[4]}`,
+                                      border: `1px dashed ${theme.colors.ldGray[4]}`,
                                   },
                         })}
                     >

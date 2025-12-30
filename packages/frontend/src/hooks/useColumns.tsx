@@ -1,4 +1,5 @@
 import {
+    convertFormattedValue,
     DimensionType,
     formatItemValue,
     getErrorMessage,
@@ -139,15 +140,31 @@ const formatBarDisplayCell = (
     // For pivot tables, try baseFieldId first so all pivoted versions share the same scale
     // Fall back to columnId for individual column scales
     const minMax = minMaxMap[baseFieldId] ?? minMaxMap[columnId];
-    const min = minMax?.min ?? 0;
-    const max = minMax?.max ?? 100;
+
+    // Don't render bars if minMaxMap is missing for this field
+    // Fallback values (0, 100) cause incorrect scaling for percentage values stored as decimals
+    if (!minMax) {
+        // Handle both ResultRow and RawResultRow formats
+        if (isResultValue(cellValue)) {
+            return formatCellContent(cellValue, item, parameters);
+        } else {
+            // For raw string values, return formatted value
+            return <span>{formatted}</span>;
+        }
+    }
+
+    // Convert value for percentage fields (multiply decimal by 100 to match min/max scale)
+    // This ensures percentage values stored as decimals (0.05) are properly scaled
+    // to match the min/max values calculated by convertFormattedValue (5, 15)
+    const convertedValue = convertFormattedValue(value, item);
+    const numericConvertedValue = typeof convertedValue === 'number' ? convertedValue : value;
 
     return (
         <TableCellBar
-            value={value}
+            value={numericConvertedValue}
             formatted={formatted}
-            min={min}
-            max={max}
+            min={minMax.min}
+            max={minMax.max}
             color={color}
         />
     );

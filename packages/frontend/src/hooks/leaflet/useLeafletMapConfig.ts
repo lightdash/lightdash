@@ -15,7 +15,8 @@ type Args = {
 export type ScatterPoint = {
     lat: number;
     lon: number;
-    value: number;
+    value: number | null;
+    displayValue: string | number;
     sizeValue: number;
     rowData: Record<string, any>;
 };
@@ -46,6 +47,11 @@ export type LeafletMapConfig = {
     minBubbleSize: number;
     maxBubbleSize: number;
     sizeRange: { min: number; max: number } | null;
+    heatmapConfig: {
+        radius: number;
+        blur: number;
+        opacity: number;
+    };
     tile: TileConfig;
     backgroundColor: string | null;
     showLegend: boolean;
@@ -173,6 +179,7 @@ const useLeafletMapConfig = ({
             minBubbleSize,
             maxBubbleSize,
             sizeFieldId,
+            heatmapConfig,
             tileBackground,
             backgroundColor,
             showLegend,
@@ -196,13 +203,24 @@ const useLeafletMapConfig = ({
 
                         const lat = Number(row[latitudeFieldId]?.value.raw);
                         const lon = Number(row[longitudeFieldId]?.value.raw);
-                        const value = valueFieldId
-                            ? Number(row[valueFieldId]?.value.raw)
+
+                        // Handle value field - support both numeric and non-numeric values
+                        const rawValue = valueFieldId
+                            ? row[valueFieldId]?.value.raw
                             : 1;
-                        // Use sizeFieldId if set, otherwise fall back to value
+                        const numericValue = Number(rawValue);
+                        const isNumeric = !isNaN(numericValue);
+                        const value = isNumeric ? numericValue : null;
+                        const displayValue = valueFieldId
+                            ? row[valueFieldId]?.value.formatted ??
+                              row[valueFieldId]?.value.raw ??
+                              rawValue
+                            : 1;
+
+                        // Use sizeFieldId if set, otherwise fall back to numeric value or 1
                         const sizeValue = sizeFieldId
                             ? Number(row[sizeFieldId]?.value.raw)
-                            : value;
+                            : value ?? 1;
 
                         if (isNaN(lat) || isNaN(lon)) return null;
 
@@ -210,6 +228,7 @@ const useLeafletMapConfig = ({
                             lat,
                             lon,
                             value,
+                            displayValue,
                             sizeValue: isNaN(sizeValue) ? 1 : sizeValue,
                             rowData: row as Record<string, any>,
                         };
@@ -253,11 +272,16 @@ const useLeafletMapConfig = ({
         let valueRange: { min: number; max: number } | null = null;
         let sizeRange: { min: number; max: number } | null = null;
         if (scatterData && scatterData.length > 0) {
-            const values = scatterData.map((d) => d.value);
-            valueRange = {
-                min: Math.min(...values, 0),
-                max: Math.max(...values, 1),
-            };
+            // Filter out non-numeric values for range calculation
+            const numericValues = scatterData
+                .map((d) => d.value)
+                .filter((v): v is number => v !== null);
+            if (numericValues.length > 0) {
+                valueRange = {
+                    min: Math.min(...numericValues, 0),
+                    max: Math.max(...numericValues, 1),
+                };
+            }
             // Calculate size range for bubble sizing
             const sizeValues = scatterData.map((d) => d.sizeValue);
             sizeRange = {
@@ -305,6 +329,11 @@ const useLeafletMapConfig = ({
             minBubbleSize: minBubbleSize ?? 2,
             maxBubbleSize: maxBubbleSize ?? 8,
             sizeRange,
+            heatmapConfig: {
+                radius: heatmapConfig?.radius ?? 25,
+                blur: heatmapConfig?.blur ?? 15,
+                opacity: heatmapConfig?.opacity ?? 0.6,
+            },
             tile: getTileConfig(tileBackground),
             backgroundColor: backgroundColor ?? null,
             showLegend: showLegend ?? false,

@@ -1,7 +1,7 @@
 import { Flex } from '@mantine/core';
 import { useCallback, useState, type FC } from 'react';
-import ActiveFilters from '../../../../../components/DashboardFilter/ActiveFilters';
 import FiltersProvider from '../../../../../components/common/Filters/FiltersProvider';
+import ActiveFilters from '../../../../../features/dashboardFilters/ActiveFilters';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 
 const EmbedDashboardFilters: FC = () => {

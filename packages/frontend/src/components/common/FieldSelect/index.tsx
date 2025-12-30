@@ -55,18 +55,13 @@ const ItemComponent = forwardRef<HTMLDivElement, ItemComponentProps>(
             openDelay={500}
         >
             <Box ref={ref} {...rest}>
-                <Group
-                    noWrap
-                    spacing={size}
-                    maw="100%"
-                    sx={{ overflow: 'hidden' }}
-                >
+                <Group noWrap spacing={size} maw="100%">
                     <FieldIcon
                         style={{ flexShrink: 0 }}
                         item={item}
                         selected={rest.selected}
                     />
-                    <Text truncate size={size}>
+                    <Text span size={size} style={{ wordBreak: 'normal' }}>
                         {label}
                     </Text>
                 </Group>

@@ -2,10 +2,13 @@ import Lightdash from '@lightdash/sdk';
 import '@lightdash/sdk/sdk.css';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FilterOperator, SavedChart } from '../../common/src';
+import { SavedChart } from '../../common/src';
 
 // NOTE: add an embed url here for persistence
 const EMBED_URL = '';
+
+const mono = `'SF Mono', 'Fira Code', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace`;
+const sans = `'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif`;
 
 interface EmbedUrlInputProps {
     draftUrl: string;
@@ -16,13 +19,60 @@ interface EmbedUrlInputProps {
     lightdashToken?: string;
 }
 
-const inputDisplayStyle = {
-    overflowX: 'auto' as const,
-    whiteSpace: 'nowrap' as const,
-    padding: '8px',
-    backgroundColor: '#f5f5f5',
-    borderRadius: '4px',
-    maxWidth: '100%',
+const inputStyle: React.CSSProperties = {
+    fontFamily: mono,
+    fontSize: '13px',
+    padding: '10px 12px',
+    border: '1px solid #e5e5e5',
+    borderRadius: '6px',
+    backgroundColor: '#fafafa',
+    color: '#171717',
+    outline: 'none',
+    transition: 'border-color 0.15s ease',
+};
+
+const buttonStyle: React.CSSProperties = {
+    fontFamily: sans,
+    fontSize: '13px',
+    fontWeight: 500,
+    padding: '10px 16px',
+    border: '1px solid #171717',
+    borderRadius: '6px',
+    backgroundColor: '#171717',
+    color: '#fff',
+    cursor: 'pointer',
+    transition: 'all 0.15s ease',
+};
+
+const buttonSecondaryStyle: React.CSSProperties = {
+    ...buttonStyle,
+    backgroundColor: '#fff',
+    color: '#171717',
+    border: '1px solid #e5e5e5',
+};
+
+const codeDisplayStyle: React.CSSProperties = {
+    fontFamily: mono,
+    fontSize: '12px',
+    overflowX: 'auto',
+    whiteSpace: 'nowrap',
+    padding: '12px',
+    backgroundColor: '#fafafa',
+    border: '1px solid #e5e5e5',
+    borderRadius: '6px',
+    color: '#525252',
+    margin: 0,
+};
+
+const labelStyle: React.CSSProperties = {
+    fontFamily: sans,
+    fontSize: '12px',
+    fontWeight: 500,
+    color: '#525252',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+    marginBottom: '8px',
+    display: 'block',
 };
 
 const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
@@ -36,73 +86,119 @@ const EmbedUrlInput: React.FC<EmbedUrlInputProps> = ({
     const { t } = useTranslation();
 
     return (
-        <div>
-            <h4>Embed URL:</h4>
-            <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                    type="text"
-                    value={draftUrl}
-                    onChange={(e) => onDraftUrlChange(e.target.value)}
-                    style={{ flexGrow: 1 }}
-                />
-                <button onClick={onSubmit}>
-                    {t('app.setUrlButton', 'Set Embed URL')}
-                </button>
-                <button onClick={onClear}>
-                    {t('app.clearButton', 'Clear')}
-                </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div>
+                <label style={labelStyle}>Embed URL</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                        type="text"
+                        value={draftUrl}
+                        onChange={(e) => onDraftUrlChange(e.target.value)}
+                        style={{ ...inputStyle, flexGrow: 1 }}
+                    />
+                    <button style={buttonStyle} onClick={onSubmit}>
+                        {t('app.setUrlButton', 'Set URL')}
+                    </button>
+                    <button style={buttonSecondaryStyle} onClick={onClear}>
+                        {t('app.clearButton', 'Clear')}
+                    </button>
+                </div>
             </div>
-            <h4>Current lightdash URL:</h4>
-            <p style={inputDisplayStyle}>{lightdashUrl}</p>
-            <h4>Current lightdash token:</h4>
-            <p style={inputDisplayStyle}>{lightdashToken}</p>
+            <div
+                style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '16px',
+                }}
+            >
+                <div>
+                    <label style={labelStyle}>Instance URL</label>
+                    <p style={codeDisplayStyle}>{lightdashUrl || '—'}</p>
+                </div>
+                <div>
+                    <label style={labelStyle}>Token</label>
+                    <p style={codeDisplayStyle}>
+                        {lightdashToken
+                            ? `${lightdashToken.slice(0, 32)}...`
+                            : '—'}
+                    </p>
+                </div>
+            </div>
         </div>
     );
 };
 
-const containerStyle = {
-    fontFamily: 'Arial, Helvetica, sans-serif',
-    background: 'linear-gradient(135deg, #f0f2f5 0%, #e9eff5 100%)',
+const containerStyle: React.CSSProperties = {
+    fontFamily: sans,
+    backgroundColor: '#fff',
     minHeight: '100vh',
     display: 'flex',
     justifyContent: 'center',
-    padding: '20px',
+    padding: '40px 20px',
 };
 
-const contentStyle = {
-    backgroundColor: '#ffffff',
-    padding: '40px',
-    borderRadius: '8px',
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-    maxWidth: '1400px',
+const contentStyle: React.CSSProperties = {
+    maxWidth: '1200px',
     width: '100%',
 };
 
-// Dashboard Chart container style
-const chartContainerStyle = {
+const chartContainerStyle: React.CSSProperties = {
     width: '100%',
     height: '500px',
-    border: '2px dashed #ccc',
+    border: '1px solid #e5e5e5',
+    borderRadius: '8px',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'aliceblue',
+    backgroundColor: '#fafafa',
+    overflow: 'hidden',
 };
 
-const singleChartContainerStyle = {
-    width: '50%',
+const singleChartContainerStyle: React.CSSProperties = {
+    width: '60%',
     height: '500px',
-    border: '2px dashed #ccc',
+    border: '1px solid #e5e5e5',
+    borderRadius: '8px',
+    backgroundColor: '#fafafa',
+    overflow: 'hidden',
 };
 
-// Info box style with bluish text and a light blue background
-const infoBoxStyle = {
-    backgroundColor: '#e7f3fe', // light blue background
-    borderLeft: '4px solid #2196F3', // blue accent border
-    padding: '15px',
-    margin: '20px auto',
-    color: '#0b75c9', // bluish text
-    borderRadius: '4px',
+const infoBoxStyle: React.CSSProperties = {
+    fontFamily: mono,
+    fontSize: '13px',
+    backgroundColor: '#fafafa',
+    border: '1px solid #e5e5e5',
+    padding: '16px',
+    margin: '24px 0',
+    color: '#525252',
+    borderRadius: '6px',
+};
+
+const sectionTitleStyle: React.CSSProperties = {
+    fontFamily: sans,
+    fontSize: '14px',
+    fontWeight: 600,
+    color: '#171717',
+    margin: '48px 0 8px 0',
+    letterSpacing: '-0.01em',
+};
+
+const sectionDescStyle: React.CSSProperties = {
+    fontFamily: sans,
+    fontSize: '14px',
+    lineHeight: 1.6,
+    color: '#737373',
+    margin: '0 0 20px 0',
+};
+
+const langButtonStyle: React.CSSProperties = {
+    fontSize: '14px',
+    padding: '6px 10px',
+    border: '1px solid #e5e5e5',
+    borderRadius: '6px',
+    backgroundColor: '#fff',
+    cursor: 'pointer',
+    transition: 'border-color 0.15s ease',
 };
 
 function App() {
@@ -139,96 +235,144 @@ function App() {
     return (
         <div style={containerStyle}>
             <div style={contentStyle}>
-                <header>
+                <header
+                    style={{
+                        borderBottom: '1px solid #e5e5e5',
+                        paddingBottom: '24px',
+                    }}
+                >
                     <div
                         style={{
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
+                            marginBottom: '20px',
                         }}
                     >
-                        <h1 style={{ color: '#333', margin: '0 0 10px' }}>
-                            Lightdash SDK
-                        </h1>
                         <div
                             style={{
-                                justifyContent: 'flex-end',
                                 display: 'flex',
-                                gap: '8px',
+                                alignItems: 'center',
+                                gap: '12px',
                             }}
                         >
-                            <button onClick={() => i18n.changeLanguage('en')}>
-                                🇬🇧
+                            <h1
+                                style={{
+                                    fontFamily: mono,
+                                    fontSize: '16px',
+                                    fontWeight: 500,
+                                    color: '#171717',
+                                    margin: 0,
+                                    letterSpacing: '-0.02em',
+                                }}
+                            >
+                                lightdash/sdk
+                            </h1>
+                            <span
+                                style={{
+                                    fontFamily: mono,
+                                    fontSize: '11px',
+                                    padding: '3px 8px',
+                                    backgroundColor: '#fafafa',
+                                    border: '1px solid #e5e5e5',
+                                    borderRadius: '4px',
+                                    color: '#737373',
+                                }}
+                            >
+                                test-app
+                            </span>
+                        </div>
+                        <div
+                            style={{
+                                display: 'flex',
+                                gap: '6px',
+                                alignItems: 'center',
+                            }}
+                        >
+                            <button
+                                style={langButtonStyle}
+                                onClick={() => i18n.changeLanguage('en')}
+                            >
+                                🇬🇧 EN
                             </button>
-                            <button onClick={() => i18n.changeLanguage('ka')}>
-                                🇬🇪
+                            <button
+                                style={langButtonStyle}
+                                onClick={() => i18n.changeLanguage('ka')}
+                            >
+                                🇬🇪 KA
                             </button>
-                            <button onClick={() => i18n.changeLanguage('es')}>
-                                🇪🇸
+                            <button
+                                style={langButtonStyle}
+                                onClick={() => i18n.changeLanguage('es')}
+                            >
+                                🇪🇸 ES
+                            </button>
+                            <div
+                                style={{
+                                    width: '1px',
+                                    height: '20px',
+                                    backgroundColor: '#e5e5e5',
+                                    margin: '0 8px',
+                                }}
+                            />
+                            <button
+                                style={buttonSecondaryStyle}
+                                onClick={() => setInputsOpen(!inputsOpen)}
+                            >
+                                {inputsOpen ? 'Hide Config' : 'Config'}
                             </button>
                         </div>
-                        <button
-                            onClick={() => setInputsOpen(!inputsOpen)}
-                            color="gray"
-                        >
-                            {inputsOpen ? 'Hide embed URL' : 'Show embed URL'}
-                        </button>
                     </div>
 
-                    <div
-                        style={{
-                            width: '100%',
-                            display: inputsOpen ? 'block' : 'none',
-                        }}
-                    >
-                        <EmbedUrlInput
-                            draftUrl={draftUrl}
-                            onDraftUrlChange={setDraftUrl}
-                            onSubmit={() => {
-                                setEmbedUrl(draftUrl);
-                                setInputsOpen(false);
-                                localStorage.setItem('embedUrl', draftUrl);
+                    {inputsOpen && (
+                        <div
+                            style={{
+                                marginTop: '20px',
+                                paddingTop: '20px',
+                                borderTop: '1px solid #e5e5e5',
                             }}
-                            onClear={() => {
-                                setDraftUrl('');
-                                setEmbedUrl('');
-                                localStorage.removeItem('embedUrl');
-                            }}
-                            lightdashUrl={lightdashUrl}
-                            lightdashToken={lightdashToken}
-                        />
-                    </div>
+                        >
+                            <EmbedUrlInput
+                                draftUrl={draftUrl}
+                                onDraftUrlChange={setDraftUrl}
+                                onSubmit={() => {
+                                    setEmbedUrl(draftUrl);
+                                    setInputsOpen(false);
+                                    localStorage.setItem('embedUrl', draftUrl);
+                                }}
+                                onClear={() => {
+                                    setDraftUrl('');
+                                    setEmbedUrl('');
+                                    localStorage.removeItem('embedUrl');
+                                }}
+                                lightdashUrl={lightdashUrl}
+                                lightdashToken={lightdashToken}
+                            />
+                        </div>
+                    )}
                 </header>
 
                 {lightdashUrl && lightdashToken ? (
                     <main>
-                        <h2
-                            style={{
-                                color: '#555',
-                                margin: '30px 0 10px 0',
-                            }}
-                        >
+                        <h2 style={sectionTitleStyle}>
                             {t('Dashboard component')}
                         </h2>
-                        <p
-                            style={{
-                                fontSize: '1.1em',
-                                lineHeight: '1.6',
-                                color: '#666',
-                            }}
-                        >
+                        <p style={sectionDescStyle}>
                             {t(
                                 'app.intro',
-                                'This is a demo page that includes a Lightdash dashboard component. The data is fetched from the Lightdash server, but this app is running locally.',
+                                'Embedded Lightdash dashboard component. Data fetched from your Lightdash instance.',
                             )}
                         </p>
 
                         {savedChart && (
                             <button
-                                style={{ marginBottom: 10 }}
+                                style={{
+                                    ...buttonSecondaryStyle,
+                                    marginBottom: '16px',
+                                }}
                                 onClick={() => setSavedChart(null)}
                             >
-                                Go back to dashboard
+                                ← Back to dashboard
                             </button>
                         )}
 
@@ -247,64 +391,41 @@ function App() {
                                     token={lightdashToken}
                                     styles={{
                                         backgroundColor: 'transparent',
-                                        fontFamily: 'Comic Sans MS',
                                     }}
                                     contentOverrides={i18n.getResourceBundle(
                                         i18n.language,
-                                        // Namespace is the name of the file in the locales folder
-                                        // (or the file in Locize)
                                         'translation',
                                     )}
                                     onExplore={handleExploreClick}
-                                    // This replaces the embedded dashboard filters
-                                    // filters={[{
-                                    //     model: 'orders',
-                                    //     field: 'is_completed',
-                                    //     operator: FilterOperator.EQUALS,
-                                    //     value: [true],
-                                    // },]}
                                 />
                             )}
                         </div>
 
-                        {/* Info box with bluish text */}
                         <div style={infoBoxStyle}>
-                            {t(
-                                'Additional Information: This chart is powered by Lightdash SDK.',
-                            )}
+                            <code style={{ fontFamily: mono }}>
+                                {t('ℹ Powered by Lightdash SDK')}
+                            </code>
                         </div>
 
-                        <h2
-                            style={{
-                                color: '#555',
-                                margin: '30px 0 10px 0',
-                            }}
-                        >
+                        <h2 style={sectionTitleStyle}>
                             {t('Chart component')}
                         </h2>
-                        <p
-                            style={{
-                                fontSize: '1.1em',
-                                lineHeight: '1.6',
-                                color: '#666',
-                            }}
-                        >
-                            {t(
-                                'This section demonstrates the Chart component. Enter a chart UUID or slug to display just the visualization.',
-                            )}
+                        <p style={sectionDescStyle}>
+                            {t('Render a single chart by UUID or slug.')}
                         </p>
 
-                        <div style={{ marginBottom: '10px' }}>
-                            <h4>Chart UUID or Slug:</h4>
+                        <div style={{ marginBottom: '16px' }}>
+                            <label style={labelStyle}>Chart UUID or Slug</label>
                             <div style={{ display: 'flex', gap: '8px' }}>
                                 <input
                                     type="text"
                                     defaultValue={chartUuidOrSlug}
                                     ref={chartIdRef}
-                                    placeholder="Enter chart UUID or slug"
-                                    style={{ flexGrow: 1 }}
+                                    placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
+                                    style={{ ...inputStyle, flexGrow: 1 }}
                                 />
                                 <button
+                                    style={buttonStyle}
                                     onClick={() => {
                                         const { value } = chartIdRef.current;
                                         setChartUuidOrSlug(value);
@@ -314,9 +435,10 @@ function App() {
                                         );
                                     }}
                                 >
-                                    {t('Load Chart')}
+                                    {t('Load')}
                                 </button>
                                 <button
+                                    style={buttonSecondaryStyle}
                                     onClick={() => {
                                         setChartUuidOrSlug('');
                                         localStorage.removeItem(
@@ -336,27 +458,63 @@ function App() {
                                     token={lightdashToken}
                                     styles={{
                                         backgroundColor: 'transparent',
-                                        fontFamily: 'Arial, sans-serif',
                                     }}
                                     id={chartUuidOrSlug}
                                 />
                             ) : (
-                                <p style={{ color: '#999' }}>
-                                    {t('Enter a chart UUID or slug to display')}
-                                </p>
+                                <div
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        height: '100%',
+                                        color: '#a3a3a3',
+                                        fontFamily: mono,
+                                        fontSize: '13px',
+                                    }}
+                                >
+                                    {t('Enter a chart ID above')}
+                                </div>
                             )}
                         </div>
                     </main>
-                ) : null}
+                ) : (
+                    <div
+                        style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '80px 20px',
+                            color: '#737373',
+                        }}
+                    >
+                        <div
+                            style={{
+                                fontFamily: mono,
+                                fontSize: '13px',
+                                padding: '16px 24px',
+                                backgroundColor: '#fafafa',
+                                border: '1px solid #e5e5e5',
+                                borderRadius: '6px',
+                            }}
+                        >
+                            Click <strong>Config</strong> to add your embed URL
+                        </div>
+                    </div>
+                )}
 
                 <footer
                     style={{
-                        fontSize: '0.9em',
-                        color: '#999',
-                        margin: '20px 0 0',
+                        fontFamily: mono,
+                        fontSize: '12px',
+                        color: '#a3a3a3',
+                        marginTop: '48px',
+                        paddingTop: '24px',
+                        borderTop: '1px solid #e5e5e5',
                     }}
                 >
-                    &copy; 2025 Lightdash
+                    © 2025 Lightdash
                 </footer>
             </div>
         </div>

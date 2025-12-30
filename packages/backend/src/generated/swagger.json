@@ -1569,7 +1569,13 @@
                 "type": "object"
             },
             "DashboardTileTypes": {
-                "enum": ["saved_chart", "sql_chart", "markdown", "loom"],
+                "enum": [
+                    "saved_chart",
+                    "sql_chart",
+                    "markdown",
+                    "loom",
+                    "heading"
+                ],
                 "type": "string"
             },
             "Required_CreateDashboardTileBase_": {
@@ -1691,6 +1697,9 @@
                 "properties": {
                     "properties": {
                         "properties": {
+                            "hideFrame": {
+                                "type": "boolean"
+                            },
                             "content": {
                                 "type": "string"
                             },
@@ -1801,6 +1810,42 @@
                     }
                 ]
             },
+            "DashboardTileTypes.HEADING": {
+                "enum": ["heading"],
+                "type": "string"
+            },
+            "DashboardHeadingTileProperties": {
+                "properties": {
+                    "properties": {
+                        "properties": {
+                            "showDivider": {
+                                "type": "boolean"
+                            },
+                            "text": {
+                                "type": "string"
+                            },
+                            "title": {}
+                        },
+                        "required": ["text"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.HEADING"
+                    }
+                },
+                "required": ["properties", "type"],
+                "type": "object"
+            },
+            "DashboardHeadingTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/DashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardHeadingTileProperties"
+                    }
+                ]
+            },
             "DashboardTile": {
                 "anyOf": [
                     {
@@ -1814,6 +1859,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardSqlChartTile"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardHeadingTile"
                     }
                 ]
             },
@@ -3925,6 +3973,9 @@
                     },
                     "label": {
                         "properties": {
+                            "showOverlappingLabels": {
+                                "type": "boolean"
+                            },
                             "position": {
                                 "type": "string",
                                 "enum": [
@@ -4067,6 +4118,14 @@
                     },
                     "showAxisTicks": {
                         "type": "boolean"
+                    },
+                    "axisLabelFontSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "axisTitleFontSize": {
+                        "type": "number",
+                        "format": "double"
                     }
                 },
                 "type": "object",
@@ -4739,6 +4798,23 @@
                     },
                     "tileBackground": {
                         "$ref": "#/components/schemas/MapTileBackground"
+                    },
+                    "heatmapConfig": {
+                        "properties": {
+                            "opacity": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "blur": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "radius": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "type": "object"
                     },
                     "sizeFieldId": {
                         "type": "string"
@@ -6310,6 +6386,148 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "MetricQueryRequest": {
+                "properties": {
+                    "periodOverPeriod": {
+                        "$ref": "#/components/schemas/PeriodOverPeriodComparison"
+                    },
+                    "metricOverrides": {
+                        "$ref": "#/components/schemas/MetricOverrides"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "metadata": {
+                        "properties": {
+                            "hasADateDimension": {
+                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name-or-table_"
+                            }
+                        },
+                        "required": ["hasADateDimension"],
+                        "type": "object"
+                    },
+                    "dateZoom": {
+                        "$ref": "#/components/schemas/DateZoom"
+                    },
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array"
+                    },
+                    "csvLimit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "additionalMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "properties": {
+                            "tableCalculations": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "metrics": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "dimensions": {
+                                "$ref": "#/components/schemas/AnyType"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "tableCalculations",
+                    "limit",
+                    "sorts",
+                    "filters",
+                    "metrics",
+                    "dimensions",
+                    "exploreName"
+                ],
+                "type": "object"
+            },
+            "CalculateTotalFromQuery": {
+                "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "explore": {
+                        "type": "string"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQueryRequest"
+                    }
+                },
+                "required": ["explore", "metricQuery"],
+                "type": "object"
+            },
+            "CalculateSubtotalsFromQuery": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CalculateTotalFromQuery"
+                    },
+                    {
+                        "properties": {
+                            "dateZoom": {
+                                "$ref": "#/components/schemas/DateZoom"
+                            },
+                            "parameters": {
+                                "$ref": "#/components/schemas/ParametersValuesMap"
+                            },
+                            "pivotDimensions": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    }
+                ]
+            },
             "FieldValueSearchResult": {
                 "properties": {
                     "refreshedAt": {
@@ -6525,6 +6743,108 @@
                     "chartType",
                     "tableName"
                 ],
+                "type": "object"
+            },
+            "GeneratedTableCalculation": {
+                "properties": {
+                    "format": {
+                        "$ref": "#/components/schemas/CustomFormat"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/TableCalculationType"
+                    },
+                    "displayName": {
+                        "type": "string"
+                    },
+                    "sql": {
+                        "type": "string"
+                    }
+                },
+                "required": ["format", "type", "displayName", "sql"],
+                "type": "object"
+            },
+            "ApiAiGenerateTableCalculationResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/GeneratedTableCalculation"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Pick_Field.name-or-label-or-description-or-type-or-table_": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "table": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "type", "label", "table"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "TableCalculationFieldContext": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_Field.name-or-label-or-description-or-type-or-table_"
+                    },
+                    {
+                        "properties": {
+                            "fieldType": {
+                                "type": "string",
+                                "enum": [
+                                    "metric",
+                                    "dimension",
+                                    "table_calculation"
+                                ]
+                            }
+                        },
+                        "required": ["fieldType"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "GenerateTableCalculationRequest": {
+                "properties": {
+                    "currentSql": {
+                        "type": "string"
+                    },
+                    "existingTableCalculations": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "fieldsContext": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculationFieldContext"
+                        },
+                        "type": "array"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fieldsContext", "tableName", "prompt"],
                 "type": "object"
             },
             "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_": {
@@ -7661,6 +7981,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -11421,7 +11754,7 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_CreateSnowflakeCredentials.type-or-user-or-password-or-authenticationType-or-token_": {
+            "Pick_CreateSnowflakeCredentials.type-or-user-or-password-or-authenticationType-or-refreshToken_": {
                 "properties": {
                     "user": {
                         "type": "string"
@@ -11432,7 +11765,7 @@
                     "password": {
                         "type": "string"
                     },
-                    "token": {
+                    "refreshToken": {
                         "type": "string"
                     },
                     "authenticationType": {
@@ -11491,15 +11824,12 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Pick_CreateDatabricksCredentials.type-or-personalAccessToken-or-authenticationType-or-refreshToken-or-token_": {
+            "Pick_CreateDatabricksCredentials.type-or-personalAccessToken-or-authenticationType-or-refreshToken_": {
                 "properties": {
                     "type": {
                         "$ref": "#/components/schemas/WarehouseTypes.DATABRICKS"
                     },
                     "personalAccessToken": {
-                        "type": "string"
-                    },
-                    "token": {
                         "type": "string"
                     },
                     "refreshToken": {
@@ -11539,7 +11869,7 @@
                                 "$ref": "#/components/schemas/Pick_CreatePostgresCredentials.type-or-user-or-password_"
                             },
                             {
-                                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.type-or-user-or-password-or-authenticationType-or-token_"
+                                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.type-or-user-or-password-or-authenticationType-or-refreshToken_"
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateTrinoCredentials.type-or-user-or-password_"
@@ -11553,7 +11883,7 @@
                             {
                                 "allOf": [
                                     {
-                                        "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type-or-personalAccessToken-or-authenticationType-or-refreshToken-or-token_"
+                                        "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type-or-personalAccessToken-or-authenticationType-or-refreshToken_"
                                     },
                                     {
                                         "$ref": "#/components/schemas/Partial_Pick_CreateDatabricksCredentials.database-or-serverHostName-or-httpPath__"
@@ -15336,6 +15666,41 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiSuccess_SchedulerAndTargets-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/SchedulerAndTargets"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiReassignSchedulerOwnerResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SchedulerAndTargets-Array_"
+            },
+            "ReassignSchedulerOwnerRequest": {
+                "properties": {
+                    "newOwnerUserUuid": {
+                        "type": "string"
+                    },
+                    "schedulerUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["newOwnerUserUuid", "schedulerUuids"],
+                "type": "object"
+            },
             "ScheduledJobs": {
                 "properties": {
                     "id": {
@@ -15444,102 +15809,6 @@
                     }
                 },
                 "required": ["results", "status"],
-                "type": "object"
-            },
-            "MetricQueryRequest": {
-                "properties": {
-                    "periodOverPeriod": {
-                        "$ref": "#/components/schemas/PeriodOverPeriodComparison"
-                    },
-                    "metricOverrides": {
-                        "$ref": "#/components/schemas/MetricOverrides"
-                    },
-                    "timezone": {
-                        "type": "string"
-                    },
-                    "metadata": {
-                        "properties": {
-                            "hasADateDimension": {
-                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name-or-table_"
-                            }
-                        },
-                        "required": ["hasADateDimension"],
-                        "type": "object"
-                    },
-                    "dateZoom": {
-                        "$ref": "#/components/schemas/DateZoom"
-                    },
-                    "customDimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/CustomDimension"
-                        },
-                        "type": "array"
-                    },
-                    "csvLimit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "additionalMetrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/AdditionalMetric"
-                        },
-                        "type": "array"
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        "type": "array"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sorts": {
-                        "items": {
-                            "$ref": "#/components/schemas/SortField"
-                        },
-                        "type": "array"
-                    },
-                    "filters": {
-                        "properties": {
-                            "tableCalculations": {
-                                "$ref": "#/components/schemas/AnyType"
-                            },
-                            "metrics": {
-                                "$ref": "#/components/schemas/AnyType"
-                            },
-                            "dimensions": {
-                                "$ref": "#/components/schemas/AnyType"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array"
-                    },
-                    "exploreName": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "tableCalculations",
-                    "limit",
-                    "sorts",
-                    "filters",
-                    "metrics",
-                    "dimensions",
-                    "exploreName"
-                ],
                 "type": "object"
             },
             "Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy_": {
@@ -16851,52 +17120,6 @@
                 "required": ["rows", "fields"],
                 "type": "object"
             },
-            "CalculateTotalFromQuery": {
-                "properties": {
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
-                    "explore": {
-                        "type": "string"
-                    },
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQueryRequest"
-                    }
-                },
-                "required": ["explore", "metricQuery"],
-                "type": "object"
-            },
-            "CalculateSubtotalsFromQuery": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CalculateTotalFromQuery"
-                    },
-                    {
-                        "properties": {
-                            "dateZoom": {
-                                "$ref": "#/components/schemas/DateZoom"
-                            },
-                            "parameters": {
-                                "$ref": "#/components/schemas/ParametersValuesMap"
-                            },
-                            "pivotDimensions": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "columnOrder": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columnOrder"],
-                        "type": "object"
-                    }
-                ]
-            },
             "DbtExposureType": {
                 "enum": [
                     "dashboard",
@@ -17102,6 +17325,16 @@
                     }
                 ]
             },
+            "CreateDashboardHeadingTile": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateDashboardTileBase"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardHeadingTileProperties"
+                    }
+                ]
+            },
             "Pick_UpdatedByUser.userUuid_": {
                 "properties": {
                     "userUuid": {
@@ -17155,6 +17388,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CreateDashboardSqlChartTile"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/CreateDashboardHeadingTile"
                                 }
                             ]
                         },
@@ -17722,6 +17958,9 @@
                                     },
                                     {
                                         "properties": {
+                                            "hideFrame": {
+                                                "type": "boolean"
+                                            },
                                             "content": {
                                                 "type": "string"
                                             },
@@ -17745,6 +17984,19 @@
                                             }
                                         },
                                         "required": ["url", "title"],
+                                        "type": "object"
+                                    },
+                                    {
+                                        "properties": {
+                                            "showDivider": {
+                                                "type": "boolean"
+                                            },
+                                            "text": {
+                                                "type": "string"
+                                            },
+                                            "title": {}
+                                        },
+                                        "required": ["text"],
                                         "type": "object"
                                     }
                                 ]
@@ -17923,22 +18175,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -19340,6 +19592,85 @@
                 "required": ["role"],
                 "type": "object"
             },
+            "UserSchedulersSummary": {
+                "properties": {
+                    "byProject": {
+                        "items": {
+                            "properties": {
+                                "count": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "projectName": {
+                                    "type": "string"
+                                },
+                                "projectUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["count", "projectName", "projectUuid"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "totalCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["byProject", "totalCount"],
+                "type": "object"
+            },
+            "ApiSuccess_UserSchedulersSummary_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/UserSchedulersSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUserSchedulersSummaryResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_UserSchedulersSummary_"
+            },
+            "ApiSuccess__reassignedCount-number__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "reassignedCount": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["reassignedCount"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiReassignUserSchedulersResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__reassignedCount-number__"
+            },
+            "ReassignUserSchedulersRequest": {
+                "properties": {
+                    "newOwnerUserUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["newOwnerUserUuid"],
+                "type": "object"
+            },
             "OrganizationMemberRole.EDITOR": {
                 "enum": ["editor"],
                 "type": "string"
@@ -20554,6 +20885,21 @@
                     }
                 },
                 "required": ["enabled"],
+                "type": "object"
+            },
+            "ApiGitFileContent": {
+                "properties": {
+                    "filePath": {
+                        "type": "string"
+                    },
+                    "sha": {
+                        "type": "string"
+                    },
+                    "content": {
+                        "type": "string"
+                    }
+                },
+                "required": ["filePath", "sha", "content"],
                 "type": "object"
             },
             "Pick_Explore.SummaryExploreFields_": {
@@ -22385,7 +22731,8 @@
                         "properties": {
                             "limit": {
                                 "type": "number",
-                                "format": "double"
+                                "format": "double",
+                                "nullable": true
                             },
                             "dateZoom": {
                                 "$ref": "#/components/schemas/DateZoom"
@@ -23472,7 +23819,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2244.0",
+        "version": "0.2287.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -29439,6 +29786,60 @@
                 }
             }
         },
+        "/api/v1/schedulers/{projectUuid}/reassign-owner": {
+            "patch": {
+                "operationId": "reassignSchedulerOwner",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiReassignSchedulerOwnerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Reassign ownership of multiple schedulers",
+                "summary": "Reassign scheduler owner",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "the scheduler UUIDs and new owner UUID",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReassignSchedulerOwnerRequest",
+                                "description": "the scheduler UUIDs and new owner UUID"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/schedulers/{schedulerUuid}/jobs": {
             "get": {
                 "operationId": "getScheduledJobs",
@@ -33120,6 +33521,102 @@
                 ]
             }
         },
+        "/api/v1/org/user/{userUuid}/schedulers-summary": {
+            "get": {
+                "operationId": "GetUserSchedulersSummary",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUserSchedulersSummaryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets a summary of scheduled deliveries owned by a user across all projects",
+                "summary": "Get user schedulers",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the user",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/org/user/{userUuid}/reassign-schedulers": {
+            "patch": {
+                "operationId": "ReassignUserSchedulers",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiReassignUserSchedulersResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Reassigns all scheduled deliveries from one user to another",
+                "summary": "Reassign schedulers",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the user whose schedulers will be reassigned",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "the new owner details",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReassignUserSchedulersRequest",
+                                "description": "the new owner details"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/org/allowedEmailDomains": {
             "get": {
                 "operationId": "ListOrganizationEmailDomains",
@@ -34705,6 +35202,152 @@
                                     }
                                 },
                                 "required": ["customDimensions"],
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/git-integration/explores/{exploreName}/files": {
+            "get": {
+                "operationId": "GetGitFileForExplore",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiGitFileContent"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the YAML file for an explore's base table",
+                "summary": "Get explore file",
+                "tags": ["Git Integration"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "exploreName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/git-integration/pull-requests/file-change": {
+            "post": {
+                "operationId": "CreatePullRequestForFileChange",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/PullRequestCreated"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create a pull request with arbitrary file changes",
+                "summary": "Create file PR",
+                "tags": ["Git Integration"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "description": {
+                                        "type": "string"
+                                    },
+                                    "title": {
+                                        "type": "string"
+                                    },
+                                    "originalSha": {
+                                        "type": "string"
+                                    },
+                                    "content": {
+                                        "type": "string"
+                                    },
+                                    "filePath": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "description",
+                                    "title",
+                                    "originalSha",
+                                    "content",
+                                    "filePath"
+                                ],
                                 "type": "object"
                             }
                         }

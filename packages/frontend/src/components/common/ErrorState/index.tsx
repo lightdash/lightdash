@@ -1,7 +1,11 @@
 import { type ApiErrorDetail } from '@lightdash/common';
 import { Text } from '@mantine/core';
 import { Prism } from '@mantine/prism';
-import { IconAlertCircle, IconLock } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconLock,
+    IconMoodPuzzled,
+} from '@tabler/icons-react';
 import React, { useMemo, type ComponentProps, type FC } from 'react';
 import SuboptimalState from '../SuboptimalState/SuboptimalState';
 
@@ -50,9 +54,9 @@ const ErrorState: FC<{
                         title: 'Authorization error',
                         description,
                     };
-                case 'NotExistsError':
+                case 'NotFoundError':
                     return {
-                        icon: IconAlertCircle,
+                        icon: IconMoodPuzzled,
                         title: 'Not found',
                         description,
                     };
@@ -68,10 +72,7 @@ const ErrorState: FC<{
     }, [error]);
 
     return (
-        <SuboptimalState
-            sx={{ marginTop: hasMarginTop ? '20px' : undefined }}
-            {...props}
-        />
+        <SuboptimalState mt={hasMarginTop ? '20px' : undefined} {...props} />
     );
 };
 

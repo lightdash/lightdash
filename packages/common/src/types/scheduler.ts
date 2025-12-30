@@ -364,6 +364,35 @@ export type ApiTestSchedulerResponse = {
     };
 };
 
+export type ReassignSchedulerOwnerRequest = {
+    schedulerUuids: string[];
+    newOwnerUserUuid: string;
+};
+
+export type ApiReassignSchedulerOwnerResponse = ApiSuccess<
+    SchedulerAndTargets[]
+>;
+
+export type UserSchedulersSummary = {
+    totalCount: number;
+    byProject: Array<{
+        projectUuid: string;
+        projectName: string;
+        count: number;
+    }>;
+};
+
+export type ReassignUserSchedulersRequest = {
+    newOwnerUserUuid: string;
+};
+
+export type ApiUserSchedulersSummaryResponse =
+    ApiSuccess<UserSchedulersSummary>;
+
+export type ApiReassignUserSchedulersResponse = ApiSuccess<{
+    reassignedCount: number;
+}>;
+
 export type TraceTaskBase = {
     organizationUuid: string;
     projectUuid: string;

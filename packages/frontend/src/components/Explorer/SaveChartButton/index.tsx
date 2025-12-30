@@ -1,12 +1,11 @@
-import {
-    CommercialFeatureFlags,
-    getItemId,
-    getMetrics,
-} from '@lightdash/common';
+import { getItemId, getMetrics } from '@lightdash/common';
 import { Button, Tooltip } from '@mantine-8/core';
 import { IconDeviceFloppy } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useParams } from 'react-router';
+import {
+    useAmbientAiEnabled,
+    useGenerateChartMetadata,
+} from '../../../ee/features/ambientAi';
 import {
     selectHasUnsavedChanges,
     selectIsValidQuery,
@@ -16,8 +15,7 @@ import {
 } from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
-import { useGenerateChartMetadata } from '../../../hooks/useGenerateChartMetadata';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import MantineIcon from '../../common/MantineIcon';
@@ -27,10 +25,8 @@ const SaveChartButton: FC<{ isExplorer?: boolean; disabled?: boolean }> = ({
     isExplorer,
     disabled,
 }) => {
-    const { data: aiCopilotFlag } = useFeatureFlag(
-        CommercialFeatureFlags.AiCopilot,
-    );
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const isAmbientAiEnabled = useAmbientAiEnabled();
+    const projectUuid = useProjectUuid();
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
     const savedChart = useExplorerSelector(selectSavedChart);
@@ -141,10 +137,10 @@ const SaveChartButton: FC<{ isExplorer?: boolean; disabled?: boolean }> = ({
                     {...(isDisabled && {
                         'data-disabled': true,
                     })}
-                    // Trigger metadata generation on mouse enter if AI Copilot is enabled
+                    // Trigger metadata generation on mouse enter if available
                     onMouseEnter={() => {
                         if (savedChart) return;
-                        if (!aiCopilotFlag?.enabled) return;
+                        if (!isAmbientAiEnabled) return;
                         triggerMetadataGeneration();
                     }}
                     style={{

@@ -62,20 +62,19 @@ import {
     type Dashboard,
     type DashboardAvailableFilters,
     type DashboardBasicDetails,
-    type DashboardSummary,
 } from './dashboard';
 import { type DbtExposure } from './dbt';
 import { type EmailStatusExpiring } from './email';
 import { type Explore, type SummaryExplore } from './explore';
 import {
     type DimensionType,
-    type Field,
     type FilterableField,
     type ItemsMap,
 } from './field';
 import { type FieldValueSearchResult } from './fieldMatch';
 import { type DashboardFilters } from './filter';
 import {
+    type ApiGitFileContent,
     type GitIntegrationConfiguration,
     type GitRepo,
     type PullRequestCreated,
@@ -167,6 +166,10 @@ import type {
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentVerifiedArtifactsResponse,
+    ApiAiDashboardSummaryResponse,
+    ApiAiGenerateChartMetadataResponse,
+    ApiAiGenerateTableCalculationResponse,
+    ApiAiGetDashboardSummaryResponse,
     ApiAiOrganizationSettingsResponse,
     ApiAppendInstructionResponse,
     ApiCreateEvaluationResponse,
@@ -416,6 +419,7 @@ export type HealthState = {
     ai: {
         analyticsProjectUuid?: string;
         analyticsDashboardUuid?: string;
+        isAmbientAiEnabled: boolean;
     };
     echarts6: {
         enabled: boolean;
@@ -670,43 +674,6 @@ export type ProjectSavedChartStatus = boolean;
 
 export type ApiFlashResults = Record<string, string[]>;
 
-export type ApiAiDashboardSummaryResponse = {
-    status: 'ok';
-    results: DashboardSummary;
-};
-
-export type ApiAiGetDashboardSummaryResponse = {
-    status: 'ok';
-    results: DashboardSummary;
-};
-
-export type ApiAiGenerateCustomVizResponse = {
-    status: 'ok';
-    results: string;
-};
-
-export type GenerateChartMetadataRequest = {
-    tableName: string;
-    chartType: string;
-    dimensions: string[];
-    metrics: string[];
-    filters?: MetricQuery['filters'];
-    fieldsContext: Array<
-        Pick<Field, 'name' | 'label' | 'description' | 'type'>
-    >;
-    chartConfigJson?: string;
-};
-
-export type GeneratedChartMetadata = {
-    title: string;
-    description: string;
-};
-
-export type ApiAiGenerateChartMetadataResponse = {
-    status: 'ok';
-    results: GeneratedChartMetadata;
-};
-
 type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
@@ -776,6 +743,7 @@ type ApiResults =
     | DecodedEmbed
     | Array<GitRepo>
     | PullRequestCreated
+    | ApiGitFileContent
     | GitIntegrationConfiguration
     | UserWarehouseCredentials
     | ApiJobStatusResponse['results']
@@ -792,6 +760,7 @@ type ApiResults =
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiAiGenerateChartMetadataResponse['results']
+    | ApiAiGenerateTableCalculationResponse['results']
     | ApiCatalogMetadataResults
     | ApiCatalogAnalyticsResults
     | ApiPromotionChangesResponse['results']

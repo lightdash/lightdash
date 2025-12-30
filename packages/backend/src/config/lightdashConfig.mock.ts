@@ -147,6 +147,7 @@ export const lightdashConfigMock: LightdashConfig = {
         concurrency: 0,
         enabled: false,
         jobTimeout: 0,
+        useScreenshotReadyIndicator: false,
         tasks: ALL_TASK_NAMES,
         queryHistory: {
             cleanup: {
@@ -254,6 +255,8 @@ export const lightdashConfigMock: LightdashConfig = {
     headlessBrowser: {
         internalLightdashHost: 'https://test.lightdash.cloud',
         browserEndpoint: 'ws://headless-browser:3000',
+        maxScreenshotRetries: 5,
+        retryBaseDelayMs: 3000,
     },
     contentAsCode: {
         maxDownloads: 100,
@@ -281,6 +284,9 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: true,
     },
     echarts6: {
+        enabled: false,
+    },
+    editYamlInUi: {
         enabled: false,
     },
 };

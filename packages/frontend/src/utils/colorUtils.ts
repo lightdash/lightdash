@@ -6,15 +6,6 @@ import {
 import Color from 'colorjs.io';
 import { DARK_MODE_COLORS } from '../mantineTheme';
 
-export const readableColor = (backgroundColor: string) => {
-    if (!isHexCodeColor(backgroundColor)) {
-        return 'black';
-    }
-    const onWhite = Math.abs(Color.contrastAPCA('white', backgroundColor));
-    const onBlack = Math.abs(Color.contrastAPCA('black', backgroundColor));
-    return onWhite > onBlack ? 'white' : 'black';
-};
-
 /**
  * Replaces 'problematic' colors in dark mode for better visibility
  */

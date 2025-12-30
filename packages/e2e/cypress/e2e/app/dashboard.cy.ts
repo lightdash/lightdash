@@ -264,13 +264,9 @@ describe('Dashboard', () => {
                 cy.get('input').should('be.checked');
             });
         cy.get(
-            '[data-testid="DashboardFilterConfiguration/ChartTiles"] .mantine-Checkbox-body',
+            '[data-testid="DashboardFilterConfiguration/ChartTiles"] [data-testid="tile-filter-item"]',
         )
-            .eq(4)
-            .parent()
-            .parent()
-            .siblings()
-            .first()
+            .eq(3) // 4th tile (0-indexed), excludes "select all" checkbox
             .within(() => {
                 cy.get('input.mantine-Input-input').should(
                     'have.value',

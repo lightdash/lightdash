@@ -1,4 +1,5 @@
 import type {
+    Dashboard,
     DashboardFilterRule,
     DashboardTab,
     ParametersValuesMap,
@@ -14,24 +15,168 @@ import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useParams } from 'react-router';
+import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import {
-    getReactGridLayoutConfig,
-    getResponsiveGridLayoutProps,
-} from '../components/DashboardTabs/gridUtils';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
+import HeadingTile from '../components/DashboardTiles/DashboardHeadingTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
 import SqlChartTile from '../components/DashboardTiles/DashboardSqlChartTile';
 import MinimalDashboardTabs from '../components/MinimalDashboardTabs';
+import {
+    getReactGridLayoutConfig,
+    getResponsiveGridLayoutProps,
+} from '../features/dashboardTabs/gridUtils';
 import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import useSearchParams from '../hooks/useSearchParams';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
+import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import '../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
+
+type TabWithUrls = DashboardTab & {
+    prevUrl: string | null;
+    nextUrl: string | null;
+    selfUrl: string;
+};
+
+type MinimalDashboardContentProps = {
+    filteredAndSortedDashboardTiles: Dashboard['tiles'];
+    layouts: { lg: Layout[]; md: Layout[] };
+    gridProps: ReturnType<typeof getResponsiveGridLayoutProps>;
+    isTabEmpty: boolean;
+    canNavigateBetweenTabs: boolean;
+    tabsWithUrls: TabWithUrls[];
+    activeTab: DashboardTab | null;
+};
+
+const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
+    filteredAndSortedDashboardTiles,
+    layouts,
+    gridProps,
+    isTabEmpty,
+    canNavigateBetweenTabs,
+    tabsWithUrls,
+    activeTab,
+}) => {
+    const dashboard = useDashboardContext((c) => c.dashboard);
+    const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+    const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
+
+    const isReadyForScreenshot = useDashboardContext(
+        (c) => c.isReadyForScreenshot,
+    );
+    const expectedScreenshotTilesCount = useDashboardContext(
+        (c) => c.expectedScreenshotTilesCount,
+    );
+    const screenshotReadyTilesCount = useDashboardContext(
+        (c) => c.screenshotReadyTilesCount,
+    );
+    const screenshotErroredTilesCount = useDashboardContext(
+        (c) => c.screenshotErroredTilesCount,
+    );
+
+    useEffect(() => {
+        if (isDashboardLoading) return;
+        if (dashboardTiles) return;
+
+        setDashboardTiles(dashboard?.tiles ?? []);
+        setDashboardTabs(dashboard?.tabs ?? []);
+    }, [
+        isDashboardLoading,
+        dashboard,
+        dashboardTiles,
+        setDashboardTiles,
+        setDashboardTabs,
+    ]);
+
+    return (
+        <>
+            {/* This is when viewing a dashboard with tabs in mobile mode - you can navigate between tabs. */}
+            {canNavigateBetweenTabs && (
+                <MinimalDashboardTabs
+                    tabs={tabsWithUrls}
+                    activeTabId={activeTab?.uuid || null}
+                />
+            )}
+
+            {isTabEmpty ? (
+                <SuboptimalState
+                    icon={IconLayoutDashboard}
+                    title="Tab is empty"
+                    mt="40px"
+                />
+            ) : (
+                <ResponsiveGridLayout {...gridProps} layouts={layouts}>
+                    {filteredAndSortedDashboardTiles.map((tile) => (
+                        <div key={tile.uuid}>
+                            {tile.type === DashboardTileTypes.SAVED_CHART ? (
+                                <ChartTile
+                                    key={tile.uuid}
+                                    minimal
+                                    tile={tile}
+                                    isEditMode={false}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                />
+                            ) : tile.type === DashboardTileTypes.MARKDOWN ? (
+                                <MarkdownTile
+                                    key={tile.uuid}
+                                    tile={tile}
+                                    isEditMode={false}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                />
+                            ) : tile.type === DashboardTileTypes.LOOM ? (
+                                <LoomTile
+                                    key={tile.uuid}
+                                    tile={tile}
+                                    isEditMode={false}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                />
+                            ) : tile.type === DashboardTileTypes.SQL_CHART ? (
+                                <SqlChartTile
+                                    key={tile.uuid}
+                                    tile={tile}
+                                    isEditMode={false}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                />
+                            ) : tile.type === DashboardTileTypes.HEADING ? (
+                                <HeadingTile
+                                    key={tile.uuid}
+                                    tile={tile}
+                                    isEditMode={false}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                />
+                            ) : (
+                                assertUnreachable(
+                                    tile,
+                                    `Dashboard tile type is not recognised`,
+                                )
+                            )}
+                        </div>
+                    ))}
+                </ResponsiveGridLayout>
+            )}
+
+            {isReadyForScreenshot && (
+                <ScreenshotReadyIndicator
+                    tilesTotal={expectedScreenshotTilesCount}
+                    tilesReady={screenshotReadyTilesCount}
+                    tilesErrored={screenshotErroredTilesCount}
+                />
+            )}
+        </>
+    );
+};
 
 const MinimalDashboard: FC = () => {
     const { projectUuid, dashboardUuid, tabUuid } = useParams<{
@@ -175,20 +320,20 @@ const MinimalDashboard: FC = () => {
     }, [dashboard?.tiles, schedulerTabsSelected, activeTab, sortedTabs]);
 
     if (isDashboardError || isSchedulerError) {
-        if (dashboardError) return <>{dashboardError.error.message}</>;
-        if (schedulerError) return <>{schedulerError.error.message}</>;
+        if (dashboardError) return <span>{dashboardError.error.message}</span>;
+        if (schedulerError) return <span>{schedulerError.error.message}</span>;
     }
 
     if (!dashboard) {
-        return <>Loading...</>;
+        return <span>Loading...</span>;
     }
 
     if (schedulerUuid && !scheduler) {
-        return <>Loading...</>;
+        return <span>Loading...</span>;
     }
 
     if (dashboard.tiles.length === 0) {
-        return <>No tiles</>;
+        return <span>No tiles</span>;
     }
 
     const isTabEmpty =
@@ -205,67 +350,17 @@ const MinimalDashboard: FC = () => {
             dateZoom={dateZoom}
             defaultInvalidateCache={true}
         >
-            {/* This is when viewing a dashboard with tabs in mobile mode - you can navigate between tabs. */}
-            {canNavigateBetweenTabs && (
-                <MinimalDashboardTabs
-                    tabs={tabsWithUrls}
-                    activeTabId={activeTab?.uuid || null}
-                />
-            )}
-
-            {isTabEmpty ? (
-                <SuboptimalState
-                    icon={IconLayoutDashboard}
-                    title="Tab is empty"
-                    sx={{ marginTop: '40px' }}
-                />
-            ) : (
-                <ResponsiveGridLayout {...gridProps} layouts={layouts}>
-                    {filteredAndSortedDashboardTiles.map((tile) => (
-                        <div key={tile.uuid}>
-                            {tile.type === DashboardTileTypes.SAVED_CHART ? (
-                                <ChartTile
-                                    key={tile.uuid}
-                                    minimal
-                                    tile={tile}
-                                    isEditMode={false}
-                                    onDelete={() => {}}
-                                    onEdit={() => {}}
-                                />
-                            ) : tile.type === DashboardTileTypes.MARKDOWN ? (
-                                <MarkdownTile
-                                    key={tile.uuid}
-                                    tile={tile}
-                                    isEditMode={false}
-                                    onDelete={() => {}}
-                                    onEdit={() => {}}
-                                />
-                            ) : tile.type === DashboardTileTypes.LOOM ? (
-                                <LoomTile
-                                    key={tile.uuid}
-                                    tile={tile}
-                                    isEditMode={false}
-                                    onDelete={() => {}}
-                                    onEdit={() => {}}
-                                />
-                            ) : tile.type === DashboardTileTypes.SQL_CHART ? (
-                                <SqlChartTile
-                                    key={tile.uuid}
-                                    tile={tile}
-                                    isEditMode={false}
-                                    onDelete={() => {}}
-                                    onEdit={() => {}}
-                                />
-                            ) : (
-                                assertUnreachable(
-                                    tile,
-                                    `Dashboard tile type is not recognised`,
-                                )
-                            )}
-                        </div>
-                    ))}
-                </ResponsiveGridLayout>
-            )}
+            <MinimalDashboardContent
+                filteredAndSortedDashboardTiles={
+                    filteredAndSortedDashboardTiles
+                }
+                layouts={layouts}
+                gridProps={gridProps}
+                isTabEmpty={!!isTabEmpty}
+                canNavigateBetweenTabs={canNavigateBetweenTabs}
+                tabsWithUrls={tabsWithUrls}
+                activeTab={activeTab}
+            />
         </DashboardProvider>
     );
 };

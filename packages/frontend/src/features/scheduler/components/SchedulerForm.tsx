@@ -1125,7 +1125,7 @@ const SchedulerForm: FC<Props> = ({
                                                     delivery, you need to add
                                                     <Anchor
                                                         target="_blank"
-                                                        href="https://docs.lightdash.com/references/environmentVariables"
+                                                        href="https://docs.lightdash.com/self-host/customize-deployment/configure-smtp-for-lightdash-email-notifications"
                                                     >
                                                         {' '}
                                                         SMTP environment

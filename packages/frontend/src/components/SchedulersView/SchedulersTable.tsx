@@ -31,6 +31,7 @@ import {
     IconRadar,
     IconRun,
     IconTextCaption,
+    IconUser,
 } from '@tabler/icons-react';
 import {
     MantineReactTable,
@@ -61,6 +62,7 @@ import { useProject } from '../../hooks/useProject';
 import GSheetsSvg from '../../svgs/google-sheets.svg?react';
 import SlackSvg from '../../svgs/slack.svg?react';
 import MantineIcon from '../common/MantineIcon';
+import ReassignSchedulerOwnerModal from './ReassignSchedulerOwnerModal';
 import { SchedulerTopToolbar } from './SchedulerTopToolbar';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
 import {
@@ -166,6 +168,34 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     useEffect(() => {
         setTableData(flatData);
     }, [flatData]);
+
+    // Reassign owner modal state
+    const [reassignModalOpen, setReassignModalOpen] = useState(false);
+    const [schedulerUuidsToReassign, setSchedulerUuidsToReassign] = useState<
+        string[]
+    >([]);
+    const [excludedUserUuid, setExcludedUserUuid] = useState<
+        string | undefined
+    >(undefined);
+    const [isBulkReassign, setIsBulkReassign] = useState(false);
+
+    // Single scheduler reassign (from context menu)
+    const handleReassignOwner = useCallback(
+        (schedulerUuid: string, ownerUuid: string | undefined) => {
+            setSchedulerUuidsToReassign([schedulerUuid]);
+            setExcludedUserUuid(ownerUuid);
+            setIsBulkReassign(false);
+            setReassignModalOpen(true);
+        },
+        [],
+    );
+
+    const handleReassignModalClose = useCallback(() => {
+        setReassignModalOpen(false);
+        setSchedulerUuidsToReassign([]);
+        setExcludedUserUuid(undefined);
+        setIsBulkReassign(false);
+    }, []);
 
     // Compute available users from loaded schedulers
     const availableUsers = useMemo(() => {
@@ -392,8 +422,28 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 },
             },
             {
+                accessorKey: 'createdByName',
+                header: 'Owner',
+                enableSorting: false,
+                size: 150,
+                Header: ({ column }) => (
+                    <Group gap="two" wrap="nowrap">
+                        <MantineIcon icon={IconUser} color="ldGray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => {
+                    const item = row.original;
+                    return (
+                        <Text fz="xs" c="ldGray.6">
+                            {item.createdByName || 'Unknown'}
+                        </Text>
+                    );
+                },
+            },
+            {
                 accessorKey: 'lastRunStatus',
-                header: 'Last Run Status',
+                header: 'Last Run',
                 enableSorting: false,
                 size: 160,
                 Header: ({ column }) => (
@@ -442,7 +492,11 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             }
                         >
                             <Badge
+                                variant="light"
                                 size="sm"
+                                radius="sm"
+                                tt="capitalize"
+                                fw={400}
                                 color={statusConfig.color}
                                 leftSection={
                                     <MantineIcon
@@ -618,7 +672,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 Cell: ({ row }) => {
                     const item = row.original;
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="xs" c="ldGray.6">
                             {new Date(item.createdAt).toLocaleDateString()}
                         </Text>
                     );
@@ -628,6 +682,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 id: 'actions',
                 header: '',
                 enableSorting: false,
+                enableResizing: false,
                 size: 50,
                 Cell: ({ row }) => {
                     const item = row.original;
@@ -642,19 +697,26 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             <SchedulersViewActionMenu
                                 item={item}
                                 projectUuid={projectUuid}
+                                onReassignOwner={handleReassignOwner}
                             />
                         </Box>
                     );
                 },
             },
         ],
-        [project, projectUuid, getSlackChannelName, setSearchParams],
+        [
+            project,
+            projectUuid,
+            getSlackChannelName,
+            setSearchParams,
+            handleReassignOwner,
+        ],
     );
 
     const table = useMantineReactTable({
         columns,
         data: tableData,
-        enableColumnResizing: false,
+        enableColumnResizing: true,
         enableRowNumbers: false,
         enablePagination: false,
         enableFilters: false,
@@ -670,6 +732,18 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         onSortingChange: handleSortingChange,
         enableTopToolbar: true,
         enableBottomToolbar: false,
+        enableRowSelection: true,
+        mantineSelectCheckboxProps: { size: 'xs' },
+        mantineSelectAllCheckboxProps: { size: 'xs' },
+        displayColumnDefOptions: {
+            'mrt-row-select': {
+                size: 20,
+                minSize: 20,
+                maxSize: 20,
+                enableResizing: false,
+            },
+        },
+        getRowId: (row) => row.schedulerUuid,
         mantinePaperProps: {
             shadow: undefined,
             style: {
@@ -683,6 +757,13 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         mantineTableHeadRowProps: {
             sx: {
                 boxShadow: 'none',
+                'th > div > div:last-child': {
+                    top: -10,
+                    right: -5,
+                },
+                'th > div > div:last-child > .mantine-Divider-root': {
+                    border: 'none',
+                },
             },
         },
         mantineTableContainerProps: {
@@ -700,13 +781,20 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 props.table.getAllColumns().indexOf(props.column) ===
                 props.table.getAllColumns().length - 1;
 
+            const isAnyColumnResizing = props.table
+                .getAllColumns()
+                .some((c) => c.getIsResizing());
+            const canResize = props.column.getCanResize();
+
             return {
                 bg: 'ldGray.0',
                 h: '3xl',
                 pos: 'relative',
                 style: {
                     userSelect: 'none',
+                    justifyContent: 'center',
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
+                    borderTop: `1px solid ${theme.colors.ldGray[2]}`,
                     borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
@@ -715,8 +803,17 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                   ? 'transparent'
                                   : theme.colors.ldGray[2]
                           }`,
-                    borderTop: 'none',
                     borderLeft: 'none',
+                },
+                sx: {
+                    '&:hover': canResize
+                        ? {
+                              borderRight: !isAnyColumnResizing
+                                  ? `2px solid ${theme.colors.blue[3]} !important` // This is needed to override the default inline styles
+                                  : undefined,
+                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                          }
+                        : {},
                 },
             };
         },
@@ -732,26 +829,45 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 },
             };
         },
-        renderTopToolbar: () => (
-            <SchedulerTopToolbar
-                search={search}
-                setSearch={setSearch}
-                selectedFormats={selectedFormats}
-                setSelectedFormats={setSelectedFormats}
-                selectedResourceType={selectedResourceType}
-                setSelectedResourceType={setSelectedResourceType}
-                selectedCreatedByUserUuids={selectedCreatedByUserUuids}
-                setSelectedCreatedByUserUuids={setSelectedCreatedByUserUuids}
-                selectedDestinations={selectedDestinations}
-                setSelectedDestinations={setSelectedDestinations}
-                isFetching={isFetching || isLoading}
-                currentResultsCount={totalFetched}
-                hasActiveFilters={hasActiveFilters}
-                onClearFilters={resetFilters}
-                availableUsers={availableUsers}
-                availableDestinations={availableDestinations}
-            />
-        ),
+        renderTopToolbar: ({ table: tableInstance }) => {
+            const selectedRows = tableInstance
+                .getFilteredSelectedRowModel()
+                .flatRows.map((row) => row.original);
+
+            const handleBulkReassign = () => {
+                setSchedulerUuidsToReassign(
+                    selectedRows.map((row) => row.schedulerUuid),
+                );
+                setExcludedUserUuid(undefined);
+                setIsBulkReassign(true);
+                setReassignModalOpen(true);
+            };
+
+            return (
+                <SchedulerTopToolbar
+                    search={search}
+                    setSearch={setSearch}
+                    selectedFormats={selectedFormats}
+                    setSelectedFormats={setSelectedFormats}
+                    selectedResourceType={selectedResourceType}
+                    setSelectedResourceType={setSelectedResourceType}
+                    selectedCreatedByUserUuids={selectedCreatedByUserUuids}
+                    setSelectedCreatedByUserUuids={
+                        setSelectedCreatedByUserUuids
+                    }
+                    selectedDestinations={selectedDestinations}
+                    setSelectedDestinations={setSelectedDestinations}
+                    isFetching={isFetching || isLoading}
+                    currentResultsCount={totalFetched}
+                    hasActiveFilters={hasActiveFilters}
+                    onClearFilters={resetFilters}
+                    availableUsers={availableUsers}
+                    availableDestinations={availableDestinations}
+                    selectedCount={selectedRows.length}
+                    onBulkReassign={handleBulkReassign}
+                />
+            );
+        },
         icons: {
             IconArrowsSort: () => (
                 <MantineIcon icon={IconArrowsSort} size="md" color="ldGray.5" />
@@ -774,7 +890,25 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         },
     });
 
-    return <MantineReactTable table={table} />;
+    const handleReassignSuccess = useCallback(() => {
+        if (isBulkReassign) {
+            table.resetRowSelection();
+        }
+    }, [isBulkReassign, table]);
+
+    return (
+        <>
+            <MantineReactTable table={table} />
+            <ReassignSchedulerOwnerModal
+                opened={reassignModalOpen}
+                onClose={handleReassignModalClose}
+                projectUuid={projectUuid}
+                schedulerUuids={schedulerUuidsToReassign}
+                excludedUserUuid={excludedUserUuid}
+                onSuccess={handleReassignSuccess}
+            />
+        </>
+    );
 };
 
 export default SchedulersTable;

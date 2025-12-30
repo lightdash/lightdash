@@ -1,4 +1,8 @@
-import { type DashboardMarkdownTile } from '@lightdash/common';
+import {
+    FeatureFlags,
+    MARKDOWN_TILE_CLASS,
+    type DashboardMarkdownTile,
+} from '@lightdash/common';
 import { Menu, Text, useMantineTheme } from '@mantine/core';
 import { IconCopy } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
@@ -8,6 +12,7 @@ import { v4 as uuid4 } from 'uuid';
 import { DashboardTileComments } from '../../features/comments';
 import { appendNewTilesToBottom } from '../../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 import TileBase from './TileBase/index';
@@ -24,11 +29,16 @@ const MarkdownTile: FC<Props> = (props) => {
 
     const {
         tile: {
-            properties: { title, content },
+            properties: { title, content, hideFrame: rawHideFrame },
             uuid,
         },
         isEditMode,
     } = props;
+
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
+    );
+    const hideFrame = isDashboardRedesignEnabled ? rawHideFrame : false;
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(
@@ -81,7 +91,8 @@ const MarkdownTile: FC<Props> = (props) => {
 
     return (
         <TileBase
-            title={title}
+            title={hideFrame ? '' : title}
+            transparent={hideFrame}
             lockHeaderVisibility={isCommentsMenuOpen}
             visibleHeaderElement={
                 tileHasComments ? dashboardComments : undefined
@@ -108,12 +119,13 @@ const MarkdownTile: FC<Props> = (props) => {
                     '.wmde-markdown': {
                         fontSize: '14px',
                         backgroundColor: 'transparent',
+                        fontFamily: theme.fontFamily,
                     },
                 }}
             >
                 <div data-color-mode={theme.colorScheme}>
                     <MarkdownPreview
-                        className="markdown-tile"
+                        className={MARKDOWN_TILE_CLASS}
                         source={content}
                         rehypePlugins={[
                             [rehypeExternalLinks, { target: '_blank' }],

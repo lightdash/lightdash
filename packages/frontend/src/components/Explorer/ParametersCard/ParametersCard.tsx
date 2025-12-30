@@ -1,6 +1,5 @@
 import { Box } from '@mantine-8/core';
 import { memo, useCallback, useMemo } from 'react';
-import { useParams } from 'react-router';
 import {
     explorerActions,
     selectIsEditMode,
@@ -13,12 +12,13 @@ import {
 } from '../../../features/explorer/store';
 import { ParameterSelection } from '../../../features/parameters';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 
 const ParametersCard = memo(
     ({ parameterReferences }: { parameterReferences?: string[] }) => {
-        const { projectUuid } = useParams<{ projectUuid: string }>();
+        const projectUuid = useProjectUuid();
 
         const paramsIsOpen = useExplorerSelector(selectIsParametersExpanded);
         const isEditMode = useExplorerSelector(selectIsEditMode);

@@ -14,7 +14,6 @@ import {
     ExploreError,
     ExploreType,
     IdContentMapping,
-    NotExistsError,
     NotFoundError,
     OrganizationProject,
     ParameterError,
@@ -247,7 +246,7 @@ export class ProjectModel {
     async getSingleProjectUuidInInstance(): Promise<string> {
         const projects = await this.database('projects').select('*');
         if (projects.length === 0) {
-            throw new NotExistsError('Cannot find project');
+            throw new NotFoundError('Cannot find project');
         }
         if (projects.length > 1) {
             throw new ParameterError(
@@ -264,7 +263,7 @@ export class ProjectModel {
             .where('organization_uuid', organizationUuid)
             .select('*');
         if (orgs.length === 0) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotFoundError('Cannot find organization');
         }
 
         const organizationId = orgs[0].organization_id;
@@ -416,7 +415,7 @@ export class ProjectModel {
             .where('organization_uuid', organizationUuid)
             .select('*');
         if (orgs.length === 0) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotFoundError('Cannot find organization');
         }
 
         const projects = await this.database('projects')
@@ -446,7 +445,7 @@ export class ProjectModel {
             .where('organization_uuid', organizationUuid)
             .select('*');
         if (orgs.length === 0) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotFoundError('Cannot find organization');
         }
         return this.database.transaction(async (trx) => {
             let encryptedCredentials: Buffer;
@@ -689,13 +688,13 @@ export class ProjectModel {
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
                 if (projects.length === 0) {
-                    throw new NotExistsError(
+                    throw new NotFoundError(
                         `Cannot find project with id: ${projectUuid}`,
                     );
                 }
                 const [project] = projects;
                 if (!project.dbt_connection) {
-                    throw new NotExistsError(
+                    throw new NotFoundError(
                         'Project has no valid dbt credentials',
                     );
                 }
@@ -789,7 +788,7 @@ export class ProjectModel {
             .where('projects.project_uuid', projectUuid)
             .first();
         if (!project) {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 `Cannot find project with id: ${projectUuid}`,
             );
         }
@@ -863,7 +862,7 @@ export class ProjectModel {
             .select('warehouse_connection');
 
         if (!orgCredentials) {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 'Organization warehouse credentials not found',
             );
         }
@@ -933,7 +932,7 @@ export class ProjectModel {
             .select(['table_selection_type', 'table_selection_value'])
             .where('project_uuid', projectUuid);
         if (projects.length === 0) {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 `Cannot find project with id: ${projectUuid}`,
             );
         }
@@ -1173,9 +1172,7 @@ export class ProjectModel {
         );
         const cachedExplore = cachedExplores[exploreName];
         if (cachedExplore === undefined) {
-            throw new NotExistsError(
-                `Explore "${exploreName}" does not exist.`,
-            );
+            throw new NotFoundError(`Explore "${exploreName}" does not exist.`);
         }
         return cachedExplore;
     }
@@ -1467,7 +1464,7 @@ export class ProjectModel {
                     project.organization_id,
                 );
             if (user === undefined) {
-                throw new NotExistsError(
+                throw new NotFoundError(
                     `Can't find user with email ${email} in the organization`,
                 );
             }
@@ -1588,7 +1585,7 @@ export class ProjectModel {
             ])
             .where('project_uuid', projectUuid);
         if (row === undefined) {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 `Cannot find any warehouse credentials for project.`,
             );
         }
@@ -1624,7 +1621,7 @@ export class ProjectModel {
         spaces: Pick<SpaceSummary, 'uuid'>[],
     ) {
         Logger.info(
-            `Duplicating content from ${projectUuid} to ${previewProjectUuid}`,
+            `Copying content from ${projectUuid} to ${previewProjectUuid}`,
         );
 
         return this.database.transaction(async (trx) => {
@@ -1644,7 +1641,7 @@ export class ProjectModel {
             );
 
             Logger.info(
-                `Duplicating ${spaces.length} spaces on ${previewProjectUuid}`,
+                `Copying ${spaces.length} spaces on ${previewProjectUuid}`,
             );
             const spaceIds = dbSpaces.map((s) => s.space_id);
             const spaceUuids = dbSpaces.map((s) => s.space_uuid);
@@ -1733,7 +1730,7 @@ export class ProjectModel {
             );
 
             Logger.info(
-                `Duplicating ${spaceGroupAccesses.length} space group accesses on ${previewProjectUuid}`,
+                `Copying ${spaceGroupAccesses.length} space group accesses on ${previewProjectUuid}`,
             );
 
             const newSpaceGroupAccesses =
@@ -1759,7 +1756,7 @@ export class ProjectModel {
 
             if (virtualViews.length > 0) {
                 Logger.info(
-                    `Duplicating ${virtualViews.length} virtual views into ${previewProjectUuid}`,
+                    `Copying ${virtualViews.length} virtual views into ${previewProjectUuid}`,
                 );
 
                 await trx(CachedExploreTableName).insert(
@@ -1784,7 +1781,7 @@ export class ProjectModel {
                 .select<DbSavedSql[]>('saved_sql.*');
 
             Logger.info(
-                `Duplicating ${savedSQLs.length} SQL queries on ${previewProjectUuid}`,
+                `Copying ${savedSQLs.length} SQL queries on ${previewProjectUuid}`,
             );
 
             // Define the type for the new saved SQLs
@@ -1852,7 +1849,7 @@ export class ProjectModel {
                 .select<DbSavedSql[]>('saved_sql.*');
 
             Logger.info(
-                `Duplicating ${savedSQLInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
+                `Copying ${savedSQLInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
             );
 
             // Create the saved SQLs in the dashboards
@@ -1955,7 +1952,7 @@ export class ProjectModel {
                 .select<DbSavedChart[]>('saved_queries.*');
 
             Logger.info(
-                `Duplicating ${charts.length} charts on ${previewProjectUuid}`,
+                `Copying ${charts.length} charts on ${previewProjectUuid}`,
             );
             type CloneChart = InsertChart & {
                 search_vector?: string;
@@ -2002,7 +1999,7 @@ export class ProjectModel {
                 .select<DbSavedChart[]>('saved_queries.*');
 
             Logger.info(
-                `Duplicating ${chartsInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
+                `Copying ${chartsInDashboards.length} charts in dashboards on ${previewProjectUuid}`,
             );
 
             // We also copy charts in dashboards, we will replace the dashboard_uuid later
@@ -2181,7 +2178,7 @@ export class ProjectModel {
             const dashboardIds = dashboards.map((d) => d.dashboard_id);
 
             Logger.info(
-                `Duplicating ${dashboards.length} dashboards on ${previewProjectUuid}`,
+                `Copying ${dashboards.length} dashboards on ${previewProjectUuid}`,
             );
 
             const newDashboards =
@@ -2266,7 +2263,7 @@ export class ProjectModel {
             );
 
             Logger.info(
-                `Duplicating ${dashboardTabs.length} dashboard tabs on ${previewProjectUuid}`,
+                `Copying ${dashboardTabs.length} dashboard tabs on ${previewProjectUuid}`,
             );
             let newDashboardTabs: DbDashboardTabs[] = [];
             if (dashboardTabs.length > 0) {
@@ -2297,7 +2294,7 @@ export class ProjectModel {
             );
 
             Logger.info(
-                `Duplicating ${dashboardViews.length} dashboard views on ${previewProjectUuid}`,
+                `Copying ${dashboardViews.length} dashboard views on ${previewProjectUuid}`,
             );
 
             if (dashboardViews.length > 0) {
@@ -2318,7 +2315,7 @@ export class ProjectModel {
             );
 
             Logger.info(
-                `Duplicating ${dashboardTiles.length} dashboard tiles on ${previewProjectUuid}`,
+                `Copying ${dashboardTiles.length} dashboard tiles on ${previewProjectUuid}`,
             );
 
             const dashboardTileUuids = dashboardTiles.map(
@@ -2457,7 +2454,7 @@ export class ProjectModel {
                     .select<DbAiAgent[]>('*');
 
                 Logger.info(
-                    `Duplicating ${aiAgents.length} AI agents on ${previewProjectUuid}`,
+                    `Copying ${aiAgents.length} AI agents on ${previewProjectUuid}`,
                 );
 
                 type CloneAiAgent = Omit<

@@ -27,11 +27,13 @@ import {
     SessionUser,
     TableCalculation,
     TableSelectionType,
+    UnexpectedServerError,
     ValidationErrorType,
     ValidationResponse,
     ValidationSourceType,
     ValidationTarget,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
@@ -667,6 +669,22 @@ export class ValidationService extends BaseService {
                 const metrics = Object.values(explore.tables).flatMap((table) =>
                     Object.values(table.metrics),
                 );
+
+                if (dimensions.find((d) => d === undefined)) {
+                    Sentry.captureException(
+                        new UnexpectedServerError(
+                            `Undefined dimension found in explore ${explore.name} in project ${projectUuid}`,
+                        ),
+                    );
+                }
+                if (metrics.find((m) => m === undefined)) {
+                    Sentry.captureException(
+                        new UnexpectedServerError(
+                            `Undefined metric found in explore ${explore.name} in project ${projectUuid}`,
+                        ),
+                    );
+                }
+
                 const fieldData = {
                     dimensionIds: dimensions.map(getItemId),
                     metricIds: metrics.map(getItemId),

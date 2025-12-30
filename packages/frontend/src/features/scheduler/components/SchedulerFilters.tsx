@@ -28,7 +28,6 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { hasSavedFilterValueChanged } from '../../../components/DashboardFilter/FilterConfiguration/utils';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
@@ -39,6 +38,7 @@ import {
 import FiltersProvider from '../../../components/common/Filters/FiltersProvider';
 import useFiltersContext from '../../../components/common/Filters/useFiltersContext';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { hasSavedFilterValueChanged } from '../../../features/dashboardFilters/FilterConfiguration/utils';
 import { useProject } from '../../../hooks/useProject';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 

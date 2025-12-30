@@ -129,6 +129,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
 
             case DashboardTileTypes.LOOM:
             case DashboardTileTypes.MARKDOWN:
+            case DashboardTileTypes.HEADING:
                 throw new Error(
                     `not implemented for chart tile type: ${dashboardTileType}`,
                 );
@@ -188,9 +189,11 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         },
     });
 
-    const { data: selectedDashboard } = useDashboardQuery(
-        form.getInputProps('dashboardUuid').value,
-    );
+    const {
+        data: selectedDashboard,
+        isLoading: isLoadingSelectedDashboard,
+        isError: isSelectedDashboardError,
+    } = useDashboardQuery(form.getInputProps('dashboardUuid').value);
     const { mutateAsync: createDashboard } = useCreateMutation(
         projectUuid,
         true,
@@ -233,7 +236,9 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                     onClose?.();
                 } else {
                     if (!selectedDashboard) {
-                        throw new Error('Expected dashboard');
+                        throw new Error(
+                            'Dashboard not found or failed to load. Please try selecting a different dashboard.',
+                        );
                     }
                     const firstTab = selectedDashboard.tabs?.[0];
                     await updateDashboard({
@@ -406,14 +411,19 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                         </Button>
                         <Button
                             type="submit"
-                            loading={isLoading}
+                            loading={isLoading || isLoadingSelectedDashboard}
                             disabled={
                                 (isCreatingNewDashboard &&
                                     form.getInputProps('dashboardName')
                                         .value === '') ||
                                 (isCreatingNewSpace &&
                                     form.getInputProps('spaceName').value ===
-                                        '')
+                                        '') ||
+                                (!isCreatingNewDashboard &&
+                                    form.getInputProps('dashboardUuid').value &&
+                                    (isLoadingSelectedDashboard ||
+                                        isSelectedDashboardError ||
+                                        !selectedDashboard))
                             }
                         >
                             Add to dashboard

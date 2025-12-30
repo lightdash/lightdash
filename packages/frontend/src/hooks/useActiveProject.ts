@@ -70,23 +70,34 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
     const { data: organization, isInitialLoading: isLoadingOrg } =
         useOrganization(useQueryFetchOptions);
 
+    const isLoggedIn = !!organization;
+
     // Priority 1: Project UUID from URL params
     const { data: paramProject, isInitialLoading: isLoadingParamProject } =
         useProject(params.projectUuid);
 
     // Priority 2: Last used project from localStorage
     // Only fetch if no param project and we have a lastProjectUuid
-    const shouldFetchLastProject = !params.projectUuid && !!lastProjectUuid;
+    const shouldFetchLastProject =
+        isLoggedIn && !params.projectUuid && !!lastProjectUuid;
     const { data: lastProject, isInitialLoading: isLoadingLastProject } =
-        useProject(shouldFetchLastProject ? lastProjectUuid : undefined);
+        useProject(shouldFetchLastProject ? lastProjectUuid : undefined, {
+            onError: () => {
+                console.warn(
+                    `Couldn't find last project ${lastProjectUuid}. Will default to organization default or fallback project.`,
+                );
+            },
+        });
 
     // Priority 3: Organization's default project
     // Only fetch if no param project, no last project, and org has a default
     const shouldFetchDefaultProject =
+        isLoggedIn &&
         !params.projectUuid &&
         isLastProjectUuidFetched &&
-        !lastProjectUuid &&
+        !lastProject &&
         !!organization?.defaultProjectUuid;
+
     const { data: defaultProject, isInitialLoading: isLoadingDefaultProject } =
         useProject(
             shouldFetchDefaultProject
@@ -95,11 +106,12 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
         );
 
     // Priority 4: Fallback to any project (when org has no defaultProjectUuid)
-    // Only fetch projects list if we have no other option AND localStorage check is complete
+    // Try to fetch fallback since the last project might have been a preview that was deleted
     const shouldFetchFallbackProjects =
+        isLoggedIn &&
         !params.projectUuid &&
         isLastProjectUuidFetched &&
-        !lastProjectUuid &&
+        !lastProject &&
         !isLoadingOrg &&
         !organization?.defaultProjectUuid;
 
@@ -131,22 +143,34 @@ export const useActiveProjectUuid = (useQueryFetchOptions?: {
         defaultProject?.projectUuid ||
         fallbackProject?.projectUuid;
 
-    // Update localStorage when we find an active project but don't have one stored
+    // Update localStorage when URL param takes precedence or no valid lastProject
     useEffect(() => {
         const newValue =
             paramProject?.projectUuid ||
             defaultProject?.projectUuid ||
             fallbackProject?.projectUuid;
-        if (!isLoading && !lastProjectUuid && newValue) {
+
+        const hasValidLastProject = !!lastProject?.projectUuid;
+        const shouldPersistProject =
+            !!params.projectUuid || !hasValidLastProject;
+
+        if (
+            !isLoading &&
+            shouldPersistProject &&
+            newValue &&
+            newValue !== lastProjectUuid
+        ) {
             mutate(newValue);
         }
     }, [
-        isLoading,
         defaultProject?.projectUuid,
         fallbackProject?.projectUuid,
+        isLoading,
+        lastProject?.projectUuid,
         lastProjectUuid,
         mutate,
         paramProject?.projectUuid,
+        params.projectUuid,
     ]);
 
     return {

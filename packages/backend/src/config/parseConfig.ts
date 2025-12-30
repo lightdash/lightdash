@@ -689,6 +689,13 @@ export const getAiConfig = () => ({
                   apiKey: process.env.AZURE_AI_API_KEY,
                   apiVersion: process.env.AZURE_AI_API_VERSION,
                   deploymentName: process.env.AZURE_AI_DEPLOYMENT_NAME,
+                  deploymentSupportsReasoning:
+                      process.env.AZURE_AI_DEPLOYMENT_SUPPORTS_REASONING ===
+                      'true',
+                  embeddingDeploymentName:
+                      process.env.AZURE_EMBEDDING_DEPLOYMENT_NAME,
+                  useDeploymentBasedUrls:
+                      process.env.AZURE_USE_DEPLOYMENT_BASED_URLS !== 'false',
               }
             : undefined,
         openai: process.env.OPENAI_API_KEY
@@ -841,6 +848,7 @@ export type LightdashConfig = {
         concurrency: number;
         jobTimeout: number;
         screenshotTimeout?: number;
+        useScreenshotReadyIndicator: boolean;
         tasks: Array<SchedulerTaskName>;
         queryHistory: {
             cleanup: {
@@ -976,6 +984,9 @@ export type LightdashConfig = {
     echarts6: {
         enabled: boolean;
     };
+    editYamlInUi: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -995,6 +1006,8 @@ export type HeadlessBrowserConfig = {
     port?: string;
     internalLightdashHost: string;
     browserEndpoint: string;
+    maxScreenshotRetries: number;
+    retryBaseDelayMs: number;
 };
 export type S3Config = {
     region: string;
@@ -1532,6 +1545,14 @@ export const parseConfig = (): LightdashConfig => {
             internalLightdashHost:
                 process.env.INTERNAL_LIGHTDASH_HOST || siteUrl,
             browserEndpoint,
+            maxScreenshotRetries: parseInt(
+                process.env.HEADLESS_BROWSER_MAX_SCREENSHOT_RETRIES || '5',
+                10,
+            ),
+            retryBaseDelayMs: parseInt(
+                process.env.HEADLESS_BROWSER_RETRY_BASE_DELAY_MS || '3000',
+                10,
+            ),
         },
         s3: parseBaseS3Config(),
         results: {
@@ -1569,6 +1590,8 @@ export const parseConfig = (): LightdashConfig => {
             screenshotTimeout: process.env.SCHEDULER_SCREENSHOT_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
+            useScreenshotReadyIndicator:
+                process.env.SCHEDULER_USE_SCREENSHOT_READY_INDICATOR === 'true',
             tasks: parseAndSanitizeSchedulerTasks(),
             queryHistory: {
                 cleanup: {
@@ -1726,6 +1749,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         echarts6: {
             enabled: process.env.ECHARTS_V6_ENABLED === 'true',
+        },
+        editYamlInUi: {
+            enabled: process.env.EDIT_YAML_IN_UI_ENABLED === 'true',
         },
     };
 };

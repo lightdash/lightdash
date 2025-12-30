@@ -111,7 +111,6 @@ import {
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
     normalizeIndexColumns,
-    NotExistsError,
     NotFoundError,
     NotSupportedError,
     OpenIdIdentityIssuerType,
@@ -139,6 +138,7 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     SessionUser,
     snakeCaseName,
+    SnowflakeAuthenticationType,
     SnowflakeTokenError,
     SortByDirection,
     SortField,
@@ -240,6 +240,7 @@ import {
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
+import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
@@ -550,11 +551,22 @@ export class ProjectService extends BaseService {
                     return true;
                 }
 
-                throw new ForbiddenError();
+                throw new ForbiddenError(
+                    `You don't have permission to create projects in this organization. Please contact your organization admin.`,
+                    {
+                        requiredPermission: 'create:project',
+                        projectType: ProjectType.DEFAULT,
+                        organizationUuid: user.organizationUuid,
+                    },
+                );
 
-            case ProjectType.PREVIEW:
+            case ProjectType.PREVIEW: {
+                let upstreamProject: Awaited<
+                    ReturnType<ProjectModel['get']>
+                > | null = null;
+
                 if (data.upstreamProjectUuid) {
-                    const upstreamProject = await this.projectModel.get(
+                    upstreamProject = await this.projectModel.get(
                         data.upstreamProjectUuid,
                     );
                     if (
@@ -568,7 +580,13 @@ export class ProjectService extends BaseService {
                         )
                     ) {
                         throw new ForbiddenError(
-                            'Cannot access upstream project',
+                            `You don't have permission to access the upstream project "${upstreamProject.name}". You need view access to create a preview from this project.`,
+                            {
+                                requiredPermission: 'view:project',
+                                upstreamProjectUuid:
+                                    upstreamProject.projectUuid,
+                                upstreamProjectName: upstreamProject.name,
+                            },
                         );
                     }
                     if (upstreamProject.type === ProjectType.PREVIEW) {
@@ -604,7 +622,20 @@ export class ProjectService extends BaseService {
                     return true;
                 }
 
-                throw new ForbiddenError();
+                const errorMessage = upstreamProject
+                    ? `You don't have permission to create preview projects from "${upstreamProject.name}". Contact your admin to request access.`
+                    : `You don't have permission to create preview projects in this organization. Contact your admin to request access.`;
+
+                throw new ForbiddenError(errorMessage, {
+                    requiredPermission: 'create:preview_project',
+                    projectType: ProjectType.PREVIEW,
+                    organizationUuid: user.organizationUuid,
+                    ...(upstreamProject && {
+                        upstreamProjectUuid: upstreamProject.projectUuid,
+                        upstreamProjectName: upstreamProject.name,
+                    }),
+                });
+            }
 
             default:
                 return assertUnreachable(
@@ -678,47 +709,26 @@ export class ProjectService extends BaseService {
             args.authenticationType === 'sso'
         ) {
             try {
-                // On old project configs we were storing refreshToken inside the token field (legacy)
-                let refreshToken = args.refreshToken || args.token;
+                const { refreshToken } = args;
 
-                // We pass the refresh token for snowflake on args
-                // This is used on user warehouse credentials.
-                // If this is provided, use this instead of getting the refresh token from the openid table
-                if (refreshToken === undefined) {
-                    refreshToken = await this.userModel.getRefreshToken(
-                        userUuid,
-                        OpenIdIdentityIssuerType.SNOWFLAKE,
-                    );
-                }
-                // If we still don't have a token, we can't refresh
+                // If we don't have a token, we can't refresh
                 if (!refreshToken) {
                     throw new Error(
                         'No refresh token available for Snowflake SSO authentication',
                     );
                 }
-                // Token format validation
-                if (refreshToken.startsWith('ver:1-hint')) {
-                    // This is an invalid refresh token format,
-                    // we are using `access token` as refresh token (refresh token starts with ver:2-hint)
-                    // Review the calls to this method and ensure we pass {token: refreshToken} instead
-                    // This might affect older projects that were not storing correctly refresh token
-                    // They should be recompiled to store the refresh token correctly
-                    // see _resolveWarehouseClientCredentials for more details.
-                    throw new UnexpectedServerError(
-                        'Invalid snowflake refresh token format, please recompile your project',
-                    );
-                }
                 this.logger.debug(
                     `Refreshing snowflake token for user ${userUuid}`,
                 );
-
+                // If we try to generate access token from token instead of refreshToken
+                // it will throw an error: The request was invalid.
                 const accessToken =
                     await UserService.generateSnowflakeAccessToken(
                         refreshToken,
                     );
                 return {
                     ...args,
-                    authenticationType: 'sso',
+                    authenticationType: SnowflakeAuthenticationType.SSO,
                     token: accessToken,
                 };
             } catch (e: unknown) {
@@ -772,17 +782,9 @@ export class ProjectService extends BaseService {
                     };
                 }
 
-                let { refreshToken } = args;
+                const { refreshToken } = args;
 
-                // If no refresh token provided, try to get it from user's OpenID table
-                if (refreshToken === undefined) {
-                    refreshToken = await this.userModel.getRefreshToken(
-                        userUuid,
-                        OpenIdIdentityIssuerType.DATABRICKS,
-                    );
-                }
-
-                // If we still don't have a refresh token, we can't refresh
+                // If we don't have a refresh token, we can't refresh
                 if (!refreshToken) {
                     throw new Error(
                         'No refresh token or OAuth credentials available for Databricks OAuth authentication',
@@ -820,7 +822,6 @@ export class ProjectService extends BaseService {
             args.authenticationType === DatabricksAuthenticationType.OAUTH_U2M
         ) {
             try {
-                // For U2M OAuth, refresh token should be stored in credentials
                 const { refreshToken } = args;
 
                 if (!refreshToken) {
@@ -1005,7 +1006,7 @@ export class ProjectService extends BaseService {
                 `Refreshing snowflake warehouse credentials from user uuid: ${userUuid}`,
             );
             const credentials = await this.refreshCredentials(
-                { ...args.warehouseConnection, token: refreshToken },
+                { ...args.warehouseConnection, refreshToken },
                 userUuid,
             );
             return {
@@ -1047,6 +1048,47 @@ export class ProjectService extends BaseService {
         }
 
         return args;
+    }
+
+    // Extra security measure, we remove the "secrets" from the project/org credentials
+    // and let the user override that token/password later on
+    // eslint-disable-next-line class-methods-use-this
+    private clearSecretsFromCredentials(
+        credentials: CreateWarehouseCredentials,
+    ): CreateWarehouseCredentials {
+        switch (credentials.type) {
+            case WarehouseTypes.SNOWFLAKE: {
+                // Remove optional properties for snowflake OAuth
+                const { refreshToken, token, ...rest } = credentials;
+                return rest;
+            }
+            case WarehouseTypes.DATABRICKS: {
+                const { refreshToken, token, personalAccessToken, ...rest } =
+                    credentials;
+                return rest;
+            }
+            case WarehouseTypes.BIGQUERY: {
+                return {
+                    ...credentials,
+                    keyfileContents: {},
+                };
+            }
+            case WarehouseTypes.POSTGRES:
+            case WarehouseTypes.TRINO:
+            case WarehouseTypes.CLICKHOUSE:
+            case WarehouseTypes.REDSHIFT: {
+                return {
+                    ...credentials,
+                    password: '',
+                };
+            }
+
+            default:
+                return assertUnreachable(
+                    credentials,
+                    `Unexpected warehouse type`,
+                );
+        }
     }
 
     // TODO: getWarehouseCredentials could be moved to a client WarehouseClientManager. However, this client shouldn't be using a model. Perhaps this information can be passed as a prop to the client so that other services can use the warehouse client credentials logic?
@@ -1108,20 +1150,14 @@ export class ProjectService extends BaseService {
                 : undefined;
 
             if (userWarehouseCredentials) {
+                credentials = this.clearSecretsFromCredentials(credentials);
+
                 // User has credentials - use them
-                if (
-                    credentials.type ===
-                    userWarehouseCredentials.credentials.type
-                ) {
-                    credentials = {
-                        ...credentials,
-                        ...userWarehouseCredentials.credentials,
-                    } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
-                } else {
-                    throw new UnexpectedServerError(
-                        'User warehouse credentials are not compatible',
-                    );
-                }
+                credentials = {
+                    ...credentials,
+                    ...userWarehouseCredentials.credentials,
+                } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
+
                 this.logger.debug(
                     `Using user warehouse credentials for user ${userId}`,
                 );
@@ -1439,6 +1475,8 @@ export class ProjectService extends BaseService {
                     {
                         error: contentCopyError,
                         stack: e instanceof Error ? e.stack : undefined,
+                        errorData:
+                            e instanceof LightdashError ? e.data : undefined,
                     },
                 );
             }
@@ -1466,6 +1504,12 @@ export class ProjectService extends BaseService {
                 Sentry.captureException(e);
                 this.logger.error(
                     `Unable to copy table configuration on preview ${e}`,
+                    {
+                        error: e instanceof Error ? e.message : String(e),
+                        stack: e instanceof Error ? e.stack : undefined,
+                        errorData:
+                            e instanceof LightdashError ? e.data : undefined,
+                    },
                 );
             }
         }
@@ -1678,11 +1722,7 @@ export class ProjectService extends BaseService {
             if (!(error instanceof LightdashError)) {
                 Sentry.captureException(error);
             }
-            this.logger.error(
-                `Error running background job:${
-                    error instanceof Error ? error.stack : error
-                }`,
-            );
+            this.logger.error(`Error running background job: ${error}`);
             throw error;
         }
     }
@@ -2387,39 +2427,6 @@ export class ProjectService extends BaseService {
         };
     }
 
-    private metricQueryWithLimit(
-        metricQuery: MetricQuery,
-        csvLimit: number | null | undefined,
-    ): MetricQuery {
-        if (csvLimit === undefined) {
-            if (metricQuery.limit > this.lightdashConfig.query?.maxLimit) {
-                throw new ParameterError(
-                    `Query limit can not exceed ${this.lightdashConfig.query.maxLimit}`,
-                );
-            }
-            return metricQuery;
-        }
-
-        const numberColumns =
-            metricQuery.dimensions.length +
-            metricQuery.metrics.length +
-            metricQuery.tableCalculations.length;
-        if (numberColumns === 0)
-            throw new ParameterError(
-                'Query must have at least one dimension or metric',
-            );
-
-        const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
-        const maxRows = Math.floor(cellsLimit / numberColumns);
-        const csvRowLimit =
-            csvLimit === null ? maxRows : Math.min(csvLimit, maxRows);
-
-        return {
-            ...metricQuery,
-            limit: csvRowLimit,
-        };
-    }
-
     async runUnderlyingDataQuery(
         account: Account,
         metricQuery: MetricQuery,
@@ -2995,6 +3002,7 @@ export class ProjectService extends BaseService {
 
     async getResultsFromCacheOrWarehouse({
         projectUuid,
+        userUuid,
         context,
         warehouseClient,
         query,
@@ -3003,6 +3011,7 @@ export class ProjectService extends BaseService {
         invalidateCache,
     }: {
         projectUuid: string;
+        userUuid: string | null;
         context: QueryExecutionContext;
         warehouseClient: WarehouseClient;
         query: AnyType;
@@ -3019,8 +3028,8 @@ export class ProjectService extends BaseService {
             async (span) => {
                 // TODO: put this hash function in a util somewhere
                 const queryHashKey = metricQuery.timezone
-                    ? `${projectUuid}.${query}.${metricQuery.timezone}`
-                    : `${projectUuid}.${query}`;
+                    ? `${projectUuid}.${userUuid}.${query}.${metricQuery.timezone}`
+                    : `${projectUuid}.${userUuid}.${query}`;
                 const queryHash = crypto
                     .createHash('sha256')
                     .update(queryHashKey)
@@ -3194,9 +3203,11 @@ export class ProjectService extends BaseService {
                         throw new ForbiddenError();
                     }
 
-                    const metricQueryWithLimit = this.metricQueryWithLimit(
+                    const metricQueryWithLimit = applyMetricQueryLimit(
                         metricQuery,
                         csvLimit,
+                        this.lightdashConfig.query?.csvCellsLimit,
+                        this.lightdashConfig.query?.maxLimit,
                     );
 
                     const explore =
@@ -3207,14 +3218,16 @@ export class ProjectService extends BaseService {
                             exploreName,
                         ));
 
+                    const warehouseCredentials =
+                        await this.getWarehouseCredentials({
+                            projectUuid,
+                            userId: account.user.id,
+                            isRegisteredUser: account.isRegisteredUser(),
+                        });
                     const { warehouseClient, sshTunnel } =
                         await this._getWarehouseClient(
                             projectUuid,
-                            await this.getWarehouseCredentials({
-                                projectUuid,
-                                userId: account.user.id,
-                                isRegisteredUser: account.isRegisteredUser(),
-                            }),
+                            warehouseCredentials,
                             {
                                 snowflakeVirtualWarehouse: explore.warehouse,
                                 databricksCompute: explore.databricksCompute,
@@ -3309,10 +3322,14 @@ export class ProjectService extends BaseService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
-
+                    const userUuid =
+                        warehouseCredentials.userWarehouseCredentialsUuid
+                            ? account.user.id
+                            : null;
                     const { rows, cacheMetadata } =
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
+                            userUuid,
                             context,
                             warehouseClient,
                             metricQuery: metricQueryWithLimit,
@@ -3732,15 +3749,15 @@ export class ProjectService extends BaseService {
         }
 
         if (!explore) {
-            throw new NotExistsError(`Explore ${table} does not exist`);
+            throw new NotFoundError(`Explore ${table} does not exist`);
         } else if (isExploreError(explore)) {
-            throw new NotExistsError(`Explore ${table} has errors`);
+            throw new NotFoundError(`Explore ${table} has errors`);
         }
 
         const field = findFieldByIdInExplore(explore, fieldId);
 
         if (!field) {
-            throw new NotExistsError(`Can't dimension with id: ${fieldId}`);
+            throw new NotFoundError(`Can't dimension with id: ${fieldId}`);
         }
 
         if (!isDimension(field)) {
@@ -4438,12 +4455,12 @@ export class ProjectService extends BaseService {
                 const explore = exploresMap[exploreName];
 
                 if (!explore) {
-                    throw new NotExistsError(
+                    throw new NotFoundError(
                         `Explore "${exploreName}" does not exist.`,
                     );
                 }
                 if (isExploreError(explore)) {
-                    throw new NotExistsError(
+                    throw new NotFoundError(
                         `Explore "${exploreName}" has an error.`,
                     );
                 }
@@ -5731,13 +5748,14 @@ export class ProjectService extends BaseService {
         organizationUuid: string,
         parameters?: ParametersValuesMap,
     ) {
+        const warehouseCredentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+        });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-            }),
+            warehouseCredentials,
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
                 databricksCompute: explore.databricksCompute,
@@ -5771,9 +5789,13 @@ export class ProjectService extends BaseService {
                 query_context: QueryExecutionContext.CALCULATE_TOTAL,
             };
 
+            const userUuid = warehouseCredentials.userWarehouseCredentialsUuid
+                ? account.user.id
+                : null;
             const { rows, cacheMetadata } =
                 await this.getResultsFromCacheOrWarehouse({
                     projectUuid,
+                    userUuid,
                     context: QueryExecutionContext.CALCULATE_TOTAL,
                     warehouseClient,
                     metricQuery: totalQuery,

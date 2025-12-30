@@ -2,6 +2,7 @@ import {
     AnyType,
     ApiErrorPayload,
     ApiJobStatusResponse,
+    ApiReassignSchedulerOwnerResponse,
     ApiScheduledJobsResponse,
     ApiSchedulerAndTargetsResponse,
     ApiSchedulerLogsResponse,
@@ -9,9 +10,9 @@ import {
     ApiSchedulerRunsResponse,
     ApiSchedulersResponse,
     ApiTestSchedulerResponse,
+    AuthorizationError,
     KnexPaginateArgs,
-    ParameterError,
-    SchedulerFormat,
+    ReassignSchedulerOwnerRequest,
     SchedulerJobStatus,
     SchedulerRunStatus,
 } from '@lightdash/common';
@@ -369,6 +370,44 @@ export class SchedulerController extends BaseController {
             results: await this.services
                 .getSchedulerService()
                 .setSchedulerEnabled(req.user!, schedulerUuid, body.enabled),
+        };
+    }
+
+    /**
+     * Reassign ownership of multiple schedulers
+     * @summary Reassign scheduler owner
+     * @param projectUuid The uuid of the project
+     * @param req express request
+     * @param body the scheduler UUIDs and new owner UUID
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{projectUuid}/reassign-owner')
+    @OperationId('reassignSchedulerOwner')
+    async reassignOwner(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ReassignSchedulerOwnerRequest,
+    ): Promise<ApiReassignSchedulerOwnerResponse> {
+        if (!req.user) {
+            throw new AuthorizationError('User session not found');
+        }
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSchedulerService()
+                .reassignSchedulerOwner(
+                    req.user,
+                    projectUuid,
+                    body.schedulerUuids,
+                    body.newOwnerUserUuid,
+                ),
         };
     }
 

@@ -54,7 +54,9 @@ const waitForDownloadToComplete = (
 
         cy.wait(`@${pollAlias}`, { timeout: pollInterval * 2 }).then(
             (interception) => {
-                expect(interception?.response?.statusCode).to.eq(200);
+                expect(interception?.response?.statusCode).to.be.oneOf([
+                    200, 304,
+                ]);
                 const jobStatus = interception?.response?.body.results;
 
                 cy.log(

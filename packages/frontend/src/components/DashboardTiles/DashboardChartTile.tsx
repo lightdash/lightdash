@@ -5,6 +5,7 @@ import {
     createDashboardFilterRuleFromField,
     DashboardTileTypes,
     FeatureFlags,
+    getChartKind,
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
@@ -18,6 +19,7 @@ import {
     isCompleteLayout,
     isDashboardChartTileType,
     isFilterableField,
+    isMetric,
     isTableChartConfig,
     type ApiChartAndResults,
     type ApiError,
@@ -28,6 +30,7 @@ import {
     type FilterDashboardToRule,
     type DashboardChartTile as IDashboardChartTile,
     type ItemsMap,
+    type Metric,
     type PivotReference,
     type ResultValue,
     type SavedChart,
@@ -70,7 +73,6 @@ import React, {
 } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
-import { formatChartErrorMessage } from '../../utils/chartErrorUtils';
 import { type EChartsReact } from '../EChartsReactWrapper';
 
 type ClientSideError = {
@@ -83,6 +85,7 @@ type ClientSideError = {
 type DashboardTileError = ApiError | ClientSideError;
 
 import { DashboardTileComments } from '../../features/comments';
+import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
 import {
@@ -115,7 +118,6 @@ import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { FilterDashboardTo } from '../DashboardFilter/FilterDashboardTo';
 import LightdashVisualization from '../LightdashVisualization';
 import VisualizationProvider from '../LightdashVisualization/VisualizationProvider';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
@@ -240,6 +242,12 @@ const ValidDashboardChartTile: FC<{
     const addResultsCacheTime = useDashboardContext(
         (c) => c.addResultsCacheTime,
     );
+    const markTileScreenshotReady = useDashboardContext(
+        (c) => c.markTileScreenshotReady,
+    );
+    const markTileScreenshotErrored = useDashboardContext(
+        (c) => c.markTileScreenshotErrored,
+    );
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
@@ -306,6 +314,14 @@ const ValidDashboardChartTile: FC<{
         chart.colorPalette,
     ]);
 
+    const handleScreenshotReady = useCallback(() => {
+        markTileScreenshotReady(tileUuid);
+    }, [markTileScreenshotReady, tileUuid]);
+
+    const handleScreenshotError = useCallback(() => {
+        markTileScreenshotErrored(tileUuid);
+    }, [markTileScreenshotErrored, tileUuid]);
+
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -339,6 +355,8 @@ const ValidDashboardChartTile: FC<{
                 isDashboard
                 tileUuid={tileUuid}
                 isTitleHidden={isTitleHidden}
+                onScreenshotReady={handleScreenshotReady}
+                onScreenshotError={handleScreenshotError}
             />
         </VisualizationProvider>
     );
@@ -372,6 +390,12 @@ const ValidDashboardChartTileMinimal: FC<{
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
+    );
+    const markTileScreenshotReady = useDashboardContext(
+        (c) => c.markTileScreenshotReady,
+    );
+    const markTileScreenshotErrored = useDashboardContext(
+        (c) => c.markTileScreenshotErrored,
     );
 
     const {
@@ -425,6 +449,14 @@ const ValidDashboardChartTileMinimal: FC<{
         chart.colorPalette,
     ]);
 
+    const handleScreenshotReady = useCallback(() => {
+        markTileScreenshotReady(tileUuid);
+    }, [markTileScreenshotReady, tileUuid]);
+
+    const handleScreenshotError = useCallback(() => {
+        markTileScreenshotErrored(tileUuid);
+    }, [markTileScreenshotErrored, tileUuid]);
+
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -458,6 +490,8 @@ const ValidDashboardChartTileMinimal: FC<{
                 isDashboard
                 tileUuid={tileUuid}
                 isTitleHidden={isTitleHidden}
+                onScreenshotReady={handleScreenshotReady}
+                onScreenshotError={handleScreenshotError}
             />
         </VisualizationProvider>
     );
@@ -490,6 +524,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const showExecutionTime = useFeatureFlagEnabled(
         FeatureFlags.ShowExecutionTime,
     );
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
+    );
 
     const {
         tile: {
@@ -520,6 +557,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const projectUuid = useProjectUuid();
+
+    const chartKind = useMemo(
+        () => getChartKind(chart.chartConfig.type, chart.chartConfig.config),
+        [chart.chartConfig.type, chart.chartConfig.config],
+    );
 
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
@@ -776,9 +818,29 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             if (explore === undefined) {
                 return;
             }
-            const dimensions = getDimensions(explore).filter((dimension) =>
+
+            const allDimensions = getDimensions(explore);
+            const allItemsMap = getItemMap(
+                explore,
+                chart.metricQuery.additionalMetrics,
+                chart.metricQuery.tableCalculations,
+                chart.metricQuery.customDimensions,
+            );
+
+            // Filter dimensions from explore that match dimensionNames
+            const exploreDimensions = allDimensions.filter((dimension) =>
                 e.dimensionNames.includes(getItemId(dimension)),
             );
+
+            // Also check for metrics in the items map that match dimensionNames
+            const itemsMapMetrics = Object.values(allItemsMap).filter(
+                (item): item is Metric =>
+                    isMetric(item) &&
+                    e.dimensionNames.includes(getItemId(item)),
+            );
+
+            // Fields available for filtering from the click event
+            const availableFields = [...exploreDimensions, ...itemsMapMetrics];
 
             // Helper to extract value from click event data
             // For stacked bars: e.value is an array, e.dimensionNames maps indices to field names
@@ -791,12 +853,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 return (e.data as Record<string, unknown>)[fieldId];
             };
 
-            const dimensionOptions = dimensions.map((dimension) =>
+            const dimensionOptions = availableFields.map((field) =>
                 createDashboardFilterRuleFromField({
-                    field: dimension,
+                    field,
                     availableTileFilters: {},
                     isTemporary: true,
-                    value: getValueFromClickData(getItemId(dimension)),
+                    value: getValueFromClickData(getItemId(field)),
                 }),
             );
             const serie = series[e.seriesIndex];
@@ -807,10 +869,23 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             );
             const seriesName = serie.encode?.seriesName;
 
-            const pivotValue =
+            // Try to get pivot value from seriesName (old format: field.pivotField.value)
+            // This is only for non-SQL pivoting
+            let pivotValue =
                 pivot && seriesName?.includes(`.${pivot}.`)
                     ? seriesName?.split(`.${pivot}.`)[1]
                     : undefined;
+
+            // If no pivot value from seriesName, try to get it from pivotReference
+            // This is only for SQL pivoting
+            if (!pivotValue && serie.pivotReference?.pivotValues) {
+                const pivotRefValue = serie.pivotReference.pivotValues.find(
+                    (pv) => pv.field === pivot,
+                );
+                if (pivotRefValue) {
+                    pivotValue = pivotRefValue.value as string;
+                }
+            }
 
             const pivotOptions =
                 pivot && pivotField && pivotValue
@@ -833,12 +908,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 left: e.event.event.pageX,
                 top: e.event.event.pageY,
             });
-
-            const allItemsMap = getItemMap(
-                explore,
-                chart.metricQuery.additionalMetrics,
-                chart.metricQuery.tableCalculations,
-            );
 
             const underlyingData = getDataFromChartClick(
                 e,
@@ -947,6 +1016,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         <>
             <TileBase
                 lockHeaderVisibility={isCommentsMenuOpen}
+                chartKind={chartKind}
                 visibleHeaderElement={
                     // Dashboard comments button is always visible if they exist
                     tileHasComments ? dashboardComments : undefined
@@ -1323,6 +1393,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         </>
                     )
                 }
+                fullWidth={
+                    chart.chartConfig.type === ChartType.TABLE &&
+                    isDashboardRedesignEnabled
+                }
                 {...props}
             >
                 <>
@@ -1475,6 +1549,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         top: number;
     }>();
     const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
+    );
 
     const {
         tile: {
@@ -1612,6 +1689,11 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         [dashboardChartReadyQuery.executeQueryResponse.queryUuid],
     );
 
+    const chartKind = useMemo(
+        () => getChartKind(chart.chartConfig.type, chart.chartConfig.config),
+        [chart.chartConfig.type, chart.chartConfig.config],
+    );
+
     return (
         <>
             <TileBase
@@ -1619,6 +1701,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={chart.description}
                 isLoading={false}
+                chartKind={chartKind}
                 minimal={true}
                 extraMenuItems={
                     canExportCsv ||
@@ -1658,6 +1741,10 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                                 )}
                         </>
                     ) : undefined
+                }
+                fullWidth={
+                    isDashboardRedesignEnabled &&
+                    chart.chartConfig.type === ChartType.TABLE
                 }
                 {...props}
             >
@@ -1798,6 +1885,8 @@ export const GenericDashboardChartTile: FC<
                 title={tileTitle}
                 isEditMode={isEditMode}
                 tile={tile}
+                hasError
+                chartKind={tile.properties.lastVersionChartKind ?? null}
                 extraMenuItems={
                     tile.properties.savedChartUuid && (
                         <Tooltip
@@ -1817,13 +1906,9 @@ export const GenericDashboardChartTile: FC<
             >
                 <SuboptimalState
                     icon={IconAlertCircle}
-                    title={formatChartErrorMessage(
-                        dashboardChartReadyQuery?.chart?.name ||
-                            tile.properties.chartName ||
-                            undefined,
-                        error?.error?.message || 'No data available',
-                    )}
-                ></SuboptimalState>
+                    title={tileTitle}
+                    description={error?.error?.message || 'No data available'}
+                />
             </TileBase>
         );
     }
@@ -1838,6 +1923,7 @@ export const GenericDashboardChartTile: FC<
                 belongsToDashboard={tile.properties.belongsToDashboard}
                 tile={tile}
                 isLoading
+                chartKind={tile.properties.lastVersionChartKind ?? null}
                 title={tile.properties.title || tile.properties.chartName || ''}
                 extraMenuItems={
                     !minimal &&
@@ -1860,6 +1946,10 @@ export const GenericDashboardChartTile: FC<
             tableName={dashboardChartReadyQuery.chart.tableName || ''}
             explore={dashboardChartReadyQuery.explore}
             queryUuid={dashboardChartReadyQuery.executeQueryResponse.queryUuid}
+            parameters={
+                dashboardChartReadyQuery.executeQueryResponse
+                    .usedParametersValues
+            }
         >
             {minimal ? (
                 <DashboardChartTileMinimal

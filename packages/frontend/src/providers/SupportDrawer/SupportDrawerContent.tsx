@@ -1,18 +1,20 @@
 import { type AnyType } from '@lightdash/common';
 import {
     Button,
-    Center,
     Checkbox,
     Image,
     Loader,
+    Paper,
     Stack,
     Text,
     Textarea,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
-import html2canvas from 'html2canvas';
+import { IconIdOff } from '@tabler/icons-react';
+import html2canvas from 'html2canvas-pro';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { lightdashApi, networkHistory } from '../../api';
+import MantineIcon from '../../components/common/MantineIcon';
 import useToaster from '../../hooks/toaster/useToaster';
 
 type SupportDrawerContentProps = {
@@ -63,14 +65,25 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
     const [allowAccess, setAllowAccess] = useState(true);
 
     const [screenshot, setScreenshot] = useState<string | null>(null);
+    const [screenshotError, setScreenshotError] = useState(false);
     const { showToastSuccess } = useToaster();
     useEffect(() => {
         const element = document.querySelector('body');
-        if (element)
-            void html2canvas(element as HTMLElement).then((canvas) => {
-                const base64 = canvas.toDataURL('image/png');
-                setScreenshot(base64);
-            });
+        if (element) {
+            void html2canvas(element as HTMLElement)
+                .then((canvas) => {
+                    const base64 = canvas.toDataURL('image/png');
+                    setScreenshot(base64);
+                })
+                .catch((error) => {
+                    console.error(
+                        'Failed to capture screenshot:',
+                        error.message,
+                    );
+                    setScreenshotError(true);
+                    setScreenshot(null);
+                });
+        }
     }, []);
 
     const handleShare = useCallback(async () => {
@@ -98,10 +111,12 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
         <Stack spacing="xs">
             <Checkbox
                 label="Include this image"
-                checked={includeImage}
+                checked={screenshotError ? false : includeImage}
                 onChange={(event) => setIncludeImage(event.target.checked)}
                 mt="xs"
+                disabled={screenshotError}
             />
+
             {screenshot ? (
                 <Image
                     height={200}
@@ -110,9 +125,27 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                     fit="contain"
                 />
             ) : (
-                <Center>
-                    <Loader height={200} w="100%" variant="dots" />
-                </Center>
+                <Paper p="lg" withBorder h={200}>
+                    <Stack
+                        h="100%"
+                        align="center"
+                        justify="center"
+                        spacing="xs"
+                    >
+                        {screenshotError ? (
+                            <>
+                                <MantineIcon icon={IconIdOff} color="ldGray" />
+                                <Text color="dimmed" ta="center">
+                                    Screenshot could not be captured. You can
+                                    still submit your report with the details
+                                    below
+                                </Text>
+                            </>
+                        ) : (
+                            <Loader height={200} w="100%" variant="dots" />
+                        )}
+                    </Stack>
+                </Paper>
             )}
             <Text mt="sm">
                 Do you have and other details you'd like to share?

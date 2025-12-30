@@ -27,6 +27,7 @@ import {
     NotFoundError,
     NotificationFrequency,
     NotificationPayloadBase,
+    ParameterError,
     ParametersValuesMap,
     type PartialFailure,
     PartialFailureType,
@@ -2965,8 +2966,12 @@ export default class SchedulerTask {
 
             // Create scheduled jobs for targets
             await Promise.all(
-                scheduledJobs.map(({ target, jobId: targetJobId }) =>
-                    this.logScheduledTarget(
+                scheduledJobs.map(({ target, jobId: targetJobId }) => {
+                    if (!target) {
+                        return Promise.resolve();
+                    }
+
+                    return this.logScheduledTarget(
                         scheduler.format,
                         target,
                         targetJobId,
@@ -2978,8 +2983,8 @@ export default class SchedulerTask {
                             organizationUuid: schedulerPayload.organizationUuid,
                             createdByUserUuid: schedulerPayload.userUuid,
                         },
-                    ),
-                ),
+                    );
+                }),
             );
 
             // Use page failures directly as partialFailures for logging
@@ -3084,10 +3089,12 @@ export default class SchedulerTask {
 
             if (
                 e instanceof FieldReferenceError ||
-                e instanceof WarehouseConnectionError
+                e instanceof WarehouseConnectionError ||
+                e instanceof ParameterError
             ) {
                 // This captures both the error from thresholdAlert and metricQuery
                 // WarehouseConnectionError indicates misconfigured credentials (wrong password, unreachable host, etc.)
+                // ParameterError indicates invalid configuration (e.g., selected tabs no longer exist)
                 Logger.warn(
                     `Disabling scheduler with non-retryable error: ${e}`,
                 );
@@ -3492,11 +3499,6 @@ export default class SchedulerTask {
                 batchResult,
                 notification.projectUuid,
             );
-            throw new Error(
-                `All Slack deliveries failed: ${results
-                    .map((r) => r.error)
-                    .join(', ')}`,
-            );
         } else {
             // Partial failure - some succeeded, some failed
             this.analytics.track({
@@ -3890,11 +3892,6 @@ export default class SchedulerTask {
                 scheduler,
                 batchResult,
                 notification.projectUuid,
-            );
-            throw new Error(
-                `All MS Teams deliveries failed: ${results
-                    .map((r) => r.error)
-                    .join(', ')}`,
             );
         } else {
             // Partial failure - some succeeded, some failed

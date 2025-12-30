@@ -125,7 +125,7 @@ const SortableColumn: FC<{
                     fz={13}
                     radius="md"
                     fw={500}
-                    color="ldDark.5"
+                    color="ldDark.9"
                 >
                     {column.name}
                 </Text>

@@ -7,7 +7,7 @@ import {
     ExploreError,
     ExploreType,
     FieldSearchResult,
-    NotExistsError,
+    NotFoundError,
     SavedChartSearchResult,
     SearchFilters,
     SearchItemType,
@@ -41,6 +41,7 @@ import {
     shouldSearchForType,
 } from './utils/filters';
 import {
+    getFullTextSearchFilterSql,
     getFullTextSearchRankCalcSql,
     getRegexFromUserQuery,
     getTableOrFieldMatchCount,
@@ -76,6 +77,13 @@ export class SearchModel {
             },
         });
 
+        // Use GIN index filter to reduce rows before computing ts_rank_cd
+        const searchFilterSql = getFullTextSearchFilterSql({
+            database: this.database,
+            searchVectorColumn: `${SpaceTableName}.search_vector`,
+            searchQuery: query,
+        });
+
         let subquery = this.database(SpaceTableName)
             .innerJoin(
                 ProjectTableName,
@@ -86,6 +94,7 @@ export class SearchModel {
                 search_rank: searchRankRawSql,
             })
             .where('projects.project_uuid', projectUuid)
+            .whereRaw(searchFilterSql)
             .orderBy('search_rank', 'desc');
 
         subquery = filterByCreatedAt(SpaceTableName, subquery, filters);
@@ -106,7 +115,6 @@ export class SearchModel {
         return this.database(SpaceTableName)
             .select()
             .from(subquery.as('spaces_with_rank'))
-            .where('search_rank', '>', 0)
             .limit(10);
     }
 
@@ -144,6 +152,26 @@ export class SearchModel {
                 searchVectorColumn: 'tile_charts.search_vector',
                 searchQuery: query,
             },
+            fullTextSearchOperator,
+        });
+
+        // GIN index filters - these use indexes instead of computing rank for all rows
+        const dashboardSearchFilterSql = getFullTextSearchFilterSql({
+            database: this.database,
+            searchVectorColumn: `${DashboardsTableName}.search_vector`,
+            searchQuery: query,
+            fullTextSearchOperator,
+        });
+        const directChartSearchFilterSql = getFullTextSearchFilterSql({
+            database: this.database,
+            searchVectorColumn: 'direct_charts.search_vector',
+            searchQuery: query,
+            fullTextSearchOperator,
+        });
+        const tileChartSearchFilterSql = getFullTextSearchFilterSql({
+            database: this.database,
+            searchVectorColumn: 'tile_charts.search_vector',
+            searchQuery: query,
             fullTextSearchOperator,
         });
 
@@ -238,8 +266,12 @@ export class SearchModel {
                 { lastUpdatedByUserUuid: 'updated_by_user.user_uuid' },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            // Use GIN index filters to reduce rows before computing ts_rank_cd.
+            // COALESCE is needed for chart filters because they come from LEFT JOINed tables -
+            // if a dashboard has no charts, search_vector is NULL and `NULL @@ tsquery` returns NULL.
+            // The dashboard filter doesn't need COALESCE since it's on the main table (always has a value).
             .whereRaw(
-                `(${dashboardSearchRankRawSql} > 0 OR ${directChartSearchRankRawSql} > 0 OR ${tileChartSearchRankRawSql} > 0)`,
+                `(${dashboardSearchFilterSql} OR COALESCE(${directChartSearchFilterSql}, false) OR COALESCE(${tileChartSearchFilterSql}, false))`,
             )
             .groupBy(
                 `${DashboardsTableName}.dashboard_id`,
@@ -264,14 +296,8 @@ export class SearchModel {
         subquery = filterByCreatedByUuid(
             subquery,
             {
-                join: {
-                    isVersioned: true,
-                    joinTableName: 'first_version',
-                    joinTableIdColumnName: 'dashboard_id',
-                    joinTableUserUuidColumnName: 'updated_by_user_uuid',
-                    tableIdColumnName: 'dashboard_id',
-                },
-                tableName: DashboardsTableName,
+                tableName: 'first_version',
+                tableUserUuidColumnName: 'updated_by_user_uuid',
             },
             filters,
         );
@@ -279,7 +305,6 @@ export class SearchModel {
         const dashboards = await this.database(DashboardsTableName)
             .select()
             .from(subquery.as('dashboards_with_rank'))
-            .where('search_rank', '>', 0)
             .limit(10);
 
         const dashboardUuids = dashboards.map((dashboard) => dashboard.uuid);
@@ -327,7 +352,7 @@ export class SearchModel {
                 'dashboard_versions.dashboard_version_id',
                 'dashboard_tiles.dashboard_version_id',
             )
-            .join('dashboard_tile_charts', function () {
+            .join('dashboard_tile_charts', function joinTileCharts() {
                 this.on(
                     'dashboard_tile_charts.dashboard_version_id',
                     '=',
@@ -485,6 +510,14 @@ export class SearchModel {
             fullTextSearchOperator,
         });
 
+        // Use GIN index filter to reduce rows before computing ts_rank_cd
+        const searchFilterSql = getFullTextSearchFilterSql({
+            database: this.database,
+            searchVectorColumn: `${tableName}.search_vector`,
+            searchQuery: query,
+            fullTextSearchOperator,
+        });
+
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
         let subquery = this.database(tableName)
             .leftJoin(
@@ -492,22 +525,22 @@ export class SearchModel {
                 `${tableName}.dashboard_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
             )
-            .leftJoin(SpaceTableName, function joinSpaces() {
-                this.on(
-                    `${tableName}.space_uuid`,
-                    '=',
-                    `${SpaceTableName}.space_uuid`,
-                );
-                this.orOn(
-                    `${DashboardsTableName}.space_id`,
-                    '=',
-                    `${SpaceTableName}.space_id`,
-                );
-            })
+            // Two separate joins to avoid OR condition (which causes Cartesian product)
+            .leftJoin(
+                `${SpaceTableName} as direct_space`,
+                `${tableName}.space_uuid`,
+                `direct_space.space_uuid`,
+            )
+            .leftJoin(
+                `${SpaceTableName} as dashboard_space`,
+                `${DashboardsTableName}.space_id`,
+                `dashboard_space.space_id`,
+            )
             .innerJoin(
                 ProjectTableName,
-                `${ProjectTableName}.project_id`,
-                `${SpaceTableName}.project_id`,
+                this.database.raw(
+                    `${ProjectTableName}.project_id = COALESCE(direct_space.project_id, dashboard_space.project_id)`,
+                ),
             )
             .leftJoin(
                 `${UserTableName} as created_by_user`,
@@ -541,6 +574,7 @@ export class SearchModel {
                 { search_rank: searchRankRawSql },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereRaw(searchFilterSql)
             .orderBy('search_rank', 'desc');
 
         subquery = filterByCreatedAt(tableName, subquery, filters);
@@ -556,7 +590,6 @@ export class SearchModel {
         const charts = await this.database(tableName)
             .select()
             .from(subquery.as('saved_charts_with_rank'))
-            .where('search_rank', '>', 0)
             .limit(10);
 
         return charts.map((chart) => ({
@@ -623,6 +656,14 @@ export class SearchModel {
             fullTextSearchOperator,
         });
 
+        // Use GIN index filter to reduce rows before computing ts_rank_cd
+        const searchFilterSql = getFullTextSearchFilterSql({
+            database: this.database,
+            searchVectorColumn: `${SavedChartsTableName}.search_vector`,
+            searchQuery: query,
+            fullTextSearchOperator,
+        });
+
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
         let subquery = this.database(SavedChartsTableName)
             .leftJoin(
@@ -630,18 +671,12 @@ export class SearchModel {
                 `${SavedChartsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
             )
-            .leftJoin(SpaceTableName, function joinSpaces() {
-                this.on(
-                    `${SavedChartsTableName}.space_id`,
-                    '=',
-                    `${SpaceTableName}.space_id`,
-                );
-                this.orOn(
-                    `${DashboardsTableName}.space_id`,
-                    '=',
-                    `${SpaceTableName}.space_id`,
-                );
-            })
+            .leftJoin(
+                SpaceTableName,
+                this.database.raw(
+                    `${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+                ),
+            )
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
@@ -686,6 +721,7 @@ export class SearchModel {
                 { lastUpdatedByUserUuid: 'updated_by_user.user_uuid' },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereRaw(searchFilterSql)
             .orderBy('search_rank', 'desc');
 
         subquery = filterByCreatedAt(SavedChartsTableName, subquery, filters);
@@ -701,7 +737,6 @@ export class SearchModel {
         const savedCharts = await this.database(SavedChartsTableName)
             .select()
             .from(subquery.as('saved_charts_with_rank'))
-            .where('search_rank', '>', 0)
             .limit(10);
 
         const chartUuids = savedCharts.map((chart) => chart.uuid);
@@ -764,24 +799,26 @@ export class SearchModel {
             fullTextSearchOperator,
         });
 
+        // GIN index filter for saved charts
+        const savedChartsSearchFilterSql = getFullTextSearchFilterSql({
+            database: this.database,
+            searchVectorColumn: `${SavedChartsTableName}.search_vector`,
+            searchQuery: query,
+            fullTextSearchOperator,
+        });
+
         const savedChartsSubquery = this.database(SavedChartsTableName)
             .leftJoin(
                 DashboardsTableName,
                 `${SavedChartsTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
             )
-            .leftJoin(SpaceTableName, function joinSpaces() {
-                this.on(
-                    `${SavedChartsTableName}.space_id`,
-                    '=',
-                    `${SpaceTableName}.space_id`,
-                );
-                this.orOn(
-                    `${DashboardsTableName}.space_id`,
-                    '=',
-                    `${SpaceTableName}.space_id`,
-                );
-            })
+            .leftJoin(
+                SpaceTableName,
+                this.database.raw(
+                    `${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+                ),
+            )
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
@@ -841,7 +878,8 @@ export class SearchModel {
                 },
                 this.database.raw('? as chart_source', ['saved']),
             )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereRaw(savedChartsSearchFilterSql);
 
         const savedSqlSearchRankRawSql = getFullTextSearchRankCalcSql({
             database: this.database,
@@ -852,28 +890,36 @@ export class SearchModel {
             fullTextSearchOperator,
         });
 
+        // GIN index filter for SQL charts
+        const savedSqlSearchFilterSql = getFullTextSearchFilterSql({
+            database: this.database,
+            searchVectorColumn: `${SavedSqlTableName}.search_vector`,
+            searchQuery: query,
+            fullTextSearchOperator,
+        });
+
         const savedSqlSubquery = this.database(SavedSqlTableName)
             .leftJoin(
                 DashboardsTableName,
                 `${SavedSqlTableName}.dashboard_uuid`,
                 `${DashboardsTableName}.dashboard_uuid`,
             )
-            .leftJoin(SpaceTableName, function joinSpaces() {
-                this.on(
-                    `${SavedSqlTableName}.space_uuid`,
-                    '=',
-                    `${SpaceTableName}.space_uuid`,
-                );
-                this.orOn(
-                    `${DashboardsTableName}.space_id`,
-                    '=',
-                    `${SpaceTableName}.space_id`,
-                );
-            })
+            // Two separate joins to avoid OR condition (which causes Cartesian product)
+            .leftJoin(
+                `${SpaceTableName} as direct_space`,
+                `${SavedSqlTableName}.space_uuid`,
+                `direct_space.space_uuid`,
+            )
+            .leftJoin(
+                `${SpaceTableName} as dashboard_space`,
+                `${DashboardsTableName}.space_id`,
+                `dashboard_space.space_id`,
+            )
             .innerJoin(
                 ProjectTableName,
-                `${ProjectTableName}.project_id`,
-                `${SpaceTableName}.project_id`,
+                this.database.raw(
+                    `${ProjectTableName}.project_id = COALESCE(direct_space.project_id, dashboard_space.project_id)`,
+                ),
             )
             .leftJoin(
                 `${UserTableName} as sql_chart_created_by_user`,
@@ -921,7 +967,8 @@ export class SearchModel {
                 ),
                 this.database.raw('? as chart_source', ['sql']),
             )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereRaw(savedSqlSearchFilterSql);
 
         // Type-safe union by ensuring both subqueries have identical column structure
         const unionQuery = this.database
@@ -974,7 +1021,6 @@ export class SearchModel {
                 }>
             >('*')
             .from(unionQuery.as('all_charts_with_rank'))
-            .where('search_rank', '>', 0)
             .orderBy('search_rank', 'desc')
             .limit(20);
 
@@ -1014,7 +1060,7 @@ export class SearchModel {
             .where('project_uuid', projectUuid)
             .limit(1);
         if (projects.length === 0) {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 `Cannot find project with id: ${projectUuid}`,
             );
         }

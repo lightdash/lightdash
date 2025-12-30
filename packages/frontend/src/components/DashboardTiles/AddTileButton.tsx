@@ -1,4 +1,8 @@
-import { DashboardTileTypes, type Dashboard } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    FeatureFlags,
+    type Dashboard,
+} from '@lightdash/common';
 import {
     Button,
     Group,
@@ -9,6 +13,7 @@ import {
 } from '@mantine/core';
 import {
     IconChartBar,
+    IconHeading,
     IconInfoCircle,
     IconMarkdown,
     IconNewSection,
@@ -18,6 +23,7 @@ import {
 import { useCallback, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
@@ -28,7 +34,7 @@ type Props = {
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     activeTabUuid?: string;
     dashboardTabs?: Dashboard['tabs'];
-} & Pick<ButtonProps, 'disabled'>;
+} & Pick<ButtonProps, 'disabled' | 'radius'>;
 
 const AddTileButton: FC<Props> = ({
     onAddTiles,
@@ -36,7 +42,11 @@ const AddTileButton: FC<Props> = ({
     disabled,
     activeTabUuid,
     dashboardTabs,
+    radius,
 }) => {
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
+    );
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -72,6 +82,7 @@ const AddTileButton: FC<Props> = ({
                     <Button
                         size="xs"
                         variant="default"
+                        radius={radius}
                         disabled={disabled}
                         leftIcon={<MantineIcon icon={IconPlus} />}
                     >
@@ -79,6 +90,7 @@ const AddTileButton: FC<Props> = ({
                     </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    <Menu.Label>Tiles</Menu.Label>
                     <Menu.Item
                         onClick={() => setIsAddChartTilesModalOpen(true)}
                         icon={<MantineIcon icon={IconChartBar} />}
@@ -129,12 +141,26 @@ const AddTileButton: FC<Props> = ({
                         Loom video
                     </Menu.Item>
 
+                    <Menu.Divider />
+
+                    <Menu.Label>Elements</Menu.Label>
                     <Menu.Item
                         onClick={() => setAddingTab(true)}
                         icon={<MantineIcon icon={IconNewSection} />}
                     >
-                        Add tab
+                        Tab
                     </Menu.Item>
+
+                    {isDashboardRedesignEnabled && (
+                        <Menu.Item
+                            onClick={() =>
+                                setAddTileType(DashboardTileTypes.HEADING)
+                            }
+                            icon={<MantineIcon icon={IconHeading} />}
+                        >
+                            Heading
+                        </Menu.Item>
+                    )}
                 </Menu.Dropdown>
             </Menu>
 
@@ -146,7 +172,8 @@ const AddTileButton: FC<Props> = ({
             )}
 
             {addTileType === DashboardTileTypes.MARKDOWN ||
-            addTileType === DashboardTileTypes.LOOM ? (
+            addTileType === DashboardTileTypes.LOOM ||
+            addTileType === DashboardTileTypes.HEADING ? (
                 <TileAddModal
                     opened={!!addTileType}
                     type={addTileType}

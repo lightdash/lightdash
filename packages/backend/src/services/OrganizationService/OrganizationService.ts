@@ -14,7 +14,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashMode,
-    NotExistsError,
+    NotFoundError,
     OnbordingRecord,
     Organization,
     OrganizationColorPalette,
@@ -135,7 +135,7 @@ export class OrganizationService extends BaseService {
             throw new ForbiddenError();
         }
         if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
+            throw new NotFoundError('Organization not found');
         }
         if (data.name) {
             validateOrganizationNameOrThrow(data.name);
@@ -230,7 +230,7 @@ export class OrganizationService extends BaseService {
             throw new ForbiddenError();
         }
         if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
+            throw new NotFoundError('Organization not found');
         }
 
         const { pagination, data: organizationMembers } = includeGroups
@@ -290,7 +290,7 @@ export class OrganizationService extends BaseService {
     async getProjects(account: Account): Promise<OrganizationProject[]> {
         const { organizationUuid } = account.organization;
         if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
+            throw new NotFoundError('Organization not found');
         }
 
         const projects = await wrapSentryTransaction(
@@ -314,7 +314,7 @@ export class OrganizationService extends BaseService {
     async getOnboarding(user: SessionUser): Promise<OnbordingRecord> {
         const { organizationUuid } = user;
         if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
+            throw new NotFoundError('Organization not found');
         }
         return this.onboardingModel.getByOrganizationUuid(organizationUuid);
     }
@@ -325,7 +325,7 @@ export class OrganizationService extends BaseService {
         }
         const { shownSuccessAt } = await this.getOnboarding(user);
         if (shownSuccessAt) {
-            throw new NotExistsError('Can not override "shown success" date');
+            throw new NotFoundError('Can not override "shown success" date');
         }
         return this.onboardingModel.update(user.organizationUuid, {
             shownSuccessAt: new Date(),
@@ -447,7 +447,7 @@ export class OrganizationService extends BaseService {
     ): Promise<AllowedEmailDomains> {
         const { organizationUuid } = user;
         if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
+            throw new NotFoundError('Organization not found');
         }
 
         const allowedEmailDomains =
@@ -471,7 +471,7 @@ export class OrganizationService extends BaseService {
     ): Promise<AllowedEmailDomains> {
         const { organizationUuid } = user;
         if (organizationUuid === undefined) {
-            throw new NotExistsError('Organization not found');
+            throw new NotFoundError('Organization not found');
         }
 
         if (
@@ -675,7 +675,7 @@ export class OrganizationService extends BaseService {
         user: SessionUser,
     ): Promise<OrganizationColorPaletteWithIsActive[]> {
         if (!user.organizationUuid) {
-            throw new NotExistsError('Organization not found');
+            throw new NotFoundError('Organization not found');
         }
 
         return this.organizationModel.getColorPalettes(user.organizationUuid);

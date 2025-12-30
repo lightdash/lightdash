@@ -24,9 +24,11 @@ type Props = ComponentProps<typeof TableProvider> & {
     $padding?: number;
     'data-testid'?: string;
     errorDetail?: ApiErrorDetail | null;
+    isDashboard?: boolean;
 };
 
 const Table: FC<React.PropsWithChildren<Props>> = ({
+    isDashboard = false,
     $shouldExpand,
     $padding,
     status,
@@ -63,6 +65,7 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
                 <ScrollableTable
                     minimal={minimal}
                     showSubtotals={showSubtotals}
+                    isDashboard={isDashboard}
                 />
 
                 {status === 'error' && (

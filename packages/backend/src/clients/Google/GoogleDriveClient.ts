@@ -80,6 +80,22 @@ export class GoogleDriveClient {
                 );
             }
 
+            if (
+                err?.message &&
+                err.message.includes('The caller does not have permission')
+            ) {
+                throw new ForbiddenError(
+                    `The caller does not have permission to access this Google Sheet: ${err.message}`,
+                );
+            }
+
+            if (
+                err?.message &&
+                err.message.includes('The service is currently unavailable')
+            ) {
+                throw new GoogleSheetsTransientError(err);
+            }
+
             throw err;
         }
     }

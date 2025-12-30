@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    CreateSnowflakeCredentials,
     CreateWarehouseCredentials,
     DatabricksAuthenticationType,
     getErrorMessage,
@@ -13,6 +14,7 @@ import {
 } from '@lightdash/common';
 import {
     exchangeDatabricksOAuthCredentials,
+    SnowflakeWarehouseClient,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import crypto from 'crypto';
@@ -203,6 +205,41 @@ type GetWarehouseClientOptions = {
     profile: string;
     target?: string;
     startOfWeek?: number;
+};
+
+/*
+Generates a temporary Snowflake PAT to enable access on Lightdash which expires in 1 day.
+Snowflake PAT limitations and error messages:
+- 15 PATs per user: Exceeded maximum of 15 programmatic access tokens.
+- Must be unique: Programmatic access token LIGHTDASH_CLI already exists.
+- Can't include "-" in the name : SQL compilation error: syntax error line 1 at position 37 unexpected '-'
+*/
+export const createProgramaticallySnowflakePat = async (
+    credentials: CreateSnowflakeCredentials,
+): Promise<string> => {
+    const tempClient = new SnowflakeWarehouseClient({
+        ...credentials,
+    });
+
+    try {
+        console.error(`\n- Creating Snowflake Programmatic Access Token\n`);
+        const { tokenSecret, tokenName } =
+            await tempClient.createProgrammaticAccessToken(
+                `lightdash_cli_${Date.now()}`,
+                1, // 1 day expiry
+            );
+
+        console.error(`\n✓ Successfully created Snowflake PAT: ${tokenName}\n`);
+        return tokenSecret;
+    } catch (e) {
+        console.error(
+            styles.error(
+                `\nFailed to create Snowflake PAT: ${getErrorMessage(e)}`,
+            ),
+        );
+        process.exit(1);
+    }
+    return '';
 };
 
 type GetWarehouseClientReturn = {

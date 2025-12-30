@@ -69,7 +69,7 @@ const PinnedParameter: FC<PinnedParameterProps> = ({
                     variant="default"
                     styles={{
                         inner: {
-                            color: 'black',
+                            color: 'foreground',
                         },
                         label: {
                             maxWidth: '300px',

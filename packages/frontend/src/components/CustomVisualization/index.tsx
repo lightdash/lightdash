@@ -1,10 +1,10 @@
 import { Anchor, Text } from '@mantine/core';
-import { IconChartBarOff } from '@tabler/icons-react';
-import { Suspense, lazy, useEffect, type FC } from 'react';
+import { IconGraphOff } from '@tabler/icons-react';
+import { Suspense, lazy, useEffect, useRef, type FC } from 'react';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
-import { LoadingChart } from '../SimpleChart';
+import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
 const VegaLite = lazy(() =>
@@ -14,9 +14,15 @@ const VegaLite = lazy(() =>
 type Props = {
     className?: string;
     'data-testid'?: string;
+    onScreenshotReady?: () => void;
+    onScreenshotError?: () => void;
 };
 
-const CustomVisualization: FC<Props> = (props) => {
+const CustomVisualization: FC<Props> = ({
+    onScreenshotReady,
+    onScreenshotError,
+    ...props
+}) => {
     const {
         isLoading,
         visualizationConfig,
@@ -24,6 +30,17 @@ const CustomVisualization: FC<Props> = (props) => {
         containerWidth,
         containerHeight,
     } = useVisualizationContext();
+
+    const hasSignaledScreenshotReady = useRef(false);
+
+    useEffect(() => {
+        if (hasSignaledScreenshotReady.current) return;
+        if (!onScreenshotReady && !onScreenshotError) return;
+        if (!isLoading) {
+            onScreenshotReady?.();
+            hasSignaledScreenshotReady.current = true;
+        }
+    }, [isLoading, visualizationConfig, onScreenshotReady, onScreenshotError]);
 
     useEffect(() => {
         // Load all the rows
@@ -59,7 +76,7 @@ const CustomVisualization: FC<Props> = (props) => {
                             create your chart.
                         </Text>
                     }
-                    icon={IconChartBarOff}
+                    icon={IconGraphOff}
                 />
             </div>
         );
@@ -69,6 +86,19 @@ const CustomVisualization: FC<Props> = (props) => {
     // configuration for the chart. We should consider renaming it generally.
     const visProps =
         visualizationConfig.chartConfig as CustomVisualizationConfigAndData;
+
+    // Show empty state if there's no data
+    if (!visProps.series || visProps.series.length === 0) {
+        return (
+            <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+                <SuboptimalState
+                    title="No data available"
+                    description="Query metrics and dimensions with results."
+                    icon={IconGraphOff}
+                />
+            </div>
+        );
+    }
 
     const data = { values: visProps.series };
 

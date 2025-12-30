@@ -2,11 +2,15 @@ import {
     AnyType,
     friendlyName,
     getErrorMessage,
+    getSlackErrorCode,
+    isSlackRateLimitedError,
+    isUnrecoverableSlackError,
     MissingConfigError,
     SLACK_ID_REGEX,
     SlackAppCustomSettings,
     SlackChannel,
     SlackError,
+    SlackFileUploadError,
     SlackInstallationNotFoundError,
     SlackSettings,
     sleep,
@@ -96,12 +100,16 @@ const createThrottledSlackExecutor = () => {
         try {
             return await operation();
         } catch (error: unknown) {
-            const isRateLimited =
-                error instanceof Error &&
-                'code' in error &&
-                error.code === 'slack_webapi_rate_limited_error';
-
-            if (!isRateLimited) {
+            if (!isSlackRateLimitedError(error)) {
+                // Only send unexpected errors to Sentry
+                // Unrecoverable errors (account_inactive, invalid_auth, missing_scope)
+                // are expected for orgs with broken installations - don't spam Sentry
+                if (!isUnrecoverableSlackError(error)) {
+                    slackErrorHandler(
+                        error,
+                        `Slack API error during ${context}`,
+                    );
+                }
                 throw error;
             }
 
@@ -515,6 +523,33 @@ export class SlackClient {
         reason: string;
         totalChannels: number;
     }> {
+        // Check if installation has required scopes before syncing
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        if (!installation) {
+            return {
+                status: 'skipped',
+                reason: 'No Slack installation found',
+                totalChannels: 0,
+            };
+        }
+
+        if (!this.hasRequiredScopes(installation.scopes)) {
+            const currentScopes = installation.scopes.join(', ');
+            const requiredScopes = this.getRequiredScopes().join(', ');
+            Logger.debug(
+                `Skipping Slack channel sync for organization ${organizationUuid}: missing required scopes. Has: [${currentScopes}], needs: [${requiredScopes}]`,
+            );
+            return {
+                status: 'skipped',
+                reason: 'Missing required Slack scopes - user needs to re-install',
+                totalChannels: 0,
+            };
+        }
+
         const organizationId =
             await this.slackChannelCacheModel.getOrganizationId(
                 organizationUuid,
@@ -559,6 +594,25 @@ export class SlackClient {
             };
         } catch (error) {
             const errorMessage = getErrorMessage(error);
+
+            // Handle unrecoverable Slack errors gracefully (user needs to re-install)
+            if (isUnrecoverableSlackError(error)) {
+                const slackErrorCode = getSlackErrorCode(error);
+                const reason = `Slack installation is invalid (${slackErrorCode}) - user needs to re-install`;
+                Logger.warn(
+                    `Skipping Slack channel sync for organization ${organizationUuid}: ${reason}`,
+                );
+                await this.slackChannelCacheModel.failSync(
+                    organizationId,
+                    reason,
+                );
+                return {
+                    status: 'skipped',
+                    reason,
+                    totalChannels: 0,
+                };
+            }
+
             Logger.error(
                 `Slack channel sync failed for organization ${organizationUuid}: ${errorMessage}`,
             );
@@ -594,7 +648,7 @@ export class SlackClient {
         if (!organizationId) {
             throw new Error(`Organization ${organizationUuid} not found`);
         }
-        // Check if input looks like a Slack ID (C, G, U, W followed by alphanumerics)
+
         const isSlackId = SLACK_ID_REGEX.test(input);
 
         if (isSlackId) {
@@ -653,7 +707,10 @@ export class SlackClient {
                 name: channelName,
             };
         } catch (error) {
-            console.error('Error fetching Slack channel info:', error);
+            slackErrorHandler(
+                error,
+                `Error fetching Slack channel info for channel ${channelId}`,
+            );
             return null;
         }
     }
@@ -866,19 +923,28 @@ export class SlackClient {
         text: string;
         blocks?: Block[];
     }): Promise<void> {
-        const channelId = await this.getNotificationChannel(organizationUuid);
-        if (!channelId) {
-            Logger.warn(
-                `Unable to send slack notification for organization ${organizationUuid}. No notification channel set.`,
+        try {
+            const channelId = await this.getNotificationChannel(
+                organizationUuid,
             );
-            return;
+            if (!channelId) {
+                Logger.warn(
+                    `Unable to send slack notification for organization ${organizationUuid}. No notification channel set.`,
+                );
+                return;
+            }
+            await this.postMessage({
+                organizationUuid,
+                text,
+                channel: channelId,
+                blocks,
+            });
+        } catch (e) {
+            slackErrorHandler(
+                e,
+                `Unable to send slack notification for organization ${organizationUuid}.`,
+            );
         }
-        await this.postMessage({
-            organizationUuid,
-            text,
-            channel: channelId,
-            blocks,
-        });
     }
 
     async updateMessage({
@@ -985,7 +1051,7 @@ export class SlackClient {
         const uploadedFile = result.files?.[0].files?.[0];
 
         if (!uploadedFile?.id) {
-            throw new UnexpectedServerError('Slack file was not uploaded');
+            throw new SlackFileUploadError('Slack file was not uploaded');
         }
 
         // We need to wait for the file to be ready, otherwise slack will fail with invalid_blocks error
@@ -995,7 +1061,7 @@ export class SlackClient {
 
             const checkFile = async (attempt: number): Promise<string> => {
                 if (attempt >= maxRetries) {
-                    throw new UnexpectedServerError(
+                    throw new SlackFileUploadError(
                         'File URL not available after maximum retries.',
                     );
                 }
@@ -1110,7 +1176,11 @@ export class SlackClient {
             });
             return { url: slackFileUrl, expiring: false };
         } catch (e) {
-            slackErrorHandler(e, 'Failed to upload image to slack');
+            if (e instanceof SlackFileUploadError) {
+                Logger.warn(e.message);
+            } else {
+                slackErrorHandler(e, 'Failed to upload image to slack');
+            }
             return { url: imageUrl, expiring: true };
         }
     }

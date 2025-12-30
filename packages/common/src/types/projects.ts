@@ -283,6 +283,10 @@ export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
 ): T => {
     // If types don't match, return newCredentials as-is (can't merge different warehouse types)
     if (baseCredentials.type !== newCredentials.type) {
+        // eslint-disable-next-line no-console
+        console.info(
+            `Skipping merge of warehouse credentials due to differing types: ${baseCredentials.type} and ${newCredentials.type}`,
+        );
         return newCredentials;
     }
 
@@ -291,8 +295,13 @@ export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
     if (
         baseCredentials.type === WarehouseTypes.SNOWFLAKE &&
         newCredentials.type === WarehouseTypes.SNOWFLAKE &&
-        baseCredentials.warehouse !== newCredentials.warehouse
+        baseCredentials.warehouse.toLowerCase().trim() !==
+            newCredentials.warehouse.toLowerCase().trim()
     ) {
+        // eslint-disable-next-line no-console
+        console.info(
+            `Skipping merge of Snowflake credentials due to differing warehouse names: ${baseCredentials.warehouse} and ${newCredentials.warehouse}`,
+        );
         return newCredentials;
     }
 
@@ -313,7 +322,9 @@ export const mergeWarehouseCredentials = <T extends CreateWarehouseCredentials>(
         ...filteredBaseCredentials, // We copy most of the base config from the parent project, including advanced settings
         ...newCredentials,
         // Keep requireUserCredentials from base credentials, since this is a security setting and should not be overridden
-        requireUserCredentials: baseCredentials.requireUserCredentials,
+        requireUserCredentials:
+            baseCredentials.requireUserCredentials ||
+            newCredentials.requireUserCredentials,
     };
 
     return merged as T;

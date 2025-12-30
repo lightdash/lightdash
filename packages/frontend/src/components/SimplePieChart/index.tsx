@@ -2,7 +2,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconChartPieOff } from '@tabler/icons-react';
 import { type ECElementEvent } from 'echarts';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
-import { memo, useCallback, useEffect, useState, type FC } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type FC } from 'react';
 import useEchartsPieConfig, {
     type PieSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsPieConfig';
@@ -10,6 +10,7 @@ import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoub
 import useApp from '../../providers/App/useApp';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import PieChartContextMenu, {
     type PieChartContextMenuProps,
@@ -25,121 +26,128 @@ const EmptyChart = () => (
     </div>
 );
 
-const LoadingChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="Loading chart"
-            loading
-            className="loading_chart"
-        />
-    </div>
-);
-
 type SimplePieChartProps = Omit<EChartsReactProps, 'option'> & {
     isInDashboard: boolean;
     $shouldExpand?: boolean;
     className?: string;
     'data-testid'?: string;
+    onScreenshotReady?: () => void;
+    onScreenshotError?: () => void;
 };
 
 const EchartOptions: Opts = { renderer: 'svg' };
 
-const SimplePieChart: FC<SimplePieChartProps> = memo((props) => {
-    const { chartRef, isLoading, resultsData } = useVisualizationContext();
-    const { selectedLegends, onLegendChange } = useLegendDoubleClickSelection();
+const SimplePieChart: FC<SimplePieChartProps> = memo(
+    ({ onScreenshotReady, onScreenshotError, ...props }) => {
+        const { chartRef, isLoading, resultsData } = useVisualizationContext();
+        const { selectedLegends, onLegendChange } =
+            useLegendDoubleClickSelection();
 
-    const pieChartOptions = useEchartsPieConfig(
-        selectedLegends,
-        props.isInDashboard,
-    );
-    const { user } = useApp();
+        const pieChartOptions = useEchartsPieConfig(
+            selectedLegends,
+            props.isInDashboard,
+        );
+        const { user } = useApp();
 
-    const [isOpen, { open, close }] = useDisclosure();
-    const [menuProps, setMenuProps] = useState<{
-        position: PieChartContextMenuProps['menuPosition'];
-        value: PieChartContextMenuProps['value'];
-        rows: PieChartContextMenuProps['rows'];
-    }>();
+        const [isOpen, { open, close }] = useDisclosure();
+        const [menuProps, setMenuProps] = useState<{
+            position: PieChartContextMenuProps['menuPosition'];
+            value: PieChartContextMenuProps['value'];
+            rows: PieChartContextMenuProps['rows'];
+        }>();
 
-    useEffect(() => {
-        // Load all the rows
-        resultsData?.setFetchAll(true);
-    }, [resultsData]);
+        const hasSignaledScreenshotReady = useRef(false);
 
-    useEffect(() => {
-        const listener = () => chartRef.current?.getEchartsInstance().resize();
-        window.addEventListener('resize', listener);
-        return () => window.removeEventListener('resize', listener);
-    });
+        useEffect(() => {
+            if (hasSignaledScreenshotReady.current) return;
+            if (!onScreenshotReady && !onScreenshotError) return;
+            if (!isLoading) {
+                onScreenshotReady?.();
+                hasSignaledScreenshotReady.current = true;
+            }
+        }, [isLoading, pieChartOptions, onScreenshotReady, onScreenshotError]);
 
-    const handleOpenContextMenu = useCallback(
-        (e: ECElementEvent) => {
-            const event = e.event?.event as unknown as PointerEvent;
-            const data = e.data as PieSeriesDataPoint;
+        useEffect(() => {
+            // Load all the rows
+            resultsData?.setFetchAll(true);
+        }, [resultsData]);
 
-            setMenuProps({
-                value: data.meta.value,
-                position: {
-                    left: event.clientX,
-                    top: event.clientY,
-                },
-                rows: data.meta.rows,
-            });
+        useEffect(() => {
+            const listener = () =>
+                chartRef.current?.getEchartsInstance().resize();
+            window.addEventListener('resize', listener);
+            return () => window.removeEventListener('resize', listener);
+        });
 
-            open();
-        },
-        [open],
-    );
+        const handleOpenContextMenu = useCallback(
+            (e: ECElementEvent) => {
+                const event = e.event?.event as unknown as PointerEvent;
+                const data = e.data as PieSeriesDataPoint;
 
-    const handleCloseContextMenu = useCallback(() => {
-        setMenuProps(undefined);
-        close();
-    }, [close]);
+                setMenuProps({
+                    value: data.meta.value,
+                    position: {
+                        left: event.clientX,
+                        top: event.clientY,
+                    },
+                    rows: data.meta.rows,
+                });
 
-    if (isLoading) return <LoadingChart />;
-    if (!pieChartOptions) return <EmptyChart />;
+                open();
+            },
+            [open],
+        );
 
-    return (
-        <>
-            <EChartsReact
-                ref={chartRef}
-                data-testid={props['data-testid']}
-                className={props.className}
-                style={
-                    props.$shouldExpand
-                        ? {
-                              minHeight: 'inherit',
-                              height: '100%',
-                              width: '100%',
-                          }
-                        : {
-                              minHeight: 'inherit',
-                              // height defaults to 300px
-                              width: '100%',
-                          }
-                }
-                opts={EchartOptions}
-                option={pieChartOptions.eChartsOption}
-                notMerge
-                {...props}
-                onEvents={{
-                    click: handleOpenContextMenu,
-                    oncontextmenu: handleOpenContextMenu,
-                    legendselectchanged: onLegendChange,
-                }}
-            />
+        const handleCloseContextMenu = useCallback(() => {
+            setMenuProps(undefined);
+            close();
+        }, [close]);
 
-            {user.data && (
-                <PieChartContextMenu
-                    value={menuProps?.value}
-                    menuPosition={menuProps?.position}
-                    rows={menuProps?.rows}
-                    opened={isOpen}
-                    onClose={handleCloseContextMenu}
+        if (isLoading) return <LoadingChart />;
+        if (!pieChartOptions) return <EmptyChart />;
+
+        return (
+            <>
+                <EChartsReact
+                    ref={chartRef}
+                    data-testid={props['data-testid']}
+                    className={props.className}
+                    style={
+                        props.$shouldExpand
+                            ? {
+                                  minHeight: 'inherit',
+                                  height: '100%',
+                                  width: '100%',
+                              }
+                            : {
+                                  minHeight: 'inherit',
+                                  // height defaults to 300px
+                                  width: '100%',
+                              }
+                    }
+                    opts={EchartOptions}
+                    option={pieChartOptions.eChartsOption}
+                    notMerge
+                    {...props}
+                    onEvents={{
+                        click: handleOpenContextMenu,
+                        oncontextmenu: handleOpenContextMenu,
+                        legendselectchanged: onLegendChange,
+                    }}
                 />
-            )}
-        </>
-    );
-});
+
+                {user.data && (
+                    <PieChartContextMenu
+                        value={menuProps?.value}
+                        menuPosition={menuProps?.position}
+                        rows={menuProps?.rows}
+                        opened={isOpen}
+                        onClose={handleCloseContextMenu}
+                    />
+                )}
+            </>
+        );
+    },
+);
 
 export default SimplePieChart;

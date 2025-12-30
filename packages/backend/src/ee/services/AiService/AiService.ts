@@ -6,16 +6,20 @@ import {
     FeatureFlags,
     ForbiddenError,
     GenerateChartMetadataRequest,
+    GenerateTableCalculationRequest,
     GeneratedChartMetadata,
+    GeneratedTableCalculation,
     ItemsMap,
     QueryExecutionContext,
     SessionUser,
+    TableCalculationType,
     UnexpectedServerError,
     getErrorMessage,
     getItemId,
     isDashboardChartTileType,
     isField,
 } from '@lightdash/common';
+import { LanguageModel } from 'ai';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -28,11 +32,18 @@ import {
     DashboardSummaryCreated,
     DashboardSummaryViewed,
     GenerateChartMetadataGenerated,
+    GenerateTableCalculationGenerated,
 } from '../../analytics';
 import OpenAi from '../../clients/OpenAi';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
 import { generateChartMetadata as generateChartMetadataFromContext } from '../ai/agents/chartMetadataGenerator';
+import {
+    generateTableCalculation as generateTableCalculationFromContext,
+    sanitizeCustomFormat,
+} from '../ai/agents/tableCalculationGenerator';
 import { getModel } from '../ai/models';
+import { getAnthropicModel } from '../ai/models/anthropic-claude';
+import { getModelPreset } from '../ai/models/presets';
 import {
     fieldDesc,
     formatSummaryArray,
@@ -86,6 +97,47 @@ export class AiService {
         this.openAi = dependencies.openAi;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.featureFlagService = dependencies.featureFlagService;
+    }
+
+    /**
+     * Gets a language model for ambient AI tasks.
+     * 1. Checks anthropic shared key
+     * 2. Falls back to AI Copilot if the feature flag is enabled for the user,
+     *    using their configured model.
+     *
+     * @returns The language model
+     */
+    private async getAmbientAiModel(user: SessionUser): Promise<LanguageModel> {
+        const anthropicConfig =
+            this.lightdashConfig.ai.copilot.providers.anthropic;
+
+        if (anthropicConfig?.apiKey) {
+            const preset = getModelPreset('anthropic', 'claude-haiku-4-5');
+            if (!preset) {
+                throw new UnexpectedServerError(
+                    'claude-haiku-4-5 preset not found',
+                );
+            }
+            const aiModel = getAnthropicModel(anthropicConfig, preset, {
+                enableReasoning: false,
+            });
+            return aiModel.model;
+        }
+
+        const aiCopilotFlag = await this.featureFlagService.get({
+            user,
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
+        });
+
+        if (!aiCopilotFlag.enabled) {
+            throw new ForbiddenError('Ambient AI is not available');
+        }
+
+        const aiModel = getModel(this.lightdashConfig.ai.copilot, {
+            enableReasoning: false,
+            useFastModel: true,
+        });
+        return aiModel.model;
     }
 
     private static async throwOnFeatureDisabled(user: SessionUser) {
@@ -295,6 +347,7 @@ export class AiService {
         const { context, tone, audiences } = opts;
 
         try {
+            // TODO: use ambient AI model
             dashboardSummaryResult = await this.openAi.run(
                 DEFAULT_DASHBOARD_SUMMARY_PROMPT,
                 {
@@ -394,19 +447,7 @@ export class AiService {
         projectUuid: string,
         payload: GenerateChartMetadataRequest,
     ): Promise<GeneratedChartMetadata> {
-        const aiCopilotFlag = await this.featureFlagService.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.AiCopilot,
-        });
-
-        if (!aiCopilotFlag.enabled) {
-            throw new ForbiddenError('AI Copilot is not enabled!');
-        }
-
-        const { model } = getModel(this.lightdashConfig.ai.copilot, {
-            enableReasoning: false,
-            useFastModel: true,
-        });
+        const model = await this.getAmbientAiModel(user);
 
         const result = await generateChartMetadataFromContext(model, {
             tableName: payload.tableName,
@@ -429,5 +470,48 @@ export class AiService {
         });
 
         return result;
+    }
+
+    async generateTableCalculation(
+        user: SessionUser,
+        projectUuid: string,
+        payload: GenerateTableCalculationRequest,
+    ): Promise<GeneratedTableCalculation> {
+        const model = await this.getAmbientAiModel(user);
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
+        const warehouseType = project.warehouseConnection?.type;
+
+        if (!warehouseType) {
+            throw new ForbiddenError('Warehouse type is not available');
+        }
+
+        const result = await generateTableCalculationFromContext(model, {
+            prompt: payload.prompt,
+            tableName: payload.tableName,
+            warehouseType,
+            fieldsContext: payload.fieldsContext,
+            existingTableCalculations: payload.existingTableCalculations,
+            currentSql: payload.currentSql,
+        });
+
+        this.analytics.track<GenerateTableCalculationGenerated>({
+            userId: user.userUuid,
+            event: 'ai.table_calculation.generated',
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                userId: user.userUuid,
+            },
+        });
+
+        return {
+            sql: result.sql,
+            displayName: result.displayName,
+            type: result.type as TableCalculationType,
+            format: sanitizeCustomFormat(result.format),
+        };
     }
 }

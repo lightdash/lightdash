@@ -185,7 +185,12 @@ export type MapChart = {
     minBubbleSize?: number;
     maxBubbleSize?: number;
     sizeFieldId?: string;
-    // Tile background
+    // Heatmap settings
+    heatmapConfig?: {
+        radius?: number;
+        blur?: number;
+        opacity?: number;
+    };
     tileBackground?: MapTileBackground;
     backgroundColor?: string;
 };
@@ -310,6 +315,7 @@ export type Series = {
     label?: {
         show?: boolean;
         position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
+        showOverlappingLabels?: boolean;
     };
     hidden?: boolean;
     areaStyle?: Record<string, unknown>;
@@ -359,6 +365,8 @@ export type CompleteEChartsConfig = {
     yAxis: Axis[];
     tooltip?: string;
     showAxisTicks?: boolean;
+    axisLabelFontSize?: number;
+    axisTitleFontSize?: number;
 };
 
 export type EChartsConfig = Partial<CompleteEChartsConfig>;

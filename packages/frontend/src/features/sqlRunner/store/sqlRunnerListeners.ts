@@ -9,7 +9,9 @@ import {
 import { getChartConfigAndOptions } from '../../../components/DataViz/transformers/getChartConfigAndOptions';
 import { type startAppListening } from './listenerMiddleware';
 import {
+    EditorTabs,
     selectSqlRunnerResultsRunner,
+    setActiveEditorTab,
     setSelectedChartType,
 } from './sqlRunnerSlice';
 import { prepareAndFetchChartData, runSqlQuery } from './thunks';
@@ -54,8 +56,6 @@ export const addSqlRunnerQueryListener = (
 
             listenerApi.dispatch(setChartOptionsAndConfig(chartResultOptions));
             listenerApi.dispatch(setChartOptionsAndConfig(tableResultOptions));
-
-            await listenerApi.dispatch(prepareAndFetchChartData());
         },
     });
 };
@@ -89,7 +89,6 @@ export const addChartConfigListener = (
             );
         },
         effect: async (_, listenerApi) => {
-            // TODO: this is the same as the listener for when the SQL query is run, should we combine them?
             const state = listenerApi.getState();
             const resultsRunner = selectSqlRunnerResultsRunner(state);
             const selectedChartType = state.sqlRunner.selectedChartType;
@@ -107,7 +106,11 @@ export const addChartConfigListener = (
             );
 
             listenerApi.dispatch(setChartOptionsAndConfig(chartResultOptions));
-            await listenerApi.dispatch(prepareAndFetchChartData());
+
+            // Only run pivot query if on visualization tab
+            if (state.sqlRunner.activeEditorTab === EditorTabs.VISUALIZATION) {
+                await listenerApi.dispatch(prepareAndFetchChartData());
+            }
         },
     });
 };
@@ -140,7 +143,48 @@ export const addChartTypeListener = (
             );
 
             listenerApi.dispatch(setChartOptionsAndConfig(chartResultOptions));
-            await listenerApi.dispatch(prepareAndFetchChartData());
+
+            // Only run pivot query if on visualization tab
+            if (state.sqlRunner.activeEditorTab === EditorTabs.VISUALIZATION) {
+                await listenerApi.dispatch(prepareAndFetchChartData());
+            }
+        },
+    });
+};
+
+/**
+ * Add a listener for when the editor tab is switched.
+ * This listener will fetch the pivot chart data when switching to the visualization tab.
+ * @param startListening - The startAppListening function from listenerMiddleware.ts
+ */
+export const addTabSwitchListener = (
+    startListening: typeof startAppListening,
+) => {
+    startListening({
+        actionCreator: setActiveEditorTab,
+        effect: async (action, listenerApi) => {
+            if (action.payload === EditorTabs.VISUALIZATION) {
+                const state = listenerApi.getState();
+                const resultsRunner = selectSqlRunnerResultsRunner(state);
+                const selectedChartType = state.sqlRunner.selectedChartType;
+
+                if (!resultsRunner || !selectedChartType) return;
+
+                const completeConfigByKind = selectCompleteConfigByKind(
+                    state,
+                    selectedChartType,
+                );
+                const chartResultOptions = getChartConfigAndOptions(
+                    resultsRunner,
+                    selectedChartType,
+                    completeConfigByKind,
+                );
+
+                listenerApi.dispatch(
+                    setChartOptionsAndConfig(chartResultOptions),
+                );
+                await listenerApi.dispatch(prepareAndFetchChartData());
+            }
         },
     });
 };

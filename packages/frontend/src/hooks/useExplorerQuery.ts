@@ -71,15 +71,18 @@ export const useExplorerQuery = () => {
                     : queryResults.queryUuid;
 
             if (limit === null || limit !== queryResults.totalResults) {
+                const shouldPivot =
+                    exportPivotedResults && !!useSqlPivotResults?.enabled;
                 const queryArgsWithLimit: QueryResultsProps | null =
                     validQueryArgs
                         ? {
                               ...validQueryArgs,
                               csvLimit: limit,
                               invalidateCache: minimal,
-                              pivotResults:
-                                  exportPivotedResults &&
-                                  useSqlPivotResults?.enabled,
+                              pivotResults: shouldPivot,
+                              pivotConfiguration: shouldPivot
+                                  ? validQueryArgs.pivotConfiguration
+                                  : undefined,
                           }
                         : null;
                 const downloadQuery = await executeQueryAndWaitForResults(

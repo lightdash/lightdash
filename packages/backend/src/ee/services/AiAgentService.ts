@@ -63,6 +63,7 @@ import { AllMiddlewareArgs, App, SlackEventMiddlewareArgs } from '@slack/bolt';
 import { Block, KnownBlock, WebClient } from '@slack/web-api';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
 import {
+    APICallError,
     AssistantModelMessage,
     ModelMessage,
     ToolCallPart,
@@ -152,6 +153,7 @@ import {
     getFollowUpToolBlocks,
     getProposeChangeBlocks,
     getReferencedArtifactsBlocks,
+    getThinkingBlocks,
 } from './ai/utils/getSlackBlocks';
 import { llmAsAJudge } from './ai/utils/llmAsAJudge';
 import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
@@ -1330,15 +1332,10 @@ export class AiAgentService {
                     retrieveRelevantArtifacts: false,
                 });
 
-            // Get agent settings to use reasoning preference
-            const agent = await this.aiAgentModel.getAgent({
-                organizationUuid: user.organizationUuid!,
-                agentUuid,
-            });
-
-            // Get model configuration with agent's reasoning setting
+            // Use fast model for title generation (lightweight task)
             const { model } = getModel(this.lightdashConfig.ai.copilot, {
-                enableReasoning: agent.enableReasoning,
+                enableReasoning: false,
+                useFastModel: true,
             });
 
             // Generate title using the dedicated title generator
@@ -1930,11 +1927,17 @@ export class AiAgentService {
                 return;
             }
 
-            const { embedding, provider, modelName } = await generateEmbedding(
+            const embeddingResult = await generateEmbedding(
                 text,
                 this.lightdashConfig,
                 { artifactVersionUuid: payload.artifactVersionUuid },
             );
+
+            if (!embeddingResult) {
+                return;
+            }
+
+            const { embedding, provider, modelName } = embeddingResult;
 
             await this.aiAgentModel.updateArtifactEmbedding(
                 payload.artifactVersionUuid,
@@ -1979,7 +1982,10 @@ export class AiAgentService {
             Logger.error(
                 `Failed to generate question for artifact version ${payload.artifactVersionUuid}`,
             );
-            Sentry.captureException(error);
+            // Skip Sentry for AI API timeouts - these are expected transient failures
+            if (!APICallError.isInstance(error)) {
+                Sentry.captureException(error);
+            }
         }
     }
 
@@ -2176,6 +2182,7 @@ export class AiAgentService {
         await this.slackClient.updateMessage({
             organizationUuid: slackPrompt.organizationUuid,
             text: progress,
+            blocks: getThinkingBlocks(progress, this.lightdashConfig.siteUrl),
             channelId: slackPrompt.slackChannelId,
             messageTs: slackPrompt.response_slack_ts,
         });
@@ -2239,11 +2246,18 @@ export class AiAgentService {
             return this.aiAgentModel.getArtifactVersionsByUuids(existingRefs);
         }
 
+        const embeddingResult = await generateEmbedding(
+            searchQuery,
+            this.lightdashConfig,
+        );
+        if (!embeddingResult) {
+            return [];
+        }
         const {
             embedding: queryEmbedding,
             provider,
             modelName,
-        } = await generateEmbedding(searchQuery, this.lightdashConfig);
+        } = embeddingResult;
 
         const verifiedArtifacts =
             await this.aiAgentModel.searchArtifactsBySimilarity({
@@ -3193,10 +3207,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             throw new Error('Prompt not found');
         }
 
-        await this.updateSlackResponseWithProgress(
-            slackPrompt,
-            '🤖 Thinking...',
-        );
+        await this.updateSlackResponseWithProgress(slackPrompt, 'Thinking...');
 
         const user = await this.userModel.findSessionUserAndOrgByUuid(
             slackPrompt.createdByUserUuid,

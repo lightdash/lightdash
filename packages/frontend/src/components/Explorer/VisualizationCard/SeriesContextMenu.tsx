@@ -16,8 +16,8 @@ import {
     useState,
     type FC,
 } from 'react';
-import { useParams } from 'react-router';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -51,7 +51,7 @@ export const SeriesContextMenu: FC<{
         top: number;
     }>();
 
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     useEffect(() => {
         if (echartsSeriesClickEvent !== undefined) {

@@ -12,7 +12,9 @@ import {
     type ApiGetAsyncQueryResults,
     assertIsAccountWithOrg,
     assertUnreachable,
+    type CompiledCustomSqlDimension,
     CompiledDimension,
+    type CompiledMetric,
     convertCustomFormatToFormatExpression,
     convertFieldRefToFieldId,
     createVirtualView as createVirtualViewObject,
@@ -30,8 +32,9 @@ import {
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
     type ExecuteAsyncUnderlyingDataRequestParams,
-    ExpiredError,
     Explore,
+    ExploreCompiler,
+    type Field,
     FieldType,
     ForbiddenError,
     formatItemValue,
@@ -41,12 +44,15 @@ import {
     getDashboardFilterRulesForTileAndReferences,
     getDashboardFiltersForTileAndTables,
     getDimensions,
+    getDimensionsWithValidParameters,
     getErrorMessage,
     getFieldsFromMetricQuery,
     getItemId,
     getItemMap,
     getMetrics,
+    getMetricsWithValidParameters,
     isCartesianChartConfig,
+    isCompiledCustomSqlDimension,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -56,7 +62,6 @@ import {
     isMetric,
     isVizTableConfig,
     ItemsMap,
-    MAX_SAFE_INTEGER,
     MetricQuery,
     normalizeIndexColumns,
     NotFoundError,
@@ -72,6 +77,7 @@ import {
     type ReadyQueryResultsPage,
     type ResultColumns,
     ResultRow,
+    ResultsExpiredError,
     type RunQueryTags,
     S3Error,
     SchedulerFormat,
@@ -102,6 +108,7 @@ import PrometheusMetrics from '../../prometheus';
 import { compileMetricQuery } from '../../queryCompiler';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { wrapSentryTransaction } from '../../utils';
+import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
@@ -522,10 +529,10 @@ export class AsyncQueryService extends ProjectService {
         }
 
         if (resultsExpiresAt && resultsExpiresAt < new Date()) {
-            // TODO: throw a specific error the FE will respond to
-            throw new ExpiredError(
+            this.logger.debug(
                 `Results expired for file ${resultsFileName} and project ${projectUuid}`,
             );
+            throw new ResultsExpiredError();
         }
 
         const defaultedPageSize =
@@ -1807,7 +1814,7 @@ export class AsyncQueryService extends ProjectService {
                             userUuid:
                                 warehouseCredentials.userWarehouseCredentialsUuid
                                     ? account.user.id
-                                    : undefined,
+                                    : null,
                         },
                     );
 
@@ -2194,15 +2201,12 @@ export class AsyncQueryService extends ProjectService {
             limit,
         };
 
-        // Apply limit override if provided in the request
-        // For unlimited results (null), use Number.MAX_SAFE_INTEGER
-        const metricQueryWithLimit =
-            limit !== undefined
-                ? {
-                      ...metricQuery,
-                      limit: limit ?? MAX_SAFE_INTEGER,
-                  }
-                : metricQuery;
+        const metricQueryWithLimit = applyMetricQueryLimit(
+            metricQuery,
+            limit,
+            this.lightdashConfig.query?.csvCellsLimit,
+            this.lightdashConfig.query?.maxLimit,
+        );
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
@@ -2412,15 +2416,12 @@ export class AsyncQueryService extends ProjectService {
                     : savedChart.metricQuery.sorts,
         };
 
-        // Apply limit override if provided in the request
-        // For unlimited results (null), use Number.MAX_SAFE_INTEGER
-        const metricQueryWithLimit =
-            limit !== undefined
-                ? {
-                      ...metricQueryWithDashboardOverrides,
-                      limit: limit ?? MAX_SAFE_INTEGER,
-                  }
-                : metricQueryWithDashboardOverrides;
+        const metricQueryWithLimit = applyMetricQueryLimit(
+            metricQueryWithDashboardOverrides,
+            limit,
+            this.lightdashConfig.query?.csvCellsLimit,
+            this.lightdashConfig.query?.maxLimit,
+        );
 
         const exploreDimensions = getDimensions(explore);
 
@@ -2588,6 +2589,17 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
+        const warehouseCredentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+        });
+
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
+        );
+
         const { metricQuery, fields: metricQueryFields } =
             await this.queryHistoryModel.get(
                 underlyingDataSourceQueryUuid,
@@ -2602,6 +2614,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             exploreName,
             organizationUuid,
+        );
+
+        // Combine parameters early so we can filter dimensions by parameter availability
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            explore,
+            parameters,
         );
 
         const underlyingDataItem = underlyingDataItemId
@@ -2628,11 +2647,48 @@ export class AsyncQueryService extends ProjectService {
             ? underlyingDataItem.table
             : undefined;
 
+        const hasMissingParameters = (
+            field:
+                | CompiledDimension
+                | CompiledCustomSqlDimension
+                | CompiledMetric,
+        ) =>
+            field.parameterReferences?.some(
+                (paramRef) => !combinedParameters[paramRef],
+            ) ?? false;
+
+        // Compile custom sql dimensions early so we can filter dimensions by parameter availability
+        const compiler = new ExploreCompiler(warehouseSqlBuilder);
+        const availableCustomDimensions =
+            metricQuery.customDimensions?.reduce<CompiledCustomSqlDimension[]>(
+                (acc, dimension) => {
+                    try {
+                        const compiledCustomDimension =
+                            compiler.compileCustomDimension(
+                                dimension,
+                                explore.tables,
+                                Object.keys(combinedParameters),
+                            );
+
+                        if (
+                            !isCustomBinDimension(compiledCustomDimension) &&
+                            !hasMissingParameters(compiledCustomDimension)
+                        ) {
+                            acc.push(compiledCustomDimension);
+                        }
+                    } catch (error) {
+                        // when custom sql dimension has missing parameters it will fail compilation and we will ignore it
+                        // no-op
+                    }
+
+                    return acc;
+                },
+                [],
+            ) || [];
+
         const allDimensions = [
-            ...(metricQuery.customDimensions?.filter(
-                (dimension) => !isCustomBinDimension(dimension),
-            ) || []),
-            ...getDimensions(explore),
+            ...availableCustomDimensions,
+            ...getDimensionsWithValidParameters(explore, combinedParameters),
         ];
 
         const isValidNonCustomDimension = (
@@ -2652,7 +2708,11 @@ export class AsyncQueryService extends ProjectService {
                       )
                     : true),
         );
-        const availableMetrics = getMetrics(explore).filter(
+
+        const availableMetrics = getMetricsWithValidParameters(
+            explore,
+            combinedParameters,
+        ).filter(
             (metric) =>
                 availableTables.has(metric.table) &&
                 !metric.hidden &&
@@ -2681,34 +2741,20 @@ export class AsyncQueryService extends ProjectService {
         const underlyingDataMetricQuery: MetricQuery = {
             exploreName,
             dimensions: availableDimensions.map(getItemId),
-            // Remove custom bin dimensions from underlying data query
-            customDimensions: metricQuery.customDimensions?.filter(
-                (dimension) => !isCustomBinDimension(dimension),
-            ),
+            customDimensions: availableCustomDimensions,
             filters,
             metrics: availableMetrics.map(getItemId),
             sorts: [],
-            limit: limit ?? 500,
+            limit: 500,
             tableCalculations: [],
             additionalMetrics: [],
         };
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-        });
-
-        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-            warehouseCredentials.type,
-            warehouseCredentials.startOfWeek,
-        );
-
-        // Combine default parameter values with request parameters first
-        const combinedParameters = await this.combineParameters(
-            projectUuid,
-            explore,
-            parameters,
+        const underlyingDataMetricQueryWithLimit = applyMetricQueryLimit(
+            underlyingDataMetricQuery,
+            limit,
+            this.lightdashConfig.query?.csvCellsLimit,
+            this.lightdashConfig.query?.maxLimit,
         );
 
         const {
@@ -2720,7 +2766,7 @@ export class AsyncQueryService extends ProjectService {
             usedParameters,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
-            metricQuery: underlyingDataMetricQuery,
+            metricQuery: underlyingDataMetricQueryWithLimit,
             explore,
             dateZoom,
             warehouseSqlBuilder,
@@ -2732,7 +2778,7 @@ export class AsyncQueryService extends ProjectService {
             await this.executeAsyncQuery(
                 {
                     account,
-                    metricQuery: underlyingDataMetricQuery,
+                    metricQuery: underlyingDataMetricQueryWithLimit,
                     projectUuid,
                     explore,
                     context,
@@ -2750,7 +2796,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid: underlyingDataQueryUuid,
             cacheMetadata,
-            metricQuery: underlyingDataMetricQuery,
+            metricQuery: underlyingDataMetricQueryWithLimit,
             fields,
             warnings,
             parameterReferences,

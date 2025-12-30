@@ -208,6 +208,8 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
     ]);
     if (!itemsMap) return;
     if (!eChartsOption || !treemapSeriesOption) return;
+    if (!treemapSeriesOption.data || treemapSeriesOption.data.length === 0)
+        return;
 
     return { eChartsOption, treemapSeriesOption };
 };

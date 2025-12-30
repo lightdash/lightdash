@@ -9,23 +9,11 @@ import { defineConfig } from 'vitest/config';
 const FE_PORT = process.env.FE_PORT ? parseInt(process.env.FE_PORT) : 3000;
 const BE_PORT = process.env.PORT ? parseInt(process.env.PORT) : 8080;
 
-import { startServer } from '@react-grab/claude-code/server';
-
-if (
-    process.env.REACT_GRAB_ENABLED === 'true' &&
-    process.env.NODE_ENV === 'development'
-) {
-    startServer().catch((e) => {
-        console.error('[Claude Code Server] Failed to start:', e);
-    });
-}
-
 export default defineConfig({
     publicDir: 'public',
     define: {
         __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
         REACT_SCAN_ENABLED: process.env.REACT_SCAN_ENABLED ?? false,
-        REACT_GRAB_ENABLED: process.env.REACT_GRAB_ENABLED ?? false,
         REACT_QUERY_DEVTOOLS_ENABLED:
             process.env.REACT_QUERY_DEVTOOLS_ENABLED ?? true,
     },
@@ -38,7 +26,10 @@ export default defineConfig({
         }),
         monacoEditorPlugin({
             forceBuildCDN: true,
-            languageWorkers: ['json'],
+            languageWorkers: ['editorWorkerService', 'json', 'html'],
+            customWorkers: [
+                { label: 'yaml', entry: 'monaco-yaml/yaml.worker.js' },
+            ],
         }),
         sentryVitePlugin({
             telemetry: false,
@@ -137,7 +128,6 @@ export default defineConfig({
         env: {
             VITE_REACT_SCAN_ENABLED: 'false',
             VITE_REACT_QUERY_DEVTOOLS_ENABLED: 'false',
-            VITE_REACT_GRAB_ENABLED: 'false',
         },
     },
     server: {

@@ -12,18 +12,21 @@ import { IconArrowDownRight, IconArrowUpRight } from '@tabler/icons-react';
 import clamp from 'lodash/clamp';
 import {
     forwardRef,
+    useEffect,
     useMemo,
+    useRef,
     type FC,
     type HTMLAttributes,
     type ReactNode,
 } from 'react';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
+import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabs/gridUtils';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
-import { DEFAULT_ROW_HEIGHT } from '../DashboardTabs/gridUtils';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
-import { EmptyChart, LoadingChart } from '../SimpleChart';
+import { EmptyChart } from '../SimpleChart';
+import LoadingChart from '../common/LoadingChart';
 import MantineIcon from '../common/MantineIcon';
 import BigNumberContextMenu from './BigNumberContextMenu';
 import styles from './SimpleStatistic.module.css';
@@ -32,6 +35,8 @@ interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
     isTitleHidden?: boolean;
     isDashboard?: boolean;
+    onScreenshotReady?: () => void;
+    onScreenshotError?: () => void;
 }
 
 const BOX_MIN_WIDTH = 150;
@@ -123,6 +128,8 @@ const getTrendPillClass = (
 
 const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     minimal = false,
+    onScreenshotReady,
+    onScreenshotError,
     ...wrapperProps
 }) => {
     const ability = useAbilityContext();
@@ -134,6 +141,27 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     const isBigNumber = isBigNumberVisualizationConfig(visualizationConfig);
 
     const [setRef, observerElementSize] = useResizeObserver();
+
+    const hasSignaledScreenshotReady = useRef(false);
+
+    useEffect(() => {
+        if (hasSignaledScreenshotReady.current) return;
+        if (!onScreenshotReady && !onScreenshotError) return;
+
+        if (!isLoading && isBigNumber && resultsData?.rows.length) {
+            onScreenshotReady?.();
+            hasSignaledScreenshotReady.current = true;
+        } else if (!isLoading && (!isBigNumber || !resultsData?.rows.length)) {
+            onScreenshotReady?.();
+            hasSignaledScreenshotReady.current = true;
+        }
+    }, [
+        isLoading,
+        isBigNumber,
+        resultsData?.rows.length,
+        onScreenshotReady,
+        onScreenshotError,
+    ]);
 
     const {
         valueFontSize,
@@ -253,13 +281,6 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                 setRef(elem);
             }}
             {...wrapperProps}
-            styles={{
-                root: {
-                    // TODO: remove this once Inter is the default font
-                    fontFamily:
-                        'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                },
-            }}
         >
             <Flex style={{ flexShrink: 1 }} justify="center" align="center">
                 {shouldHideContextMenu ? (

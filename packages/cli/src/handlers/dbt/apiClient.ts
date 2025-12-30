@@ -13,7 +13,7 @@ import {
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
 import { getConfig } from '../../config';
-import { CLI_VERSION } from '../../env';
+import { CLI_VERSION, getUpdateInstructions } from '../../env';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 import { buildRequestHeaders } from '../utils';
@@ -96,7 +96,7 @@ export const checkProjectCreationPermission = async (
 
         if (!user.organizationUuid) {
             throw new ForbiddenError(
-                `You don't have permission to create projects.`,
+                `You don't have permission to create projects. Please ensure you're a member of an organization.`,
             );
         }
 
@@ -115,7 +115,9 @@ export const checkProjectCreationPermission = async (
                     return;
                 }
                 throw new ForbiddenError(
-                    "You don't have permission to create projects",
+                    `You don't have permission to create projects in this organization.\n` +
+                        `This typically requires the 'admin' or 'developer' role.\n` +
+                        `Contact your organization admin to request access.`,
                 );
 
             case ProjectType.PREVIEW:
@@ -131,7 +133,9 @@ export const checkProjectCreationPermission = async (
                         )
                     ) {
                         throw new ForbiddenError(
-                            "Unable to create preview project: you don't have permission to access upstream project",
+                            `Unable to create preview project: you don't have permission to access the upstream project.\n` +
+                                `You need 'view' access to the project you're trying to preview from.\n` +
+                                `Contact your admin to request access.`,
                         );
                     }
 
@@ -163,7 +167,9 @@ export const checkProjectCreationPermission = async (
                 }
 
                 throw new ForbiddenError(
-                    "You don't have permission to create preview projects",
+                    `You don't have permission to create preview projects in this organization.\n` +
+                        `This typically requires the 'developer' or 'admin' role.\n` +
+                        `Contact your organization admin to request access.`,
                 );
 
             default:
@@ -197,8 +203,8 @@ export const checkLightdashVersion = async (): Promise<void> => {
                     health.version
                 }) on ${
                     config.context?.serverUrl
-                }.\n         Some commands may fail, consider upgrading your CLI by doing: ${styles.secondary(
-                    `npm install -g @lightdash/cli@${health.version}`,
+                }.\n         Some commands may fail, consider upgrading your CLI by ${styles.secondary(
+                    getUpdateInstructions(health.version),
                 )}`,
             );
         }

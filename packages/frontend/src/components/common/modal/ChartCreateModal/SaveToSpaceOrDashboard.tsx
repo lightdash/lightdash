@@ -40,20 +40,12 @@ import SaveToDashboardForm from './SaveToDashboardForm';
 import SaveToSpaceForm from './SaveToSpaceForm';
 import {
     DEFAULT_CHART_METADATA,
+    ModalStep,
+    SaveDestination,
     saveToDashboardSchema,
     saveToSpaceSchema,
     type ChartMetadata,
 } from './types';
-
-enum SaveDestination {
-    Dashboard = 'dashboard',
-    Space = 'space',
-}
-
-enum ModalStep {
-    InitialInfo,
-    SelectDestination,
-}
 
 const saveToSpaceOrDashboardSchema = z
     .object({
@@ -150,7 +142,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         staleTime: 0,
     });
 
-    const { initialize, setFieldValue } = form;
+    const { initialize, setFieldValue, setFieldError, clearFieldError } = form;
 
     useEffect(
         function initializeForm() {
@@ -205,9 +197,24 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     const { mutateAsync: updateDashboard } = useUpdateDashboard(
         form.values.dashboardUuid ?? undefined,
     );
-    const { data: selectedDashboard } = useDashboardQuery(
-        form.values.dashboardUuid ?? undefined,
-    );
+    const {
+        data: selectedDashboard,
+        isLoading: isLoadingSelectedDashboard,
+        isError: isSelectedDashboardError,
+        error: selectedDashboardError,
+    } = useDashboardQuery(form.values.dashboardUuid ?? undefined);
+
+    // Handle dashboard selection errors
+    useEffect(() => {
+        if (selectedDashboardError) {
+            setFieldError(
+                'dashboardUuid',
+                `Failed to load dashboard. ${selectedDashboardError.error.message}`,
+            );
+        } else {
+            clearFieldError('dashboardUuid');
+        }
+    }, [selectedDashboardError, setFieldError, clearFieldError]);
 
     const isFormReadyToSave = useMemo(() => {
         if (currentStep === ModalStep.SelectDestination) {
@@ -219,11 +226,23 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 );
             }
             if (saveDestination === SaveDestination.Dashboard) {
-                return form.values.dashboardUuid;
+                return (
+                    form.values.dashboardUuid &&
+                    selectedDashboard &&
+                    !isLoadingSelectedDashboard &&
+                    !isSelectedDashboardError
+                );
             }
         }
         return false;
-    }, [currentStep, form.values, saveDestination]);
+    }, [
+        currentStep,
+        form.values,
+        saveDestination,
+        selectedDashboard,
+        isLoadingSelectedDashboard,
+        isSelectedDashboardError,
+    ]);
 
     const handleOnSubmit = useCallback(
         async (values: FormValues) => {
@@ -238,7 +257,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
              */
             if (saveDestination === SaveDestination.Dashboard) {
                 if (!selectedDashboard) {
-                    throw new Error('Expected dashboard');
+                    throw new Error(
+                        'Dashboard not found or failed to load. Please try selecting a different dashboard.',
+                    );
                 }
                 savedQuery = await createChart({
                     ...savedData,
@@ -487,7 +508,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                             type="submit"
                             loading={
                                 isSavingChart ||
-                                spaceManagement.createSpaceMutation.isLoading
+                                spaceManagement.createSpaceMutation.isLoading ||
+                                (!!form.values.dashboardUuid &&
+                                    isLoadingSelectedDashboard)
                             }
                             disabled={!isFormReadyToSave}
                         >

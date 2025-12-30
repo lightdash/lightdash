@@ -502,22 +502,6 @@ export const downloadHandler = async (
         },
     });
     try {
-        const projectDir = path.join(
-            getDownloadFolder(options.path),
-            projectName,
-        );
-        const dirExists = () =>
-            fs
-                .access(projectDir, fs.constants.F_OK)
-                .then(() => true)
-                .catch(() => false);
-
-        // We clear the output directory first to get the latest state of content
-        // regarding projects and spaces if nested.
-        if (options.nested && (await dirExists())) {
-            await fs.rm(projectDir, { recursive: true });
-        }
-
         // If any filter is provided, we skip those items without filters
         // eg: if a --charts filter is provided, we skip dashboards if no --dashboards filter is provided
         const hasFilters =

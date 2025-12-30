@@ -323,7 +323,7 @@ export class CatalogModel {
                                     break;
                                 }
                                 default:
-                                    assertUnreachable(
+                                    return assertUnreachable(
                                         change.entityType,
                                         `Unknown entity type ${change.entityType}`,
                                     );
@@ -486,7 +486,7 @@ export class CatalogModel {
                                             ];
                                         break;
                                     default:
-                                        assertUnreachable(
+                                        return assertUnreachable(
                                             revertedChange.entityType,
                                             `Unknown entity type`,
                                         );
@@ -956,20 +956,14 @@ export class CatalogModel {
             paginatedCatalogItems.data.map((item) => item.catalog_search_uuid),
         );
 
-        // When using filteredExplores, we need to match each field to the correct explore
-        // that contains it, since fields from joined tables may be indexed under different explores
-        const exploreByTableName: Map<string, Explore> | undefined =
-            filteredExplores
-                ? new Map(
-                      filteredExplores.flatMap((explore) => {
-                          const tables = Object.keys(explore.tables);
-                          return tables.map((tableName): [string, Explore] => [
-                              tableName,
-                              explore,
-                          ]);
-                      }),
-                  )
-                : undefined;
+        // When using filteredExplores, we need to match each catalog item to the correct explore.
+        // We key by explore name (not table name) because the same table can appear in multiple
+        // explores as a joined table with different fields exposed.
+        const exploreByName: Map<string, Explore> | undefined = filteredExplores
+            ? new Map(
+                  filteredExplores.map((explore) => [explore.name, explore]),
+              )
+            : undefined;
 
         const catalog = await wrapSentryTransaction(
             'CatalogModel.search.parse',
@@ -977,37 +971,43 @@ export class CatalogModel {
                 catalogSize: paginatedCatalogItems.data.length,
             },
             async () =>
-                paginatedCatalogItems.data.map((item) => {
-                    // Use the explore from filteredExplores if available, otherwise use from DB
-                    let explore = exploreByTableName
-                        ? exploreByTableName.get(item.table_name)
-                        : undefined;
+                paginatedCatalogItems.data
+                    .map((item) => {
+                        // Use the explore from filteredExplores if available, otherwise use from DB.
+                        // We match by explore name (from item.explore) since each catalog entry
+                        // is indexed under a specific explore via cached_explore_uuid.
+                        let explore = exploreByName
+                            ? exploreByName.get(item.explore.name)
+                            : undefined;
 
-                    if (!explore) {
-                        explore = item.explore;
-                    }
+                        if (!explore) {
+                            explore = item.explore;
+                        }
 
-                    if (!explore) {
-                        throw new Error(
-                            `Explore not found for field ${item.name} in table ${item.table_name}`,
-                        );
-                    }
+                        if (!explore) {
+                            throw new Error(
+                                `Explore not found for field ${item.name} in table ${item.table_name}`,
+                            );
+                        }
 
-                    if (changeset) {
-                        const exploreWithChanges =
-                            ChangesetUtils.applyChangeset(changeset, {
-                                // we need to clone the explore to avoid mutating the original explore object
-                                [explore.name]: structuredClone(explore),
-                            })[explore.name] as Explore; // at this point we know the explore is valid
-                        explore = exploreWithChanges;
-                    }
-                    return parseCatalog({
-                        ...item,
-                        explore,
-                        catalog_tags:
-                            tagsPerItem[item.catalog_search_uuid] ?? [],
-                    });
-                }),
+                        if (changeset) {
+                            const exploreWithChanges =
+                                ChangesetUtils.applyChangeset(changeset, {
+                                    // we need to clone the explore to avoid mutating the original explore object
+                                    [explore.name]: structuredClone(explore),
+                                })[explore.name] as Explore; // at this point we know the explore is valid
+                            explore = exploreWithChanges;
+                        }
+                        return parseCatalog({
+                            ...item,
+                            explore,
+                            catalog_tags:
+                                tagsPerItem[item.catalog_search_uuid] ?? [],
+                        });
+                    })
+                    // Filter out null results from stale catalog entries
+                    // (fields/tables that exist in catalog but were removed from the explore)
+                    .filter((item): item is CatalogItem => item !== null),
         );
 
         return {
@@ -1471,6 +1471,7 @@ export class CatalogModel {
             >({
                 source_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
                 target_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+                project_uuid: `${MetricsTreeEdgesTableName}.project_uuid`,
                 created_at: `${MetricsTreeEdgesTableName}.created_at`,
                 created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
                 source_metric_name: `source_metric.name`,
@@ -1478,25 +1479,16 @@ export class CatalogModel {
                 target_metric_name: `target_metric.name`,
                 target_metric_table_name: `target_metric.table_name`,
             })
+            .where(`${MetricsTreeEdgesTableName}.project_uuid`, projectUuid)
             .innerJoin(
                 { source_metric: CatalogTableName },
-                function joinSource() {
-                    void this.on(
-                        `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
-                        '=',
-                        `source_metric.catalog_search_uuid`,
-                    ).andOnVal('source_metric.project_uuid', '=', projectUuid);
-                },
+                `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
+                `source_metric.catalog_search_uuid`,
             )
             .innerJoin(
                 { target_metric: CatalogTableName },
-                function joinTarget() {
-                    void this.on(
-                        `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
-                        '=',
-                        `target_metric.catalog_search_uuid`,
-                    ).andOnVal('target_metric.project_uuid', '=', projectUuid);
-                },
+                `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+                `target_metric.catalog_search_uuid`,
             );
 
         return edges.map((e) => ({
@@ -1512,10 +1504,11 @@ export class CatalogModel {
             },
             createdAt: e.created_at,
             createdByUserUuid: e.created_by_user_uuid,
-            projectUuid,
+            projectUuid: e.project_uuid,
         }));
     }
 
+    // Omiting the project_uuid from the input so the model decides whether to include it or not
     async createMetricsTreeEdge(metricsTreeEdge: DbMetricsTreeEdgeIn) {
         return this.database(MetricsTreeEdgesTableName).insert(metricsTreeEdge);
     }
@@ -1526,6 +1519,7 @@ export class CatalogModel {
             .delete();
     }
 
+    // Omiting the project_uuid from the input so the model decides whether to include it or not
     async migrateMetricsTreeEdges(
         metricTreeEdgesMigrateIn: DbMetricsTreeEdgeIn[],
     ) {

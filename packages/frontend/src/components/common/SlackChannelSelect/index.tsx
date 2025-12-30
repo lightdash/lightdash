@@ -56,9 +56,23 @@ export const SlackChannelSelect: FC<
     const [debouncedSearch] = useDebouncedValue(search, 300);
 
     // Track looked-up channels (ID -> name) that aren't in the cached list yet
+    // Initialize with any existing channel names (not Slack IDs) so they display when editing
     const [lookedUpChannels, setLookedUpChannels] = useState<
         Map<string, string>
-    >(new Map());
+    >(() => {
+        const initial = new Map<string, string>();
+        const values = props.multiple
+            ? props.value
+            : props.value
+            ? [props.value]
+            : [];
+        values
+            .filter((v) => !SLACK_ID_REGEX.test(v))
+            .forEach((name) => {
+                initial.set(name, `#${name}`);
+            });
+        return initial;
+    });
 
     // On-demand lookup for pasted channel IDs not in DB cache
     const { mutate: lookupChannel, isLoading: isLookingUp } =
@@ -149,19 +163,33 @@ export const SlackChannelSelect: FC<
         onSearchChange: setSearch,
     };
 
-    // Only allow creating items that look like Slack channel IDs
-    const shouldAllowCreate = (query: string) => SLACK_ID_REGEX.test(query);
+    // Allow creating items that look like Slack channel IDs or channel names
+    const shouldAllowCreate = (query: string) => {
+        // Allow Slack IDs (C01234567, G01234567, etc.)
+        if (SLACK_ID_REGEX.test(query)) return true;
+        // Allow channel names (at least 1 character, no spaces at start/end)
+        const trimmed = query.trim();
+        return trimmed.length > 0 && trimmed === query;
+    };
+
+    // Normalize channel name (remove # prefix if present)
+    const normalizeChannelName = (name: string) => {
+        const trimmed = name.trim();
+        return trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
+    };
 
     return props.multiple ? (
         <MultiSelect
             {...(commonProps as MultiSelectProps)}
             creatable
             shouldCreate={shouldAllowCreate}
-            getCreateLabel={(query) =>
-                SLACK_ID_REGEX.test(query)
-                    ? `Look up channel ID: ${query}`
-                    : 'Paste a Slack channel ID (e.g., C01234567)'
-            }
+            getCreateLabel={(query) => {
+                if (SLACK_ID_REGEX.test(query)) {
+                    return `Look up channel ID: ${query}`;
+                }
+                const normalized = normalizeChannelName(query);
+                return `Send to private channel: #${normalized}`;
+            }}
             onCreate={(newItem) => {
                 if (SLACK_ID_REGEX.test(newItem)) {
                     // Trigger lookup to get channel info
@@ -182,7 +210,15 @@ export const SlackChannelSelect: FC<
                     // Don't add anything yet - wait for lookup to complete
                     return undefined;
                 }
-                return undefined;
+                // For channel names, normalize and add directly
+                // The backend will resolve the name to an ID when posting
+                const normalized = normalizeChannelName(newItem);
+                setLookedUpChannels((prev) => {
+                    const next = new Map(prev);
+                    next.set(normalized, `#${normalized}`);
+                    return next;
+                });
+                return normalized;
             }}
             value={props.value}
             onChange={(newValue) => {

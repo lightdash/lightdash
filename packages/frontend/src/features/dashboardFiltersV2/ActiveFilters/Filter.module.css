@@ -1,0 +1,32 @@
+.button {
+    border-radius: 100px !important;
+}
+
+.unsetRequiredFilter {
+    border-style: solid;
+    border-width: '3px';
+}
+
+.inactiveFilter {
+    border-style: dashed;
+    border-width: 1px;
+    background-color: rgba(var(--mantine-color-background-0), 0.7);
+}
+
+.label {
+    max-width: 800px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.indicator {
+    top: -5px;
+    left: 40px;
+    height: 13px;
+    &::before {
+        border-radius: 5px;
+        border-bottom-left-radius: 0px;
+        border-bottom-right-radius: 0px;
+    }
+}

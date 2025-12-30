@@ -48,7 +48,7 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                         value: 'shared',
                         label: (
                             <Center px={'xxs'}>
-                                <Text size="sm" color="ldGray.7">
+                                <Text size="sm" color="ldDark.9">
                                     Shared with me
                                 </Text>
                             </Center>
@@ -71,7 +71,7 @@ const AdminContentViewFilter: React.FC<AdminContentViewFilterProps> = ({
                                         color="ldGray.6"
                                     />
                                 </Tooltip>
-                                <Text size="sm" color="ldGray.7" ml={'xxs'}>
+                                <Text size="sm" color="ldDark.9" ml={'xxs'}>
                                     Admin Content View
                                 </Text>
                             </Center>

@@ -8,6 +8,7 @@ import {
 import { toNumber } from 'lodash';
 import { type ItemsMap, isField, isTableCalculation } from '../../types/field';
 import { type ParametersValuesMap } from '../../types/parameters';
+import { type ResultRow } from '../../types/results';
 import { hashFieldReference } from '../../types/savedCharts';
 import { TimeFrames } from '../../types/timeFrames';
 import { formatItemValue } from '../../utils/formatting';
@@ -538,6 +539,7 @@ export const buildCartesianTooltipFormatter =
         tooltipHtmlTemplate,
         pivotValuesColumnsMap,
         parameters,
+        rows,
     }: {
         itemsMap?: ItemsMap;
         stackValue: string | boolean | undefined;
@@ -548,6 +550,7 @@ export const buildCartesianTooltipFormatter =
         tooltipHtmlTemplate?: string;
         pivotValuesColumnsMap?: Record<string, PivotValuesColumn>;
         parameters?: ParametersValuesMap;
+        rows?: (ResultRow | Record<string, unknown>)[];
     }): TooltipComponentFormatterCallback<
         TooltipFormatterParams | TooltipFormatterParams[]
     > =>
@@ -831,13 +834,58 @@ export const buildCartesianTooltipFormatter =
 
             if (ctx.dataMode === 'tuple' && Array.isArray(firstValue)) {
                 // Tuple mode (stacked bars): map dimension names to array indices
+                // When stacked, the tuple only contains [categoryValue, numericValue] for each series,
+                // so fields not in the current series won't be in dimensionNames.
+                // Fall back to looking up the value from the original rows using the x-axis value.
+                const xAxisIndex = ctx.flipAxes ? 1 : 0;
+                const xAxisValue = firstValue[xAxisIndex];
+                // Get all rows matching the x-axis value (there may be multiple due to pivoting)
+                // Note: rows can be either ResultRow format ({ field: { value: { raw } } })
+                // or flat format ({ field: value }) depending on the data source
+                const matchingRows =
+                    rows && xFieldId
+                        ? rows.filter((row) => {
+                              const cell = row[xFieldId];
+                              // Handle both formats: flat value or ResultRow structure
+                              const cellValue =
+                                  cell &&
+                                  typeof cell === 'object' &&
+                                  'value' in cell
+                                      ? (cell as { value?: { raw?: unknown } })
+                                            .value?.raw
+                                      : cell;
+                              return cellValue === xAxisValue;
+                          })
+                        : [];
+
                 fields?.forEach((field) => {
                     const ref = field.slice(2, -1);
                     const dimensionIndex =
                         firstParam.dimensionNames?.indexOf(ref);
 
+                    let val: unknown;
                     if (dimensionIndex !== undefined && dimensionIndex >= 0) {
-                        const val = unwrapValue(firstValue[dimensionIndex]);
+                        val = unwrapValue(firstValue[dimensionIndex]);
+                    } else {
+                        // Fallback: search through all matching rows to find the field value
+                        for (const row of matchingRows) {
+                            const cell = row[ref];
+                            // Handle both formats: flat value or ResultRow structure
+                            const cellValue =
+                                cell &&
+                                typeof cell === 'object' &&
+                                'value' in cell
+                                    ? (cell as { value?: { raw?: unknown } })
+                                          .value?.raw
+                                    : cell;
+                            if (cellValue !== undefined) {
+                                val = cellValue;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (val !== undefined) {
                         const formatted = getFormattedValue(
                             val,
                             ref,

@@ -92,21 +92,21 @@ export interface LightdashFieldColors {
 
 export const LD_FIELD_COLORS = {
     dimension: {
-        bg: 'light-dark(#4b69ef18, #4b69ef21)',
+        bg: 'light-dark(#EDF0FD, #202539)',
         bgHover: 'light-dark(#4b69ef28, #4b69ef35)',
         color: 'light-dark(#3b5bdb, #95aaf0)',
         columnHeaderColor: 'light-dark(#1c2b67, #93acff)',
         mantineColor: 'dimension',
     },
     metric: {
-        bg: 'light-dark(#e8590c20, #7b50135e)',
+        bg: 'light-dark(#FBE9E0, #3E2F1A)',
         bgHover: 'light-dark(#e8590c30, #81510d75)',
         color: 'light-dark(#de7f0b, #e08a20)',
         columnHeaderColor: 'light-dark(#502e06, #de7f0b)',
         mantineColor: 'metric',
     },
     calculation: {
-        bg: 'light-dark(#2f9e4418, #2375354b)',
+        bg: 'light-dark(#EBF5ED, #1D3525)',
         bgHover: 'light-dark(#2f9e4428, #23753565)',
         color: 'light-dark(#2b8a3e, #38af4d)',
         columnHeaderColor: 'light-dark(#1b5326, #48b95d)',
@@ -164,6 +164,7 @@ export const getMantineThemeOverride = (
         },
 
         fontFamily: [
+            'Inter',
             '-apple-system',
             'BlinkMacSystemFont',
             'Segoe UI',
@@ -346,6 +347,7 @@ export const getMantineThemeOverride = (
                 fontWeight: 600,
             },
 
+            // TODO: remove after we migrate dashboards to v2 (feature flag: DashboardRedesign, dashboard-redesign)
             '.react-draggable.react-draggable-dragging .tile-base': {
                 border: `1px solid ${theme.colors.blue[5]}`,
             },
@@ -357,6 +359,9 @@ export const getMantineThemeOverride = (
                 fontFamily:
                     "Menlo, 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace",
             },
+            '.wmde-markdown, .wmde-markdown-var': {
+                fontFamily: theme.fontFamily,
+            },
             '@keyframes fadeIn': {
                 from: { opacity: 0 },
                 to: { opacity: 1 },
@@ -365,15 +370,6 @@ export const getMantineThemeOverride = (
                 ? {
                       '[class*="mantine-"][data-with-border]': {
                           borderColor: theme.colors.ldDark[4],
-                      },
-                      '.HW_frame_cont': {
-                          background: `${theme.colors.ldDark[2]} !important`,
-                          boxShadow: `var(--mantine-shadow-md) !important`,
-                          border: `1px solid ${theme.colors.ldDark[3]}!important`,
-                      },
-                      '.HW_frame': {
-                          background: `${theme.colors.ldDark[2]} !important`,
-                          filter: `invert(0.9) hue-rotate(180deg)`,
                       },
                   }
                 : undefined),

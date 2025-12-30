@@ -60,12 +60,14 @@ export const runSqlQuery = createAsyncThunk<
 
 /**
  * Prepare and fetch chart data for the selected chart type
+ * @param forceRefresh - If true, invalidates the cache before fetching
  * @returns The chart data - this includes the table data, chart file url, and a function to get the chart spec
  */
 export const prepareAndFetchChartData = createAsyncThunk(
     'cartesianChartBaseConfig/prepareAndFetchChartData',
-    async (_, { getState }) => {
+    async (opts: { forceRefresh?: boolean } | undefined, { getState }) => {
         const state = getState() as RootState;
+        const { forceRefresh = false } = opts ?? {};
 
         const currentVizConfig = selectCompleteConfigByKind(
             state,
@@ -84,6 +86,11 @@ export const prepareAndFetchChartData = createAsyncThunk(
 
         if (!resultsRunner) {
             throw new Error('No results runner available');
+        }
+
+        // Invalidate cache when force refresh is requested (e.g., user clicks Run button)
+        if (forceRefresh) {
+            resultsRunner.invalidatePivotCache();
         }
 
         const vizDataModel = getChartDataModel(

@@ -8,6 +8,7 @@ import {
     getFilterInteractivityValue,
     getItemId,
     isDashboardChartTileType,
+    isDashboardSqlChartTile,
     type CacheMetadata,
     type Dashboard,
     type DashboardFilterRule,
@@ -33,7 +34,6 @@ import React, {
 } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect, useMount } from 'react-use';
-import { hasSavedFilterValueChanged } from '../../components/DashboardFilter/FilterConfiguration/utils';
 import { getConditionalRuleLabelFromItem } from '../../components/common/Filters/FilterInputs/utils';
 import { type SdkFilter } from '../../ee/features/embed/EmbedDashboard/types';
 import { convertSdkFilterToDashboardFilter } from '../../ee/features/embed/EmbedDashboard/utils';
@@ -44,12 +44,14 @@ import {
     useGetComments,
     type useDashboardCommentsCheck,
 } from '../../features/comments';
+import { hasSavedFilterValueChanged } from '../../features/dashboardFilters/FilterConfiguration/utils';
 import { useParameters } from '../../features/parameters';
 import {
     useDashboardQuery,
     useDashboardsAvailableFilters,
     useDashboardVersionRefresh,
 } from '../../hooks/dashboard/useDashboard';
+import useToaster from '../../hooks/toaster/useToaster';
 import {
     hasSavedFiltersOverrides,
     useSavedDashboardFiltersOverrides,
@@ -86,6 +88,7 @@ const DashboardProvider: React.FC<
 }) => {
     const { search, pathname } = useLocation();
     const navigate = useNavigate();
+    const { showToastWarning } = useToaster();
 
     const { dashboardUuid, tabUuid } = useParams<{
         dashboardUuid: string;
@@ -396,6 +399,61 @@ const DashboardProvider: React.FC<
         return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
     }, [dashboardTiles, loadedTiles, activeTab, dashboardTabs]);
 
+    const [screenshotReadyTiles, setScreenshotReadyTiles] = useState<
+        Set<string>
+    >(new Set());
+    const [screenshotErroredTiles, setScreenshotErroredTiles] = useState<
+        Set<string>
+    >(new Set());
+
+    const markTileScreenshotReady = useCallback((tileUuid: string) => {
+        setScreenshotReadyTiles((prev) => new Set(prev).add(tileUuid));
+    }, []);
+
+    const markTileScreenshotErrored = useCallback((tileUuid: string) => {
+        setScreenshotErroredTiles((prev) => new Set(prev).add(tileUuid));
+    }, []);
+
+    const expectedScreenshotTileUuids = useMemo(() => {
+        if (!dashboardTiles) return [];
+
+        if (dashboardTabs && dashboardTabs.length > 0 && !activeTab) return [];
+
+        return dashboardTiles
+            .filter(
+                (tile) =>
+                    isDashboardChartTileType(tile) ||
+                    isDashboardSqlChartTile(tile),
+            )
+            .filter((tile) => {
+                if (!activeTab) return true;
+                return !tile.tabUuid || tile.tabUuid === activeTab.uuid;
+            })
+            .map((tile) => tile.uuid);
+    }, [dashboardTiles, activeTab, dashboardTabs]);
+
+    const isReadyForScreenshot = useMemo(() => {
+        if (expectedScreenshotTileUuids.length === 0) {
+            return !!dashboardTiles;
+        }
+
+        return expectedScreenshotTileUuids.every(
+            (tileUuid) =>
+                screenshotReadyTiles.has(tileUuid) ||
+                screenshotErroredTiles.has(tileUuid),
+        );
+    }, [
+        expectedScreenshotTileUuids,
+        screenshotReadyTiles,
+        screenshotErroredTiles,
+        dashboardTiles,
+    ]);
+
+    useEffect(() => {
+        setScreenshotReadyTiles(new Set());
+        setScreenshotErroredTiles(new Set());
+    }, [dashboardTiles, activeTab]);
+
     const missingRequiredParameters = useMemo(() => {
         // If no parameter references, return empty array
         if (!dashboardParameterReferences.size) return [];
@@ -694,20 +752,36 @@ const DashboardProvider: React.FC<
 
         sessionStorage.removeItem('unsavedDashboardFilters');
         if (unsavedDashboardFiltersRaw) {
-            const unsavedDashboardFilters = JSON.parse(
-                unsavedDashboardFiltersRaw,
-            );
-            // TODO: this should probably merge with the filters
-            // from the database. This will break if they diverge,
-            // meaning there is a subtle race condition here
-            setDashboardFilters(unsavedDashboardFilters);
+            try {
+                const unsavedDashboardFilters = JSON.parse(
+                    unsavedDashboardFiltersRaw,
+                );
+                // TODO: this should probably merge with the filters
+                // from the database. This will break if they diverge,
+                // meaning there is a subtle race condition here
+                setDashboardFilters(unsavedDashboardFilters);
+            } catch {
+                showToastWarning({
+                    title: 'Could not restore unsaved filters',
+                    subtitle:
+                        'Your previous filter changes could not be loaded',
+                });
+            }
         }
         if (tempFilterSearchParam) {
-            setDashboardTemporaryFilters(
-                convertDashboardFiltersParamToDashboardFilters(
-                    JSON.parse(tempFilterSearchParam),
-                ),
-            );
+            try {
+                setDashboardTemporaryFilters(
+                    convertDashboardFiltersParamToDashboardFilters(
+                        JSON.parse(tempFilterSearchParam),
+                    ),
+                );
+            } catch {
+                showToastWarning({
+                    title: 'Could not restore filters from URL',
+                    subtitle:
+                        'The link appears to be incomplete. Please ask for it to be shared again.',
+                });
+            }
         }
     });
 
@@ -1160,6 +1234,12 @@ const DashboardProvider: React.FC<
         tileNamesById,
         refreshDashboardVersion,
         isRefreshingDashboardVersion,
+        markTileScreenshotReady,
+        markTileScreenshotErrored,
+        isReadyForScreenshot,
+        screenshotReadyTilesCount: screenshotReadyTiles.size,
+        screenshotErroredTilesCount: screenshotErroredTiles.size,
+        expectedScreenshotTilesCount: expectedScreenshotTileUuids.length,
     };
     return (
         <DashboardContext.Provider value={value}>
