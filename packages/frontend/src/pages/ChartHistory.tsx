@@ -2,31 +2,24 @@ import { subject } from '@casl/ability';
 import { formatTimestamp, TimeFrames } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Badge,
     Button,
     Flex,
-    Group,
     Menu,
-    Modal,
     NavLink,
     Stack,
     Text,
-    Title,
     Tooltip,
-} from '@mantine/core';
-import {
-    IconDots,
-    IconFileAnalytics,
-    IconHistory,
-    IconInfoCircle,
-} from '@tabler/icons-react';
+} from '@mantine-8/core';
+import { IconDots, IconFileAnalytics, IconHistory } from '@tabler/icons-react';
 import React, { memo, useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useNavigate, useParams } from 'react-router';
+import Callout from '../components/common/Callout';
 import { EmptyState } from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
+import MantineModal from '../components/common/MantineModal';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -153,9 +146,9 @@ const ChartHistory = () => {
             withPaddedContent
             sidebar={
                 <Stack
-                    spacing="xl"
+                    gap="xl"
                     mah="100%"
-                    sx={{ overflowY: 'hidden', flex: 1 }}
+                    style={{ overflowY: 'hidden', flex: 1 }}
                 >
                     <Flex gap="xs">
                         <PageBreadcrumbs
@@ -168,14 +161,16 @@ const ChartHistory = () => {
                             ]}
                         />
                     </Flex>
-                    <Stack spacing="xs" sx={{ flexGrow: 1, overflowY: 'auto' }}>
+                    <Stack gap="xs" style={{ flexGrow: 1, overflowY: 'auto' }}>
                         {historyQuery.data?.history.map((version, index) => (
                             <NavLink
                                 key={version.versionUuid}
                                 active={
                                     version.versionUuid === selectedVersionUuid
                                 }
-                                icon={<MantineIcon icon={IconFileAnalytics} />}
+                                leftSection={
+                                    <MantineIcon icon={IconFileAnalytics} />
+                                }
                                 label={formatTimestamp(
                                     version.createdAt,
                                     TimeFrames.SECOND,
@@ -225,18 +220,7 @@ const ChartHistory = () => {
                                                         closeOnClickOutside
                                                     >
                                                         <Menu.Target>
-                                                            <ActionIcon
-                                                                sx={(
-                                                                    theme,
-                                                                ) => ({
-                                                                    ':hover': {
-                                                                        backgroundColor:
-                                                                            theme
-                                                                                .colors
-                                                                                .gray[1],
-                                                                    },
-                                                                })}
-                                                            >
+                                                            <ActionIcon variant="subtle">
                                                                 <IconDots
                                                                     size={16}
                                                                 />
@@ -249,7 +233,7 @@ const ChartHistory = () => {
                                                             <Menu.Item
                                                                 component="button"
                                                                 role="menuitem"
-                                                                icon={
+                                                                leftSection={
                                                                     <IconHistory
                                                                         size={
                                                                             18
@@ -277,18 +261,11 @@ const ChartHistory = () => {
                             />
                         ))}
                     </Stack>
-                    <Alert
-                        icon={<MantineIcon icon={IconInfoCircle} size={'md'} />}
-                        title="Data freshness"
-                        color="gray"
-                        variant="light"
-                    >
-                        <p>
-                            Version history preview changes chart configuration
-                            and setup, but always queries the latest version of
-                            the data itself
-                        </p>
-                    </Alert>
+                    <Callout variant="info" title="Data freshness">
+                        Version history preview changes chart configuration and
+                        setup, but always queries the latest version of the data
+                        itself
+                    </Callout>
                 </Stack>
             }
         >
@@ -306,44 +283,31 @@ const ChartHistory = () => {
                 />
             )}
 
-            <Modal
+            <MantineModal
                 opened={isRollbackModalOpen}
                 onClose={() => setIsRollbackModalOpen(false)}
-                withCloseButton={false}
-                title={
-                    <Group spacing="xs">
-                        <MantineIcon icon={IconHistory} size="lg" />
-                        <Title order={4}>Restore chart version</Title>
-                    </Group>
+                title="Restore chart version"
+                icon={IconHistory}
+                cancelDisabled={rollbackMutation.isLoading}
+                actions={
+                    <Button
+                        loading={rollbackMutation.isLoading}
+                        onClick={() =>
+                            selectedVersionUuid &&
+                            rollbackMutation.mutate(selectedVersionUuid)
+                        }
+                        color="red"
+                    >
+                        Restore
+                    </Button>
                 }
             >
-                <Stack>
-                    <Text>
-                        By restoring to this chart version, a new version will
-                        be generated and saved. All previous versions are still
-                        safely stored and can be restored at any time.
-                    </Text>
-                    <Group position="right" spacing="xs">
-                        <Button
-                            variant="outline"
-                            disabled={rollbackMutation.isLoading}
-                            onClick={() => setIsRollbackModalOpen(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            loading={rollbackMutation.isLoading}
-                            onClick={() =>
-                                selectedVersionUuid &&
-                                rollbackMutation.mutate(selectedVersionUuid)
-                            }
-                            type="submit"
-                        >
-                            Restore
-                        </Button>
-                    </Group>
-                </Stack>
-            </Modal>
+                <Text>
+                    By restoring to this chart version, a new version will be
+                    generated and saved. All previous versions are still safely
+                    stored and can be restored at any time.
+                </Text>
+            </MantineModal>
         </Page>
     );
 };
