@@ -1,17 +1,11 @@
-import {
-    Button,
-    Group,
-    Loader,
-    Modal,
-    Select,
-    Stack,
-    Text,
-} from '@mantine-8/core';
+import { Button, Group, Loader, Select, Stack, Text } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
+import { IconUserCheck } from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { useSchedulerReassignOwnerMutation } from '../../features/scheduler/hooks/useSchedulerReassignOwnerMutation';
 import { useInfiniteOrganizationUsers } from '../../hooks/useOrganizationUsers';
 import { LightdashUserAvatar } from '../Avatar';
+import MantineModal from '../common/MantineModal';
 import { DEFAULT_PAGE_SIZE } from '../common/Table/constants';
 
 type ReassignSchedulerOwnerModalProps = {
@@ -158,11 +152,21 @@ const ReassignSchedulerOwnerModal: FC<ReassignSchedulerOwnerModalProps> = ({
             : `${schedulerCount} scheduled deliveries`;
 
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={handleClose}
-            title={`Reassign owner for ${schedulerText}`}
-            size="md"
+            title={`Reassign owner for "${schedulerText}"`}
+            icon={IconUserCheck}
+            size="lg"
+            actions={
+                <Button
+                    onClick={handleConfirm}
+                    loading={isReassigning}
+                    disabled={!selectedUserUuid}
+                >
+                    Reassign
+                </Button>
+            }
         >
             <Stack gap="lg">
                 <Text fz="sm" c="ldGray.7">
@@ -214,21 +218,8 @@ const ReassignSchedulerOwnerModal: FC<ReassignSchedulerOwnerModalProps> = ({
                         );
                     }}
                 />
-
-                <Group justify="flex-end" gap="sm">
-                    <Button variant="default" onClick={handleClose}>
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleConfirm}
-                        loading={isReassigning}
-                        disabled={!selectedUserUuid}
-                    >
-                        Reassign
-                    </Button>
-                </Group>
             </Stack>
-        </Modal>
+        </MantineModal>
     );
 };
 
