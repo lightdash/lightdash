@@ -42,14 +42,9 @@ export class OpenIdIdentityModel {
     private getOpenIdQueryBuilder() {
         return this.database('openid_identities')
             .leftJoin('users', 'openid_identities.user_id', 'users.user_id')
-            .select<Array<DbOpenIdIdentity & Pick<DbUser, 'user_uuid'>>>(
-                'openid_identities.issuer',
-                'openid_identities.issuer_type',
-                'openid_identities.subject',
-                'openid_identities.created_at',
-                'users.user_uuid',
-                'openid_identities.email',
-            );
+            .select<
+                Array<DbOpenIdIdentity & Pick<DbUser, 'user_uuid'>>
+            >('openid_identities.issuer', 'openid_identities.issuer_type', 'openid_identities.subject', 'openid_identities.created_at', 'users.user_uuid', 'openid_identities.email');
     }
 
     async findIdentitiesByEmail(email: string): Promise<OpenIdIdentity[]> {

@@ -218,9 +218,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 : Object.values(manifest.metrics),
         );
 
-        const lightdashProjectConfig = await this.getLightdashProjectConfig(
-            trackingParams,
-        );
+        const lightdashProjectConfig =
+            await this.getLightdashProjectConfig(trackingParams);
 
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {
@@ -265,9 +264,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     `Fetching table metadata for ${modelCatalog.length} tables`,
                 );
 
-                const warehouseCatalog = await this.warehouseClient.getCatalog(
-                    modelCatalog,
-                );
+                const warehouseCatalog =
+                    await this.warehouseClient.getCatalog(modelCatalog);
                 await this.cachedWarehouse?.onWarehouseCatalogChange(
                     warehouseCatalog,
                 );

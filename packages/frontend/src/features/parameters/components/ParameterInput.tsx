@@ -173,8 +173,8 @@ export const ParameterInput: FC<ParameterInputProps> = ({
         parameter.type === 'number'
             ? currentNumberValues
             : parameter.type === 'date'
-            ? currentDateValues
-            : currentStringValues;
+              ? currentDateValues
+              : currentStringValues;
 
     const optionsData = useMemo(() => {
         const parameterOptions = parameter.options ?? [];

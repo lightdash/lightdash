@@ -94,10 +94,10 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
                     isPivotingDimension
                         ? 'Cannot hide dimensions when pivoting'
                         : disableHidingDimensions
-                        ? 'Cannot hide dimensions when pivoting'
-                        : isColumnVisible(fieldId)
-                        ? 'Hide column'
-                        : 'Show column'
+                          ? 'Cannot hide dimensions when pivoting'
+                          : isColumnVisible(fieldId)
+                            ? 'Hide column'
+                            : 'Show column'
                 }
             >
                 <Box

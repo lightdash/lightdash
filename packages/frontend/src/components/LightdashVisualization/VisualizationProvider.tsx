@@ -152,7 +152,7 @@ const VisualizationProvider: FC<
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
         initialPivotDimensions,
         useSqlPivotResults?.enabled
-            ? unsavedMetricQuery ?? lastValidResultsData?.metricQuery
+            ? (unsavedMetricQuery ?? lastValidResultsData?.metricQuery)
             : lastValidResultsData?.metricQuery,
         onPivotDimensionsChange,
     );

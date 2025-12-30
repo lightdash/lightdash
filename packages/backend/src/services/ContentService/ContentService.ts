@@ -151,9 +151,8 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'view',
@@ -242,9 +241,8 @@ export class ContentService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'view',

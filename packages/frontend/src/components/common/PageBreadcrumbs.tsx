@@ -19,8 +19,10 @@ type BreadCrumbItem = {
     tooltipProps?: Omit<TooltipProps, 'children'>;
 };
 
-export interface PageBreadcrumbsProps
-    extends Omit<BreadcrumbsProps, 'children'> {
+export interface PageBreadcrumbsProps extends Omit<
+    BreadcrumbsProps,
+    'children'
+> {
     size?: MantineSize;
     items: BreadCrumbItem[];
 }

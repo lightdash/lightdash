@@ -181,30 +181,30 @@ export const useCalculateTotal = ({
                       invalidateCache,
                   )
                 : // Embed mode with raw query (Explore)
-                embedToken && projectUuid && metricQuery && explore
-                ? postCalculateTotalFromQueryForEmbed(
-                      projectUuid,
-                      metricQuery,
-                      explore,
-                      parameters,
-                  )
-                : // Regular mode with saved chart
-                savedChartUuid
-                ? calculateTotalFromSavedChart(
-                      savedChartUuid,
-                      dashboardFilters,
-                      invalidateCache,
-                      parameters,
-                  )
-                : // Regular mode with raw query
-                projectUuid
-                ? calculateTotalFromQuery(
-                      projectUuid,
-                      metricQuery,
-                      explore,
-                      parameters,
-                  )
-                : Promise.reject(),
+                  embedToken && projectUuid && metricQuery && explore
+                  ? postCalculateTotalFromQueryForEmbed(
+                        projectUuid,
+                        metricQuery,
+                        explore,
+                        parameters,
+                    )
+                  : // Regular mode with saved chart
+                    savedChartUuid
+                    ? calculateTotalFromSavedChart(
+                          savedChartUuid,
+                          dashboardFilters,
+                          invalidateCache,
+                          parameters,
+                      )
+                    : // Regular mode with raw query
+                      projectUuid
+                      ? calculateTotalFromQuery(
+                            projectUuid,
+                            metricQuery,
+                            explore,
+                            parameters,
+                        )
+                      : Promise.reject(),
         retry: false,
         enabled:
             metricsWithTotals.length > 0 &&

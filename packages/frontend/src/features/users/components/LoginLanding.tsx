@@ -67,8 +67,8 @@ const Login: FC<{}> = () => {
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
         : redirectParam
-        ? redirectParam
-        : '/';
+          ? redirectParam
+          : '/';
 
     const form = useForm<LoginParams>({
         initialValues: {

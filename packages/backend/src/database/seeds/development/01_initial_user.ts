@@ -118,9 +118,8 @@ export async function seed(knex: Knex): Promise<void> {
         return { organizationId, user, organizationUuid };
     };
 
-    const { organizationId, organizationUuid } = await addOrganization(
-        SEED_ORG_1,
-    );
+    const { organizationId, organizationUuid } =
+        await addOrganization(SEED_ORG_1);
 
     // Add user attribute
     await new UserAttributesModel({ database: knex }).create(

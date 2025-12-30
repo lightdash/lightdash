@@ -59,7 +59,7 @@ const warehouseConfig = {
 };
 
 const configurePostgresWarehouse = (
-    config: typeof warehouseConfig['postgresSQL'],
+    config: (typeof warehouseConfig)['postgresSQL'],
 ) => {
     cy.get('input[name="warehouse.host"]').type(config.host, { log: false });
     cy.get('input[name="warehouse.user"]').type(config.user, { log: false });
@@ -80,7 +80,7 @@ const configurePostgresWarehouse = (
 };
 
 const configureBigqueryWarehouse = (
-    config: typeof warehouseConfig['bigQuery'],
+    config: (typeof warehouseConfig)['bigQuery'],
 ) => {
     cy.get('input[name="warehouse.project"]').type(config.project, {
         log: false,
@@ -101,7 +101,7 @@ const configureBigqueryWarehouse = (
     cy.get('input[name="dbt.target"]').type('test');
     cy.get('input[name="warehouse.dataset"]').type(config.dataset);
 };
-const configureTrinoWarehouse = (config: typeof warehouseConfig['trino']) => {
+const configureTrinoWarehouse = (config: (typeof warehouseConfig)['trino']) => {
     cy.get('input[name="warehouse.host"]').type(config.host, { log: false });
     cy.get('input[name="warehouse.user"]').type(config.user, { log: false });
     cy.get('input[name="warehouse.password"]').type(config.password, {
@@ -121,7 +121,7 @@ const configureTrinoWarehouse = (config: typeof warehouseConfig['trino']) => {
 };
 
 const configureDatabricksWarehouse = (
-    config: typeof warehouseConfig['databricks'],
+    config: (typeof warehouseConfig)['databricks'],
 ) => {
     cy.get('input[name="warehouse.serverHostName"]').type(config.host, {
         log: false,
@@ -140,7 +140,7 @@ const configureDatabricksWarehouse = (
 };
 
 const configureSnowflakeWarehouse = (
-    config: typeof warehouseConfig['snowflake'],
+    config: (typeof warehouseConfig)['snowflake'],
 ) => {
     cy.get('input[name="warehouse.account"]').type(config.account, {
         log: false,

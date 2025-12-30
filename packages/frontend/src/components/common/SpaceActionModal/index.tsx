@@ -55,7 +55,8 @@ export interface SpaceModalBody {
 }
 
 export interface CreateSpaceModalBody
-    extends Pick<ActionModalProps, 'parentSpaceUuid' | 'onClose' | 'rootSpace'>,
+    extends
+        Pick<ActionModalProps, 'parentSpaceUuid' | 'onClose' | 'rootSpace'>,
         SpaceModalBody {
     modalStep: CreateModalStep;
     projectUuid: string;
@@ -65,7 +66,8 @@ export interface CreateSpaceModalBody
 }
 
 export interface DeleteSpaceModalBody
-    extends Pick<CreateSpaceModalBody, 'data' | 'form'>,
+    extends
+        Pick<CreateSpaceModalBody, 'data' | 'form'>,
         Pick<ActionModalProps, 'title' | 'icon'> {
     isLoading: boolean;
     handleSubmit: (values: Space) => void;

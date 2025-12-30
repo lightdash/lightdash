@@ -157,7 +157,8 @@ const formatBarDisplayCell = (
     // This ensures percentage values stored as decimals (0.05) are properly scaled
     // to match the min/max values calculated by convertFormattedValue (5, 15)
     const convertedValue = convertFormattedValue(value, item);
-    const numericConvertedValue = typeof convertedValue === 'number' ? convertedValue : value;
+    const numericConvertedValue =
+        typeof convertedValue === 'number' ? convertedValue : value;
 
     return (
         <TableCellBar
@@ -199,27 +200,26 @@ const formatImageCell = (
     const row = needsRowContext
         ? info.row
               .getAllCells()
-              .reduce<Record<string, Record<string, ResultValue>>>(
-                  (acc, rowCell) => {
-                      const cellItem = rowCell.column.columnDef.meta?.item;
-                      const rowCellValue = rowCell.getValue();
+              .reduce<
+                  Record<string, Record<string, ResultValue>>
+              >((acc, rowCell) => {
+                  const cellItem = rowCell.column.columnDef.meta?.item;
+                  const rowCellValue = rowCell.getValue();
 
-                      // Handle both ResultRow and RawResultRow formats
-                      const cellResultValue = isResultValue(rowCellValue)
-                          ? (rowCellValue as { value: ResultValue }).value
-                          : {
-                                raw: rowCellValue,
-                                formatted: String(rowCellValue),
-                            };
+                  // Handle both ResultRow and RawResultRow formats
+                  const cellResultValue = isResultValue(rowCellValue)
+                      ? (rowCellValue as { value: ResultValue }).value
+                      : {
+                            raw: rowCellValue,
+                            formatted: String(rowCellValue),
+                        };
 
-                      if (cellItem && isField(cellItem) && cellResultValue) {
-                          acc[cellItem.table] = acc[cellItem.table] || {};
-                          acc[cellItem.table][cellItem.name] = cellResultValue;
-                      }
-                      return acc;
-                  },
-                  {},
-              )
+                  if (cellItem && isField(cellItem) && cellResultValue) {
+                      acc[cellItem.table] = acc[cellItem.table] || {};
+                      acc[cellItem.table][cellItem.name] = cellResultValue;
+                  }
+                  return acc;
+              }, {})
         : {};
 
     try {

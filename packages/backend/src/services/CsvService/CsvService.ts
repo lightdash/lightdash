@@ -570,9 +570,12 @@ export class CsvService extends BaseService {
             const s3Url = await this.s3Client.uploadCsv(csvContent, fileId);
 
             // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
-            setTimeout(async () => {
-                await fsPromise.unlink(filePath);
-            }, 60 * 10 * 1000);
+            setTimeout(
+                async () => {
+                    await fsPromise.unlink(filePath);
+                },
+                60 * 10 * 1000,
+            );
 
             return {
                 filename: fileName,
@@ -762,7 +765,9 @@ export class CsvService extends BaseService {
             onlyRaw,
             metricQueryWithDashboardFilters,
             fields,
-            isTableChartConfig(config) ? config.showTableNames ?? false : true,
+            isTableChartConfig(config)
+                ? (config.showTableNames ?? false)
+                : true,
             chart.name,
             truncated,
             getCustomLabelsFromTableConfig(config),
@@ -917,9 +922,8 @@ export class CsvService extends BaseService {
         invalidateCache?: boolean;
         schedulerParameters?: ParametersValuesMap;
     }): Promise<AttachmentUrl[]> {
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         const dashboardFilters = overrideDashboardFilters || dashboard.filters;
 
@@ -1019,7 +1023,7 @@ export class CsvService extends BaseService {
         );
 
         const showTableNames = isTableChartConfig(chartConfig.config)
-            ? chartConfig.config.showTableNames ?? false
+            ? (chartConfig.config.showTableNames ?? false)
             : true;
         const customLabels = getCustomLabelsFromTableConfig(chartConfig.config);
         const hiddenFields = getHiddenTableFields(chartConfig);
@@ -1314,9 +1318,8 @@ export class CsvService extends BaseService {
         dashboardFilters: DashboardFilters,
         dateZoomGranularity?: DateGranularity,
     ) {
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -1365,9 +1368,8 @@ export class CsvService extends BaseService {
             formatted: true,
             limit: 'table',
         };
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         this.logger.info(`Exporting CSVs for dashboard ${dashboardUuid}`);
         const user = await this.userModel.findSessionUserAndOrgByUuid(

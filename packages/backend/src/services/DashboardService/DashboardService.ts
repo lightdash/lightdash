@@ -172,9 +172,8 @@ export class DashboardService
         user: SessionUser,
         dashboardUuid: string,
     ) {
-        const orphanedCharts = await this.dashboardModel.getOrphanedCharts(
-            dashboardUuid,
-        );
+        const orphanedCharts =
+            await this.dashboardModel.getOrphanedCharts(dashboardUuid);
 
         await Promise.all(
             orphanedCharts.map(async (chart) => {
@@ -242,9 +241,8 @@ export class DashboardService
         user: SessionUser,
         dashboardUuidOrSlug: string,
     ): Promise<Dashboard> {
-        const dashboardDao = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuidOrSlug,
-        );
+        const dashboardDao =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
         const space = await this.spaceModel.getSpaceSummary(
             dashboardDao.spaceUuid,
@@ -398,9 +396,8 @@ export class DashboardService
         dashboardUuid: string,
         data: DuplicateDashboardParams,
     ): Promise<Dashboard> {
-        const dashboardDao = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboardDao =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const space = await this.spaceModel.getSpaceSummary(
             dashboardDao.spaceUuid,
         );
@@ -589,9 +586,8 @@ export class DashboardService
         dashboardUuidOrSlug: string,
         dashboard: UpdateDashboard,
     ): Promise<Dashboard> {
-        const existingDashboardDao = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuidOrSlug,
-        );
+        const existingDashboardDao =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
         const canUpdateDashboardInCurrentSpace = user.ability.can(
             'update',
@@ -716,9 +712,8 @@ export class DashboardService
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<TogglePinnedItemInfo> {
-        const existingDashboardDao = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const existingDashboardDao =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const space = await this.spaceModel.getSpaceSummary(
             existingDashboardDao.spaceUuid,
         );
@@ -872,9 +867,8 @@ export class DashboardService
     }
 
     async delete(user: SessionUser, dashboardUuid: string): Promise<void> {
-        const dashboardToDelete = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboardToDelete =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { organizationUuid, projectUuid, spaceUuid, tiles } =
             dashboardToDelete;
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
@@ -947,9 +941,8 @@ export class DashboardService
             }
         }
 
-        const deletedDashboard = await this.dashboardModel.delete(
-            dashboardUuid,
-        );
+        const deletedDashboard =
+            await this.dashboardModel.delete(dashboardUuid);
 
         this.analytics.track({
             event: 'dashboard.deleted',
@@ -1059,9 +1052,8 @@ export class DashboardService
         user: SessionUser,
         dashboardUuid: string,
     ): Promise<Dashboard> {
-        const dashboardDao = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboardDao =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const space = await this.spaceModel.getSpaceSummary(
             dashboardDao.spaceUuid,
         );

@@ -48,9 +48,8 @@ export class ProjectParametersService extends BaseService {
             sortOrder?: 'asc' | 'desc';
         },
     ) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(

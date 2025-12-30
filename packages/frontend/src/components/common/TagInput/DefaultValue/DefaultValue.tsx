@@ -11,7 +11,8 @@ import useStyles from './DefaultValue.styles';
 export type DefaultValueStylesNames = Selectors<typeof useStyles>;
 
 export interface TagInputValueProps
-    extends DefaultProps<DefaultValueStylesNames>,
+    extends
+        DefaultProps<DefaultValueStylesNames>,
         Omit<React.ComponentPropsWithoutRef<'div'>, 'style'> {
     label: string;
     onRemove(): void;

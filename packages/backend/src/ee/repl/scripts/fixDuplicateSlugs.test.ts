@@ -14,7 +14,7 @@ jest.mock('../../../utils/SlugUtils', () => ({
 
 const clientRepositoryMock = {
     getEmailClient: () =>
-        ({ canSendEmail: () => false } as AnyType as EmailClient),
+        ({ canSendEmail: () => false }) as AnyType as EmailClient,
 } as AnyType as ClientRepository;
 
 describe('fixDuplicateSlugs', () => {

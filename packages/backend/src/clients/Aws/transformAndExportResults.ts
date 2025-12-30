@@ -53,9 +53,8 @@ export async function transformAndExportResults(
 
     try {
         // Get the JSONL results stream from results bucket
-        const resultsStream = await resultsStorageClient.getDownloadStream(
-            sourceFileName,
-        );
+        const resultsStream =
+            await resultsStorageClient.getDownloadStream(sourceFileName);
 
         // Create upload stream to exports bucket
         const { writeStream, close } =

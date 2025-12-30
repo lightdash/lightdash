@@ -286,8 +286,8 @@ export const findAndUpdateModelYaml = async ({
     These columns in your model ${styles.bold(
         model.name,
     )} on file ${styles.bold(
-                    match.filename.split('/').slice(-1),
-                )} no longer exist in your warehouse:
+        match.filename.split('/').slice(-1),
+    )} no longer exist in your warehouse:
     ${deletedColumnNames.map((name) => `- ${styles.bold(name)} \n`).join('')}
                 `);
 

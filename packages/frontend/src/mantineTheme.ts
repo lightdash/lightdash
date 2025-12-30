@@ -374,4 +374,4 @@ export const getMantineThemeOverride = (
                   }
                 : undefined),
         }),
-    } satisfies MantineThemeOverride);
+    }) satisfies MantineThemeOverride;

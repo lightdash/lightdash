@@ -142,10 +142,10 @@ const useEchartsPieConfig = (
                             return showValue && showPercentage
                                 ? `${params.name}: ${params.percent}% - ${meta.value.formatted}`
                                 : showValue
-                                ? `${params.name}: ${meta.value.formatted}`
-                                : showPercentage
-                                ? `${params.name}: ${params.percent}%`
-                                : `${params.name}`;
+                                  ? `${params.name}: ${meta.value.formatted}`
+                                  : showPercentage
+                                    ? `${params.name}: ${params.percent}%`
+                                    : `${params.name}`;
                         },
                     },
                     labelLine: getPieLabelLineStyle(),
@@ -182,8 +182,8 @@ const useEchartsPieConfig = (
                       (showValueDefault || showPercentageDefault)
                         ? ['50%', '55%']
                         : showLegend
-                        ? ['50%', '52%']
-                        : ['50%', '50%']
+                          ? ['50%', '52%']
+                          : ['50%', '50%']
                     : ['50%', '50%'],
             ...getPieSliceStyle(!!isDonut),
             tooltip: {

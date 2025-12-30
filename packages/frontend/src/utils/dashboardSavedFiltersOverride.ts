@@ -7,16 +7,19 @@ const getDifferences = (
     original: DashboardFilterRule,
     updated: DashboardFilterRule,
 ): (keyof DashboardFilterRule)[] => {
-    return Object.keys(updated).reduce((acc, key) => {
-        const typedKey = key as keyof DashboardFilterRule;
-        if (
-            !original.hasOwnProperty(typedKey) ||
-            !isEqual(updated[typedKey], original[typedKey])
-        ) {
-            acc.push(typedKey);
-        }
-        return acc;
-    }, [] as (keyof DashboardFilterRule)[]);
+    return Object.keys(updated).reduce(
+        (acc, key) => {
+            const typedKey = key as keyof DashboardFilterRule;
+            if (
+                !original.hasOwnProperty(typedKey) ||
+                !isEqual(updated[typedKey], original[typedKey])
+            ) {
+                acc.push(typedKey);
+            }
+            return acc;
+        },
+        [] as (keyof DashboardFilterRule)[],
+    );
 };
 
 const constructOverrideString = (

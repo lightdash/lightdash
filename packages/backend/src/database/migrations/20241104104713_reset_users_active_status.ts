@@ -23,12 +23,7 @@ export async function down(knex: Knex): Promise<void> {
         )
         .select<
             { user_id: string; user_uuid: string; has_authentication: false }[]
-        >(
-            `${UserTableName}.user_id`,
-            knex.raw(
-                `CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication`,
-            ),
-        )
+        >(`${UserTableName}.user_id`, knex.raw(`CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication`))
         .distinctOn(`user_id`);
     const queries: Promise<number>[] = [];
     users.forEach((user) => {

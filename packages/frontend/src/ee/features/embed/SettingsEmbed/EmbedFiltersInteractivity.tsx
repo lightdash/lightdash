@@ -202,7 +202,9 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                                                             span
                                                             color="ldGray.7"
                                                         >
-                                                            {labels.operator}{' '}
+                                                            {
+                                                                labels.operator
+                                                            }{' '}
                                                         </Text>
                                                         <Text fw={700} span>
                                                             {labels.value}

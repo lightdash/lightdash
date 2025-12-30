@@ -90,15 +90,15 @@ const MetricDimensionItem: FC<{
               filters: customMetric.filters,
           }
         : isCompiledMetric(field)
-        ? {
-              type: field.type,
-              sql: field.sql,
-              compiledSql: field.compiledSql,
-              filters: field.filters,
-              table: field.table,
-              name: field.name,
-          }
-        : undefined;
+          ? {
+                type: field.type,
+                sql: field.sql,
+                compiledSql: field.compiledSql,
+                filters: field.filters,
+                table: field.table,
+                name: field.name,
+            }
+          : undefined;
 
     const isHoverCardDisabled =
         (!description && !metricInfo) || isCodeIconHovered;

@@ -46,10 +46,10 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                               dimensions: [fieldToExplore],
                           }
                         : field.fieldType === FieldType.METRIC
-                        ? {
-                              metrics: [fieldToExplore],
-                          }
-                        : []),
+                          ? {
+                                metrics: [fieldToExplore],
+                            }
+                          : []),
                 },
             },
         );

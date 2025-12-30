@@ -43,7 +43,7 @@ const createMockTile = (uuid: string, tabUuid?: string): DashboardTile =>
             savedChartUuid: 'chart-1',
             title: `Tile ${uuid}`,
         },
-    } satisfies DashboardTile);
+    }) satisfies DashboardTile;
 
 // Helper to create mock filterable fields
 const createMockFilterableField = (
@@ -55,7 +55,7 @@ const createMockFilterableField = (
         table,
         fieldType: FieldType.DIMENSION,
         type: DimensionType.STRING,
-    } as FilterableDimension);
+    }) as FilterableDimension;
 
 describe('getFilterTileRelation', () => {
     it('should return "auto" when no tileTargets configuration exists', () => {

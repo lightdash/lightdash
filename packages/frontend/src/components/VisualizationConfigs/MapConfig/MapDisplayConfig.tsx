@@ -156,8 +156,8 @@ export const Display: FC = memo(() => {
                                 const label = isFirst
                                     ? 'Low'
                                     : isLast
-                                    ? 'High'
-                                    : '';
+                                      ? 'High'
+                                      : '';
                                 // Can only remove middle colors (not first or last)
                                 const canRemove =
                                     !isFirst && !isLast && colors.length > 2;

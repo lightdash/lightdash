@@ -489,9 +489,10 @@ export class DashboardModel {
                     validation_errors,
                     dashboard_version_id,
                 }) => {
-                    const tileTypes = await this.getDashboardVersionTileTypes(
-                        dashboard_version_id,
-                    );
+                    const tileTypes =
+                        await this.getDashboardVersionTileTypes(
+                            dashboard_version_id,
+                        );
 
                     return {
                         organizationUuid: organization_uuid,
@@ -925,11 +926,9 @@ export class DashboardModel {
             ]);
 
         const tabs = await this.database(DashboardTabsTableName)
-            .select<DashboardTab[]>(
-                `${DashboardTabsTableName}.name`,
-                `${DashboardTabsTableName}.uuid`,
-                `${DashboardTabsTableName}.order`,
-            )
+            .select<
+                DashboardTab[]
+            >(`${DashboardTabsTableName}.name`, `${DashboardTabsTableName}.uuid`, `${DashboardTabsTableName}.order`)
             .where(
                 `${DashboardTabsTableName}.dashboard_version_id`,
                 dashboard.dashboard_version_id,

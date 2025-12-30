@@ -103,8 +103,8 @@ export function sanitizeCustomFormat(
     // Validate currency
     const validCurrency =
         format.currency &&
-        currencies.includes(format.currency as typeof currencies[number])
-            ? (format.currency as typeof currencies[number])
+        currencies.includes(format.currency as (typeof currencies)[number])
+            ? (format.currency as (typeof currencies)[number])
             : undefined;
 
     switch (type) {
@@ -393,12 +393,12 @@ export async function generateTableCalculation(
                             ? `Current SQL (user wants to improve/modify this):\n${context.currentSql}\n`
                             : ''
                     }${
-                    context.existingTableCalculations?.length
-                        ? `Note: These table calculation names are already taken: ${context.existingTableCalculations.join(
-                              ', ',
-                          )}`
-                        : ''
-                }`,
+                        context.existingTableCalculations?.length
+                            ? `Note: These table calculation names are already taken: ${context.existingTableCalculations.join(
+                                  ', ',
+                              )}`
+                            : ''
+                    }`,
             },
         ],
         temperature: 0.3,

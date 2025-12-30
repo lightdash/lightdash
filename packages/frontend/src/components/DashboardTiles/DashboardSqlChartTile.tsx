@@ -34,11 +34,10 @@ import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import ExportDataModal from './ExportDataModal';
 import TileBase from './TileBase';
 
-interface Props
-    extends Pick<
-        React.ComponentProps<typeof TileBase>,
-        'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-    > {
+interface Props extends Pick<
+    React.ComponentProps<typeof TileBase>,
+    'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
+> {
     tile: DashboardSqlChartTile;
     minimal?: boolean;
 }

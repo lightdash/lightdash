@@ -7,17 +7,17 @@ The scheduler feature is accessed through modal components that allow users to c
 
 Key components:
 
--   `SchedulerModalContent` - Main modal wrapper for creating/editing schedulers
--   `SchedulerForm` - Core form with delivery configuration (format, targets, frequency)
--   `SchedulerFilters` - Configure dashboard filter overrides for deliveries
--   `SchedulerParameters` - Configure parameter overrides for deliveries
--   `SchedulerPreview` - Preview dashboard appearance for image deliveries
+- `SchedulerModalContent` - Main modal wrapper for creating/editing schedulers
+- `SchedulerForm` - Core form with delivery configuration (format, targets, frequency)
+- `SchedulerFilters` - Configure dashboard filter overrides for deliveries
+- `SchedulerParameters` - Configure parameter overrides for deliveries
+- `SchedulerPreview` - Preview dashboard appearance for image deliveries
 
 The scheduler supports three delivery formats:
 
--   **CSV/XLSX** - Exports chart/dashboard data as spreadsheet files
--   **IMAGE** - Captures dashboard screenshot as image (with optional PDF)
--   **GSHEETS** - Uploads data directly to Google Sheets
+- **CSV/XLSX** - Exports chart/dashboard data as spreadsheet files
+- **IMAGE** - Captures dashboard screenshot as image (with optional PDF)
+- **GSHEETS** - Uploads data directly to Google Sheets
 
 Delivery targets include email, Slack channels, Microsoft Teams webhooks, and Google Sheets.
 </howToUse>

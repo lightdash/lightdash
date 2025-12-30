@@ -64,8 +64,8 @@ export const SlackChannelSelect: FC<
         const values = props.multiple
             ? props.value
             : props.value
-            ? [props.value]
-            : [];
+              ? [props.value]
+              : [];
         values
             .filter((v) => !SLACK_ID_REGEX.test(v))
             .forEach((name) => {

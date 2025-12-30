@@ -147,10 +147,9 @@ async function main(): Promise<void> {
                             migrationsToRollback.length
                         })`,
                     );
-                    // eslint-disable-next-line no-await-in-loop
-                    const downloadedFile = await downloadMigrationFile(
-                        migrationName,
-                    );
+                    const downloadedFile =
+                        // eslint-disable-next-line no-await-in-loop
+                        await downloadMigrationFile(migrationName);
                     downloadResults.push(downloadedFile);
                 } catch (error) {
                     const errorMessage =

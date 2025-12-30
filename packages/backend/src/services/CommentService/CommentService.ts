@@ -139,9 +139,8 @@ export class CommentService extends BaseService {
 
         if (!dashboardTile) return;
 
-        const commentAuthor = await this.userModel.getUserDetailsByUuid(
-            userUuid,
-        );
+        const commentAuthor =
+            await this.userModel.getUserDetailsByUuid(userUuid);
 
         await this.notificationsModel.createDashboardCommentNotification({
             userUuid,
@@ -164,9 +163,8 @@ export class CommentService extends BaseService {
     ): Promise<string> {
         await this.isFeatureEnabled(user);
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         if (
             user.ability.cannot(
@@ -227,9 +225,8 @@ export class CommentService extends BaseService {
     ): Promise<Record<string, Comment[]>> {
         await this.isFeatureEnabled(user);
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuidOrSlug,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
         if (
             user.ability.cannot(
@@ -271,9 +268,8 @@ export class CommentService extends BaseService {
     ): Promise<void> {
         await this.isFeatureEnabled(user);
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -316,9 +312,8 @@ export class CommentService extends BaseService {
     ): Promise<void> {
         await this.isFeatureEnabled(user);
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         if (!(await this.hasDashboardSpaceAccess(user, dashboard.spaceUuid))) {
             throw new ForbiddenError(

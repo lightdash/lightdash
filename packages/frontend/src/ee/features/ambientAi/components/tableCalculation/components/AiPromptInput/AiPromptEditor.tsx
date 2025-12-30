@@ -74,8 +74,8 @@ export const AiPromptEditor: FC<Props> = ({
                 label: isField(fieldItem)
                     ? fieldItem.label
                     : 'displayName' in fieldItem
-                    ? fieldItem.displayName ?? fieldItem.name
-                    : fieldItem.name,
+                      ? (fieldItem.displayName ?? fieldItem.name)
+                      : fieldItem.name,
                 item: fieldItem,
             }));
     }, [explore, metricQuery]);

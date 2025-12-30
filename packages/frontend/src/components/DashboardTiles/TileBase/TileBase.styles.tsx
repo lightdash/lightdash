@@ -76,27 +76,26 @@ export const TileTitleLink = styled.a<TileTitleProps>`
         text-wrap: wrap;
     }
 
-    ${({ $hovered }) =>
-        css`
-            ${$hovered
-                ? css`
-                      text-decoration: underline;
-                  `
-                : ''}
+    ${({ $hovered }) => css`
+        ${$hovered
+            ? css`
+                  text-decoration: underline;
+              `
+            : ''}
 
-            &:not([href]) {
-                cursor: default;
-                text-decoration: none;
+        &:not([href]) {
+            cursor: default;
+            text-decoration: none;
 
-                &:hover {
-                    ${$hovered
-                        ? css`
-                              text-decoration: none;
-                          `
-                        : ''}
-                }
+            &:hover {
+                ${$hovered
+                    ? css`
+                          text-decoration: none;
+                      `
+                    : ''}
             }
-        `}
+        }
+    `}
 `;
 
 export const ChartContainer = styled.div<{

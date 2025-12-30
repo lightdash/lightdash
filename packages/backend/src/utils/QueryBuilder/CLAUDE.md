@@ -126,40 +126,40 @@ const { replacedSql, usedParameters } = safeReplaceParametersWithSqlBuilder(
 
 **Phase 1 - SQL Generation (PivotQueryBuilder):**
 
--   PivotQueryBuilder does NOT pivot the actual data
--   It generates SQL that adds `row_index` and `column_index` metadata using DENSE_RANK() window functions
--   The SQL structure uses CTEs: original_query → group_by_query → pivot_query → filtered_rows
--   Each result row contains the original data PLUS row_index and column_index fields
--   These indexes identify where each value belongs in the final pivot table
+- PivotQueryBuilder does NOT pivot the actual data
+- It generates SQL that adds `row_index` and `column_index` metadata using DENSE_RANK() window functions
+- The SQL structure uses CTEs: original_query → group_by_query → pivot_query → filtered_rows
+- Each result row contains the original data PLUS row_index and column_index fields
+- These indexes identify where each value belongs in the final pivot table
 
 **Phase 2 - Result Transformation (runQueryAndTransformRows):**
 
--   AsyncQueryService.runQueryAndTransformRows streams results from the warehouse
--   As rows arrive, it uses `row_index` to group related data together
--   When `row_index` changes, the previous row is complete and gets written
--   The transformation builds pivot columns dynamically using the pattern: `{field}_{aggregation}_{groupByValue}`
--   Example: `revenue_sum_electronics` for revenue sum in electronics category
+- AsyncQueryService.runQueryAndTransformRows streams results from the warehouse
+- As rows arrive, it uses `row_index` to group related data together
+- When `row_index` changes, the previous row is complete and gets written
+- The transformation builds pivot columns dynamically using the pattern: `{field}_{aggregation}_{groupByValue}`
+- Example: `revenue_sum_electronics` for revenue sum in electronics category
 
 **Key Technical Details:**
 
--   **MetricQueryBuilder** handles complex joins, window functions, and warehouse-specific SQL generation
--   Pivot column limit is configurable via `LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT` (default: 100)
-    -   When set, the limit is passed to `PivotQueryBuilder.toSql({ columnLimit })`
-    -   If `columnLimit` is provided, SQL adds `column_index <= maxColumnsPerValueColumn` filter
-    -   If `columnLimit` is undefined, no column filtering is applied (unlimited columns)
--   Pivot results are streamed and transformed during processing, not after loading all data
--   Parameter replacement supports both safe (typed) and raw replacement modes
--   The module supports multiple warehouse dialects (BigQuery, Snowflake, Postgres, etc.)
--   User attributes and intrinsic attributes are replaced before query execution
--   CTEs are used extensively for query composition and debugging
--   Filter groups support nested AND/OR logic with proper SQL generation
+- **MetricQueryBuilder** handles complex joins, window functions, and warehouse-specific SQL generation
+- Pivot column limit is configurable via `LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT` (default: 100)
+    - When set, the limit is passed to `PivotQueryBuilder.toSql({ columnLimit })`
+    - If `columnLimit` is provided, SQL adds `column_index <= maxColumnsPerValueColumn` filter
+    - If `columnLimit` is undefined, no column filtering is applied (unlimited columns)
+- Pivot results are streamed and transformed during processing, not after loading all data
+- Parameter replacement supports both safe (typed) and raw replacement modes
+- The module supports multiple warehouse dialects (BigQuery, Snowflake, Postgres, etc.)
+- User attributes and intrinsic attributes are replaced before query execution
+- CTEs are used extensively for query composition and debugging
+- Filter groups support nested AND/OR logic with proper SQL generation
 
 ## Links
 
 Related files:
 
--   @/packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts - Query execution and result processing
--   @/packages/backend/src/utils/QueryBuilder/utils.ts - SQL parsing and manipulation utilities
--   @/packages/backend/src/utils/QueryBuilder/parameters.ts - Parameter replacement logic
--   @/packages/warehouses/src/warehouseSqlBuilder.ts - Warehouse-specific SQL builders
--   @/packages/common/src/types/pivot.ts - Pivot configuration types
+- @/packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts - Query execution and result processing
+- @/packages/backend/src/utils/QueryBuilder/utils.ts - SQL parsing and manipulation utilities
+- @/packages/backend/src/utils/QueryBuilder/parameters.ts - Parameter replacement logic
+- @/packages/warehouses/src/warehouseSqlBuilder.ts - Warehouse-specific SQL builders
+- @/packages/common/src/types/pivot.ts - Pivot configuration types

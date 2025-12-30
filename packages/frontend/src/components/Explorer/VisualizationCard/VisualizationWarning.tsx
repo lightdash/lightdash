@@ -51,8 +51,8 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
 
     const isQueryFetching = Boolean(
         resultsData?.isInitialLoading ||
-            resultsData?.isFetchingFirstPage ||
-            resultsData?.isFetchingRows,
+        resultsData?.isFetchingFirstPage ||
+        resultsData?.isFetchingRows,
     );
 
     // Determine if pivot column limit has been exceeded

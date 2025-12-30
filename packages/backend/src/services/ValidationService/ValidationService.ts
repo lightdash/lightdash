@@ -244,9 +244,8 @@ export class ValidationService extends BaseService {
         >,
         selectedExplores?: (Explore | ExploreError)[],
     ): Promise<CreateChartValidation[]> {
-        const charts = await this.savedChartModel.findChartsForValidation(
-            projectUuid,
-        );
+        const charts =
+            await this.savedChartModel.findChartsForValidation(projectUuid);
 
         // Only validate charts that are using selected explores
         const results = charts
@@ -762,9 +761,8 @@ export class ValidationService extends BaseService {
         validationTargets?: ValidationTarget[],
         onlyValidateExploresInArgs?: boolean,
     ): Promise<string> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(
@@ -940,9 +938,8 @@ export class ValidationService extends BaseService {
     }
 
     async delete(user: SessionUser, validationId: number): Promise<void> {
-        const validation = await this.validationModel.getByValidationId(
-            validationId,
-        );
+        const validation =
+            await this.validationModel.getByValidationId(validationId);
         const projectSummary = await this.projectModel.getSummary(
             validation.projectUuid,
         );

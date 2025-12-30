@@ -165,8 +165,8 @@ const getFormValuesFromScheduler = (schedulerData: SchedulerAndTargets) => {
             options.limit === Limit.TABLE
                 ? Limit.TABLE
                 : options.limit === Limit.ALL
-                ? Limit.ALL
-                : Limit.CUSTOM;
+                  ? Limit.ALL
+                  : Limit.CUSTOM;
         if (formOptions.limit === Limit.CUSTOM) {
             formOptions.customLimit = options.limit as number;
         }
@@ -360,18 +360,18 @@ const SchedulerForm: FC<Props> = ({
                       ),
                   })
                 : isThresholdAlert
-                ? DEFAULT_VALUES_ALERT
-                : {
-                      ...DEFAULT_VALUES,
-                      selectedTabs: isDashboardTabsAvailable
-                          ? dashboard?.tabs.map((tab) => tab.uuid)
-                          : null,
-                      parameters:
-                          isDashboard &&
-                          Object.keys(dashboardParameterValues).length > 0
-                              ? dashboardParameterValues
-                              : undefined,
-                  },
+                  ? DEFAULT_VALUES_ALERT
+                  : {
+                        ...DEFAULT_VALUES,
+                        selectedTabs: isDashboardTabsAvailable
+                            ? dashboard?.tabs.map((tab) => tab.uuid)
+                            : null,
+                        parameters:
+                            isDashboard &&
+                            Object.keys(dashboardParameterValues).length > 0
+                                ? dashboardParameterValues
+                                : undefined,
+                    },
         validateInputOnBlur: ['options.customLimit'],
 
         validate: {
@@ -1346,7 +1346,7 @@ const SchedulerForm: FC<Props> = ({
                     (form.values.slackTargets.length ||
                         form.values.emailTargets.length ||
                         form.values.msTeamsTargets.length) &&
-                        requiredFiltersWithoutValues.length === 0,
+                    requiredFiltersWithoutValues.length === 0,
                 )}
                 onSendNow={isThresholdAlert ? undefined : handleSendNow}
                 loading={loading}

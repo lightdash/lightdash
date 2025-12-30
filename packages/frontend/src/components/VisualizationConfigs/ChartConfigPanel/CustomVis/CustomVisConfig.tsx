@@ -34,9 +34,8 @@ const MONACO_DEFAULT_OPTIONS: EditorProps['options'] = {
 };
 
 const initVegaLazySchema = async () => {
-    const vegaLiteSchema = await import(
-        'vega-lite/build/vega-lite-schema.json'
-    );
+    const vegaLiteSchema =
+        await import('vega-lite/build/vega-lite-schema.json');
 
     return [
         {
