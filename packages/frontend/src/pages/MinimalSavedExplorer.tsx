@@ -59,7 +59,10 @@ const MinimalExplorerContent = memo(() => {
     const savedChart = useExplorerSelector(selectSavedChart);
 
     const isLoadingQueryResults =
-        query.isFetching || queryResults.isFetchingRows;
+        query.isFetching ||
+        queryResults.isFetchingRows ||
+        !query.data?.queryUuid ||
+        queryResults.queryUuid !== query.data.queryUuid;
 
     const [isScreenshotReady, setIsScreenshotReady] = useState(false);
     const hasSignaledReady = useRef(false);
@@ -113,7 +116,7 @@ const MinimalExplorerContent = memo(() => {
                 </Box>
             </MantineProvider>
 
-            {isScreenshotReady && !isLoadingQueryResults && (
+            {isScreenshotReady && (
                 <ScreenshotReadyIndicator
                     tilesTotal={1}
                     tilesReady={1}
