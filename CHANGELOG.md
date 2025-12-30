@@ -1,3 +1,11 @@
+# [0.2286.0](https://github.com/lightdash/lightdash/compare/0.2285.2...0.2286.0) (2025-12-30)
+
+
+### Features
+
+* improve loading states for tiles in dashboards ([#19080](https://github.com/lightdash/lightdash/issues/19080)) ([cbd1f0c](https://github.com/lightdash/lightdash/commit/cbd1f0c811d36fe354cce9d43fdaabba61677153)), closes [#18008](https://github.com/lightdash/lightdash/issues/18008) [#19015](https://github.com/lightdash/lightdash/issues/19015)
+* improve z-index config in dashboard v2 tiles ([#19151](https://github.com/lightdash/lightdash/issues/19151)) ([5c2c90d](https://github.com/lightdash/lightdash/commit/5c2c90daae8d3ae4a56f8331184d559683380882))
+
 ## [0.2285.2](https://github.com/lightdash/lightdash/compare/0.2285.1...0.2285.2) (2025-12-30)
 
 
