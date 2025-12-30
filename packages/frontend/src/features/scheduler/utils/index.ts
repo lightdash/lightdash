@@ -26,3 +26,9 @@ export const isSchedulerTypeSync = (search: string): boolean => {
     const searchParams = new URLSearchParams(search);
     return searchParams.get('isSync') === 'true';
 };
+
+export enum States {
+    LIST,
+    CREATE,
+    EDIT,
+}

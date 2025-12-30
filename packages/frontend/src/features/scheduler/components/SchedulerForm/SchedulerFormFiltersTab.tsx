@@ -1,11 +1,11 @@
 import {
+    FilterOperator,
     FilterType,
     getFilterTypeFromItem,
     isWithValueFilter,
     type Dashboard,
     type DashboardFilterRule,
     type FilterableDimension,
-    type FilterOperator,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -14,12 +14,12 @@ import {
     Flex,
     Group,
     Loader,
+    Paper,
     Select,
     Stack,
     Text,
     Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import {
     IconAlertTriangle,
     IconCheck,
@@ -28,19 +28,22 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import FieldIcon from '../../../components/common/Filters/FieldIcon';
-import FieldLabel from '../../../components/common/Filters/FieldLabel';
-import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
+import FieldIcon from '../../../../components/common/Filters/FieldIcon';
+import FieldLabel from '../../../../components/common/Filters/FieldLabel';
+import FilterInputComponent from '../../../../components/common/Filters/FilterInputs';
 import {
     getConditionalRuleLabelFromItem,
     getFilterOperatorOptions,
-} from '../../../components/common/Filters/FilterInputs/utils';
-import FiltersProvider from '../../../components/common/Filters/FiltersProvider';
-import useFiltersContext from '../../../components/common/Filters/useFiltersContext';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { hasSavedFilterValueChanged } from '../../../features/dashboardFilters/FilterConfiguration/utils';
-import { useProject } from '../../../hooks/useProject';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+} from '../../../../components/common/Filters/FilterInputs/utils';
+import FiltersProvider from '../../../../components/common/Filters/FiltersProvider';
+import useFiltersContext from '../../../../components/common/Filters/useFiltersContext';
+import MantineIcon from '../../../../components/common/MantineIcon';
+import { useProject } from '../../../../hooks/useProject';
+import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
+import { hasSavedFilterValueChanged } from '../../../dashboardFilters/FilterConfiguration/utils';
+
+const isValidFilterOperator = (value: unknown): value is FilterOperator =>
+    Object.values(FilterOperator).includes(value as FilterOperator);
 
 const FilterSummaryLabel: FC<
     {
@@ -87,7 +90,6 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     onRemove,
     tilesWithFilter,
 }) => {
-    const theme = useMantineTheme();
     const { itemsMap } =
         useFiltersContext<Record<string, FilterableDimension>>();
     const field = itemsMap[dashboardFilter.target.fieldId];
@@ -109,35 +111,40 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     if (!field) {
         // show invalid dashboard filter
         return (
-            <Group spacing="xs" align="flex-start" noWrap>
+            <Group gap="xs" wrap="nowrap">
                 <ActionIcon size="xs" disabled>
                     <MantineIcon icon={IconRotate2} />
                 </ActionIcon>
 
-                <Stack key={dashboardFilter.id} spacing="xs" w="100%">
-                    <Group spacing="xs">
-                        <MantineIcon
-                            icon={IconAlertTriangle}
-                            color="red.6"
-                            style={{ color: theme.colors.red[6] }}
-                        />
-                        <Text span fw={500}>
+                <Paper
+                    key={dashboardFilter.id}
+                    w="100%"
+                    withBorder
+                    p="xs"
+                    radius="md"
+                >
+                    <Group gap="xs">
+                        <MantineIcon icon={IconAlertTriangle} color="red" />
+                        <Text span fw={500} fz="sm">
                             Invalid filter
                         </Text>
-                        <Text fw={400} span>
-                            <Text span color="ldGray.6">
+                        <Text fw={400} span fz="xs">
+                            <Text span c="ldGray.6" fz="xs">
                                 Tried to reference field with unknown id:
                             </Text>
-                            <Text span> {dashboardFilter.target.fieldId}</Text>
+                            <Text span fz="xs" fw={500}>
+                                {' '}
+                                {dashboardFilter.target.fieldId}
+                            </Text>
                         </Text>
                     </Group>
-                </Stack>
+                </Paper>
             </Group>
         );
     }
 
     return (
-        <Group spacing="xs" align="flex-start" noWrap>
+        <Group gap="xs" wrap="nowrap">
             <Tooltip label="Reset filter" fz="xs" disabled={!hasChanged}>
                 <ActionIcon
                     size="xs"
@@ -153,8 +160,8 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                 </ActionIcon>
             </Tooltip>
 
-            <Stack key={dashboardFilter.id} spacing="xs" w="100%">
-                <Group spacing="xs">
+            <Stack key={dashboardFilter.id} gap="xs" w="100%">
+                <Group gap="xs">
                     <FieldIcon item={field} />
                     <FieldLabel
                         item={{
@@ -214,7 +221,7 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                     </>
                 </Group>
                 {!isEditing && hasChanged && (
-                    <Text fz="xs" color="ldGray.6">
+                    <Text fz="xs" c="ldGray.6">
                         Unsaved changes
                     </Text>
                 )}
@@ -231,7 +238,9 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                                 dashboardFilter.operator
                             }
                             data={filterOperatorOptions}
-                            onChange={(operator: FilterOperator) => {
+                            onChange={(operator: string | null) => {
+                                if (!isValidFilterOperator(operator)) return;
+
                                 const newFilter = {
                                     ...dashboardFilter,
                                     operator,
@@ -242,7 +251,6 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
 
                                 onChange(newFilter);
                             }}
-                            withinPortal
                         />
 
                         <FilterInputComponent
@@ -324,7 +332,7 @@ type SchedulerFiltersProps = {
     isEditMode: boolean;
 };
 
-const SchedulerFilters: FC<SchedulerFiltersProps> = ({
+export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
     dashboard,
     draftFilters,
     savedFilters,
@@ -418,7 +426,7 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
         return (
             <Center component={Stack} h={100}>
                 <Loader color="gray" />
-                <Text color="dimmed">Loading dashboard filters...</Text>
+                <Text c="dimmed">Loading dashboard filters...</Text>
             </Center>
         );
     }
@@ -554,5 +562,3 @@ const SchedulerFilters: FC<SchedulerFiltersProps> = ({
         </FiltersProvider>
     );
 };
-
-export default SchedulerFilters;

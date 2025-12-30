@@ -12,12 +12,12 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconPencil, IconRotate2 } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { ParameterInput } from '../../parameters/components/ParameterInput';
+import MantineIcon from '../../../../components/common/MantineIcon';
+import { ParameterInput } from '../../../parameters/components/ParameterInput';
 
 type SchedulerParameterItemProps = {
     paramKey: string;
@@ -63,7 +63,7 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
     }, [currentValue]);
 
     return (
-        <Group spacing="xs" align="flex-start" noWrap>
+        <Group gap="xs" wrap="nowrap">
             <Tooltip
                 label="Reset parameter back to dashboard default"
                 fz="xs"
@@ -83,26 +83,27 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
                 </ActionIcon>
             </Tooltip>
 
-            <Stack key={paramKey} spacing="xs" w="100%">
-                <Group spacing="xs">
-                    <Text span fw={500}>
+            <Stack key={paramKey} gap="xs" w="100%">
+                <Group gap="xs">
+                    <Text span fw={500} fz="sm">
                         {parameter.label || paramKey}
                     </Text>
 
                     {parameter.description && (
-                        <Text span size="xs" color="ldGray.6">
+                        <Text span size="xs" c="ldGray.6">
                             - {parameter.description}
                         </Text>
                     )}
 
                     {isEditing || hasChanged ? null : (
-                        <Text fw={400} span color="ldGray.7">
+                        <Text fw={400} span c="ldGray.7" fz="xs">
                             = {displayValue}
                         </Text>
                     )}
 
                     <ActionIcon
                         size="xs"
+                        variant="light"
                         disabled={isEditing || hasChanged}
                         onClick={() => {
                             setIsEditing(true);
@@ -142,7 +143,7 @@ type SchedulerParametersProps = {
     isLoading: boolean;
 };
 
-const SchedulerParameters: FC<SchedulerParametersProps> = ({
+export const SchedulerFormParametersTab: FC<SchedulerParametersProps> = ({
     dashboard,
     currentParameterValues = {},
     schedulerParameterValues,
@@ -198,7 +199,7 @@ const SchedulerParameters: FC<SchedulerParametersProps> = ({
         return (
             <Center component={Stack} h={100}>
                 <Loader color="gray" />
-                <Text color="dimmed">Loading parameters...</Text>
+                <Text c="dimmed">Loading parameters...</Text>
             </Center>
         );
     }
@@ -206,9 +207,7 @@ const SchedulerParameters: FC<SchedulerParametersProps> = ({
     if (!availableParameters || Object.keys(availableParameters).length === 0) {
         return (
             <Center component={Stack} h={100}>
-                <Text color="dimmed">
-                    No parameters defined for this project.
-                </Text>
+                <Text c="dimmed">No parameters defined for this project.</Text>
             </Center>
         );
     }
@@ -246,5 +245,3 @@ const SchedulerParameters: FC<SchedulerParametersProps> = ({
         </Stack>
     );
 };
-
-export default SchedulerParameters;

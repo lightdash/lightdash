@@ -180,6 +180,7 @@ export const SlackChannelSelect: FC<
 
     return props.multiple ? (
         <MultiSelect
+            radius="md"
             {...(commonProps as MultiSelectProps)}
             creatable
             shouldCreate={shouldAllowCreate}

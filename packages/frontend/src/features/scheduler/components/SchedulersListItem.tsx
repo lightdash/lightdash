@@ -11,7 +11,7 @@ import {
     Switch,
     Text,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import {
     IconCircleFilled,
     IconPencil,
@@ -58,14 +58,14 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
     }
 
     return (
-        <Paper p="sm" mb="xs" withBorder sx={{ overflow: 'hidden' }}>
-            <Group noWrap position="apart">
-                <Stack spacing="xs" w={475}>
+        <Paper p="sm" mb="xs" withBorder style={{ overflow: 'hidden' }}>
+            <Group wrap="nowrap" justify="space-between">
+                <Stack gap="xs" w={475}>
                     <Text fw={600} truncate>
                         {scheduler.name}
                     </Text>
-                    <Group spacing="sm">
-                        <Text color="ldGray" size={12}>
+                    <Group gap="sm">
+                        <Text c="ldGray.6" fz={12}>
                             {getHumanReadableCronExpression(
                                 scheduler.cron,
                                 scheduler.timezone || project.schedulerTimezone,
@@ -76,23 +76,24 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                             <MantineIcon icon={IconCircleFilled} size={5} />
                         </Box>
 
-                        <Text color="ldGray" size={12}>
+                        <Text c="ldGray.6" fz={12}>
                             {scheduler.targets.length} recipients
                         </Text>
                     </Group>
                 </Stack>
-                <Group noWrap spacing="xs">
+                <Group wrap="nowrap" gap="xs">
                     <Tooltip
                         withinPortal
+                        variant="xs"
+                        maw={130}
                         label={
                             scheduler.enabled
                                 ? 'Toggle off to temporarily pause notifications'
                                 : 'Notifications paused. Toggle on to resume'
                         }
                     >
-                        <Box>
+                        <Box mr="sm">
                             <Switch
-                                mr="sm"
                                 checked={scheduler.enabled}
                                 onChange={() =>
                                     handleToggle(!scheduler.enabled)
@@ -104,25 +105,31 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                         <ActionIcon
                             variant="light"
                             onClick={() => setIsConfirmOpen(true)}
+                            radius="md"
+                            color="ldDark.9"
                         >
-                            <MantineIcon icon={IconSend} />
+                            <MantineIcon color="ldDark.9" icon={IconSend} />
                         </ActionIcon>
                     </Tooltip>
                     <Tooltip withinPortal label="Edit">
                         <ActionIcon
                             variant="light"
+                            radius="md"
+                            color="ldDark.9"
                             onClick={() => onEdit(scheduler.schedulerUuid)}
                         >
-                            <MantineIcon icon={IconPencil} />
+                            <MantineIcon color="ldDark.9" icon={IconPencil} />
                         </ActionIcon>
                     </Tooltip>
 
                     <Tooltip withinPortal label="Delete">
                         <ActionIcon
                             variant="light"
+                            color="red"
+                            radius="md"
                             onClick={() => onDelete(scheduler.schedulerUuid)}
                         >
-                            <MantineIcon color="red" icon={IconTrash} />
+                            <MantineIcon icon={IconTrash} />
                         </ActionIcon>
                     </Tooltip>
                 </Group>
