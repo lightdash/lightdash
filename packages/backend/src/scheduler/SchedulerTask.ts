@@ -2966,8 +2966,12 @@ export default class SchedulerTask {
 
             // Create scheduled jobs for targets
             await Promise.all(
-                scheduledJobs.map(({ target, jobId: targetJobId }) =>
-                    this.logScheduledTarget(
+                scheduledJobs.map(({ target, jobId: targetJobId }) => {
+                    if (!target) {
+                        return Promise.resolve();
+                    }
+
+                    return this.logScheduledTarget(
                         scheduler.format,
                         target,
                         targetJobId,
@@ -2979,8 +2983,8 @@ export default class SchedulerTask {
                             organizationUuid: schedulerPayload.organizationUuid,
                             createdByUserUuid: schedulerPayload.userUuid,
                         },
-                    ),
-                ),
+                    );
+                }),
             );
 
             // Use page failures directly as partialFailures for logging
