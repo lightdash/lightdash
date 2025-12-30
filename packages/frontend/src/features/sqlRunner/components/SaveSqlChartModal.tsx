@@ -1,21 +1,14 @@
 import { ChartKind } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Group,
-    Modal,
-    Stack,
-    Text,
-    TextInput,
-    Textarea,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, Stack, TextInput, Textarea } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { IconArrowBack, IconChartBar, IconPlus } from '@tabler/icons-react';
+import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import { selectCompleteConfigByKind } from '../../../components/DataViz/store/selectors';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
 import { useModalSteps } from '../../../hooks/useModalSteps';
@@ -42,9 +35,11 @@ const saveChartFormSchema = z
 
 type FormValues = z.infer<typeof saveChartFormSchema>;
 
-type Props = Pick<ModalProps, 'opened' | 'onClose'>;
+type Props = Pick<MantineModalProps, 'opened' | 'onClose'>;
 
-const SaveChartForm: FC<Pick<Props, 'onClose'>> = ({ onClose }) => {
+const SAVE_CHART_FORM_ID = 'save-sql-chart-form';
+
+export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
     const dispatch = useAppDispatch();
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
     const hasUnrunChanges = useAppSelector(
@@ -74,6 +69,10 @@ const SaveChartForm: FC<Pick<Props, 'onClose'>> = ({ onClose }) => {
         ),
     );
 
+    const initialStep = hasUnrunChanges
+        ? ModalStep.Warning
+        : ModalStep.InitialInfo;
+
     const form = useForm<FormValues>({
         initialValues: {
             name: '',
@@ -84,7 +83,7 @@ const SaveChartForm: FC<Pick<Props, 'onClose'>> = ({ onClose }) => {
         validate: zodResolver(saveChartFormSchema),
     });
 
-    const modalSteps = useModalSteps<ModalStep>(ModalStep.InitialInfo, {
+    const modalSteps = useModalSteps<ModalStep>(initialStep, {
         validators: {
             [ModalStep.InitialInfo]: () => !!form.values.name,
         },
@@ -205,158 +204,114 @@ const SaveChartForm: FC<Pick<Props, 'onClose'>> = ({ onClose }) => {
         isCreatingSavedSqlChart ||
         spaceManagement.createSpaceMutation.isLoading;
 
-    return (
-        <form onSubmit={form.onSubmit(handleOnSubmit)}>
-            {modalSteps.currentStep === ModalStep.InitialInfo && (
-                <Stack p="md">
-                    <Stack spacing="xs">
-                        <TextInput
-                            label="Chart name"
-                            placeholder="eg. How many weekly active users do we have?"
-                            required
-                            {...form.getInputProps('name')}
-                        />
-                        <Textarea
-                            label="Description"
-                            {...form.getInputProps('description')}
-                            value={form.values.description ?? ''}
-                        />
-                    </Stack>
-                </Stack>
-            )}
+    const renderActions = () => {
+        if (modalSteps.currentStep === ModalStep.Warning) {
+            return (
+                <Button
+                    onClick={() => modalSteps.goToStep(ModalStep.InitialInfo)}
+                >
+                    Next
+                </Button>
+            );
+        }
 
-            {modalSteps.currentStep === ModalStep.SelectDestination && (
-                <Stack p="md">
-                    <SaveToSpaceForm
-                        form={form}
-                        spaces={spaces}
-                        projectUuid={projectUuid}
-                        isLoading={isLoadingSpace || isCreatingSavedSqlChart}
-                        spaceManagement={spaceManagement}
-                        selectedSpaceName={
-                            spaces.find(
-                                (space) => space.uuid === form.values.spaceUuid,
-                            )?.name
-                        }
-                    />
-                </Stack>
-            )}
+        if (modalSteps.currentStep === ModalStep.InitialInfo) {
+            return (
+                <Button onClick={handleNextStep} disabled={!form.values.name}>
+                    Next
+                </Button>
+            );
+        }
 
-            <Group
-                position="right"
-                w="100%"
-                sx={(theme) => ({
-                    borderTop: `1px solid ${theme.colors.ldGray[4]}`,
-                    bottom: 0,
-                    padding: theme.spacing.md,
-                })}
-            >
-                {shouldShowNewSpaceButton && (
-                    <Button
-                        variant="subtle"
-                        size="xs"
-                        leftIcon={<MantineIcon icon={IconPlus} />}
-                        onClick={openCreateSpaceForm}
-                        mr="auto"
-                    >
-                        New Space
-                    </Button>
-                )}
+        return (
+            <>
+                <Button onClick={handleBack} variant="outline">
+                    Back
+                </Button>
+                <Button
+                    type="submit"
+                    form={SAVE_CHART_FORM_ID}
+                    disabled={!isFormReadyToSave}
+                    loading={isLoading}
+                >
+                    Save
+                </Button>
+            </>
+        );
+    };
 
-                {hasUnrunChanges && (
-                    <Button
-                        leftIcon={<MantineIcon icon={IconArrowBack} />}
-                        variant="outline"
-                        onClick={() => modalSteps.goToStep(ModalStep.Warning)}
-                    >
-                        Back
-                    </Button>
-                )}
-
-                {modalSteps.currentStep === ModalStep.InitialInfo ? (
-                    <Button
-                        onClick={handleNextStep}
-                        disabled={!form.values.name}
-                    >
-                        Next
-                    </Button>
-                ) : (
-                    <>
-                        <Button onClick={handleBack} variant="outline">
-                            Back
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={!isFormReadyToSave}
-                            loading={isLoading}
-                        >
-                            Save
-                        </Button>
-                    </>
-                )}
-            </Group>
-        </form>
-    );
-};
-
-export const SaveSqlChartModal: FC<Props> = ({ opened, onClose }) => {
-    const hasUnrunChanges = useAppSelector(
-        (state) => state.sqlRunner.hasUnrunChanges,
-    );
-
-    const initialStep = hasUnrunChanges
-        ? ModalStep.Warning
-        : ModalStep.InitialInfo;
-    const modalSteps = useModalSteps<ModalStep>(initialStep);
+    const renderLeftActions = () => {
+        if (shouldShowNewSpaceButton) {
+            return (
+                <Button
+                    variant="subtle"
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    onClick={openCreateSpaceForm}
+                >
+                    New Space
+                </Button>
+            );
+        }
+        return null;
+    };
 
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            keepMounted={false}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        icon={IconChartBar}
-                        size="lg"
-                        color="ldGray.7"
-                    />
-                    <Text fw={500}>Save Chart</Text>
-                </Group>
+            title="Save Chart"
+            icon={IconChartBar}
+            cancelLabel={
+                modalSteps.currentStep === ModalStep.Warning ? false : undefined
             }
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
-                body: { padding: 0 },
-            })}
+            leftActions={renderLeftActions()}
+            actions={renderActions()}
         >
-            {modalSteps.currentStep === ModalStep.Warning ? (
-                <Box>
-                    <SqlQueryBeforeSaveAlert />
-                    <Group
-                        position="right"
-                        w="100%"
-                        sx={(theme) => ({
-                            borderTop: `1px solid ${theme.colors.ldGray[4]}`,
-                            bottom: 0,
-                            padding: theme.spacing.md,
-                        })}
-                    >
-                        <Button onClick={onClose} variant="outline">
-                            Cancel
-                        </Button>
-
-                        <Button
-                            onClick={() =>
-                                modalSteps.goToStep(ModalStep.InitialInfo)
-                            }
-                        >
-                            Next
-                        </Button>
-                    </Group>
-                </Box>
-            ) : (
-                <SaveChartForm onClose={onClose} />
+            {modalSteps.currentStep === ModalStep.Warning && (
+                <SqlQueryBeforeSaveAlert />
             )}
-        </Modal>
+
+            {modalSteps.currentStep !== ModalStep.Warning && (
+                <form
+                    id={SAVE_CHART_FORM_ID}
+                    onSubmit={form.onSubmit(handleOnSubmit)}
+                >
+                    {modalSteps.currentStep === ModalStep.InitialInfo && (
+                        <Stack gap="xs">
+                            <TextInput
+                                label="Chart name"
+                                placeholder="eg. How many weekly active users do we have?"
+                                required
+                                {...form.getInputProps('name')}
+                            />
+                            <Textarea
+                                label="Description"
+                                {...form.getInputProps('description')}
+                                value={form.values.description ?? ''}
+                            />
+                        </Stack>
+                    )}
+
+                    {modalSteps.currentStep === ModalStep.SelectDestination && (
+                        <SaveToSpaceForm
+                            form={form}
+                            spaces={spaces}
+                            projectUuid={projectUuid}
+                            isLoading={
+                                isLoadingSpace || isCreatingSavedSqlChart
+                            }
+                            spaceManagement={spaceManagement}
+                            selectedSpaceName={
+                                spaces.find(
+                                    (space) =>
+                                        space.uuid === form.values.spaceUuid,
+                                )?.name
+                            }
+                        />
+                    )}
+                </form>
+            )}
+        </MantineModal>
     );
 };

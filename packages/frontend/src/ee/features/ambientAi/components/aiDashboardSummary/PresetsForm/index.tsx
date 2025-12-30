@@ -3,7 +3,7 @@ import {
     DashboardSummaryTone,
     type DashboardSummary,
 } from '@lightdash/common';
-import { Button, Flex, Select, Stack, Textarea } from '@mantine/core';
+import { Button, Flex, Select, Stack, Textarea } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import capitalize from 'lodash/capitalize';
 import { type FC } from 'react';
@@ -80,7 +80,6 @@ const PresetsForm: FC<PresetsFormProps> = ({
                 <Select
                     label="Tone of voice"
                     data={TONE_SELECT_DATA}
-                    withinPortal
                     w="25%"
                     {...form.getInputProps('tone')}
                 />
@@ -101,7 +100,7 @@ const PresetsForm: FC<PresetsFormProps> = ({
                 <Flex gap="md" justify="flex-end">
                     <Button
                         onClick={handleCancel}
-                        variant="subtle"
+                        variant="default"
                         disabled={isLoading}
                     >
                         Cancel

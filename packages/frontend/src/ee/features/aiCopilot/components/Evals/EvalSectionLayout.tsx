@@ -263,7 +263,6 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
                                     threadUuid={selectedThreadUuid}
                                     isOpen={isSidebarOpen}
                                     onClose={handleCloseSidebar}
-                                    renderArtifactsInline
                                     evalUuid={evalUuid}
                                     runUuid={runUuid}
                                 />
