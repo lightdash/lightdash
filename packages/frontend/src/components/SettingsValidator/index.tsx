@@ -14,19 +14,16 @@ import {
     Group,
     Highlight,
     Loader,
-    Modal,
     Paper,
     Radio,
-    Select,
     Stack,
     Text,
     TextInput,
-    Title,
     Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { Select } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { IconCheck } from '@tabler/icons-react';
+import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useExplores } from '../../hooks/useExplores';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
@@ -36,7 +33,9 @@ import {
 } from '../../hooks/validation/useValidation';
 import useApp from '../../providers/App/useApp';
 import { formatTime } from '../SchedulersView/SchedulersViewUtils';
+import Callout from '../common/Callout';
 import MantineIcon from '../common/MantineIcon';
+import MantineModal from '../common/MantineModal';
 import { ValidatorTable } from './ValidatorTable';
 import {
     useFieldsForChart,
@@ -157,15 +156,24 @@ const FixValidationErrorModal: FC<{
         handleClose();
     });
 
+    const FIX_VALIDATION_FORM_ID = 'fix-validation-form';
+
     return (
-        <Modal
+        <MantineModal
             size="lg"
-            title={<Title order={4}>Fix validation error</Title>}
+            title="Fix validation error"
+            icon={IconExclamationCircle}
             opened={!!validationError}
             onClose={handleClose}
-            styles={() => ({
-                content: { maxHeight: 'fit-content !important' },
-            })}
+            actions={
+                <Button
+                    type="submit"
+                    form={FIX_VALIDATION_FORM_ID}
+                    disabled={newName === ''}
+                >
+                    Rename
+                </Button>
+            }
         >
             <Text>
                 Fix{' '}
@@ -187,12 +195,12 @@ const FixValidationErrorModal: FC<{
                 </Anchor>
             </Text>
 
-            <Text mt="xs" mb="xs" color="ldGray.7" size="xs">
-                You can rename the missing dimension by renaming the affected
-                field or model using the drop down below.
-            </Text>
+            <Callout
+                variant="info"
+                title="You can rename the missing dimension by renaming the affected field or model using the drop down below."
+            />
 
-            <form onSubmit={handleConfirm}>
+            <form id={FIX_VALIDATION_FORM_ID} onSubmit={handleConfirm}>
                 <Radio.Group
                     mt="xs"
                     mb="xs"
@@ -247,6 +255,7 @@ const FixValidationErrorModal: FC<{
                                     )}
                                     onSearchChange={setSearch}
                                     searchValue={search}
+                                    radius="md"
                                     data={fieldOptions}
                                     required
                                     disabled={isErrorFields}
@@ -330,28 +339,18 @@ const FixValidationErrorModal: FC<{
                         </Group>
                     </Tooltip>
                 ) : (
-                    <Text mt="xs" size="xs" color="ldGray.7">
+                    <Text mt="xs" fz="xs" c="ldGray.7">
                         This {renameType} is not used in any other charts.
                     </Text>
                 )}
-                <Group position="right" mt="sm">
-                    <Button variant="outline" onClick={handleClose}>
-                        Cancel
-                    </Button>
-
-                    <Button type="submit" disabled={newName === ''}>
-                        Rename
-                    </Button>
-                </Group>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };
 
 export const SettingsValidator: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
-    const theme = useMantineTheme();
     const [isValidating, setIsValidating] = useState(false);
 
     const { user } = useApp();
@@ -363,6 +362,10 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     );
     const [selectedValidationError, setSelectedValidationError] =
         useState<ValidationErrorChartResponse>();
+
+    const shouldEnableScrolling =
+        data && data.length > MIN_ROWS_TO_ENABLE_SCROLLING;
+
     return (
         <>
             <FixValidationErrorModal
@@ -372,20 +375,16 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                     setSelectedValidationError(undefined);
                 }}
             />
-            <Text color="dimmed">
+            <Text c="dimmed">
                 Use the project validator to check what content is broken in
                 your project.
             </Text>
 
             <Paper withBorder shadow="sm">
                 <Group
-                    position="apart"
+                    justify="space-between"
                     p="md"
-                    sx={{
-                        borderBottomWidth: 1,
-                        borderBottomStyle: 'solid',
-                        borderBottomColor: theme.colors.ldGray[3],
-                    }}
+                    className="border-b border-ldGray-3"
                 >
                     <Text fw={500} fz="xs" c="ldGray.6">
                         {!!data?.length
@@ -405,19 +404,13 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                     </Button>
                 </Group>
                 <Box
-                    sx={{
-                        overflowY:
-                            data && data.length > MIN_ROWS_TO_ENABLE_SCROLLING
-                                ? 'scroll'
-                                : 'auto',
-                        maxHeight:
-                            data && data.length > MIN_ROWS_TO_ENABLE_SCROLLING
-                                ? '500px'
-                                : 'auto',
-                    }}
+                    mah={shouldEnableScrolling ? 500 : undefined}
+                    className={
+                        shouldEnableScrolling ? 'overflow-y-scroll' : undefined
+                    }
                 >
                     {isLoading ? (
-                        <Group position="center" spacing="xs" p="md">
+                        <Group justify="center" gap="xs" p="md">
                             <Loader color="gray" />
                         </Group>
                     ) : !!data?.length ? (
@@ -437,7 +430,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                             />
                         </>
                     ) : (
-                        <Group position="center" spacing="xs" p="md">
+                        <Group justify="center" gap="xs" p="md">
                             <MantineIcon icon={IconCheck} color="green" />
                             <Text fw={500} c="ldGray.7">
                                 No validation errors found
