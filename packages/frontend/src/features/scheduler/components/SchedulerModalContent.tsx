@@ -8,7 +8,15 @@ import {
     type SchedulerAndTargets,
     type UpdateSchedulerAndTargetsWithoutId,
 } from '@lightdash/common';
-import { Box, Loader, LoadingOverlay, Stack, Text } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Loader,
+    LoadingOverlay,
+    Stack,
+    Text,
+} from '@mantine-8/core';
 import {
     type UseMutationResult,
     type UseQueryResult,
@@ -26,47 +34,38 @@ import {
     getThresholdUuidFromUrlParams,
 } from '../utils';
 import SchedulerForm from './SchedulerForm';
-import SchedulersModalFooter from './SchedulerModalFooter';
+import SchedulerModalFooter from './SchedulerModalFooter';
+import { SchedulerModalState } from './SchedulerModalState';
 import SchedulersList from './SchedulersList';
-
-enum States {
-    LIST,
-    CREATE,
-    EDIT,
-}
 
 const ListStateContent: FC<{
     schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
     isThresholdAlertList?: boolean;
-    onClose: () => void;
-    onConfirm: () => void;
     onEdit: (schedulerUuid: string) => void;
-}> = ({
-    schedulersQuery,
-    isThresholdAlertList,
-    onClose,
-    onConfirm,
-    onEdit,
-}) => {
+    onCreateNew: () => void;
+}> = ({ schedulersQuery, isThresholdAlertList, onEdit, onCreateNew }) => {
     return (
         <>
-            <Box
-                py="sm"
-                mih={220}
-                px="sm"
-                sx={(theme) => ({ backgroundColor: theme.colors.ldGray[2] })}
-            >
+            <Box mih={220} bg="ldGray.0" p="sm">
                 <SchedulersList
                     schedulersQuery={schedulersQuery}
                     isThresholdAlertList={isThresholdAlertList}
                     onEdit={onEdit}
                 />
             </Box>
-            <SchedulersModalFooter
-                confirmText="Create new"
-                onConfirm={onConfirm}
-                onCancel={onClose}
-            />
+            <Group
+                justify="flex-end"
+                style={{
+                    position: 'sticky',
+                    backgroundColor: 'var(--mantine-color-body)',
+                    borderTop: '1px solid var(--mantine-color-ldGray-4)',
+                    bottom: 0,
+                    zIndex: 2,
+                    padding: 'var(--mantine-spacing-md)',
+                }}
+            >
+                <Button onClick={onCreateNew}>Create new</Button>
+            </Group>
         </>
     );
 };
@@ -100,9 +99,11 @@ const CreateStateContent: FC<{
             onBack();
         }
     }, [createMutation, createMutation.isSuccess, onBack]);
+
     const handleSubmit = (data: CreateSchedulerAndTargetsWithoutIds) => {
         createMutation.mutate({ resourceUuid, data });
     };
+
     const { data: user } = useUser(true);
     const { track } = useTracking();
     const { mutate: sendNow, isLoading: isLoadingSendNow } =
@@ -136,7 +137,10 @@ const CreateStateContent: FC<{
 
     return (
         <>
-            <LoadingOverlay visible={isLoadingSendNow} overlayBlur={1} />
+            <LoadingOverlay
+                visible={isLoadingSendNow}
+                overlayProps={{ blur: 1 }}
+            />
             <SchedulerForm
                 disabled={createMutation.isLoading}
                 resource={
@@ -233,13 +237,17 @@ const UpdateStateContent: FC<{
                         <ErrorState error={scheduler.error.error} />
                     ) : null}
                 </Box>
-                <SchedulersModalFooter onBack={onBack} />
+                <SchedulerModalFooter onBack={onBack} />
             </>
         );
     }
+
     return (
         <>
-            <LoadingOverlay visible={isLoadingSendNow} overlayBlur={1} />
+            <LoadingOverlay
+                visible={isLoadingSendNow}
+                overlayProps={{ blur: 1 }}
+            />
             <SchedulerForm
                 resource={
                     scheduler.data &&
@@ -279,7 +287,6 @@ interface Props {
         ApiError,
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >;
-    onClose: () => void;
     isChart: boolean;
     isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
@@ -296,18 +303,27 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
     itemsMap,
     currentParameterValues,
     availableParameters,
-    onClose = () => {},
 }) => {
-    const [state, setState] = useState<States>(States.LIST);
+    const [state, setState] = useState<SchedulerModalState>(
+        SchedulerModalState.LIST,
+    );
     const [schedulerUuid, setSchedulerUuid] = useState<string | undefined>();
     const navigate = useNavigate();
     const { search, pathname } = useLocation();
+
+    const handleCreateNew = useCallback(() => {
+        setState(SchedulerModalState.CREATE);
+    }, []);
+
+    const handleBack = useCallback(() => {
+        setState(SchedulerModalState.LIST);
+    }, []);
 
     useEffect(() => {
         const schedulerUuidFromUrlParams =
             getSchedulerUuidFromUrlParams(search);
         if (schedulerUuidFromUrlParams) {
-            setState(States.EDIT);
+            setState(SchedulerModalState.EDIT);
             setSchedulerUuid(schedulerUuidFromUrlParams);
 
             // remove from url param after modal is open
@@ -324,7 +340,7 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
             const thresholdUuidFromUrlParams =
                 getThresholdUuidFromUrlParams(search);
             if (thresholdUuidFromUrlParams) {
-                setState(States.EDIT);
+                setState(SchedulerModalState.EDIT);
                 setSchedulerUuid(thresholdUuidFromUrlParams);
 
                 // remove from url param after modal is open
@@ -343,19 +359,18 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
 
     return (
         <>
-            {state === States.LIST && (
+            {state === SchedulerModalState.LIST && (
                 <ListStateContent
                     schedulersQuery={schedulersQuery}
-                    onClose={onClose}
-                    onConfirm={() => setState(States.CREATE)}
                     onEdit={(schedulerUuidToUpdate) => {
-                        setState(States.EDIT);
+                        setState(SchedulerModalState.EDIT);
                         setSchedulerUuid(schedulerUuidToUpdate);
                     }}
                     isThresholdAlertList={isThresholdAlert}
+                    onCreateNew={handleCreateNew}
                 />
             )}
-            {state === States.CREATE && (
+            {state === SchedulerModalState.CREATE && (
                 <CreateStateContent
                     resourceUuid={resourceUuid}
                     createMutation={createMutation}
@@ -363,17 +378,17 @@ const SchedulerModalContent: FC<Omit<Props, 'name'>> = ({
                     itemsMap={itemsMap}
                     currentParameterValues={currentParameterValues}
                     availableParameters={availableParameters}
-                    onBack={() => setState(States.LIST)}
+                    onBack={handleBack}
                     isThresholdAlert={isThresholdAlert}
                 />
             )}
-            {state === States.EDIT && schedulerUuid && (
+            {state === SchedulerModalState.EDIT && schedulerUuid && (
                 <UpdateStateContent
                     schedulerUuid={schedulerUuid}
                     itemsMap={itemsMap}
                     currentParameterValues={currentParameterValues}
                     availableParameters={availableParameters}
-                    onBack={() => setState(States.LIST)}
+                    onBack={handleBack}
                     isThresholdAlert={isThresholdAlert}
                 />
             )}

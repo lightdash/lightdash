@@ -46,7 +46,7 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
     IconChevronDown,
@@ -78,7 +78,7 @@ import MsTeamsSvg from '../../../svgs/msteams.svg?react';
 import SlackSvg from '../../../svgs/slack.svg?react';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import SchedulerFilters from './SchedulerFilters';
-import SchedulersModalFooter from './SchedulerModalFooter';
+import SchedulerModalFooter from './SchedulerModalFooter';
 import SchedulerParameters from './SchedulerParameters';
 import { SchedulerPreview } from './SchedulerPreview';
 import { Limit, Values } from './types';
@@ -292,7 +292,7 @@ const MicrosoftTeamsDestination: FC<MicrosoftTeamsDestinationProps> = ({
     msTeamTargets,
 }) => {
     return (
-        <Group noWrap mb="sm">
+        <Group wrap="nowrap" mb="sm">
             <MsTeamsSvg
                 style={{
                     margin: '5px 2px',
@@ -546,6 +546,22 @@ const SchedulerForm: FC<Props> = ({
         return formatMinutesOffset(minsOffset);
     }, [project]);
 
+    // Compute footer state
+    const disableConfirm =
+        isThresholdAlertWithNoFields || requiredFiltersWithoutValues.length > 0;
+
+    const disabledMessage =
+        requiredFiltersWithoutValues.length > 0
+            ? 'Some required filters are missing values'
+            : undefined;
+
+    const canSendNow = Boolean(
+        (form.values.slackTargets.length ||
+            form.values.emailTargets.length ||
+            form.values.msTeamsTargets.length) &&
+            requiredFiltersWithoutValues.length === 0,
+    );
+
     return (
         <form onSubmit={form.onSubmit((values) => onSubmit(values))}>
             <Tabs defaultValue="setup">
@@ -592,15 +608,8 @@ const SchedulerForm: FC<Props> = ({
                     )}
                 </Tabs.List>
 
-                <Tabs.Panel value="setup" mt="md">
-                    <Stack
-                        sx={(theme) => ({
-                            backgroundColor: theme.colors.background[0],
-                            paddingRight: theme.spacing.xl,
-                        })}
-                        spacing="xl"
-                        px="md"
-                    >
+                <Tabs.Panel value="setup" mih={500}>
+                    <Stack bg="ldGray.0" p="xl" px="md">
                         <TextInput
                             label={
                                 isThresholdAlert
@@ -616,7 +625,7 @@ const SchedulerForm: FC<Props> = ({
                             {...form.getInputProps('name')}
                         />
                         {isThresholdAlert && (
-                            <Stack spacing="xs">
+                            <Stack gap="xs">
                                 <FieldSelect
                                     label="Alert field"
                                     required
@@ -657,7 +666,7 @@ const SchedulerForm: FC<Props> = ({
                                         calculation to set an alert.
                                     </Text>
                                 )}
-                                <Group noWrap grow>
+                                <Group wrap="nowrap" grow>
                                     <Select
                                         label="Condition"
                                         data={thresholdOperatorOptions}
@@ -697,7 +706,7 @@ const SchedulerForm: FC<Props> = ({
                                     />
                                 </Group>
 
-                                <Stack spacing="xs" mt="xs">
+                                <Stack gap="xs" mt="xs">
                                     <Checkbox
                                         label="Notify me only once"
                                         {...{
@@ -725,7 +734,7 @@ const SchedulerForm: FC<Props> = ({
                                             NotificationFrequency.ALWAYS && (
                                             <Text
                                                 size="xs"
-                                                color="ldGray.6"
+                                                c="ldGray.6"
                                                 fs="italic"
                                             >
                                                 You will be notified at the
@@ -788,9 +797,9 @@ const SchedulerForm: FC<Props> = ({
                             </Box>
                         </Input.Wrapper>
                         {!isThresholdAlert && (
-                            <Stack spacing={0}>
+                            <Stack gap={0}>
                                 <Input.Label> Format </Input.Label>
-                                <Group spacing="xs" noWrap>
+                                <Group wrap="nowrap" gap="xs">
                                     <SegmentedControl
                                         data={[
                                             {
@@ -813,10 +822,10 @@ const SchedulerForm: FC<Props> = ({
                                     />
                                     {isImageDisabled && (
                                         <Text
-                                            size="xs"
-                                            color="ldGray.6"
+                                            fz={12}
+                                            c="ldGray.6"
                                             w="30%"
-                                            sx={{ alignSelf: 'start' }}
+                                            style={{ alignSelf: 'start' }}
                                         >
                                             You must enable the
                                             <Anchor href="https://docs.lightdash.com/self-host/customize-deployment/enable-headless-browser-for-lightdash">
@@ -842,7 +851,7 @@ const SchedulerForm: FC<Props> = ({
                                         )}
                                     />
                                 ) : (
-                                    <Stack spacing="xs">
+                                    <Stack gap="xs">
                                         {form.values.format ===
                                             SchedulerFormat.CSV && (
                                             <Tooltip
@@ -859,6 +868,7 @@ const SchedulerForm: FC<Props> = ({
                                                     w="fit-content"
                                                 >
                                                     <Checkbox
+                                                        color="dark"
                                                         label="Attach file to emails"
                                                         labelPosition="left"
                                                         {...form.getInputProps(
@@ -878,16 +888,16 @@ const SchedulerForm: FC<Props> = ({
                                         )}
                                         <Button
                                             variant="subtle"
-                                            compact
-                                            sx={{
+                                            size="compact-sm"
+                                            style={{
                                                 alignSelf: 'start',
                                             }}
-                                            leftIcon={
+                                            leftSection={
                                                 <MantineIcon
                                                     icon={IconSettings}
                                                 />
                                             }
-                                            rightIcon={
+                                            rightSection={
                                                 <MantineIcon
                                                     icon={
                                                         showFormatting
@@ -903,17 +913,14 @@ const SchedulerForm: FC<Props> = ({
                                             Formatting options
                                         </Button>
                                         <Collapse in={showFormatting} pl="md">
-                                            <Group align="start" spacing="xxl">
+                                            <Group align="start" gap="xl">
                                                 <Radio.Group
                                                     label="Values"
                                                     {...form.getInputProps(
                                                         'options.formatted',
                                                     )}
                                                 >
-                                                    <Stack
-                                                        spacing="xxs"
-                                                        pt="xs"
-                                                    >
+                                                    <Stack gap="xxs" pt="xs">
                                                         <Radio
                                                             label="Formatted"
                                                             value={
@@ -926,7 +933,7 @@ const SchedulerForm: FC<Props> = ({
                                                         />
                                                     </Stack>
                                                 </Radio.Group>
-                                                <Stack spacing="xs">
+                                                <Stack gap="xs">
                                                     <Radio.Group
                                                         label="Limit"
                                                         {...form.getInputProps(
@@ -934,7 +941,7 @@ const SchedulerForm: FC<Props> = ({
                                                         )}
                                                     >
                                                         <Stack
-                                                            spacing="xxs"
+                                                            gap="xxs"
                                                             pt="xs"
                                                         >
                                                             <Radio
@@ -961,7 +968,6 @@ const SchedulerForm: FC<Props> = ({
                                                         <NumberInput
                                                             w={150}
                                                             min={1}
-                                                            precision={0}
                                                             required
                                                             {...form.getInputProps(
                                                                 'options.customLimit',
@@ -995,7 +1001,7 @@ const SchedulerForm: FC<Props> = ({
                         )}
 
                         {isDashboardTabsAvailable && !isThresholdAlert && (
-                            <Stack spacing={10}>
+                            <Stack gap={10}>
                                 <Input.Label>
                                     Tabs
                                     <Tooltip
@@ -1061,7 +1067,7 @@ const SchedulerForm: FC<Props> = ({
 
                         <Input.Wrapper label="Destinations">
                             <Stack mt="sm">
-                                <Group noWrap>
+                                <Group wrap="nowrap">
                                     <MantineIcon
                                         icon={IconMail}
                                         size="xl"
@@ -1138,14 +1144,14 @@ const SchedulerForm: FC<Props> = ({
                                     </HoverCard>
                                 </Group>
                                 <Stack
-                                    spacing="xs"
+                                    gap="xs"
                                     mb={
                                         health.data?.hasMicrosoftTeams
                                             ? '0'
                                             : 'sm'
                                     }
                                 >
-                                    <Group noWrap>
+                                    <Group wrap="nowrap">
                                         <SlackSvg
                                             style={{
                                                 margin: '5px 2px',
@@ -1224,7 +1230,7 @@ const SchedulerForm: FC<Props> = ({
 
                 {isDashboard && dashboard ? (
                     <>
-                        <Tabs.Panel value="filters" p="md">
+                        <Tabs.Panel value="filters" p="md" mih={500}>
                             <SchedulerFilters
                                 dashboard={dashboard}
                                 draftFilters={form.values.filters}
@@ -1244,7 +1250,7 @@ const SchedulerForm: FC<Props> = ({
                             />
                         </Tabs.Panel>
 
-                        <Tabs.Panel value="parameters" p="md">
+                        <Tabs.Panel value="parameters" p="md" mih={500}>
                             <SchedulerParameters
                                 dashboard={dashboard}
                                 currentParameterValues={currentParameterValues}
@@ -1264,7 +1270,7 @@ const SchedulerForm: FC<Props> = ({
                     </>
                 ) : null}
 
-                <Tabs.Panel value="customization">
+                <Tabs.Panel value="customization" mih={500}>
                     <Stack p="md">
                         <Group>
                             <Switch
@@ -1310,7 +1316,7 @@ const SchedulerForm: FC<Props> = ({
                     </Stack>
                 </Tabs.Panel>
                 {isDashboard && dashboard ? (
-                    <Tabs.Panel value="preview">
+                    <Tabs.Panel value="preview" mih={400}>
                         <SchedulerPreview
                             schedulerFilters={form.values.filters}
                             dashboard={dashboard}
@@ -1329,26 +1335,13 @@ const SchedulerForm: FC<Props> = ({
                     </Tabs.Panel>
                 ) : null}
             </Tabs>
-
-            <SchedulersModalFooter
+            <SchedulerModalFooter
                 confirmText={confirmText}
-                disableConfirm={
-                    isThresholdAlertWithNoFields ||
-                    requiredFiltersWithoutValues.length > 0
-                }
-                disabledMessage={
-                    requiredFiltersWithoutValues.length > 0
-                        ? 'Some required filters are missing values'
-                        : undefined
-                }
+                disableConfirm={disableConfirm}
+                disabledMessage={disabledMessage}
                 onBack={onBack}
-                canSendNow={Boolean(
-                    (form.values.slackTargets.length ||
-                        form.values.emailTargets.length ||
-                        form.values.msTeamsTargets.length) &&
-                        requiredFiltersWithoutValues.length === 0,
-                )}
                 onSendNow={isThresholdAlert ? undefined : handleSendNow}
+                canSendNow={canSendNow}
                 loading={loading}
             />
         </form>

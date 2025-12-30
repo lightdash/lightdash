@@ -1,4 +1,4 @@
-import { Box, Button, Group, Tooltip } from '@mantine/core';
+import { Box, Button, Group, Tooltip } from '@mantine-8/core';
 import { IconChevronLeft, IconSend } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -15,7 +15,7 @@ interface FooterProps {
     disabledMessage?: string;
 }
 
-const SchedulersModalFooter = ({
+const SchedulerModalFooter = ({
     confirmText,
     disableConfirm,
     onBack,
@@ -28,21 +28,21 @@ const SchedulersModalFooter = ({
 }: FooterProps) => {
     return (
         <Group
-            position="apart"
-            sx={(theme) => ({
+            justify="space-between"
+            style={{
                 position: 'sticky',
-                backgroundColor: theme.colors.background[0],
-                borderTop: `1px solid ${theme.colors.ldGray[4]}`,
+                backgroundColor: 'var(--mantine-color-body)',
+                borderTop: '1px solid var(--mantine-color-ldGray-4)',
                 bottom: 0,
                 zIndex: 2,
-                padding: theme.spacing.md,
-            })}
+                padding: 'var(--mantine-spacing-md)',
+            }}
         >
-            {!!onBack ? (
+            {onBack ? (
                 <Button
                     onClick={onBack}
                     variant="subtle"
-                    leftIcon={<MantineIcon icon={IconChevronLeft} />}
+                    leftSection={<MantineIcon icon={IconChevronLeft} />}
                 >
                     Back
                 </Button>
@@ -50,22 +50,22 @@ const SchedulersModalFooter = ({
                 <Box />
             )}
             <Group>
-                {!!onCancel && (
+                {onCancel && (
                     <Button onClick={onCancel} variant="outline">
                         Cancel
                     </Button>
                 )}
-                {!!onSendNow && (
+                {onSendNow && (
                     <Button
                         variant="light"
-                        leftIcon={<MantineIcon icon={IconSend} />}
+                        leftSection={<MantineIcon icon={IconSend} />}
                         onClick={onSendNow}
                         disabled={loading || !canSendNow}
                     >
                         Send now
                     </Button>
                 )}
-                {!!confirmText && (
+                {confirmText && (
                     <Tooltip
                         label={disabledMessage}
                         disabled={!disableConfirm || !disabledMessage}
@@ -88,4 +88,4 @@ const SchedulersModalFooter = ({
     );
 };
 
-export default SchedulersModalFooter;
+export default SchedulerModalFooter;

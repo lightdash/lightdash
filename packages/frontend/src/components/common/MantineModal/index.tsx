@@ -124,11 +124,14 @@ const MantineModal: React.FC<MantineModalProps> = ({
         // Standard mode: ScrollArea with max height
         return (
             <Modal.Body p={0} className={classes.body}>
-                <ScrollArea.Autosize mah="calc(80vh - 140px)" offsetScrollbars>
+                <ScrollArea.Autosize mah="calc(80vh - 140px)">
                     <Stack
                         gap="md"
                         px={modalBodyProps?.px ?? 'xl'}
                         py={modalBodyProps?.py ?? 'md'}
+                        {...(modalBodyProps?.bg
+                            ? { bg: modalBodyProps.bg }
+                            : {})}
                     >
                         {description && <Text fz="sm">{description}</Text>}
                         {children}
