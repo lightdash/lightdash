@@ -48,6 +48,8 @@ export type LeafletMapConfig = {
     locationType: MapChartType;
     mapType: MapChartLocation;
     geoJsonUrl: string | null;
+    // Property key to match in GeoJSON features (e.g., 'name', 'ISO3166-1-Alpha-3')
+    geoJsonPropertyKey: string;
     center: [number, number];
     zoom: number;
     colors: {
@@ -181,6 +183,7 @@ const useLeafletMapConfig = ({
             latitudeFieldId,
             longitudeFieldId,
             locationFieldId,
+            geoJsonPropertyKey: configGeoJsonPropertyKey,
             valueFieldId,
             colorRange,
             defaultZoom,
@@ -361,6 +364,24 @@ const useLeafletMapConfig = ({
             locationType: locationType || MapChartType.SCATTER,
             mapType,
             geoJsonUrl: getGeoJsonUrl(mapType, customGeoJsonUrl),
+            // Determine the geoJsonPropertyKey to use
+            // Default to 'code' for US states, 'ISO3166-1-Alpha-3' for world
+            geoJsonPropertyKey: (() => {
+                // If explicitly configured, use that value
+                if (
+                    configGeoJsonPropertyKey &&
+                    configGeoJsonPropertyKey !== 'name'
+                ) {
+                    return configGeoJsonPropertyKey;
+                }
+                // For USA, default to 'code' (state abbreviations like CA, NY)
+                // 'name' fallback is handled in SimpleMap for backwards compatibility
+                if (mapType === MapChartLocation.USA) {
+                    return 'code';
+                }
+                // For world/other, use ISO3 code or configured value
+                return configGeoJsonPropertyKey || 'ISO3166-1-Alpha-3';
+            })(),
             center,
             zoom,
             colors: {
