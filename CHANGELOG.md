@@ -1,3 +1,10 @@
+## [0.2290.1](https://github.com/lightdash/lightdash/compare/0.2290.0...0.2290.1) (2025-12-31)
+
+
+### Bug Fixes
+
+* accommodate totals labels on 100s stacked bars ([#19173](https://github.com/lightdash/lightdash/issues/19173)) ([1b7dea4](https://github.com/lightdash/lightdash/commit/1b7dea47b1b0125a69cf5fa12ba91971d00ad4ff))
+
 # [0.2290.0](https://github.com/lightdash/lightdash/compare/0.2289.0...0.2290.0) (2025-12-31)
 
 
