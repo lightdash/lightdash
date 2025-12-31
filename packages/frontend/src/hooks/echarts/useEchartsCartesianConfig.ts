@@ -2058,6 +2058,7 @@ const getStackTotalSeries = (
     itemsMap: ItemsMap,
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
+    isStack100: boolean,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
@@ -2069,6 +2070,7 @@ const getStackTotalSeries = (
                 type: series[0].type,
                 connectNulls: true,
                 stack: stack,
+                clip: false,
                 label: {
                     ...getBarTotalLabelStyle(),
                     show: series[0].stackLabel?.show,
@@ -2087,7 +2089,7 @@ const getStackTotalSeries = (
                     position: flipAxis ? 'right' : 'top',
                 },
                 labelLayout: {
-                    hideOverlap: true,
+                    hideOverlap: !isStack100,
                 },
                 tooltip: {
                     show: false,
@@ -2368,6 +2370,7 @@ const useEchartsCartesianConfig = (
                 itemsMap,
                 validCartesianConfig?.layout.flipAxes,
                 validCartesianConfigLegend,
+                isStack100,
             ),
         ];
     }, [
@@ -2701,6 +2704,74 @@ const useEchartsCartesianConfig = (
         dataToRender,
     ]);
 
+    // Calculate max stack label padding for 100% stacking grid
+    // Returns { right, top } padding values based on chart orientation
+    const stackLabelPaddingCalc = useMemo(() => {
+        const isStack100 =
+            validCartesianConfig?.layout?.stack === StackType.PERCENT;
+        if (
+            !isStack100 ||
+            !stackedSeriesWithColorAssignments ||
+            !itemsMap ||
+            !rows
+        )
+            return { right: 0, top: 0 };
+
+        const hasStackLabels = stackedSeriesWithColorAssignments.some(
+            (s) => s.stackLabel?.show,
+        );
+        if (!hasStackLabels) return { right: 0, top: 0 };
+
+        const flipAxis = validCartesianConfig?.layout?.flipAxes;
+        const seriesWithStack = stackedSeriesWithColorAssignments.filter(
+            (s) => s.stack,
+        );
+
+        // Group by stack and calculate max formatted label width
+        const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
+        let maxCharCount = 0;
+
+        Object.entries(seriesGroupedByStack).forEach(([stack, stackSeries]) => {
+            if (!stack || !stackSeries[0]?.stackLabel?.show) return;
+
+            const stackTotalData = getStackTotalRows(
+                rows,
+                stackSeries,
+                flipAxis,
+                validCartesianConfigLegend,
+            );
+            const fieldId = stackSeries[0].pivotReference?.field;
+
+            if (fieldId) {
+                stackTotalData.forEach((dataPoint) => {
+                    const total = dataPoint[2];
+                    const formatted = getFormattedValue(
+                        total,
+                        fieldId,
+                        itemsMap,
+                    );
+                    maxCharCount = Math.max(maxCharCount, formatted.length);
+                });
+            }
+        });
+
+        if (flipAxis) {
+            // ~7px per character + 10px buffer
+            return { right: maxCharCount * 7 + 10, top: 0 };
+        } else {
+            // Vertical bars: labels on top, need height-based padding
+            // Fixed ~25px for label height (font size + small margin)
+            return { right: 0, top: maxCharCount > 0 ? 25 : 0 };
+        }
+    }, [
+        stackedSeriesWithColorAssignments,
+        itemsMap,
+        rows,
+        validCartesianConfig?.layout?.stack,
+        validCartesianConfig?.layout?.flipAxes,
+        validCartesianConfigLegend,
+    ]);
+
     const currentGrid = useMemo(() => {
         const enableDataZoom =
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
@@ -2804,13 +2875,26 @@ const useEchartsCartesianConfig = (
                 : grid.left,
             right:
                 isPxValue(gridRight) && !enableDataZoom
-                    ? addPx(gridRight, defaultAxisLabelGap + extraRightPadding)
+                    ? addPx(
+                          gridRight,
+                          defaultAxisLabelGap +
+                              extraRightPadding +
+                              stackLabelPaddingCalc.right,
+                      )
                     : isPxValue(gridRight) && enableDataZoom && flipAxes
                     ? addPx(
                           gridRight,
-                          defaultAxisLabelGap + extraRightPadding + 30,
+                          defaultAxisLabelGap +
+                              extraRightPadding +
+                              stackLabelPaddingCalc.right +
+                              30,
                       )
                     : grid.right,
+            // Add extra top spacing for 100% stacking labels when not flipped (vertical bars)
+            top:
+                stackLabelPaddingCalc.top > 0 && isPxValue(grid.top)
+                    ? addPx(grid.top, stackLabelPaddingCalc.top)
+                    : grid.top,
             // Add extra bottom spacing for dataZoom slider when not flipped
             bottom:
                 enableDataZoom && !flipAxes && isPxValue(gridBottom)
@@ -2823,6 +2907,7 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.eChartsConfig.legend,
         validCartesianConfig?.layout?.flipAxes,
         series,
+        stackLabelPaddingCalc,
         isDashboardRedesignEnabled,
     ]);
 
