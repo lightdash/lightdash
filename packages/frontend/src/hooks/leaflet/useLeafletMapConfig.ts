@@ -90,13 +90,11 @@ const getGeoJsonUrl = (
 
     switch (mapType) {
         case MapChartLocation.USA:
-            return '/us-states.json';
-        case MapChartLocation.EUROPE:
-            return '/europe.json';
+            return '/geojson/us-states.geojson';
         case MapChartLocation.WORLD:
-            return '/world.json';
+            return '/geojson/countries.geojson';
         default:
-            return '/world.json';
+            return '/geojson/countries.geojson';
     }
 };
 
