@@ -446,3 +446,72 @@ describe('flattenTreeForVirtualization', () => {
         expect(result.length).toBeGreaterThan(1);
     });
 });
+
+describe('getNodeMapFromItemsMap - collision handling', () => {
+    it('should handle collision when field itemId matches a group label', () => {
+        // This reproduces the Sentry error "Existing group node is not a group node"
+        // The collision happens when:
+        // 1. Field A has itemId matching a group label (e.g., "Status")
+        // 2. Field B tries to use that same label as a group
+        const tableWithCollision: CompiledTable = {
+            ...mockTable,
+            dimensions: {
+                // Field with itemId that will collide with a group label
+                // When groupDetails is missing, the group name is used as label
+                orders_identifiers: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'identifiers',
+                    label: 'Identifiers Field',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.identifiers',
+                    compiledSql: '"orders".identifiers',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                    index: 0,
+                    // No groups - will be added with key "orders_identifiers"
+                },
+                orders_status: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'status',
+                    label: 'Status',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.status',
+                    compiledSql: '"orders".status',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                    index: 1,
+                    // This field wants to be grouped under "orders_identifiers"
+                    // which collides with the field above
+                    groups: ['orders_identifiers'],
+                },
+            },
+            // No groupDetails for "orders_identifiers", so its label defaults to "orders_identifiers"
+            groupDetails: {},
+        };
+
+        // This should NOT throw an error - the fix gracefully handles the collision
+        const dimensionsMap = Object.fromEntries(
+            Object.values(tableWithCollision.dimensions).map((d) => [
+                getItemId(d),
+                d,
+            ]),
+        );
+
+        // Should not throw
+        const result = getNodeMapFromItemsMap(
+            dimensionsMap,
+            tableWithCollision.groupDetails,
+        );
+
+        // Both fields should be present in the result (at root level due to collision handling)
+        expect(result.orders_identifiers).toBeDefined();
+        expect(result.orders_status).toBeDefined();
+
+        // The first field should NOT be a group (it's a regular field)
+        expect('children' in result.orders_identifiers).toBe(false);
+    });
+});
