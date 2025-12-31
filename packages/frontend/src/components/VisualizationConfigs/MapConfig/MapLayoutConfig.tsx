@@ -60,7 +60,6 @@ export const Layout: FC = memo(() => {
 
     const mapTypeOptions = [
         { value: MapChartLocation.WORLD, label: 'World' },
-        { value: MapChartLocation.EUROPE, label: 'Europe' },
         { value: MapChartLocation.USA, label: 'US' },
     ];
 
