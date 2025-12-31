@@ -5,6 +5,7 @@ import {
     MapTileBackground,
     type ItemsMap,
     type MapChart,
+    type MapFieldConfig,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -50,6 +51,13 @@ type MapChartConfig = {
     ) => void;
     setTileBackground: (background: MapTileBackground | undefined) => void;
     setBackgroundColor: (color: string | undefined) => void;
+    // Field configuration methods
+    updateFieldConfig: (
+        fieldId: string,
+        config: Partial<MapFieldConfig>,
+    ) => void;
+    isFieldVisible: (fieldId: string) => boolean;
+    getFieldLabel: (fieldId: string) => string | undefined;
 };
 
 const useMapChartConfig = (
@@ -114,6 +122,9 @@ const useMapChartConfig = (
     const [backgroundColor, setBackgroundColorState] = useState<
         string | undefined
     >(initialConfig?.backgroundColor);
+    const [fieldConfig, setFieldConfigState] = useState<
+        Record<string, MapFieldConfig>
+    >(initialConfig?.fieldConfig ?? {});
 
     // Auto-fill latitude/longitude fields when switching to scatter mode
     useEffect(() => {
@@ -190,6 +201,7 @@ const useMapChartConfig = (
             heatmapConfig,
             tileBackground,
             backgroundColor,
+            fieldConfig,
         };
     }, [
         mapType,
@@ -211,6 +223,7 @@ const useMapChartConfig = (
         heatmapConfig,
         tileBackground,
         backgroundColor,
+        fieldConfig,
     ]);
 
     const defaultConfig: MapChart = useMemo(() => {
@@ -360,6 +373,33 @@ const useMapChartConfig = (
         setBackgroundColorState(color);
     }, []);
 
+    const updateFieldConfig = useCallback(
+        (fieldId: string, config: Partial<MapFieldConfig>) => {
+            setFieldConfigState((prev) => ({
+                ...prev,
+                [fieldId]: {
+                    ...prev[fieldId],
+                    ...config,
+                },
+            }));
+        },
+        [],
+    );
+
+    const isFieldVisible = useCallback(
+        (fieldId: string) => {
+            return fieldConfig[fieldId]?.visible !== false;
+        },
+        [fieldConfig],
+    );
+
+    const getFieldLabel = useCallback(
+        (fieldId: string) => {
+            return fieldConfig[fieldId]?.label;
+        },
+        [fieldConfig],
+    );
+
     return {
         chartType: ChartType.MAP,
         validConfig,
@@ -386,6 +426,9 @@ const useMapChartConfig = (
         setHeatmapConfig,
         setTileBackground,
         setBackgroundColor,
+        updateFieldConfig,
+        isFieldVisible,
+        getFieldLabel,
     };
 };
 

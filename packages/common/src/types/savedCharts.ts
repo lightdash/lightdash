@@ -163,6 +163,11 @@ export enum MapTileBackground {
     SATELLITE = 'satellite',
 }
 
+export type MapFieldConfig = {
+    visible?: boolean;
+    label?: string;
+};
+
 export type MapChart = {
     mapType?: MapChartLocation;
     customGeoJsonUrl?: string;
@@ -193,6 +198,8 @@ export type MapChart = {
     };
     tileBackground?: MapTileBackground;
     backgroundColor?: string;
+    // Field configuration (controls tooltip visibility and custom labels)
+    fieldConfig?: Record<string, MapFieldConfig>;
 };
 
 export enum FunnelChartDataInput {
