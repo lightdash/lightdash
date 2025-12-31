@@ -583,11 +583,17 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     };
                 }
 
-                const name =
-                    feature.properties.name?.toLowerCase() ||
-                    feature.properties.NAME?.toLowerCase() ||
-                    '';
-                const regionEntry = regionDataMap.get(name);
+                // Use configured property key to match GeoJSON features to data
+                const propertyKey = mapConfig.geoJsonPropertyKey;
+                const propertyValue = (
+                    feature.properties[propertyKey] ||
+                    feature.properties.name ||
+                    feature.properties.NAME ||
+                    ''
+                )
+                    .toString()
+                    .toLowerCase();
+                const regionEntry = regionDataMap.get(propertyValue);
 
                 if (regionEntry !== undefined) {
                     const color = getColorForValue(
@@ -618,11 +624,17 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         const onEachFeature = useCallback(
             (feature: GeoJSON.Feature, layer: L.Layer) => {
-                const name =
+                // Use configured property key to match GeoJSON features to data
+                const propertyKey = mapConfig?.geoJsonPropertyKey || 'name';
+                const propertyValue = (
+                    feature.properties?.[propertyKey] ||
                     feature.properties?.name ||
                     feature.properties?.NAME ||
-                    'Unknown';
-                const regionEntry = regionDataMap.get(name.toLowerCase());
+                    ''
+                )
+                    .toString()
+                    .toLowerCase();
+                const regionEntry = regionDataMap.get(propertyValue);
                 const rowData = regionEntry?.rowData || {};
 
                 // eslint-disable-next-line testing-library/render-result-naming-convention
@@ -682,7 +694,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     });
                 }
             },
-            [regionDataMap, mapConfig?.tooltipFields, handlePopupCopyClick],
+            [
+                regionDataMap,
+                mapConfig?.geoJsonPropertyKey,
+                mapConfig?.tooltipFields,
+                handlePopupCopyClick,
+            ],
         );
 
         if (isLoading) {

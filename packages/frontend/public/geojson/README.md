@@ -1,6 +1,6 @@
 # GeoJSON Data Sources
 
-## us-states.json
+## us-states.geojson
 
 US state boundaries for area/choropleth maps.
 
@@ -8,10 +8,11 @@ US state boundaries for area/choropleth maps.
 
 ### Available Properties
 
-| Property  | Description        | Example    |
-| --------- | ------------------ | ---------- |
-| `name`    | State name         | California |
-| `density` | Population density | 241.7      |
+| Property  | Description               | Example    |
+| --------- | ------------------------- | ---------- |
+| `name`    | State name                | California |
+| `code`    | Two-letter state code     | CA         |
+| `density` | Population density        | 241.7      |
 
 ---
 
