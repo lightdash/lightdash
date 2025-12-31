@@ -1,3 +1,10 @@
+# [0.2290.0](https://github.com/lightdash/lightdash/compare/0.2289.0...0.2290.0) (2025-12-31)
+
+
+### Features
+
+* show multiple values on map points ([#19139](https://github.com/lightdash/lightdash/issues/19139)) ([f9012fc](https://github.com/lightdash/lightdash/commit/f9012fc8666c5417cba97e245efed3b465014625))
+
 # [0.2289.0](https://github.com/lightdash/lightdash/compare/0.2288.0...0.2289.0) (2025-12-30)
 
 
