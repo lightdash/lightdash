@@ -64,12 +64,9 @@ export class EmailModel {
             )
             .where('users.user_uuid', userUuid)
             .andWhere('is_primary', true)
-            .select<DbEmailStatus[]>([
-                'emails.email',
-                'emails.is_verified',
-                'email_one_time_passcodes.created_at',
-                'email_one_time_passcodes.number_of_attempts',
-            ]);
+            .select<
+                DbEmailStatus[]
+            >(['emails.email', 'emails.is_verified', 'email_one_time_passcodes.created_at', 'email_one_time_passcodes.number_of_attempts']);
         if (row === undefined) {
             throw new NotFoundError(
                 `Cannot find matching verification status for user's email`,
@@ -134,13 +131,9 @@ export class EmailModel {
             .innerJoin('users', 'users.user_id', 'emails.user_id')
             .where('users.user_uuid', userUuid)
             .andWhere('is_primary', true)
-            .select<DbEmailStatus[]>([
-                'emails.email',
-                'emails.is_verified',
-                'email_one_time_passcodes.passcode',
-                'email_one_time_passcodes.created_at',
-                'email_one_time_passcodes.number_of_attempts',
-            ]);
+            .select<
+                DbEmailStatus[]
+            >(['emails.email', 'emails.is_verified', 'email_one_time_passcodes.passcode', 'email_one_time_passcodes.created_at', 'email_one_time_passcodes.number_of_attempts']);
         const match =
             row !== undefined &&
             (await bcrypt.compare(passcode, row.passcode || ''));

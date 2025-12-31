@@ -11,9 +11,8 @@ import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
 const getIndexCatalogCompleteJob = async (
     jobId: string,
 ): Promise<ApiJobStatusResponse['results']> => {
-    const job = await getSchedulerJobStatus<ApiJobStatusResponse['results']>(
-        jobId,
-    );
+    const job =
+        await getSchedulerJobStatus<ApiJobStatusResponse['results']>(jobId);
 
     if (job.status === SchedulerJobStatus.COMPLETED) {
         return job;

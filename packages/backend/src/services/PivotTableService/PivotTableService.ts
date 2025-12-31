@@ -114,9 +114,8 @@ export class PivotTableService extends BaseService {
 
         // Load rows from the results file using shared streaming utility
         // Use the same logic as regular CSV exports - respect csvCellsLimit with field count
-        const readStream = await storageClient.getDownloadStream(
-            resultsFileName,
-        );
+        const readStream =
+            await storageClient.getDownloadStream(resultsFileName);
 
         const fieldCount = Object.keys(fields).length;
         const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
@@ -270,9 +269,12 @@ export class PivotTableService extends BaseService {
             const s3Url = await this.s3Client.uploadCsv(csvContent, fileId);
 
             // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
-            setTimeout(async () => {
-                await fsPromise.unlink(filePath);
-            }, 60 * 10 * 1000);
+            setTimeout(
+                async () => {
+                    await fsPromise.unlink(filePath);
+                },
+                60 * 10 * 1000,
+            );
 
             return {
                 filename: fileName,

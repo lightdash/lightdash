@@ -19,8 +19,7 @@ import { type WarehouseClient } from '../types';
 
 export default abstract class WarehouseBaseClient<
     T extends CreateWarehouseCredentials,
-> implements WarehouseClient
-{
+> implements WarehouseClient {
     credentials: T;
 
     protected sqlBuilder: WarehouseSqlBuilder;

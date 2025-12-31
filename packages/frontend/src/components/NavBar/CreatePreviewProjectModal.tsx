@@ -493,8 +493,8 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                         branches.isLoading
                                             ? 'Loading branches...'
                                             : branches.isError
-                                            ? 'Failed to load branches'
-                                            : 'Select branch'
+                                              ? 'Failed to load branches'
+                                              : 'Select branch'
                                     }
                                     searchable
                                     value={selectedBranch}

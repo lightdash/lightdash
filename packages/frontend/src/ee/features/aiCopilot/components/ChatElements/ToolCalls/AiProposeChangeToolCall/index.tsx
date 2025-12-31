@@ -16,8 +16,10 @@ import { useRevertChangeMutation } from '../../../../hooks/useProjectAiAgents';
 import { ToolCallPaper } from '../ToolCallPaper';
 import { ChangeRenderer } from './ChangeRenderer';
 
-interface Props
-    extends Pick<ToolProposeChangeArgs, 'change' | 'entityTableName'> {
+interface Props extends Pick<
+    ToolProposeChangeArgs,
+    'change' | 'entityTableName'
+> {
     defaultOpened?: boolean;
     projectUuid: string;
     agentUuid: string;
@@ -71,8 +73,8 @@ export const AiProposeChangeToolCall = ({
     const buttonText = isChangeDeleted
         ? 'Reverted'
         : isRejectedByMetadata
-        ? 'Rejected'
-        : 'Reject';
+          ? 'Rejected'
+          : 'Reject';
 
     const handleReject = () => {
         if (changeUuid) {

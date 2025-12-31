@@ -256,10 +256,10 @@ const FieldSelectComponent = <T extends Item = Item>({
                     hasGrouping && isField(i)
                         ? i.tableLabel
                         : isCustomDimension(i)
-                        ? tableLabelMap.get(i.table) // Custom dimensions don't have table labels, so we use the table map to get them
-                        : isTableCalculation(i)
-                        ? 'Table Calculations'
-                        : undefined,
+                          ? tableLabelMap.get(i.table) // Custom dimensions don't have table labels, so we use the table map to get them
+                          : isTableCalculation(i)
+                            ? 'Table Calculations'
+                            : undefined,
                 disabled: inactiveItemIds.includes(getItemId(i)),
                 size: rest.size,
             }))}

@@ -74,9 +74,8 @@ describe('validation', () => {
             projectModel.findExploresFromCache as jest.Mock
         ).mockImplementationOnce(async () => [exploreWithoutDimension]);
 
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-        );
+        const errors =
+            await validationService.generateValidation('projectUuid');
 
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
@@ -106,9 +105,8 @@ describe('validation', () => {
             projectModel.findExploresFromCache as jest.Mock
         ).mockImplementationOnce(async () => [exploreWithoutMetric]);
 
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-        );
+        const errors =
+            await validationService.generateValidation('projectUuid');
 
         expect({ ...errors[0], createdAt: undefined }).toEqual({
             createdAt: undefined,
@@ -135,9 +133,8 @@ describe('validation', () => {
             projectModel.findExploresFromCache as jest.Mock
         ).mockImplementationOnce(async () => [exploreError]);
 
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-        );
+        const errors =
+            await validationService.generateValidation('projectUuid');
 
         const tableErrors = errors.filter((ve) => ve.source === 'table');
 
@@ -169,9 +166,8 @@ describe('validation', () => {
                 value: ['another_explore'],
             },
         }));
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-        );
+        const errors =
+            await validationService.generateValidation('projectUuid');
         const tableErrors = errors.filter((ve) => ve.source === 'table');
 
         expect(tableErrors.length).toEqual(0);
@@ -196,9 +192,8 @@ describe('validation', () => {
                 value: ['joined_explore'],
             },
         }));
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-        );
+        const errors =
+            await validationService.generateValidation('projectUuid');
         const tableErrors = errors.filter((ve) => ve.source === 'table');
 
         expect(tableErrors.length).toEqual(1);
@@ -326,9 +321,8 @@ describe('validation', () => {
             chartForValidationWithJoinedField,
         ]);
 
-        const errors = await validationService.generateValidation(
-            'projectUuid',
-        );
+        const errors =
+            await validationService.generateValidation('projectUuid');
 
         expect(errors.length).toEqual(0);
     });

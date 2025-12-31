@@ -115,9 +115,8 @@ export class GroupsService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const isGroupMemberRemoved = await this.groupsModel.removeGroupMember(
-            member,
-        );
+        const isGroupMemberRemoved =
+            await this.groupsModel.removeGroupMember(member);
 
         if (isGroupMemberRemoved) {
             const updatedGroup = await this.groupsModel.getGroupWithMembers(

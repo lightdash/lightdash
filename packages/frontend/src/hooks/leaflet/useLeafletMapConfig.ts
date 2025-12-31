@@ -212,15 +212,15 @@ const useLeafletMapConfig = ({
                         const isNumeric = !isNaN(numericValue);
                         const value = isNumeric ? numericValue : null;
                         const displayValue = valueFieldId
-                            ? row[valueFieldId]?.value.formatted ??
+                            ? (row[valueFieldId]?.value.formatted ??
                               row[valueFieldId]?.value.raw ??
-                              rawValue
+                              rawValue)
                             : 1;
 
                         // Use sizeFieldId if set, otherwise fall back to numeric value or 1
                         const sizeValue = sizeFieldId
                             ? Number(row[sizeFieldId]?.value.raw)
-                            : value ?? 1;
+                            : (value ?? 1);
 
                         if (isNaN(lat) || isNaN(lon)) return null;
 

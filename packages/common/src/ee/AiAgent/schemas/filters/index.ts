@@ -101,7 +101,7 @@ export const filtersSchemaTransformed =
                         id: uuid(),
                         and:
                             'tableCalculations' in data
-                                ? data.tableCalculations ?? []
+                                ? (data.tableCalculations ?? [])
                                 : [],
                     },
                 };
@@ -119,7 +119,7 @@ export const filtersSchemaTransformed =
                         id: uuid(),
                         or:
                             'tableCalculations' in data
-                                ? data.tableCalculations ?? []
+                                ? (data.tableCalculations ?? [])
                                 : [],
                     },
                 };

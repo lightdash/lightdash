@@ -335,7 +335,9 @@ const Filter: FC<Props> = ({
                                                     color="ldGray.7"
                                                     truncate
                                                 >
-                                                    {filterRuleLabels?.operator}{' '}
+                                                    {
+                                                        filterRuleLabels?.operator
+                                                    }{' '}
                                                 </Text>
                                                 <Text fw={700} span truncate>
                                                     {filterRuleLabels?.value}

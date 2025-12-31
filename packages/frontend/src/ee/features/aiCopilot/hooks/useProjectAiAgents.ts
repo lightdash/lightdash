@@ -823,7 +823,7 @@ export const useUpdatePromptFeedbackMutation = (
                                 humanScore,
                                 humanFeedback:
                                     humanScore === -1
-                                        ? humanFeedback ?? null
+                                        ? (humanFeedback ?? null)
                                         : null,
                             };
                         }),

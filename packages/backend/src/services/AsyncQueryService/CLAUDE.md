@@ -99,13 +99,13 @@ For queries returning millions of rows, this blocks the event loop during proces
 
 **Execute Methods Available:**
 
--   `executeAsyncMetricQuery` - Metric queries with dimensions/metrics
--   `executeAsyncSavedChartQuery` - Saved chart execution
--   `executeAsyncDashboardChartQuery` - Chart within dashboard context
--   `executeAsyncUnderlyingDataQuery` - Drill-down into raw data
--   `executeAsyncSqlQuery` - Raw SQL execution
--   `executeAsyncSqlChartQuery` - Saved SQL chart
--   `executeAsyncDashboardSqlChartQuery` - SQL chart in dashboard context
+- `executeAsyncMetricQuery` - Metric queries with dimensions/metrics
+- `executeAsyncSavedChartQuery` - Saved chart execution
+- `executeAsyncDashboardChartQuery` - Chart within dashboard context
+- `executeAsyncUnderlyingDataQuery` - Drill-down into raw data
+- `executeAsyncSqlQuery` - Raw SQL execution
+- `executeAsyncSqlChartQuery` - Saved SQL chart
+- `executeAsyncDashboardSqlChartQuery` - SQL chart in dashboard context
 
 **Query Status Values:**
 `PENDING`, `RUNNING`, `READY`, `ERROR`, or `CANCELLED`
@@ -113,8 +113,8 @@ For queries returning millions of rows, this blocks the event loop during proces
 **Polling Results Source:**
 When `getAsyncQueryResults` is called, results are fetched from different sources depending on configuration:
 
--   **S3 enabled** (`resultsStorageClient.isEnabled`): Reads paginated results from S3 JSONL file
--   **S3 disabled**: Falls back to `getResultsPageFromWarehouse()`, which re-queries the warehouse using stored `warehouseQueryId`. Currently only **Snowflake** supports this via `warehouseClient.getAsyncQueryResults()`. Other warehouses throw `NotImplementedError` and require S3 to be configured.
+- **S3 enabled** (`resultsStorageClient.isEnabled`): Reads paginated results from S3 JSONL file
+- **S3 disabled**: Falls back to `getResultsPageFromWarehouse()`, which re-queries the warehouse using stored `warehouseQueryId`. Currently only **Snowflake** supports this via `warehouseClient.getAsyncQueryResults()`. Other warehouses throw `NotImplementedError` and require S3 to be configured.
 
 **Pagination:**
 Results are paginated (default 500 rows, max 5000). Use `page` and `pageSize` parameters.

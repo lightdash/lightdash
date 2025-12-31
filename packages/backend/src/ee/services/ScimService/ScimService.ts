@@ -540,9 +540,8 @@ export class ScimService extends BaseService {
         try {
             // Validate roles if provided
             if (user.roles !== undefined) {
-                const { allScimRoles } = await this.getAllRoles(
-                    organizationUuid,
-                );
+                const { allScimRoles } =
+                    await this.getAllRoles(organizationUuid);
                 const validRoleValues = allScimRoles.map((role) => role.value);
 
                 // Throws error if roles are not valid
@@ -1329,9 +1328,8 @@ export class ScimService extends BaseService {
             })),
         });
         try {
-            const existingGroup = await this.groupsModel.getGroupWithMembers(
-                groupUuid,
-            );
+            const existingGroup =
+                await this.groupsModel.getGroupWithMembers(groupUuid);
             if (existingGroup.organizationUuid !== organizationUuid) {
                 this.logger.debug(
                     'SCIM: Group not found in organization for patch',

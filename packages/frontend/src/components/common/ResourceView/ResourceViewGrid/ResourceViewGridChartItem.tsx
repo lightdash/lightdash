@@ -17,8 +17,10 @@ import ResourceViewActionMenu, {
 } from '../ResourceActionMenu';
 import { getResourceViewsSinceWhenDescription } from '../resourceUtils';
 
-interface ResourceViewGridChartItemProps
-    extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
+interface ResourceViewGridChartItemProps extends Pick<
+    ResourceViewActionMenuCommonProps,
+    'onAction'
+> {
     item: ResourceViewChartItem;
     allowDelete?: boolean;
     dragIcon: ReactNode;

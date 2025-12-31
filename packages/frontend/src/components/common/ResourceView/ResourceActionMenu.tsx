@@ -41,8 +41,7 @@ export interface ResourceViewActionMenuCommonProps {
     onAction: (newAction: ResourceViewItemActionState) => void;
 }
 
-interface ResourceViewActionMenuProps
-    extends ResourceViewActionMenuCommonProps {
+interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps {
     disabled?: boolean;
     item: ResourceViewItem;
     allowDelete?: boolean;

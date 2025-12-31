@@ -5,8 +5,8 @@ SQL Runner feature for executing SQL queries and visualizing results. Supports t
 <howToUse>
 The SQL Runner has two query types that run based on the active tab:
 
--   **Results tab**: Executes raw SQL via `runSqlQuery` thunk
--   **Visualization tab**: Executes pivot query via `prepareAndFetchChartData` thunk
+- **Results tab**: Executes raw SQL via `runSqlQuery` thunk
+- **Visualization tab**: Executes pivot query via `prepareAndFetchChartData` thunk
 
 Tab switching triggers pivot queries automatically (with caching). Clicking "Run" forces a fresh query.
 </howToUse>
@@ -45,16 +45,16 @@ dispatch(prepareAndFetchChartData({ forceRefresh: true }));
 
 **Key Files:**
 
--   @/packages/frontend/src/features/sqlRunner/store/thunks.ts - Query thunks
--   @/packages/frontend/src/features/sqlRunner/store/sqlRunnerListeners.ts - Tab switch and config change listeners
--   @/packages/frontend/src/features/sqlRunner/components/ContentPanel.tsx - Main UI component
--   @/packages/frontend/src/features/queryRunner/BaseResultsRunner.ts - Pivot query caching
+- @/packages/frontend/src/features/sqlRunner/store/thunks.ts - Query thunks
+- @/packages/frontend/src/features/sqlRunner/store/sqlRunnerListeners.ts - Tab switch and config change listeners
+- @/packages/frontend/src/features/sqlRunner/components/ContentPanel.tsx - Main UI component
+- @/packages/frontend/src/features/queryRunner/BaseResultsRunner.ts - Pivot query caching
 
 **Caching Behavior:**
 The pivot query uses React Query's `fetchQuery` for caching. Cache is invalidated when:
 
--   User clicks "Run" on Viz tab (`forceRefresh: true`)
--   SQL columns change (new ResultsRunner created)
+- User clicks "Run" on Viz tab (`forceRefresh: true`)
+- SQL columns change (new ResultsRunner created)
 
 **Loading State:**
 Both `runSqlQuery` and `prepareAndFetchChartData` set `queryIsLoading` state, which controls the Run button's loading indicator.

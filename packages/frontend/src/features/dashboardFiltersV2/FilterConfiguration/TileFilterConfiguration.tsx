@@ -161,10 +161,10 @@ const TileFilterConfiguration: FC<Props> = ({
                                           tileConfig?.fieldId === getItemId(f),
                                   )
                                 : field
-                                ? filters?.find((f) =>
-                                      matchFieldExact(f)(field),
-                                  )
-                                : undefined;
+                                  ? filters?.find((f) =>
+                                        matchFieldExact(f)(field),
+                                    )
+                                  : undefined;
 
                         // If tileConfig?.fieldId is set, but the field is not found in the filters, we mark it as invalid filter (missing dimension in model)
                         invalidField =
@@ -178,7 +178,7 @@ const TileFilterConfiguration: FC<Props> = ({
                     }
 
                     const isFilterAvailable = field
-                        ? filters?.some(matchFieldByType(field)) ?? false
+                        ? (filters?.some(matchFieldByType(field)) ?? false)
                         : false;
 
                     const sortedFilters = field
@@ -212,9 +212,9 @@ const TileFilterConfiguration: FC<Props> = ({
                     }
 
                     const hasExactMatch = field
-                        ? sortedFilters?.some((f) =>
+                        ? (sortedFilters?.some((f) =>
                               matchFieldExact(f)(field),
-                          ) ?? false
+                          ) ?? false)
                         : false;
 
                     return {

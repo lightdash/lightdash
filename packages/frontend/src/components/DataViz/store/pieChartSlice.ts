@@ -33,7 +33,7 @@ export type PieChartState = {
     chartData:
         | Awaited<
               ReturnType<
-                  typeof prepareAndFetchChartData['fulfilled']
+                  (typeof prepareAndFetchChartData)['fulfilled']
               >['payload']
           >
         | undefined;

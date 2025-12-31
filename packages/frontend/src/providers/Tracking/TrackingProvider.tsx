@@ -43,7 +43,7 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
                 name: LIGHTDASH_APP_NAME,
                 version,
                 build: version,
-            } as any as rudderSDK.apiObject),
+            }) as any as rudderSDK.apiObject,
         [version],
     );
 

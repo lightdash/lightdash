@@ -171,8 +171,8 @@ export const CustomMetricModal = memo(() => {
                 isEditing
                     ? label
                     : customMetricType
-                    ? `${friendlyName(customMetricType)} of ${label}`
-                    : '',
+                      ? `${friendlyName(customMetricType)} of ${label}`
+                      : '',
             );
         }
     }, [setFieldValue, item, customMetricType, isEditing]);

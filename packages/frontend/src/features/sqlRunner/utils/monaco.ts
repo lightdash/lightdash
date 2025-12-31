@@ -315,8 +315,8 @@ export const registerCustomCompletionProvider = (
                         settings?.casePreference === 'lowercase'
                             ? field.name.toLowerCase()
                             : settings?.casePreference === 'uppercase'
-                            ? field.name.toUpperCase()
-                            : field.name;
+                              ? field.name.toUpperCase()
+                              : field.name;
 
                     fieldSuggestions.push({
                         label: `${displayName} (${field.type})${tableContext}`,

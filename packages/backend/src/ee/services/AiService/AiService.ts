@@ -311,9 +311,8 @@ export class AiService {
     ) {
         await AiService.throwOnFeatureDisabled(user);
         const startTime = new Date().getTime();
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const dashboardCharts = await this.getDashboardChartsResults(
             user,
             dashboard,
@@ -321,9 +320,8 @@ export class AiService {
         const timeGetCharts = new Date().getTime() - startTime;
 
         const chartSummaries = dashboardCharts.map(async (chartData) => {
-            const { result, tokenUsage } = await this.createChartSummary(
-                chartData,
-            );
+            const { result, tokenUsage } =
+                await this.createChartSummary(chartData);
 
             return {
                 chartName: chartData.name,
@@ -422,9 +420,8 @@ export class AiService {
     ) {
         await AiService.throwOnFeatureDisabled(user);
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuidOrSlug,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const dashboardSummary =
             await this.dashboardSummaryModel.getByDashboardUuid(dashboard.uuid);
 

@@ -108,7 +108,7 @@ const getDataAndColumns = ({
     return columnOrder.reduce<Array<TableHeader | TableColumn>>(
         (acc, itemId) => {
             const item = itemsMap[itemId] as
-                | typeof itemsMap[number]
+                | (typeof itemsMap)[number]
                 | undefined;
 
             if (!selectedItemIds.includes(itemId)) {

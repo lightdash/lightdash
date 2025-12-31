@@ -29,10 +29,11 @@ export const hasNoWhiteSpaces: FieldValidator<string> =
             ? undefined
             : `${fieldName} should not have white spaces`;
 
-export const isGitRepository: FieldValidator<string> = (fieldName) => (value) =>
-    !value || value.match(/.+\/.+/) || value.match(/^[a-zA-Z0-9.%_-]+$/)
-        ? undefined
-        : `${fieldName} should match the pattern "org/project" or "project"`;
+export const isGitRepository: FieldValidator<string> =
+    (fieldName) => (value) =>
+        !value || value.match(/.+\/.+/) || value.match(/^[a-zA-Z0-9.%_-]+$/)
+            ? undefined
+            : `${fieldName} should match the pattern "org/project" or "project"`;
 
 export const startWithSlash: FieldValidator<string> = (fieldName) => (value) =>
     !value || value.match(/^\/.*/)

@@ -56,9 +56,8 @@ describe('UserCompletionModal', () => {
         });
         expect(welcomeModal).toBeInTheDocument();
 
-        const nameInput = await screen.findByPlaceholderText(
-            'Enter company name',
-        );
+        const nameInput =
+            await screen.findByPlaceholderText('Enter company name');
         expect(nameInput).toBeInTheDocument();
     });
 
@@ -167,16 +166,14 @@ describe('UserCompletionModal', () => {
         expect(submitButton).toBeDisabled();
 
         // fill in organization name
-        const nameInput = await screen.findByPlaceholderText(
-            'Enter company name',
-        );
+        const nameInput =
+            await screen.findByPlaceholderText('Enter company name');
         expect(nameInput).toBeInTheDocument();
         await user.type(nameInput, 'test organization');
 
         // select role
-        const roleSelect = await screen.findByPlaceholderText(
-            'Select your role',
-        );
+        const roleSelect =
+            await screen.findByPlaceholderText('Select your role');
         expect(roleSelect).toBeInTheDocument();
         await user.click(roleSelect);
         const roleOption = await screen.findByText('Software Engineer');
@@ -255,9 +252,8 @@ describe('UserCompletionModal', () => {
         expect(emailDomainCheckbox).not.toBeInTheDocument();
 
         // select role
-        const roleSelect = await screen.findByPlaceholderText(
-            'Select your role',
-        );
+        const roleSelect =
+            await screen.findByPlaceholderText('Select your role');
         expect(roleSelect).toBeInTheDocument();
         await user.click(roleSelect);
         const roleOption = await screen.findByText('Software Engineer');

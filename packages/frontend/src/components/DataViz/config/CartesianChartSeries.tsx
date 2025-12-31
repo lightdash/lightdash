@@ -191,8 +191,8 @@ export const CartesianChartSeries = ({
                                             value === 'Stacked'
                                                 ? StackType.NORMAL
                                                 : value === '100%'
-                                                ? StackType.PERCENT
-                                                : StackType.NONE,
+                                                  ? StackType.PERCENT
+                                                  : StackType.NONE,
                                         ),
                                     )
                                 }

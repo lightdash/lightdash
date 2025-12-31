@@ -300,7 +300,9 @@ const DashboardHeaderV1 = ({
                 >
                     Dashboard uses cached data from
                     <Text fw={700}>
-                        {dayjs(oldestCacheTime).format('MMM D, YYYY h:mm A')}{' '}
+                        {dayjs(oldestCacheTime).format(
+                            'MMM D, YYYY h:mm A',
+                        )}{' '}
                     </Text>
                 </Text>
             )}

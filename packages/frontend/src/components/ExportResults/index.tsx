@@ -91,8 +91,8 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         limit === Limit.CUSTOM
                             ? customLimit
                             : limit === Limit.TABLE
-                            ? totalResults ?? 0
-                            : null,
+                              ? (totalResults ?? 0)
+                              : null,
                         limit,
                     );
 

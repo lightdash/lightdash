@@ -37,8 +37,10 @@ interface UserData {
     roleLabel: string;
 }
 
-interface UserAccessMultiSelectProps
-    extends Omit<MultiSelectProps, 'data' | 'renderOption'> {
+interface UserAccessMultiSelectProps extends Omit<
+    MultiSelectProps,
+    'data' | 'renderOption'
+> {
     projectUuid: string;
     isGroupsEnabled?: boolean;
 }

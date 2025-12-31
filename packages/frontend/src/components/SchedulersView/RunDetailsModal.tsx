@@ -63,7 +63,7 @@ const formatTimeOnly = (date: Date): string => {
 
 // Helper to pluralize a word based on count
 const pluralize = (count: number, singular: string, plural?: string): string =>
-    count === 1 ? singular : plural ?? `${singular}s`;
+    count === 1 ? singular : (plural ?? `${singular}s`);
 
 // Helper to build job status summary text
 const buildJobStatusSummary = (

@@ -21,8 +21,10 @@ import ResourceViewActionMenu, {
 import AttributeCount from '../ResourceAttributeCount';
 import { getResourceAccessLabel } from '../utils';
 
-interface ResourceViewGridSpaceItemProps
-    extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
+interface ResourceViewGridSpaceItemProps extends Pick<
+    ResourceViewActionMenuCommonProps,
+    'onAction'
+> {
     item: ResourceViewSpaceItem;
     dragIcon: ReactNode;
     allowDelete?: boolean;

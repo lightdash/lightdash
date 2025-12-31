@@ -53,7 +53,7 @@ const FieldIcon = forwardRef<SVGSVGElement, Props>(
     ({ item, size = 'lg', selected, ...iconProps }, ref) => {
         const iconColor = selected
             ? 'white'
-            : iconProps.color ?? getFieldColor(item);
+            : (iconProps.color ?? getFieldColor(item));
 
         const props = {
             ...iconProps,

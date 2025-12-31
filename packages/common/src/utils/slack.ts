@@ -47,7 +47,7 @@ export const isUnrecoverableSlackError = (error: unknown): boolean => {
     return (
         errorCode !== undefined &&
         UNRECOVERABLE_SLACK_ERRORS.includes(
-            errorCode as typeof UNRECOVERABLE_SLACK_ERRORS[number],
+            errorCode as (typeof UNRECOVERABLE_SLACK_ERRORS)[number],
         )
     );
 };

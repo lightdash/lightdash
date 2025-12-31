@@ -340,9 +340,8 @@ export class SchedulerService extends BaseService {
     async getSchedulerDefaultTimezone(schedulerUuid: string | undefined) {
         if (!schedulerUuid) return 'UTC'; // When it is sendNow there is not schedulerUuid
 
-        const scheduler = await this.schedulerModel.getSchedulerAndTargets(
-            schedulerUuid,
-        );
+        const scheduler =
+            await this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
         const { projectUuid } = await this.getSchedulerResource(scheduler);
         const project = await this.projectModel.get(projectUuid);
         return project.schedulerTimezone;
@@ -466,9 +465,8 @@ export class SchedulerService extends BaseService {
         );
 
         if (enabled) {
-            const defaultTimezone = await this.getSchedulerDefaultTimezone(
-                schedulerUuid,
-            );
+            const defaultTimezone =
+                await this.getSchedulerDefaultTimezone(schedulerUuid);
             const { organizationUuid, projectUuid } =
                 await this.getCreateSchedulerResource(scheduler);
 
@@ -817,9 +815,8 @@ export class SchedulerService extends BaseService {
             newDefaultProjectTimezone: string;
         },
     ) {
-        const schedulers = await this.schedulerModel.getSchedulerForProject(
-            projectUuid,
-        );
+        const schedulers =
+            await this.schedulerModel.getSchedulerForProject(projectUuid);
 
         const schedulerUpdatePromises = schedulers.reduce<
             Promise<SchedulerCronUpdate>[]

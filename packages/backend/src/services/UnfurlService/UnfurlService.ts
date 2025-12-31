@@ -592,9 +592,8 @@ export class UnfurlService extends BaseService {
         user: SessionUser,
         selectedTabs: string[] | null,
     ): Promise<string> {
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
         const access = await this.spaceModel.getUserSpaceAccess(
             user.userUuid,
@@ -624,7 +623,7 @@ export class UnfurlService extends BaseService {
             queryFilters &&
             !(queryFilters.startsWith('?') || queryFilters.startsWith('&'))
                 ? `?${queryFilters}`
-                : queryFilters ?? '';
+                : (queryFilters ?? '');
 
         const url = new URL(
             urlBase + suffix,

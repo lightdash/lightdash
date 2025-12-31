@@ -289,9 +289,9 @@ export class CartesianChartDataModel {
 
         const indexFieldError = Boolean(
             fieldConfig?.x?.reference &&
-                indexLayoutOptions.find(
-                    (x) => x.reference === fieldConfig?.x?.reference,
-                ) === undefined,
+            indexLayoutOptions.find(
+                (x) => x.reference === fieldConfig?.x?.reference,
+            ) === undefined,
         );
 
         const metricFieldError = Boolean(

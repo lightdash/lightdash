@@ -96,8 +96,8 @@ const Home: FC = () => {
                                 isEnabled={Boolean(
                                     mostPopularAndRecentlyUpdated?.mostPopular
                                         .length ||
-                                        mostPopularAndRecentlyUpdated
-                                            ?.recentlyUpdated.length,
+                                    mostPopularAndRecentlyUpdated
+                                        ?.recentlyUpdated.length,
                                 )}
                             />
                         </PinnedItemsProvider>

@@ -128,10 +128,10 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
             .filter((g): g is GroupWithMembers => {
                 return Boolean(
                     g &&
-                        isGroupWithMembers(g) &&
-                        !projectGroupAccessList?.find((access) => {
-                            return access.groupUuid === g.uuid;
-                        }),
+                    isGroupWithMembers(g) &&
+                    !projectGroupAccessList?.find((access) => {
+                        return access.groupUuid === g.uuid;
+                    }),
                 );
             });
     }, [groups, projectGroupAccessList]);

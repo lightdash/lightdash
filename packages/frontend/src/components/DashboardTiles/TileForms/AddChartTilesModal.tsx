@@ -84,8 +84,8 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
                                 disabled
                                     ? 'dimmed'
                                     : selected
-                                    ? 'ldGray.0'
-                                    : 'ldGray.8'
+                                      ? 'ldGray.0'
+                                      : 'ldGray.8'
                             }
                             fw={500}
                             fz="xs"
@@ -328,9 +328,9 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                         filter={(searchString, selected, item) => {
                             return Boolean(
                                 selected ||
-                                    item.label
-                                        ?.toLowerCase()
-                                        .includes(searchString.toLowerCase()),
+                                item.label
+                                    ?.toLowerCase()
+                                    .includes(searchString.toLowerCase()),
                             );
                         }}
                         {...form.getInputProps('savedChartsUuids')}

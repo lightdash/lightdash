@@ -104,7 +104,9 @@ const ResourceView: FC<ResourceViewProps> = ({
     }
 
     const items =
-        hasTabs && activeTabId ? itemsByTabs.get(activeTabId) ?? [] : allItems;
+        hasTabs && activeTabId
+            ? (itemsByTabs.get(activeTabId) ?? [])
+            : allItems;
 
     return (
         <>

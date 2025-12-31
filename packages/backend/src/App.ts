@@ -365,7 +365,8 @@ export default class App {
             if (this.lightdashConfig.security.contentSecurityPolicy.reportUri) {
                 reportUris.push(
                     new URL(
-                        this.lightdashConfig.security.contentSecurityPolicy.reportUri,
+                        this.lightdashConfig.security.contentSecurityPolicy
+                            .reportUri,
                     ),
                 );
             }

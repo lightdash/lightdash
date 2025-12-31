@@ -59,7 +59,7 @@ const getAgentTelemetryConfig = (
             threadUuid,
             promptUuid,
         },
-    } as const);
+    }) as const;
 
 const getAgentTools = (
     args: AiAgentArgs,

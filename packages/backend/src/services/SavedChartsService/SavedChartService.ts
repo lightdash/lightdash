@@ -596,9 +596,8 @@ export class SavedChartService
                 savedChartUuid,
             });
         }
-        const pinnedList = await this.pinnedListModel.getPinnedListAndItems(
-            projectUuid,
-        );
+        const pinnedList =
+            await this.pinnedListModel.getPinnedListAndItems(projectUuid);
 
         this.analytics.track({
             event: 'pinned_list.updated',
@@ -748,9 +747,8 @@ export class SavedChartService
         user: SessionUser,
         savedChartUuid: string,
     ): Promise<ViewStatistics> {
-        const savedChart = await this.savedChartModel.getSummary(
-            savedChartUuid,
-        );
+        const savedChart =
+            await this.savedChartModel.getSummary(savedChartUuid);
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
@@ -857,9 +855,8 @@ export class SavedChartService
         projectUuid: string,
         savedChart: CreateSavedChart,
     ): Promise<SavedChart> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         let isPrivate = false;
         let access: SpaceShare[] = [];
         if (savedChart.spaceUuid) {
@@ -1183,9 +1180,8 @@ export class SavedChartService
                 "You don't have access to the space this chart belongs to",
             );
         }
-        const versions = await this.savedChartModel.getLatestVersionSummaries(
-            chartUuid,
-        );
+        const versions =
+            await this.savedChartModel.getLatestVersionSummaries(chartUuid);
         this.analytics.track({
             event: 'saved_chart_history.view',
             userId: user.userUuid,

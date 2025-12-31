@@ -102,8 +102,8 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                                 dirtyLayout?.xField === fieldId
                                     ? undefined
                                     : useAverage
-                                    ? undefined
-                                    : value || '',
+                                      ? undefined
+                                      : value || '',
                         };
 
                         const updatedReferenceLines: ReferenceLineField[] =

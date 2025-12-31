@@ -82,7 +82,7 @@ const AssistantBubbleContent: FC<{
     const baseMessageContent =
         isStreaming && streamingState
             ? streamingState.content
-            : message.message ?? '';
+            : (message.message ?? '');
 
     const referencedArtifactsMarkdown =
         !isStreaming &&
@@ -110,7 +110,7 @@ const AssistantBubbleContent: FC<{
     );
 
     const toolCalls = isStreaming
-        ? streamingState?.toolCalls ?? []
+        ? (streamingState?.toolCalls ?? [])
         : message.toolCalls;
 
     return (

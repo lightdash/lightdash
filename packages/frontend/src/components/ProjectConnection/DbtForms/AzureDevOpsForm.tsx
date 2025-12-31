@@ -28,7 +28,8 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                 rel="noreferrer"
                             >
                                 {' '}
-                                instructions to create a personal access token{' '}
+                                instructions to create a personal access
+                                token{' '}
                             </Anchor>
                             you can add the custom domain for your project in
                             here.

@@ -30,7 +30,7 @@ export type CartesianChartState = {
     chartData:
         | Awaited<
               ReturnType<
-                  typeof prepareAndFetchChartData['fulfilled']
+                  (typeof prepareAndFetchChartData)['fulfilled']
               >['payload']
           >
         | undefined;

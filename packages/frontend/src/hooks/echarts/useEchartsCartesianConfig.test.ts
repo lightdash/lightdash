@@ -293,7 +293,7 @@ describe('getCategoryDateAxisConfig', () => {
             timeInterval,
             name: 'test_date',
             table: 'test_table',
-        } as unknown as Field);
+        }) as unknown as Field;
 
     test('returns empty object when axisType is not category', () => {
         const result = getCategoryDateAxisConfig(
