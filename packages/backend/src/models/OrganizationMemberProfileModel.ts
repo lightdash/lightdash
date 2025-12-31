@@ -2,6 +2,7 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
+    OpenIdIdentityIssuerType,
     OrganizationMemberProfile,
     OrganizationMemberProfileUpdate,
     OrganizationMemberProfileWithGroups,
@@ -12,6 +13,7 @@ import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { GroupTableName } from '../database/entities/groups';
 import { InviteLinkTableName } from '../database/entities/inviteLinks';
+import { OpenIdIdentitiesTableName } from '../database/entities/openIdIdentities';
 import {
     DbOrganizationMembership,
     DbOrganizationMembershipIn,
@@ -115,12 +117,14 @@ export class OrganizationMemberProfileModel {
         searchQuery,
         sort,
         exactMatchFilter,
+        googleOidcOnly,
     }: {
         organizationUuid: string;
         paginateArgs?: KnexPaginateArgs;
         searchQuery?: string;
         sort?: { column: string; direction: 'asc' | 'desc' };
         exactMatchFilter?: { column: string; value: string };
+        googleOidcOnly?: boolean;
     }): Promise<KnexPaginatedData<OrganizationMemberProfile[]>> {
         let query = this.queryBuilder()
             .where(
@@ -145,6 +149,23 @@ export class OrganizationMemberProfileModel {
                 'email',
                 'role',
             ]);
+        }
+
+        // Filter by users with Google Drive refresh token (using subquery to avoid duplicates)
+        if (googleOidcOnly) {
+            query = query.whereExists(
+                this.database
+                    .select(1)
+                    .from(OpenIdIdentitiesTableName)
+                    .whereRaw(
+                        `${OpenIdIdentitiesTableName}.user_id = ${UserTableName}.user_id`,
+                    )
+                    .andWhere(
+                        `${OpenIdIdentitiesTableName}.issuer_type`,
+                        OpenIdIdentityIssuerType.GOOGLE,
+                    )
+                    .whereNotNull(`${OpenIdIdentitiesTableName}.refresh_token`),
+            );
         }
 
         // Apply sorting if present
@@ -186,6 +207,7 @@ export class OrganizationMemberProfileModel {
         includeGroups?: number,
         paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
+        googleOidcOnly?: boolean,
     ): Promise<KnexPaginatedData<OrganizationMemberProfileWithGroups[]>> {
         let orgMembersAndGroupsQuery = this.database(UserTableName)
             .leftJoin(
@@ -265,6 +287,23 @@ export class OrganizationMemberProfileModel {
                 orgMembersAndGroupsQuery,
                 searchQuery,
                 ['first_name', 'last_name', 'email', 'role'],
+            );
+        }
+
+        // Filter by users with Google Drive refresh token (using subquery to avoid duplicates)
+        if (googleOidcOnly) {
+            orgMembersAndGroupsQuery = orgMembersAndGroupsQuery.whereExists(
+                this.database
+                    .select(1)
+                    .from(OpenIdIdentitiesTableName)
+                    .whereRaw(
+                        `${OpenIdIdentitiesTableName}.user_id = ${UserTableName}.user_id`,
+                    )
+                    .andWhere(
+                        `${OpenIdIdentitiesTableName}.issuer_type`,
+                        OpenIdIdentityIssuerType.GOOGLE,
+                    )
+                    .whereNotNull(`${OpenIdIdentitiesTableName}.refresh_token`),
             );
         }
 

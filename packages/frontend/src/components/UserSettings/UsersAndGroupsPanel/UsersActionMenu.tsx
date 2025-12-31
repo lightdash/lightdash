@@ -22,6 +22,7 @@ import {
     IconChevronDown,
     IconChevronUp,
     IconDots,
+    IconInfoCircle,
     IconMail,
     IconTrash,
 } from '@tabler/icons-react';
@@ -319,18 +320,41 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                             </Radio.Group>
 
                             {schedulerAction === SchedulerAction.REASSIGN && (
-                                <UserSelect
-                                    label="New owner"
-                                    value={selectedNewOwner}
-                                    onChange={setSelectedNewOwner}
-                                    excludedUserUuid={user.userUuid}
-                                />
+                                <Stack gap="xs">
+                                    <UserSelect
+                                        label="New owner"
+                                        value={selectedNewOwner}
+                                        onChange={setSelectedNewOwner}
+                                        excludedUserUuid={user.userUuid}
+                                        requireGoogleToken={
+                                            schedulersSummary?.hasGsheetsSchedulers
+                                        }
+                                    />
+                                    {schedulersSummary?.hasGsheetsSchedulers && (
+                                        <Group gap="xs" wrap="nowrap">
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                                color="ldGray.6"
+                                                size="lg"
+                                            />
+                                            <Text fz="xs" c="dimmed">
+                                                You can only transfer ownership
+                                                of a Google Sheets sync to a
+                                                user with an active Google
+                                                connection.
+                                            </Text>
+                                        </Group>
+                                    )}
+                                </Stack>
                             )}
                         </>
                     ) : (
                         <Group gap="xs">
-                            <MantineIcon icon={IconAlertCircle} color="gray" />
-                            <Text fz="xs" c="ldGray.6" span>
+                            <MantineIcon
+                                icon={IconAlertCircle}
+                                color="ldGray.6"
+                            />
+                            <Text fz="xs" c="dimmed" span>
                                 This user has no scheduled deliveries.
                             </Text>
                         </Group>

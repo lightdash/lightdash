@@ -896,6 +896,14 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         }
     }, [isBulkReassign, table]);
 
+    // Check if any schedulers being reassigned are GSHEETS format
+    const hasGsheetsSchedulers = useMemo(() => {
+        return schedulerUuidsToReassign.some((uuid) => {
+            const scheduler = flatData.find((s) => s.schedulerUuid === uuid);
+            return scheduler?.format === SchedulerFormat.GSHEETS;
+        });
+    }, [schedulerUuidsToReassign, flatData]);
+
     return (
         <>
             <MantineReactTable table={table} />
@@ -906,6 +914,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 schedulerUuids={schedulerUuidsToReassign}
                 excludedUserUuid={excludedUserUuid}
                 onSuccess={handleReassignSuccess}
+                hasGsheetsSchedulers={hasGsheetsSchedulers}
             />
         </>
     );

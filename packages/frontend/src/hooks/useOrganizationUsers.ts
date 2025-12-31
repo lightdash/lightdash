@@ -22,6 +22,7 @@ const getOrganizationUsersQuery = async (params?: {
     paginateArgs?: KnexPaginateArgs;
     searchQuery?: string;
     projectUuid?: string;
+    googleOidcOnly?: boolean;
 }) => {
     const urlParams = new URLSearchParams({
         ...(params?.paginateArgs
@@ -35,6 +36,9 @@ const getOrganizationUsersQuery = async (params?: {
             : {}),
         ...(params?.searchQuery ? { searchQuery: params.searchQuery } : {}),
         ...(params?.projectUuid ? { projectUuid: params.projectUuid } : {}),
+        ...(params?.googleOidcOnly
+            ? { googleOidcOnly: String(params.googleOidcOnly) }
+            : {}),
     }).toString();
 
     return lightdashApi<ApiOrganizationMemberProfiles['results']>({
@@ -100,11 +104,13 @@ export const useInfiniteOrganizationUsers = (
         includeGroups,
         pageSize,
         projectUuid,
+        googleOidcOnly,
     }: {
         searchInput?: string;
         includeGroups?: number;
         projectUuid?: string;
         pageSize: number;
+        googleOidcOnly?: boolean;
     },
     infinityQueryOpts: UseInfiniteQueryOptions<
         ApiOrganizationMemberProfiles['results'],
@@ -120,6 +126,7 @@ export const useInfiniteOrganizationUsers = (
                 pageSize,
                 searchInput,
                 projectUuid,
+                googleOidcOnly,
             ],
             queryFn: ({ pageParam }) => {
                 return getOrganizationUsersQuery({
@@ -130,6 +137,7 @@ export const useInfiniteOrganizationUsers = (
                     },
                     searchQuery: searchInput,
                     projectUuid,
+                    googleOidcOnly,
                 });
             },
             onError: (result) => setErrorResponse(result),

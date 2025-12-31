@@ -575,6 +575,23 @@ export class SchedulerService extends BaseService {
             );
         }
 
+        // Check if any schedulers are GSHEETS format - new owner must have Google refresh token
+        const hasGsheetsSchedulers = schedulers.some(
+            (s) => s.format === SchedulerFormat.GSHEETS,
+        );
+        if (hasGsheetsSchedulers) {
+            try {
+                await this.userModel.getRefreshToken(newOwnerUserUuid);
+            } catch (error) {
+                if (error instanceof NotFoundError) {
+                    throw new ForbiddenError(
+                        'New owner must have an active Google connection to take ownership of Google Sheets scheduled deliveries',
+                    );
+                }
+                throw error;
+            }
+        }
+
         // Update ownership
         await this.schedulerModel.updateOwner(schedulerUuids, newOwnerUserUuid);
 
@@ -1160,10 +1177,26 @@ export class SchedulerService extends BaseService {
             );
         }
 
+        // Check if user has any GSHEETS schedulers - new owner must have Google refresh token
+        if (summary.hasGsheetsSchedulers) {
+            try {
+                await this.userModel.getRefreshToken(newOwnerUserUuid);
+            } catch (error) {
+                if (error instanceof NotFoundError) {
+                    throw new ForbiddenError(
+                        'New owner must have an active Google connection to take ownership of Google Sheets scheduled deliveries',
+                    );
+                }
+                throw error;
+            }
+        }
+
         // Update ownership - only for projects where permissions were validated
         const validatedProjectUuids = summary.byProject.map(
             (p) => p.projectUuid,
         );
+
+        // Update ownership
         const reassignedCount = await this.schedulerModel.updateOwnerByUser(
             fromUserUuid,
             newOwnerUserUuid,
