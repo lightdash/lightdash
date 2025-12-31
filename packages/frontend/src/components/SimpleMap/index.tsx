@@ -327,6 +327,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         const [geoJsonData, setGeoJsonData] =
             useState<GeoJSON.FeatureCollection | null>(null);
+        const [geoJsonLayerKey, setGeoJsonLayerKey] = useState(0);
 
         const hasSignaledScreenshotReady = useRef(false);
 
@@ -462,6 +463,28 @@ const SimpleMap: FC<SimpleMapProps> = memo(
             void loadGeoJson();
         }, [mapConfig?.geoJsonUrl, mapConfig?.isLatLong]);
 
+        // Force re-creating the GeoJSON layer when join key, tooltip fields, or
+        // region data change so bound tooltips/popup content stays in sync.
+        useEffect(() => {
+            if (
+                !geoJsonData ||
+                !mapConfig ||
+                mapConfig.isLatLong ||
+                !geoJsonData.features?.length
+            ) {
+                return;
+            }
+            setGeoJsonLayerKey((key) => key + 1);
+        }, [
+            geoJsonData,
+            mapConfig?.geoJsonUrl,
+            mapConfig?.geoJsonPropertyKey,
+            mapConfig?.regionData,
+            mapConfig?.tooltipFields,
+            mapConfig?.isLatLong,
+            mapConfig,
+        ]);
+
         // Get location type from visualization config
         const locationType = useMemo(
             () =>
@@ -583,11 +606,17 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     };
                 }
 
-                const name =
-                    feature.properties.name?.toLowerCase() ||
-                    feature.properties.NAME?.toLowerCase() ||
-                    '';
-                const regionEntry = regionDataMap.get(name);
+                // Use configured property key to match GeoJSON features to data
+                const propertyKey = mapConfig.geoJsonPropertyKey;
+                const propertyValue = (
+                    feature.properties[propertyKey] ||
+                    feature.properties.name ||
+                    feature.properties.NAME ||
+                    ''
+                )
+                    .toString()
+                    .toLowerCase();
+                const regionEntry = regionDataMap.get(propertyValue);
 
                 if (regionEntry !== undefined) {
                     const color = getColorForValue(
@@ -618,11 +647,17 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         const onEachFeature = useCallback(
             (feature: GeoJSON.Feature, layer: L.Layer) => {
-                const name =
+                // Use configured property key to match GeoJSON features to data
+                const propertyKey = mapConfig?.geoJsonPropertyKey || 'name';
+                const propertyValue = (
+                    feature.properties?.[propertyKey] ||
                     feature.properties?.name ||
                     feature.properties?.NAME ||
-                    'Unknown';
-                const regionEntry = regionDataMap.get(name.toLowerCase());
+                    ''
+                )
+                    .toString()
+                    .toLowerCase();
+                const regionEntry = regionDataMap.get(propertyValue);
                 const rowData = regionEntry?.rowData || {};
 
                 // eslint-disable-next-line testing-library/render-result-naming-convention
@@ -682,7 +717,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     });
                 }
             },
-            [regionDataMap, mapConfig?.tooltipFields, handlePopupCopyClick],
+            [
+                regionDataMap,
+                mapConfig?.geoJsonPropertyKey,
+                mapConfig?.tooltipFields,
+                handlePopupCopyClick,
+            ],
         );
 
         if (isLoading) {
@@ -830,7 +870,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         {geoJsonData?.features &&
                             geoJsonData.features.length > 0 && (
                                 <GeoJSON
-                                    key={`geojson-${mapConfig.geoJsonUrl}-${geoJsonData.features.length}`}
+                                    key={`geojson-${mapConfig.geoJsonUrl}-${geoJsonLayerKey}-${geoJsonData.features.length}`}
                                     data={geoJsonData}
                                     style={choroplethStyle}
                                     onEachFeature={onEachFeature}
