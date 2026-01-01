@@ -132,12 +132,8 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
 
     // Scroll to top when search changes
     useEffect(() => {
-        if (rowVirtualizerInstanceRef.current) {
-            try {
-                rowVirtualizerInstanceRef.current.scrollToIndex(0);
-            } catch (e) {
-                console.error(e);
-            }
+        if (tableContainerRef.current) {
+            tableContainerRef.current.scrollTop = 0;
         }
     }, [debouncedSearchValue]);
 

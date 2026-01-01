@@ -169,12 +169,8 @@ const LogsTable: FC<LogsTableProps> = ({
 
     // Scroll to top when filters change
     useEffect(() => {
-        if (rowVirtualizerInstanceRef.current) {
-            try {
-                rowVirtualizerInstanceRef.current.scrollToIndex(0);
-            } catch (e) {
-                console.error(e);
-            }
+        if (tableContainerRef.current) {
+            tableContainerRef.current.scrollTop = 0;
         }
     }, [debouncedSearchAndFilters]);
 
