@@ -3878,6 +3878,13 @@ export class ProjectService extends BaseService {
             explore,
         );
 
+        // Combine request parameters with defaults from parameter definitions
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            explore,
+            parameters,
+        );
+
         const { query } = await ProjectService._compileQuery({
             metricQuery,
             explore,
@@ -3885,17 +3892,16 @@ export class ProjectService extends BaseService {
             intrinsicUserAttributes,
             userAttributes: mergedUserAttributes,
             timezone: this.lightdashConfig.query.timezone || 'UTC',
-            parameters,
+            parameters: combinedParameters,
             availableParameterDefinitions,
         });
 
-        // Add a cache_autocomplete prefix to the query hash to avoid collisions with the results cache
-        const queryHashKey = metricQuery.timezone
+        const cacheKey = metricQuery.timezone
             ? `${projectUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`
             : `${projectUuid}.cache_autocomplete.${query}`;
         const queryHash = crypto
             .createHash('sha256')
-            .update(queryHashKey)
+            .update(cacheKey)
             .digest('hex');
 
         const isCacheEnabled = this.lightdashConfig.results.autocompleteEnabled;
@@ -3913,6 +3919,7 @@ export class ProjectService extends BaseService {
                     await cacheEntry.Body?.transformToString();
                 if (stringResults) {
                     try {
+                        await sshTunnel.disconnect();
                         return JSON.parse(stringResults);
                     } catch (e) {
                         this.logger.error(
@@ -3931,8 +3938,32 @@ export class ProjectService extends BaseService {
             explore_name: explore.name,
             query_context: QueryExecutionContext.FILTER_AUTOCOMPLETE,
         };
+
         const { rows } = await warehouseClient.runQuery(query, queryTags);
+        const allResults: Set<string | number | boolean> = new Set();
+        for (const row of rows) {
+            const value = row[getItemId(field)];
+            if (value !== null && value !== undefined) {
+                allResults.add(value);
+            }
+        }
+
+        if (isCacheEnabled) {
+            const searchResults = {
+                search,
+                results: Array.from(allResults),
+                refreshedAt: new Date(),
+                cached: true,
+            };
+            const buffer = Buffer.from(JSON.stringify(searchResults));
+            this.s3CacheClient
+                .uploadResults(queryHash, buffer, queryTags)
+                .catch(() => undefined);
+        }
+
         await sshTunnel.disconnect();
+
+        const resultsArray = Array.from(allResults);
 
         this.analytics.track({
             event: 'field_value.search',
@@ -3941,31 +3972,15 @@ export class ProjectService extends BaseService {
                 projectId: projectUuid,
                 fieldId: getItemId(field),
                 searchCharCount: search.length,
-                resultsCount: rows.length,
+                resultsCount: resultsArray.length,
                 searchLimit: limit,
             },
         });
 
-        const searchResults = {
-            search,
-            results: rows.map((row) => row[getItemId(field)]),
-            refreshedAt: new Date(),
-        };
-        if (isCacheEnabled) {
-            const buffer = Buffer.from(
-                JSON.stringify({
-                    ...searchResults,
-                    cached: true,
-                }),
-            );
-            // fire and forget
-            this.s3CacheClient
-                .uploadResults(queryHash, buffer, queryTags)
-                .catch((e) => undefined); // ignore since error is tracked in s3Client
-        }
-
         return {
-            ...searchResults,
+            search,
+            results: resultsArray,
+            refreshedAt: new Date(),
             cached: false,
         };
     }
