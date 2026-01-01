@@ -1,5 +1,6 @@
 import {
     getBaseFieldIdFromPop,
+    getBaseFieldIdFromRollingPeriod,
     ResultColumns,
     WarehouseResults,
 } from '@lightdash/common';
@@ -23,7 +24,11 @@ export function getUnpivotedColumns(
     if (!Object.keys(unpivotedColumns).length && fields) {
         return Object.entries(fields).reduce<ResultColumns>(
             (acc, [key, value]) => {
-                const baseFieldId = getBaseFieldIdFromPop(key);
+                // Check for both previous period and rolling period fields
+                const baseFieldIdFromPop = getBaseFieldIdFromPop(key);
+                const baseFieldIdFromRolling = getBaseFieldIdFromRollingPeriod(key);
+                const baseFieldId = baseFieldIdFromPop || baseFieldIdFromRolling;
+
                 const isPopColumn =
                     baseFieldId !== null &&
                     popEnabledMetrics?.has(baseFieldId) === true;
