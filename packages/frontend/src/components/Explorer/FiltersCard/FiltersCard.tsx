@@ -28,6 +28,7 @@ import {
     selectIsEditMode,
     selectIsFiltersExpanded,
     selectMetricQuery,
+    selectParameters,
     selectTableCalculations,
     selectTableName,
     useExplorerDispatch,
@@ -54,6 +55,7 @@ const FiltersCard: FC = memo(() => {
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const filters = useExplorerSelector(selectFilters);
     const isEditMode = useExplorerSelector(selectIsEditMode);
+    const parameterValues = useExplorerSelector(selectParameters);
     const dispatch = useExplorerDispatch();
 
     const tableName = useExplorerSelector(selectTableName);
@@ -319,6 +321,7 @@ const FiltersCard: FC = memo(() => {
                         withinPortal: true,
                     }}
                     baseTable={data?.baseTable}
+                    parameterValues={parameterValues}
                 >
                     <FiltersForm
                         isEditMode={isEditMode}
