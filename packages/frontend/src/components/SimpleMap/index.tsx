@@ -1,5 +1,5 @@
 import { MapChartType } from '@lightdash/common';
-import { Box, Divider, Text, UnstyledButton } from '@mantine/core';
+import { Box, Divider, Stack, Text, UnstyledButton } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconMap } from '@tabler/icons-react';
 import { scaleSqrt } from 'd3-scale';
@@ -29,6 +29,7 @@ import * as topojson from 'topojson-client';
 import type { Topology } from 'topojson-specification';
 import useLeafletMapConfig, {
     type ScatterPoint,
+    type TooltipFieldInfo,
 } from '../../hooks/leaflet/useLeafletMapConfig';
 import useToaster from '../../hooks/toaster/useToaster';
 import { isMapVisualizationConfig } from '../LightdashVisualization/types';
@@ -41,92 +42,156 @@ import MapLegend from './MapLegend';
 // eslint-disable-next-line css-modules/no-unused-class
 import classes from './SimpleMap.module.css';
 
+// Helper to get formatted value from row data
+const getFormattedValue = (
+    rowData: Record<string, any>,
+    fieldId: string,
+): string => {
+    const field = rowData[fieldId];
+    if (!field) return '';
+    return field.value?.formatted ?? field.value?.raw ?? '';
+};
+
 // Shared tooltip content component
 type MapTooltipContentProps = {
-    label: string;
-    value: string | number;
+    tooltipFields: TooltipFieldInfo[];
+    rowData: Record<string, any>;
     lat?: number;
     lon?: number;
 };
 
 const MapTooltipContent: FC<MapTooltipContentProps> = ({
-    label,
-    value,
+    tooltipFields,
+    rowData,
     lat,
     lon,
-}) => (
-    <Box>
-        <Text size="sm">
-            <strong>{label}:</strong> {value}
-        </Text>
-        {lat !== undefined && lon !== undefined && (
-            <Text size="xs" c="dimmed" mt="sm">
-                Lat: {lat.toFixed(4)}, Lon: {lon.toFixed(4)}
-            </Text>
-        )}
-    </Box>
-);
+}) => {
+    const visibleFields = tooltipFields.filter((f) => f.visible);
+
+    // Using inline styles because this is rendered via renderToString
+    // and Mantine styles won't be applied
+    return (
+        <div style={{ padding: '4px 6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {visibleFields.map((field) => (
+                    <div key={field.fieldId} style={{ fontSize: 14 }}>
+                        <strong>{field.label}:</strong>{' '}
+                        {getFormattedValue(rowData, field.fieldId)}
+                    </div>
+                ))}
+            </div>
+            {lat !== undefined && lon !== undefined && (
+                <div
+                    style={{
+                        fontSize: 12,
+                        color: '#868e96',
+                        marginTop: 8,
+                    }}
+                >
+                    Lat: {lat.toFixed(4)}, Lon: {lon.toFixed(4)}
+                </div>
+            )}
+        </div>
+    );
+};
 
 // Shared popup content component
 type MapPopupContentProps = {
-    label: string;
-    value: string | number;
+    tooltipFields: TooltipFieldInfo[];
+    rowData: Record<string, any>;
     lat?: number;
     lon?: number;
     onCopy?: () => void;
 };
 
 const MapPopupContent: FC<MapPopupContentProps> = ({
-    label,
-    value,
+    tooltipFields,
+    rowData,
     lat,
     lon,
     onCopy,
-}) => (
-    // Force light mode colors since Leaflet popups always have white background
-    <Box mt="xl" c="dark.7">
-        <Text size="sm">
-            <strong>{label}:</strong> {value}
-        </Text>
-        {lat !== undefined && lon !== undefined && (
-            <Text size="xs" c="gray.6" mt="sm" mb="md">
-                Lat: {lat.toFixed(4)}, Lon: {lon.toFixed(4)}
-            </Text>
-        )}
-        <Divider my="xs" c="gray.3" />
-        <UnstyledButton
-            onClick={onCopy}
-            data-copy-value={value}
-            className={classes.popupActionButton}
-        >
-            <MantineIcon icon={IconCopy} />
-            <Text size="sm">Copy value</Text>
-        </UnstyledButton>
-    </Box>
-);
+}) => {
+    const visibleFields = tooltipFields.filter((f) => f.visible);
+    const hasMultipleFields = visibleFields.length > 1;
+
+    // Build copy value - CSV format for multiple fields, single value otherwise
+    const copyValue =
+        visibleFields.length > 0
+            ? hasMultipleFields
+                ? visibleFields
+                      .map((field) => getFormattedValue(rowData, field.fieldId))
+                      .join(', ')
+                : getFormattedValue(rowData, visibleFields[0].fieldId)
+            : '';
+
+    return (
+        // Force light mode colors since Leaflet popups always have white background
+        <Box mt="xl" c="dark.9">
+            <Stack spacing={2}>
+                {visibleFields.map((field) => (
+                    <Text key={field.fieldId} size="sm">
+                        <strong>{field.label}:</strong>{' '}
+                        {getFormattedValue(rowData, field.fieldId)}
+                    </Text>
+                ))}
+            </Stack>
+            {lat !== undefined && lon !== undefined && (
+                <Text size="xs" c="gray.6" mt="sm" mb="md">
+                    Lat: {lat.toFixed(4)}, Lon: {lon.toFixed(4)}
+                </Text>
+            )}
+            {copyValue && (
+                <>
+                    <Divider my="xs" c="gray.3" />
+                    <UnstyledButton
+                        onClick={onCopy}
+                        data-copy-value={copyValue}
+                        className={classes.popupActionButton}
+                    >
+                        <MantineIcon icon={IconCopy} />
+                        <Text size="sm">
+                            {hasMultipleFields ? 'Copy values' : 'Copy value'}
+                        </Text>
+                    </UnstyledButton>
+                </>
+            )}
+        </Box>
+    );
+};
 
 // MapMarker component for scatter points with tooltip/popup behavior
 type MapMarkerProps = {
     point: ScatterPoint;
     radius: number;
     color: string;
-    valueFieldLabel: string;
+    tooltipFields: TooltipFieldInfo[];
 };
 
 const MapMarker: FC<MapMarkerProps> = ({
     point,
     radius,
     color,
-    valueFieldLabel,
+    tooltipFields,
 }) => {
     const [isPopupOpen, setIsPopupOpen] = useState(false);
     const clipboard = useClipboard({ timeout: 200 });
     const { showToastSuccess } = useToaster();
 
     const handleCopy = useCallback(() => {
-        clipboard.copy(String(point.displayValue));
+        const visibleFields = tooltipFields.filter((f) => f.visible);
+        const copyValue =
+            visibleFields.length > 0
+                ? visibleFields.length > 1
+                    ? visibleFields
+                          .map((field) =>
+                              getFormattedValue(point.rowData, field.fieldId),
+                          )
+                          .join(', ')
+                    : getFormattedValue(point.rowData, visibleFields[0].fieldId)
+                : '';
+        clipboard.copy(copyValue);
         showToastSuccess({ title: 'Copied to clipboard!' });
-    }, [clipboard, point.displayValue, showToastSuccess]);
+    }, [clipboard, tooltipFields, point.rowData, showToastSuccess]);
 
     return (
         <CircleMarker
@@ -146,8 +211,8 @@ const MapMarker: FC<MapMarkerProps> = ({
             {!isPopupOpen && (
                 <Tooltip>
                     <MapTooltipContent
-                        label={valueFieldLabel}
-                        value={point.displayValue}
+                        tooltipFields={tooltipFields}
+                        rowData={point.rowData}
                         lat={point.lat}
                         lon={point.lon}
                     />
@@ -155,8 +220,8 @@ const MapMarker: FC<MapMarkerProps> = ({
             )}
             <Popup>
                 <MapPopupContent
-                    label={valueFieldLabel}
-                    value={point.displayValue}
+                    tooltipFields={tooltipFields}
+                    rowData={point.rowData}
                     lat={point.lat}
                     lon={point.lon}
                     onCopy={handleCopy}
@@ -485,9 +550,15 @@ const SimpleMap: FC<SimpleMapProps> = memo(
         );
 
         const regionDataMap = useMemo(() => {
-            const dataMap = new Map<string, number>();
+            const dataMap = new Map<
+                string,
+                { value: number; rowData?: Record<string, any> }
+            >();
             regionData.forEach((d) => {
-                dataMap.set(d.name.toLowerCase(), d.value);
+                dataMap.set(d.name.toLowerCase(), {
+                    value: d.value,
+                    rowData: d.rowData,
+                });
             });
             return dataMap;
         }, [regionData]);
@@ -516,11 +587,11 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     feature.properties.name?.toLowerCase() ||
                     feature.properties.NAME?.toLowerCase() ||
                     '';
-                const value = regionDataMap.get(name);
+                const regionEntry = regionDataMap.get(name);
 
-                if (value !== undefined) {
+                if (regionEntry !== undefined) {
                     const color = getColorForValue(
-                        value,
+                        regionEntry.value,
                         regionValueRange.min,
                         regionValueRange.max,
                         mapConfig.colors.scale,
@@ -551,20 +622,22 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     feature.properties?.name ||
                     feature.properties?.NAME ||
                     'Unknown';
-                const value = regionDataMap.get(name.toLowerCase());
+                const regionEntry = regionDataMap.get(name.toLowerCase());
+                const rowData = regionEntry?.rowData || {};
 
-                const valueLabel = mapConfig?.valueFieldLabel || 'Value';
-                const displayValue = value !== undefined ? value : 'No data';
                 // eslint-disable-next-line testing-library/render-result-naming-convention
                 const tooltipHtml = renderToString(
                     <MapTooltipContent
-                        label={valueLabel}
-                        value={displayValue}
+                        tooltipFields={mapConfig?.tooltipFields || []}
+                        rowData={rowData}
                     />,
                 );
                 // eslint-disable-next-line testing-library/render-result-naming-convention
                 const popupHtml = renderToString(
-                    <MapPopupContent label={valueLabel} value={displayValue} />,
+                    <MapPopupContent
+                        tooltipFields={mapConfig?.tooltipFields || []}
+                        rowData={rowData}
+                    />,
                 );
 
                 if (layer instanceof L.Path) {
@@ -609,7 +682,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     });
                 }
             },
-            [regionDataMap, mapConfig?.valueFieldLabel, handlePopupCopyClick],
+            [regionDataMap, mapConfig?.tooltipFields, handlePopupCopyClick],
         );
 
         if (isLoading) {
@@ -666,9 +739,9 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                 points={heatmapPoints}
                                 options={{
                                     gradient: heatmapGradient,
-                                    radius: 25,
-                                    blur: 15,
-                                    minOpacity: 0.6,
+                                    radius: mapConfig.heatmapConfig.radius,
+                                    blur: mapConfig.heatmapConfig.blur,
+                                    minOpacity: mapConfig.heatmapConfig.opacity,
                                 }}
                             />
                         ) : (
@@ -696,9 +769,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                         point={point}
                                         radius={radius}
                                         color={color}
-                                        valueFieldLabel={
-                                            mapConfig.valueFieldLabel || 'Value'
-                                        }
+                                        tooltipFields={mapConfig.tooltipFields}
                                     />
                                 );
                             })

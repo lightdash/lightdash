@@ -9,9 +9,7 @@ import {
     Box,
     Card,
     Flex,
-    getDefaultZIndex,
     Group,
-    LoadingOverlay,
     Paper,
     rem,
     Text,
@@ -33,6 +31,7 @@ import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/Delet
 import ChartUpdateModal from '../TileForms/ChartUpdateModal';
 import MoveTileToTabModal from '../TileForms/MoveTileToTabModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
+import LoadingSkeletonOverlay from './LoadingSkeletonOverlay';
 import styles from './TileBase.module.css';
 import { type TileBaseProps } from './types';
 
@@ -45,6 +44,7 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
     tile,
     isLoading = false,
     hasError = false,
+    chartKind,
     extraMenuItems = null,
     onDelete,
     onEdit,
@@ -106,12 +106,11 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
                 lockHeaderVisibility) && (
                 <Paper
                     p={5}
-                    className="non-draggable"
+                    className={clsx('non-draggable', styles.tileTooltip)}
                     shadow="sm"
                     pos="absolute"
                     top={-6}
                     right={-2}
-                    style={{ zIndex: 10 }}
                 >
                     <Group gap={5} wrap="nowrap">
                         {titleLeftIcon}
@@ -239,11 +238,12 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
                 bg={transparent ? 'transparent' : 'background'}
                 radius={isEditMode ? rem(4) : rem(12)}
             >
-                <LoadingOverlay
+                <LoadingSkeletonOverlay
                     // ! Very important to have this class name on the tile loading overlay, otherwise the unfurl service will not be able to find it
                     className={LOADING_CHART_OVERLAY_CLASS}
+                    hasTitle={!hideTitle}
+                    chartKind={chartKind}
                     visible={isLoading ?? false}
-                    zIndex={getDefaultZIndex('modal') - 10}
                 />
 
                 <Group
@@ -254,9 +254,6 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
                     mb="12px"
                     data-is-edit-mode={isEditMode}
                     data-is-empty={isMarkdownTileTitleEmpty || hideTitle}
-                    style={{
-                        zIndex: isLoading ? getDefaultZIndex('modal') - 10 : 3,
-                    }}
                 >
                     {minimal ? (
                         !hideTitle ? (

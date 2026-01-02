@@ -466,6 +466,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                     }
                                 }}
                                 classNames={{
+                                    root: styles.tabsRoot,
                                     list: styles.list,
                                     tab: styles.tab,
                                 }}

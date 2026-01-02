@@ -5,7 +5,9 @@ import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import {
     type ApiJobScheduledResponse,
     type ApiJobStatusResponse,
+    type ApiReassignUserSchedulersResponse,
     type ApiSchedulersResponse,
+    type ApiUserSchedulersSummaryResponse,
     type SchedulerAndTargets,
     type SchedulerJobStatus,
 } from './scheduler';
@@ -793,6 +795,8 @@ type ApiResults =
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
     | ApiSchedulersResponse['results']
+    | ApiUserSchedulersSummaryResponse['results']
+    | ApiReassignUserSchedulersResponse['results']
     | ApiUserActivityDownloadCsv['results']
     | ApiRenameFieldsResponse['results']
     | ApiDownloadAsyncQueryResults

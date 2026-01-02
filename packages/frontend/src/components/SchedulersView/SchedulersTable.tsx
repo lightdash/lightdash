@@ -443,7 +443,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
             },
             {
                 accessorKey: 'lastRunStatus',
-                header: 'Last Run Status',
+                header: 'Last Run',
                 enableSorting: false,
                 size: 160,
                 Header: ({ column }) => (
@@ -492,7 +492,11 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             }
                         >
                             <Badge
+                                variant="light"
                                 size="sm"
+                                radius="sm"
+                                tt="capitalize"
+                                fw={400}
                                 color={statusConfig.color}
                                 leftSection={
                                     <MantineIcon
@@ -678,6 +682,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 id: 'actions',
                 header: '',
                 enableSorting: false,
+                enableResizing: false,
                 size: 50,
                 Cell: ({ row }) => {
                     const item = row.original;
@@ -711,7 +716,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     const table = useMantineReactTable({
         columns,
         data: tableData,
-        enableColumnResizing: false,
+        enableColumnResizing: true,
         enableRowNumbers: false,
         enablePagination: false,
         enableFilters: false,
@@ -752,6 +757,13 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         mantineTableHeadRowProps: {
             sx: {
                 boxShadow: 'none',
+                'th > div > div:last-child': {
+                    top: -10,
+                    right: -5,
+                },
+                'th > div > div:last-child > .mantine-Divider-root': {
+                    border: 'none',
+                },
             },
         },
         mantineTableContainerProps: {
@@ -768,6 +780,11 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
             const isLastColumn =
                 props.table.getAllColumns().indexOf(props.column) ===
                 props.table.getAllColumns().length - 1;
+
+            const isAnyColumnResizing = props.table
+                .getAllColumns()
+                .some((c) => c.getIsResizing());
+            const canResize = props.column.getCanResize();
 
             return {
                 bg: 'ldGray.0',
@@ -787,6 +804,16 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                   : theme.colors.ldGray[2]
                           }`,
                     borderLeft: 'none',
+                },
+                sx: {
+                    '&:hover': canResize
+                        ? {
+                              borderRight: !isAnyColumnResizing
+                                  ? `2px solid ${theme.colors.blue[3]} !important` // This is needed to override the default inline styles
+                                  : undefined,
+                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                          }
+                        : {},
                 },
             };
         },

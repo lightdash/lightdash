@@ -1,6 +1,8 @@
 import {
     type ApiError,
     type ApiOrganizationMemberProfiles,
+    type ApiReassignUserSchedulersResponse,
+    type ApiUserSchedulersSummaryResponse,
     type KnexPaginateArgs,
 } from '@lightdash/common';
 import {
@@ -158,6 +160,63 @@ export const useDeleteOrganizationUserMutation = () => {
         onError: ({ error }) => {
             showToastApiError({
                 title: `Failed to delete user`,
+                apiError: error,
+            });
+        },
+    });
+};
+
+const getUserSchedulersSummaryQuery = async (userUuid: string) =>
+    lightdashApi<ApiUserSchedulersSummaryResponse['results']>({
+        url: `/org/user/${userUuid}/schedulers-summary`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useUserSchedulersSummary = (
+    userUuid: string,
+    enabled: boolean = true,
+) => {
+    const setErrorResponse = useQueryError();
+    return useQuery<ApiUserSchedulersSummaryResponse['results'], ApiError>({
+        queryKey: ['user_schedulers_summary', userUuid],
+        queryFn: () => getUserSchedulersSummaryQuery(userUuid),
+        onError: (result) => setErrorResponse(result),
+        enabled,
+    });
+};
+
+const reassignUserSchedulersQuery = async ({
+    userUuid,
+    newOwnerUserUuid,
+}: {
+    userUuid: string;
+    newOwnerUserUuid: string;
+}) =>
+    lightdashApi<ApiReassignUserSchedulersResponse['results']>({
+        url: `/org/user/${userUuid}/reassign-schedulers`,
+        method: 'PATCH',
+        body: JSON.stringify({ newOwnerUserUuid }),
+    });
+
+export const useReassignUserSchedulersMutation = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<
+        ApiReassignUserSchedulersResponse['results'],
+        ApiError,
+        { userUuid: string; newOwnerUserUuid: string }
+    >(reassignUserSchedulersQuery, {
+        mutationKey: ['reassign_user_schedulers'],
+        onSuccess: async (data) => {
+            showToastSuccess({
+                title: `Success! ${data.reassignedCount} scheduled ${
+                    data.reassignedCount === 1 ? 'delivery' : 'deliveries'
+                } reassigned.`,
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: `Failed to reassign scheduled deliveries`,
                 apiError: error,
             });
         },

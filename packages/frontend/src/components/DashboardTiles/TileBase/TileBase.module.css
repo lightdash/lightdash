@@ -59,7 +59,6 @@
     &[data-hovered='true'] {
         white-space: normal;
         overflow: visible;
-        z-index: 10;
         outline: 4px solid var(--mantine-color-background-0);
         background-color: var(--mantine-color-background-0);
         color: var(--mantine-color-foreground-0);
@@ -107,4 +106,12 @@
     &[data-full-width='true'] {
         margin: 0 -16px -16px -16px;
     }
+}
+
+.tileTooltip {
+    /* When tabs are not stuck: show tooltip above tabs (zindex + 1)
+       When tabs are stuck: show tooltip below tabs (zindex - 1) */
+    z-index: calc(
+        var(--dashboard-tabs-zindex) + 1 - (var(--tabs-stuck, 0) * 2)
+    );
 }

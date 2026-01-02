@@ -183,6 +183,24 @@ const LogsTable: FC<LogsTableProps> = ({
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
+    // Re-measure virtualizer when container becomes visible (fixes virtualization when switching tabs)
+    // Note: depends on isLoading because the table container only exists after loading completes
+    useEffect(() => {
+        const container = tableContainerRef.current;
+        if (!container) return;
+
+        const resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                if (entry.contentRect.height > 0) {
+                    rowVirtualizerInstanceRef.current?.measure?.();
+                }
+            }
+        });
+
+        resizeObserver.observe(container);
+        return () => resizeObserver.disconnect();
+    }, [isLoading]);
+
     const theme = useMantineTheme();
     const [isConfirmOpen, setIsConfirmOpen] = useState(false);
     const [selectedScheduler, setSelectedScheduler] = useState<{
@@ -374,7 +392,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         SchedulerJobStatus.COMPLETED,
                                         theme,
                                     )}
-                                    <Text fz="xs" c="gray.7">
+                                    <Text fz="xs" c="ldGray.7">
                                         Completed successfully
                                     </Text>
                                 </>
@@ -384,7 +402,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         SchedulerJobStatus.ERROR,
                                         theme,
                                     )}
-                                    <Text fz="xs" c="gray.7">
+                                    <Text fz="xs" c="ldGray.7">
                                         Failed
                                     </Text>
                                 </>
@@ -398,7 +416,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                             color: theme.colors.orange[6],
                                         }}
                                     />
-                                    <Text fz="xs" c="gray.7">
+                                    <Text fz="xs" c="ldGray.7">
                                         Partial failure
                                     </Text>
                                 </>
@@ -408,7 +426,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         SchedulerJobStatus.STARTED,
                                         theme,
                                     )}
-                                    <Text fz="xs" c="gray.7">
+                                    <Text fz="xs" c="ldGray.7">
                                         Running
                                     </Text>
                                 </>
@@ -418,7 +436,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         SchedulerJobStatus.SCHEDULED,
                                         theme,
                                     )}
-                                    <Text fz="xs" c="gray.7">
+                                    <Text fz="xs" c="ldGray.7">
                                         Scheduled
                                     </Text>
                                 </>
@@ -441,7 +459,7 @@ const LogsTable: FC<LogsTableProps> = ({
                 Cell: ({ row }) => {
                     const { run } = row.original;
                     return (
-                        <Text fz="xs" c="gray.6">
+                        <Text fz="xs" c="ldGray.6">
                             {formatTime(run.scheduledTime)}
                         </Text>
                     );
@@ -461,7 +479,7 @@ const LogsTable: FC<LogsTableProps> = ({
                 Cell: ({ row }) => {
                     const { run } = row.original;
                     return (
-                        <Text fz="xs" c="gray.6">
+                        <Text fz="xs" c="ldGray.6">
                             {formatTime(run.createdAt)}
                         </Text>
                     );
@@ -471,6 +489,7 @@ const LogsTable: FC<LogsTableProps> = ({
                 accessorKey: 'actions',
                 header: '',
                 enableSorting: false,
+                enableResizing: false,
                 size: 60,
                 Cell: ({ row }) => {
                     const { run } = row.original;
@@ -545,7 +564,7 @@ const LogsTable: FC<LogsTableProps> = ({
     const table = useMantineReactTable({
         columns,
         data: tableData,
-        enableColumnResizing: false,
+        enableColumnResizing: true,
         enableRowNumbers: false,
         enablePagination: false,
         enableFilters: false,
@@ -601,11 +620,14 @@ const LogsTable: FC<LogsTableProps> = ({
             withColumnBorders: Boolean(tableData.length),
         },
         mantineTableHeadCellProps: (props) => {
-            const isFirstColumn =
-                props.table.getAllColumns().indexOf(props.column) === 0;
             const isLastColumn =
                 props.table.getAllColumns().indexOf(props.column) ===
                 props.table.getAllColumns().length - 1;
+
+            const isAnyColumnResizing = props.table
+                .getAllColumns()
+                .some((c) => c.getIsResizing());
+            const canResize = props.column.getCanResize();
 
             return {
                 bg: 'ldGray.0',
@@ -613,23 +635,41 @@ const LogsTable: FC<LogsTableProps> = ({
                 pos: 'relative',
                 style: {
                     userSelect: 'none',
+                    justifyContent: 'center',
                     padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
+                    borderTop: `1px solid ${theme.colors.ldGray[2]}`,
                     borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
                     borderRight: props.column.getIsResizing()
                         ? `2px solid ${theme.colors.blue[3]}`
                         : `1px solid ${
-                              isLastColumn || isFirstColumn
+                              isLastColumn
                                   ? 'transparent'
                                   : theme.colors.ldGray[2]
                           }`,
-                    borderTop: 'none',
                     borderLeft: 'none',
+                },
+                sx: {
+                    '&:hover': canResize
+                        ? {
+                              borderRight: !isAnyColumnResizing
+                                  ? `2px solid ${theme.colors.blue[3]} !important`
+                                  : undefined,
+                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                          }
+                        : {},
                 },
             };
         },
         mantineTableHeadRowProps: {
             sx: {
                 boxShadow: 'none',
+                'th > div > div:last-child': {
+                    top: -10,
+                    right: -5,
+                },
+                'th > div > div:last-child > .mantine-Divider-root': {
+                    border: 'none',
+                },
             },
         },
         mantineTableBodyCellProps: () => {

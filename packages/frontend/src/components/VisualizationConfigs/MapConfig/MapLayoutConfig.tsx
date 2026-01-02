@@ -1,5 +1,6 @@
 import {
     getItemId,
+    getItemLabelWithoutTableName,
     isCustomDimension,
     isDimension,
     isMetric,
@@ -20,6 +21,7 @@ import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import FieldSelect from '../../common/FieldSelect';
 import { Config } from '../common/Config';
+import MapFieldConfiguration from './MapFieldConfiguration';
 
 export const Layout: FC = memo(() => {
     const { visualizationConfig, itemsMap } = useVisualizationContext();
@@ -41,6 +43,9 @@ export const Layout: FC = memo(() => {
         return null;
     }
 
+    const { latitudeFieldId, longitudeFieldId } =
+        visualizationConfig.chartConfig.validConfig;
+
     const {
         chartConfig: {
             validConfig,
@@ -50,23 +55,18 @@ export const Layout: FC = memo(() => {
             setLatitudeFieldId,
             setLongitudeFieldId,
             setLocationFieldId,
-            setValueFieldId,
         },
     } = visualizationConfig;
 
     const mapTypeOptions = [
         { value: MapChartLocation.WORLD, label: 'World' },
-        { value: MapChartLocation.EUROPE, label: 'Europe' },
         { value: MapChartLocation.USA, label: 'US' },
     ];
 
     const locationTypeOptions = [
-        {
-            value: MapChartType.SCATTER,
-            label: 'Scatter',
-        },
-        { value: MapChartType.HEATMAP, label: 'Heatmap' },
+        { value: MapChartType.SCATTER, label: 'Scatter' },
         { value: MapChartType.AREA, label: 'Area' },
+        { value: MapChartType.HEATMAP, label: 'Heatmap' },
     ];
 
     const locationType = validConfig.locationType || MapChartType.SCATTER;
@@ -88,11 +88,35 @@ export const Layout: FC = memo(() => {
             ? itemsMap[validConfig.locationFieldId]
             : undefined
         : undefined;
-    const valueField = itemsMap
-        ? validConfig.valueFieldId
-            ? itemsMap[validConfig.valueFieldId]
-            : undefined
-        : undefined;
+
+    // Show Values section for scatter and area maps (not heatmap)
+    const showValuesSection =
+        locationType === MapChartType.SCATTER ||
+        locationType === MapChartType.AREA;
+
+    // Helper to check if a field looks like a lat/lon field by its label
+    const isLatLonField = (fieldId: string): boolean => {
+        // First check if it's the selected lat/lon field
+        if (fieldId === latitudeFieldId || fieldId === longitudeFieldId) {
+            return true;
+        }
+        // Then check by label pattern
+        const item = itemsMap?.[fieldId];
+        if (!item) return false;
+        const label = getItemLabelWithoutTableName(item).toLowerCase();
+        return (
+            label === 'lat' ||
+            label === 'latitude' ||
+            label === 'lon' ||
+            label === 'long' ||
+            label === 'longitude'
+        );
+    };
+
+    // Get field IDs for Values section, excluding lat/lon fields
+    const valueFieldIds = itemsMap
+        ? Object.keys(itemsMap).filter((fieldId) => !isLatLonField(fieldId))
+        : [];
 
     return (
         <Stack>
@@ -225,24 +249,19 @@ export const Layout: FC = memo(() => {
                 </>
             )}
 
-            <Config>
-                <Config.Section>
-                    <Config.Heading>Value</Config.Heading>
-                    <FieldSelect
-                        label="Value field (optional)"
-                        placeholder="Select field"
-                        item={valueField}
-                        items={availableFields}
-                        onChange={(newField) =>
-                            setValueFieldId(
-                                newField ? getItemId(newField) : undefined,
-                            )
-                        }
-                        hasGrouping
-                        clearable
-                    />
-                </Config.Section>
-            </Config>
+            {showValuesSection && valueFieldIds.length > 0 && (
+                <Config>
+                    <Config.Section>
+                        <Config.Heading>Values</Config.Heading>
+                        {valueFieldIds.map((fieldId) => (
+                            <MapFieldConfiguration
+                                key={fieldId}
+                                fieldId={fieldId}
+                            />
+                        ))}
+                    </Config.Section>
+                </Config>
+            )}
         </Stack>
     );
 });

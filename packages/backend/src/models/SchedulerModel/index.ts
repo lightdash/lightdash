@@ -21,6 +21,7 @@ import {
     SchedulerTaskName,
     SchedulerWithLogs,
     UpdateSchedulerAndTargets,
+    UserSchedulersSummary,
     isChartScheduler,
     isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
@@ -1734,5 +1735,216 @@ export class SchedulerModel {
             createdByUserUuid: firstParentJob.created_by_user_uuid,
             createdByUserName: firstParentJob.created_by_user_name,
         };
+    }
+
+    /**
+     * Get a summary of schedulers owned by a user across all projects.
+     * Returns the total count and breakdown by project.
+     */
+    async getSchedulersSummaryByOwner(
+        userUuid: string,
+    ): Promise<UserSchedulersSummary> {
+        type ProjectCountRow = {
+            project_uuid: string;
+            project_name: string;
+            count: string | number;
+        };
+
+        // Query schedulers for charts (including charts inside dashboards)
+        const chartSchedulersQuery = this.database(SchedulerTableName)
+            .count('*')
+            .select<ProjectCountRow[]>(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+            )
+            .innerJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SchedulerTableName}.saved_chart_uuid`,
+            )
+            .leftJoin(DashboardsTableName, function joinDashboards() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNotNull(`${SavedChartsTableName}.dashboard_uuid`);
+            })
+            .innerJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                ).andOnNotNull(`${SavedChartsTableName}.space_id`);
+                this.orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                );
+            })
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${SchedulerTableName}.created_by`, userUuid)
+            .whereNotNull(`${SchedulerTableName}.saved_chart_uuid`)
+            .groupBy(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name`,
+            );
+
+        // Query schedulers for dashboards
+        const dashboardSchedulersQuery = this.database(SchedulerTableName)
+            .count('*')
+            .select<ProjectCountRow[]>(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+            )
+            .innerJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SchedulerTableName}.dashboard_uuid`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${SchedulerTableName}.created_by`, userUuid)
+            .whereNotNull(`${SchedulerTableName}.dashboard_uuid`)
+            .groupBy(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name`,
+            );
+
+        const [chartResults, dashboardResults] = await Promise.all([
+            chartSchedulersQuery,
+            dashboardSchedulersQuery,
+        ]);
+
+        // Merge results by project
+        const projectMap = new Map<
+            string,
+            { projectUuid: string; projectName: string; count: number }
+        >();
+
+        const allResults: ProjectCountRow[] = [
+            ...chartResults,
+            ...dashboardResults,
+        ];
+
+        allResults.forEach((row) => {
+            const existing = projectMap.get(row.project_uuid);
+            const rowCount = Number(row.count);
+            if (existing) {
+                existing.count += rowCount;
+            } else {
+                projectMap.set(row.project_uuid, {
+                    projectUuid: row.project_uuid,
+                    projectName: row.project_name,
+                    count: rowCount,
+                });
+            }
+        });
+
+        const byProject = Array.from(projectMap.values());
+        const totalCount = byProject.reduce((sum, p) => sum + p.count, 0);
+
+        return {
+            totalCount,
+            byProject,
+        };
+    }
+
+    /**
+     * Update ownership of all schedulers from one user to another in specific projects.
+     * Returns the number of schedulers updated.
+     */
+    async updateOwnerByUser(
+        fromUserUuid: string,
+        toUserUuid: string,
+        projectUuids: string[],
+    ): Promise<number> {
+        // Get scheduler UUIDs that belong to the specified projects
+        // Chart schedulers (including charts inside dashboards)
+        const chartSchedulerUuids = await this.database(SchedulerTableName)
+            .select(`${SchedulerTableName}.scheduler_uuid`)
+            .innerJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SchedulerTableName}.saved_chart_uuid`,
+            )
+            .leftJoin(DashboardsTableName, function joinDashboards() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNotNull(`${SavedChartsTableName}.dashboard_uuid`);
+            })
+            .innerJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                ).andOnNotNull(`${SavedChartsTableName}.space_id`);
+                this.orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                );
+            })
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${SchedulerTableName}.created_by`, fromUserUuid)
+            .whereNotNull(`${SchedulerTableName}.saved_chart_uuid`)
+            .whereIn(`${ProjectTableName}.project_uuid`, projectUuids);
+
+        // Dashboard schedulers
+        const dashboardSchedulerUuids = await this.database(SchedulerTableName)
+            .select(`${SchedulerTableName}.scheduler_uuid`)
+            .innerJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SchedulerTableName}.dashboard_uuid`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${SchedulerTableName}.created_by`, fromUserUuid)
+            .whereNotNull(`${SchedulerTableName}.dashboard_uuid`)
+            .whereIn(`${ProjectTableName}.project_uuid`, projectUuids);
+
+        const allSchedulerUuids = [
+            ...chartSchedulerUuids.map((r) => r.scheduler_uuid),
+            ...dashboardSchedulerUuids.map((r) => r.scheduler_uuid),
+        ];
+
+        if (allSchedulerUuids.length === 0) {
+            return 0;
+        }
+
+        const updatedCount = await this.database(SchedulerTableName)
+            .update({
+                created_by: toUserUuid,
+                updated_at: new Date(),
+            })
+            .whereIn('scheduler_uuid', allSchedulerUuids);
+
+        return updatedCount;
     }
 }

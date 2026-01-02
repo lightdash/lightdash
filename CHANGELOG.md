@@ -1,3 +1,86 @@
+## [0.2290.1](https://github.com/lightdash/lightdash/compare/0.2290.0...0.2290.1) (2025-12-31)
+
+
+### Bug Fixes
+
+* accommodate totals labels on 100s stacked bars ([#19173](https://github.com/lightdash/lightdash/issues/19173)) ([1b7dea4](https://github.com/lightdash/lightdash/commit/1b7dea47b1b0125a69cf5fa12ba91971d00ad4ff))
+
+# [0.2290.0](https://github.com/lightdash/lightdash/compare/0.2289.0...0.2290.0) (2025-12-31)
+
+
+### Features
+
+* show multiple values on map points ([#19139](https://github.com/lightdash/lightdash/issues/19139)) ([f9012fc](https://github.com/lightdash/lightdash/commit/f9012fc8666c5417cba97e245efed3b465014625))
+
+# [0.2289.0](https://github.com/lightdash/lightdash/compare/0.2288.0...0.2289.0) (2025-12-30)
+
+
+### Features
+
+* reassign schedulers on user delete ([#19133](https://github.com/lightdash/lightdash/issues/19133)) ([ba22021](https://github.com/lightdash/lightdash/commit/ba22021b62f0d193e3b0b4ace8c291c72e4138b3))
+
+# [0.2288.0](https://github.com/lightdash/lightdash/compare/0.2287.1...0.2288.0) (2025-12-30)
+
+
+### Features
+
+* add controls for heatmap ([#19028](https://github.com/lightdash/lightdash/issues/19028)) ([08f883d](https://github.com/lightdash/lightdash/commit/08f883dbe9a5b79e664e5252217c9c553bb96e16))
+
+## [0.2287.1](https://github.com/lightdash/lightdash/compare/0.2287.0...0.2287.1) (2025-12-30)
+
+
+### Bug Fixes
+
+* prevent screenshot ready indicator when query results are loading ([#19166](https://github.com/lightdash/lightdash/issues/19166)) ([1788402](https://github.com/lightdash/lightdash/commit/17884028c15dfc1e72534b72037f4b9b0ca84044))
+
+# [0.2287.0](https://github.com/lightdash/lightdash/compare/0.2286.0...0.2287.0) (2025-12-30)
+
+
+### Bug Fixes
+
+* logging individual scheduler targets when batch jobs are created ([#19153](https://github.com/lightdash/lightdash/issues/19153)) ([730ebcd](https://github.com/lightdash/lightdash/commit/730ebcd4b28550f64e2a12a3c354304554240539))
+
+
+### Features
+
+* **backend:** reassign user scheduled delivers on delete ([#19132](https://github.com/lightdash/lightdash/issues/19132)) ([d113a87](https://github.com/lightdash/lightdash/commit/d113a87df021b95dca274d3c3bcb548ad96cfb3e))
+
+# [0.2286.0](https://github.com/lightdash/lightdash/compare/0.2285.2...0.2286.0) (2025-12-30)
+
+
+### Features
+
+* improve loading states for tiles in dashboards ([#19080](https://github.com/lightdash/lightdash/issues/19080)) ([cbd1f0c](https://github.com/lightdash/lightdash/commit/cbd1f0c811d36fe354cce9d43fdaabba61677153)), closes [#18008](https://github.com/lightdash/lightdash/issues/18008) [#19015](https://github.com/lightdash/lightdash/issues/19015)
+* improve z-index config in dashboard v2 tiles ([#19151](https://github.com/lightdash/lightdash/issues/19151)) ([5c2c90d](https://github.com/lightdash/lightdash/commit/5c2c90daae8d3ae4a56f8331184d559683380882))
+
+## [0.2285.2](https://github.com/lightdash/lightdash/compare/0.2285.1...0.2285.2) (2025-12-30)
+
+
+### Bug Fixes
+
+* package specific cli update message ([#19162](https://github.com/lightdash/lightdash/issues/19162)) ([9b780a3](https://github.com/lightdash/lightdash/commit/9b780a327807a11afe805c2f71b41e98159e0d00))
+
+## [0.2285.1](https://github.com/lightdash/lightdash/compare/0.2285.0...0.2285.1) (2025-12-30)
+
+
+### Bug Fixes
+
+* badge click to run history and enable resizing columns in log history table ([#19157](https://github.com/lightdash/lightdash/issues/19157)) ([e171dcd](https://github.com/lightdash/lightdash/commit/e171dcd5c09e7a012fe38cda7607aff01a0c810c))
+
+# [0.2285.0](https://github.com/lightdash/lightdash/compare/0.2284.1...0.2285.0) (2025-12-30)
+
+
+### Features
+
+* show overlapping labels ([#19148](https://github.com/lightdash/lightdash/issues/19148)) ([6c019cb](https://github.com/lightdash/lightdash/commit/6c019cbfa9511f1a024a4a32b8c5e24f235c87c3))
+
+## [0.2284.1](https://github.com/lightdash/lightdash/compare/0.2284.0...0.2284.1) (2025-12-30)
+
+
+### Bug Fixes
+
+* enable resizing of schedulers table columns ([#19146](https://github.com/lightdash/lightdash/issues/19146)) ([33a8f1e](https://github.com/lightdash/lightdash/commit/33a8f1e86917b00591a194634d7bf45dbb3517d9))
+
 # [0.2284.0](https://github.com/lightdash/lightdash/compare/0.2283.0...0.2284.0) (2025-12-29)
 
 

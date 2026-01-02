@@ -5,6 +5,7 @@ import {
     createDashboardFilterRuleFromField,
     DashboardTileTypes,
     FeatureFlags,
+    getChartKind,
     getCustomLabelsFromTableConfig,
     getDimensions,
     getFields,
@@ -557,6 +558,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const projectUuid = useProjectUuid();
 
+    const chartKind = useMemo(
+        () => getChartKind(chart.chartConfig.type, chart.chartConfig.config),
+        [chart.chartConfig.type, chart.chartConfig.config],
+    );
+
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
     );
@@ -1010,6 +1016,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         <>
             <TileBase
                 lockHeaderVisibility={isCommentsMenuOpen}
+                chartKind={chartKind}
                 visibleHeaderElement={
                     // Dashboard comments button is always visible if they exist
                     tileHasComments ? dashboardComments : undefined
@@ -1682,6 +1689,11 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         [dashboardChartReadyQuery.executeQueryResponse.queryUuid],
     );
 
+    const chartKind = useMemo(
+        () => getChartKind(chart.chartConfig.type, chart.chartConfig.config),
+        [chart.chartConfig.type, chart.chartConfig.config],
+    );
+
     return (
         <>
             <TileBase
@@ -1689,6 +1701,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                 titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
                 description={chart.description}
                 isLoading={false}
+                chartKind={chartKind}
                 minimal={true}
                 extraMenuItems={
                     canExportCsv ||
@@ -1873,6 +1886,7 @@ export const GenericDashboardChartTile: FC<
                 isEditMode={isEditMode}
                 tile={tile}
                 hasError
+                chartKind={tile.properties.lastVersionChartKind ?? null}
                 extraMenuItems={
                     tile.properties.savedChartUuid && (
                         <Tooltip
@@ -1909,6 +1923,7 @@ export const GenericDashboardChartTile: FC<
                 belongsToDashboard={tile.properties.belongsToDashboard}
                 tile={tile}
                 isLoading
+                chartKind={tile.properties.lastVersionChartKind ?? null}
                 title={tile.properties.title || tile.properties.chartName || ''}
                 extraMenuItems={
                     !minimal &&
