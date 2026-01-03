@@ -48,6 +48,11 @@ describe('Get dbt version', () => {
             const version2 = await getDbtVersion();
             expect(version2.verboseVersion).toEqual('1.9.1');
             expect(version2.versionOption).toEqual(SupportedDbtVersions.V1_9);
+            // Test for 1.11
+            execaMock.mockImplementation(async () => cliMocks.dbt1_11);
+            const version3 = await getDbtVersion();
+            expect(version3.verboseVersion).toEqual('1.11.0');
+            expect(version3.versionOption).toEqual(SupportedDbtVersions.V1_11);
         });
         test('should return latest for dbt cloud', async () => {
             execaMock.mockImplementation(async () => cliMocks.dbtCloud);

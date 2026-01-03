@@ -59,6 +59,7 @@ const getSupportedDbtVersionOption = (
     if (version.startsWith('1.8.')) return SupportedDbtVersions.V1_8;
     if (version.startsWith('1.9.')) return SupportedDbtVersions.V1_9;
     if (version.startsWith('1.10.')) return SupportedDbtVersions.V1_10;
+    if (version.startsWith('1.11.')) return SupportedDbtVersions.V1_11;
 
     // No supported version found
     return null;
