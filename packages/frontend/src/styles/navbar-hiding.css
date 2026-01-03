@@ -1,0 +1,16 @@
+header[class*='mantine-Header-root'] {
+    transition: transform 250ms ease-in-out;
+}
+
+.navbar-spacer {
+    transition: height 250ms ease-in-out;
+    overflow: hidden;
+}
+
+body.dashboard-header-stuck header[class*='mantine-Header-root'] {
+    transform: translateY(-100%);
+}
+
+body.dashboard-header-stuck .navbar-spacer {
+    height: 0 !important;
+}

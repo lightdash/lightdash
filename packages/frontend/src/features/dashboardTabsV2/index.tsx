@@ -10,7 +10,7 @@ import {
 import { Button, Group, Tabs } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
-import { useMemo, useState, type FC } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
@@ -164,6 +164,19 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
         useState<boolean>(false);
 
     const [isHeaderStuck, setIsHeaderStuck] = useState<boolean>(false);
+
+    // Add/remove body class when sticky header state changes
+    useEffect(() => {
+        if (isHeaderStuck) {
+            document.body.classList.add('dashboard-header-stuck');
+        } else {
+            document.body.classList.remove('dashboard-header-stuck');
+        }
+
+        return () => {
+            document.body.classList.remove('dashboard-header-stuck');
+        };
+    }, [isHeaderStuck]);
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
