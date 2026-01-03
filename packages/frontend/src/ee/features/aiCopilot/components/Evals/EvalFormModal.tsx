@@ -178,34 +178,30 @@ export const EvalFormModal: FC<Props> = ({
     const submitButtonText =
         mode === 'create' ? 'Create Evaluation' : 'Save Changes';
 
-    const actions = (
-        <Group justify="space-between" w="100%">
-            {mode === 'edit' && onDelete ? (
-                <Button
-                    variant="outline"
-                    color="red"
-                    type="button"
-                    leftSection={<MantineIcon icon={IconTrash} />}
-                    onClick={handleDelete}
-                    disabled={isLoading || isDeleting}
-                    loading={isDeleting}
-                    form="eval-form"
-                >
-                    Delete
-                </Button>
-            ) : (
-                <div />
-            )}
-
-            <Group gap="sm">
-                <Button
-                    variant="outline"
-                    type="button"
-                    onClick={handleClose}
-                    disabled={isLoading || isDeleting}
-                >
-                    Cancel
-                </Button>
+    return (
+        <MantineModal
+            opened={isOpened}
+            onClose={handleClose}
+            icon={IconSettings}
+            title={modalTitle}
+            size="full"
+            cancelDisabled={isLoading || isDeleting}
+            leftActions={
+                mode === 'edit' && onDelete ? (
+                    <Button
+                        variant="outline"
+                        color="red"
+                        type="button"
+                        leftSection={<MantineIcon icon={IconTrash} />}
+                        onClick={handleDelete}
+                        disabled={isLoading || isDeleting}
+                        loading={isDeleting}
+                    >
+                        Delete
+                    </Button>
+                ) : null
+            }
+            actions={
                 <Button
                     type="submit"
                     loading={isLoading}
@@ -214,26 +210,7 @@ export const EvalFormModal: FC<Props> = ({
                 >
                     {submitButtonText}
                 </Button>
-            </Group>
-        </Group>
-    );
-
-    return (
-        <MantineModal
-            opened={isOpened}
-            onClose={handleClose}
-            icon={IconSettings}
-            title={modalTitle}
-            size="full"
-            actions={actions}
-            modalRootProps={{
-                zIndex: 1000,
-            }}
-            modalContentProps={{
-                style: {
-                    maxWidth: '100rem',
-                },
-            }}
+            }
         >
             <form id="eval-form" onSubmit={form.onSubmit(handleSubmit)}>
                 <Stack gap="md">

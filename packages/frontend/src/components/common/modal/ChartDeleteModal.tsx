@@ -1,16 +1,11 @@
 import {
-    Alert,
     Anchor,
     Button,
-    Group,
     List,
-    Modal,
-    Stack,
-    Text,
-    Title,
+    ScrollArea,
     type ModalProps,
-} from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+} from '@mantine-8/core';
+import { IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
@@ -18,7 +13,8 @@ import {
     useSavedQuery,
     useSavedQueryDeleteMutation,
 } from '../../../hooks/useSavedQuery';
-import MantineIcon from '../MantineIcon';
+import MantineModal from '../MantineModal';
+import Callout from '../Callout';
 
 interface ChartDeleteModalProps extends ModalProps {
     uuid: string;
@@ -54,67 +50,53 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     };
 
     return (
-        <Modal title={<Title order={4}>Delete Chart</Title>} {...modalProps}>
-            <Stack spacing="lg" pt="sm">
-                <Text>
-                    Are you sure you want to delete the chart{' '}
-                    <Text span fw={600}>
-                        "{chart.name}"
-                    </Text>
+        <MantineModal
+            opened={modalProps.opened}
+            onClose={modalProps.onClose}
+            title="Delete Chart"
+            icon={IconTrash}
+            actions={
+                <Button
+                    color="red"
+                    loading={isDeleting}
+                    onClick={handleConfirm}
+                >
+                    Delete
+                </Button>
+            }
+            description={`
+                    Are you sure you want to delete the chart 
+                   
+                        "${chart.name}"
                     ?
-                </Text>
-
-                {relatedDashboards.length > 0 && (
-                    <>
-                        <Alert
-                            color="red"
-                            icon={<MantineIcon icon={IconAlertCircle} />}
-                            title={
-                                <Text fw={600}>
-                                    This action will permanently remove a chart
-                                    tile from {relatedDashboards.length}{' '}
-                                    dashboard
-                                    {relatedDashboards.length > 1 ? 's' : ''}:
-                                </Text>
-                            }
-                        >
-                            <List fz="sm">
-                                {relatedDashboards.map((dashboard) => (
-                                    <List.Item key={dashboard.uuid}>
-                                        <Anchor
-                                            color="red"
-                                            component={Link}
-                                            target="_blank"
-                                            to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
-                                        >
-                                            {dashboard.name}
-                                        </Anchor>
-                                    </List.Item>
-                                ))}
-                            </List>
-                        </Alert>
-                    </>
-                )}
-
-                <Group position="right" mt="sm">
-                    <Button
-                        color="dark"
-                        variant="outline"
-                        onClick={modalProps.onClose}
-                    >
-                        Cancel
-                    </Button>
-
-                    <Button
-                        loading={isDeleting}
-                        color="red"
-                        onClick={handleConfirm}
-                    >
-                        Delete
-                    </Button>
-                </Group>
-            </Stack>
-        </Modal>
+                    `}
+        >
+            {relatedDashboards.length > 0 && (
+                <Callout
+                    variant="danger"
+                    title={`This action will permanently remove a chart tile from ${
+                        relatedDashboards.length
+                    } dashboard${relatedDashboards.length > 1 ? 's' : ''}:`}
+                >
+                    <ScrollArea.Autosize mah="200px">
+                        <List>
+                            {relatedDashboards.map((dashboard) => (
+                                <List.Item key={dashboard.uuid}>
+                                    <Anchor
+                                        component={Link}
+                                        fz="sm"
+                                        target="_blank"
+                                        to={`/projects/${projectUuid}/dashboards/${dashboard.uuid}`}
+                                    >
+                                        {dashboard.name}
+                                    </Anchor>
+                                </List.Item>
+                            ))}
+                        </List>
+                    </ScrollArea.Autosize>
+                </Callout>
+            )}
+        </MantineModal>
     );
 };
 
