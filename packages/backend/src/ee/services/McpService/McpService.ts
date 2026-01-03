@@ -17,6 +17,8 @@ import {
     ParameterError,
     QueryExecutionContext,
     SessionUser,
+    ToolCompileQueryArgs,
+    toolCompileQueryArgsSchema,
     ToolFindContentArgs,
     toolFindContentArgsSchema,
     toolFindExploresArgsSchemaV3,
@@ -61,6 +63,7 @@ import {
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { VERSION } from '../../../version';
+import { getCompileQuery } from '../ai/tools/compileQuery';
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
@@ -68,6 +71,7 @@ import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getRunMetricQuery } from '../ai/tools/runMetricQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import {
+    CompileMiniMetricQueryFn,
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
@@ -87,6 +91,7 @@ export enum McpToolName {
     SET_PROJECT = 'set_project',
     GET_CURRENT_PROJECT = 'get_current_project',
     RUN_METRIC_QUERY = 'run_metric_query',
+    COMPILE_QUERY = 'compile_query',
     SEARCH_FIELD_VALUES = 'search_field_values',
 }
 
@@ -761,6 +766,62 @@ export class McpService extends BaseService {
         );
 
         this.mcpServer.registerTool(
+            McpToolName.COMPILE_QUERY,
+            {
+                description: toolCompileQueryArgsSchema.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    toolCompileQueryArgsSchema,
+                ),
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            async (
+                _args: AnyType,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
+                const args = _args as Omit<ToolCompileQueryArgs, 'type'>;
+
+                const projectUuid = await this.resolveProjectUuid(
+                    extra as McpProtocolContext,
+                );
+                const argsWithProject = { ...args, projectUuid };
+
+                this.trackToolCall(
+                    extra as McpProtocolContext,
+                    McpToolName.COMPILE_QUERY,
+                    projectUuid,
+                );
+
+                const { agentContext, compileMiniMetricQuery } =
+                    await this.getCompileQueryDependencies(
+                        argsWithProject,
+                        extra as McpProtocolContext,
+                    );
+
+                const compileQueryTool = getCompileQuery({
+                    compileMiniMetricQuery,
+                });
+
+                const result = await compileQueryTool.execute!(
+                    argsWithProject,
+                    {
+                        toolCallId: '',
+                        messages: [],
+                        experimental_context: agentContext,
+                    },
+                );
+
+                return {
+                    content: [
+                        {
+                            type: 'text',
+                            text: await McpService.streamToolResult(result),
+                        },
+                    ],
+                };
+            },
+        );
+
+        this.mcpServer.registerTool(
             McpToolName.SEARCH_FIELD_VALUES,
             {
                 description: toolSearchFieldValuesArgsSchema.description,
@@ -1412,15 +1473,15 @@ export class McpService extends BaseService {
         // TODO replace with CASL ability check
         // Do not enforce client scopes for now until more MCP clients support this
         /*
-        //const { scopes } = account.authentication;
+    //const { scopes } = account.authentication;
 
-        if (
-            !scopes.includes(OAuthScope.MCP_READ) &&
-            !scopes.includes(OAuthScope.MCP_WRITE)
-        ) {
-            throw new ForbiddenError('You are not allowed to access MCP');
-        }
-        */
+    if (
+        !scopes.includes(OAuthScope.MCP_READ) &&
+        !scopes.includes(OAuthScope.MCP_WRITE)
+    ) {
+        throw new ForbiddenError('You are not allowed to access MCP');
+    }
+    */
 
         if (!this.lightdashConfig.mcp.enabled) {
             throw new MissingConfigError('MCP is not enabled');
