@@ -189,6 +189,8 @@ export const getBasicType = (field: CompiledDimension | CompiledMetric) => {
         case MetricType.SUM:
         case MetricType.MIN:
         case MetricType.MAX:
+        case MetricType.VARIANCE:
+        case MetricType.STANDARD_DEVIATION:
         case MetricType.PERCENT_OF_PREVIOUS:
         case MetricType.PERCENT_OF_TOTAL:
         case MetricType.RUNNING_TOTAL:
