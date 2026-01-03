@@ -53,7 +53,7 @@ export const StickyWithDetection: FC<StickyWithDetectionProps> = ({
 
         const container = scrollContainer || document.body;
 
-        const rootMargin = offset > 0 ? `-${offset + 1}px 0px 0px 0px` : '0px';
+        const rootMargin = offset > 0 ? `-${offset}px 0px 0px 0px` : '0px';
 
         const observer = new IntersectionObserver(
             ([entry]) => {
