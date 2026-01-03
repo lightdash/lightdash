@@ -10,6 +10,7 @@ import FunnelChart from '../FunnelChart';
 import SimpleChart from '../SimpleChart';
 import SimpleGauge from '../SimpleGauge';
 import SimplePieChart from '../SimplePieChart';
+import SimpleSankey from '../SimpleSankey';
 import SimpleStatistic from '../SimpleStatistic';
 import SimpleTable from '../SimpleTable';
 import SimpleTreemap from '../SimpleTreemap';
@@ -176,6 +177,16 @@ const LightdashVisualization = memo(
                             data-testid={props['data-testid']}
                             onScreenshotReady={onScreenshotReady}
                             onScreenshotError={onScreenshotError}
+                            {...props}
+                        />
+                    );
+                case ChartType.SANKEY:
+                    return (
+                        <SimpleSankey
+                            className={className}
+                            isInDashboard={isDashboard}
+                            $shouldExpand
+                            data-testid={props['data-testid']}
                             {...props}
                         />
                     );
