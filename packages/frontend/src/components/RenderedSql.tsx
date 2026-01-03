@@ -111,17 +111,35 @@ export const RenderedSql = () => {
     }
 
     return (
-        <Editor
-            loading={<Loader color="gray" size="xs" />}
-            language={language}
-            beforeMount={beforeMount}
-            value={formattedSql}
-            options={MONACO_READ_ONLY}
-            theme={
-                theme.colorScheme === 'dark'
-                    ? 'lightdash-dark'
-                    : 'lightdash-light'
-            }
-        />
+        <>
+            {data?.compilationErrors && data.compilationErrors.length > 0 && (
+                <div style={{ margin: 10 }}>
+                    <Alert
+                        icon={<IconAlertCircle size="1rem" />}
+                        title="Compilation error"
+                        color="red"
+                        variant="filled"
+                    >
+                        {data.compilationErrors.map(
+                            (errorMsg: string, index: number) => (
+                                <p key={index}>{errorMsg}</p>
+                            ),
+                        )}
+                    </Alert>
+                </div>
+            )}
+            <Editor
+                loading={<Loader color="gray" size="xs" />}
+                language={language}
+                beforeMount={beforeMount}
+                value={formattedSql}
+                options={MONACO_READ_ONLY}
+                theme={
+                    theme.colorScheme === 'dark'
+                        ? 'lightdash-dark'
+                        : 'lightdash-light'
+                }
+            />
+        </>
     );
 };

@@ -77,6 +77,7 @@ export type CompiledQuery = {
     parameterReferences: Set<string>;
     missingParameterReferences: Set<string>;
     usedParameters: ParametersValuesMap;
+    compilationErrors: string[];
 };
 
 export type BuildQueryProps = {
@@ -89,6 +90,12 @@ export type BuildQueryProps = {
     intrinsicUserAttributes: IntrinsicUserAttributes;
     pivotConfiguration?: PivotConfiguration;
     timezone: string;
+    /**
+     * When true, compilation errors (e.g., invalid filter values) are collected
+     * instead of thrown, and the query is returned with placeholder SQL for
+     * invalid filters. Useful for debugging/viewing SQL even with errors.
+     */
+    continueOnError?: boolean;
 };
 
 /**
@@ -222,6 +229,8 @@ export function getIntervalSyntax(
 }
 
 export class MetricQueryBuilder {
+    private compilationErrors: string[] = [];
+
     constructor(private args: BuildQueryProps) {}
 
     static buildCtesSQL(ctes: string[]) {
@@ -307,20 +316,32 @@ export class MetricQueryBuilder {
                     !compiledCustomDimensions.map((cd) => cd.id).includes(id),
             ) // exclude custom dimensions as they are handled separately
             .map((field) => {
-                const dimension = getDimensionFromId(
-                    field,
-                    explore,
-                    adapterType,
-                    startOfWeek,
-                );
+                try {
+                    const dimension = getDimensionFromId(
+                        field,
+                        explore,
+                        adapterType,
+                        startOfWeek,
+                    );
 
-                assertValidDimensionRequiredAttribute(
-                    dimension,
-                    userAttributes,
-                    `dimension: "${field}"`,
-                );
-                return dimension;
-            });
+                    assertValidDimensionRequiredAttribute(
+                        dimension,
+                        userAttributes,
+                        `dimension: "${field}"`,
+                    );
+                    return dimension;
+                } catch (error) {
+                    if (
+                        this.args.continueOnError &&
+                        error instanceof FieldReferenceError
+                    ) {
+                        this.compilationErrors.push(error.message);
+                        return null; // Skip this dimension
+                    }
+                    throw error;
+                }
+            })
+            .filter((dim): dim is CompiledDimension => dim !== null);
         const selectedCustomDimensions = compiledCustomDimensions.filter((cd) =>
             dimensions.includes(cd.id),
         );
@@ -366,16 +387,27 @@ export class MetricQueryBuilder {
         // Add tables referenced in dimension filters
         getFilterRulesFromGroup(filters.dimensions)
             .reduce<string[]>((acc, filterRule) => {
-                const dim = getDimensionFromFilterTargetId(
-                    filterRule.target.fieldId,
-                    explore,
-                    compiledCustomDimensions.filter(
-                        isCompiledCustomSqlDimension,
-                    ),
-                    adapterType,
-                    startOfWeek,
-                );
-                return [...acc, ...(dim.tablesReferences || [dim.table])];
+                try {
+                    const dim = getDimensionFromFilterTargetId(
+                        filterRule.target.fieldId,
+                        explore,
+                        compiledCustomDimensions.filter(
+                            isCompiledCustomSqlDimension,
+                        ),
+                        adapterType,
+                        startOfWeek,
+                    );
+                    return [...acc, ...(dim.tablesReferences || [dim.table])];
+                } catch (error) {
+                    if (
+                        this.args.continueOnError &&
+                        error instanceof FieldReferenceError
+                    ) {
+                        this.compilationErrors.push(error.message);
+                        return acc; // Skip this filter's table references
+                    }
+                    throw error;
+                }
             }, [])
             .forEach((table) => {
                 tables.push(table);
@@ -556,16 +588,32 @@ export class MetricQueryBuilder {
         const selects = new Set<string>();
         const tables = new Set<string>();
         metrics.forEach((field) => {
-            const alias = field;
-            const metric = getMetricFromId(field, explore, compiledMetricQuery);
-            // Add select
-            selects.add(
-                `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`,
-            );
-            // Add tables
-            (metric.tablesReferences || [metric.table]).forEach((table) =>
-                tables.add(table),
-            );
+            try {
+                const alias = field;
+                const metric = getMetricFromId(
+                    field,
+                    explore,
+                    compiledMetricQuery,
+                );
+                // Add select
+                selects.add(
+                    `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`,
+                );
+                // Add tables
+                (metric.tablesReferences || [metric.table]).forEach((table) =>
+                    tables.add(table),
+                );
+            } catch (error) {
+                if (
+                    this.args.continueOnError &&
+                    error instanceof FieldReferenceError
+                ) {
+                    this.compilationErrors.push(error.message);
+                    // Skip this metric
+                } else {
+                    throw error;
+                }
+            }
         });
 
         // Filters
@@ -744,21 +792,44 @@ export class MetricQueryBuilder {
             }),
         };
 
+        // Helper to handle filter rendering with continueOnError error handling
+        const renderWithErrorHandling = (renderFn: () => string): string => {
+            if (this.args.continueOnError) {
+                try {
+                    return renderFn();
+                } catch (error) {
+                    if (error instanceof CompileError) {
+                        this.compilationErrors.push(error.message);
+                        // Return raw filter SQL with values as-is for debugging
+                        const rawValues =
+                            filterRuleWithParamReplacedValues.values
+                                ?.map((v) => JSON.stringify(v))
+                                .join(', ');
+                        return `/* ERROR: ${error.message} */ ${filterRuleWithParamReplacedValues.target.fieldId} ${filterRuleWithParamReplacedValues.operator} (${rawValues})`;
+                    }
+                    throw error;
+                }
+            }
+            return renderFn();
+        };
+
         if (!fieldType) {
             const field = compiledMetricQuery.compiledTableCalculations?.find(
                 (tc) =>
                     getItemId(tc) ===
                     filterRuleWithParamReplacedValues.target.fieldId,
             );
-            return renderTableCalculationFilterRuleSql(
-                filterRuleWithParamReplacedValues,
-                field,
-                fieldQuoteChar,
-                stringQuoteChar,
-                escapeString,
-                adapterType,
-                startOfWeek,
-                timezone,
+            return renderWithErrorHandling(() =>
+                renderTableCalculationFilterRuleSql(
+                    filterRuleWithParamReplacedValues,
+                    field,
+                    fieldQuoteChar,
+                    stringQuoteChar,
+                    escapeString,
+                    adapterType,
+                    startOfWeek,
+                    timezone,
+                ),
             );
         }
 
@@ -780,20 +851,28 @@ export class MetricQueryBuilder {
                       compiledMetricQuery,
                   );
         if (!field) {
-            throw new FieldReferenceError(
-                `Filter has a reference to an unknown ${fieldType}: ${filterRuleWithParamReplacedValues.target.fieldId}`,
-            );
+            const errorMessage = `Filter has a reference to an unknown ${fieldType}: ${filterRuleWithParamReplacedValues.target.fieldId}`;
+            if (this.args.continueOnError) {
+                this.compilationErrors.push(errorMessage);
+                const rawValues = filterRuleWithParamReplacedValues.values
+                    ?.map((v) => JSON.stringify(v))
+                    .join(', ');
+                return `/* ERROR: ${errorMessage} */ ${filterRuleWithParamReplacedValues.target.fieldId} ${filterRuleWithParamReplacedValues.operator} (${rawValues})`;
+            }
+            throw new FieldReferenceError(errorMessage);
         }
 
-        return renderFilterRuleSqlFromField(
-            filterRuleWithParamReplacedValues,
-            field,
-            fieldQuoteChar,
-            stringQuoteChar,
-            escapeString,
-            startOfWeek,
-            adapterType,
-            timezone,
+        return renderWithErrorHandling(() =>
+            renderFilterRuleSqlFromField(
+                filterRuleWithParamReplacedValues,
+                field,
+                fieldQuoteChar,
+                stringQuoteChar,
+                escapeString,
+                startOfWeek,
+                adapterType,
+                timezone,
+            ),
         );
     }
 
@@ -2406,6 +2485,7 @@ export class MetricQueryBuilder {
             parameterReferences,
             missingParameterReferences,
             usedParameters,
+            compilationErrors: this.compilationErrors,
         };
     }
 }

@@ -2282,6 +2282,7 @@ export class ProjectService extends BaseService {
         parameters,
         availableParameterDefinitions,
         pivotConfiguration,
+        continueOnError,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
@@ -2293,6 +2294,7 @@ export class ProjectService extends BaseService {
         parameters?: ParametersValuesMap;
         availableParameterDefinitions: ParameterDefinitions;
         pivotConfiguration?: PivotConfiguration;
+        continueOnError?: boolean;
     }): Promise<CompiledQuery> {
         const availableParameters = Object.keys(availableParameterDefinitions);
 
@@ -2321,6 +2323,7 @@ export class ProjectService extends BaseService {
             parameters,
             parameterDefinitions: availableParameterDefinitions,
             pivotConfiguration,
+            continueOnError,
         });
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
@@ -2416,6 +2419,7 @@ export class ProjectService extends BaseService {
             timezone: this.lightdashConfig.query.timezone || 'UTC',
             parameters,
             availableParameterDefinitions,
+            continueOnError: true, // Return SQL even with compilation errors for debugging
         });
 
         await sshTunnel.disconnect();
@@ -2424,6 +2428,10 @@ export class ProjectService extends BaseService {
             ...compiledQuery,
             // Convert to array so TSOA can serialize it when using in controllers
             parameterReferences: Array.from(compiledQuery.parameterReferences),
+            // Only include compilationErrors if there are any
+            ...(compiledQuery.compilationErrors.length > 0 && {
+                compilationErrors: compiledQuery.compilationErrors,
+            }),
         };
     }
 
