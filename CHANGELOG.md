@@ -1,3 +1,10 @@
+# [0.2297.0](https://github.com/lightdash/lightdash/compare/0.2296.1...0.2297.0) (2026-01-05)
+
+
+### Features
+
+* truncate cell values exceeding Google Sheets character limit ([#19207](https://github.com/lightdash/lightdash/issues/19207)) ([374d0ed](https://github.com/lightdash/lightdash/commit/374d0ed43d54c1d4c1ae0a75986b5f85c0d64cb9))
+
 ## [0.2296.1](https://github.com/lightdash/lightdash/compare/0.2296.0...0.2296.1) (2026-01-05)
 
 
