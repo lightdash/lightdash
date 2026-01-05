@@ -1,3 +1,98 @@
+# [0.2297.0](https://github.com/lightdash/lightdash/compare/0.2296.1...0.2297.0) (2026-01-05)
+
+
+### Features
+
+* truncate cell values exceeding Google Sheets character limit ([#19207](https://github.com/lightdash/lightdash/issues/19207)) ([374d0ed](https://github.com/lightdash/lightdash/commit/374d0ed43d54c1d4c1ae0a75986b5f85c0d64cb9))
+
+## [0.2296.1](https://github.com/lightdash/lightdash/compare/0.2296.0...0.2296.1) (2026-01-05)
+
+
+### Bug Fixes
+
+* log error instead of throwing when scheduler is disabled ([#19204](https://github.com/lightdash/lightdash/issues/19204)) ([cf5258f](https://github.com/lightdash/lightdash/commit/cf5258fbb8e52c708b8cb0c20c78d34539b40105))
+
+# [0.2296.0](https://github.com/lightdash/lightdash/compare/0.2295.2...0.2296.0) (2026-01-05)
+
+
+### Features
+
+* add option to use dbt list instead of dbt compile ([#19203](https://github.com/lightdash/lightdash/issues/19203)) ([b2f2fa4](https://github.com/lightdash/lightdash/commit/b2f2fa45f220994c0e2b58185a8619f3e28811b4))
+
+## [0.2295.2](https://github.com/lightdash/lightdash/compare/0.2295.1...0.2295.2) (2026-01-05)
+
+
+### Bug Fixes
+
+* debounce tile hover state to prevent tooltip flashing ([#19193](https://github.com/lightdash/lightdash/issues/19193)) ([a05ca90](https://github.com/lightdash/lightdash/commit/a05ca9057fda004c285473c3540beaf175d20037))
+* prevent race conditions in validation updates with row-level locking ([#19061](https://github.com/lightdash/lightdash/issues/19061)) ([284012a](https://github.com/lightdash/lightdash/commit/284012a8a733c14ed2d6ceb98a2a40e783a8d76f))
+
+## [0.2295.1](https://github.com/lightdash/lightdash/compare/0.2295.0...0.2295.1) (2026-01-05)
+
+
+### Bug Fixes
+
+* guard undefined with optional chaining ([#19197](https://github.com/lightdash/lightdash/issues/19197)) ([6e7450d](https://github.com/lightdash/lightdash/commit/6e7450d488c919c24d1b7346da8f341ba0987161))
+
+# [0.2295.0](https://github.com/lightdash/lightdash/compare/0.2294.0...0.2295.0) (2026-01-05)
+
+
+### Bug Fixes
+
+* e2e data to include the year of 2025 ([#19191](https://github.com/lightdash/lightdash/issues/19191)) ([4fa61c7](https://github.com/lightdash/lightdash/commit/4fa61c7af4bc932ad1bf4c9c5dec15e5f20b236f))
+
+
+### Features
+
+* update mantine modals on scim/custom roles/service accounts ([#19137](https://github.com/lightdash/lightdash/issues/19137)) ([310be0e](https://github.com/lightdash/lightdash/commit/310be0e7ec60d738532613f40df6cca5fb6dd06f))
+
+# [0.2294.0](https://github.com/lightdash/lightdash/compare/0.2293.0...0.2294.0) (2026-01-05)
+
+
+### Features
+
+* pass parameter values through the filter context ([#19182](https://github.com/lightdash/lightdash/issues/19182)) ([7ea4d45](https://github.com/lightdash/lightdash/commit/7ea4d45c0c5cce2c53a43e581f2a64a86f2c372f))
+
+# [0.2293.0](https://github.com/lightdash/lightdash/compare/0.2292.0...0.2293.0) (2026-01-05)
+
+
+### Features
+
+* optimize suboptimalState for smaller container sizes ([#19106](https://github.com/lightdash/lightdash/issues/19106)) ([2185666](https://github.com/lightdash/lightdash/commit/21856660056e22f8a3afe43cade9b7a6677cd8a7))
+* update mantine modals for project access&preview ([#19134](https://github.com/lightdash/lightdash/issues/19134)) ([aff7a51](https://github.com/lightdash/lightdash/commit/aff7a51b32a541ea5adfd307c9f106991ebd3e8c))
+
+# [0.2292.0](https://github.com/lightdash/lightdash/compare/0.2291.0...0.2292.0) (2026-01-05)
+
+
+### Features
+
+* update mantine modals for metric query, drill down etc ([#19129](https://github.com/lightdash/lightdash/issues/19129)) ([064afb8](https://github.com/lightdash/lightdash/commit/064afb86da98572fd8221190e3638616f561f470))
+
+# [0.2291.0](https://github.com/lightdash/lightdash/compare/0.2290.3...0.2291.0) (2026-01-05)
+
+
+### Features
+
+* update MantineModal & add AlertMessage ([#19124](https://github.com/lightdash/lightdash/issues/19124)) ([e8caf60](https://github.com/lightdash/lightdash/commit/e8caf608533504f4a0390346c6da9d3f01ba6f3c))
+
+## [0.2290.3](https://github.com/lightdash/lightdash/compare/0.2290.2...0.2290.3) (2026-01-05)
+
+
+### Bug Fixes
+
+* filter third-party SyntaxErrors in Sentry reporting ([#19181](https://github.com/lightdash/lightdash/issues/19181)) ([c5a63c7](https://github.com/lightdash/lightdash/commit/c5a63c7eb10992e7de8e1ebf0e829ea22bd847b3))
+
+## [0.2290.2](https://github.com/lightdash/lightdash/compare/0.2290.1...0.2290.2) (2026-01-05)
+
+
+### Bug Fixes
+
+* dashboard tabs always stuck when edit mode ([#19150](https://github.com/lightdash/lightdash/issues/19150)) ([f0a51bb](https://github.com/lightdash/lightdash/commit/f0a51bb97c67c18989fd119c5488c3eb105e3534))
+* flash empty tile tooltip ([#19170](https://github.com/lightdash/lightdash/issues/19170)) ([0ae4f1a](https://github.com/lightdash/lightdash/commit/0ae4f1ae799fb0248046ebbffbbc76a8d30593e8))
+* handle key collisions in createNodeWithGroup ([#19176](https://github.com/lightdash/lightdash/issues/19176)) ([b4661bc](https://github.com/lightdash/lightdash/commit/b4661bca4cf5d469280926c889f18deda965a5d2))
+* resKey optional chaining and a null fallback ([#19178](https://github.com/lightdash/lightdash/issues/19178)) ([8c16811](https://github.com/lightdash/lightdash/commit/8c1681137221895a45bbc2c1c979c03f81fb7c7a))
+* scroll to top directly vs. virtualizer's async scrollToIndex(0) ([#19180](https://github.com/lightdash/lightdash/issues/19180)) ([1fa150b](https://github.com/lightdash/lightdash/commit/1fa150b786ac5dcf29c4d5032bc3628483f748c7))
+
 ## [0.2290.1](https://github.com/lightdash/lightdash/compare/0.2290.0...0.2290.1) (2025-12-31)
 
 

@@ -1,6 +1,7 @@
 import { Box, Loader, Stack, Text, type StackProps } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon, { type MantineIconProps } from '../MantineIcon';
+import classes from './SuboptimalState.module.css';
 
 interface Props extends StackProps {
     icon?: MantineIconProps['icon'];
@@ -26,14 +27,26 @@ const SuboptimalState: FC<Props> = ({
             align="center"
             justify="center"
             ta="center"
+            className={classes.container}
             style={{
                 alignItems: 'center',
                 ...rest?.style,
             }}
         >
-            {loading && <Loader color="ldGray.5" />}
+            {loading && (
+                <Loader
+                    color="ldGray.5"
+                    size={title || description ? 'xs' : 'md'}
+                    className={classes.supportIcon}
+                />
+            )}
             {icon && !loading && (
-                <MantineIcon color="ldGray.5" size="lg" icon={icon} />
+                <MantineIcon
+                    color="ldGray.5"
+                    size="lg"
+                    icon={icon}
+                    className={classes.supportIcon}
+                />
             )}
             {title && (
                 <Text
@@ -41,6 +54,7 @@ const SuboptimalState: FC<Props> = ({
                     size="md"
                     fw={600}
                     style={{ whiteSpace: 'pre-wrap' }}
+                    className={classes.title}
                 >
                     {title}
                 </Text>
@@ -48,7 +62,9 @@ const SuboptimalState: FC<Props> = ({
             {description && (
                 <Box c="dimmed" fz="xs" maw={400} mt={title ? -10 : 0}>
                     {typeof description === 'string' ? (
-                        <Text size="xs">{description}</Text>
+                        <Text size="xs" className={classes.description}>
+                            {description}
+                        </Text>
                     ) : (
                         description
                     )}

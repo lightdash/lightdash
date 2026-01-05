@@ -797,11 +797,19 @@ export class ValidationService extends BaseService {
         validationErrors: CreateValidation[],
         jobId?: string,
     ) {
-        // If not storing for an specific CLI validation, delete previous validations
-        if (jobId === undefined) await this.validationModel.delete(projectUuid);
-
-        if (validationErrors.length > 0)
-            await this.validationModel.create(validationErrors, jobId);
+        // If not storing for an specific CLI validation, replace previous validations
+        if (jobId === undefined) {
+            await this.validationModel.replaceProjectValidations(
+                projectUuid,
+                validationErrors,
+            );
+        } else if (validationErrors.length > 0) {
+            await this.validationModel.create({
+                projectUuid,
+                validations: validationErrors,
+                jobId,
+            });
+        }
     }
 
     async hidePrivateContent(

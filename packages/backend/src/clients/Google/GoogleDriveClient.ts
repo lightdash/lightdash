@@ -25,6 +25,11 @@ type GoogleDriveClientArguments = {
     lightdashConfig: LightdashConfig;
 };
 
+// Google Sheets has a 50,000 character limit per cell
+const GOOGLE_SHEETS_CELL_CHAR_LIMIT = 50000;
+const TRUNCATION_SUFFIX = '... [TRUNCATED]';
+const TRUNCATE_INDEX = GOOGLE_SHEETS_CELL_CHAR_LIMIT - TRUNCATION_SUFFIX.length;
+
 export class GoogleDriveClient {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -253,49 +258,62 @@ export class GoogleDriveClient {
     ) {
         // We don't want to use formatItemValue directly because the format for some types on Gsheets
         // is different to what we use to present the data in the UI (eg: timestamps, currencies)
-        if (Array.isArray(value)) {
-            return value.join(',');
-        }
-        if (value instanceof RegExp) {
-            return value.source;
-        }
-        if (value instanceof Set) {
-            return [...value].join(',');
-        }
+        let formattedValue: AnyType;
 
-        // Handle BigInt values by converting to regular numbers when safe
-        if (typeof value === 'bigint') {
+        if (Array.isArray(value)) {
+            formattedValue = value.join(',');
+        } else if (value instanceof RegExp) {
+            formattedValue = value.source;
+        } else if (value instanceof Set) {
+            formattedValue = [...value].join(',');
+        } else if (typeof value === 'bigint') {
+            // Handle BigInt values by converting to regular numbers when safe
             // Check if the BigInt value is within JavaScript's safe integer range
             if (
                 value >= Number.MIN_SAFE_INTEGER &&
                 value <= Number.MAX_SAFE_INTEGER
             ) {
-                return Number(value);
+                formattedValue = Number(value);
+            } else {
+                // For very large BigInt values, convert to string to preserve precision
+                formattedValue = value.toString();
             }
-            // For very large BigInt values, convert to string to preserve precision
-            return value.toString();
-        }
-
-        if (isField(item) && item.type === DimensionType.DATE) {
+        } else if (isField(item) && item.type === DimensionType.DATE) {
             const timeInterval = isDimension(item)
                 ? item.timeInterval
                 : undefined;
-            return formatDate(value, timeInterval);
-        }
-        // Return the string representation of the Object Wrappers for Primitive Types
-        if (
+            formattedValue = formatDate(value, timeInterval);
+        } else if (
+            // Return the string representation of the Object Wrappers for Primitive Types
             typeof value === 'object' &&
             (value instanceof Number ||
                 value instanceof Boolean ||
                 value instanceof String)
         ) {
-            return value.valueOf();
+            formattedValue = value.valueOf();
+        } else if (
+            value &&
+            typeof value === 'object' &&
+            !(value instanceof Date)
+        ) {
+            formattedValue = JSON.stringify(value);
+        } else {
+            formattedValue = value;
         }
 
-        if (value && typeof value === 'object' && !(value instanceof Date)) {
-            return JSON.stringify(value);
+        // Truncate strings that exceed Google Sheets' cell character limit
+        if (typeof formattedValue === 'string') {
+            if (formattedValue.length > GOOGLE_SHEETS_CELL_CHAR_LIMIT) {
+                Logger.warn(
+                    `Cell value exceeds Google Sheets character limit (${formattedValue.length} > ${GOOGLE_SHEETS_CELL_CHAR_LIMIT}). Truncating...`,
+                );
+                formattedValue =
+                    formattedValue.substring(0, TRUNCATE_INDEX) +
+                    TRUNCATION_SUFFIX;
+            }
         }
-        return value;
+
+        return formattedValue;
     }
 
     async appendToSheet(

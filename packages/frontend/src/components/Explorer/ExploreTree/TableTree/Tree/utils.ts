@@ -65,8 +65,16 @@ const createNodeWithGroup = (
     const existingGroupNode: NodeMap[string] | undefined =
         existingNode[groupLabel];
 
+    // Handle collision: if a field exists with the same key as the group label,
+    // skip grouping and add the item at the current level instead
     if (existingGroupNode && !isGroupNode(existingGroupNode)) {
-        throw new Error('Existing group node is not a group node');
+        console.warn(
+            `Field "${item.key}" cannot be grouped under "${groupLabel}" because a field with that key already exists. Adding to current level instead.`,
+        );
+        return {
+            ...existingNode,
+            [item.key]: item,
+        };
     }
 
     const groupNode =

@@ -71,7 +71,8 @@ const FilterStringAutoComplete: FC<Props> = ({
     ...rest
 }) => {
     const multiSelectRef = useRef<HTMLInputElement>(null);
-    const { projectUuid, getAutocompleteFilterGroup } = useFiltersContext();
+    const { projectUuid, getAutocompleteFilterGroup, parameterValues } =
+        useFiltersContext();
     if (!projectUuid) {
         throw new Error('projectUuid is required in FiltersProvider');
     }
@@ -110,6 +111,7 @@ const FilterStringAutoComplete: FC<Props> = ({
         {
             refetchOnMount: 'always',
         },
+        parameterValues,
     );
 
     useEffect(() => {

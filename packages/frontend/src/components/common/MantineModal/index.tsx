@@ -1,36 +1,83 @@
 import {
+    Box,
+    Button,
     Flex,
     type FlexProps,
     Group,
     Modal,
-    type ModalBaseSettings,
     type ModalBodyProps,
     type ModalContentProps,
     type ModalHeaderProps,
+    type ModalRootProps,
     Paper,
+    ScrollArea,
     Stack,
     Text,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { type Icon as IconType } from '@tabler/icons-react';
 import React from 'react';
 import MantineIcon from '../MantineIcon';
-
-const modalSizes = {
-    sm: 380,
-    lg: 480,
-    xl: 600,
-    full: '100%',
-} as const;
+import classes from './MantineModal.module.css';
 
 export type MantineModalProps = {
     opened: boolean;
     onClose: () => void;
     title: string;
     icon?: IconType;
-    size?: keyof typeof modalSizes;
-    children: React.ReactNode;
+    /**
+     * Modal size. Accepts Mantine's built-in sizes ('xs', 'sm', 'md', 'lg', 'xl') or a custom number/string.
+     * @default 'lg'
+     */
+    size?: ModalRootProps['size'];
+    /**
+     * Enable fullscreen mode. The modal will take up nearly the entire viewport.
+     * Useful for data viewers, tables, or content that needs maximum space.
+     * When enabled, the body will fill available height without ScrollArea constraints.
+     * @default false
+     */
+    fullScreen?: boolean;
+    /**
+     * Simple text description for the modal body.
+     * Use this for simple confirmation dialogs instead of children.
+     * Renders above children if both are provided.
+     */
+    description?: string;
+    /**
+     * Modal body content. Optional if `description` is provided.
+     */
+    children?: React.ReactNode;
+    /**
+     * Action buttons to display in the footer (right side).
+     * A Cancel button is automatically prepended unless `cancelLabel` is set to `false`.
+     */
     actions?: React.ReactNode;
-    modalRootProps?: Partial<ModalBaseSettings>;
+    /**
+     * Optional action buttons to display on the left side of the footer.
+     * Useful for secondary actions like "New Space" or "Add" buttons.
+     */
+    leftActions?: React.ReactNode;
+    /**
+     * Action buttons to display in the header (right side, before close button).
+     * Useful for fullscreen modals with export buttons, links, etc.
+     */
+    headerActions?: React.ReactNode;
+    /**
+     * Label for the cancel button. Set to `false` to hide the cancel button.
+     * @default "Cancel"
+     */
+    cancelLabel?: string | false;
+    /**
+     * Whether the cancel button is disabled.
+     * Useful when you want to prevent cancellation during async operations.
+     * @default false
+     */
+    cancelDisabled?: boolean;
+    /**
+     * Custom handler for the cancel button. If not provided, defaults to `onClose`.
+     * Useful when cancel should do something different (e.g., go back to a previous step).
+     */
+    onCancel?: () => void;
+    modalRootProps?: Partial<ModalRootProps>;
     modalContentProps?: Partial<ModalContentProps>;
     modalHeaderProps?: Partial<ModalHeaderProps>;
     modalBodyProps?: Partial<ModalBodyProps>;
@@ -43,87 +90,117 @@ const MantineModal: React.FC<MantineModalProps> = ({
     title,
     icon,
     size = 'lg',
+    fullScreen = false,
+    description,
     children,
     actions,
+    leftActions,
+    headerActions,
+    cancelLabel = 'Cancel',
+    cancelDisabled = false,
+    onCancel,
     modalRootProps,
-    modalContentProps,
     modalHeaderProps,
     modalBodyProps,
     modalActionsProps,
 }) => {
+    const renderBody = () => {
+        if (fullScreen) {
+            // Fullscreen mode: no ScrollArea, body fills available space
+            return (
+                <Modal.Body p={0} className={classes.fullScreenBody}>
+                    <Box
+                        px={modalBodyProps?.px ?? 'xl'}
+                        py={modalBodyProps?.py ?? 'md'}
+                        h="100%"
+                    >
+                        {description && <Text fz="sm">{description}</Text>}
+                        {children}
+                    </Box>
+                </Modal.Body>
+            );
+        }
+
+        // Standard mode: ScrollArea with max height
+        return (
+            <Modal.Body p={0} className={classes.body}>
+                <ScrollArea.Autosize mah="calc(80vh - 140px)">
+                    <Stack
+                        gap="md"
+                        px={modalBodyProps?.px ?? 'xl'}
+                        py={modalBodyProps?.py ?? 'md'}
+                        {...(modalBodyProps?.bg
+                            ? { bg: modalBodyProps.bg }
+                            : {})}
+                    >
+                        {description && <Text fz="sm">{description}</Text>}
+                        {children}
+                    </Stack>
+                </ScrollArea.Autosize>
+            </Modal.Body>
+        );
+    };
+
     return (
         <Modal.Root
             opened={opened}
             onClose={onClose}
-            size={modalSizes[size]}
+            size={fullScreen ? 'auto' : size}
             centered
             {...modalRootProps}
         >
             <Modal.Overlay />
             <Modal.Content
-                sx={{
-                    maxWidth: '800px',
-                    margin: '0 auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                }}
-                {...modalContentProps}
+                className={fullScreen ? classes.fullScreenContent : undefined}
             >
                 <Modal.Header
-                    sx={(theme) => ({
-                        borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    })}
+                    className={classes.header}
                     px="xl"
                     py="md"
                     {...modalHeaderProps}
                 >
-                    <Group spacing="sm">
+                    <Group gap="sm" flex={1} wrap="nowrap" align="flex-start">
                         {icon ? (
-                            <Paper p="xxs" withBorder radius="sm">
+                            <Paper p="6px" withBorder radius="md">
                                 <MantineIcon icon={icon} size="md" />
                             </Paper>
                         ) : null}
-                        <Text color="ldGray.9" fw={700} fz="md">
+                        <Text c="ldDark.9" fw={700} fz="md">
                             {title}
                         </Text>
                     </Group>
+                    {headerActions ? (
+                        <Group gap="sm" mr="md">
+                            {headerActions}
+                        </Group>
+                    ) : null}
                     <Modal.CloseButton />
                 </Modal.Header>
 
-                <Modal.Body
-                    p={0}
-                    sx={{
-                        overflow: 'auto',
-                        maxHeight: 'calc(80vh - 80px)',
-                    }}
-                    {...modalBodyProps}
-                >
-                    <Stack
-                        spacing="md"
-                        {...{
-                            px: modalBodyProps?.px ?? 'xl',
-                            py: modalBodyProps?.py ?? 'md',
-                        }}
-                    >
-                        {children}
-                    </Stack>
-                </Modal.Body>
-                {actions ? (
+                {renderBody()}
+
+                {(actions || leftActions) && !fullScreen ? (
                     <Flex
-                        sx={(theme) => ({
-                            borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                            position: 'sticky',
-                            bottom: 0,
-                            width: '100%',
-                            zIndex: 10,
-                        })}
+                        className={classes.actions}
                         px="xl"
                         py="md"
-                        justify="flex-end"
-                        gap="sm"
+                        justify={leftActions ? 'space-between' : 'flex-end'}
+                        align="center"
                         {...modalActionsProps}
                     >
-                        {actions}
+                        {leftActions ?? <div />}
+                        <Group gap="sm">
+                            {cancelLabel !== false && (
+                                <Button
+                                    variant="default"
+                                    onClick={onCancel ?? onClose}
+                                    disabled={cancelDisabled}
+                                >
+                                    {cancelLabel}
+                                </Button>
+                            )}
+                            {actions}
+                        </Group>
                     </Flex>
                 ) : null}
             </Modal.Content>

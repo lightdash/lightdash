@@ -3,6 +3,7 @@ import {
     type DashboardFilters,
     type FilterRule,
     type FilterableItem,
+    type ParametersValuesMap,
     type WeekDay,
 } from '@lightdash/common';
 import { type PopoverProps } from '@mantine/core';
@@ -17,6 +18,7 @@ type Props<T extends DefaultFieldsMap> = {
     startOfWeek?: WeekDay;
     dashboardFilters?: DashboardFilters;
     popoverProps?: Omit<PopoverProps, 'children'>;
+    parameterValues?: ParametersValuesMap;
     children?: ReactNode;
 };
 
@@ -27,6 +29,7 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
     startOfWeek,
     dashboardFilters,
     popoverProps,
+    parameterValues,
     children,
 }: Props<T>) => {
     const getField = useCallback(
@@ -65,6 +68,7 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
                 getField,
                 getAutocompleteFilterGroup,
                 popoverProps,
+                parameterValues,
             }}
         >
             {children}

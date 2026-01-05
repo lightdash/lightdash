@@ -3,14 +3,7 @@ import {
     type AiArtifact,
     type SavedChart,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Button,
-    Group,
-    Menu,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
+import { ActionIcon, Button, Menu, Tooltip } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconChartBar,
@@ -307,23 +300,13 @@ export const AiChartQuickOptions = ({
                 title="Remove from verified answers"
                 icon={IconCircleCheck}
                 size="sm"
+                description="Are you sure you want to remove this answer from verified answers? It will no longer be used as an example in future Agent responses."
                 actions={
-                    <Group gap="sm">
-                        <Button variant="default" onClick={closeVerifyModal}>
-                            Cancel
-                        </Button>
-                        <Button color="red" onClick={handleConfirmUnverify}>
-                            Confirm
-                        </Button>
-                    </Group>
+                    <Button color="red" onClick={handleConfirmUnverify}>
+                        Confirm
+                    </Button>
                 }
-            >
-                <Text>
-                    Are you sure you want to remove this answer from verified
-                    answers? It will no longer be used as an example in future
-                    Agent responses.
-                </Text>
-            </MantineModal>
+            />
         </Fragment>
     );
 };
