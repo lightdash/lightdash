@@ -7,19 +7,18 @@ import {
     ActionIcon,
     Button,
     Group,
-    Modal,
     Select,
     Stack,
     Switch,
     Text,
     TextInput,
     Textarea,
-    Title,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
     IconInfoCircle,
+    IconPlus,
     IconTrash,
     IconUserPlus,
     IconUsersPlus,
@@ -33,6 +32,7 @@ import {
     useUpdateUserAtributesMutation,
 } from '../../../hooks/useUserAttributes';
 import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 
 const UserAttributeModal: FC<{
     opened: boolean;
@@ -150,28 +150,26 @@ const UserAttributeModal: FC<{
     );
 
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={handleClose}
-            title={
-                <Title order={4}>
-                    {userAttribute ? 'Update' : 'Add'} user attribute
-                </Title>
-            }
-            yOffset={65}
+            title={`${userAttribute ? 'Update' : 'Add'} user attribute`}
+            icon={IconPlus}
             size="lg"
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
-                body: { padding: 0 },
-            })}
+            actions={
+                <Button type="submit" form="add_user_attribute">
+                    {userAttribute ? 'Update' : 'Add'}
+                </Button>
+            }
         >
             <form
+                id="add_user_attribute"
                 name="add_user_attribute"
                 onSubmit={form.onSubmit((values: CreateUserAttribute) =>
                     handleSubmit(values),
                 )}
             >
-                <Stack spacing="xs" p="md">
+                <Stack gap="xs">
                     <TextInput
                         name="name"
                         label="Attribute name"
@@ -179,7 +177,7 @@ const UserAttributeModal: FC<{
                         required
                         {...form.getInputProps('name')}
                     />
-                    <Text color="red" size="sm">
+                    <Text c="red" size="sm">
                         {inputError}
                     </Text>
 
@@ -189,19 +187,18 @@ const UserAttributeModal: FC<{
                         placeholder="E.g. The country where the user is querying data from."
                         {...form.getInputProps('description')}
                     />
-                    <Stack spacing="xxs">
-                        <Group spacing="xs">
+                    <Stack gap="xxs">
+                        <Group gap="xs">
                             <Text fw={500}>Default value</Text>
 
                             <Tooltip
-                                variant="xs"
                                 position="right"
                                 multiline
                                 maw={200}
                                 label="This will be the default value for the attribute if no other value is assigned to the user or group."
                             >
                                 <MantineIcon
-                                    color="ldGray.6"
+                                    color="gray.6"
                                     icon={IconInfoCircle}
                                 />
                             </Tooltip>
@@ -233,10 +230,10 @@ const UserAttributeModal: FC<{
                         </Group>
                     </Stack>
                     <Stack>
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                             <Text fw={500}>Assign to users</Text>
                             {!form.isValid('users') && (
-                                <Text color="red" size="xs">
+                                <Text c="red" size="xs">
                                     {form.errors.users}
                                 </Text>
                             )}
@@ -246,7 +243,7 @@ const UserAttributeModal: FC<{
                                     <Group key={index}>
                                         <Select
                                             size="xs"
-                                            sx={{ flexGrow: 1 }}
+                                            flex={1}
                                             label={
                                                 index === 0
                                                     ? 'User email'
@@ -269,7 +266,7 @@ const UserAttributeModal: FC<{
 
                                         <TextInput
                                             size="xs"
-                                            sx={{ flexGrow: 1 }}
+                                            flex={1}
                                             label={
                                                 index === 0
                                                     ? 'Value'
@@ -303,8 +300,10 @@ const UserAttributeModal: FC<{
                             <Button
                                 size="xs"
                                 variant="default"
-                                sx={{ alignSelf: 'flex-start' }}
-                                leftIcon={<MantineIcon icon={IconUserPlus} />}
+                                style={{ alignSelf: 'flex-start' }}
+                                leftSection={
+                                    <MantineIcon icon={IconUserPlus} />
+                                }
                                 onClick={() => {
                                     form.setFieldValue('users', [
                                         ...(form.values.users || []),
@@ -317,10 +316,10 @@ const UserAttributeModal: FC<{
                         </Stack>
 
                         {isGroupManagementEnabled && (
-                            <Stack spacing="xs">
+                            <Stack gap="xs">
                                 <Text fw={500}>Assign to groups</Text>
                                 {!form.isValid('groups') && (
-                                    <Text color="red" size="xs">
+                                    <Text c="red" size="xs">
                                         {form.errors.groups}
                                     </Text>
                                 )}
@@ -329,7 +328,7 @@ const UserAttributeModal: FC<{
                                         <Group key={index}>
                                             <Select
                                                 size="xs"
-                                                sx={{ flexGrow: 1 }}
+                                                flex={1}
                                                 label={
                                                     index === 0
                                                         ? 'Group name'
@@ -354,7 +353,7 @@ const UserAttributeModal: FC<{
 
                                             <TextInput
                                                 size="xs"
-                                                sx={{ flexGrow: 1 }}
+                                                flex={1}
                                                 label={
                                                     index === 0
                                                         ? 'Value'
@@ -391,8 +390,8 @@ const UserAttributeModal: FC<{
                                 <Button
                                     size="xs"
                                     variant="default"
-                                    sx={{ alignSelf: 'flex-start' }}
-                                    leftIcon={
+                                    style={{ alignSelf: 'flex-start' }}
+                                    leftSection={
                                         <MantineIcon icon={IconUsersPlus} />
                                     }
                                     onClick={() => {
@@ -408,32 +407,8 @@ const UserAttributeModal: FC<{
                         )}
                     </Stack>
                 </Stack>
-                <Group
-                    spacing="xs"
-                    position="right"
-                    sx={(theme) => ({
-                        position: 'sticky',
-                        backgroundColor: theme.colors.background[0],
-                        borderTop: `1px solid ${theme.colors.ldGray[4]}`,
-                        bottom: 0,
-                        zIndex: 2,
-                        padding: theme.spacing.md,
-                    })}
-                >
-                    <Button
-                        onClick={() => {
-                            handleClose();
-                        }}
-                        variant="outline"
-                    >
-                        Cancel
-                    </Button>
-                    <Button type="submit">
-                        {userAttribute ? 'Update' : 'Add'}
-                    </Button>
-                </Group>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };
 

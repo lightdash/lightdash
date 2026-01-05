@@ -1,20 +1,10 @@
 import { ProjectType, type OrganizationProject } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    List,
-    Modal,
-    Stack,
-    Text,
-    TextInput,
-    Title,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, List, Text, TextInput, type ModalProps } from '@mantine-8/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useDeleteActiveProjectMutation } from '../../../hooks/useActiveProject';
 import { useDeleteProjectMutation } from '../../../hooks/useProjects';
-import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     projects: OrganizationProject[];
@@ -119,61 +109,47 @@ export const ProjectDeleteInBulkModal: FC<Props> = ({
     }, [projects, currentProjectUuid]);
 
     return (
-        <Modal
-            size="md"
+        <MantineModal
             opened={opened}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon size="lg" icon={IconAlertCircle} color="red" />
-                    <Title order={4}>Delete projects in bulk</Title>
-                </Group>
-            }
             onClose={handleOnClose}
+            title="Delete projects in bulk"
+            icon={IconAlertCircle}
+            size="md"
+            actions={
+                <Button
+                    color="red"
+                    disabled={
+                        confirmationText.toLowerCase() !==
+                        CONFIRMATION_TEXT.toLowerCase()
+                    }
+                    loading={isDeleting || isDeletingActive}
+                    onClick={() => handleConfirm()}
+                >
+                    Delete
+                </Button>
+            }
         >
-            <Stack>
-                <Stack spacing="sm">
-                    <Text>You are about to delete:</Text>
+            <Text>You are about to delete:</Text>
 
-                    <List size="sm">
-                        {statsText.map((text, index) => (
-                            <List.Item key={index}>{text}</List.Item>
-                        ))}
-                    </List>
+            <List size="sm">
+                {statsText.map((text, index) => (
+                    <List.Item key={index}>{text}</List.Item>
+                ))}
+            </List>
 
-                    <Text>
-                        Type in{' '}
-                        <Text span fw={500}>
-                            "{CONFIRMATION_TEXT}"
-                        </Text>{' '}
-                        to confirm. This action is not reversible.
-                    </Text>
-                </Stack>
+            <Text>
+                Type in{' '}
+                <Text span fw={500}>
+                    "{CONFIRMATION_TEXT}"
+                </Text>{' '}
+                to confirm. This action is not reversible.
+            </Text>
 
-                <TextInput
-                    placeholder={CONFIRMATION_TEXT}
-                    value={confirmationText}
-                    onChange={(e) => setConfirmationText(e.target.value)}
-                />
-
-                <Group position="right" spacing="xs">
-                    <Button variant="outline" onClick={handleOnClose}>
-                        Cancel
-                    </Button>
-
-                    <Button
-                        color="red"
-                        disabled={
-                            confirmationText.toLowerCase() !==
-                            CONFIRMATION_TEXT.toLowerCase()
-                        }
-                        loading={isDeleting || isDeletingActive}
-                        onClick={() => handleConfirm()}
-                        type="submit"
-                    >
-                        Delete
-                    </Button>
-                </Group>
-            </Stack>
-        </Modal>
+            <TextInput
+                placeholder={CONFIRMATION_TEXT}
+                value={confirmationText}
+                onChange={(e) => setConfirmationText(e.target.value)}
+            />
+        </MantineModal>
     );
 };

@@ -5,23 +5,15 @@ import {
     validateOrganizationEmailDomains,
     type CompleteUserArgs,
 } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Checkbox,
-    Modal,
-    Select,
-    Stack,
-    Text,
-    TextInput,
-    Title,
-} from '@mantine/core';
+import { Button, Checkbox, Select, Stack, TextInput } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
+import { IconConfetti } from '@tabler/icons-react';
 import shuffle from 'lodash/shuffle';
 import { zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, type FC } from 'react';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
 import useApp from '../../providers/App/useApp';
+import MantineModal from '../common/MantineModal';
 
 const jobTitles = [
     ...shuffle([
@@ -108,106 +100,94 @@ const UserCompletionModal: FC = () => {
     }
 
     return (
-        <>
-            <Modal
-                opened={!isSuccess}
-                size="md"
-                onClose={() => {}}
-                withCloseButton={false}
-                centered
-                title={
-                    <Box ta="center">
-                        <Title order={4}>Nearly there...</Title>
-                        <Text ta="center" c="ldGray.6">
-                            Tell us a bit more about yourself
-                        </Text>
-                    </Box>
-                }
-                styles={{
-                    title: {
-                        width: '100%',
-                    },
-                }}
+        <MantineModal
+            opened={!isSuccess}
+            size="md"
+            onClose={() => {}}
+            icon={IconConfetti}
+            title="Nearly there..."
+            cancelLabel={false}
+            withCloseButton={false}
+            actions={
+                <Button
+                    size="xs"
+                    type="submit"
+                    form="complete_user"
+                    loading={isLoading}
+                    disabled={
+                        !(form.values.organizationName && form.values.jobTitle)
+                    }
+                >
+                    Next
+                </Button>
+            }
+            modalRootProps={{
+                closeOnClickOutside: false,
+                closeOnEscape: false,
+            }}
+            description="Tell us a bit more about yourself"
+        >
+            <form
+                id="complete_user"
+                name="complete_user"
+                onSubmit={handleSubmit}
             >
-                <Stack>
-                    <form name="complete_user" onSubmit={handleSubmit}>
-                        <Stack>
-                            {canEnterOrganizationName && (
-                                <TextInput
-                                    label="Organization name"
-                                    placeholder="Enter company name"
-                                    disabled={isLoading}
-                                    required
-                                    {...form.getInputProps('organizationName')}
-                                />
-                            )}
-                            <Select
-                                withinPortal
-                                label="What's your role?"
+                <Stack gap="md">
+                    {canEnterOrganizationName && (
+                        <TextInput
+                            label="Organization name"
+                            placeholder="Enter company name"
+                            disabled={isLoading}
+                            required
+                            {...form.getInputProps('organizationName')}
+                        />
+                    )}
+                    <Select
+                        label="What's your role?"
+                        disabled={isLoading}
+                        data={jobTitles}
+                        required
+                        placeholder="Select your role"
+                        {...form.getInputProps('jobTitle')}
+                    />
+
+                    <Stack gap="xs">
+                        {canEnableEmailDomainAccess && (
+                            <Checkbox
+                                label={`Allow users with @${getEmailDomain(
+                                    user.data?.email || '',
+                                )} to join the organization as a viewer`}
                                 disabled={isLoading}
-                                data={jobTitles}
-                                required
-                                placeholder="Select your role"
-                                {...form.getInputProps('jobTitle')}
+                                {...form.getInputProps(
+                                    'enableEmailDomainAccess',
+                                    {
+                                        type: 'checkbox',
+                                    },
+                                )}
                             />
+                        )}
 
-                            <Stack spacing="xs">
-                                {canEnableEmailDomainAccess && (
-                                    <Checkbox
-                                        label={`Allow users with @${getEmailDomain(
-                                            user.data?.email || '',
-                                        )} to join the organization as a viewer`}
-                                        disabled={isLoading}
-                                        {...form.getInputProps(
-                                            'enableEmailDomainAccess',
-                                            { type: 'checkbox' },
-                                        )}
-                                    />
-                                )}
+                        <Checkbox
+                            label="Keep me updated on new Lightdash features"
+                            disabled={isLoading}
+                            {...form.getInputProps('isMarketingOptedIn', {
+                                type: 'checkbox',
+                            })}
+                        />
 
-                                <Checkbox
-                                    label="Keep me updated on new Lightdash features"
-                                    disabled={isLoading}
-                                    {...form.getInputProps(
-                                        'isMarketingOptedIn',
-                                        {
-                                            type: 'checkbox',
-                                        },
-                                    )}
-                                />
-
-                                {health.data?.mode !==
-                                    LightdashMode.CLOUD_BETA && (
-                                    <Checkbox
-                                        label="Anonymize my usage data"
-                                        disabled={isLoading}
-                                        {...form.getInputProps(
-                                            'isTrackingAnonymized',
-                                            {
-                                                type: 'checkbox',
-                                            },
-                                        )}
-                                    />
-                                )}
-                            </Stack>
-                            <Button
-                                size="xs"
-                                type="submit"
-                                loading={isLoading}
-                                disabled={
-                                    !(
-                                        form.values.organizationName &&
-                                        form.values.jobTitle
-                                    )
-                                }
-                            >
-                                Next
-                            </Button>
-                        </Stack>
-                    </form>
+                        {health.data?.mode !== LightdashMode.CLOUD_BETA && (
+                            <Checkbox
+                                label="Anonymize my usage data"
+                                disabled={isLoading}
+                                {...form.getInputProps('isTrackingAnonymized', {
+                                    type: 'checkbox',
+                                })}
+                            />
+                        )}
+                    </Stack>
                 </Stack>
-            </Modal>
-        </>
+            </form>
+        </MantineModal>
     );
 };
 
