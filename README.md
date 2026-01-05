@@ -416,6 +416,9 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="https://medium.com/albert-franzi"><img src="https://avatars.githubusercontent.com/u/3647015?v=4?s=100" width="100px;" alt="AFranzi"/><br /><sub><b>AFranzi</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=afranzi" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/ongdisheng"><img src="https://avatars.githubusercontent.com/u/63136897?v=4?s=100" width="100px;" alt="ongdisheng"/><br /><sub><b>ongdisheng</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ongdisheng" title="Code">💻</a></td>
     </tr>
+    <tr>
+      <td align="center" valign="top" width="14.28%"><a href="http://spiss.dev"><img src="https://avatars.githubusercontent.com/u/35728419?v=4?s=100" width="100px;" alt="Lukas Spiss"/><br /><sub><b>Lukas Spiss</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=Spissable" title="Documentation">📖</a></td>
+    </tr>
   </tbody>
 </table>
 
