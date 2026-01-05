@@ -42,7 +42,7 @@ import ExportResults from '../ExportResults';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
-const UnderlyingDataModal: FC = () => {
+const UnderlyingDataModalContent: FC = () => {
     const projectUuid = useProjectUuid();
     const {
         isUnderlyingDataModalOpen,
@@ -392,6 +392,18 @@ const UnderlyingDataModal: FC = () => {
             )}
         </MantineModal>
     );
+};
+
+// Only mounts the content when the modal is open
+// This prevents the underlying data query from running on every mount
+const UnderlyingDataModal: FC = () => {
+    const { isUnderlyingDataModalOpen } = useMetricQueryDataContext();
+
+    if (!isUnderlyingDataModalOpen) {
+        return null;
+    }
+
+    return <UnderlyingDataModalContent />;
 };
 
 export default UnderlyingDataModal;
