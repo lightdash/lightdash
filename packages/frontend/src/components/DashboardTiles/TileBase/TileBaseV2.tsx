@@ -15,7 +15,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { useHover, useToggle } from '@mantine-8/hooks';
+import { useDebouncedValue, useHover, useToggle } from '@mantine-8/hooks';
 import { clsx, Menu } from '@mantine/core';
 import {
     IconArrowAutofitContent,
@@ -65,7 +65,14 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
         isDeletingChartThatBelongsToDashboard,
         setIsDeletingChartThatBelongsToDashboard,
     ] = useState(false);
-    const { hovered: containerHovered, ref: containerRef } = useHover();
+    const { hovered: rawContainerHovered, ref: containerRef } = useHover();
+    // Debounce unhover to prevent flashing when tooltips render outside container
+    const [debouncedContainerHovered] = useDebouncedValue(
+        rawContainerHovered,
+        200,
+    );
+    const containerHovered = rawContainerHovered || debouncedContainerHovered;
+
     const { isHovered: chartHovered, ...chartHoveredProps } = useDelayedHover({
         delay: 500,
     });
