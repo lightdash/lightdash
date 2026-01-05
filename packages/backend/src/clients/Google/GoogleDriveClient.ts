@@ -96,6 +96,19 @@ export class GoogleDriveClient {
                 throw new GoogleSheetsTransientError(err);
             }
 
+            if (
+                err?.message &&
+                err.message.includes(
+                    'This operation is not supported for this document',
+                )
+            ) {
+                throw new UnexpectedGoogleSheetsError(
+                    `This operation is not supported for the provided file. ` +
+                        `Please ensure you are using a valid Google Sheets file. ` +
+                        `The file might be an Excel .xlsx file, or another file type that does not support Google spreadsheet operations.`,
+                );
+            }
+
             throw err;
         }
     }
@@ -160,6 +173,20 @@ export class GoogleDriveClient {
         return response.data;
     }
 
+    async assertFileIsGoogleSheet(refreshToken: string, fileId: string) {
+        const auth = await this.getCredentials(refreshToken);
+        const sheets = google.sheets({ version: 'v4', auth });
+
+        // We try to fetch the spreadsheet properties. If it's a valid Google Sheets file, this will succeed.
+        // Otherwise, if an invalid file like Excel .xlsx, an error will be thrown which we catch and handle.
+        await GoogleDriveClient.catchApiError(
+            sheets.spreadsheets.get({
+                spreadsheetId: fileId,
+                fields: 'properties.title',
+            }),
+        );
+    }
+
     async uploadMetadata(
         refreshToken: string,
         fileId: string,
@@ -170,6 +197,9 @@ export class GoogleDriveClient {
         if (!this.isEnabled) {
             throw new MissingConfigError('Google Drive is not enabled');
         }
+
+        // Validate that the file is actually a Google Sheets file
+        await this.assertFileIsGoogleSheet(refreshToken, fileId);
 
         const metadataTabName = 'metadata';
         const auth = await this.getCredentials(refreshToken);
@@ -367,6 +397,10 @@ export class GoogleDriveClient {
             Logger.info('No data to write to the sheet');
             return;
         }
+
+        // Validate that the file is actually a Google Sheets file
+        await this.assertFileIsGoogleSheet(refreshToken, fileId);
+
         const auth = await this.getCredentials(refreshToken);
         const sheets = google.sheets({ version: 'v4', auth });
 
