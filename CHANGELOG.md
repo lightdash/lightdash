@@ -1,3 +1,10 @@
+## [0.2296.1](https://github.com/lightdash/lightdash/compare/0.2296.0...0.2296.1) (2026-01-05)
+
+
+### Bug Fixes
+
+* log error instead of throwing when scheduler is disabled ([#19204](https://github.com/lightdash/lightdash/issues/19204)) ([cf5258f](https://github.com/lightdash/lightdash/commit/cf5258fbb8e52c708b8cb0c20c78d34539b40105))
+
 # [0.2296.0](https://github.com/lightdash/lightdash/compare/0.2295.2...0.2296.0) (2026-01-05)
 
 
