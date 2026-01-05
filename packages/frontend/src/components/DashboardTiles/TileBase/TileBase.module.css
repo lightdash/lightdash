@@ -39,8 +39,9 @@
 }
 
 .tileTitle {
-    font-weight: 600;
-    font-size: 16px;
+    font-weight: inherit;
+    font-size: inherit;
+    line-height: inherit;
 
     color: var(--mantine-color-foreground-0);
     text-decoration: none;
@@ -57,6 +58,10 @@
 
     &:hover,
     &[data-hovered='true'] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 10;
         white-space: normal;
         overflow: visible;
         outline: 4px solid var(--mantine-color-background-0);
@@ -82,6 +87,11 @@
 }
 
 .headerContainer {
+    position: relative;
+    line-height: var(--text-lh, var(--mantine-line-height-md));
+    min-height: 1lh;
+    font-size: 16px;
+    font-weight: 600;
     border-radius: var(--mantine-radius-sm);
 
     &[data-is-edit-mode='true'] {
