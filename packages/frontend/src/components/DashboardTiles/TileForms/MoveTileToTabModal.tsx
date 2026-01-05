@@ -1,5 +1,5 @@
 import { type Dashboard, type DashboardTab } from '@lightdash/common';
-import { Button, Select, Stack, Text, type ModalProps } from '@mantine-8/core';
+import { Button, Select, Text, type ModalProps } from '@mantine-8/core';
 import { IconArrowAutofitContent } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import MantineModal from '../../common/MantineModal';
@@ -45,24 +45,22 @@ const MoveTileToTabModal: FC<Props> = ({
             }
             modalRootProps={{ className }}
         >
-            <Stack gap="md">
-                {tabs && tabs.length ? (
-                    <Select
-                        label="Select tab to move this tile to"
-                        value={selectedTabId}
-                        placeholder="Pick a tab"
-                        data={tabs
-                            .filter((tab) => tab.uuid !== tile.tabUuid)
-                            .map((tab) => ({
-                                value: tab.uuid,
-                                label: tab.name,
-                            }))}
-                        onChange={(value) => setSelectedTabId(value)}
-                    />
-                ) : (
-                    <Text>No tabs available</Text>
-                )}
-            </Stack>
+            {tabs && tabs.length ? (
+                <Select
+                    label="Select tab to move this tile to"
+                    value={selectedTabId}
+                    placeholder="Pick a tab"
+                    data={tabs
+                        .filter((tab) => tab.uuid !== tile.tabUuid)
+                        .map((tab) => ({
+                            value: tab.uuid,
+                            label: tab.name,
+                        }))}
+                    onChange={(value) => setSelectedTabId(value)}
+                />
+            ) : (
+                <Text>No tabs available</Text>
+            )}
         </MantineModal>
     );
 };

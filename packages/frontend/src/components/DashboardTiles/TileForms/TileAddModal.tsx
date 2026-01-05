@@ -8,19 +8,12 @@ import {
     type DashboardMarkdownTile,
     type DashboardMarkdownTileProperties,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Modal,
-    Stack,
-    Title,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, Stack, Text } from '@mantine-8/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
 import { IconHeading, IconMarkdown, IconVideo } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
-import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 import HeadingTileForm from './HeadingTileForm';
 import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
@@ -29,7 +22,9 @@ import { getLoomId, markdownTileContentTransform } from './utils';
 type Tile = Dashboard['tiles'][number];
 type TileProperties = Tile['properties'];
 
-type AddProps = ModalProps & {
+type AddProps = {
+    opened: boolean;
+    onClose: () => void;
     type:
         | DashboardTileTypes.LOOM
         | DashboardTileTypes.MARKDOWN
@@ -38,10 +33,10 @@ type AddProps = ModalProps & {
 };
 
 export const TileAddModal: FC<AddProps> = ({
+    opened,
     type,
     onClose,
     onConfirm,
-    ...modalProps
 }) => {
     const [errorMessage, setErrorMessage] = useState<string>();
 
@@ -77,7 +72,7 @@ export const TileAddModal: FC<AddProps> = ({
         },
     });
 
-    const getTileIcon = useCallback(() => {
+    const tileIcon = useMemo(() => {
         switch (type) {
             case DashboardTileTypes.MARKDOWN:
                 return IconMarkdown;
@@ -85,6 +80,19 @@ export const TileAddModal: FC<AddProps> = ({
                 return IconVideo;
             case DashboardTileTypes.HEADING:
                 return IconHeading;
+            default:
+                return assertUnreachable(type, 'Tile type not supported');
+        }
+    }, [type]);
+
+    const tileTitle = useMemo(() => {
+        switch (type) {
+            case DashboardTileTypes.MARKDOWN:
+                return 'Add markdown tile';
+            case DashboardTileTypes.LOOM:
+                return 'Add loom tile';
+            case DashboardTileTypes.HEADING:
+                return 'Add heading tile';
             default:
                 return assertUnreachable(type, 'Tile type not supported');
         }
@@ -129,23 +137,24 @@ export const TileAddModal: FC<AddProps> = ({
     };
 
     return (
-        <Modal
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        size="lg"
-                        color="blue.6"
-                        icon={getTileIcon()}
-                    />
-                    <Title order={4}>Add {type} tile</Title>
-                </Group>
-            }
-            {...modalProps}
-            size="xl"
+        <MantineModal
+            opened={opened}
             onClose={handleClose}
+            title={tileTitle}
+            icon={tileIcon}
+            size="xl"
+            actions={
+                <Button
+                    type="submit"
+                    form="add-tile-form"
+                    disabled={!form.isValid()}
+                >
+                    Add
+                </Button>
+            }
         >
-            <form onSubmit={handleConfirm}>
-                <Stack spacing="lg" pt="sm">
+            <form id="add-tile-form" onSubmit={handleConfirm}>
+                <Stack gap="lg">
                     {type === DashboardTileTypes.MARKDOWN ? (
                         <MarkdownTileForm
                             form={
@@ -175,19 +184,13 @@ export const TileAddModal: FC<AddProps> = ({
                         assertUnreachable(type, 'Tile type not supported')
                     )}
 
-                    {errorMessage}
-
-                    <Group position="right" mt="sm">
-                        <Button variant="outline" onClick={handleClose}>
-                            Cancel
-                        </Button>
-
-                        <Button type="submit" disabled={!form.isValid()}>
-                            Add
-                        </Button>
-                    </Group>
+                    {errorMessage && (
+                        <Text c="red" fz="sm">
+                            {errorMessage}
+                        </Text>
+                    )}
                 </Stack>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };

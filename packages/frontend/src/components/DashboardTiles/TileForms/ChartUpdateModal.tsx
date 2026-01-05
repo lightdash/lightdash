@@ -5,32 +5,20 @@ import {
     type DashboardChartTile,
     type DashboardSqlChartTile,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Button,
-    Flex,
-    Group,
-    Loader,
-    Modal,
-    ScrollArea,
-    Select,
-    Stack,
-    Text,
-    TextInput,
-    Title,
-    type ModalProps,
-    type ScrollAreaProps,
-} from '@mantine/core';
+import { ActionIcon, Button, Flex, Loader, TextInput } from '@mantine-8/core';
+import { ScrollArea, Select, type ScrollAreaProps } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconEye, IconEyeOff } from '@tabler/icons-react';
+import { IconEye, IconEyeOff, IconPencil } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 
-interface ChartUpdateModalProps extends ModalProps {
+interface ChartUpdateModalProps {
+    opened: boolean;
     onClose: () => void;
     hideTitle: boolean;
     onConfirm?: (
@@ -42,11 +30,11 @@ interface ChartUpdateModalProps extends ModalProps {
 }
 
 const ChartUpdateModal = ({
+    opened,
     onClose,
     onConfirm,
     hideTitle,
     tile,
-    ...modalProps
 }: ChartUpdateModalProps) => {
     const form = useForm({
         initialValues: {
@@ -106,119 +94,117 @@ const ChartUpdateModal = ({
     );
 
     return (
-        <Modal
-            onClose={() => onClose?.()}
-            title={<Title order={4}>Edit tile content</Title>}
-            withCloseButton
-            className="non-draggable"
-            {...modalProps}
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            icon={IconPencil}
+            title="Edit tile content"
+            modalRootProps={{ className: 'non-draggable' }}
+            actions={
+                <Button type="submit" form="edit-tile-content">
+                    Update
+                </Button>
+            }
         >
-            <form onSubmit={handleConfirm} name="Edit tile content">
-                <Stack spacing="md">
-                    <Flex align="flex-end" gap="xs">
-                        <TextInput
-                            label="Title"
-                            placeholder={tile.properties.chartName || undefined}
-                            {...form.getInputProps('title')}
-                            style={{ flex: 1 }}
-                            disabled={form.values.hideTitle}
+            <form
+                id="edit-tile-content"
+                onSubmit={handleConfirm}
+                name="Edit tile content"
+            >
+                <Flex align="flex-end" gap="xs" mb="md">
+                    <TextInput
+                        label="Title"
+                        placeholder={tile.properties.chartName || undefined}
+                        {...form.getInputProps('title')}
+                        flex={1}
+                        disabled={form.values.hideTitle}
+                    />
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        size="lg"
+                        onClick={() =>
+                            form.setFieldValue(
+                                'hideTitle',
+                                !form.values.hideTitle,
+                            )
+                        }
+                    >
+                        <MantineIcon
+                            icon={form.values.hideTitle ? IconEyeOff : IconEye}
                         />
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            size="lg"
-                            onClick={() =>
-                                form.setFieldValue(
-                                    'hideTitle',
-                                    !form.values.hideTitle,
-                                )
+                    </ActionIcon>
+                </Flex>
+                {isDashboardChartTileType(tile) &&
+                    tile.properties.belongsToDashboard && (
+                        <Select
+                            styles={(theme) => ({
+                                separator: {
+                                    position: 'sticky',
+                                    top: 0,
+                                    backgroundColor: theme.colors.background[0],
+                                },
+                                separatorLabel: {
+                                    color: theme.colors.ldGray[6],
+                                    fontWeight: 500,
+                                },
+                            })}
+                            id="savedChartUuid"
+                            name="savedChartUuid"
+                            label="Select chart"
+                            radius="md"
+                            data={(savedCharts || []).map(
+                                ({ uuid, name, space }) => {
+                                    return {
+                                        value: uuid,
+                                        label: name,
+                                        group: space.name,
+                                    };
+                                },
+                            )}
+                            disabled={isInitialLoading}
+                            withinPortal
+                            {...form.getInputProps('uuid')}
+                            searchable
+                            placeholder="Search..."
+                            nothingFound="No charts found"
+                            clearable
+                            searchValue={searchQuery}
+                            onSearchChange={setSearchQuery}
+                            maxDropdownHeight={300}
+                            rightSection={
+                                isFetching && <Loader size="xs" color="gray" />
                             }
-                        >
-                            <MantineIcon
-                                icon={
-                                    form.values.hideTitle ? IconEyeOff : IconEye
-                                }
-                            />
-                        </ActionIcon>
-                    </Flex>
-                    {isDashboardChartTileType(tile) &&
-                        tile.properties.belongsToDashboard && (
-                            <Select
-                                styles={(theme) => ({
-                                    separator: {
-                                        position: 'sticky',
-                                        top: 0,
-                                        backgroundColor:
-                                            theme.colors.background[0],
-                                    },
-                                    separatorLabel: {
-                                        color: theme.colors.ldGray[6],
-                                        fontWeight: 500,
-                                    },
-                                })}
-                                id="savedChartUuid"
-                                name="savedChartUuid"
-                                label="Select chart"
-                                data={(savedCharts || []).map(
-                                    ({ uuid, name, space }) => {
-                                        return {
-                                            value: uuid,
-                                            label: name,
-                                            group: space.name,
-                                        };
-                                    },
-                                )}
-                                disabled={isInitialLoading}
-                                withinPortal
-                                {...form.getInputProps('uuid')}
-                                searchable
-                                placeholder="Search..."
-                                nothingFound="No charts found"
-                                clearable
-                                searchValue={searchQuery}
-                                onSearchChange={setSearchQuery}
-                                maxDropdownHeight={300}
-                                rightSection={
-                                    isFetching && (
-                                        <Loader size="xs" color="gray" />
-                                    )
-                                }
-                                dropdownComponent={({
-                                    children,
-                                    ...rest
-                                }: ScrollAreaProps) => (
-                                    <ScrollArea
-                                        {...rest}
-                                        viewportRef={selectScrollRef}
-                                    >
-                                        <>
-                                            {children}
-                                            {hasNextPage && (
-                                                <Button
-                                                    size="xs"
-                                                    variant="white"
-                                                    onClick={async () => {
-                                                        await fetchNextPage();
-                                                    }}
-                                                    disabled={isFetching}
-                                                >
-                                                    <Text>Load more</Text>
-                                                </Button>
-                                            )}
-                                        </>
-                                    </ScrollArea>
-                                )}
-                            />
-                        )}
-                    <Group spacing="xs" position="right" mt="md">
-                        <Button onClick={() => onClose?.()} variant="outline">
-                            Cancel
-                        </Button>
-                        <Button type="submit">Update</Button>
-                    </Group>
-                </Stack>
+                            dropdownComponent={({
+                                children,
+                                ...rest
+                            }: ScrollAreaProps) => (
+                                <ScrollArea
+                                    {...rest}
+                                    viewportRef={selectScrollRef}
+                                >
+                                    <>
+                                        {children}
+                                        {hasNextPage && (
+                                            <Button
+                                                size="xs"
+                                                variant="subtle"
+                                                fullWidth
+                                                onClick={async () => {
+                                                    await fetchNextPage();
+                                                }}
+                                                disabled={isFetching}
+                                            >
+                                                Load more
+                                            </Button>
+                                        )}
+                                    </>
+                                </ScrollArea>
+                            )}
+                        />
+                    )}
             </form>
-        </Modal>
+        </MantineModal>
     );
 };
 
