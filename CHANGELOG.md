@@ -1,3 +1,10 @@
+# [0.2291.0](https://github.com/lightdash/lightdash/compare/0.2290.3...0.2291.0) (2026-01-05)
+
+
+### Features
+
+* update MantineModal & add AlertMessage ([#19124](https://github.com/lightdash/lightdash/issues/19124)) ([e8caf60](https://github.com/lightdash/lightdash/commit/e8caf608533504f4a0390346c6da9d3f01ba6f3c))
+
 ## [0.2290.3](https://github.com/lightdash/lightdash/compare/0.2290.2...0.2290.3) (2026-01-05)
 
 
