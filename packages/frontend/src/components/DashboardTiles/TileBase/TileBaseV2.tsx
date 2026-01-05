@@ -313,8 +313,6 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
                                 <Text
                                     className={styles.tileTitle}
                                     data-hidden={hideTitle}
-                                    fw={600}
-                                    fz="md"
                                     c="foreground"
                                 >
                                     {title}
