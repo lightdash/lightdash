@@ -14,13 +14,13 @@ export const DateZoomInfoOnTileV2: FC<DateZoomInfoOnTileProps> = ({
                 <>
                     <Text fz="xs">
                         Date zoom:{' '}
-                        <Text span fw={500}>
+                        <Text span fw={500} fz="inherit">
                             {dateZoomGranularity}
                         </Text>
                     </Text>
                     <Text fz="xs">
                         On:{' '}
-                        <Text span fw={500}>
+                        <Text span fw={500} fz="inherit">
                             {dateDimension?.label}
                         </Text>
                     </Text>
