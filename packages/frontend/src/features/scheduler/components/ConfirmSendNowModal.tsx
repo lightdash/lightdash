@@ -1,4 +1,4 @@
-import { Button, Flex, Text } from '@mantine/core';
+import { Button } from '@mantine-8/core';
 import { IconSend } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
@@ -24,24 +24,14 @@ const ConfirmSendNowModal: FC<ConfirmSendNowModalProps> = ({
             onClose={onClose}
             title={`Send “${schedulerName}” now?`}
             icon={IconSend}
-            size="xl"
+            size="md"
             actions={
-                <Flex gap="sm">
-                    <Button variant="default" onClick={onClose}>
-                        Cancel
-                    </Button>
-                    <Button onClick={onConfirm} loading={loading}>
-                        Send now
-                    </Button>
-                </Flex>
+                <Button onClick={onConfirm} loading={loading}>
+                    Send now
+                </Button>
             }
-        >
-            <Text>
-                This will trigger the scheduled delivery immediately. It will
-                not change or affect the configured schedule or future
-                deliveries.
-            </Text>
-        </MantineModal>
+            description="This will trigger the scheduled delivery immediately. It will not change or affect the configured schedule or future deliveries."
+        />
     );
 };
 
