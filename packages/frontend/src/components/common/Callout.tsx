@@ -33,7 +33,7 @@ const CALLOUT_CONFIG: Record<
 interface CalloutProps extends Omit<AlertProps, 'title' | 'icon'> {
     variant: CalloutVariant;
     title?: ReactNode;
-    children: ReactNode;
+    children?: ReactNode;
 }
 
 /**
@@ -69,7 +69,7 @@ const Callout: FC<CalloutProps> = ({
             title={title}
             {...alertProps}
         >
-            {children}
+            {children ? children : null}
         </Alert>
     );
 };
