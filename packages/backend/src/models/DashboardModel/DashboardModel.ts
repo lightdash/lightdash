@@ -307,14 +307,14 @@ export class DashboardModel {
                             : undefined,
                     })) ?? [],
                 metrics:
-                    version.filters?.metrics.map((filter) => ({
+                    version.filters?.metrics?.map((filter) => ({
                         ...filter,
                         tileTargets: filter.tileTargets
                             ? pick(filter.tileTargets, tileUuids)
                             : undefined,
                     })) ?? [],
                 tableCalculations:
-                    version.filters?.tableCalculations.map((filter) => ({
+                    version.filters?.tableCalculations?.map((filter) => ({
                         ...filter,
                         tileTargets: filter.tileTargets
                             ? pick(filter.tileTargets, tileUuids)
