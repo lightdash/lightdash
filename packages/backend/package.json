@@ -49,7 +49,7 @@
         "@casl/ability": "^5.4.3",
         "@cubejs-client/core": "^0.35.23",
         "@godaddy/terminus": "^4.12.0",
-        "@langchain/core": "^0.3.58",
+      "@langchain/core": "^0.3.80",
         "@langchain/openai": "^0.4.2",
         "@lightdash/common": "workspace:*",
         "@lightdash/warehouses": "workspace:*",
