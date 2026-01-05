@@ -1,3 +1,10 @@
+# [0.2296.0](https://github.com/lightdash/lightdash/compare/0.2295.2...0.2296.0) (2026-01-05)
+
+
+### Features
+
+* add option to use dbt list instead of dbt compile ([#19203](https://github.com/lightdash/lightdash/issues/19203)) ([b2f2fa4](https://github.com/lightdash/lightdash/commit/b2f2fa45f220994c0e2b58185a8619f3e28811b4))
+
 ## [0.2295.2](https://github.com/lightdash/lightdash/compare/0.2295.1...0.2295.2) (2026-01-05)
 
 
