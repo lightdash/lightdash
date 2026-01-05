@@ -81,10 +81,11 @@ const useSentry = (
                     if (error instanceof SyntaxError) {
                         const frames =
                             event.exception?.values?.[0]?.stacktrace?.frames;
-                        const hasInAppFrame = frames?.some(
-                            (frame) => frame.in_app === true,
-                        );
-                        if (!hasInAppFrame) {
+                        const hasInAppFrame =
+                            frames &&
+                            frames.length > 0 &&
+                            frames.some((frame) => frame.in_app === true);
+                        if (frames && frames.length > 0 && !hasInAppFrame) {
                             return null;
                         }
                     }
