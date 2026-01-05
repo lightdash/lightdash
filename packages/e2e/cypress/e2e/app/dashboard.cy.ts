@@ -104,7 +104,7 @@ describe('Dashboard', () => {
 
         cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
 
-        cy.contains('855').click();
+        cy.contains('1,682').click();
         cy.contains('View underlying data').click();
 
         cy.get('section[role="dialog"]').within(() => {

@@ -124,7 +124,7 @@ describe('Date tests', () => {
         cy.get('.react-grid-layout').within(() => {
             cy.contains(`What's our total revenue to date?`)
                 .parents('.react-grid-item')
-                .contains('855');
+                .contains('1,682');
         });
 
         // Add filter
