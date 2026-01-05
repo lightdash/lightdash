@@ -1005,6 +1005,9 @@ export type LightdashConfig = {
     metricsCatalog: {
         echartsVisualizationEnabled: boolean | undefined;
     };
+    maps: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1809,6 +1812,9 @@ export const parseConfig = (): LightdashConfig => {
                           .METRICS_CATALOG_ECHARTS_VISUALIZATION_ENABLED ===
                       'true'
                     : undefined,
+        },
+        maps: {
+            enabled: process.env.LIGHTDASH_MAPS_ENABLED === 'true',
         },
     };
 };
