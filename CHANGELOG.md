@@ -1,3 +1,10 @@
+# [0.2298.0](https://github.com/lightdash/lightdash/compare/0.2297.0...0.2298.0) (2026-01-05)
+
+
+### Features
+
+* update mantine modals on palette, org, project, user attributes ([#19138](https://github.com/lightdash/lightdash/issues/19138)) ([3575978](https://github.com/lightdash/lightdash/commit/35759786c75a1877c2620f2493f6f594b7234b76))
+
 # [0.2297.0](https://github.com/lightdash/lightdash/compare/0.2296.1...0.2297.0) (2026-01-05)
 
 
