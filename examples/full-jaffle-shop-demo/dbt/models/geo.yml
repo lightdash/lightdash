@@ -21,7 +21,13 @@ models:
             dimension:
               type: string
       - name: country_code_2_digit
-        description: ""
+        description: "ISO 3166-1 alpha-2 country code (e.g., US, GB, DE)"
+        config:
+          meta:
+            dimension:
+              type: string
+      - name: country_code_3_digit
+        description: "ISO 3166-1 alpha-3 country code (e.g., USA, GBR, DEU) - matches countries.geojson"
         config:
           meta:
             dimension:
