@@ -94,6 +94,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
 }) => {
     const gridProps = getResponsiveGridLayoutProps();
     const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
+
     const handleUpdateTilesWithScaling = async (layout: Layout[]) => {
         const unscaledLayout = convertLayoutToBaseCoordinates(
             layout,
@@ -182,10 +183,6 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
             : [];
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
     const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
-
-    // Get the scroll container (Page component's main element)
-    const scrollContainer =
-        document.querySelector<HTMLElement>('#page-root main');
 
     // Compute whether there are required filters that apply to the current tab
     // Note: We use doesFilterApplyToTile because getTabUuidsForFilterRules from common
@@ -477,7 +474,6 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                         isEditMode ? DASHBOARD_HEADER_HEIGHT : 0
                                     }
                                     onStuckChange={setIsHeaderStuck}
-                                    scrollContainer={scrollContainer}
                                 >
                                     <div
                                         className={styles.stickyTabsAndFilters}
@@ -757,10 +753,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                 )}
             </Droppable>
 
-            <ScrollToTop
-                show={isHeaderStuck}
-                scrollContainer={scrollContainer}
-            />
+            <ScrollToTop show={isHeaderStuck} />
         </DragDropContext>
     );
 };

@@ -22,6 +22,14 @@
     &[data-is-stuck='true'] {
         border-color: var(--mantine-color-ldGray-3);
     }
+
+    :global(body:has(#preview-banner)) & {
+        top: var(--banner-height);
+    }
+
+    :global(body:has(#preview-banner)) &[data-has-header-above='true'] {
+        top: calc(var(--dashboard-header-height) + var(--banner-height));
+    }
 }
 
 .list {

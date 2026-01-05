@@ -43,23 +43,29 @@ type StyleProps = {
     noSidebarPadding?: boolean;
     isSidebarResizing?: boolean;
     backgroundColor?: string;
+    fullPageScroll?: boolean;
 };
 
 const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
     let containerHeight = '100vh';
 
-    if (params.withNavbar) {
+    if (params.withNavbar && !params.fullPageScroll) {
         containerHeight = `calc(${containerHeight} - ${NAVBAR_HEIGHT}px)`;
     }
     if (params.withHeader) {
         containerHeight = `calc(${containerHeight} - ${PAGE_HEADER_HEIGHT}px)`;
     }
-    if (params.hasBanner) {
+    if (params.hasBanner && !params.fullPageScroll) {
         containerHeight = `calc(${containerHeight} - ${BANNER_HEIGHT}px)`;
     }
+
     return {
         root: {
-            ...(params.withFullHeight
+            ...(params.fullPageScroll
+                ? {
+                      minHeight: '100%',
+                  }
+                : params.withFullHeight
                 ? {
                       height: containerHeight,
                       maxHeight: containerHeight,
@@ -131,7 +137,7 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                       height: '100%',
                       maxHeight: '100%',
 
-                      overflowY: 'auto',
+                      ...(params.fullPageScroll ? {} : { overflowY: 'auto' }),
                   }
                 : {}),
 
@@ -195,7 +201,7 @@ type Props = {
     isRightSidebarOpen?: boolean;
     rightSidebarWidthProps?: SidebarWidthProps;
     header?: React.ReactNode;
-} & Omit<StyleProps, 'withSidebar' | 'withHeader'>;
+} & Omit<StyleProps, 'withSidebar' | 'withHeader' | 'hasBanner'>;
 
 const Page: FC<React.PropsWithChildren<Props>> = ({
     title,
@@ -222,6 +228,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     noSidebarPadding = false,
     flexContent = false,
     backgroundColor,
+    fullPageScroll = false,
     children,
 }) => {
     const { ref: mainRef, width: mainWidth } = useElementSize();
@@ -260,6 +267,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
             flexContent,
             isSidebarResizing,
             backgroundColor,
+            fullPageScroll,
         },
         { name: 'Page' },
     );

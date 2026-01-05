@@ -701,6 +701,7 @@ const Dashboard: FC = () => {
                 title={dashboard.name}
                 noContentPadding={isDashboardRedesignEnabled}
                 withFullHeight
+                fullPageScroll={isDashboardRedesignEnabled}
                 header={
                     isDashboardRedesignEnabled ? null : (
                         <DashboardHeader {...dashboardHeaderProps} />
