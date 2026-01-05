@@ -163,10 +163,8 @@ export class SchedulerService extends BaseService {
         scheduler: Scheduler;
         resource: ChartSummary | DashboardDAO;
     }> {
-        // editors can "manage" scheduled deliveries,
-        // which means they can edit scheduled deliveries created from other users, even admins
-        // however, interactive users can only "create" scheduled deliveries,
-        // which means they can only edit their own scheduled deliveries
+        // editors can "manage" their own scheduled deliveries,
+        // however, interactive users can only "create" scheduled deliveries
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
         const resource = await this.getSchedulerResource(scheduler);
         const { organizationUuid, projectUuid } = resource;
@@ -176,15 +174,13 @@ export class SchedulerService extends BaseService {
             subject('ScheduledDeliveries', {
                 organizationUuid,
                 projectUuid,
+                userUuid: scheduler.createdBy,
             }),
         );
-        const canCreateDeliveries = user.ability.can(
-            'create',
-            subject('ScheduledDeliveries', {
-                organizationUuid,
-                projectUuid,
-            }),
-        );
+
+        if (!canManageDeliveries) {
+            throw new ForbiddenError();
+        }
 
         const canManageGoogleSheets = user.ability.can(
             'manage',
@@ -201,13 +197,7 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const isDeliveryOwner = scheduler.createdBy === user.userUuid;
-
-        if (canManageDeliveries || (canCreateDeliveries && isDeliveryOwner)) {
-            return { scheduler, resource };
-        }
-
-        throw new ForbiddenError();
+        return { scheduler, resource };
     }
 
     private async checkViewResource(

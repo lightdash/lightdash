@@ -90,6 +90,10 @@ export const projectMemberAbilities: Record<
         can('create', 'ScheduledDeliveries', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'ScheduledDeliveries', {
+            projectUuid: member.projectUuid,
+            userUuid: member.userUuid,
+        });
         can('manage', 'GoogleSheets', {
             projectUuid: member.projectUuid,
         });
@@ -163,7 +167,8 @@ export const projectMemberAbilities: Record<
         can('manage', 'PinnedItems', {
             projectUuid: member.projectUuid,
         });
-        can('manage', 'ScheduledDeliveries', {
+
+        can('view', 'ScheduledDeliveries', {
             projectUuid: member.projectUuid,
         });
 
@@ -269,6 +274,10 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'AiAgentThread', {
+            projectUuid: member.projectUuid,
+        });
+
+        can('manage', 'ScheduledDeliveries', {
             projectUuid: member.projectUuid,
         });
     },
