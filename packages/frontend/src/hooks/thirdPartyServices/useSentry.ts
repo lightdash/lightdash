@@ -75,6 +75,21 @@ const useSentry = (
                         return null;
                     }
 
+                    // Filter SyntaxErrors that originate entirely from third-party code
+                    // These are typically caused by network issues, browser extensions,
+                    // or CDN serving corrupted bundles - not actionable by us
+                    if (error instanceof SyntaxError) {
+                        const frames =
+                            event.exception?.values?.[0]?.stacktrace?.frames;
+                        const hasInAppFrame =
+                            frames &&
+                            frames.length > 0 &&
+                            frames.some((frame) => frame.in_app === true);
+                        if (frames && frames.length > 0 && !hasInAppFrame) {
+                            return null;
+                        }
+                    }
+
                     return event;
                 },
             });
