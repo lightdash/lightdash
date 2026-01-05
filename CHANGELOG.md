@@ -1,3 +1,10 @@
+## [0.2295.1](https://github.com/lightdash/lightdash/compare/0.2295.0...0.2295.1) (2026-01-05)
+
+
+### Bug Fixes
+
+* guard undefined with optional chaining ([#19197](https://github.com/lightdash/lightdash/issues/19197)) ([6e7450d](https://github.com/lightdash/lightdash/commit/6e7450d488c919c24d1b7346da8f341ba0987161))
+
 # [0.2295.0](https://github.com/lightdash/lightdash/compare/0.2294.0...0.2295.0) (2026-01-05)
 
 
