@@ -1,7 +1,12 @@
-import { Modal, Stack, Text, type ModalProps } from '@mantine/core';
+import { Modal, Stack, Text } from '@mantine-8/core';
 import { type FC } from 'react';
+import classes from './LockedDashboardModal.module.css';
 
-export const LockedDashboardModal: FC<Pick<ModalProps, 'opened'>> = ({
+interface LockedDashboardModalProps {
+    opened: boolean;
+}
+
+export const LockedDashboardModal: FC<LockedDashboardModalProps> = ({
     opened,
 }) => (
     <Modal
@@ -12,17 +17,14 @@ export const LockedDashboardModal: FC<Pick<ModalProps, 'opened'>> = ({
         withinPortal
         withOverlay={false}
         onClose={() => {}}
-        styles={(theme) => ({
-            content: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                boxShadow: 'none',
-            },
-        })}
+        classNames={{
+            content: classes.content,
+        }}
     >
         <Text fw={600} fz="lg" ta="center" mb="lg">
             Set filter values to get started
         </Text>
-        <Stack spacing="xs">
+        <Stack gap="xs">
             <Text>
                 This dashboard cannot be run without setting the filter values
                 that are required
