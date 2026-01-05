@@ -7,8 +7,9 @@ import {
     type CustomFormat,
     type Metric,
 } from '@lightdash/common';
-import { Button, Group, Modal, Stack, Title } from '@mantine/core';
+import { Button } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
+import { IconEraser, IconPencil } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { memo, useCallback, useEffect } from 'react';
 import { type ValueOf } from 'type-fest';
@@ -19,6 +20,8 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 import { FormatForm } from '../FormatForm';
 
 const DEFAULT_FORMAT: CustomFormat = {
@@ -99,41 +102,40 @@ export const FormatModal = memo(() => {
     }
 
     return metric ? (
-        <Modal
+        <MantineModal
             size="xl"
-            onClick={(e) => e.stopPropagation()}
             opened={isOpen}
+            icon={IconPencil}
             onClose={handleClose}
-            title={<Title order={4}>Format metric</Title>}
+            title="Format metric"
+            actions={
+                <Button type="submit" form="format-metric-form">
+                    Save changes
+                </Button>
+            }
+            leftActions={
+                !isEqual(form.values.format, DEFAULT_FORMAT) ? (
+                    <Button
+                        variant="default"
+                        leftSection={<MantineIcon icon={IconEraser} />}
+                        onClick={() =>
+                            form.setValues({
+                                format: DEFAULT_FORMAT,
+                            })
+                        }
+                    >
+                        Reset
+                    </Button>
+                ) : undefined
+            }
         >
-            <form onSubmit={handleOnSubmit}>
-                <Stack>
-                    <FormatForm
-                        formatInputProps={getFormatInputProps}
-                        format={form.values.format}
-                        setFormatFieldValue={setFormatFieldValue}
-                    />
-
-                    <Group position="right" spacing="xs">
-                        {!isEqual(form.values.format, DEFAULT_FORMAT) && (
-                            <Button
-                                variant="default"
-                                onClick={() =>
-                                    form.setValues({
-                                        format: DEFAULT_FORMAT,
-                                    })
-                                }
-                            >
-                                Reset
-                            </Button>
-                        )}
-
-                        <Button display="block" type="submit">
-                            Save changes
-                        </Button>
-                    </Group>
-                </Stack>
+            <form id="format-metric-form" onSubmit={handleOnSubmit}>
+                <FormatForm
+                    formatInputProps={getFormatInputProps}
+                    format={form.values.format}
+                    setFormatFieldValue={setFormatFieldValue}
+                />
             </form>
-        </Modal>
+        </MantineModal>
     ) : null;
 });
