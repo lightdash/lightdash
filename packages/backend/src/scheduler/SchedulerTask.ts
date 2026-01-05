@@ -2860,8 +2860,21 @@ export default class SchedulerTask {
                   );
 
         if (!scheduler.enabled) {
-            // This should not happen, if schedulers are not enabled, we should remove the scheduled jobs from the queue
-            throw new Error('Scheduler is disabled');
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
+                schedulerUuid,
+                jobId,
+                jobGroup: jobId,
+                scheduledTime,
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    error: `Scheduler is disabled, skipping scheduled delivery.`,
+                    projectUuid: schedulerPayload.projectUuid,
+                    organizationUuid: schedulerPayload.organizationUuid,
+                    createdByUserUuid: schedulerPayload.userUuid,
+                },
+            });
+            return;
         }
 
         this.analytics.track({
