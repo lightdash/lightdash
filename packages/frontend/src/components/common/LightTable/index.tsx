@@ -1,4 +1,4 @@
-import { assertUnreachable, FeatureFlags } from '@lightdash/common';
+import { assertUnreachable } from '@lightdash/common';
 import {
     Box,
     Text,
@@ -25,8 +25,8 @@ import {
     type RefAttributes,
 } from 'react';
 import { useScroll } from 'react-use';
+import { useDashboardUIPreference } from '../../../hooks/dashboard/useDashboardUIPreference';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { SMALL_TEXT_LENGTH } from './constants';
 import {
     useTableCellStyles,
@@ -165,9 +165,7 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
     ) => {
         const { cx, classes } = useTableStyles();
         const theme = useMantineTheme();
-        const isDashboardRedesignEnabled = useFeatureFlagEnabled(
-            FeatureFlags.DashboardRedesign,
-        );
+        const { isDashboardRedesignEnabled } = useDashboardUIPreference();
         const shouldRemoveBorders = isDashboard && isDashboardRedesignEnabled;
 
         const [isContainerInitialized, setIsContainerInitialized] =

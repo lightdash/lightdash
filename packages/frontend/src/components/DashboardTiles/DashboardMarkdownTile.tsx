@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     MARKDOWN_TILE_CLASS,
     type DashboardMarkdownTile,
 } from '@lightdash/common';
@@ -12,7 +11,7 @@ import { v4 as uuid4 } from 'uuid';
 import { DashboardTileComments } from '../../features/comments';
 import { appendNewTilesToBottom } from '../../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
+import { useDashboardUIPreference } from '../../hooks/dashboard/useDashboardUIPreference';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 import TileBase from './TileBase/index';
@@ -35,9 +34,7 @@ const MarkdownTile: FC<Props> = (props) => {
         isEditMode,
     } = props;
 
-    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardRedesign,
-    );
+    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
     const hideFrame = isDashboardRedesignEnabled ? rawHideFrame : false;
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);

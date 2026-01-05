@@ -1,15 +1,12 @@
-import { FeatureFlags } from '@lightdash/common';
 import { type FC } from 'react';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { useDashboardUIPreference } from '../../../hooks/dashboard/useDashboardUIPreference';
 import DashboardHeaderV1, {
     type DashboardHeaderProps,
 } from './DashboardHeaderV1';
 import DashboardHeaderV2 from './DashboardHeaderV2';
 
 const DashboardHeader: FC<DashboardHeaderProps> = (props) => {
-    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardRedesign,
-    );
+    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
 
     return isDashboardRedesignEnabled ? (
         <DashboardHeaderV2 {...props} />
