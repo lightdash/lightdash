@@ -1,3 +1,11 @@
+## [0.2295.2](https://github.com/lightdash/lightdash/compare/0.2295.1...0.2295.2) (2026-01-05)
+
+
+### Bug Fixes
+
+* debounce tile hover state to prevent tooltip flashing ([#19193](https://github.com/lightdash/lightdash/issues/19193)) ([a05ca90](https://github.com/lightdash/lightdash/commit/a05ca9057fda004c285473c3540beaf175d20037))
+* prevent race conditions in validation updates with row-level locking ([#19061](https://github.com/lightdash/lightdash/issues/19061)) ([284012a](https://github.com/lightdash/lightdash/commit/284012a8a733c14ed2d6ceb98a2a40e783a8d76f))
+
 ## [0.2295.1](https://github.com/lightdash/lightdash/compare/0.2295.0...0.2295.1) (2026-01-05)
 
 
