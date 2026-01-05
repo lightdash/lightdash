@@ -1,3 +1,15 @@
+# [0.2295.0](https://github.com/lightdash/lightdash/compare/0.2294.0...0.2295.0) (2026-01-05)
+
+
+### Bug Fixes
+
+* e2e data to include the year of 2025 ([#19191](https://github.com/lightdash/lightdash/issues/19191)) ([4fa61c7](https://github.com/lightdash/lightdash/commit/4fa61c7af4bc932ad1bf4c9c5dec15e5f20b236f))
+
+
+### Features
+
+* update mantine modals on scim/custom roles/service accounts ([#19137](https://github.com/lightdash/lightdash/issues/19137)) ([310be0e](https://github.com/lightdash/lightdash/commit/310be0e7ec60d738532613f40df6cca5fb6dd06f))
+
 # [0.2294.0](https://github.com/lightdash/lightdash/compare/0.2293.0...0.2294.0) (2026-01-05)
 
 
