@@ -1,3 +1,10 @@
+## [0.2290.3](https://github.com/lightdash/lightdash/compare/0.2290.2...0.2290.3) (2026-01-05)
+
+
+### Bug Fixes
+
+* filter third-party SyntaxErrors in Sentry reporting ([#19181](https://github.com/lightdash/lightdash/issues/19181)) ([c5a63c7](https://github.com/lightdash/lightdash/commit/c5a63c7eb10992e7de8e1ebf0e829ea22bd847b3))
+
 ## [0.2290.2](https://github.com/lightdash/lightdash/compare/0.2290.1...0.2290.2) (2026-01-05)
 
 
