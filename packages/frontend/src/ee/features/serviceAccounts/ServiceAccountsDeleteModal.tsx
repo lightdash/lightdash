@@ -1,5 +1,3 @@
-import { Button, Text } from '@mantine-8/core';
-import { IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 
 import { type ServiceAccount } from '@lightdash/common';
@@ -25,27 +23,12 @@ export const ServiceAccountsDeleteModal: FC<Props> = ({
             opened={isOpen}
             onClose={onClose}
             title="Delete service account"
-            icon={IconTrash}
+            variant="delete"
+            resourceType="service account"
+            resourceLabel={serviceAccount?.description}
             cancelDisabled={isDeleting}
-            actions={
-                <Button
-                    color="red"
-                    loading={isDeleting}
-                    onClick={() => {
-                        onDelete(serviceAccount?.uuid ?? '');
-                    }}
-                >
-                    Delete
-                </Button>
-            }
-        >
-            <Text fz="sm">
-                Are you sure? This will permanently delete the{' '}
-                <Text fw={600} component="span">
-                    {serviceAccount?.description}
-                </Text>{' '}
-                service account.
-            </Text>
-        </MantineModal>
+            onConfirm={() => onDelete(serviceAccount?.uuid ?? '')}
+            confirmLoading={isDeleting}
+        />
     );
 };

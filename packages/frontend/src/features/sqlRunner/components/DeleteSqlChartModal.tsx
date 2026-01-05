@@ -1,5 +1,3 @@
-import { Button, Text } from '@mantine-8/core';
-import { IconChartBar } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import MantineModal, {
     type MantineModalProps,
@@ -37,24 +35,11 @@ export const DeleteSqlChartModal: FC<Props> = ({
             opened={opened}
             onClose={onClose}
             title="Delete chart"
-            icon={IconChartBar}
-            actions={
-                <Button
-                    loading={isLoading}
-                    color="red"
-                    onClick={() => mutate()}
-                >
-                    Delete
-                </Button>
-            }
-        >
-            <Text>
-                Are you sure you want to delete the chart{' '}
-                <Text span fw={600}>
-                    "{name}"
-                </Text>
-                ?
-            </Text>
-        </MantineModal>
+            variant="delete"
+            resourceType="chart"
+            resourceLabel={name}
+            onConfirm={mutate}
+            confirmLoading={isLoading}
+        />
     );
 };

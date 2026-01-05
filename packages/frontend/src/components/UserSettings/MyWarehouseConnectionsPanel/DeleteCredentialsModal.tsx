@@ -1,6 +1,4 @@
 import { type UserWarehouseCredentials } from '@lightdash/common';
-import { Button, Text } from '@mantine-8/core';
-import { IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useUserWarehouseCredentialsDeleteMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
 import MantineModal, {
@@ -21,31 +19,22 @@ export const DeleteCredentialsModal: FC<Props> = ({
             warehouseCredentialsToBeDeleted.uuid,
         );
 
+    const handleConfirm = async () => {
+        await mutateAsync();
+        onClose();
+    };
+
     return (
         <MantineModal
             opened={opened}
             onClose={onClose}
             title="Delete credentials"
-            icon={IconTrash}
+            variant="delete"
+            resourceType="credentials"
+            resourceLabel={warehouseCredentialsToBeDeleted.name}
             cancelDisabled={isDeleting}
-            actions={
-                <Button
-                    color="red"
-                    onClick={async () => {
-                        await mutateAsync();
-                        onClose();
-                    }}
-                    loading={isDeleting}
-                    disabled={isDeleting}
-                >
-                    Delete
-                </Button>
-            }
-        >
-            <Text fz="sm">
-                Are you sure you want to delete credentials:{' '}
-                <b>{warehouseCredentialsToBeDeleted.name}</b>?
-            </Text>
-        </MantineModal>
+            onConfirm={handleConfirm}
+            confirmLoading={isDeleting}
+        />
     );
 };

@@ -1,5 +1,4 @@
-import { Button, Text } from '@mantine-8/core';
-import { IconTrash } from '@tabler/icons-react';
+import { Text } from '@mantine-8/core';
 import { type FC } from 'react';
 
 import { type RoleWithScopes } from '@lightdash/common';
@@ -25,21 +24,13 @@ export const CustomRolesDeleteModal: FC<DeleteModalProps> = ({
             opened={isOpen}
             onClose={onClose}
             title="Delete custom role"
-            icon={IconTrash}
+            variant="delete"
+            resourceType="role"
+            resourceLabel={role.name}
             cancelDisabled={isDeleting}
-            actions={
-                <Button color="red" onClick={onDelete} loading={isDeleting}>
-                    Delete role
-                </Button>
-            }
+            onConfirm={onDelete}
+            confirmLoading={isDeleting}
         >
-            <Text fz="sm">
-                Are you sure you want to delete the role{' '}
-                <Text component="span" fw={700}>
-                    {role.name}
-                </Text>
-                ?
-            </Text>
             <Text fz="sm" c="dimmed">
                 This action cannot be undone. Users and groups will no longer be
                 able to use this role.
