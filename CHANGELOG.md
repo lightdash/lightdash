@@ -1,3 +1,14 @@
+## [0.2290.2](https://github.com/lightdash/lightdash/compare/0.2290.1...0.2290.2) (2026-01-05)
+
+
+### Bug Fixes
+
+* dashboard tabs always stuck when edit mode ([#19150](https://github.com/lightdash/lightdash/issues/19150)) ([f0a51bb](https://github.com/lightdash/lightdash/commit/f0a51bb97c67c18989fd119c5488c3eb105e3534))
+* flash empty tile tooltip ([#19170](https://github.com/lightdash/lightdash/issues/19170)) ([0ae4f1a](https://github.com/lightdash/lightdash/commit/0ae4f1ae799fb0248046ebbffbbc76a8d30593e8))
+* handle key collisions in createNodeWithGroup ([#19176](https://github.com/lightdash/lightdash/issues/19176)) ([b4661bc](https://github.com/lightdash/lightdash/commit/b4661bca4cf5d469280926c889f18deda965a5d2))
+* resKey optional chaining and a null fallback ([#19178](https://github.com/lightdash/lightdash/issues/19178)) ([8c16811](https://github.com/lightdash/lightdash/commit/8c1681137221895a45bbc2c1c979c03f81fb7c7a))
+* scroll to top directly vs. virtualizer's async scrollToIndex(0) ([#19180](https://github.com/lightdash/lightdash/issues/19180)) ([1fa150b](https://github.com/lightdash/lightdash/commit/1fa150b786ac5dcf29c4d5032bc3628483f748c7))
+
 ## [0.2290.1](https://github.com/lightdash/lightdash/compare/0.2290.0...0.2290.1) (2025-12-31)
 
 
