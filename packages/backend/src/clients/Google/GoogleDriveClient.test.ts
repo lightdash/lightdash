@@ -56,5 +56,37 @@ describe('GoogleDriveClient', () => {
                 ),
             ).toEqual('string');
         });
+
+        test('should truncate string values that exceed Google Sheets character limit', () => {
+            // String shorter than limit should not be truncated
+            const shortString = 'a'.repeat(1000);
+            expect(GoogleDriveClient.formatCell(shortString)).toEqual(
+                shortString,
+            );
+
+            // String exactly at limit should not be truncated
+            const atLimitString = 'a'.repeat(50000);
+            expect(GoogleDriveClient.formatCell(atLimitString)).toEqual(
+                atLimitString,
+            );
+
+            // String exceeding limit should be truncated with suffix
+            const longString = 'a'.repeat(50001);
+            const truncated = GoogleDriveClient.formatCell(longString);
+            expect(truncated).toHaveLength(50000);
+            expect(truncated).toMatch(/\.\.\. \[TRUNCATED\]$/);
+
+            // Very long array joined should be truncated
+            const longArray = Array(60000).fill('x');
+            const truncatedArray = GoogleDriveClient.formatCell(longArray);
+            expect(truncatedArray).toHaveLength(50000);
+            expect(truncatedArray).toMatch(/\.\.\. \[TRUNCATED\]$/);
+
+            // Large JSON object should be truncated
+            const largeObject = { data: 'x'.repeat(60000) };
+            const truncatedObject = GoogleDriveClient.formatCell(largeObject);
+            expect(truncatedObject).toHaveLength(50000);
+            expect(truncatedObject).toMatch(/\.\.\. \[TRUNCATED\]$/);
+        });
     });
 });
