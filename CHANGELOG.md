@@ -1,3 +1,13 @@
+# [0.2299.0](https://github.com/lightdash/lightdash/compare/0.2298.0...0.2299.0) (2026-01-05)
+
+
+### Features
+
+* update mantine modal on tiles modals ([#19142](https://github.com/lightdash/lightdash/issues/19142)) ([1cd82f2](https://github.com/lightdash/lightdash/commit/1cd82f2183599d95e096967f08b774d835fe215e)), closes [#migration-to-mantine-8](https://github.com/lightdash/lightdash/issues/migration-to-mantine-8)
+* update mantine modals on all things tabs ([#19141](https://github.com/lightdash/lightdash/issues/19141)) ([3648e97](https://github.com/lightdash/lightdash/commit/3648e9723f5cfb43cf1d06ed098d6b4dad6636a3))
+* update to mantine modal on data and explorer modals ([#19143](https://github.com/lightdash/lightdash/issues/19143)) ([b91f39f](https://github.com/lightdash/lightdash/commit/b91f39fb5c18b256e913cdee25183994c0aa5955))
+* update various modals to MantineModal ([#19144](https://github.com/lightdash/lightdash/issues/19144)) ([d039fbc](https://github.com/lightdash/lightdash/commit/d039fbc98ab248e3fb52d16bedb1c49ccc3c4ed5))
+
 # [0.2298.0](https://github.com/lightdash/lightdash/compare/0.2297.0...0.2298.0) (2026-01-05)
 
 
