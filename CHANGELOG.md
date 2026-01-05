@@ -1,3 +1,10 @@
+# [0.2294.0](https://github.com/lightdash/lightdash/compare/0.2293.0...0.2294.0) (2026-01-05)
+
+
+### Features
+
+* pass parameter values through the filter context ([#19182](https://github.com/lightdash/lightdash/issues/19182)) ([7ea4d45](https://github.com/lightdash/lightdash/commit/7ea4d45c0c5cce2c53a43e581f2a64a86f2c372f))
+
 # [0.2293.0](https://github.com/lightdash/lightdash/compare/0.2292.0...0.2293.0) (2026-01-05)
 
 
