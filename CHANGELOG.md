@@ -1,3 +1,11 @@
+# [0.2293.0](https://github.com/lightdash/lightdash/compare/0.2292.0...0.2293.0) (2026-01-05)
+
+
+### Features
+
+* optimize suboptimalState for smaller container sizes ([#19106](https://github.com/lightdash/lightdash/issues/19106)) ([2185666](https://github.com/lightdash/lightdash/commit/21856660056e22f8a3afe43cade9b7a6677cd8a7))
+* update mantine modals for project access&preview ([#19134](https://github.com/lightdash/lightdash/issues/19134)) ([aff7a51](https://github.com/lightdash/lightdash/commit/aff7a51b32a541ea5adfd307c9f106991ebd3e8c))
+
 # [0.2292.0](https://github.com/lightdash/lightdash/compare/0.2291.0...0.2292.0) (2026-01-05)
 
 
