@@ -1,61 +1,40 @@
-import {
-    Button,
-    Group,
-    Modal,
-    Stack,
-    Text,
-    Title,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, type ModalProps } from '@mantine-8/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import React, { type FC } from 'react';
-import MantineIcon from '../MantineIcon';
+import { type FC } from 'react';
+import Callout from '../Callout';
+import MantineModal from '../MantineModal';
 
 interface Props extends ModalProps {
     name: string;
     onConfirm: () => void;
+    className?: string;
 }
 
 const DeleteChartTileThatBelongsToDashboardModal: FC<Props> = ({
+    opened,
+    onClose,
     name,
     onConfirm,
-    ...modalProps
+    className,
 }) => (
-    <Modal
-        size="md"
-        title={
-            <Group spacing="xs">
-                <MantineIcon size="lg" icon={IconAlertCircle} color="red" />
-                <Title order={4}>Delete chart</Title>
-            </Group>
+    <MantineModal
+        opened={opened}
+        onClose={onClose}
+        title="Delete chart"
+        icon={IconAlertCircle}
+        modalRootProps={{ className }}
+        description={`Are you sure you want to delete the chart "${name}"?`}
+        actions={
+            <Button color="red" onClick={onConfirm}>
+                Delete
+            </Button>
         }
-        {...modalProps}
     >
-        <Stack>
-            <Text>
-                Are you sure you want to delete the chart <b>{name}</b>?
-            </Text>
-            <Text>
-                This chart was created from within the dashboard, so removing
-                the tile will also result in the permanent deletion of the
-                chart.
-            </Text>
-
-            <Group position="right" spacing="xs">
-                <Button
-                    variant="outline"
-                    color="dark"
-                    onClick={modalProps.onClose}
-                >
-                    Cancel
-                </Button>
-
-                <Button color="red" onClick={onConfirm} type="submit">
-                    Delete
-                </Button>
-            </Group>
-        </Stack>
-    </Modal>
+        <Callout variant="warning" title="This change cannot be undone.">
+            This chart was created from within the dashboard, so removing the
+            tile will also result in the permanent deletion of the chart.
+        </Callout>
+    </MantineModal>
 );
 
 export default DeleteChartTileThatBelongsToDashboardModal;

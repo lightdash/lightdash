@@ -1,18 +1,9 @@
-import {
-    Button,
-    Group,
-    Modal,
-    Stack,
-    Text,
-    TextInput,
-    Title,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, Text, TextInput, type ModalProps } from '@mantine-8/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useDeleteOrganizationMutation } from '../../../hooks/organization/useOrganizationDeleteMultation';
-import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 
 export const OrganizationDeleteModal: FC<
     Pick<ModalProps, 'opened' | 'onClose'>
@@ -36,55 +27,39 @@ export const OrganizationDeleteModal: FC<
     };
 
     return (
-        <Modal
-            size="md"
+        <MantineModal
             opened={opened}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon size="lg" icon={IconAlertCircle} color="red" />
-                    <Title order={4}>Delete Organization</Title>
-                </Group>
-            }
             onClose={handleOnClose}
+            title="Delete Organization"
+            icon={IconAlertCircle}
+            size="md"
+            actions={
+                <Button
+                    color="red"
+                    disabled={
+                        confirmOrgName?.toLowerCase() !==
+                        organization.name.toLowerCase()
+                    }
+                    loading={isDeleting}
+                    onClick={() => handleConfirm()}
+                >
+                    Delete
+                </Button>
+            }
         >
-            <Stack>
-                <Text>
-                    Type the name of this organization{' '}
-                    <b>{organization.name}</b> to confirm you want to delete
-                    this organization and its users. This action is not
-                    reversible.
-                </Text>
+            <Text>
+                Type the name of this organization{' '}
+                <b>{organization.name}</b> to confirm you want to delete
+                this organization and its users. This action is not
+                reversible.
+            </Text>
 
-                <TextInput
-                    name="confirmOrgName"
-                    placeholder={organization.name}
-                    value={confirmOrgName}
-                    onChange={(e) => setConfirmOrgName(e.target.value)}
-                />
-
-                <Group position="right" spacing="xs">
-                    <Button
-                        variant="outline"
-                        onClick={handleOnClose}
-                        color="dark"
-                    >
-                        Cancel
-                    </Button>
-
-                    <Button
-                        color="red"
-                        disabled={
-                            confirmOrgName?.toLowerCase() !==
-                            organization.name.toLowerCase()
-                        }
-                        loading={isDeleting}
-                        onClick={() => handleConfirm()}
-                        type="submit"
-                    >
-                        Delete
-                    </Button>
-                </Group>
-            </Stack>
-        </Modal>
+            <TextInput
+                name="confirmOrgName"
+                placeholder={organization.name}
+                value={confirmOrgName}
+                onChange={(e) => setConfirmOrgName(e.target.value)}
+            />
+        </MantineModal>
     );
 };

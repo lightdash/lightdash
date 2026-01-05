@@ -37,6 +37,11 @@ export type MantineModalProps = {
      */
     fullScreen?: boolean;
     /**
+     * Whether to show the close button in the header.
+     * @default true
+     */
+    withCloseButton?: boolean;
+    /**
      * Simple text description for the modal body.
      * Use this for simple confirmation dialogs instead of children.
      * Renders above children if both are provided.
@@ -91,6 +96,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
     icon,
     size = 'lg',
     fullScreen = false,
+    withCloseButton = true,
     description,
     children,
     actions,
@@ -165,7 +171,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                                 <MantineIcon icon={icon} size="md" />
                             </Paper>
                         ) : null}
-                        <Text c="ldDark.9" fw={700} fz="md">
+                        <Text c="ldDark.9" fw={700} fz="md" lh="28px">
                             {title}
                         </Text>
                     </Group>
@@ -174,7 +180,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
                             {headerActions}
                         </Group>
                     ) : null}
-                    <Modal.CloseButton />
+                    {withCloseButton && <Modal.CloseButton />}
                 </Modal.Header>
 
                 {renderBody()}
