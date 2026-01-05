@@ -42,6 +42,7 @@ export const SchedulerDeleteModal: FC<SchedulerDeleteModalProps> = ({
     return (
         <Modal
             opened={opened}
+            zIndex={210}
             title={
                 <Group gap="xs">
                     <MantineIcon icon={IconTrash} size="lg" color="red" />
