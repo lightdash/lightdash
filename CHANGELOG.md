@@ -1,3 +1,10 @@
+# [0.2292.0](https://github.com/lightdash/lightdash/compare/0.2291.0...0.2292.0) (2026-01-05)
+
+
+### Features
+
+* update mantine modals for metric query, drill down etc ([#19129](https://github.com/lightdash/lightdash/issues/19129)) ([064afb8](https://github.com/lightdash/lightdash/commit/064afb86da98572fd8221190e3638616f561f470))
+
 # [0.2291.0](https://github.com/lightdash/lightdash/compare/0.2290.3...0.2291.0) (2026-01-05)
 
 
