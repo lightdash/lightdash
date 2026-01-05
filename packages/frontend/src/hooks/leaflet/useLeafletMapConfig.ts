@@ -69,6 +69,8 @@ export type LeafletMapConfig = {
     showLegend: boolean;
     valueRange: { min: number; max: number } | null;
     valueFieldLabel: string | null;
+    // The field ID used for location matching (for deriving labels)
+    locationFieldId: string | null;
     // Field configuration for tooltips
     tooltipFields: TooltipFieldInfo[];
 };
@@ -418,6 +420,7 @@ const useLeafletMapConfig = ({
             showLegend: showLegend ?? false,
             valueRange,
             valueFieldLabel,
+            locationFieldId: locationFieldId ?? null,
             tooltipFields,
         };
     }, [chartConfig, resultsData, theme, itemsMap]);
