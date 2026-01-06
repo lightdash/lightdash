@@ -8,7 +8,10 @@ import {
     WarehouseResults,
 } from '@lightdash/common';
 import fs from 'fs';
-import { PassThrough, Readable } from 'stream';
+import os from 'os';
+import path from 'path';
+import { Readable } from 'stream';
+import { v4 as uuidv4 } from 'uuid';
 import Logger from '../../logging/logger';
 import { createContentDispositionHeader } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import {
@@ -51,8 +54,6 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             throw new MissingConfigError('S3 configuration is not set');
         }
 
-        const passThrough = new PassThrough();
-
         const contentDisposition = createContentDispositionHeader(
             attachmentDownloadName || fileName,
         );
@@ -61,59 +62,91 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             `Creating upload stream for ${this.configuration.bucket}/${fileName} with content disposition: ${contentDisposition} and contentType: ${opts.contentType}`,
         );
 
-        const upload = new Upload({
-            client: this.s3,
-            params: {
-                Bucket: this.configuration.bucket,
-                Key: fileName,
-                Body: passThrough,
-                ContentType: opts.contentType,
-                ContentDisposition: contentDisposition,
-            },
+        // Write to temp file first, then upload to S3
+        // This properly handles backpressure via fs.WriteStream's drain events
+        const tempFilePath = path.join(
+            os.tmpdir(),
+            `lightdash-upload-${uuidv4()}.jsonl`,
+        );
+        const fileStream = fs.createWriteStream(tempFilePath, {
+            highWaterMark: 16 * 1024 * 1024, // 16MB buffer
         });
+
+        let totalRows = 0;
+        const startTime = Date.now();
+
+        const write = (rows: WarehouseResults['rows']): void => {
+            for (const row of rows) {
+                const chunk = `${JSON.stringify(row)}\n`;
+                fileStream.write(chunk);
+            }
+            totalRows += rows.length;
+        };
 
         let isClosed = false;
         const close = async () => {
-            if (!this.configuration) {
+            if (!this.configuration || !this.s3) {
                 throw new MissingConfigError('S3 configuration is not set');
             }
 
             if (isClosed) return;
             isClosed = true;
+
             try {
-                passThrough.end(); // signal EOF
-                await upload.done(); // wait for upload to finish
+                // Close the file stream
+                await new Promise<void>((resolve, reject) => {
+                    fileStream.end((err: Error | null) => {
+                        if (err) reject(err);
+                        else resolve();
+                    });
+                });
+
+                const fileStat = await fs.promises.stat(tempFilePath);
+                const fileSizeMB = (fileStat.size / 1024 / 1024).toFixed(1);
+
+                // Upload the complete file to S3
+                const readStream = fs.createReadStream(tempFilePath);
+                const upload = new Upload({
+                    client: this.s3,
+                    params: {
+                        Bucket: this.configuration.bucket,
+                        Key: fileName,
+                        Body: readStream,
+                        ContentType: opts.contentType,
+                        ContentDisposition: contentDisposition,
+                    },
+                });
+
+                await upload.done();
+
+                const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(
+                    1,
+                );
                 Logger.debug(
-                    `Successfully closed upload stream to ${this.configuration.bucket}/${fileName}`,
+                    `Uploaded ${totalRows} rows (${fileSizeMB}MB) to ${this.configuration.bucket}/${fileName} in ${totalElapsed}s`,
                 );
             } catch (error) {
                 Logger.error(
-                    `Error closing upload stream to ${
+                    `Error uploading to ${
                         this.configuration.bucket
                     }/${fileName}: ${getErrorMessage(error)}`,
                 );
-                Logger.debug(`Full error: ${JSON.stringify(error)}`);
                 throw error;
+            } finally {
+                // Clean up temp file
+                try {
+                    await fs.promises.unlink(tempFilePath);
+                } catch (unlinkError) {
+                    Logger.warn(
+                        `Failed to clean up temp file ${tempFilePath}: ${getErrorMessage(
+                            unlinkError,
+                        )}`,
+                    );
+                }
             }
         };
 
-        // Create a function that can be used as a streamQuery callback
-        const write = (rows: WarehouseResults['rows']) => {
-            try {
-                rows.forEach((row) =>
-                    passThrough.push(`${JSON.stringify(row)}\n`),
-                );
-            } catch (error) {
-                Logger.error(
-                    `Failed to write rows to fileName ${fileName}: ${getErrorMessage(
-                        error,
-                    )}`,
-                );
-                throw error;
-            }
-        };
-
-        return { write, close, writeStream: passThrough };
+        return { write, close, writeStream: fileStream };
     }
 
     async getDownloadStream(
