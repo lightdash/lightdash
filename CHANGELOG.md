@@ -1,3 +1,10 @@
+## [0.2301.3](https://github.com/lightdash/lightdash/compare/0.2301.2...0.2301.3) (2026-01-06)
+
+
+### Bug Fixes
+
+* dont run underlying data query when unopened ([#19212](https://github.com/lightdash/lightdash/issues/19212)) ([6f36921](https://github.com/lightdash/lightdash/commit/6f369218786f4c40e040b13ac96d5e4128aec80d))
+
 ## [0.2301.2](https://github.com/lightdash/lightdash/compare/0.2301.1...0.2301.2) (2026-01-06)
 
 
