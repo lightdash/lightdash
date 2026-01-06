@@ -630,6 +630,8 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     catalogModel: this.models.getCatalogModel(),
                     permissionsService: this.getPermissionsService(),
+                    googleDriveClient: this.clients.getGoogleDriveClient(),
+                    userService: this.getUserService(),
                 }),
         );
     }
@@ -649,6 +651,8 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     slackClient: this.clients.getSlackClient(),
                     userModel: this.models.getUserModel(),
+                    googleDriveClient: this.clients.getGoogleDriveClient(),
+                    userService: this.getUserService(),
                 }),
         );
     }
