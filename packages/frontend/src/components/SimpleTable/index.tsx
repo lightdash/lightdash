@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import { Box, Button, Flex, Text } from '@mantine/core';
 import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
@@ -7,7 +6,7 @@ import {
     isChunkLoadError,
     triggerChunkErrorReload,
 } from '../../features/chunkErrorHandler';
-import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
+import { useDashboardUIPreference } from '../../hooks/dashboard/useDashboardUIPreference';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import LoadingChart from '../common/LoadingChart';
@@ -44,9 +43,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     onScreenshotError,
     ...rest
 }) => {
-    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardRedesign,
-    );
+    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
     const {
         columnOrder,
         itemsMap,

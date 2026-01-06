@@ -37,6 +37,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import AIDashboardSummary from '../../../ee/features/ambientAi/components/aiDashboardSummary';
+import { TryNewUIButton } from '../../../features/dashboardTabsV2/DashboardUIToggle';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteDashboardDiffMutation,
@@ -247,6 +248,8 @@ const DashboardHeaderV1 = ({
                         />
                     </Popover.Dropdown>
                 </Popover>
+
+                {!isFullscreen && <TryNewUIButton />}
 
                 {isEditMode && userCanManageDashboard && (
                     <ActionIcon

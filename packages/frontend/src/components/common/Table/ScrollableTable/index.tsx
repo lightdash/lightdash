@@ -1,6 +1,5 @@
-import { FeatureFlags } from '@lightdash/common';
 import { useRef, type FC } from 'react';
-import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
+import { useDashboardUIPreference } from '../../../../hooks/dashboard/useDashboardUIPreference';
 import { Table, TableScrollableWrapper } from '../Table.styles';
 import { useTableContext } from '../useTableContext';
 import TableBody from './TableBody';
@@ -20,9 +19,7 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
 }) => {
     const { footer } = useTableContext();
     const tableContainerRef = useRef<HTMLDivElement>(null);
-    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardRedesign,
-    );
+    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
 
     return (
         <TableScrollableWrapper

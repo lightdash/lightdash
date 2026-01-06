@@ -1,6 +1,5 @@
 import {
     ContentType,
-    FeatureFlags,
     type DashboardTile,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
@@ -29,10 +28,10 @@ import {
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
+import { useDashboardUIPreference } from '../hooks/dashboard/useDashboardUIPreference';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
-import { useFeatureFlagEnabled } from '../hooks/useFeatureFlagEnabled';
 import useApp from '../providers/App/useApp';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
@@ -149,9 +148,7 @@ const Dashboard: FC = () => {
     } = useFullscreen();
     const { showToastError } = useToaster();
 
-    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardRedesign,
-    );
+    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
 
     const { data: organization } = useOrganization();
     const hasTemporaryFilters = useMemo(
@@ -802,6 +799,7 @@ const Dashboard: FC = () => {
                         onConfirm={duplicateModalHandlers.close}
                     />
                 )}
+
             </Page>
         </>
     );

@@ -1,14 +1,11 @@
-import { FeatureFlags } from '@lightdash/common';
 import { type FC } from 'react';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { useDashboardUIPreference } from '../../../hooks/dashboard/useDashboardUIPreference';
 import { DateZoomInfoOnTileV1 } from './DateZoomInfoOnTileV1';
 import { DateZoomInfoOnTileV2 } from './DateZoomInfoOnTileV2';
 import { type DateZoomInfoOnTileProps } from './types';
 
 export const DateZoomInfoOnTile: FC<DateZoomInfoOnTileProps> = (props) => {
-    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardRedesign,
-    );
+    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
 
     return isDashboardRedesignEnabled ? (
         <DateZoomInfoOnTileV2 {...props} />
