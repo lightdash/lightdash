@@ -1,3 +1,10 @@
+# [0.2301.0](https://github.com/lightdash/lightdash/compare/0.2300.0...0.2301.0) (2026-01-06)
+
+
+### Features
+
+* hide app navigation when scrolling dashboards ([#19199](https://github.com/lightdash/lightdash/issues/19199)) ([8be99ac](https://github.com/lightdash/lightdash/commit/8be99acd396bab6d8451095090429d8baeb9d2fd)), closes [#19123](https://github.com/lightdash/lightdash/issues/19123)
+
 # [0.2300.0](https://github.com/lightdash/lightdash/compare/0.2299.1...0.2300.0) (2026-01-06)
 
 
