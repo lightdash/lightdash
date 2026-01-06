@@ -1,3 +1,10 @@
+## [0.2301.4](https://github.com/lightdash/lightdash/compare/0.2301.3...0.2301.4) (2026-01-06)
+
+
+### Bug Fixes
+
+* do not escape smart quote ([#19208](https://github.com/lightdash/lightdash/issues/19208)) ([ab8022a](https://github.com/lightdash/lightdash/commit/ab8022af9b6e411ab1f976643bc11e206d3ff90e))
+
 ## [0.2301.3](https://github.com/lightdash/lightdash/compare/0.2301.2...0.2301.3) (2026-01-06)
 
 
