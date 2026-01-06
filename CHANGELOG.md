@@ -1,3 +1,10 @@
+## [0.2301.2](https://github.com/lightdash/lightdash/compare/0.2301.1...0.2301.2) (2026-01-06)
+
+
+### Bug Fixes
+
+* **backend:** allow for filtering users with google refresh token ([#19161](https://github.com/lightdash/lightdash/issues/19161)) ([9db1777](https://github.com/lightdash/lightdash/commit/9db17776dcf6c791484cda8ff1068d47e7fff74d))
+
 ## [0.2301.1](https://github.com/lightdash/lightdash/compare/0.2301.0...0.2301.1) (2026-01-06)
 
 
