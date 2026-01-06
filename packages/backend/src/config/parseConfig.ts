@@ -1000,6 +1000,11 @@ export type SlackConfig = {
     channelsCachedTime: number;
     supportUrl: string;
     multiAgentChannelEnabled: boolean;
+    /*
+     This is the setting that controls whether we generate image previews for link shares in Slack
+     @default true
+    */
+    linkShareImagePreviewEnabled: boolean;
 };
 export type HeadlessBrowserConfig = {
     host?: string;
@@ -1580,6 +1585,8 @@ export const parseConfig = (): LightdashConfig => {
             supportUrl: process.env.SLACK_SUPPORT_URL || '',
             multiAgentChannelEnabled:
                 process.env.SLACK_MULTI_AGENT_CHANNEL_ENABLED === 'true',
+            linkShareImagePreviewEnabled:
+                process.env.SLACK_LINK_SHARE_IMAGE_PREVIEW_ENABLED !== 'false',
         },
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',

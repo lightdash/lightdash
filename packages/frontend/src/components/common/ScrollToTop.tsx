@@ -9,7 +9,7 @@ type ScrollToTopProps = {
      */
     show: boolean;
     /**
-     * Optional scroll container. Defaults to document.body
+     * Optional scroll container. Defaults to window scrolling.
      */
     scrollContainer?: HTMLElement | null;
 };
@@ -23,12 +23,17 @@ export const ScrollToTop: FC<ScrollToTopProps> = ({
     scrollContainer,
 }) => {
     const handleScrollToTop = () => {
-        const container = scrollContainer || document.body;
-
-        container.scrollTo({
-            top: 0,
-            behavior: 'smooth',
-        });
+        if (!scrollContainer) {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth',
+            });
+        } else {
+            scrollContainer.scrollTo({
+                top: 0,
+                behavior: 'smooth',
+            });
+        }
     };
 
     return (

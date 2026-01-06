@@ -1,3 +1,67 @@
+# [0.2302.0](https://github.com/lightdash/lightdash/compare/0.2301.4...0.2302.0) (2026-01-06)
+
+
+### Bug Fixes
+
+* total label renders outside chart boundary ([#19225](https://github.com/lightdash/lightdash/issues/19225)) ([eeac377](https://github.com/lightdash/lightdash/commit/eeac377bac15c63b67dc49a99d9c34c6e2f1103a)), closes [#19216](https://github.com/lightdash/lightdash/issues/19216)
+
+
+### Features
+
+* add graphite-cli to development environment ([#19227](https://github.com/lightdash/lightdash/issues/19227)) ([e0ab607](https://github.com/lightdash/lightdash/commit/e0ab607710c1e06283cefa62d0618193fc6455eb))
+* allow toggling back and forth new dashboard ui experience ([#19186](https://github.com/lightdash/lightdash/issues/19186)) ([6295d79](https://github.com/lightdash/lightdash/commit/6295d792ebacbdeb94e1e83d939805fe2e87bf40)), closes [#19183](https://github.com/lightdash/lightdash/issues/19183)
+* update other modals like group access to MantineModal ([#19147](https://github.com/lightdash/lightdash/issues/19147)) ([5091f94](https://github.com/lightdash/lightdash/commit/5091f94a32ef1a60edfc74344a53149428f9df3d))
+
+## [0.2301.4](https://github.com/lightdash/lightdash/compare/0.2301.3...0.2301.4) (2026-01-06)
+
+
+### Bug Fixes
+
+* do not escape smart quote ([#19208](https://github.com/lightdash/lightdash/issues/19208)) ([ab8022a](https://github.com/lightdash/lightdash/commit/ab8022af9b6e411ab1f976643bc11e206d3ff90e))
+
+## [0.2301.3](https://github.com/lightdash/lightdash/compare/0.2301.2...0.2301.3) (2026-01-06)
+
+
+### Bug Fixes
+
+* dont run underlying data query when unopened ([#19212](https://github.com/lightdash/lightdash/issues/19212)) ([6f36921](https://github.com/lightdash/lightdash/commit/6f369218786f4c40e040b13ac96d5e4128aec80d))
+
+## [0.2301.2](https://github.com/lightdash/lightdash/compare/0.2301.1...0.2301.2) (2026-01-06)
+
+
+### Bug Fixes
+
+* **backend:** allow for filtering users with google refresh token ([#19161](https://github.com/lightdash/lightdash/issues/19161)) ([9db1777](https://github.com/lightdash/lightdash/commit/9db17776dcf6c791484cda8ff1068d47e7fff74d))
+
+## [0.2301.1](https://github.com/lightdash/lightdash/compare/0.2301.0...0.2301.1) (2026-01-06)
+
+
+### Bug Fixes
+
+* remove false errors from orphan charts on validator ([#19221](https://github.com/lightdash/lightdash/issues/19221)) ([6c0c095](https://github.com/lightdash/lightdash/commit/6c0c0959bcda263109a0c4e7325f12d5f15acaaf))
+* remove unused 'useUpdateMultiple*' hooks ([#19217](https://github.com/lightdash/lightdash/issues/19217)) ([a3d22e0](https://github.com/lightdash/lightdash/commit/a3d22e0024154053499b5fe2b8e4d2de50a84557)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+# [0.2301.0](https://github.com/lightdash/lightdash/compare/0.2300.0...0.2301.0) (2026-01-06)
+
+
+### Features
+
+* hide app navigation when scrolling dashboards ([#19199](https://github.com/lightdash/lightdash/issues/19199)) ([8be99ac](https://github.com/lightdash/lightdash/commit/8be99acd396bab6d8451095090429d8baeb9d2fd)), closes [#19123](https://github.com/lightdash/lightdash/issues/19123)
+
+# [0.2300.0](https://github.com/lightdash/lightdash/compare/0.2299.1...0.2300.0) (2026-01-06)
+
+
+### Features
+
+* validate Google Sheets files for scheduled deliveries ([#19206](https://github.com/lightdash/lightdash/issues/19206)) ([a8708e6](https://github.com/lightdash/lightdash/commit/a8708e6bc2ee390573f418d57f099e49ec386d90))
+
+## [0.2299.1](https://github.com/lightdash/lightdash/compare/0.2299.0...0.2299.1) (2026-01-06)
+
+
+### Bug Fixes
+
+* set higher zIndex for scheduler delete modal ([#19200](https://github.com/lightdash/lightdash/issues/19200)) ([2e1b2ff](https://github.com/lightdash/lightdash/commit/2e1b2ff6f228502ebebf7f2b4a51411ebee83821))
+
 # [0.2299.0](https://github.com/lightdash/lightdash/compare/0.2298.0...0.2299.0) (2026-01-05)
 
 

@@ -24,7 +24,11 @@
         let
           pkgs = import nixpkgs {
             inherit system;
-            config = { };
+            config = {
+              allowUnfreePredicate = pkg: builtins.elem (nixpkgs.lib.getName pkg) [
+                "graphite-cli"
+              ];
+            };
           };
 
           # Python version to use for venvs
@@ -235,6 +239,8 @@
               google-cloud-sdk
               kubectl
               okteto
+
+              graphite-cli
             ];
 
             # Environment setup

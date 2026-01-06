@@ -1,20 +1,15 @@
-import {
-    FeatureFlags,
-    type DashboardMarkdownTileProperties,
-} from '@lightdash/common';
+import { type DashboardMarkdownTileProperties } from '@lightdash/common';
 import { Group, Stack, Switch, TextInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import MDEditor from '@uiw/react-md-editor';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { useDashboardUIPreference } from '../../../hooks/dashboard/useDashboardUIPreference';
 
 interface MarkdownTileFormProps {
     form: UseFormReturnType<DashboardMarkdownTileProperties['properties']>;
 }
 
 const MarkdownTileForm = ({ form }: MarkdownTileFormProps) => {
-    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardRedesign,
-    );
+    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
 
     return (
         <Stack spacing="md">

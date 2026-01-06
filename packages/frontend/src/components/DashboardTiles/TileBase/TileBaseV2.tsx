@@ -105,7 +105,6 @@ const TileBaseV2 = <T extends Dashboard['tiles'][number]>({
                     left={-2}
                     px={5}
                     py={8}
-                    style={{ zIndex: 10 }}
                 >
                     <MantineIcon icon={IconGripVertical} color="ldGray" />
                 </Paper>

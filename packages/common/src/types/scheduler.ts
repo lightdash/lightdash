@@ -375,6 +375,7 @@ export type ApiReassignSchedulerOwnerResponse = ApiSuccess<
 
 export type UserSchedulersSummary = {
     totalCount: number;
+    hasGsheetsSchedulers: boolean;
     byProject: Array<{
         projectUuid: string;
         projectName: string;

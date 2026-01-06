@@ -3,29 +3,36 @@ import {
     type CreateProjectGroupAccess,
     type GroupWithMembers,
 } from '@lightdash/common';
-import { Box, Button, Group, Modal, Select, Text, Title } from '@mantine/core';
+import { Box, Button, Group, Select, Text } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconUsersGroup } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { TrackPage } from '../../../providers/Tracking/TrackingProvider';
 import { CategoryName, PageName, PageType } from '../../../types/Events';
 
-interface AddProjectGroupAccessModalProps {
+type RoleItem = { value: string; label: string };
+type GroupedRoles = { group: string; items: RoleItem[] }[];
+
+interface AddProjectGroupAccessModalProps
+    extends Pick<MantineModalProps, 'onClose'> {
     projectUuid: string;
     isSubmitting: boolean;
     totalNumberOfGroups: number;
     availableGroups: GroupWithMembers[];
-    organizationRoles: { value: string; label: string; group: string }[];
+    organizationRoles: GroupedRoles;
     onSubmit: (formData: CreateProjectGroupAccess) => void;
-    onClose: () => void;
 }
+
 type FormData = {
     projectUuid: string;
     groupUuid: string;
     role: string;
 };
+
 const AddProjectGroupAccessModal: FC<AddProjectGroupAccessModalProps> = ({
     projectUuid,
     isSubmitting,
@@ -35,11 +42,12 @@ const AddProjectGroupAccessModal: FC<AddProjectGroupAccessModalProps> = ({
     onSubmit,
     onClose,
 }) => {
+    // Flatten roles to find default value
+    const allRoles = organizationRoles?.flatMap((group) => group.items) ?? [];
     const defaultRole =
-        organizationRoles?.find(
-            (role) => role.value === ProjectMemberRole.VIEWER,
-        )?.value ||
-        organizationRoles?.[0]?.value ||
+        allRoles.find((role) => role.value === ProjectMemberRole.VIEWER)
+            ?.value ||
+        allRoles[0]?.value ||
         ProjectMemberRole.VIEWER;
 
     const form = useForm<FormData>({
@@ -48,31 +56,43 @@ const AddProjectGroupAccessModal: FC<AddProjectGroupAccessModalProps> = ({
             groupUuid: '',
             role: defaultRole,
         },
+        validate: {
+            groupUuid: (value) => (value ? null : 'Group is required'),
+            role: (value) => (value ? null : 'Role is required'),
+        },
     });
 
     const handleSubmit = (formData: FormData) => {
         onSubmit(formData as CreateProjectGroupAccess);
     };
 
+    const hasNoAvailableGroups = availableGroups.length === 0;
+
     return (
-        <Modal
+        <MantineModal
             opened
             onClose={onClose}
-            keepMounted={false}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon size="lg" icon={IconUsersGroup} />
-                    <Title order={4}>Add group access</Title>
-                </Group>
+            title="Add group access"
+            icon={IconUsersGroup}
+            cancelLabel={hasNoAvailableGroups ? false : 'Cancel'}
+            actions={
+                !hasNoAvailableGroups ? (
+                    <Button
+                        type="submit"
+                        form="add-project-group-access"
+                        disabled={isSubmitting}
+                    >
+                        Give access
+                    </Button>
+                ) : undefined
             }
-            size="lg"
         >
             <TrackPage
                 name={PageName.PROJECT_ADD_GROUP_ACCESS}
                 type={PageType.MODAL}
                 category={CategoryName.SETTINGS}
             >
-                {availableGroups.length === 0 ? (
+                {hasNoAvailableGroups ? (
                     <Box mb="lg">
                         <SuboptimalState
                             icon={IconUsersGroup}
@@ -96,16 +116,14 @@ const AddProjectGroupAccessModal: FC<AddProjectGroupAccessModalProps> = ({
                     </Box>
                 ) : (
                     <form
-                        name="add_project_group_access"
+                        id="add-project-group-access"
                         onSubmit={form.onSubmit(handleSubmit)}
                     >
-                        <Group align="flex-end" spacing="xs">
+                        <Group align="flex-end" gap="xs">
                             <Select
                                 name="groupUuid"
-                                withinPortal
                                 label="Select group"
                                 placeholder="Click here to select group"
-                                nothingFound="No groups found"
                                 searchable
                                 required
                                 data={
@@ -115,25 +133,20 @@ const AddProjectGroupAccessModal: FC<AddProjectGroupAccessModalProps> = ({
                                     })) ?? []
                                 }
                                 {...form.getInputProps('groupUuid')}
-                                sx={{ flexGrow: 1 }}
+                                style={{ flexGrow: 1 }}
                             />
                             <Select
                                 data={organizationRoles}
                                 required
+                                label="Role"
                                 placeholder="Select role"
-                                dropdownPosition="bottom"
-                                withinPortal
                                 {...form.getInputProps('role')}
                             />
-
-                            <Button disabled={isSubmitting} type="submit">
-                                Give access
-                            </Button>
                         </Group>
                     </form>
                 )}
             </TrackPage>
-        </Modal>
+        </MantineModal>
     );
 };
 

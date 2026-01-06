@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { type FC } from 'react';
 import { Navigate, Outlet, useParams, type RouteObject } from 'react-router';
@@ -9,6 +10,7 @@ import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
 import { MetricCatalogView } from './features/metricsCatalog/types';
+import { useFeatureFlagEnabled } from './hooks/useFeatureFlagEnabled';
 import AuthPopupResult from './pages/AuthPopupResult';
 import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
@@ -45,10 +47,13 @@ import { PageName } from './types/Events';
 
 const DashboardPageWrapper: FC = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
+    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
+        FeatureFlags.DashboardRedesign,
+    );
 
     return (
         <>
-            <NavBar />
+            <NavBar isFixed={!isDashboardRedesignEnabled} />
             <TrackPage name={PageName.DASHBOARD}>
                 <Dashboard key={dashboardUuid} />
             </TrackPage>

@@ -98,6 +98,7 @@ import {
     type DashboardChartReadyQuery,
 } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
+import { useDashboardUIPreference } from '../../hooks/dashboard/useDashboardUIPreference';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -524,9 +525,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const showExecutionTime = useFeatureFlagEnabled(
         FeatureFlags.ShowExecutionTime,
     );
-    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardRedesign,
-    );
+    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
 
     const {
         tile: {
@@ -1549,9 +1548,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         top: number;
     }>();
     const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
-    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardRedesign,
-    );
+    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
 
     const {
         tile: {

@@ -8,7 +8,6 @@ import {
     CustomFormatType,
     DimensionType,
     evaluateConditionalFormatExpression,
-    FeatureFlags,
     formatItemValue,
     formatNumberValue,
     formatValueWithExpression,
@@ -92,12 +91,12 @@ import {
     legendTopSpacing,
 } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
+import { useDashboardUIPreference } from '../dashboard/useDashboardUIPreference';
 import {
     getPivotedDataFromPivotDetails,
     getPlottedData,
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
-import { useFeatureFlagEnabled } from '../useFeatureFlagEnabled';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import {
     computeSeriesColorsWithPop,
@@ -2070,7 +2069,7 @@ const getStackTotalSeries = (
                 type: series[0].type,
                 connectNulls: true,
                 stack: stack,
-                clip: false,
+                clip: !isStack100,
                 label: {
                     ...getBarTotalLabelStyle(),
                     show: series[0].stackLabel?.show,
@@ -2123,9 +2122,7 @@ const useEchartsCartesianConfig = (
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
-    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardRedesign,
-    );
+    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
 
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;

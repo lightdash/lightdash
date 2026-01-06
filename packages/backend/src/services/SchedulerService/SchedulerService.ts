@@ -8,17 +8,20 @@ import {
     ForbiddenError,
     getTimezoneLabel,
     getTzMinutesOffset,
+    GoogleSheetsTransientError,
     InvalidUser,
     isChartCreateScheduler,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
     isDashboardCreateScheduler,
     isDashboardScheduler,
+    isSchedulerGsheetsOptions,
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
     KnexPaginateArgs,
     KnexPaginatedData,
+    MissingConfigError,
     NotFoundError,
     ParameterError,
     ScheduledJobs,
@@ -32,6 +35,7 @@ import {
     SchedulerRunStatus,
     SchedulerWithLogs,
     SessionUser,
+    UnexpectedGoogleSheetsError,
     UpdateSchedulerAndTargetsWithoutId,
     UserSchedulersSummary,
     type Account,
@@ -42,6 +46,7 @@ import {
     SchedulerDashboardUpsertEvent,
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
+import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -60,6 +65,7 @@ import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAdjustedCronByOffset } from '../../utils/cronUtils';
 import { BaseService } from '../BaseService';
+import { UserService } from '../UserService';
 
 type SchedulerServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -72,6 +78,8 @@ type SchedulerServiceArguments = {
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     userModel: UserModel;
+    googleDriveClient: GoogleDriveClient;
+    userService: UserService;
 };
 
 export class SchedulerService extends BaseService {
@@ -95,6 +103,10 @@ export class SchedulerService extends BaseService {
 
     userModel: UserModel;
 
+    googleDriveClient: GoogleDriveClient;
+
+    userService: UserService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -106,6 +118,8 @@ export class SchedulerService extends BaseService {
         slackClient,
         projectModel,
         userModel,
+        googleDriveClient,
+        userService,
     }: SchedulerServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -118,6 +132,8 @@ export class SchedulerService extends BaseService {
         this.slackClient = slackClient;
         this.projectModel = projectModel;
         this.userModel = userModel;
+        this.googleDriveClient = googleDriveClient;
+        this.userService = userService;
     }
 
     private async getSchedulerResource(
@@ -376,6 +392,35 @@ export class SchedulerService extends BaseService {
             );
         }
 
+        // Validate Google Sheets file if format is GSHEETS
+        if (updatedScheduler.format === SchedulerFormat.GSHEETS) {
+            if (!isSchedulerGsheetsOptions(updatedScheduler.options)) {
+                throw new ParameterError(
+                    'Google Sheets format requires valid gsheets options',
+                );
+            }
+
+            try {
+                const refreshToken = await this.userService.getRefreshToken(
+                    user.userUuid,
+                );
+                await this.googleDriveClient.assertFileIsGoogleSheet(
+                    refreshToken,
+                    updatedScheduler.options.gdriveId,
+                );
+            } catch (error) {
+                if (error instanceof UnexpectedGoogleSheetsError) {
+                    throw error; // Already has clear user-facing message
+                }
+                if (error instanceof GoogleSheetsTransientError) {
+                    throw error; // Allow transient errors to propagate for retry
+                }
+                throw new MissingConfigError(
+                    'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
+                );
+            }
+        }
+
         const {
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
@@ -573,6 +618,23 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError(
                 'New owner does not have permission to create scheduled deliveries',
             );
+        }
+
+        // Check if any schedulers are GSHEETS format - new owner must have Google refresh token
+        const hasGsheetsSchedulers = schedulers.some(
+            (s) => s.format === SchedulerFormat.GSHEETS,
+        );
+        if (hasGsheetsSchedulers) {
+            try {
+                await this.userModel.getRefreshToken(newOwnerUserUuid);
+            } catch (error) {
+                if (error instanceof NotFoundError) {
+                    throw new ForbiddenError(
+                        'New owner must have an active Google connection to take ownership of Google Sheets scheduled deliveries',
+                    );
+                }
+                throw error;
+            }
         }
 
         // Update ownership
@@ -1160,10 +1222,26 @@ export class SchedulerService extends BaseService {
             );
         }
 
+        // Check if user has any GSHEETS schedulers - new owner must have Google refresh token
+        if (summary.hasGsheetsSchedulers) {
+            try {
+                await this.userModel.getRefreshToken(newOwnerUserUuid);
+            } catch (error) {
+                if (error instanceof NotFoundError) {
+                    throw new ForbiddenError(
+                        'New owner must have an active Google connection to take ownership of Google Sheets scheduled deliveries',
+                    );
+                }
+                throw error;
+            }
+        }
+
         // Update ownership - only for projects where permissions were validated
         const validatedProjectUuids = summary.byProject.map(
             (p) => p.projectUuid,
         );
+
+        // Update ownership
         const reassignedCount = await this.schedulerModel.updateOwnerByUser(
             fromUserUuid,
             newOwnerUserUuid,
