@@ -1,3 +1,10 @@
+## [0.2302.1](https://github.com/lightdash/lightdash/compare/0.2302.0...0.2302.1) (2026-01-06)
+
+
+### Bug Fixes
+
+* move Menu.Divider into SwitchToClassicMenuItem component ([#19229](https://github.com/lightdash/lightdash/issues/19229)) ([3123632](https://github.com/lightdash/lightdash/commit/31236321da6648942006f9597383bec5b51bf7eb))
+
 # [0.2302.0](https://github.com/lightdash/lightdash/compare/0.2301.4...0.2302.0) (2026-01-06)
 
 
