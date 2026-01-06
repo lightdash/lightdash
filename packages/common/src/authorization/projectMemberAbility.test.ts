@@ -492,6 +492,58 @@ describe('Project member permissions', () => {
                     ).toEqual(false);
                 });
             });
+
+            describe('ScheduledDeliveries', () => {
+                it('can create ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('ScheduledDeliveries', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can view all ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('ScheduledDeliveries', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can manage all ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can manage ScheduledDeliveries created by other users', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                projectUuid,
+                                userUuid: 'another-user-uuid',
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage ScheduledDeliveries from another project', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                projectUuid: '5678',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is an editor', () => {
@@ -996,6 +1048,61 @@ describe('Project member permissions', () => {
                     ).toEqual(false);
                 });
             });
+
+            describe('ScheduledDeliveries', () => {
+                it('can create ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('ScheduledDeliveries', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can view all ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('ScheduledDeliveries', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can manage only his own ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                projectUuid,
+                                userUuid: PROJECT_EDITOR.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage ScheduledDeliveries created by other users', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                projectUuid,
+                                userUuid: 'another-user-uuid',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot manage ScheduledDeliveries from another project', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                projectUuid: '5678',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is an developer', () => {
@@ -1114,6 +1221,61 @@ describe('Project member permissions', () => {
                         ability.can(
                             'manage',
                             subject('AiAgentThread', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
+
+            describe('ScheduledDeliveries', () => {
+                it('can create ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('ScheduledDeliveries', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can view all ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('ScheduledDeliveries', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can manage only his own ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                projectUuid,
+                                userUuid: PROJECT_DEVELOPER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage ScheduledDeliveries created by other users', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                projectUuid,
+                                userUuid: 'another-user-uuid',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot manage ScheduledDeliveries from another project', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                projectUuid: '5678',
+                            }),
                         ),
                     ).toEqual(false);
                 });
@@ -1623,6 +1785,35 @@ describe('Project member permissions', () => {
                     ).toEqual(false);
                 });
             });
+
+            describe('ScheduledDeliveries', () => {
+                it('cannot create ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('ScheduledDeliveries', { projectUuid }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot view ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('ScheduledDeliveries', { projectUuid }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot manage ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', { projectUuid }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is a interactive viewer', () => {
@@ -1880,6 +2071,61 @@ describe('Project member permissions', () => {
                         ability.can(
                             'create',
                             subject('AiAgentThread', { projectUuid: '5678' }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
+
+            describe('ScheduledDeliveries', () => {
+                it('can create ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('ScheduledDeliveries', { projectUuid }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot view all ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('ScheduledDeliveries', { projectUuid }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('can manage only his own ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                projectUuid,
+                                userUuid: PROJECT_INTERACTIVE_VIEWER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage ScheduledDeliveries created by other users', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                projectUuid,
+                                userUuid: 'another-user-uuid',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot create ScheduledDeliveries in another project', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('ScheduledDeliveries', {
+                                projectUuid: '5678',
+                            }),
                         ),
                     ).toEqual(false);
                 });

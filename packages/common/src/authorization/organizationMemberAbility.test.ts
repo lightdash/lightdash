@@ -531,6 +531,68 @@ describe('Organization member permissions', () => {
                     ).toEqual(false);
                 });
             });
+
+            describe('ScheduledDeliveries', () => {
+                it('can create ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_ADMIN.organizationUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can view all ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_ADMIN.organizationUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can manage all ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_ADMIN.organizationUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can manage ScheduledDeliveries created by other users', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_ADMIN.organizationUuid,
+                                userUuid: 'another-user-uuid',
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage ScheduledDeliveries from another organization', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid: '5678',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is an editor', () => {
@@ -975,6 +1037,69 @@ describe('Organization member permissions', () => {
                     ).toEqual(false);
                 });
             });
+
+            describe('ScheduledDeliveries', () => {
+                it('can create ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_EDITOR.organizationUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can view all ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_EDITOR.organizationUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can manage only his own ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_EDITOR.organizationUuid,
+                                userUuid: ORGANIZATION_EDITOR.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage ScheduledDeliveries created by other users', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_EDITOR.organizationUuid,
+                                userUuid: 'another-user-uuid',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot manage ScheduledDeliveries from another organization', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid: '5678',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is an developer', () => {
@@ -1082,6 +1207,69 @@ describe('Organization member permissions', () => {
                         ability.can(
                             'manage',
                             subject('AiAgentThread', {
+                                organizationUuid: '5678',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
+
+            describe('ScheduledDeliveries', () => {
+                it('can create ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_DEVELOPER.organizationUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can view all ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_DEVELOPER.organizationUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('can manage only his own ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_DEVELOPER.organizationUuid,
+                                userUuid: ORGANIZATION_DEVELOPER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage ScheduledDeliveries created by other users', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_DEVELOPER.organizationUuid,
+                                userUuid: 'another-user-uuid',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot manage ScheduledDeliveries from another organization', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
                                 organizationUuid: '5678',
                             }),
                         ),
@@ -1855,6 +2043,44 @@ describe('Organization member permissions', () => {
                     ).toEqual(false);
                 });
             });
+
+            describe('ScheduledDeliveries', () => {
+                it('cannot create ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_VIEWER.organizationUuid,
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot view ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_VIEWER.organizationUuid,
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot manage ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_VIEWER.organizationUuid,
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
 
         describe('when user is an interactive viewer', () => {
@@ -2248,6 +2474,70 @@ describe('Organization member permissions', () => {
                         ability.can(
                             'create',
                             subject('AiAgentThread', {
+                                organizationUuid: '5678',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
+
+            describe('ScheduledDeliveries', () => {
+                it('can create ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot view all ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'view',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('can manage only his own ScheduledDeliveries', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                                userUuid:
+                                    ORGANIZATION_INTERACTIVE_VIEWER.userUuid,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage ScheduledDeliveries created by other users', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('ScheduledDeliveries', {
+                                organizationUuid:
+                                    ORGANIZATION_INTERACTIVE_VIEWER.organizationUuid,
+                                userUuid: 'another-user-uuid',
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+
+                it('cannot create ScheduledDeliveries in another organization', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('ScheduledDeliveries', {
                                 organizationUuid: '5678',
                             }),
                         ),
