@@ -36,6 +36,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import AIDashboardSummary from '../../../ee/features/ambientAi/components/aiDashboardSummary';
+import { SwitchToClassicMenuItem } from '../../../features/dashboardTabsV2/DashboardUIToggle';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteDashboardDiffMutation,
@@ -49,7 +50,6 @@ import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
-import { SwitchToClassicMenuItem } from '../../../features/dashboardTabsV2/DashboardUIToggle';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import MantineIcon from '../MantineIcon';
 import PageHeader from '../Page/PageHeader';
@@ -581,8 +581,6 @@ const DashboardHeaderV2 = ({
                                         Export dashboard
                                     </Menu.Item>
                                 )}
-
-                                <Menu.Divider />
 
                                 <SwitchToClassicMenuItem />
 
