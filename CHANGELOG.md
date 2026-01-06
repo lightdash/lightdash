@@ -1,3 +1,11 @@
+## [0.2301.1](https://github.com/lightdash/lightdash/compare/0.2301.0...0.2301.1) (2026-01-06)
+
+
+### Bug Fixes
+
+* remove false errors from orphan charts on validator ([#19221](https://github.com/lightdash/lightdash/issues/19221)) ([6c0c095](https://github.com/lightdash/lightdash/commit/6c0c0959bcda263109a0c4e7325f12d5f15acaaf))
+* remove unused 'useUpdateMultiple*' hooks ([#19217](https://github.com/lightdash/lightdash/issues/19217)) ([a3d22e0](https://github.com/lightdash/lightdash/commit/a3d22e0024154053499b5fe2b8e4d2de50a84557)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2301.0](https://github.com/lightdash/lightdash/compare/0.2300.0...0.2301.0) (2026-01-06)
 
 
