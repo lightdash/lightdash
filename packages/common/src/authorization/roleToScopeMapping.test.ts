@@ -75,11 +75,13 @@ describe('roleToScopeMapping', () => {
             // Should have interactive viewer scopes
             expect(scopes).toContain('view:UnderlyingData');
             expect(scopes).toContain('manage:Explore');
+            expect(scopes).toContain('create:ScheduledDeliveries');
+            expect(scopes).toContain('manage:ScheduledDeliveries@self');
 
             // Should have editor-specific scopes
             expect(scopes).toContain('create:Space');
             expect(scopes).toContain('manage:DashboardComments');
-            expect(scopes).toContain('manage:ScheduledDeliveries');
+            expect(scopes).toContain('view:ScheduledDeliveries');
         });
 
         it('should have more scopes for higher roles', () => {
@@ -127,9 +129,9 @@ describe('roleToScopeMapping', () => {
 
             // Define scopes that should be equivalent to an editor role
             // Based on projectMemberAbility.ts, an editor can:
-            // - Do everything interactive_viewer can do (view content, export, create deliveries)
+            // - Do everything interactive_viewer can do (view content, export, create deliveries & manage own deliveries)
             // - Create spaces
-            // - Manage non-private spaces, jobs, pinned items, scheduled deliveries, dashboard comments, tags
+            // - Manage non-private spaces, jobs, pinned items, dashboard comments, tags and view scheduled deliveries
             // NOTE: Adding manage:Project to enable managing non-private spaces
             const editorScopes = [
                 // Interactive viewer scopes (inherited)
@@ -138,6 +140,7 @@ describe('roleToScopeMapping', () => {
                 'view:Space',
                 'view:Project',
                 'create:ScheduledDeliveries',
+                'manage:ScheduledDeliveries@self',
                 'view:Job',
                 'create:Job',
                 'manage:Explore',
@@ -149,7 +152,7 @@ describe('roleToScopeMapping', () => {
                 'manage:Project', // Required for managing non-private spaces
                 'manage:Job',
                 'manage:PinnedItems',
-                'manage:ScheduledDeliveries',
+                'view:ScheduledDeliveries',
                 'manage:DashboardComments',
                 'manage:Tags',
             ];
