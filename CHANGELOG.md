@@ -1,3 +1,17 @@
+# [0.2302.0](https://github.com/lightdash/lightdash/compare/0.2301.4...0.2302.0) (2026-01-06)
+
+
+### Bug Fixes
+
+* total label renders outside chart boundary ([#19225](https://github.com/lightdash/lightdash/issues/19225)) ([eeac377](https://github.com/lightdash/lightdash/commit/eeac377bac15c63b67dc49a99d9c34c6e2f1103a)), closes [#19216](https://github.com/lightdash/lightdash/issues/19216)
+
+
+### Features
+
+* add graphite-cli to development environment ([#19227](https://github.com/lightdash/lightdash/issues/19227)) ([e0ab607](https://github.com/lightdash/lightdash/commit/e0ab607710c1e06283cefa62d0618193fc6455eb))
+* allow toggling back and forth new dashboard ui experience ([#19186](https://github.com/lightdash/lightdash/issues/19186)) ([6295d79](https://github.com/lightdash/lightdash/commit/6295d792ebacbdeb94e1e83d939805fe2e87bf40)), closes [#19183](https://github.com/lightdash/lightdash/issues/19183)
+* update other modals like group access to MantineModal ([#19147](https://github.com/lightdash/lightdash/issues/19147)) ([5091f94](https://github.com/lightdash/lightdash/commit/5091f94a32ef1a60edfc74344a53149428f9df3d))
+
 ## [0.2301.4](https://github.com/lightdash/lightdash/compare/0.2301.3...0.2301.4) (2026-01-06)
 
 
