@@ -1,6 +1,7 @@
 import {
     Box,
     Button,
+    getDefaultZIndex,
     Group,
     Loader,
     Modal,
@@ -42,6 +43,7 @@ export const SchedulerDeleteModal: FC<SchedulerDeleteModalProps> = ({
     return (
         <Modal
             opened={opened}
+            zIndex={getDefaultZIndex('popover')}
             title={
                 <Group gap="xs">
                     <MantineIcon icon={IconTrash} size="lg" color="red" />
