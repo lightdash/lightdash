@@ -195,6 +195,7 @@ export class OrganizationController extends BaseController {
         @Query() page?: number,
         @Query() searchQuery?: string,
         @Query() projectUuid?: string,
+        @Query() googleOidcOnly?: boolean,
     ): Promise<ApiOrganizationMemberProfiles> {
         this.setStatus(200);
         let paginateArgs: KnexPaginateArgs | undefined;
@@ -216,6 +217,7 @@ export class OrganizationController extends BaseController {
                     paginateArgs,
                     searchQuery,
                     projectUuid,
+                    googleOidcOnly,
                 ),
         };
     }
