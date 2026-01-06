@@ -1,3 +1,10 @@
+# [0.2300.0](https://github.com/lightdash/lightdash/compare/0.2299.1...0.2300.0) (2026-01-06)
+
+
+### Features
+
+* validate Google Sheets files for scheduled deliveries ([#19206](https://github.com/lightdash/lightdash/issues/19206)) ([a8708e6](https://github.com/lightdash/lightdash/commit/a8708e6bc2ee390573f418d57f099e49ec386d90))
+
 ## [0.2299.1](https://github.com/lightdash/lightdash/compare/0.2299.0...0.2299.1) (2026-01-06)
 
 
