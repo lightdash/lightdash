@@ -540,19 +540,6 @@ export class SchedulerService extends BaseService {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const { organizationUuid } = projectSummary;
 
-        // Check user has manage:ScheduledDeliveries permission
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('ScheduledDeliveries', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
         // Validate all schedulers belong to the project
         const schedulers = await this.schedulerModel.getSchedulersByUuid(
             projectUuid,
@@ -569,6 +556,23 @@ export class SchedulerService extends BaseService {
                     ', ',
                 )}`,
             );
+        }
+
+        // Check user has manage:ScheduledDeliveries permission for each scheduler
+        // Admins can manage all schedulers, editors can only manage their own
+        for (const scheduler of schedulers) {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid,
+                        projectUuid,
+                        userUuid: scheduler.createdBy,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
         }
 
         // Validate new owner exists, is a member of the organization, and can create scheduled deliveries
