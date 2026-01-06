@@ -118,7 +118,8 @@
     }
 }
 
-.tileTooltip {
+.tileTooltip,
+.dragHandleIcon {
     /* When tabs are not stuck: show tooltip above tabs (zindex + 1)
        When tabs are stuck: show tooltip below tabs (zindex - 1) */
     z-index: calc(

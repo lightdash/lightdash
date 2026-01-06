@@ -10,7 +10,7 @@ type StickyWithDetectionProps = {
      */
     offset?: number;
     /**
-     * Optional scrolling container element. Defaults to document.body
+     * Optional scrolling container element, defaults to viewport
      */
     scrollContainer?: HTMLElement | null;
     /**
@@ -51,16 +51,13 @@ export const StickyWithDetection: FC<StickyWithDetectionProps> = ({
         const sentinel = sentinelRef.current;
         if (!sentinel) return;
 
-        const container = scrollContainer || document.body;
-
         const rootMargin = offset > 0 ? `-${offset}px 0px 0px 0px` : '0px';
-
         const observer = new IntersectionObserver(
             ([entry]) => {
                 onStuckChangeRef.current(!entry.isIntersecting);
             },
             {
-                root: container,
+                root: scrollContainer,
                 threshold: 0,
                 rootMargin,
             },
