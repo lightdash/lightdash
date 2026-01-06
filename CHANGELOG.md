@@ -1,3 +1,10 @@
+## [0.2299.1](https://github.com/lightdash/lightdash/compare/0.2299.0...0.2299.1) (2026-01-06)
+
+
+### Bug Fixes
+
+* set higher zIndex for scheduler delete modal ([#19200](https://github.com/lightdash/lightdash/issues/19200)) ([2e1b2ff](https://github.com/lightdash/lightdash/commit/2e1b2ff6f228502ebebf7f2b4a51411ebee83821))
+
 # [0.2299.0](https://github.com/lightdash/lightdash/compare/0.2298.0...0.2299.0) (2026-01-05)
 
 
