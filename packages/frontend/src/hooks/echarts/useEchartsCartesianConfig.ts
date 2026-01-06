@@ -2070,7 +2070,7 @@ const getStackTotalSeries = (
                 type: series[0].type,
                 connectNulls: true,
                 stack: stack,
-                clip: false,
+                clip: !isStack100,
                 label: {
                     ...getBarTotalLabelStyle(),
                     show: series[0].stackLabel?.show,
