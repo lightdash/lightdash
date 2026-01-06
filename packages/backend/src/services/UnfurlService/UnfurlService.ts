@@ -1494,6 +1494,14 @@ export class UnfurlService extends BaseService {
 
                     await this.sendUnfurl(event, l.url, details, client);
 
+                    // Skip image generation if link preview images are disabled
+                    if (
+                        !this.lightdashConfig.slack
+                            ?.linkShareImagePreviewEnabled
+                    ) {
+                        return;
+                    }
+
                     const imageId = `slack-image-${useNanoid()}`;
                     const authUserUuid =
                         await this.slackAuthenticationModel.getUserUuid(
