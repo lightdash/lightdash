@@ -1170,7 +1170,6 @@ export class SavedChartModel {
         savedCharts: Pick<SavedChartDAO, 'uuid' | 'dashboardUuid'>[],
     ): Promise<string[]> {
         const dashboardUuids = savedCharts.map((chart) => chart.dashboardUuid);
-
         const getChartsInTilesQuery = this.database(DashboardTileChartTableName)
             .distinct('saved_chart_id')
             .leftJoin(
@@ -1192,7 +1191,9 @@ export class SavedChartModel {
                     where dv.dashboard_id = ${DashboardsTableName}.dashboard_id
                     order by dv.created_at desc
                     limit 1)`),
-            );
+            )
+            // Exclude NULL saved_chart_id to prevent NOT IN issues
+            .whereNotNull(`${DashboardTileChartTableName}.saved_chart_id`);
 
         const chartsNotInTilesUuids = await this.database(SavedChartsTableName)
             .pluck(`saved_query_uuid`)
