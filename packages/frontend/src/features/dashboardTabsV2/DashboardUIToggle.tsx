@@ -59,11 +59,15 @@ export const SwitchToClassicMenuItem: FC = () => {
     };
 
     return (
-        <Menu.Item
-            leftSection={<MantineIcon icon={IconLayoutDashboard} />}
-            onClick={handleClick}
-        >
-            Switch to classic view
-        </Menu.Item>
+        <>
+            <Menu.Divider />
+
+            <Menu.Item
+                leftSection={<MantineIcon icon={IconLayoutDashboard} />}
+                onClick={handleClick}
+            >
+                Switch to classic view
+            </Menu.Item>
+        </>
     );
 };
