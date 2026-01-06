@@ -20,6 +20,7 @@ overrides:
   glob@>=10.2.0 <10.5.0: ^10.5.0
   jws: ^4.0.1
   qs: ^6.14.1
+  vega-selections: ^5.6.3
 
 pnpmfileChecksum: ljbuipupldntgfel5vaej2gdgy
 
@@ -7363,6 +7364,7 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
+    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:
@@ -15254,8 +15256,8 @@ packages:
   vega-schema-url-parser@2.2.0:
     resolution: {integrity: sha512-yAtdBnfYOhECv9YC70H2gEiqfIbVkq09aaE4y/9V/ovEFmH9gPKaEgzIZqgT7PSPQjKhsNkb6jk6XvSoboxOBw==}
 
-  vega-selections@5.6.1:
-    resolution: {integrity: sha512-b7EwMkQcih4Sc+6i5eLUnIwtTisdyjIGUJ/U9Rog9scg5jPMe09BeqdMtiROGEnS/f/BI2vS68mz08OEVy308w==}
+  vega-selections@5.6.3:
+    resolution: {integrity: sha512-DXd+XVKcIjBAtSCcgtPx7cXuqG/7L98SWoFh6GKNu26EBUyn3zm0GAlZxNLPoI01Jz9Fb3YpSsewk2aIAbM68g==}
 
   vega-statistics@1.9.0:
     resolution: {integrity: sha512-GAqS7mkatpXcMCQKWtFu1eMUKLUymjInU0O8kXshWaQrVWjPIO2lllZ1VNhdgE0qGj4oOIRRS11kzuijLshGXQ==}
@@ -33823,7 +33825,7 @@ snapshots:
       vega-expression: 5.2.1
       vega-scale: 7.4.3
       vega-scenegraph: 4.13.2(encoding@0.1.13)
-      vega-selections: 5.6.1
+      vega-selections: 5.6.3
       vega-statistics: 1.9.0
       vega-time: 2.1.4
       vega-util: 1.17.4
@@ -33936,7 +33938,7 @@ snapshots:
 
   vega-schema-url-parser@2.2.0: {}
 
-  vega-selections@5.6.1:
+  vega-selections@5.6.3:
     dependencies:
       d3-array: 3.2.4
       vega-expression: 5.2.1
