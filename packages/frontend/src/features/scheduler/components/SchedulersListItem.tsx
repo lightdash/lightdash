@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     getHumanReadableCronExpression,
     type SchedulerAndTargets,
@@ -18,10 +19,11 @@ import {
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
+import useApp from '../../../providers/App/useApp';
 import { useSendNowSchedulerByUuid } from '../hooks/useScheduler';
 import { useSchedulersEnabledUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
 import ConfirmSendNowModal from './ConfirmSendNowModal';
@@ -52,6 +54,18 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
 
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
+    const { user } = useApp();
+
+    const userCanManageScheduledDelivery = useMemo(() => {
+        return user.data?.ability?.can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid: activeProjectUuid,
+                userUuid: scheduler.createdBy,
+            }),
+        );
+    }, [user.data, activeProjectUuid, scheduler.createdBy]);
 
     if (!project) {
         return null;
@@ -82,25 +96,27 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                     </Group>
                 </Stack>
                 <Group wrap="nowrap" gap="xs">
-                    <Tooltip
-                        withinPortal
-                        variant="xs"
-                        maw={130}
-                        label={
-                            scheduler.enabled
-                                ? 'Toggle off to temporarily pause notifications'
-                                : 'Notifications paused. Toggle on to resume'
-                        }
-                    >
-                        <Box mr="sm">
-                            <Switch
-                                checked={scheduler.enabled}
-                                onChange={() =>
-                                    handleToggle(!scheduler.enabled)
-                                }
-                            />
-                        </Box>
-                    </Tooltip>
+                    {userCanManageScheduledDelivery && (
+                        <Tooltip
+                            withinPortal
+                            variant="xs"
+                            maw={130}
+                            label={
+                                scheduler.enabled
+                                    ? 'Toggle off to temporarily pause notifications'
+                                    : 'Notifications paused. Toggle on to resume'
+                            }
+                        >
+                            <Box mr="sm">
+                                <Switch
+                                    checked={scheduler.enabled}
+                                    onChange={() =>
+                                        handleToggle(!scheduler.enabled)
+                                    }
+                                />
+                            </Box>
+                        </Tooltip>
+                    )}
                     <Tooltip withinPortal label="Send now">
                         <ActionIcon
                             variant="light"
@@ -111,27 +127,36 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                             <MantineIcon color="ldDark.9" icon={IconSend} />
                         </ActionIcon>
                     </Tooltip>
-                    <Tooltip withinPortal label="Edit">
-                        <ActionIcon
-                            variant="light"
-                            radius="md"
-                            color="ldDark.9"
-                            onClick={() => onEdit(scheduler.schedulerUuid)}
-                        >
-                            <MantineIcon color="ldDark.9" icon={IconPencil} />
-                        </ActionIcon>
-                    </Tooltip>
+                    {userCanManageScheduledDelivery && (
+                        <Tooltip withinPortal label="Edit">
+                            <ActionIcon
+                                variant="light"
+                                radius="md"
+                                color="ldDark.9"
+                                onClick={() => onEdit(scheduler.schedulerUuid)}
+                            >
+                                <MantineIcon
+                                    color="ldDark.9"
+                                    icon={IconPencil}
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
 
-                    <Tooltip withinPortal label="Delete">
-                        <ActionIcon
-                            variant="light"
-                            color="red"
-                            radius="md"
-                            onClick={() => onDelete(scheduler.schedulerUuid)}
-                        >
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
-                    </Tooltip>
+                    {userCanManageScheduledDelivery && (
+                        <Tooltip withinPortal label="Delete">
+                            <ActionIcon
+                                variant="light"
+                                color="red"
+                                radius="md"
+                                onClick={() =>
+                                    onDelete(scheduler.schedulerUuid)
+                                }
+                            >
+                                <MantineIcon icon={IconTrash} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
                 </Group>
             </Group>
             <ConfirmSendNowModal
