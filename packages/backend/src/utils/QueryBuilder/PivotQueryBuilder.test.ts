@@ -1184,6 +1184,354 @@ SELECT * FROM group_by_query LIMIT 50`);
         });
     });
 
+    describe('NULLS FIRST/LAST handling', () => {
+        describe('getNullsFirstLast static method', () => {
+            test('Should return empty string when nullsFirst is undefined', () => {
+                expect(PivotQueryBuilder.getNullsFirstLast(undefined)).toBe('');
+            });
+
+            test('Should return NULLS FIRST when nullsFirst is true', () => {
+                expect(PivotQueryBuilder.getNullsFirstLast(true)).toBe(
+                    ' NULLS FIRST',
+                );
+            });
+
+            test('Should return NULLS LAST when nullsFirst is false', () => {
+                expect(PivotQueryBuilder.getNullsFirstLast(false)).toBe(
+                    ' NULLS LAST',
+                );
+            });
+        });
+
+        test('Should include NULLS FIRST in simple query ORDER BY', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: [
+                    {
+                        reference: 'date',
+                        direction: SortByDirection.ASC,
+                        nullsFirst: true,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+            expect(result).toContain('ORDER BY "date" ASC NULLS FIRST');
+        });
+
+        test('Should include NULLS LAST in simple query ORDER BY', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: [
+                    {
+                        reference: 'date',
+                        direction: SortByDirection.DESC,
+                        nullsFirst: false,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+            expect(result).toContain('ORDER BY "date" DESC NULLS LAST');
+        });
+
+        test('Should include NULLS FIRST in pivot query row_index DENSE_RANK', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: [
+                    {
+                        reference: 'date',
+                        direction: SortByDirection.ASC,
+                        nullsFirst: true,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."date" asc nulls first) as "row_index"',
+            );
+        });
+
+        test('Should include NULLS LAST in pivot query column_index DENSE_RANK', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: [
+                    {
+                        reference: 'event_type',
+                        direction: SortByDirection.DESC,
+                        nullsFirst: false,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."event_type" desc nulls last) as "column_index"',
+            );
+        });
+
+        test('Should include NULLS clause in value column anchor CTEs', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        nullsFirst: false,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Check row anchor CTE has NULLS LAST
+            expect(replaceWhitespace(result)).toContain(
+                'FIRST_VALUE("revenue_sum") OVER (PARTITION BY "date" ORDER BY "revenue_sum" DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
+            );
+
+            // Check column anchor CTE has NULLS LAST
+            expect(replaceWhitespace(result)).toContain(
+                'FIRST_VALUE("revenue_sum") OVER (PARTITION BY "category" ORDER BY "revenue_sum" DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
+            );
+        });
+
+        test('Should include NULLS clause in row_index ordering when sorting by value column', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.ASC,
+                        nullsFirst: true,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Row index should include NULLS FIRST when sorting by value column
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY revenue_row_anchor."revenue_row_anchor_value" ASC NULLS FIRST, g."date" ASC) AS "row_index"',
+            );
+        });
+
+        test('Should include NULLS clause in column_index ordering when sorting by value column', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        nullsFirst: false,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Column index should include NULLS LAST when sorting by value column
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY revenue_column_anchor."revenue_column_anchor_value" DESC NULLS LAST, g."category" ASC) AS "column_index"',
+            );
+        });
+
+        test('Should handle mixed nullsFirst settings across multiple sort columns', () => {
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'date', type: VizIndexType.TIME },
+                    { reference: 'store_id', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: [
+                    {
+                        reference: 'date',
+                        direction: SortByDirection.ASC,
+                        nullsFirst: true,
+                    },
+                    {
+                        reference: 'store_id',
+                        direction: SortByDirection.DESC,
+                        nullsFirst: false,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+            expect(result).toContain(
+                'ORDER BY "date" ASC NULLS FIRST, "store_id" DESC NULLS LAST',
+            );
+        });
+
+        test('Should not include NULLS clause when nullsFirst is undefined', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: [
+                    {
+                        reference: 'date',
+                        direction: SortByDirection.ASC,
+                        // nullsFirst not specified
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+            expect(result).toContain('ORDER BY "date" ASC');
+            expect(result).not.toContain('NULLS FIRST');
+            expect(result).not.toContain('NULLS LAST');
+        });
+
+        test('Should use LEFT JOIN for anchor CTEs to preserve rows with NULL anchor values', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Should use LEFT JOIN for both row and column anchor CTEs
+            expect(result).toContain('LEFT JOIN revenue_row_anchor ON');
+            expect(result).toContain('LEFT JOIN revenue_column_anchor ON');
+            // Should not use regular JOIN (without LEFT)
+            expect(result).not.toMatch(/(?<!LEFT )JOIN revenue_row_anchor/);
+            expect(result).not.toMatch(/(?<!LEFT )JOIN revenue_column_anchor/);
+        });
+    });
+
     describe('Time interval sorting', () => {
         // Mock dimensions
         const monthNameDimension: CompiledDimension = {
@@ -1400,6 +1748,146 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain('ORDER BY');
             // Region should be simple field reference
             expect(result).toContain('"orders_region" ASC');
+        });
+
+        test('Should include NULLS clause with time interval sorting', () => {
+            const itemsMap: ItemsMap = {
+                orders_month_name: monthNameDimension,
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'orders_month_name',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: [
+                    {
+                        reference: 'orders_month_name',
+                        direction: SortByDirection.ASC,
+                        nullsFirst: true,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // Should contain CASE statement with NULLS FIRST at the end
+            expect(result).toContain('CASE');
+            expect(result).toContain(
+                '"orders_month_name" = \'January\' THEN 1',
+            );
+            // For simple queries (no groupBy), the CASE is wrapped in parens and NULLS comes after
+            // The sortMonthName function doesn't include ASC/DESC in the CASE statement - it's implicit
+            expect(result).toContain('NULLS FIRST');
+            expect(result).toContain('ORDER BY');
+        });
+
+        test('Should include NULLS LAST with DAY_OF_WEEK_NAME sorting in pivot query', () => {
+            const itemsMap: ItemsMap = {
+                orders_day_name: dayNameDimension,
+                orders_category: categoryDimension,
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'orders_day_name',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_category' }],
+                sortBy: [
+                    {
+                        reference: 'orders_day_name',
+                        direction: SortByDirection.DESC,
+                        nullsFirst: false,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // Should contain CASE statement for day of week with NULLS LAST
+            expect(result).toContain('CASE');
+            // In pivot queries, the sortDayOfWeekName returns CASE...END) DESC and NULLS LAST is appended
+            expect(result).toContain('DESC NULLS LAST');
+        });
+
+        test('Should include NULLS FIRST with QUARTER_NAME sorting', () => {
+            const itemsMap: ItemsMap = {
+                orders_quarter_name: quarterNameDimension,
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'orders_quarter_name',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: [
+                    {
+                        reference: 'orders_quarter_name',
+                        direction: SortByDirection.ASC,
+                        nullsFirst: true,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // Should contain CASE statement for quarter with NULLS FIRST
+            expect(result).toContain('CASE');
+            expect(result).toContain("'Q1' THEN 1");
+            // For simple queries (no groupBy), NULLS FIRST is appended after the sort expression
+            expect(result).toContain('NULLS FIRST');
+            expect(result).toContain('ORDER BY');
         });
     });
 });

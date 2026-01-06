@@ -4791,8 +4791,30 @@
                 "enum": ["none", "openstreetmap", "light", "dark", "satellite"],
                 "type": "string"
             },
+            "MapFieldConfig": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "visible": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "Record_string.MapFieldConfig_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/MapFieldConfig"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "MapChart": {
                 "properties": {
+                    "fieldConfig": {
+                        "$ref": "#/components/schemas/Record_string.MapFieldConfig_"
+                    },
                     "backgroundColor": {
                         "type": "string"
                     },
@@ -8019,12 +8041,12 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -8032,10 +8054,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -8044,8 +8066,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -8139,12 +8161,12 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "chartUsage": {
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "searchRank": {
+                                                                                    "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -8152,10 +8174,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -8164,8 +8186,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "tableName",
                                                                                     "label",
+                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -12854,6 +12876,9 @@
             },
             "VizSortBy": {
                 "properties": {
+                    "nullsFirst": {
+                        "type": "boolean"
+                    },
                     "direction": {
                         "$ref": "#/components/schemas/SortByDirection"
                     },
@@ -23822,7 +23847,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2288.0",
+        "version": "0.2301.4",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
