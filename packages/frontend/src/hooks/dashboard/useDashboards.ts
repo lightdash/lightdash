@@ -1,16 +1,9 @@
 import {
     type ApiError,
     type DashboardBasicDetailsWithTileTypes,
-    type UpdateMultipleDashboards,
 } from '@lightdash/common';
-import {
-    useMutation,
-    useQuery,
-    useQueryClient,
-    type UseQueryOptions,
-} from '@tanstack/react-query';
+import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
-import useToaster from '../toaster/useToaster';
 import useQueryError from '../useQueryError';
 
 const getDashboards = async (
@@ -80,52 +73,4 @@ export const useDashboardsContainingChart = (
         onError: (result) => setErrorResponse(result),
         enabled: !!projectUuid && !!chartId,
     });
-};
-
-const updateMultipleDashboard = async (
-    projectUuid: string,
-    data: UpdateMultipleDashboards[],
-) =>
-    lightdashApi<null>({
-        url: `/projects/${projectUuid}/dashboards`,
-        method: 'PATCH',
-        body: JSON.stringify(data),
-    });
-
-export const useUpdateMultipleDashboard = (projectUuid: string) => {
-    const queryClient = useQueryClient();
-    const { showToastSuccess, showToastApiError } = useToaster();
-    return useMutation<null, ApiError, UpdateMultipleDashboards[]>(
-        (data) => updateMultipleDashboard(projectUuid, data),
-        {
-            mutationKey: ['dashboard_update_multiple'],
-            onSuccess: async (_, variables) => {
-                await queryClient.invalidateQueries(['space', projectUuid]);
-
-                await queryClient.invalidateQueries(['dashboards']);
-                await queryClient.invalidateQueries([
-                    'dashboards-containing-chart',
-                ]);
-                await queryClient.invalidateQueries([
-                    'most-popular-and-recently-updated',
-                ]);
-
-                const invalidateQueries = variables.map((dashboard) => [
-                    'saved_dashboard_query',
-                    dashboard.uuid,
-                ]);
-                await queryClient.invalidateQueries(invalidateQueries);
-
-                showToastSuccess({
-                    title: `Success! Dashboards were updated.`,
-                });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: `Failed to update dashboard`,
-                    apiError: error,
-                });
-            },
-        },
-    );
 };

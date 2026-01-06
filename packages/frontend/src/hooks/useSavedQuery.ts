@@ -5,7 +5,6 @@ import {
     type CreateSavedChart,
     type CreateSavedChartVersion,
     type SavedChart,
-    type UpdateMultipleSavedChart,
     type UpdateSavedChart,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -219,53 +218,6 @@ export const useSavedQueryDeleteMutation = () => {
             onError: ({ error }) => {
                 showToastApiError({
                     title: `Failed to delete chart`,
-                    apiError: error,
-                });
-            },
-        },
-    );
-};
-
-const updateMultipleSavedQuery = async (
-    projectUuid: string,
-    data: UpdateMultipleSavedChart[],
-): Promise<SavedChart[]> => {
-    return lightdashApi<SavedChart[]>({
-        url: `/projects/${projectUuid}/saved`,
-        method: 'PATCH',
-        body: JSON.stringify(data),
-    });
-};
-
-export const useUpdateMultipleMutation = (projectUuid: string) => {
-    const queryClient = useQueryClient();
-    const { showToastSuccess, showToastApiError } = useToaster();
-
-    return useMutation<SavedChart[], ApiError, UpdateMultipleSavedChart[]>(
-        (data) => {
-            return updateMultipleSavedQuery(projectUuid, data);
-        },
-        {
-            mutationKey: ['saved_query_multiple_update'],
-            onSuccess: async (data) => {
-                await queryClient.invalidateQueries(['space', projectUuid]);
-                await queryClient.invalidateQueries(['spaces']);
-                await queryClient.invalidateQueries([
-                    'most-popular-and-recently-updated',
-                ]);
-                data.forEach((savedChart) => {
-                    queryClient.setQueryData(
-                        ['saved_query', savedChart.uuid],
-                        savedChart,
-                    );
-                });
-                showToastSuccess({
-                    title: `Success! Charts were updated.`,
-                });
-            },
-            onError: ({ error }) => {
-                showToastApiError({
-                    title: `Failed to save chart`,
                     apiError: error,
                 });
             },
