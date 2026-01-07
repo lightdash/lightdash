@@ -44,8 +44,10 @@ export class HealthService extends BaseService {
     async getHealthState(user: SessionUser | undefined): Promise<HealthState> {
         const isAuthenticated: boolean = !!user?.userUuid;
 
+        const migrationStartTime = performance.now();
         const { status: migrationStatus, currentVersion } =
             await this.migrationModel.getMigrationStatus();
+        const migrationExecutionTime = performance.now() - migrationStartTime;
 
         if (migrationStatus < 0) {
             throw new UnexpectedDatabaseError(
@@ -58,13 +60,30 @@ export class HealthService extends BaseService {
             );
         } // else migrationStatus === 0 (all migrations are up to date)
 
+        const hasOrgsStartTime = performance.now();
         const requiresOrgRegistration =
             !(await this.organizationModel.hasOrgs());
+        const hasOrgsExecutionTime = performance.now() - hasOrgsStartTime;
 
         const localDbtEnabled =
             process.env.LIGHTDASH_INSTALL_TYPE !==
                 LightdashInstallType.HEROKU &&
             this.lightdashConfig.mode !== LightdashMode.CLOUD_BETA;
+
+        const getDockerHubVersionStartTime = performance.now();
+        const dockerHubVersion = getDockerHubVersion();
+        const getDockerHubVersionExecutionTime =
+            performance.now() - getDockerHubVersionStartTime;
+
+        this.logger.info(
+            `Health check execution times: getMigrationStatus ${migrationExecutionTime.toFixed(
+                2,
+            )}ms, hasOrgs ${hasOrgsExecutionTime.toFixed(
+                2,
+            )}ms, getDockerHubVersion ${getDockerHubVersionExecutionTime.toFixed(
+                2,
+            )}ms`,
+        );
 
         return {
             healthy: true,
@@ -74,7 +93,7 @@ export class HealthService extends BaseService {
             defaultProject: undefined,
             isAuthenticated,
             requiresOrgRegistration,
-            latest: { version: getDockerHubVersion() },
+            latest: { version: dockerHubVersion },
             rudder: this.lightdashConfig.rudder,
             sentry: {
                 frontend: this.lightdashConfig.sentry.frontend,
