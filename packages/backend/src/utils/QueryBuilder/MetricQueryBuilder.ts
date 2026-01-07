@@ -18,6 +18,7 @@ import {
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getItemId,
+    getMetricsMapFromTables,
     getParsedReference,
     IntrinsicUserAttributes,
     isAndFilterGroup,
@@ -62,7 +63,6 @@ import {
     getDimensionFromId,
     getJoinedTables,
     getJoinType,
-    getMetricFromId,
     isInflationProofMetric,
     replaceUserAttributesAsStrings,
     replaceUserAttributesRaw,
@@ -238,12 +238,27 @@ export class MetricQueryBuilder {
         CompiledDimension
     > = {};
 
+    // Contains the metrics from the Explore and the custom metrics from the metric query
+    private readonly availableMetrics: Record<string, CompiledMetric> = {};
+
     constructor(private args: BuildQueryProps) {
-        const { explore } = this.args;
+        const { explore, compiledMetricQuery } = this.args;
         this.exploreDimensions = getDimensionMapFromTables(explore.tables);
         this.exploreDimensionsWithoutAccess = getDimensionMapFromTables(
             explore.unfilteredTables ?? {},
         );
+        this.availableMetrics = {
+            ...getMetricsMapFromTables(explore.tables),
+            ...compiledMetricQuery.compiledAdditionalMetrics.reduce<
+                Record<string, CompiledMetric>
+            >(
+                (acc, metric) => ({
+                    ...acc,
+                    [getItemId(metric)]: metric,
+                }),
+                {},
+            ),
+        };
     }
 
     static buildCtesSQL(ctes: string[]) {
@@ -252,6 +267,16 @@ export class MetricQueryBuilder {
 
     static assembleSqlParts(parts: Array<string | undefined>) {
         return parts.filter((l) => l !== undefined).join('\n');
+    }
+
+    private getMetricFromId(metricId: string): CompiledMetric {
+        const metric = this.availableMetrics[metricId];
+        if (!metric) {
+            throw new FieldReferenceError(
+                `Tried to reference metric with unknown field id: ${metricId}`,
+            );
+        }
+        return metric;
     }
 
     private getDimensionsFilterSQL() {
@@ -471,14 +496,10 @@ export class MetricQueryBuilder {
      * @private
      */
     private getPostCalculationMetrics(): string[] {
-        const { explore, compiledMetricQuery } = this.args;
+        const { compiledMetricQuery } = this.args;
         const { metrics } = compiledMetricQuery;
         return metrics.filter((metricId) => {
-            const metric = getMetricFromId(
-                metricId,
-                explore,
-                compiledMetricQuery,
-            );
+            const metric = this.getMetricFromId(metricId);
             return isPostCalculationMetric(metric);
         });
     }
@@ -489,14 +510,9 @@ export class MetricQueryBuilder {
      * @private
      */
     private getPostCalculationMetricReferences(metricIds: string[]): string[] {
-        const { explore, compiledMetricQuery } = this.args;
         const referencedMetricIds = new Set<string>();
         metricIds.forEach((metricId) => {
-            const metric = getMetricFromId(
-                metricId,
-                explore,
-                compiledMetricQuery,
-            );
+            const metric = this.getMetricFromId(metricId);
             if (isPostCalculationMetric(metric)) {
                 // Extract referenced metrics from PostCalculation metric SQL
                 const references = parseAllReferences(metric.sql, metric.table);
@@ -505,11 +521,8 @@ export class MetricQueryBuilder {
                         table: ref.refTable,
                         name: ref.refName,
                     });
-                    const referencedMetric = getMetricFromId(
-                        referencedMetricId,
-                        explore,
-                        compiledMetricQuery,
-                    );
+                    const referencedMetric =
+                        this.getMetricFromId(referencedMetricId);
                     if (isPostCalculationMetric(referencedMetric)) {
                         throw new CompileError(
                             `PostCalculation metric "${metric.label}" cannot reference another PostCalculation metric "${referencedMetric.label}". PostCalculation metrics can only reference numeric aggregate metrics.`,
@@ -531,7 +544,7 @@ export class MetricQueryBuilder {
      * @private
      */
     private getSelectedAndReferencedMetricIds(): string[] {
-        const { explore, compiledMetricQuery } = this.args;
+        const { compiledMetricQuery } = this.args;
         const { metrics, filters } = compiledMetricQuery;
 
         // Regular metrics
@@ -551,11 +564,7 @@ export class MetricQueryBuilder {
 
         // Exclude PostCalculation metrics
         return Array.from(referencedMetricIds).filter((metricId) => {
-            const metric = getMetricFromId(
-                metricId,
-                explore,
-                compiledMetricQuery,
-            );
+            const metric = this.getMetricFromId(metricId);
             return !isPostCalculationMetric(metric);
         });
     }
@@ -566,7 +575,6 @@ export class MetricQueryBuilder {
         filtersSQL: string | undefined;
     } {
         const {
-            explore,
             compiledMetricQuery,
             warehouseSqlBuilder,
             userAttributes = {},
@@ -610,11 +618,7 @@ export class MetricQueryBuilder {
         metrics.forEach((field) => {
             try {
                 const alias = field;
-                const metric = getMetricFromId(
-                    field,
-                    explore,
-                    compiledMetricQuery,
-                );
+                const metric = this.getMetricFromId(field);
                 // Add select
                 selects.add(
                     `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`,
@@ -684,7 +688,7 @@ export class MetricQueryBuilder {
     }
 
     private createTableCalculationFilters(): string | undefined {
-        const { compiledMetricQuery, warehouseSqlBuilder } = this.args;
+        const { compiledMetricQuery } = this.args;
         const { filters } = compiledMetricQuery;
 
         const tableCalculationFilters = this.getNestedFilterSQLFromGroup(
@@ -865,10 +869,8 @@ export class MetricQueryBuilder {
                           getItemId(d) ===
                           filterRuleWithParamReplacedValues.target.fieldId,
                   )
-                : getMetricFromId(
+                : this.getMetricFromId(
                       filterRuleWithParamReplacedValues.target.fieldId,
-                      explore,
-                      compiledMetricQuery,
                   );
         if (!field) {
             const errorMessage = `Filter has a reference to an unknown ${fieldType}: ${filterRuleWithParamReplacedValues.target.fieldId}`;
@@ -966,11 +968,7 @@ export class MetricQueryBuilder {
                 excludePostCalculationMetrics &&
                 metrics.includes(sort.fieldId)
             ) {
-                const metric = getMetricFromId(
-                    sort.fieldId,
-                    explore,
-                    compiledMetricQuery,
-                );
+                const metric = this.getMetricFromId(sort.fieldId);
                 if (isPostCalculationMetric(metric)) {
                     // Skip sorting by PostCalculation metrics
                     return acc;
@@ -1100,9 +1098,7 @@ export class MetricQueryBuilder {
                 possibleJoins: explore.joinedTables,
                 baseTable: explore.baseTable,
                 joinedTables,
-                metrics: metrics.map((field) =>
-                    getMetricFromId(field, explore, compiledMetricQuery),
-                ),
+                metrics: metrics.map((field) => this.getMetricFromId(field)),
             });
         } catch (e) {
             // Log error but don't block code execution
@@ -1175,7 +1171,6 @@ export class MetricQueryBuilder {
         } = this.args;
         const { metrics, filters, periodOverPeriod } = compiledMetricQuery;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
-        const stringQuoteChar = warehouseSqlBuilder.getStringQuoteChar();
         const adapterType: SupportedDbtAdapter =
             warehouseSqlBuilder.getAdapterType();
         const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
@@ -1197,7 +1192,7 @@ export class MetricQueryBuilder {
         // Include both selected metrics AND filter-only metrics for fanout protection
         const allMetricsToProcess = [...metrics, ...filterOnlyMetricIds];
         const metricsObjects = allMetricsToProcess.map((field) =>
-            getMetricFromId(field, explore, compiledMetricQuery),
+            this.getMetricFromId(field),
         );
         const metricsWithCteReferences: Array<CompiledMetric> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
@@ -1240,13 +1235,11 @@ export class MetricQueryBuilder {
                             !isInReferencedMetricObjects
                         ) {
                             acc.push(
-                                getMetricFromId(
+                                this.getMetricFromId(
                                     getItemId({
                                         table: metricReference.refTable,
                                         name: metricReference.refName,
                                     }),
-                                    explore,
-                                    compiledMetricQuery,
                                 ),
                             );
                         }
@@ -1997,7 +1990,7 @@ export class MetricQueryBuilder {
         currentName: string,
         interdependentTableCalcs: CompiledTableCalculation[],
     ) {
-        const { warehouseSqlBuilder, compiledMetricQuery } = this.args;
+        const { warehouseSqlBuilder } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
         // Sort table calculations in dependency order
@@ -2031,12 +2024,7 @@ export class MetricQueryBuilder {
         ctes: string[];
         finalCteName: string;
     } {
-        const {
-            explore,
-            compiledMetricQuery,
-            warehouseSqlBuilder,
-            pivotConfiguration,
-        } = this.args;
+        const { warehouseSqlBuilder, pivotConfiguration } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
         const postCalculationMetrics = this.getPostCalculationMetrics();
         const referencedMetricIds = this.getSelectedAndReferencedMetricIds();
@@ -2059,11 +2047,7 @@ export class MetricQueryBuilder {
 
         // Create a single CTE with all PostCalculation metrics
         const metricSelects = postCalculationMetrics.map((metricId) => {
-            const metric = getMetricFromId(
-                metricId,
-                explore,
-                compiledMetricQuery,
-            );
+            const metric = this.getMetricFromId(metricId);
             // Use replaceMetricReferencesWithCteReferences to properly resolve metric references
             const processedSql = this.replaceMetricReferencesWithCteReferences(
                 metric,
@@ -2208,8 +2192,6 @@ export class MetricQueryBuilder {
             const { periodOverPeriod } = compiledMetricQuery;
             const fieldQuoteChar =
                 this.args.warehouseSqlBuilder.getFieldQuoteChar();
-            const stringQuoteChar =
-                this.args.warehouseSqlBuilder.getStringQuoteChar();
             const adapterType: SupportedDbtAdapter =
                 this.args.warehouseSqlBuilder.getAdapterType();
             const startOfWeek = this.args.warehouseSqlBuilder.getStartOfWeek();
