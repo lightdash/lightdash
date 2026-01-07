@@ -1,9 +1,7 @@
+import { getFieldsFromMetricQuery } from '../index';
 import { CustomFormatType, isField, NumberSeparator } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
-import {
-    compareMetricAndCustomMetric,
-    getFieldsFromMetricQuery,
-} from './fields';
+import { compareMetricAndCustomMetric } from './fields';
 import {
     customMetric,
     emptyExplore,
@@ -19,10 +17,10 @@ describe('getFieldsFromMetricQuery', () => {
         const result = getFieldsFromMetricQuery(metricQuery, explore);
         expect(Object.keys(result)).toEqual([
             'table1_dim1',
-            'table1_metric1',
-            'calc2',
             'custom_dimension_1',
+            'table1_metric1',
             'table1_additional_metric_1',
+            'calc2',
         ]);
 
         // Check a few types of items
@@ -39,7 +37,7 @@ describe('getFieldsFromMetricQuery', () => {
     test('should test with empty explore', async () => {
         // With an empty explore, we can't get dimensions or metrics, but we still return table calculations and custom dimensions
         const result = getFieldsFromMetricQuery(metricQuery, emptyExplore);
-        expect(Object.keys(result)).toEqual(['calc2', 'custom_dimension_1']);
+        expect(Object.keys(result)).toEqual(['custom_dimension_1', 'calc2']);
     });
 
     test('should test with empty metric query', async () => {
