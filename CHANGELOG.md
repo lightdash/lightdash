@@ -1,3 +1,10 @@
+# [0.2307.0](https://github.com/lightdash/lightdash/compare/0.2306.1...0.2307.0) (2026-01-07)
+
+
+### Features
+
+* update more modals to MantineModal ([#19163](https://github.com/lightdash/lightdash/issues/19163)) ([4d5f0a9](https://github.com/lightdash/lightdash/commit/4d5f0a989da2555785a56674bec88e43dee0dc1c))
+
 ## [0.2306.1](https://github.com/lightdash/lightdash/compare/0.2306.0...0.2306.1) (2026-01-07)
 
 
