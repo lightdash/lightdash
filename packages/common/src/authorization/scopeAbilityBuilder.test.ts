@@ -1746,6 +1746,7 @@ describe('scopeAbilityBuilder', () => {
                 ability.can(
                     'delete',
                     subject('Project', {
+                        projectUuid: 'project-123',
                         createdByUserUuid: 'user-456',
                         type: ProjectType.PREVIEW,
                     }),
@@ -1756,6 +1757,7 @@ describe('scopeAbilityBuilder', () => {
                 ability.can(
                     'delete',
                     subject('Project', {
+                        projectUuid: 'project-123',
                         createdByUserUuid: 'different-user',
                         type: ProjectType.PREVIEW,
                     }),
@@ -1780,6 +1782,7 @@ describe('scopeAbilityBuilder', () => {
                 ability.can(
                     'delete',
                     subject('Project', {
+                        projectUuid: 'project-123',
                         createdByUserUuid: 'user-456',
                         type: ProjectType.PREVIEW,
                     }),
@@ -1791,6 +1794,7 @@ describe('scopeAbilityBuilder', () => {
                 ability.can(
                     'delete',
                     subject('Project', {
+                        projectUuid: 'project-123',
                         createdByUserUuid: 'user-456',
                         type: ProjectType.DEFAULT,
                     }),

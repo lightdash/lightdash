@@ -248,6 +248,19 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'update:Project@self',
+        description: 'Update projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.PROJECT_MANAGEMENT,
+        getConditions: (context) => [
+            {
+                projectUuid: context.projectUuid,
+                createdByUserUuid: context.userUuid || false,
+                type: ProjectType.PREVIEW,
+            },
+        ],
+    },
+    {
         name: 'delete:Project',
         description: 'Delete projects',
         isEnterprise: false,
@@ -261,6 +274,7 @@ const scopes: Scope[] = [
         group: ScopeGroup.PROJECT_MANAGEMENT,
         getConditions: (context) => [
             {
+                projectUuid: context.projectUuid,
                 createdByUserUuid: context.userUuid || false,
                 type: ProjectType.PREVIEW,
             },

@@ -1892,78 +1892,92 @@ describe('Project member permissions', () => {
             membership: PROJECT_ADMIN,
             canCreatePreview: true,
             canDeleteTheirOwnPreview: true,
+            canDeleteOthersPreview: true, // Admins can delete any project
         },
         {
             membership: PROJECT_DEVELOPER,
             canCreatePreview: true,
             canDeleteTheirOwnPreview: true,
+            canDeleteOthersPreview: false,
         },
         {
             membership: PROJECT_EDITOR,
             canCreatePreview: false,
             canDeleteTheirOwnPreview: false,
+            canDeleteOthersPreview: false,
         },
         {
             membership: PROJECT_INTERACTIVE_VIEWER,
             canCreatePreview: false,
             canDeleteTheirOwnPreview: false,
+            canDeleteOthersPreview: false,
         },
         {
             membership: PROJECT_VIEWER,
             canCreatePreview: false,
             canDeleteTheirOwnPreview: false,
+            canDeleteOthersPreview: false,
         },
-    ].forEach(({ membership, canCreatePreview, canDeleteTheirOwnPreview }) => {
-        describe('test project preview permissions', () => {
-            const ability = defineAbilityForProjectMember(membership);
+    ].forEach(
+        ({
+            membership,
+            canCreatePreview,
+            canDeleteTheirOwnPreview,
+            canDeleteOthersPreview,
+        }) => {
+            describe('test project preview permissions', () => {
+                const ability = defineAbilityForProjectMember(membership);
 
-            it('checks if user can create PREVIEW projects', () => {
-                expect(
-                    ability.can(
-                        'create',
-                        subject('Project', {
-                            upstreamProjectUuid: projectUuid,
-                            type: ProjectType.PREVIEW,
-                        }),
-                    ),
-                ).toEqual(canCreatePreview);
-            });
+                it('checks if user can create PREVIEW projects', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('Project', {
+                                upstreamProjectUuid: projectUuid,
+                                type: ProjectType.PREVIEW,
+                            }),
+                        ),
+                    ).toEqual(canCreatePreview);
+                });
 
-            it('checks that users cannot create regular projects', () => {
-                expect(
-                    ability.can(
-                        'create',
-                        subject('Project', {
-                            upstreamProjectUuid: projectUuid,
-                            type: ProjectType.DEFAULT,
-                        }),
-                    ),
-                ).toEqual(false);
-            });
+                it('checks that users cannot create regular projects', () => {
+                    expect(
+                        ability.can(
+                            'create',
+                            subject('Project', {
+                                upstreamProjectUuid: projectUuid,
+                                type: ProjectType.DEFAULT,
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
 
-            it('checks if user can delete their own PREVIEW projects', () => {
-                expect(
-                    ability.can(
-                        'delete',
-                        subject('Project', {
-                            createdByUserUuid: membership.userUuid,
-                            type: ProjectType.PREVIEW,
-                        }),
-                    ),
-                ).toEqual(canDeleteTheirOwnPreview);
-            });
+                it('checks if user can delete their own PREVIEW projects', () => {
+                    expect(
+                        ability.can(
+                            'delete',
+                            subject('Project', {
+                                projectUuid,
+                                createdByUserUuid: membership.userUuid,
+                                type: ProjectType.PREVIEW,
+                            }),
+                        ),
+                    ).toEqual(canDeleteTheirOwnPreview);
+                });
 
-            it('checks that users cannot delete other users PREVIEW projects', () => {
-                expect(
-                    ability.can(
-                        'delete',
-                        subject('Project', {
-                            createdByUserUuid: '1234',
-                            type: ProjectType.PREVIEW,
-                        }),
-                    ),
-                ).toEqual(false);
+                it('checks if user can delete other users PREVIEW projects', () => {
+                    expect(
+                        ability.can(
+                            'delete',
+                            subject('Project', {
+                                projectUuid,
+                                createdByUserUuid: '1234',
+                                type: ProjectType.PREVIEW,
+                            }),
+                        ),
+                    ).toEqual(canDeleteOthersPreview);
+                });
             });
-        });
-    });
+        },
+    );
 });

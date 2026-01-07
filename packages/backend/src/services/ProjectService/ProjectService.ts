@@ -1739,16 +1739,23 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         explores: (Explore | ExploreError)[],
     ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.getSummary(
+        const project = await this.projectModel.getWithSensitiveFields(
             projectUuid,
         );
         if (
             user.ability.cannot(
                 'update',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                }),
             )
         ) {
-            throw new ForbiddenError();
+            throw new ForbiddenError(
+                `User does not have permission to update project`,
+            );
         }
 
         // TODO: Do not hardcode CLI information here
@@ -1765,7 +1772,7 @@ export class ProjectService extends BaseService {
             userUuid: user.userUuid,
             projectUuid,
             context: 'cli',
-            organizationUuid,
+            organizationUuid: project.organizationUuid,
         });
     }
 
@@ -2072,13 +2079,15 @@ export class ProjectService extends BaseService {
                 'delete',
                 subject('Project', {
                     type: project.type,
-                    projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
                     createdByUserUuid: project.createdByUserUuid,
                 }),
             )
         ) {
-            throw new ForbiddenError();
+            throw new ForbiddenError(
+                `User does not have permission to delete project`,
+            );
         }
 
         await this.projectModel.delete(projectUuid);
@@ -5611,6 +5620,7 @@ export class ProjectService extends BaseService {
                             previewProjectUuid,
                             projectAccess.email,
                             projectAccess.role,
+                            projectAccess.roleUuid,
                         ),
                 );
                 const insertGroupAccessPromises = groupAccesses.map(
@@ -6645,9 +6655,8 @@ export class ProjectService extends BaseService {
         projectUuid: string;
         parameters: LightdashProjectConfig['parameters'];
     }) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid, type, createdByUserUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
 
         if (
             user.ability.cannot(
@@ -6655,10 +6664,14 @@ export class ProjectService extends BaseService {
                 subject('Project', {
                     projectUuid,
                     organizationUuid,
+                    type,
+                    createdByUserUuid,
                 }),
             )
         ) {
-            throw new ForbiddenError();
+            throw new ForbiddenError(
+                `User does not have permission to update project parameters`,
+            );
         }
 
         await this.projectParametersModel.replace(
@@ -6683,11 +6696,12 @@ export class ProjectService extends BaseService {
                 'manage',
                 subject('Tags', {
                     projectUuid,
-                    organizationUuid,
                 }),
             )
         ) {
-            throw new ForbiddenError();
+            throw new ForbiddenError(
+                `User does not have permission to manage YAML tags in project`,
+            );
         }
 
         const yamlTagsIn = yamlTags.map((tag) => ({
