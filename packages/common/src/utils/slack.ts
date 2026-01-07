@@ -19,6 +19,7 @@ export const UNRECOVERABLE_SLACK_ERRORS = [
     'missing_scope', // Missing required OAuth scope
     'channel_not_found', // Channel doesn't exist
     'not_in_channel', // Bot/app isn't in the channel
+    'is_archived', // Channel has been archived
 ] as const;
 
 /**
