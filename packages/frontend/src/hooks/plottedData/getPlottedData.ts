@@ -106,6 +106,7 @@ export const getPlottedData = (
 export const getPivotedDataFromPivotDetails = (
     resultsData: InfiniteQueryResults | undefined,
     itemsMap: ItemsMap | undefined,
+    xField?: string,
 ): {
     pivotValuesMap: PivotValueMap;
     rowKeyMap: RowKeyMap;
@@ -159,6 +160,33 @@ export const getPivotedDataFromPivotDetails = (
         },
         {} as RowKeyMap,
     );
+
+    // If xField is provided, group rows by the xField value to create wide format
+    // This merges rows like:
+    //   { date: "2024-01-01", overnight: 10 }
+    //   { date: "2024-01-01", express: 20 }
+    // Into:
+    //   { date: "2024-01-01", overnight: 10, express: 20 }
+    if (xField) {
+        const groupedRowMap = rows.reduce<Record<string, ResultRow>>(
+            (acc, row) => {
+                const xValue = row[xField]?.value?.raw;
+                const groupKey = xValue !== undefined ? String(xValue) : '';
+
+                return {
+                    ...acc,
+                    [groupKey]: { ...(acc[groupKey] || {}), ...row },
+                };
+            },
+            {},
+        );
+
+        return {
+            rows: Object.values(groupedRowMap),
+            pivotValuesMap,
+            rowKeyMap,
+        };
+    }
 
     return {
         rows,

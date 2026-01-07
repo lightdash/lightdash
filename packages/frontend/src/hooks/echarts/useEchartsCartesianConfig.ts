@@ -2169,7 +2169,13 @@ const useEchartsCartesianConfig = (
 
     const { rows, rowKeyMap } = useMemo(() => {
         if (resultsData?.pivotDetails) {
-            return getPivotedDataFromPivotDetails(resultsData, undefined);
+            // Pass xField to group rows by the x-axis dimension (creates wide format)
+            const xField = validCartesianConfig?.layout?.xField;
+            return getPivotedDataFromPivotDetails(
+                resultsData,
+                undefined,
+                xField,
+            );
         }
 
         // Legacy implementation - comment out when fully migrated
@@ -2179,7 +2185,13 @@ const useEchartsCartesianConfig = (
             pivotedKeys,
             nonPivotedKeys,
         );
-    }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
+    }, [
+        resultsData,
+        pivotDimensions,
+        pivotedKeys,
+        nonPivotedKeys,
+        validCartesianConfig?.layout?.xField,
+    ]);
 
     const baseSeries = useMemo(() => {
         if (!itemsMap || !validCartesianConfig || !resultsData) {
