@@ -1,3 +1,10 @@
+## [0.2304.2](https://github.com/lightdash/lightdash/compare/0.2304.1...0.2304.2) (2026-01-07)
+
+
+### Bug Fixes
+
+* add 'is_archived' to unrecoverable Slack errors ([#19218](https://github.com/lightdash/lightdash/issues/19218)) ([5c24302](https://github.com/lightdash/lightdash/commit/5c24302bd3e9c4b73744b5a0eb5e602444841c46))
+
 ## [0.2304.1](https://github.com/lightdash/lightdash/compare/0.2304.0...0.2304.1) (2026-01-07)
 
 
