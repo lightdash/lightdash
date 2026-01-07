@@ -1,9 +1,7 @@
+import { getFieldsFromMetricQuery } from '../index';
 import { CustomFormatType, isField, NumberSeparator } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
-import {
-    compareMetricAndCustomMetric,
-    getFieldsFromMetricQuery,
-} from './fields';
+import { compareMetricAndCustomMetric } from './fields';
 import {
     customMetric,
     emptyExplore,
