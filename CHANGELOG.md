@@ -1,3 +1,10 @@
+# [0.2305.0](https://github.com/lightdash/lightdash/compare/0.2304.2...0.2305.0) (2026-01-07)
+
+
+### Features
+
+* update Scheduler modals to MantineModal ([#19152](https://github.com/lightdash/lightdash/issues/19152)) ([205e3d1](https://github.com/lightdash/lightdash/commit/205e3d18b32a3ee6bfc810c62ee3a21247976ba0))
+
 ## [0.2304.2](https://github.com/lightdash/lightdash/compare/0.2304.1...0.2304.2) (2026-01-07)
 
 
