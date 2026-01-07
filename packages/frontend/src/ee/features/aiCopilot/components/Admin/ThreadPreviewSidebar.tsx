@@ -5,7 +5,6 @@ import {
     Divider,
     Group,
     LoadingOverlay,
-    Modal,
     Title,
     Tooltip,
 } from '@mantine-8/core';
@@ -14,13 +13,7 @@ import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
-import { clearArtifact } from '../../store/aiArtifactSlice';
-import {
-    useAiAgentStoreDispatch,
-    useAiAgentStoreSelector,
-} from '../../store/hooks';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
-import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
 import { EvalAssessmentDisplay } from '../Evals/EvalAssessmentDisplay';
 
 type ThreadPreviewSidebarProps = {
@@ -29,7 +22,6 @@ type ThreadPreviewSidebarProps = {
     threadUuid: string;
     isOpen: boolean;
     onClose: () => void;
-    renderArtifactsInline?: boolean;
     showAddToEvalsButton?: boolean;
     evalUuid?: string;
     runUuid?: string;
@@ -41,15 +33,10 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
     threadUuid,
     isOpen,
     onClose,
-    renderArtifactsInline = false,
     showAddToEvalsButton = false,
     evalUuid,
     runUuid,
 }) => {
-    const dispatch = useAiAgentStoreDispatch();
-    const aiArtifact = useAiAgentStoreSelector(
-        (state) => state.aiArtifact.artifact,
-    );
     const { data: threadData, isLoading: isLoadingThread } = useAiAgentThread(
         projectUuid,
         agentUuid,
@@ -116,50 +103,24 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
             <Divider />
 
             {threadData && (
-                <>
-                    <Box
-                        mah="calc(100vh - 150px)"
-                        style={{ overflowY: 'auto' }}
-                    >
-                        {evalUuid && runUuid && (
-                            <EvalAssessmentDisplay
-                                projectUuid={projectUuid}
-                                agentUuid={agentUuid}
-                                evalUuid={evalUuid}
-                                runUuid={runUuid}
-                                threadUuid={threadUuid}
-                            />
-                        )}
-                        <AgentChatDisplay
-                            thread={threadData}
+                <Box mah="calc(100vh - 150px)" style={{ overflowY: 'auto' }}>
+                    {evalUuid && runUuid && (
+                        <EvalAssessmentDisplay
                             projectUuid={projectUuid}
                             agentUuid={agentUuid}
-                            showAddToEvalsButton={showAddToEvalsButton}
-                            renderArtifactsInline={renderArtifactsInline}
+                            evalUuid={evalUuid}
+                            runUuid={runUuid}
+                            threadUuid={threadUuid}
                         />
-                    </Box>
-                    {!!aiArtifact && !renderArtifactsInline && (
-                        <Modal
-                            withinPortal
-                            opened={!!aiArtifact}
-                            onClose={() => dispatch(clearArtifact())}
-                            size="lg"
-                            withCloseButton={false}
-                            centered
-                            mih="90vh"
-                            styles={{
-                                body: {
-                                    height: '500px',
-                                    padding: 0,
-                                },
-                            }}
-                        >
-                            {aiArtifact && (
-                                <AiArtifactPanel artifact={aiArtifact} />
-                            )}
-                        </Modal>
                     )}
-                </>
+                    <AgentChatDisplay
+                        thread={threadData}
+                        projectUuid={projectUuid}
+                        agentUuid={agentUuid}
+                        showAddToEvalsButton={showAddToEvalsButton}
+                        renderArtifactsInline
+                    />
+                </Box>
             )}
         </Box>
     );

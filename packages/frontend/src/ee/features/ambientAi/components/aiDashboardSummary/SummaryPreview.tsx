@@ -1,9 +1,10 @@
 import { type DashboardSummary } from '@lightdash/common';
-import { ActionIcon, Alert, Flex, Stack, Text, Tooltip } from '@mantine/core';
-import { IconExclamationCircle, IconRefresh } from '@tabler/icons-react';
+import { Button, Flex, Stack, Text } from '@mantine-8/core';
+import { IconRefresh } from '@tabler/icons-react';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import { type FC } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
+import Callout from '../../../../../components/common/Callout';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 
@@ -23,15 +24,11 @@ const SummaryPreview: FC<SummaryPreviewProps> = ({
     return (
         <Stack align="flex-end">
             {dashboardVersionId !== summary.dashboardVersionId && (
-                <Alert
-                    color="orange"
+                <Callout
+                    variant="warning"
                     w="100%"
-                    icon={
-                        <MantineIcon icon={IconExclamationCircle} size="lg" />
-                    }
-                >
-                    Your dashboard has changed since this summary was generated.
-                </Alert>
+                    title="Your dashboard has changed since this summary was generated."
+                />
             )}
             <ReactMarkdownPreview
                 source={summary.summary}
@@ -40,16 +37,16 @@ const SummaryPreview: FC<SummaryPreviewProps> = ({
                     backgroundColor: 'transparent',
                 }}
             />
-            <Flex align="center" justify="space-between" mt="md" w="100%">
-                <Text
-                    color="ldGray.7"
-                    fz="xs"
-                >{`generated ${relativeDate}`}</Text>
-                <Tooltip label="Regenerate summary" position="left">
-                    <ActionIcon onClick={handleSummaryRegen} color="violet">
-                        <MantineIcon icon={IconRefresh} />
-                    </ActionIcon>
-                </Tooltip>
+            <Flex align="center" justify="space-between" w="100%">
+                <Text c="ldGray.7" fz="xs">{`Generated ${relativeDate}`}</Text>
+
+                <Button
+                    onClick={handleSummaryRegen}
+                    radius="md"
+                    leftSection={<MantineIcon icon={IconRefresh} />}
+                >
+                    Regenerate summary
+                </Button>
             </Flex>
         </Stack>
     );
