@@ -2,12 +2,13 @@ import { Alert, type AlertProps, type MantineColor } from '@mantine-8/core';
 import {
     IconAlertCircle,
     IconAlertTriangle,
+    IconCheck,
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from './MantineIcon';
 
-type CalloutVariant = 'danger' | 'warning' | 'info';
+type CalloutVariant = 'danger' | 'warning' | 'info' | 'success';
 
 const CALLOUT_CONFIG: Record<
     CalloutVariant,
@@ -27,6 +28,10 @@ const CALLOUT_CONFIG: Record<
     info: {
         color: 'blue',
         icon: IconInfoCircle,
+    },
+    success: {
+        color: 'green',
+        icon: IconCheck,
     },
 };
 
