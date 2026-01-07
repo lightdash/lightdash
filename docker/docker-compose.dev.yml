@@ -167,7 +167,8 @@ services:
             - ./dev-configs/sshd_config:/config/sshd/sshd_config
 
     headless-browser:
-        image: ghcr.io/browserless/chromium:v2.24.3
+        build:
+            dockerfile: Dockerfile.headless-browser
         restart: always
         ports:
             - '3001:3000'
