@@ -465,6 +465,11 @@ export class ValidationService extends BaseService {
     ): Promise<CreateDashboardValidation[]> {
         const existingFieldIds = existingFields.map(getItemId);
 
+        // Pre-build Map for O(1) broken chart lookup instead of O(n) array.find()
+        const brokenChartMap = new Map(
+            brokenCharts.map((c) => [c.chartUuid, c]),
+        );
+
         const dashboardsToValidate =
             await this.dashboardModel.findDashboardsForValidation(projectUuid);
         const results: CreateDashboardValidation[] =
@@ -575,9 +580,7 @@ export class ValidationService extends BaseService {
                     const chartErrors = chartUuids.reduce<
                         CreateDashboardValidation[]
                     >((acc, savedChartUuid) => {
-                        const brokenChart = brokenCharts.find(
-                            (c) => c.chartUuid === savedChartUuid,
-                        );
+                        const brokenChart = brokenChartMap.get(savedChartUuid);
                         if (brokenChart !== undefined) {
                             return [
                                 ...acc,
@@ -656,7 +659,6 @@ export class ValidationService extends BaseService {
                 ),
             );
         }
-
         const exploreFields =
             explores?.reduce<
                 Record<string, { dimensionIds: string[]; metricIds: string[] }>
