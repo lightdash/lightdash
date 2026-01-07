@@ -29,7 +29,8 @@ services:
             - postgres_data:/var/lib/postgresql/data
 
     headless-browser:
-        image: ghcr.io/browserless/chromium:v2.24.3
+        build:
+            dockerfile: Dockerfile.headless-browser
         restart: always
         ports:
             - '3001:3000'

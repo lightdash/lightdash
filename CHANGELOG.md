@@ -1,3 +1,25 @@
+# [0.2309.0](https://github.com/lightdash/lightdash/compare/0.2308.1...0.2309.0) (2026-01-07)
+
+
+### Features
+
+* update Sync modals to use mantinemodal ([#19155](https://github.com/lightdash/lightdash/issues/19155)) ([5410585](https://github.com/lightdash/lightdash/commit/54105851f4202cd6c7e5881c48b9b017ce378238))
+
+## [0.2308.1](https://github.com/lightdash/lightdash/compare/0.2308.0...0.2308.1) (2026-01-07)
+
+
+### Bug Fixes
+
+* move getFieldsFromMetricQuery to common index and simplify implementation ([#19243](https://github.com/lightdash/lightdash/issues/19243)) ([91aae5f](https://github.com/lightdash/lightdash/commit/91aae5f0b5bcd2bf111d6e6800a12c58d45c7909))
+
+# [0.2308.0](https://github.com/lightdash/lightdash/compare/0.2307.0...0.2308.0) (2026-01-07)
+
+
+### Features
+
+* update mantine modals for sql,export dashboard,custommetrics ([#19165](https://github.com/lightdash/lightdash/issues/19165)) ([588bd06](https://github.com/lightdash/lightdash/commit/588bd06adb5218c6d7e95e824509ef5d761297a8))
+* update various modals to use mantineModal ([#19164](https://github.com/lightdash/lightdash/issues/19164)) ([ee88825](https://github.com/lightdash/lightdash/commit/ee888255bb4c3adb4f51a14249b934e306266400))
+
 # [0.2307.0](https://github.com/lightdash/lightdash/compare/0.2306.1...0.2307.0) (2026-01-07)
 
 

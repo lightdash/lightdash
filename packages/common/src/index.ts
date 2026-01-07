@@ -602,6 +602,28 @@ export function getItemMap(
     }, {} as ItemsMap);
 }
 
+export const getFieldsFromMetricQuery = (
+    metricQuery: MetricQuery,
+    explore: Explore,
+): ItemsMap => {
+    const itemsMap = getItemMap(
+        explore,
+        metricQuery.additionalMetrics,
+        metricQuery.tableCalculations,
+        metricQuery.customDimensions,
+    );
+    const itemIdsInMetricQuery = [
+        ...metricQuery.dimensions,
+        ...metricQuery.metrics,
+        ...(metricQuery.tableCalculations || []).map(getItemId),
+    ];
+    return itemIdsInMetricQuery.reduce<ItemsMap>((acc, id) => {
+        const item = itemsMap[id];
+        if (item) acc[id] = item;
+        return acc;
+    }, {});
+};
+
 export const getDimensionsFromItemsMap = (itemsMap: ItemsMap) =>
     Object.entries(itemsMap).reduce<
         Record<string, Dimension | CustomDimension>
