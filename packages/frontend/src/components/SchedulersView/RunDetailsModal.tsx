@@ -13,7 +13,6 @@ import {
     Divider,
     Group,
     Loader,
-    Modal,
     Stack,
     Text,
     useMantineTheme,
@@ -28,11 +27,12 @@ import {
 import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
+import MantineModal from '../common/MantineModal';
 import {
     formatTaskName,
     formatTime,
     getLogStatusIconWithoutTooltip,
-    getSchedulerIcon,
+    getSchedulerIconRaw,
 } from './SchedulersViewUtils';
 
 type JobSummary = {
@@ -667,16 +667,13 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
     if (!run) return null;
 
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            title={
-                <Group gap="sm">
-                    {getSchedulerIcon(run)}
-                    <Text fw={600}>{run.schedulerName}</Text>
-                </Group>
-            }
+            title={run.schedulerName}
             size="lg"
+            icon={getSchedulerIconRaw(run)}
+            cancelLabel={false}
         >
             <Stack gap="lg">
                 {/* Run metadata */}
@@ -788,7 +785,7 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                     )}
                 </Box>
             </Stack>
-        </Modal>
+        </MantineModal>
     );
 };
 

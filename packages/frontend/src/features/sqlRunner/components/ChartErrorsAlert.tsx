@@ -1,16 +1,11 @@
-import {
-    Alert,
-    Button,
-    Modal,
-    Stack,
-    Text,
-    type ModalProps,
-} from '@mantine/core';
+import { Button } from '@mantine-8/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 
-type Props = ModalProps & {
+type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     onFixButtonClick: () => void;
 };
 
@@ -20,40 +15,18 @@ export const ChartErrorsAlert: FC<Props> = ({
     onFixButtonClick,
 }) => {
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            title={null}
-            p={0}
-            styles={{
-                header: {
-                    display: 'none',
-                },
-                body: {
-                    padding: 0,
-                },
-            }}
-        >
-            <Alert
-                icon={<MantineIcon icon={IconAlertCircle} color="red" />}
-                color="red"
-                title="Fix errors before saving"
-            >
-                <Stack spacing="xs">
-                    <Text fw={500} size="xs">
-                        You have errors in your chart configuration. Please fix
-                        the errors and try again.
-                    </Text>
-                    <Button
-                        ml="auto"
-                        size="xs"
-                        variant="default"
-                        onClick={onFixButtonClick}
-                    >
-                        Fix errors
-                    </Button>
-                </Stack>
-            </Alert>
-        </Modal>
+            title="Fix errors before saving"
+            icon={IconAlertCircle}
+            cancelLabel={false}
+            actions={
+                <Button size="xs" variant="default" onClick={onFixButtonClick}>
+                    Fix errors
+                </Button>
+            }
+            description="You have errors in your chart configuration. Please fix the errors and try again."
+        ></MantineModal>
     );
 };

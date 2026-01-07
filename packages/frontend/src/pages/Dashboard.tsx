@@ -3,8 +3,8 @@ import {
     type DashboardTile,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
-import { Button, Group, Modal, Stack, Text } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
+import { Button, Text } from '@mantine-8/core';
+import { useDisclosure } from '@mantine-8/hooks';
 import { captureException } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
@@ -14,7 +14,7 @@ import { dashboardCSSVars } from '../components/common/Dashboard/dashboard.const
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
-import MantineIcon from '../components/common/MantineIcon';
+import MantineModal from '../components/common/MantineModal';
 import DashboardDeleteModal from '../components/common/modal/DashboardDeleteModal';
 import DashboardDuplicateModal from '../components/common/modal/DashboardDuplicateModal';
 import { DashboardExportModal } from '../components/common/modal/DashboardExportModal';
@@ -650,48 +650,31 @@ const Dashboard: FC = () => {
     return (
         <>
             {blocker.state === 'blocked' && (
-                <Modal
+                <MantineModal
                     opened
                     onClose={() => {
                         blocker.reset();
                     }}
-                    title={null}
-                    withCloseButton={false}
-                    closeOnClickOutside={false}
+                    title="Unsaved changes"
+                    icon={IconAlertCircle}
+                    cancelLabel="Stay"
+                    actions={
+                        <Button
+                            color="red"
+                            onClick={() => {
+                                clearDashboardStorage();
+                                blocker.proceed();
+                            }}
+                        >
+                            Leave
+                        </Button>
+                    }
                 >
-                    <Stack>
-                        <Group noWrap spacing="xs">
-                            <MantineIcon
-                                icon={IconAlertCircle}
-                                color="red"
-                                size={50}
-                            />
-                            <Text fw={500}>
-                                You have unsaved changes to your dashboard! Are
-                                you sure you want to leave without saving?
-                            </Text>
-                        </Group>
-
-                        <Group position="right">
-                            <Button
-                                onClick={() => {
-                                    blocker.reset();
-                                }}
-                            >
-                                Stay
-                            </Button>
-                            <Button
-                                color="red"
-                                onClick={() => {
-                                    clearDashboardStorage();
-                                    blocker.proceed();
-                                }}
-                            >
-                                Leave
-                            </Button>
-                        </Group>
-                    </Stack>
-                </Modal>
+                    <Text fw={500}>
+                        You have unsaved changes to your dashboard! Are you sure
+                        you want to leave without saving?
+                    </Text>
+                </MantineModal>
             )}
 
             <Page

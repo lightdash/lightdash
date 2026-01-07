@@ -11,7 +11,7 @@ import {
     Radio,
     Stack,
     Text,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import {
     IconArrowsDiagonal,
     IconEye,
@@ -35,9 +35,9 @@ type PreviewAndCustomizeScreenshotProps = {
             selectedTabs: string[] | null;
         }
     >;
-    previewChoice: typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined;
+    previewChoice: (typeof CUSTOM_WIDTH_OPTIONS)[number]['value'] | undefined;
     setPreviewChoice: (
-        prev: typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined,
+        prev: (typeof CUSTOM_WIDTH_OPTIONS)[number]['value'] | undefined,
     ) => void;
     onPreviewClick?: () => Promise<void>;
     currentPreview?: string;
@@ -61,7 +61,7 @@ export const PreviewAndCustomizeScreenshot: FC<
         <Box>
             <LoadingOverlay visible={exportMutation.isLoading} />
 
-            <Stack spacing="md">
+            <Stack>
                 <Flex align="flex-start" justify="space-between">
                     <Radio.Group
                         name="customWidth"
@@ -96,38 +96,37 @@ export const PreviewAndCustomizeScreenshot: FC<
                     <Stack>
                         <Card withBorder p={0}>
                             <Box pos="relative">
-                                <Image
-                                    src={currentPreview}
-                                    onClick={() => {
-                                        if (currentPreview)
-                                            setIsImageModalOpen(true);
-                                    }}
-                                    width={350}
-                                    height={350}
-                                    styles={{
-                                        root: {
+                                {currentPreview ? (
+                                    <Image
+                                        src={currentPreview}
+                                        onClick={() =>
+                                            setIsImageModalOpen(true)
+                                        }
+                                        w={350}
+                                        h={350}
+                                        fit="cover"
+                                        style={{
                                             objectPosition: 'top',
-                                            cursor: currentPreview
-                                                ? 'pointer'
-                                                : 'default',
-                                        },
-                                    }}
-                                    withPlaceholder
-                                    placeholder={
-                                        <Flex
-                                            gap="md"
-                                            align="center"
-                                            direction="column"
-                                        >
-                                            <MantineIcon
-                                                icon={IconEyeClosed}
-                                                size={30}
-                                            />
-
-                                            <Text>No preview yet</Text>
-                                        </Flex>
-                                    }
-                                />
+                                            cursor: 'pointer',
+                                        }}
+                                    />
+                                ) : (
+                                    <Flex
+                                        w={350}
+                                        h={350}
+                                        gap="md"
+                                        align="center"
+                                        justify="center"
+                                        direction="column"
+                                        bg="gray.1"
+                                    >
+                                        <MantineIcon
+                                            icon={IconEyeClosed}
+                                            size={30}
+                                        />
+                                        <Text>No preview yet</Text>
+                                    </Flex>
+                                )}
                                 {currentPreview && (
                                     <ActionIcon
                                         pos="absolute"
@@ -136,10 +135,9 @@ export const PreviewAndCustomizeScreenshot: FC<
                                         variant="light"
                                         color="blue"
                                         size="sm"
-                                        onClick={() => {
-                                            if (currentPreview)
-                                                setIsImageModalOpen(true);
-                                        }}
+                                        onClick={() =>
+                                            setIsImageModalOpen(true)
+                                        }
                                     >
                                         <MantineIcon
                                             icon={IconArrowsDiagonal}
@@ -153,7 +151,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                             display="block"
                             size="xs"
                             variant="default"
-                            leftIcon={<MantineIcon icon={IconEye} />}
+                            leftSection={<MantineIcon icon={IconEye} />}
                             disabled={!previewChoice || disabled}
                             onClick={async () => {
                                 if (onPreviewClick) {
@@ -174,16 +172,10 @@ export const PreviewAndCustomizeScreenshot: FC<
             >
                 <Image
                     src={currentPreview}
-                    onClick={() => {
-                        setIsImageModalOpen(false);
-                    }}
-                    width="100%"
-                    height="100%"
-                    styles={{
-                        root: {
-                            cursor: 'pointer',
-                        },
-                    }}
+                    onClick={() => setIsImageModalOpen(false)}
+                    w="100%"
+                    h="100%"
+                    style={{ cursor: 'pointer' }}
                 />
             </Modal>
         </Box>

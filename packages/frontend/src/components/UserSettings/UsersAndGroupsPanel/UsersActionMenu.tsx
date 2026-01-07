@@ -10,8 +10,6 @@ import {
     Collapse,
     Group,
     Menu,
-    Modal,
-    Paper,
     Radio,
     Stack,
     Text,
@@ -37,6 +35,7 @@ import {
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 import { PolymorphicGroupButton } from '../../common/PolymorphicGroupButton';
 import { UserSelect } from '../../common/UserSelect';
 
@@ -108,12 +107,6 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
             setIsProjectBreakdownOpen(false);
         }
     }, [isDeleteDialogOpen]);
-
-    const handleClose = useCallback(() => {
-        if (!isProcessing) {
-            setIsDeleteDialogOpen(false);
-        }
-    }, [isProcessing]);
 
     const handleDelete = useCallback(async () => {
         if (hasSchedulers && schedulerAction === SchedulerAction.REASSIGN) {
@@ -220,16 +213,23 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                 </Menu.Dropdown>
             </Menu>
 
-            <Modal
+            <MantineModal
                 opened={isDeleteDialogOpen}
-                onClose={handleClose}
-                title={
-                    <Group gap="xs">
-                        <Paper>
-                            <MantineIcon icon={IconAlertCircle} color="red" />
-                        </Paper>
-                        <Title order={4}>Delete user</Title>
-                    </Group>
+                onClose={() =>
+                    !isDeleting ? setIsDeleteDialogOpen(false) : undefined
+                }
+                title="Delete user"
+                icon={IconTrash}
+                cancelDisabled={isDeleting}
+                actions={
+                    <Button
+                        onClick={handleDelete}
+                        loading={isProcessing}
+                        disabled={!canConfirmDelete}
+                        color="red"
+                    >
+                        Delete
+                    </Button>
                 }
             >
                 <Stack gap="md">
@@ -359,27 +359,8 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                             </Text>
                         </Group>
                     )}
-
-                    <Group gap="xs" justify="flex-end" mt="md">
-                        <Button
-                            disabled={isProcessing}
-                            onClick={handleClose}
-                            variant="outline"
-                            color="dark"
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            onClick={handleDelete}
-                            loading={isProcessing}
-                            disabled={!canConfirmDelete}
-                            color="red"
-                        >
-                            Delete
-                        </Button>
-                    </Group>
                 </Stack>
-            </Modal>
+            </MantineModal>
         </>
     );
 };
