@@ -1,3 +1,11 @@
+# [0.2308.0](https://github.com/lightdash/lightdash/compare/0.2307.0...0.2308.0) (2026-01-07)
+
+
+### Features
+
+* update mantine modals for sql,export dashboard,custommetrics ([#19165](https://github.com/lightdash/lightdash/issues/19165)) ([588bd06](https://github.com/lightdash/lightdash/commit/588bd06adb5218c6d7e95e824509ef5d761297a8))
+* update various modals to use mantineModal ([#19164](https://github.com/lightdash/lightdash/issues/19164)) ([ee88825](https://github.com/lightdash/lightdash/commit/ee888255bb4c3adb4f51a14249b934e306266400))
+
 # [0.2307.0](https://github.com/lightdash/lightdash/compare/0.2306.1...0.2307.0) (2026-01-07)
 
 
