@@ -1,3 +1,10 @@
+# [0.2310.0](https://github.com/lightdash/lightdash/compare/0.2309.0...0.2310.0) (2026-01-07)
+
+
+### Features
+
+* update toaster styles ([#19237](https://github.com/lightdash/lightdash/issues/19237)) ([7909172](https://github.com/lightdash/lightdash/commit/790917242f17a39959c0ed82d621879b025c1713))
+
 # [0.2309.0](https://github.com/lightdash/lightdash/compare/0.2308.1...0.2309.0) (2026-01-07)
 
 
