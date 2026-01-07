@@ -1,3 +1,10 @@
+# [0.2306.0](https://github.com/lightdash/lightdash/compare/0.2305.0...0.2306.0) (2026-01-07)
+
+
+### Features
+
+* update credentials modals to use mantinemodal ([#19159](https://github.com/lightdash/lightdash/issues/19159)) ([6fdb225](https://github.com/lightdash/lightdash/commit/6fdb2253bd93ab0773ce647470fdde6c3ca180e5))
+
 # [0.2305.0](https://github.com/lightdash/lightdash/compare/0.2304.2...0.2305.0) (2026-01-07)
 
 
