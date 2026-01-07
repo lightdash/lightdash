@@ -4,13 +4,13 @@ import {
     type DashboardFilterRule,
     type DashboardScheduler,
 } from '@lightdash/common';
-import { Group, Stack, Text, Tooltip } from '@mantine/core';
+import { Group, Stack, Text, Tooltip } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { useExportDashboard } from '../../../hooks/dashboard/useDashboard';
-import { PreviewAndCustomizeScreenshot } from '../../preview';
-import { CUSTOM_WIDTH_OPTIONS } from '../constants';
+import MantineIcon from '../../../../components/common/MantineIcon';
+import { useExportDashboard } from '../../../../hooks/dashboard/useDashboard';
+import { PreviewAndCustomizeScreenshot } from '../../../preview';
+import { CUSTOM_WIDTH_OPTIONS } from '../../constants';
 
 type Props = {
     dashboard: Dashboard;
@@ -19,7 +19,7 @@ type Props = {
     onChange: (previewChoice: string | undefined) => void;
 };
 
-export const SchedulerPreview: FC<Props> = ({
+export const SchedulerFormPreviewTab: FC<Props> = ({
     dashboard,
     schedulerFilters,
     customViewportWidth,
@@ -70,7 +70,7 @@ export const SchedulerPreview: FC<Props> = ({
 
     return (
         <Stack p="md">
-            <Group spacing="xs">
+            <Group gap="xs">
                 <Text fw={600}>
                     Preview your Scheduled Delivery and Customize
                 </Text>
