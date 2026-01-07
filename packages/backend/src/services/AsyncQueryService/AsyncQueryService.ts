@@ -2728,7 +2728,7 @@ export class AsyncQueryService extends ProjectService {
                         `${metric.table}.${metric.name}`,
                     ));
             if (isValid) {
-                // If there is no explicit column list, we can DONT show all metrics
+                // If there is no explicit column list, we DON'T show all metrics
                 return hasExplicitColumnList ? isInExplicitColumnList : false;
             }
             return false;
