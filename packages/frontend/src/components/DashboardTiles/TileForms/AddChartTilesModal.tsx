@@ -274,6 +274,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                             paddingBottom: 4,
                         },
                     })}
+                    maw={550}
                     id="saved-charts"
                     label={`Select the charts you want to add to this dashboard`}
                     data={allSavedCharts}
