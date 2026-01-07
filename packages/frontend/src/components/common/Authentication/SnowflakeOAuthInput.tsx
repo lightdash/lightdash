@@ -1,11 +1,13 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Anchor, Button, Text } from '@mantine/core';
+import { Anchor, Button, Text } from '@mantine-8/core';
+import { IconExternalLink } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import {
     useIsSnowflakeAuthenticated,
     useSnowflakeLoginPopup,
 } from '../../../hooks/useSnowflake';
 import { getWarehouseIcon } from '../../ProjectConnection/ProjectConnectFlow/utils';
+import MantineIcon from '../MantineIcon';
 
 type Props = {
     onAuthenticated?: (isAuthenticated: boolean) => void;
@@ -40,7 +42,7 @@ export const SnowflakeOAuthInput: FC<Props> = ({ onAuthenticated }) => {
 
     if (isAuthenticated) {
         return (
-            <Text mt="0" color="gray" fs="xs">
+            <Text mt="0" c="ldGray.8" fz="xs">
                 You are connected to Snowflake,{' '}
                 <Anchor
                     href="#"
@@ -56,13 +58,16 @@ export const SnowflakeOAuthInput: FC<Props> = ({ onAuthenticated }) => {
 
     return (
         <Button
+            size="xs"
             onClick={() => {
                 openLoginPopup();
             }}
             variant="default"
-            color="gray"
-            leftIcon={getWarehouseIcon(WarehouseTypes.SNOWFLAKE, 'sm')}
-            sx={{ ':hover': { textDecoration: 'underline' } }}
+            color="ldGray"
+            leftSection={getWarehouseIcon(WarehouseTypes.SNOWFLAKE, 'xs')}
+            rightSection={
+                <MantineIcon icon={IconExternalLink} color="ldGray.6" />
+            }
         >
             Sign in with Snowflake
         </Button>
