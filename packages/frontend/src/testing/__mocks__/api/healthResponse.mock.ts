@@ -46,9 +46,6 @@ export default function mockHealthResponse(
             maxColumnLimit: 100,
         },
         hasSlack: false,
-        slack: {
-            multiAgentChannelEnabled: false,
-        },
         auth: {
             disablePasswordAuthentication: false,
             google: {

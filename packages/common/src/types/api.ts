@@ -392,9 +392,6 @@ export type HealthState = {
         maxColumnLimit: number;
     };
     hasSlack: boolean;
-    slack: {
-        multiAgentChannelEnabled: boolean;
-    };
     hasGithub: boolean;
     hasGitlab: boolean;
     hasHeadlessBrowser: boolean;
