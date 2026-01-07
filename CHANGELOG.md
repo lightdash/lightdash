@@ -1,3 +1,10 @@
+## [0.2306.1](https://github.com/lightdash/lightdash/compare/0.2306.0...0.2306.1) (2026-01-07)
+
+
+### Performance Improvements
+
+* optimize broken chart lookup with Map for O(1) access ([#19239](https://github.com/lightdash/lightdash/issues/19239)) ([450998d](https://github.com/lightdash/lightdash/commit/450998ddc025a80353962c837e80eb10cd7edbed))
+
 # [0.2306.0](https://github.com/lightdash/lightdash/compare/0.2305.0...0.2306.0) (2026-01-07)
 
 
