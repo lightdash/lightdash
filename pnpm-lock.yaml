@@ -998,8 +998,8 @@ importers:
         specifier: ^4.1.1
         version: 4.1.1
       jspdf:
-        specifier: ^3.0.2
-        version: 3.0.2
+        specifier: ^4.0.0
+        version: 4.0.0
       leaflet:
         specifier: ^1.9.4
         version: 1.9.4
@@ -2484,6 +2484,10 @@ packages:
 
   '@babel/runtime@7.28.3':
     resolution: {integrity: sha512-9uIQ10o0WGdpP6GDhXcdOJPJuDgFtIDtN/9+ArJQ2NAfAmiuhTQdzkaTGR33v43GYS2UrSA0eX2pPPHoFVvpxA==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/runtime@7.28.4':
+    resolution: {integrity: sha512-Q/N6JNWvIvPnLDvjlE1OUBLPQHH6l3CltCEsHIujp45zQUSSh8K+gHnaEX45yAT1nyngnINhvWtzN+Nb9D8RAQ==}
     engines: {node: '>=6.9.0'}
 
   '@babel/template@7.25.0':
@@ -7363,6 +7367,7 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
+    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:
@@ -11133,8 +11138,8 @@ packages:
     resolution: {integrity: sha512-MT/xP0CrubFRNLNKvxJ2BYfy53Zkm++5bX9dtuPbqAeQpTVe0MQTFhao8+Cp//EmJp244xt6Drw/GVEGCUj40g==}
     engines: {node: '>=12', npm: '>=6'}
 
-  jspdf@3.0.2:
-    resolution: {integrity: sha512-G0fQDJ5fAm6UW78HG6lNXyq09l0PrA1rpNY5i+ly17Zb1fMMFSmS+3lw4cnrAPGyouv2Y0ylujbY2Ieq3DSlKA==}
+  jspdf@4.0.0:
+    resolution: {integrity: sha512-w12U97Z6edKd2tXDn3LzTLg7C7QLJlx0BPfM3ecjK2BckUl9/81vZ+r5gK4/3KQdhAcEZhENUxRhtgYBj75MqQ==}
 
   jsprim@2.0.2:
     resolution: {integrity: sha512-gqXddjPqQ6G40VdnI6T6yObEC+pDNvyP95wdQhkWkg7crHH3km5qP1FsOXEkzEQwnz6gz5qGTn1c2Y52wP3OyQ==}
@@ -18327,6 +18332,8 @@ snapshots:
 
   '@babel/runtime@7.28.3': {}
 
+  '@babel/runtime@7.28.4': {}
+
   '@babel/template@7.25.0':
     dependencies:
       '@babel/code-frame': 7.27.1
@@ -24858,7 +24865,7 @@ snapshots:
 
   canvg@3.0.11:
     dependencies:
-      '@babel/runtime': 7.28.3
+      '@babel/runtime': 7.28.4
       '@types/raf': 3.4.3
       core-js: 3.45.1
       raf: 3.4.1
@@ -29017,9 +29024,9 @@ snapshots:
       ms: 2.1.3
       semver: 7.7.3
 
-  jspdf@3.0.2:
+  jspdf@4.0.0:
     dependencies:
-      '@babel/runtime': 7.28.3
+      '@babel/runtime': 7.28.4
       fast-png: 6.4.0
       fflate: 0.8.2
     optionalDependencies:
