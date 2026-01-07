@@ -138,6 +138,8 @@ const MantineModal: React.FC<MantineModalProps> = ({
                         {...(modalBodyProps?.bg
                             ? { bg: modalBodyProps.bg }
                             : {})}
+                        mah={modalBodyProps?.mah}
+                        mih={modalBodyProps?.mih}
                     >
                         {description && <Text fz="sm">{description}</Text>}
                         {children}
