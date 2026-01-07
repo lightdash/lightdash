@@ -2695,33 +2695,44 @@ export class AsyncQueryService extends ProjectService {
             dimension: CustomDimension | CompiledDimension,
         ) => !isCustomDimension(dimension) && !dimension.hidden;
 
-        const availableDimensions = allDimensions.filter(
-            (dimension) =>
+        const availableDimensions = allDimensions.filter((dimension) => {
+            const isValid =
                 availableTables.has(dimension.table) &&
                 (isValidNonCustomDimension(dimension) ||
-                    isCustomDimension(dimension)) &&
-                (itemShowUnderlyingValues !== undefined
-                    ? (itemShowUnderlyingValues.includes(dimension.name) &&
-                          itemShowUnderlyingTable === dimension.table) ||
-                      itemShowUnderlyingValues.includes(
-                          `${dimension.table}.${dimension.name}`,
-                      )
-                    : true),
-        );
+                    isCustomDimension(dimension));
+            const hasExplicitColumnList =
+                itemShowUnderlyingValues !== undefined;
+            const isInExplicitColumnList =
+                hasExplicitColumnList &&
+                itemShowUnderlyingValues.includes(dimension.name) &&
+                itemShowUnderlyingTable === dimension.table;
+            if (isValid) {
+                // If there is no explicit column list, we can show all dimensions
+                return hasExplicitColumnList ? isInExplicitColumnList : true;
+            }
+            return false;
+        });
 
         const availableMetrics = getMetricsWithValidParameters(
             explore,
             combinedParameters,
-        ).filter(
-            (metric) =>
-                availableTables.has(metric.table) &&
-                !metric.hidden &&
+        ).filter((metric) => {
+            const isValid = availableTables.has(metric.table) && !metric.hidden;
+            const hasExplicitColumnList =
+                itemShowUnderlyingValues !== undefined;
+            const isInExplicitColumnList =
+                hasExplicitColumnList &&
                 ((itemShowUnderlyingValues?.includes(metric.name) &&
                     itemShowUnderlyingTable === metric.table) ||
                     itemShowUnderlyingValues?.includes(
                         `${metric.table}.${metric.name}`,
-                    )),
-        );
+                    ));
+            if (isValid) {
+                // If there is no explicit column list, we can DONT show all metrics
+                return hasExplicitColumnList ? isInExplicitColumnList : false;
+            }
+            return false;
+        });
 
         const requestParameters: ExecuteAsyncUnderlyingDataRequestParams = {
             context,
