@@ -7,8 +7,8 @@ import { useVisualizationContext } from '../LightdashVisualization/useVisualizat
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
-const VegaLite = lazy(() =>
-    import('react-vega').then((module) => ({ default: module.VegaLite })),
+const VegaEmbed = lazy(() =>
+    import('react-vega').then((module) => ({ default: module.VegaEmbed })),
 );
 
 type Props = {
@@ -114,17 +114,10 @@ const CustomVisualization: FC<Props> = ({
             }}
         >
             <Suspense fallback={<LoadingChart />}>
-                <VegaLite
+                <VegaEmbed
                     style={{
                         width: containerWidth,
                         height: containerHeight,
-                    }}
-                    config={{
-                        font: 'Inter, sans-serif',
-                        autosize: {
-                            type: 'fit',
-                            resize: true,
-                        },
                     }}
                     // TODO: We are ignoring some typescript errors here because the type
                     // that vegalite expects doesn't include a few of the properties
@@ -138,10 +131,18 @@ const CustomVisualization: FC<Props> = ({
                         width: 'container',
                         // @ts-ignore, see above
                         height: 'container',
-                        data: { name: 'values' },
+                        data: data,
+                        config: {
+                            font: 'Inter, sans-serif',
+                            autosize: {
+                                type: 'fit',
+                                resize: true,
+                            },
+                        },
                     }}
-                    data={data}
-                    actions={false}
+                    options={{
+                        actions: false,
+                    }}
                 />
             </Suspense>
         </div>
