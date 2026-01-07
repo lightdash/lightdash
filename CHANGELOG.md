@@ -1,3 +1,10 @@
+## [0.2304.1](https://github.com/lightdash/lightdash/compare/0.2304.0...0.2304.1) (2026-01-07)
+
+
+### Bug Fixes
+
+* use new dashboard feature flag in dashboard wrapper ([#19236](https://github.com/lightdash/lightdash/issues/19236)) ([23795e4](https://github.com/lightdash/lightdash/commit/23795e47ca04a75e8f4936696b2124f695017145))
+
 # [0.2304.0](https://github.com/lightdash/lightdash/compare/0.2303.1...0.2304.0) (2026-01-07)
 
 
