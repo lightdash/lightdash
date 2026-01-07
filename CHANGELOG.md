@@ -1,3 +1,10 @@
+# [0.2309.0](https://github.com/lightdash/lightdash/compare/0.2308.1...0.2309.0) (2026-01-07)
+
+
+### Features
+
+* update Sync modals to use mantinemodal ([#19155](https://github.com/lightdash/lightdash/issues/19155)) ([5410585](https://github.com/lightdash/lightdash/commit/54105851f4202cd6c7e5881c48b9b017ce378238))
+
 ## [0.2308.1](https://github.com/lightdash/lightdash/compare/0.2308.0...0.2308.1) (2026-01-07)
 
 
