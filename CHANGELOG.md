@@ -1,3 +1,10 @@
+# [0.2303.0](https://github.com/lightdash/lightdash/compare/0.2302.1...0.2303.0) (2026-01-07)
+
+
+### Features
+
+* display SQL with compilation errors for debugging ([#19034](https://github.com/lightdash/lightdash/issues/19034)) ([322058b](https://github.com/lightdash/lightdash/commit/322058b1644ebaa92d04377eda09cd1456a52a6d))
+
 ## [0.2302.1](https://github.com/lightdash/lightdash/compare/0.2302.0...0.2302.1) (2026-01-06)
 
 
