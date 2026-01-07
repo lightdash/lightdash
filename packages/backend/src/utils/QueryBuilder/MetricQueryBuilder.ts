@@ -13,6 +13,7 @@ import {
     FilterGroup,
     FilterRule,
     getCustomMetricDimensionId,
+    getDimensionMapFromTables,
     getDimensions,
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
@@ -25,7 +26,6 @@ import {
     isFilterGroup,
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
-    isMetric,
     isNonAggregateMetric,
     isPostCalculationMetric,
     ItemsMap,
@@ -231,7 +231,20 @@ export function getIntervalSyntax(
 export class MetricQueryBuilder {
     private compilationErrors: string[] = [];
 
-    constructor(private args: BuildQueryProps) {}
+    private readonly exploreDimensions: Record<string, CompiledDimension> = {};
+
+    private readonly exploreDimensionsWithoutAccess: Record<
+        string,
+        CompiledDimension
+    > = {};
+
+    constructor(private args: BuildQueryProps) {
+        const { explore } = this.args;
+        this.exploreDimensions = getDimensionMapFromTables(explore.tables);
+        this.exploreDimensionsWithoutAccess = getDimensionMapFromTables(
+            explore.unfilteredTables ?? {},
+        );
+    }
 
     static buildCtesSQL(ctes: string[]) {
         return ctes.length > 0 ? `WITH ${ctes.join(',\n')}` : undefined;
@@ -317,12 +330,14 @@ export class MetricQueryBuilder {
             ) // exclude custom dimensions as they are handled separately
             .map((field) => {
                 try {
-                    const dimension = getDimensionFromId(
-                        field,
-                        explore,
+                    const dimension = getDimensionFromId({
+                        dimId: field,
+                        dimensions: this.exploreDimensions,
+                        dimensionsWithoutAccess:
+                            this.exploreDimensionsWithoutAccess,
                         adapterType,
                         startOfWeek,
-                    );
+                    });
 
                     assertValidDimensionRequiredAttribute(
                         dimension,
@@ -388,15 +403,18 @@ export class MetricQueryBuilder {
         getFilterRulesFromGroup(filters.dimensions)
             .reduce<string[]>((acc, filterRule) => {
                 try {
-                    const dim = getDimensionFromFilterTargetId(
-                        filterRule.target.fieldId,
-                        explore,
-                        compiledCustomDimensions.filter(
-                            isCompiledCustomSqlDimension,
-                        ),
+                    const dim = getDimensionFromFilterTargetId({
+                        filterTargetId: filterRule.target.fieldId,
+                        dimensions: this.exploreDimensions,
+                        dimensionsWithoutAccess:
+                            this.exploreDimensionsWithoutAccess,
+                        compiledCustomDimensions:
+                            compiledCustomDimensions.filter(
+                                isCompiledCustomSqlDimension,
+                            ),
                         adapterType,
                         startOfWeek,
-                    );
+                    });
                     return [...acc, ...(dim.tablesReferences || [dim.table])];
                 } catch (error) {
                     if (
@@ -570,12 +588,14 @@ export class MetricQueryBuilder {
                     return;
 
                 const dimensionId = getCustomMetricDimensionId(metric);
-                const dimension = getDimensionFromId(
-                    dimensionId,
-                    explore,
+                const dimension = getDimensionFromId({
+                    dimId: dimensionId,
+                    dimensions: this.exploreDimensions,
+                    dimensionsWithoutAccess:
+                        this.exploreDimensionsWithoutAccess,
                     adapterType,
                     startOfWeek,
-                );
+                });
 
                 assertValidDimensionRequiredAttribute(
                     dimension,
@@ -1429,12 +1449,14 @@ export class MetricQueryBuilder {
                     const popKeysCteName = `cte_pop_keys_${snakeCaseName(
                         tableName,
                     )}`;
-                    const popField = getDimensionFromId(
-                        popFieldId,
-                        explore,
+                    const popField = getDimensionFromId({
+                        dimId: popFieldId,
+                        dimensions: this.exploreDimensions,
+                        dimensionsWithoutAccess:
+                            this.exploreDimensionsWithoutAccess,
                         adapterType,
                         startOfWeek,
-                    );
+                    });
                     const popKeysCteParts = [
                         `SELECT DISTINCT`,
                         [
@@ -1606,12 +1628,14 @@ export class MetricQueryBuilder {
                     )}\n)`,
                 );
 
-                const popField = getDimensionFromId(
-                    popFieldId,
-                    explore,
+                const popField = getDimensionFromId({
+                    dimId: popFieldId,
+                    dimensions: this.exploreDimensions,
+                    dimensionsWithoutAccess:
+                        this.exploreDimensionsWithoutAccess,
                     adapterType,
                     startOfWeek,
-                );
+                });
                 /**
                  * CTE for PoP unaffected metrics
                  * Filters are PoP specific rather than metric query filters
@@ -1760,12 +1784,6 @@ export class MetricQueryBuilder {
                                         `${fieldQuoteChar}${popFieldId}${fieldQuoteChar}`
                                 ) {
                                     // join on PoP field with interval diff
-                                    const popField = getDimensionFromId(
-                                        popFieldId!,
-                                        explore,
-                                        adapterType,
-                                        startOfWeek,
-                                    );
                                     return `( ${getIntervalSyntax(
                                         adapterType,
                                         `${unaffectedMetricsCteName}.${alias}`,
@@ -2222,12 +2240,13 @@ export class MetricQueryBuilder {
 
             // Create pop CTE with previous period data
             const popCteName = 'pop_metrics';
-            const popField = getDimensionFromId(
-                popFieldId,
-                explore,
+            const popField = getDimensionFromId({
+                dimId: popFieldId,
+                dimensions: this.exploreDimensions,
+                dimensionsWithoutAccess: this.exploreDimensionsWithoutAccess,
                 adapterType,
                 startOfWeek,
-            );
+            });
 
             // Build pop CTE with same structure as base but filtered for previous period
             const popCteParts = [
