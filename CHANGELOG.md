@@ -1,3 +1,10 @@
+# [0.2304.0](https://github.com/lightdash/lightdash/compare/0.2303.1...0.2304.0) (2026-01-07)
+
+
+### Features
+
+* update virtual-view modals to mantinemodal ([#19156](https://github.com/lightdash/lightdash/issues/19156)) ([a144e3b](https://github.com/lightdash/lightdash/commit/a144e3b74742b237a1249646f3ecc1db18e6d582))
+
 ## [0.2303.1](https://github.com/lightdash/lightdash/compare/0.2303.0...0.2303.1) (2026-01-07)
 
 
