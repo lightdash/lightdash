@@ -134,14 +134,27 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         }, [resultsData]);
 
         useEffect(() => {
-            const listener = () => {
-                const eCharts = chartRef.current?.getEchartsInstance();
-                eCharts?.resize();
+            const eCharts = chartRef.current?.getEchartsInstance();
+            const dom = eCharts?.getDom();
+
+            const resizeChart = () => eCharts?.resize();
+
+            // Observe container size changes (e.g., collapsible card expand/collapse)
+            const observer = new ResizeObserver(() => {
+                resizeChart();
+            });
+
+            if (dom) {
+                observer.observe(dom);
+            }
+
+            // Also listen for window resize events
+            window.addEventListener('resize', resizeChart);
+
+            return () => {
+                window.removeEventListener('resize', resizeChart);
+                observer.disconnect();
             };
-
-            window.addEventListener('resize', listener);
-
-            return () => window.removeEventListener('resize', listener);
         });
 
         const onChartContextMenu = useCallback(
