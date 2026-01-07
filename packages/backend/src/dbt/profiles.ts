@@ -8,7 +8,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import * as yaml from 'js-yaml';
-import path from 'path';
+import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 
 export const LIGHTDASH_PROFILE_NAME = 'lightdash_profile';
 export const LIGHTDASH_TARGET_NAME = 'prod';
@@ -188,8 +188,14 @@ const credentialsTarget = (
                 result.target.private_key = envVarReference('privateKey');
                 result.environment[envVar('privateKey')] =
                     credentials.privateKey;
+                const isEncrypted = EncryptionUtil.isKeyEncrypted(
+                    credentials.privateKey,
+                );
 
-                if (credentials.privateKeyPass) {
+                // Only add passphrase if the private key is encrypted to avoid errors
+                // from dbt via python's cryptography library
+                // https://github.com/pyca/cryptography/blob/main/src/cryptography/hazmat/primitives/serialization/ssh.py#L755-L758
+                if (isEncrypted && credentials.privateKeyPass) {
                     result.target.private_key_passphrase =
                         envVarReference('privateKeyPass');
                     result.environment[envVar('privateKeyPass')] =

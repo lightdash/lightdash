@@ -1,6 +1,7 @@
 import {
     createCipheriv,
     createDecipheriv,
+    createPrivateKey,
     pbkdf2Sync,
     randomBytes,
 } from 'crypto';
@@ -89,5 +90,67 @@ export class EncryptionUtil {
             this.inputEncoding,
         )}${decipher.final()}`;
         return message;
+    }
+
+    /**
+     * Checks if a given key is encrypted. To make that determination:
+     *
+     *  1. Looks for common PEM encryption envelope headers (fast path).
+     *  2. Attempts to parse the key without passphrase using Node.js crypto module.
+     *
+     *  Modern OpenSSH keys do not include explicit headers indicating encryption,
+     *  so parsing is necessary to accurately determine their status.
+     */
+    static isKeyEncrypted(keyContent: string): boolean {
+        if (!keyContent) {
+            throw new Error('Invalid key content: must be a non-empty string');
+        }
+
+        const trimmedKey = keyContent.trim();
+
+        // Check for traditional PEM format encryption markers
+        if (
+            trimmedKey.includes('Proc-Type: 4,ENCRYPTED') ||
+            trimmedKey.includes('DEK-Info:')
+        ) {
+            return true;
+        }
+
+        // Check for encrypted PKCS#8 format
+        if (trimmedKey.includes('-----BEGIN ENCRYPTED PRIVATE KEY-----')) {
+            return true;
+        }
+
+        // Try parsing the key to confirm it's not encrypted
+        // If parsing succeeds without a passphrase, the key is unencrypted
+        try {
+            createPrivateKey({ key: keyContent, format: 'pem' });
+            return false;
+        } catch (error) {
+            const errorCode = (error as NodeJS.ErrnoException).code;
+            const errorMessage =
+                error instanceof Error ? error.message : 'Unknown error';
+
+            // If the error indicates a missing passphrase, the key is encrypted
+            if (
+                errorMessage.includes('passphrase') ||
+                errorMessage.includes('ENCRYPTED') ||
+                errorCode === 'ERR_MISSING_PASSPHRASE'
+            ) {
+                return true;
+            }
+
+            // OpenSSH encrypted keys throw ERR_OSSL_UNSUPPORTED when parsed without passphrase
+            // Check if this is an OpenSSH key with unsupported decoder error
+            if (
+                errorCode === 'ERR_OSSL_UNSUPPORTED' &&
+                trimmedKey.includes('-----BEGIN OPENSSH PRIVATE KEY-----')
+            ) {
+                return true;
+            }
+
+            // Re-throw other errors as they indicate invalid key content
+            throw new Error(`Unable to parse private key: ${errorMessage}`);
+        }
     }
 }
