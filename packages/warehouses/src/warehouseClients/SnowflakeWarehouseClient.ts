@@ -733,6 +733,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 sqlText: '',
                 queryId,
             });
+
+            // Track async callback completion
+            let processingPromise: Promise<void> = Promise.resolve();
+
             await new Promise<void>((resolve, reject) => {
                 completedStatement
                     .streamRows()
@@ -740,10 +744,14 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         reject(e);
                     })
                     .on('data', (row) => {
-                        resultsStreamCallback([row], fields);
+                        // Chain async callbacks to ensure sequential processing
+                        processingPromise = processingPromise
+                            .then(() => resultsStreamCallback([row], fields))
+                            .catch(reject);
                     })
                     .on('end', () => {
-                        resolve();
+                        // Wait for any pending callbacks to complete before resolving
+                        processingPromise.then(resolve).catch(reject);
                     });
             });
         }
@@ -758,7 +766,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     async streamQuery(
         sql: string,
-        streamCallback: (data: WarehouseResults) => void,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
         options: {
             values?: AnyType[];
             tags?: Record<string, string>;
@@ -790,7 +798,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private async executeStreamStatement(
         connection: Connection,
         sqlText: string,
-        streamCallback: (data: WarehouseResults) => void,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
         options?: {
             values?: AnyType[];
         },
@@ -818,8 +826,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         new Writable({
                             objectMode: true,
                             write(chunk, encoding, callback) {
-                                streamCallback({ fields, rows: [chunk] });
-                                callback();
+                                // Handle async callback to support backpressure
+                                Promise.resolve(
+                                    streamCallback({ fields, rows: [chunk] }),
+                                )
+                                    .then(() => callback())
+                                    .catch(callback);
                             },
                         }),
                         (error) => {

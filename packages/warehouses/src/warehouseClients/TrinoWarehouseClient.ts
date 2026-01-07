@@ -268,7 +268,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
 
     async streamQuery(
         sql: string,
-        streamCallback: (data: WarehouseResults) => void,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
         options: {
             tags?: Record<string, string>;
             timezone?: string;
@@ -317,7 +317,7 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
 
             // stream initial data, if available
             if (queryResult.value.data) {
-                streamCallback({
+                await streamCallback({
                     fields,
                     rows: resultHandler(schema, queryResult.value.data ?? []),
                 });
@@ -348,7 +348,8 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 // eslint-disable-next-line no-await-in-loop
                 queryResult = await query.next();
                 // stream next chunk of data
-                streamCallback({
+                // eslint-disable-next-line no-await-in-loop
+                await streamCallback({
                     fields,
                     rows: resultHandler(schema, queryResult.value.data ?? []),
                 });

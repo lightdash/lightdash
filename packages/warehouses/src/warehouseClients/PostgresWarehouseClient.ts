@@ -222,7 +222,7 @@ export class PostgresClient<
 
     async streamQuery(
         sql: string,
-        streamCallback: (data: WarehouseResults) => void,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
         options: {
             values?: AnyType[];
             tags?: Record<string, string>;
@@ -302,18 +302,23 @@ export class PostgresClient<
                             encoding,
                             callback,
                         ) {
-                            streamCallback({
-                                fields: PostgresClient.convertQueryResultFields(
-                                    chunk.fields,
-                                ),
-                                rows: [chunk.row],
-                            });
-                            callback();
+                            // Handle async callback to support backpressure
+                            Promise.resolve(
+                                streamCallback({
+                                    fields: PostgresClient.convertQueryResultFields(
+                                        chunk.fields,
+                                    ),
+                                    rows: [chunk.row],
+                                }),
+                            )
+                                .then(() => callback())
+                                .catch(callback);
                         },
                     });
 
-                    // release the client when the stream is finished
-                    stream.on('end', () => {
+                    // Wait for writable to finish processing all async callbacks
+                    // (not 'end' on readable - async write callbacks may still be in flight)
+                    writable.on('finish', () => {
                         resolve();
                     });
                     stream.on('error', (err2) => {

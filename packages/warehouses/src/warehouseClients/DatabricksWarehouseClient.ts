@@ -344,7 +344,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
     async streamQuery(
         sql: string,
-        streamCallback: (data: WarehouseResults) => void,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
         options: {
             values?: AnyType[];
             tags?: Record<string, string>;
@@ -401,7 +401,8 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             do {
                 // eslint-disable-next-line no-await-in-loop
                 const chunk = await query.fetchChunk();
-                streamCallback({ fields, rows: chunk });
+                // eslint-disable-next-line no-await-in-loop
+                await streamCallback({ fields, rows: chunk });
                 // eslint-disable-next-line no-await-in-loop
             } while (await query.hasMoreRows());
         } catch (e: AnyType) {
