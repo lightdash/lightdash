@@ -35,6 +35,10 @@ const DashboardFiltersV2: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
     );
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
 
     const handleSaveNew = useCallback(
         (
@@ -72,6 +76,8 @@ const DashboardFiltersV2: FC<Props> = ({ isEditMode, activeTabUuid }) => {
                 project.data?.warehouseConnection?.startOfWeek ?? undefined
             }
             dashboardFilters={allFilters}
+            dashboardTiles={dashboardTiles}
+            filterableFieldsByTileUuid={filterableFieldsByTileUuid}
         >
             <AddFilterButton
                 isEditMode={isEditMode}
