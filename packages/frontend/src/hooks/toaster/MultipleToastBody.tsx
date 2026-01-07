@@ -6,6 +6,7 @@ import {
     Stack,
     Text,
     Title,
+    useMantineTheme,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronUp, IconX } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
@@ -23,20 +24,36 @@ const MultipleToastBody = ({
     toastsData: NotificationData[];
     onCloseError?: (errorData: NotificationData) => void;
 }) => {
+    const theme = useMantineTheme();
+    const isDark = theme.colorScheme === 'dark';
     const [listCollapsed, setListCollapsed] = useState(true);
 
     return (
         <Stack spacing="xs" align="stretch">
             <Group>
-                <Title order={6}>Errors</Title>
+                <Title order={6} color={isDark ? 'red.4' : 'red.9'}>
+                    Errors
+                </Title>
                 <Button
                     size="xs"
                     compact
                     variant="outline"
-                    color="red.1"
+                    color={isDark ? 'red.4' : 'red.8'}
+                    styles={{
+                        root: {
+                            backgroundColor: isDark
+                                ? theme.fn.darken(theme.colors.red[9], 0.6)
+                                : theme.colors.red[1],
+                            border: `1px solid ${
+                                isDark
+                                    ? theme.colors.red[9]
+                                    : theme.colors.red[2]
+                            }`,
+                        },
+                    }}
                     rightIcon={
                         <MantineIcon
-                            color="red.1"
+                            color={isDark ? 'red.4' : 'red.8'}
                             icon={
                                 listCollapsed ? IconChevronUp : IconChevronDown
                             }
@@ -44,9 +61,9 @@ const MultipleToastBody = ({
                     }
                     onClick={() => setListCollapsed(!listCollapsed)}
                 >
-                    <Text>{`${listCollapsed ? 'Show' : 'Hide'} ${
-                        toastsData.length
-                    }`}</Text>
+                    <Text color={isDark ? 'red.1' : 'red.9'}>{`${
+                        listCollapsed ? 'Show' : 'Hide'
+                    } ${toastsData.length}`}</Text>
                 </Button>
             </Group>
 
@@ -66,12 +83,19 @@ const MultipleToastBody = ({
                             position="apart"
                             spacing="xxs"
                             noWrap
-                            sx={(theme) => ({
+                            sx={{
                                 width: '100%',
-                                border: `1px solid ${theme.colors.red[3]}`,
+                                border: `1px solid ${
+                                    isDark
+                                        ? theme.colors.red[9]
+                                        : theme.colors.red[2]
+                                }`,
                                 borderRadius: '4px',
                                 padding: theme.spacing.xs,
-                            })}
+                                backgroundColor: isDark
+                                    ? theme.fn.darken(theme.colors.red[9], 0.7)
+                                    : theme.colors.red[0],
+                            }}
                         >
                             {toastData.apiError ? (
                                 <ApiErrorDisplay
@@ -81,7 +105,10 @@ const MultipleToastBody = ({
                             ) : (
                                 <>
                                     {toastData.title && (
-                                        <Title order={6}>
+                                        <Title
+                                            order={6}
+                                            color={isDark ? 'red.2' : 'red.9'}
+                                        >
                                             {toastData.title}
                                         </Title>
                                     )}
@@ -96,7 +123,9 @@ const MultipleToastBody = ({
                                             ]}
                                             style={{
                                                 backgroundColor: 'transparent',
-                                                color: 'white',
+                                                color: isDark
+                                                    ? theme.colors.red[2]
+                                                    : theme.colors.red[9],
                                                 fontSize: '12px',
                                             }}
                                         />
@@ -109,7 +138,10 @@ const MultipleToastBody = ({
                                 size="xs"
                                 onClick={() => onCloseError?.(toastData)}
                             >
-                                <MantineIcon icon={IconX} color="white" />
+                                <MantineIcon
+                                    icon={IconX}
+                                    color={isDark ? 'red.4' : 'red.9'}
+                                />
                             </ActionIcon>
                         </Group>
                     ))}
