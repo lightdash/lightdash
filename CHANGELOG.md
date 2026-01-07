@@ -1,3 +1,10 @@
+## [0.2308.1](https://github.com/lightdash/lightdash/compare/0.2308.0...0.2308.1) (2026-01-07)
+
+
+### Bug Fixes
+
+* move getFieldsFromMetricQuery to common index and simplify implementation ([#19243](https://github.com/lightdash/lightdash/issues/19243)) ([91aae5f](https://github.com/lightdash/lightdash/commit/91aae5f0b5bcd2bf111d6e6800a12c58d45c7909))
+
 # [0.2308.0](https://github.com/lightdash/lightdash/compare/0.2307.0...0.2308.0) (2026-01-07)
 
 
