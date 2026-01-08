@@ -2704,8 +2704,12 @@ export class AsyncQueryService extends ProjectService {
                 itemShowUnderlyingValues !== undefined;
             const isInExplicitColumnList =
                 hasExplicitColumnList &&
-                itemShowUnderlyingValues.includes(dimension.name) &&
-                itemShowUnderlyingTable === dimension.table;
+                ((itemShowUnderlyingValues.includes(dimension.name) &&
+                    itemShowUnderlyingTable === dimension.table) ||
+                    itemShowUnderlyingValues.includes(
+                        `${dimension.table}.${dimension.name}`,
+                    ));
+
             if (isValid) {
                 // If there is no explicit column list, we can show all dimensions
                 return hasExplicitColumnList ? isInExplicitColumnList : true;

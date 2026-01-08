@@ -32,9 +32,9 @@ describe('Settings - Invites', () => {
         cy.findByPlaceholderText('Your password').type('PasswordMary1').blur();
         cy.get('[data-cy="signup-button"]').click();
         cy.findByTestId('pin-input')
-            .get('*[class^="mantine-PinInput-input"]')
-            .then((inputs) => {
-                [...inputs].forEach((input) => cy.wrap(input).type('0'));
+            .find('input')
+            .each((input) => {
+                cy.wrap(input).type('0');
             });
         cy.contains('Submit').click();
         cy.contains('Continue').click();
