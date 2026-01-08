@@ -1,8 +1,8 @@
-import { Button, List, TextInput } from '@mantine-8/core';
+import { List, TextInput } from '@mantine-8/core';
 import { useState, type FC } from 'react';
 import { type DeleteSpaceModalBody } from '.';
-import MantineModal from '../MantineModal';
 import Callout from '../Callout';
+import MantineModal from '../MantineModal';
 
 const DeleteSpaceTextInputConfirmation: FC<{
     data: DeleteSpaceModalBody['data'];
@@ -71,7 +71,6 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
     data,
     title,
     onClose,
-    icon,
     form,
     handleSubmit,
     isLoading,
@@ -83,19 +82,13 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
             opened
             onClose={onClose}
             title={title}
-            icon={icon}
+            variant="delete"
+            resourceType="space"
+            resourceLabel={data?.name}
             size="lg"
-            description={`Are you sure you want to delete space "${data?.name}"?`}
-            actions={
-                <Button
-                    color="red"
-                    disabled={!canDelete || isLoading}
-                    loading={isLoading}
-                    onClick={() => form.onSubmit(handleSubmit)()}
-                >
-                    Delete Space
-                </Button>
-            }
+            onConfirm={() => form.onSubmit(handleSubmit)()}
+            confirmDisabled={!canDelete || isLoading}
+            confirmLoading={isLoading}
         >
             <DeleteSpaceModalContent data={data} />
             <DeleteSpaceTextInputConfirmation

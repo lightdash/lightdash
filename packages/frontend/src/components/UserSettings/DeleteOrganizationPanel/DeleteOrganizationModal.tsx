@@ -1,5 +1,4 @@
-import { Button, Text, TextInput, type ModalProps } from '@mantine-8/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { Text, TextInput, type ModalProps } from '@mantine-8/core';
 import { useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useDeleteOrganizationMutation } from '../../../hooks/organization/useOrganizationDeleteMultation';
@@ -31,27 +30,20 @@ export const OrganizationDeleteModal: FC<
             opened={opened}
             onClose={handleOnClose}
             title="Delete Organization"
-            icon={IconAlertCircle}
+            variant="delete"
+            resourceType="organization"
+            resourceLabel={organization.name}
             size="md"
-            actions={
-                <Button
-                    color="red"
-                    disabled={
-                        confirmOrgName?.toLowerCase() !==
-                        organization.name.toLowerCase()
-                    }
-                    loading={isDeleting}
-                    onClick={() => handleConfirm()}
-                >
-                    Delete
-                </Button>
+            onConfirm={handleConfirm}
+            confirmDisabled={
+                confirmOrgName?.toLowerCase() !==
+                organization.name.toLowerCase()
             }
+            confirmLoading={isDeleting}
         >
-            <Text>
-                Type the name of this organization{' '}
-                <b>{organization.name}</b> to confirm you want to delete
-                this organization and its users. This action is not
-                reversible.
+            <Text fz="sm" c="dimmed">
+                Type the name of this organization to confirm. This action
+                will delete all users and is not reversible.
             </Text>
 
             <TextInput

@@ -13,7 +13,6 @@ import {
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconAlertCircle,
     IconEdit,
     IconInfoCircle,
     IconPlus,
@@ -101,22 +100,13 @@ const UserListItem: FC<{
                         opened={isDeleteDialogOpen}
                         onClose={deleteDialog.close}
                         title="Delete user attribute"
-                        icon={IconAlertCircle}
-                        actions={
-                            <Button
-                                onClick={() => {
-                                    deleteUserAttribute(orgUserAttribute.uuid);
-                                }}
-                                color="red"
-                            >
-                                Delete
-                            </Button>
+                        variant="delete"
+                        resourceType="user attribute"
+                        resourceLabel={orgUserAttribute.name}
+                        onConfirm={() =>
+                            deleteUserAttribute(orgUserAttribute.uuid)
                         }
-                    >
-                        <Text>
-                            Are you sure you want to delete this user attribute?
-                        </Text>
-                    </MantineModal>
+                    />
                 </Group>
             </td>
         </tr>

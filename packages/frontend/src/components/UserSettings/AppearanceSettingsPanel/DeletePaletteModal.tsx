@@ -1,12 +1,11 @@
 import { type OrganizationColorPalette } from '@lightdash/common';
 import {
     type ModalProps,
-    Button,
     Center,
     ColorSwatch,
     SimpleGrid,
+    Text,
 } from '@mantine-8/core';
-import { IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineModal from '../../common/MantineModal';
 
@@ -24,16 +23,16 @@ export const DeletePaletteModal: FC<DeletePaletteModalProps> = ({
     <MantineModal
         opened={opened}
         onClose={onClose}
-        title={`Delete "${palette.name}" Palette`}
-        icon={IconTrash}
+        title="Delete color palette"
+        variant="delete"
+        resourceType="color palette"
+        resourceLabel={palette.name}
         size="md"
-        actions={
-            <Button color="red" onClick={onConfirm}>
-                Delete Palette
-            </Button>
-        }
-        description="Are you sure you want to delete this color palette? This action cannot be undone."
+        onConfirm={onConfirm}
     >
+        <Text fz="sm" c="dimmed">
+            This action cannot be undone.
+        </Text>
         <Center>
             <SimpleGrid cols={10} spacing="xs">
                 {palette.colors.map((color, index) => (

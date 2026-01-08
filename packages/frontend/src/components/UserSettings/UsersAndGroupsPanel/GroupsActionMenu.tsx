@@ -1,5 +1,5 @@
 import { type GroupWithMembers } from '@lightdash/common';
-import { ActionIcon, Button, Menu } from '@mantine-8/core';
+import { ActionIcon, Menu } from '@mantine-8/core';
 import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { useGroupDeleteMutation } from '../../../hooks/useOrganizationGroups';
@@ -72,19 +72,13 @@ const GroupsActionMenu: FC<GroupsActionMenuProps> = ({
                 onClose={() =>
                     !isDeleting ? setIsDeleteDialogOpen(false) : undefined
                 }
-                title={`Delete group "${group.name}"`}
-                icon={IconTrash}
-                description="Are you sure you want to delete this group?"
+                title="Delete group"
+                variant="delete"
+                resourceType="group"
+                resourceLabel={group.name}
                 cancelDisabled={isDeleting}
-                actions={
-                    <Button
-                        onClick={handleDelete}
-                        disabled={isDeleting}
-                        color="red"
-                    >
-                        Delete
-                    </Button>
-                }
+                onConfirm={handleDelete}
+                confirmLoading={isDeleting}
             />
         </>
     );

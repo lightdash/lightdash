@@ -1,5 +1,4 @@
-import { Button } from '@mantine-8/core';
-import { IconTrash } from '@tabler/icons-react';
+import { Text } from '@mantine-8/core';
 import MantineModal from '../../../components/common/MantineModal';
 import { useDeleteVirtualView } from '../../virtualView/hooks/useVirtualView';
 
@@ -15,7 +14,7 @@ export const DeleteVirtualViewModal = ({
     projectUuid: string;
 }) => {
     const { mutate, isLoading } = useDeleteVirtualView(projectUuid);
-    const onDelete = () => {
+    const handleConfirm = () => {
         mutate({ projectUuid, name: virtualViewName });
         onClose();
     };
@@ -25,13 +24,16 @@ export const DeleteVirtualViewModal = ({
             opened={opened}
             onClose={onClose}
             title="Delete virtual view"
-            icon={IconTrash}
-            description="Are you sure you want to delete this virtual view? This action cannot be undone and charts based on this virtual view will break."
-            actions={
-                <Button loading={isLoading} color="red" onClick={onDelete}>
-                    Delete
-                </Button>
-            }
-        />
+            variant="delete"
+            resourceType="virtual view"
+            resourceLabel={virtualViewName}
+            onConfirm={handleConfirm}
+            confirmLoading={isLoading}
+        >
+            <Text fz="sm" c="dimmed">
+                This action cannot be undone and charts based on this virtual
+                view will break.
+            </Text>
+        </MantineModal>
     );
 };

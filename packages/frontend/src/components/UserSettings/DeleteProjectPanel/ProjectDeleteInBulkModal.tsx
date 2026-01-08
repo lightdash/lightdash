@@ -1,6 +1,5 @@
 import { ProjectType, type OrganizationProject } from '@lightdash/common';
-import { Button, List, Text, TextInput, type ModalProps } from '@mantine-8/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { List, Text, TextInput, type ModalProps } from '@mantine-8/core';
 import { useMemo, useState, type FC } from 'react';
 import { useDeleteActiveProjectMutation } from '../../../hooks/useActiveProject';
 import { useDeleteProjectMutation } from '../../../hooks/useProjects';
@@ -113,23 +112,17 @@ export const ProjectDeleteInBulkModal: FC<Props> = ({
             opened={opened}
             onClose={handleOnClose}
             title="Delete projects in bulk"
-            icon={IconAlertCircle}
+            variant="delete"
+            resourceType="projects"
             size="md"
-            actions={
-                <Button
-                    color="red"
-                    disabled={
-                        confirmationText.toLowerCase() !==
-                        CONFIRMATION_TEXT.toLowerCase()
-                    }
-                    loading={isDeleting || isDeletingActive}
-                    onClick={() => handleConfirm()}
-                >
-                    Delete
-                </Button>
+            onConfirm={handleConfirm}
+            confirmDisabled={
+                confirmationText.toLowerCase() !==
+                CONFIRMATION_TEXT.toLowerCase()
             }
+            confirmLoading={isDeleting || isDeletingActive}
         >
-            <Text>You are about to delete:</Text>
+            <Text fz="sm">You are about to delete:</Text>
 
             <List size="sm">
                 {statsText.map((text, index) => (
@@ -137,7 +130,7 @@ export const ProjectDeleteInBulkModal: FC<Props> = ({
                 ))}
             </List>
 
-            <Text>
+            <Text fz="sm" c="dimmed">
                 Type in{' '}
                 <Text span fw={500}>
                     "{CONFIRMATION_TEXT}"
