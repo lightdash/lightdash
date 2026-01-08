@@ -56,6 +56,7 @@ function getSortByForPivotConfiguration(
                         direction: sort.descending
                             ? SortByDirection.DESC
                             : SortByDirection.ASC,
+                        nullsFirst: sort.nullsFirst,
                     };
                 }
 

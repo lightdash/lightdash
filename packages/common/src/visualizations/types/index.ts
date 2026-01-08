@@ -108,6 +108,7 @@ export type VizPivotLayoutOptions = {
 export type VizSortBy = {
     reference: string;
     direction: SortByDirection;
+    nullsFirst?: boolean;
 };
 
 export type VizPieChartDisplay = {
