@@ -20,6 +20,8 @@ import { BaseService } from '../../../services/BaseService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { UnfurlService } from '../../../services/UnfurlService/UnfurlService';
 
+const SUPPORT_FILE_EXPIRATION_TIME = 604800; // 7 days in seconds
+
 type SupportServiceArguments = {
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
@@ -89,6 +91,7 @@ export class SupportService extends BaseService {
                 return await this.s3Client.uploadTxt(
                     networkBuffer,
                     `support-${name}-${nanoid()}`,
+                    SUPPORT_FILE_EXPIRATION_TIME,
                 );
             }
         } catch (error) {
@@ -112,6 +115,7 @@ export class SupportService extends BaseService {
         const chartconfigS3Url = await this.s3Client.uploadTxt(
             chartkBuffer,
             `support-chartconfig-${nanoid()}`,
+            SUPPORT_FILE_EXPIRATION_TIME,
         );
 
         const query = await this.projectService.compileQuery({
@@ -124,6 +128,7 @@ export class SupportService extends BaseService {
         const sqlS3Url = await this.s3Client.uploadTxt(
             queryBuffer,
             `support-sql-${nanoid()}`,
+            SUPPORT_FILE_EXPIRATION_TIME,
         );
         return {
             type: 'section',
@@ -182,6 +187,7 @@ export class SupportService extends BaseService {
             imageUrl = await this.s3Client.uploadImage(
                 buffer,
                 `support-screenshot-${nanoid()}`,
+                SUPPORT_FILE_EXPIRATION_TIME,
             );
         }
 
