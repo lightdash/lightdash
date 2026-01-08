@@ -571,7 +571,13 @@ export class CsvService extends BaseService {
 
             // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
             setTimeout(async () => {
-                await fsPromise.unlink(filePath);
+                try {
+                    await fsPromise.unlink(filePath);
+                } catch (error) {
+                    this.logger.warning(
+                        `Error deleting local file ${filePath}: ${error}`,
+                    );
+                }
             }, 60 * 10 * 1000);
 
             return {
@@ -1256,18 +1262,22 @@ export class CsvService extends BaseService {
                 columnOrder || [],
                 hiddenFields,
             );
-
+            const filePath = `/tmp/${fileId}`;
             let fileUrl;
             if (this.s3Client.isEnabled()) {
-                const csvContent = await fsPromise.readFile(`/tmp/${fileId}`, {
+                const csvContent = await fsPromise.readFile(filePath, {
                     encoding: 'utf-8',
                 });
                 fileUrl = await this.s3Client.uploadCsv(csvContent, fileId);
-
-                await fsPromise.unlink(`/tmp/${fileId}`);
+                try {
+                    await fsPromise.unlink(filePath);
+                } catch (error) {
+                    this.logger.warning(
+                        `Error deleting local file ${filePath}: ${error}`,
+                    );
+                }
             } else {
                 // Storing locally
-                const filePath = `/tmp/${fileId}`;
                 const downloadFileId = nanoid(); // Creates a new nanoid for the download file because the jobId is already exposed
                 await this.downloadFileModel.createDownloadFile(
                     downloadFileId,
