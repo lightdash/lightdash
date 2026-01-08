@@ -1,3 +1,15 @@
+# [0.2314.0](https://github.com/lightdash/lightdash/compare/0.2313.1...0.2314.0) (2026-01-08)
+
+
+### Bug Fixes
+
+* e2e tests ([#19273](https://github.com/lightdash/lightdash/issues/19273)) ([1daf307](https://github.com/lightdash/lightdash/commit/1daf307b41ebac10446b3901e27b3ac48d7fcd8f))
+
+
+### Features
+
+* duplicate dashboard filters when duplicating tabs ([#19265](https://github.com/lightdash/lightdash/issues/19265)) ([8c4bed5](https://github.com/lightdash/lightdash/commit/8c4bed57116b68d77b117582bf952b9c494eed22))
+
 ## [0.2313.1](https://github.com/lightdash/lightdash/compare/0.2313.0...0.2313.1) (2026-01-08)
 
 
