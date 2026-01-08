@@ -1,3 +1,10 @@
+# [0.2311.0](https://github.com/lightdash/lightdash/compare/0.2310.0...0.2311.0) (2026-01-08)
+
+
+### Features
+
+* track DASHBOARD_UI_VERSION_TOGGLED event ([#19266](https://github.com/lightdash/lightdash/issues/19266)) ([f01c51a](https://github.com/lightdash/lightdash/commit/f01c51a05a62266681bd0e73f846d89404d8202a))
+
 # [0.2310.0](https://github.com/lightdash/lightdash/compare/0.2309.0...0.2310.0) (2026-01-07)
 
 
