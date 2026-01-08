@@ -9,6 +9,8 @@ interface Props extends StackProps {
     description?: string | ReactNode;
     action?: ReactNode;
     loading?: boolean;
+    /** Whether the component should adapt its layout to the available space. It requires the parent container to have a defined height and width. */
+    adaptive?: boolean;
 }
 
 const SuboptimalState: FC<Props> = ({
@@ -17,6 +19,7 @@ const SuboptimalState: FC<Props> = ({
     description,
     action,
     loading,
+    adaptive,
     ...rest
 }) => {
     return (
@@ -27,7 +30,7 @@ const SuboptimalState: FC<Props> = ({
             align="center"
             justify="center"
             ta="center"
-            className={classes.container}
+            className={adaptive ? classes.container : undefined}
             style={{
                 alignItems: 'center',
                 ...rest?.style,
@@ -37,7 +40,7 @@ const SuboptimalState: FC<Props> = ({
                 <Loader
                     color="ldGray.5"
                     size={title || description ? 'xs' : 'md'}
-                    className={classes.supportIcon}
+                    className={adaptive ? classes.supportIcon : undefined}
                 />
             )}
             {icon && !loading && (
@@ -45,7 +48,7 @@ const SuboptimalState: FC<Props> = ({
                     color="ldGray.5"
                     size="lg"
                     icon={icon}
-                    className={classes.supportIcon}
+                    className={adaptive ? classes.supportIcon : undefined}
                 />
             )}
             {title && (
@@ -54,7 +57,7 @@ const SuboptimalState: FC<Props> = ({
                     size="md"
                     fw={600}
                     style={{ whiteSpace: 'pre-wrap' }}
-                    className={classes.title}
+                    className={adaptive ? classes.title : undefined}
                 >
                     {title}
                 </Text>
@@ -62,7 +65,12 @@ const SuboptimalState: FC<Props> = ({
             {description && (
                 <Box c="dimmed" fz="xs" maw={400} mt={title ? -10 : 0}>
                     {typeof description === 'string' ? (
-                        <Text size="xs" className={classes.description}>
+                        <Text
+                            size="xs"
+                            className={
+                                adaptive ? classes.description : undefined
+                            }
+                        >
                             {description}
                         </Text>
                     ) : (

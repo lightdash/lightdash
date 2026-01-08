@@ -1902,6 +1902,7 @@ export const GenericDashboardChartTile: FC<
                 {...rest}
             >
                 <SuboptimalState
+                    adaptive
                     icon={IconAlertCircle}
                     title={tileTitle}
                     description={error?.error?.message || 'No data available'}
