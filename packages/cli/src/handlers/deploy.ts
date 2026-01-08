@@ -6,6 +6,7 @@ import {
     Project,
     ProjectType,
     friendlyName,
+    getErrorMessage,
     isExploreError,
     type LightdashProjectConfig,
     type Tag,
@@ -110,8 +111,32 @@ export const deploy = async (
         options.projectUuid,
     );
 
-    await replaceProjectYamlTags(options.projectUuid, lightdashProjectConfig);
-    await replaceProjectParameters(options.projectUuid, lightdashProjectConfig);
+    // These two methods are not critical to the deployment process, so we can ignore errors and show warnings instead
+    try {
+        await replaceProjectYamlTags(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing YAML tags: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
+
+    try {
+        await replaceProjectParameters(
+            options.projectUuid,
+            lightdashProjectConfig,
+        );
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `\nError replacing project parameters: ${getErrorMessage(e)}\n`,
+            ),
+        );
+    }
 
     await lightdashApi<null>({
         method: 'PUT',

@@ -208,6 +208,7 @@ export const projectMemberAbilities: Record<
         });
 
         can('delete', 'Project', {
+            projectUuid: member.projectUuid,
             type: ProjectType.PREVIEW,
             createdByUserUuid: member.userUuid,
         });
@@ -219,6 +220,11 @@ export const projectMemberAbilities: Record<
 
         can('update', 'Project', {
             projectUuid: member.projectUuid,
+        });
+        can('update', 'Project', {
+            projectUuid: member.projectUuid,
+            type: ProjectType.PREVIEW,
+            createdByUserUuid: member.userUuid,
         });
         can('manage', 'SpotlightTableConfig', {
             projectUuid: member.projectUuid,

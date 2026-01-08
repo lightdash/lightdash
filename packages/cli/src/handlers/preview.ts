@@ -1,6 +1,7 @@
 import * as core from '@actions/core';
 import {
     CreateProjectTableConfiguration,
+    getErrorMessage,
     Project,
     ProjectType,
 } from '@lightdash/common';
@@ -81,8 +82,8 @@ const cleanupProject = async (
         });
         teardownSpinner.succeed(`  Cleaned up`);
     } catch (e) {
-        console.error('Error during cleanup:', e);
-        teardownSpinner.fail(`  Cleanup failed`);
+        // console.error(styles.error(`Error during cleanup: ${getErrorMessage(e)}`));
+        teardownSpinner.fail(`  Cleanup failed: ${getErrorMessage(e)}`);
     }
 };
 
@@ -338,7 +339,7 @@ export const previewHandler = async (
         ]);
         pressToShutdown.clear();
     } catch (e) {
-        spinner.fail('Error creating developer preview');
+        spinner.fail(`Error creating developer preview: ${getErrorMessage(e)}`);
 
         await deletePreviewProject(project.projectUuid);
         await unsetPreviewProject();

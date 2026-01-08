@@ -76,6 +76,7 @@ const BASE_ROLE_SCOPES = {
         'create:Project@preview', // Preview projects
         'delete:Project@self', // Preview projects created by user
         'update:Project',
+        'update:Project@self',
         'view:JobStatus', // All jobs in project
         'view:SourceCode',
         'manage:SourceCode',
