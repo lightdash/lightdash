@@ -95,8 +95,8 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                         </Text>
                     </Group>
                 </Stack>
-                <Group wrap="nowrap" gap="xs">
-                    {userCanManageScheduledDelivery && (
+                {userCanManageScheduledDelivery && (
+                    <Group wrap="nowrap" gap="xs">
                         <Tooltip
                             withinPortal
                             variant="xs"
@@ -116,18 +116,18 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                                 />
                             </Box>
                         </Tooltip>
-                    )}
-                    <Tooltip withinPortal label="Send now">
-                        <ActionIcon
-                            variant="light"
-                            onClick={() => setIsConfirmOpen(true)}
-                            radius="md"
-                            color="ldDark.9"
-                        >
-                            <MantineIcon color="ldDark.9" icon={IconSend} />
-                        </ActionIcon>
-                    </Tooltip>
-                    {userCanManageScheduledDelivery && (
+
+                        <Tooltip withinPortal label="Send now">
+                            <ActionIcon
+                                variant="light"
+                                onClick={() => setIsConfirmOpen(true)}
+                                radius="md"
+                                color="ldDark.9"
+                            >
+                                <MantineIcon color="ldDark.9" icon={IconSend} />
+                            </ActionIcon>
+                        </Tooltip>
+
                         <Tooltip withinPortal label="Edit">
                             <ActionIcon
                                 variant="light"
@@ -141,9 +141,7 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                                 />
                             </ActionIcon>
                         </Tooltip>
-                    )}
 
-                    {userCanManageScheduledDelivery && (
                         <Tooltip withinPortal label="Delete">
                             <ActionIcon
                                 variant="light"
@@ -156,8 +154,8 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                                 <MantineIcon icon={IconTrash} />
                             </ActionIcon>
                         </Tooltip>
-                    )}
-                </Group>
+                    </Group>
+                )}
             </Group>
             <ConfirmSendNowModal
                 opened={isConfirmOpen}
