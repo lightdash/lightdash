@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { Button, Group, Tabs } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
+import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
 import { useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
@@ -146,6 +147,12 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
         (c) => c.setHaveTilesChanged,
     );
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const setDashboardFilters = useDashboardContext(
+        (c) => c.setDashboardFilters,
+    );
+    const setHaveFiltersChanged = useDashboardContext(
+        (c) => c.setHaveFiltersChanged,
+    );
     const requiredDashboardFilters = useDashboardContext(
         (c) => c.requiredDashboardFilters,
     );
@@ -410,11 +417,17 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
             );
 
             if (tilesToDuplicate && tilesToDuplicate.length > 0) {
-                const duplicatedTiles = tilesToDuplicate.map((tile) => ({
-                    ...tile,
-                    uuid: uuid4(),
-                    tabUuid: newTab.uuid,
-                }));
+                // Step 1: Create mapping while duplicating tiles
+                const tileUuidMapping = new Map<string, string>();
+                const duplicatedTiles = tilesToDuplicate.map((tile) => {
+                    const newUuid = uuid4();
+                    tileUuidMapping.set(tile.uuid, newUuid);
+                    return {
+                        ...tile,
+                        uuid: newUuid,
+                        tabUuid: newTab.uuid,
+                    };
+                });
 
                 // Directly add tiles to the dashboard without using handleAddTiles
                 // to avoid automatic assignment to current active tab
@@ -423,6 +436,30 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                     ...duplicatedTiles,
                 ]);
                 setHaveTilesChanged(true);
+
+                // Step 2: Update filters to include new tile mappings
+                const updatedFilters = produce(
+                    dashboardFilters.dimensions,
+                    (draft) => {
+                        for (const filter of draft) {
+                            if (!filter.tileTargets) continue;
+
+                            for (const [oldUuid, newUuid] of tileUuidMapping) {
+                                if (oldUuid in filter.tileTargets) {
+                                    filter.tileTargets[newUuid] =
+                                        filter.tileTargets[oldUuid];
+                                }
+                            }
+                        }
+                    },
+                );
+
+                // Step 3: Update dashboard filters
+                setDashboardFilters({
+                    ...dashboardFilters,
+                    dimensions: updatedFilters,
+                });
+                setHaveFiltersChanged(true);
             }
         }
         setDuplicatingTab(false);
