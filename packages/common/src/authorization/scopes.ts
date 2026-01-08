@@ -302,6 +302,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:ScheduledDeliveries@self',
+        description: 'Manage user own scheduled deliveries',
+        isEnterprise: false,
+        group: ScopeGroup.PROJECT_MANAGEMENT,
+        getConditions: (context) => [
+            addUuidCondition(context, { userUuid: context.userUuid || false }),
+        ],
+    },
+    {
         name: 'create:ScheduledDeliveries',
         description: 'Create scheduled deliveries',
         isEnterprise: false,

@@ -38,6 +38,7 @@ const BASE_ROLE_SCOPES = {
         'manage:Explore',
         'manage:ChangeCsvResults',
         'create:ScheduledDeliveries',
+        'manage:ScheduledDeliveries@self',
         'create:DashboardComments',
         'manage:GoogleSheets',
 
@@ -57,7 +58,6 @@ const BASE_ROLE_SCOPES = {
         'manage:Space@public', // For non-private spaces
         'manage:Job',
         'manage:PinnedItems',
-        'manage:ScheduledDeliveries',
         'manage:DashboardComments',
         'manage:Tags',
 
@@ -98,6 +98,7 @@ const BASE_ROLE_SCOPES = {
         'manage:SavedChart', // All saved charts
         'view:AiAgentThread', // All threads in project
         'manage:AiAgentThread', // All threads in project
+        'manage:ScheduledDeliveries',
     ],
 } as const;
 
