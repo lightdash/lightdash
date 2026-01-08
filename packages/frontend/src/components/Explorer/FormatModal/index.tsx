@@ -3,15 +3,19 @@ import {
     NumberSeparator,
     getCustomFormat,
     getItemId,
+    getItemType,
     hasFormatting,
+    isDimension,
+    isMetric,
     type CustomFormat,
+    type Dimension,
     type Metric,
 } from '@lightdash/common';
 import { Button } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconEraser, IconPencil } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
-import { memo, useCallback, useEffect } from 'react';
+import { memo, useCallback, useEffect, useMemo } from 'react';
 import { type ValueOf } from 'type-fest';
 import {
     explorerActions,
@@ -36,9 +40,10 @@ const DEFAULT_FORMAT: CustomFormat = {
 
 export const FormatModal = memo(() => {
     const dispatch = useExplorerDispatch();
-    const { isOpen, metric } = useExplorerSelector(selectFormatModal);
+    const { isOpen, item } = useExplorerSelector(selectFormatModal);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const metricOverrides = metricQuery.metricOverrides;
+    const dimensionOverrides = metricQuery.dimensionOverrides;
 
     const toggleModal = useCallback(() => {
         dispatch(explorerActions.toggleFormatModal());
@@ -47,6 +52,13 @@ export const FormatModal = memo(() => {
     const updateMetricFormat = useCallback(
         (payload: { metric: Metric; formatOptions: CustomFormat }) => {
             dispatch(explorerActions.updateMetricFormat(payload));
+        },
+        [dispatch],
+    );
+
+    const updateDimensionFormat = useCallback(
+        (payload: { dimension: Dimension; formatOptions: CustomFormat }) => {
+            dispatch(explorerActions.updateDimensionFormat(payload));
         },
         [dispatch],
     );
@@ -61,22 +73,25 @@ export const FormatModal = memo(() => {
     const { setFieldValue } = form;
 
     useEffect(() => {
-        if (metric) {
-            let metricFormat = hasFormatting(metric)
-                ? getCustomFormat(metric)
+        if (item) {
+            const itemFormat = hasFormatting(item)
+                ? getCustomFormat(item)
                 : undefined;
-            const override = metricOverrides
-                ? metricOverrides[getItemId(metric)]
-                : undefined;
-            if (metricFormat || override) {
+
+            // Get the appropriate override based on item type
+            const override = isDimension(item)
+                ? dimensionOverrides?.[getItemId(item)]
+                : metricOverrides?.[getItemId(item)];
+
+            if (itemFormat || override) {
                 setFieldValue('format', {
                     ...DEFAULT_FORMAT,
-                    ...metricFormat,
+                    ...itemFormat,
                     ...override?.formatOptions,
                 });
             }
         }
-    }, [metricOverrides, metric, setFieldValue]);
+    }, [metricOverrides, dimensionOverrides, item, setFieldValue]);
 
     const handleClose = useCallback(() => {
         form.reset();
@@ -84,8 +99,16 @@ export const FormatModal = memo(() => {
     }, [form, toggleModal]);
 
     const handleOnSubmit = form.onSubmit((values) => {
-        if (!metric) return;
-        updateMetricFormat({ metric, formatOptions: values.format });
+        if (!item) return;
+        if (isMetric(item)) {
+            updateMetricFormat({ metric: item, formatOptions: values.format });
+        } else if (isDimension(item)) {
+            updateDimensionFormat({
+                dimension: item,
+                formatOptions: values.format,
+            });
+        }
+        dispatch(explorerActions.requestQueryExecution());
         handleClose();
     });
 
@@ -97,19 +120,29 @@ export const FormatModal = memo(() => {
         value: ValueOf<CustomFormat>,
     ) => form.setFieldValue(`format.${path}`, value);
 
-    if (!isOpen) {
+    const modalTitle = useMemo(() => {
+        if (isDimension(item)) {
+            return 'Format dimension';
+        }
+        if (isMetric(item)) {
+            return 'Format metric';
+        }
+        return 'Format field';
+    }, [item]);
+
+    if (!isOpen || !item) {
         return null;
     }
 
-    return metric ? (
+    return (
         <MantineModal
             size="xl"
-            opened={isOpen}
+            opened
             icon={IconPencil}
             onClose={handleClose}
-            title="Format metric"
+            title={modalTitle}
             actions={
-                <Button type="submit" form="format-metric-form">
+                <Button type="submit" form="format-field-form">
                     Save changes
                 </Button>
             }
@@ -129,13 +162,14 @@ export const FormatModal = memo(() => {
                 ) : undefined
             }
         >
-            <form id="format-metric-form" onSubmit={handleOnSubmit}>
+            <form id="format-field-form" onSubmit={handleOnSubmit}>
                 <FormatForm
                     formatInputProps={getFormatInputProps}
                     format={form.values.format}
                     setFormatFieldValue={setFormatFieldValue}
+                    itemType={item ? getItemType(item) : undefined}
                 />
             </form>
         </MantineModal>
-    ) : null;
+    );
 });

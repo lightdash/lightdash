@@ -3282,15 +3282,16 @@ export class ProjectService extends BaseService {
 
                     const fieldsWithOverrides: ItemsMap = Object.fromEntries(
                         Object.entries(fullQuery.fields).map(([key, value]) => {
-                            if (
-                                metricQuery.metricOverrides &&
-                                metricQuery.metricOverrides[key]
-                            ) {
+                            // Check for metric or dimension overrides
+                            const override =
+                                metricQuery.metricOverrides?.[key] ||
+                                metricQuery.dimensionOverrides?.[key];
+                            if (override) {
                                 return [
                                     key,
                                     {
                                         ...value,
-                                        ...metricQuery.metricOverrides[key],
+                                        ...override,
                                     },
                                 ];
                             }

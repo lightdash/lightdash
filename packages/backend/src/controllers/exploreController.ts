@@ -180,6 +180,7 @@ export class ExploreController extends BaseController {
             additionalMetrics: body.additionalMetrics,
             customDimensions: body.customDimensions,
             metricOverrides: body.metricOverrides,
+            dimensionOverrides: body.dimensionOverrides,
         };
 
         const { jobId } = await req.services

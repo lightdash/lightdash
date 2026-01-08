@@ -153,6 +153,7 @@ export class QueryController extends BaseController {
             customDimensions: body.query.customDimensions,
             timezone: body.query.timezone,
             metricOverrides: body.query.metricOverrides,
+            dimensionOverrides: body.query.dimensionOverrides,
             periodOverPeriod: body.query.periodOverPeriod,
         };
 

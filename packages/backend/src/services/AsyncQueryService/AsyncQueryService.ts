@@ -1654,16 +1654,19 @@ export class AsyncQueryService extends ProjectService {
 
         const fieldsWithOverrides: ItemsMap = Object.fromEntries(
             Object.entries(fullQuery.fields).map(([key, value]) => {
-                const metricOverrides = metricQuery.metricOverrides?.[key];
-                if (metricOverrides) {
-                    const { formatOptions } = metricOverrides;
+                // Check for metric or dimension overrides
+                const override =
+                    metricQuery.metricOverrides?.[key] ||
+                    metricQuery.dimensionOverrides?.[key];
+                if (override) {
+                    const { formatOptions } = override;
 
                     if (formatOptions) {
                         return [
                             key,
                             {
                                 ...value,
-                                // Override the format expression with the metric query override instead of adding `formatOptions` to the item
+                                // Override the format expression with the metric/dimension query override instead of adding `formatOptions` to the item
                                 // This ensures that legacy `formatOptions` are kept as is and we don't need to change logic over which format takes precedence
                                 format: convertCustomFormatToFormatExpression(
                                     formatOptions,
