@@ -13,27 +13,43 @@ vi.mock('react-router', async () => {
 });
 
 // Mock API calls
+const mockDashboardData = {
+    uuid: 'test-dashboard-uuid',
+    name: 'Test Dashboard',
+    description: '',
+    tiles: [
+        {
+            uuid: 'tile-1',
+            type: 'saved_chart',
+            properties: {
+                savedChartUuid: 'chart-1',
+                title: 'Test Chart',
+                chartName: 'Test Chart',
+            },
+            x: 0,
+            y: 0,
+            h: 4,
+            w: 4,
+        },
+    ],
+    tabs: [
+        { uuid: 'tab-1', name: 'Tab 1', order: 0 },
+        { uuid: 'tab-2', name: 'Tab 2', order: 1 },
+    ],
+    filters: { dimensions: [], metrics: [], tableCalculations: [] },
+    updatedAt: new Date(),
+    projectUuid: 'test-project-uuid',
+    organizationUuid: 'test-org-uuid',
+    spaceUuid: 'test-space-uuid',
+    pinnedListUuid: null,
+    views: 0,
+    firstViewedAt: null,
+    slug: 'test-dashboard',
+};
+
 vi.mock('../src/hooks/dashboard/useDashboard', () => ({
     useDashboardQuery: () => ({
-        data: {
-            uuid: 'test-dashboard-uuid',
-            name: 'Test Dashboard',
-            description: '',
-            tiles: [],
-            tabs: [
-                { uuid: 'tab-1', name: 'Tab 1', order: 0 },
-                { uuid: 'tab-2', name: 'Tab 2', order: 1 },
-            ],
-            filters: { dimensions: [], metrics: [], tableCalculations: [] },
-            updatedAt: new Date(),
-            projectUuid: 'test-project-uuid',
-            organizationUuid: 'test-org-uuid',
-            spaceUuid: 'test-space-uuid',
-            pinnedListUuid: null,
-            views: 0,
-            firstViewedAt: null,
-            slug: 'test-dashboard',
-        },
+        data: mockDashboardData,
         isInitialLoading: false,
         error: null,
     }),
@@ -41,8 +57,20 @@ vi.mock('../src/hooks/dashboard/useDashboard', () => ({
         isInitialLoading: false,
         isFetching: false,
         data: {
-            allFilterableFields: [],
-            savedQueryFilters: {},
+            allFilterableFields: [
+                {
+                    id: 'orders_status',
+                    name: 'status',
+                    label: 'Status',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    fieldType: 'dimension',
+                    type: 'string',
+                },
+            ],
+            savedQueryFilters: {
+                'tile-1': [0],
+            },
         },
     }),
     useDashboardVersionRefresh: () => ({
@@ -74,23 +102,7 @@ vi.mock('../src/hooks/user/useAccount', () => ({
 vi.mock('../src/ee/features/embed/EmbedDashboard/hooks', () => ({
     useEmbedDashboard: () => ({
         data: {
-            uuid: 'test-dashboard-uuid',
-            name: 'Test Dashboard',
-            description: '',
-            tiles: [],
-            tabs: [
-                { uuid: 'tab-1', name: 'Tab 1', order: 0 },
-                { uuid: 'tab-2', name: 'Tab 2', order: 1 },
-            ],
-            filters: { dimensions: [], metrics: [], tableCalculations: [] },
-            updatedAt: new Date(),
-            projectUuid: 'test-project-uuid',
-            organizationUuid: 'test-org-uuid',
-            spaceUuid: 'test-space-uuid',
-            pinnedListUuid: null,
-            views: 0,
-            firstViewedAt: null,
-            slug: 'test-dashboard',
+            ...mockDashboardData,
             canExportCsv: true,
             canExportImages: true,
         },
@@ -333,7 +345,7 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             },
         ];
 
-        const { rerender } = render(
+        const { rerender, container } = render(
             <Dashboard
                 token={mockToken}
                 instanceUrl={mockInstanceUrl}
@@ -341,10 +353,15 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             />,
         );
 
-        // Wait for initial render
-        await waitFor(() => {
-            expect(mockNavigate).not.toHaveBeenCalled();
-        });
+        // Wait for dashboard to load (should not be stuck in loading state)
+        await waitFor(
+            () => {
+                const loadingText = container.textContent;
+                expect(loadingText).not.toContain('Loading...');
+                expect(mockNavigate).not.toHaveBeenCalled();
+            },
+            { timeout: 3000 },
+        );
 
         // Update filters to a different value
         const updatedFilters = [
@@ -364,11 +381,17 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             />,
         );
 
-        // Verify the component re-rendered with new filters
-        await waitFor(() => {
-            // Navigate should still not be called in SDK mode
-            expect(mockNavigate).not.toHaveBeenCalled();
-        });
+        // Verify the component re-rendered with new filters and is not stuck loading
+        await waitFor(
+            () => {
+                // Dashboard should still be rendered, not stuck in loading
+                const loadingText = container.textContent;
+                expect(loadingText).not.toContain('Loading...');
+                // Navigate should still not be called in SDK mode
+                expect(mockNavigate).not.toHaveBeenCalled();
+            },
+            { timeout: 3000 },
+        );
     });
 
     it('should handle clearing filters dynamically', async () => {
@@ -381,7 +404,7 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             },
         ];
 
-        const { rerender } = render(
+        const { rerender, container } = render(
             <Dashboard
                 token={mockToken}
                 instanceUrl={mockInstanceUrl}
@@ -389,10 +412,15 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             />,
         );
 
-        // Wait for initial render
-        await waitFor(() => {
-            expect(mockNavigate).not.toHaveBeenCalled();
-        });
+        // Wait for initial render - verify not stuck loading
+        await waitFor(
+            () => {
+                const loadingText = container.textContent;
+                expect(loadingText).not.toContain('Loading...');
+                expect(mockNavigate).not.toHaveBeenCalled();
+            },
+            { timeout: 3000 },
+        );
 
         // Clear filters
         rerender(
@@ -403,20 +431,35 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             />,
         );
 
-        // Verify the component re-rendered without filters
-        await waitFor(() => {
-            // Navigate should still not be called in SDK mode
-            expect(mockNavigate).not.toHaveBeenCalled();
-        });
+        // Verify the component re-rendered without filters and completes loading
+        await waitFor(
+            () => {
+                // Dashboard should still be rendered, not stuck in loading
+                const loadingText = container.textContent;
+                expect(loadingText).not.toContain('Loading...');
+                // Navigate should still not be called in SDK mode
+                expect(mockNavigate).not.toHaveBeenCalled();
+            },
+            { timeout: 3000 },
+        );
     });
 
-    it('should handle multiple filter changes', async () => {
-        const { rerender } = render(
+    it('should handle multiple filter changes without getting stuck in loading', async () => {
+        const { rerender, container } = render(
             <Dashboard
                 token={mockToken}
                 instanceUrl={mockInstanceUrl}
                 filters={[]}
             />,
+        );
+
+        // Wait for initial load
+        await waitFor(
+            () => {
+                const loadingText = container.textContent;
+                expect(loadingText).not.toContain('Loading...');
+            },
+            { timeout: 3000 },
         );
 
         // Apply first filter
@@ -437,9 +480,14 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             />,
         );
 
-        await waitFor(() => {
-            expect(mockNavigate).not.toHaveBeenCalled();
-        });
+        await waitFor(
+            () => {
+                const loadingText = container.textContent;
+                expect(loadingText).not.toContain('Loading...');
+                expect(mockNavigate).not.toHaveBeenCalled();
+            },
+            { timeout: 3000 },
+        );
 
         // Apply second filter
         const filter2 = [
@@ -459,9 +507,14 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             />,
         );
 
-        await waitFor(() => {
-            expect(mockNavigate).not.toHaveBeenCalled();
-        });
+        await waitFor(
+            () => {
+                const loadingText = container.textContent;
+                expect(loadingText).not.toContain('Loading...');
+                expect(mockNavigate).not.toHaveBeenCalled();
+            },
+            { timeout: 3000 },
+        );
 
         // Clear filters
         rerender(
@@ -472,8 +525,13 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             />,
         );
 
-        await waitFor(() => {
-            expect(mockNavigate).not.toHaveBeenCalled();
-        });
+        await waitFor(
+            () => {
+                const loadingText = container.textContent;
+                expect(loadingText).not.toContain('Loading...');
+                expect(mockNavigate).not.toHaveBeenCalled();
+            },
+            { timeout: 3000 },
+        );
     });
 });
