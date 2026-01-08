@@ -59,6 +59,21 @@ export enum ExploreType {
     DEFAULT = 'default',
 }
 
+export enum InlineErrorType {
+    // Fatal error types (ExploreError - explore is broken)
+    METADATA_PARSE_ERROR = 'METADATA_PARSE_ERROR',
+    NO_DIMENSIONS_FOUND = 'NO_DIMENSIONS_FOUND',
+    // Warning types (Explore.warnings - explore still usable)
+    SKIPPED_JOIN = 'SKIPPED_JOIN',
+    MISSING_TABLE = 'MISSING_TABLE',
+    FIELD_ERROR = 'FIELD_ERROR',
+}
+
+export type InlineError = {
+    type: InlineErrorType;
+    message: string;
+};
+
 export type Explore = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     label: string; // Friendly name
@@ -81,16 +96,12 @@ export type Explore = {
     };
     aiHint?: string | string[];
     parameters?: LightdashProjectConfig['parameters'];
-};
-
-export enum InlineErrorType {
-    METADATA_PARSE_ERROR = 'METADATA_PARSE_ERROR',
-    NO_DIMENSIONS_FOUND = 'NO_DIMENSIONS_FOUND',
-}
-
-export type InlineError = {
-    type: InlineErrorType;
-    message: string;
+    /**
+     * Non-fatal warnings from partial compilation.
+     * Present when some joins or fields failed to compile but the explore is still usable.
+     * Only populated when PARTIAL_COMPILATION_ENABLED=true.
+     */
+    warnings?: InlineError[];
 };
 
 export type ExploreError = Partial<Explore> &
@@ -98,6 +109,10 @@ export type ExploreError = Partial<Explore> &
         errors: InlineError[];
     };
 
+/**
+ * Check if an explore is an ExploreError (failed to compile completely).
+ * ExploreError has 'errors' field, working Explore does not.
+ */
 export const isExploreError = (
     explore: Explore | ExploreError,
 ): explore is ExploreError => 'errors' in explore;
@@ -108,8 +123,16 @@ type SummaryExploreFields =
     | 'tags'
     | 'groupLabel'
     | 'type'
-    | 'aiHint';
-type SummaryExploreErrorFields = SummaryExploreFields | 'errors';
+    | 'aiHint'
+    | 'warnings';
+type SummaryExploreErrorFields =
+    | 'name'
+    | 'label'
+    | 'tags'
+    | 'groupLabel'
+    | 'type'
+    | 'aiHint'
+    | 'errors';
 type SummaryExtraFields = {
     description?: string;
     schemaName: string;
@@ -120,6 +143,18 @@ export type SummaryExplore =
     | (Pick<Explore, SummaryExploreFields> & SummaryExtraFields)
     | (Pick<ExploreError, SummaryExploreErrorFields> &
           Partial<SummaryExtraFields>);
+
+/**
+ * Check if a SummaryExplore is from an ExploreError (completely failed to compile).
+ * ExploreError has 'errors' field with actual errors, working Explore may have 'warnings'.
+ */
+export const isSummaryExploreError = (
+    summary: SummaryExplore,
+): summary is Pick<ExploreError, SummaryExploreErrorFields> &
+    Partial<SummaryExtraFields> =>
+    'errors' in summary &&
+    summary.errors !== null &&
+    summary.errors !== undefined;
 
 export type Table = TableBase & {
     dimensions: { [fieldName: string]: Dimension }; // Field names must be unique across dims and metrics

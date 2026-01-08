@@ -289,4 +289,7 @@ export const lightdashConfigMock: LightdashConfig = {
     editYamlInUi: {
         enabled: false,
     },
+    partialCompilation: {
+        enabled: false,
+    },
 };

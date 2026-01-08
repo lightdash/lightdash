@@ -12,6 +12,7 @@ import {
     ExploreError,
     ExploreType,
     FieldType,
+    isExploreError,
     Job,
     JobLabels,
     JobStatusType,
@@ -553,7 +554,8 @@ export const exploreToSummaryWithAttributes = (
 ): SummaryExplore & {
     baseTableRequiredAttributes?: Record<string, string | string[]>;
 } => {
-    if ('errors' in explore) {
+    // ExploreError: completely failed to compile (no tables field)
+    if (isExploreError(explore)) {
         return {
             name: explore.name,
             label: explore.label,
@@ -562,6 +564,7 @@ export const exploreToSummaryWithAttributes = (
         };
     }
 
+    // Working Explore (may have partial compilation warnings)
     const baseTable = explore.tables[explore.baseTable];
     return {
         name: explore.name,
@@ -572,5 +575,6 @@ export const exploreToSummaryWithAttributes = (
         description: baseTable.description,
         type: explore.type,
         baseTableRequiredAttributes: baseTable.requiredAttributes,
+        ...(explore.warnings ? { warnings: explore.warnings } : {}),
     };
 };

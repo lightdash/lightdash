@@ -95,6 +95,7 @@ const getExploresFromLightdashYmlProject = async (
         warehouseSqlBuilder,
         lightdashProjectConfig,
         disableTimestampConversion,
+        process.env.PARTIAL_COMPILATION_ENABLED === 'true',
     );
 
     return validExplores;
@@ -260,6 +261,7 @@ export const compile = async (options: CompileHandlerOptions) => {
             warehouseSqlBuilder,
             lightdashProjectConfig,
             options.disableTimestampConversion,
+            process.env.PARTIAL_COMPILATION_ENABLED === 'true',
         );
         console.error('');
 
