@@ -1,3 +1,10 @@
+## [0.2318.1](https://github.com/lightdash/lightdash/compare/0.2318.0...0.2318.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* Reorder dashboard filters is not working on new dashboard ([#19291](https://github.com/lightdash/lightdash/issues/19291)) ([6dc5306](https://github.com/lightdash/lightdash/commit/6dc53060a98d2fd23564b80f7ead9ce541bd9fe3)), closes [#19279](https://github.com/lightdash/lightdash/issues/19279)
+
 # [0.2318.0](https://github.com/lightdash/lightdash/compare/0.2317.0...0.2318.0) (2026-01-08)
 
 
