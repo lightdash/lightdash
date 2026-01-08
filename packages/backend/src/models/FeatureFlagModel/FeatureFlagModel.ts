@@ -174,7 +174,7 @@ export class FeatureFlagModel {
         featureFlagId,
     }: FeatureFlagLogicArgs) {
         const enabled =
-            this.lightdashConfig.scheduler.useScreenshotReadyIndicator ||
+            this.lightdashConfig.scheduler.useScreenshotReadyIndicator ??
             (user
                 ? await isFeatureFlagEnabled(
                       FeatureFlags.ScreenshotReadyIndicator,
