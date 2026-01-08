@@ -1,3 +1,10 @@
+## [0.2315.1](https://github.com/lightdash/lightdash/compare/0.2315.0...0.2315.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* cartesian chart not resizing after running query ([#19251](https://github.com/lightdash/lightdash/issues/19251)) ([9f4f9b0](https://github.com/lightdash/lightdash/commit/9f4f9b0b05a69bf348b9825ee50f885b60554318))
+
 # [0.2315.0](https://github.com/lightdash/lightdash/compare/0.2314.1...0.2315.0) (2026-01-08)
 
 
