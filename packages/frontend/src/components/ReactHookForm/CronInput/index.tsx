@@ -1,4 +1,3 @@
-import { type AnyType } from '@lightdash/common';
 import { Group } from '@mantine/core';
 import {
     useCallback,
@@ -7,12 +6,7 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
-import {
-    Controller,
-    useFormContext,
-    type ControllerRenderProps,
-    type FieldValues,
-} from 'react-hook-form';
+import { type ControllerRenderProps, type FieldValues } from 'react-hook-form';
 import CustomInputs from './CustomInputs';
 import DailyInputs from './DailyInputs';
 import FrequencySelect from './FrequencySelect';
@@ -90,32 +84,3 @@ export const CronInternalInputs: FC<
         </Group>
     );
 };
-
-const CronInput: FC<{
-    disabled?: boolean;
-    rules?: React.ComponentProps<typeof Controller>['rules'];
-    name: string;
-    defaultValue?: AnyType;
-}> = ({ name, rules, defaultValue, disabled }) => {
-    const {
-        control,
-        formState: { errors },
-    } = useFormContext();
-    return (
-        <Controller
-            control={control}
-            name={name}
-            rules={rules}
-            defaultValue={defaultValue}
-            render={({ field }) => (
-                <CronInternalInputs
-                    disabled={disabled}
-                    {...field}
-                    errors={errors}
-                />
-            )}
-        />
-    );
-};
-
-export default CronInput;

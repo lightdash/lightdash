@@ -5,6 +5,7 @@ import {
     Field,
     ForbiddenError,
     formatDate,
+    getErrorMessage,
     getItemLabel,
     getItemLabelWithoutTableName,
     GoogleSheetsTransientError,
@@ -113,8 +114,15 @@ export class GoogleDriveClient {
                         `The file might be an Excel .xlsx file, or another file type that does not support Google spreadsheet operations.`,
                 );
             }
-
-            throw err;
+            if (
+                err?.message &&
+                err.message.includes('Internal error encountered.')
+            ) {
+                throw new UnexpectedGoogleSheetsError(
+                    `Google Drive internal error encountered. Please try again later.`,
+                );
+            }
+            throw new UnexpectedGoogleSheetsError(getErrorMessage(err));
         }
     }
 

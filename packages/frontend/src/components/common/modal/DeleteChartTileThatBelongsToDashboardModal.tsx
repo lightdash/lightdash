@@ -1,5 +1,4 @@
-import { Button, type ModalProps } from '@mantine-8/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { type ModalProps } from '@mantine-8/core';
 import { type FC } from 'react';
 import Callout from '../Callout';
 import MantineModal from '../MantineModal';
@@ -21,14 +20,11 @@ const DeleteChartTileThatBelongsToDashboardModal: FC<Props> = ({
         opened={opened}
         onClose={onClose}
         title="Delete chart"
-        icon={IconAlertCircle}
+        variant="delete"
+        resourceType="chart"
+        resourceLabel={name}
         modalRootProps={{ className }}
-        description={`Are you sure you want to delete the chart "${name}"?`}
-        actions={
-            <Button color="red" onClick={onConfirm}>
-                Delete
-            </Button>
-        }
+        onConfirm={onConfirm}
     >
         <Callout variant="warning" title="This change cannot be undone.">
             This chart was created from within the dashboard, so removing the

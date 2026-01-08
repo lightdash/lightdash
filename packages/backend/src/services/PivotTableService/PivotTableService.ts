@@ -271,7 +271,13 @@ export class PivotTableService extends BaseService {
 
             // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
             setTimeout(async () => {
-                await fsPromise.unlink(filePath);
+                try {
+                    await fsPromise.unlink(filePath);
+                } catch (error) {
+                    this.logger.warning(
+                        `Error deleting local file ${filePath}: ${error}`,
+                    );
+                }
             }, 60 * 10 * 1000);
 
             return {

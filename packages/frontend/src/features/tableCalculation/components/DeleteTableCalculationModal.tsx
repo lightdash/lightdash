@@ -1,6 +1,5 @@
 import { type TableCalculation } from '@lightdash/common';
-import { Button, type ModalProps } from '@mantine-8/core';
-import { IconTrash } from '@tabler/icons-react';
+import { type ModalProps } from '@mantine-8/core';
 import { useCallback, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import {
@@ -21,7 +20,7 @@ export const DeleteTableCalculationModal: FC<Props> = ({
     const dispatch = useExplorerDispatch();
     const { track } = useTracking();
 
-    const onConfirm = useCallback(() => {
+    const handleConfirm = useCallback(() => {
         dispatch(explorerActions.deleteTableCalculation(tableCalculation.name));
         track({
             name: EventName.CONFIRM_DELETE_TABLE_CALCULATION_BUTTON_CLICKED,
@@ -34,13 +33,9 @@ export const DeleteTableCalculationModal: FC<Props> = ({
             opened
             onClose={onClose}
             title="Delete Table Calculation"
-            icon={IconTrash}
-            description="Are you sure you want to delete this table calculation?"
-            actions={
-                <Button color="red" onClick={onConfirm}>
-                    Delete
-                </Button>
-            }
+            variant="delete"
+            resourceType="table calculation"
+            onConfirm={handleConfirm}
         />
     );
 };

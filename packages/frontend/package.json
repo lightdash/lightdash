@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.2310.0",
+    "version": "0.2317.0",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -93,7 +93,7 @@
         "html2canvas-pro": "^1.5.13",
         "immer": "^10.1.1",
         "js-yaml": "^4.1.1",
-        "jspdf": "^3.0.2",
+        "jspdf": "^4.0.0",
         "leaflet": "^1.9.4",
         "leaflet.heat": "^0.2.0",
         "lodash": "^4.17.21",

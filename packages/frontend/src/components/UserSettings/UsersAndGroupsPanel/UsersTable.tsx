@@ -184,15 +184,13 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                                             : user.email}
                                     </Text>
                                     <Badge
-                                        variant="filled"
-                                        color="red.4"
+                                        variant="light"
+                                        color="red"
                                         radius="xs"
                                         style={{ textTransform: 'none' }}
                                         px="xxs"
                                     >
-                                        <Text fz="xs" fw={400} c="ldGray.8">
-                                            Inactive
-                                        </Text>
+                                        Inactive
                                     </Badge>
                                 </Stack>
                             ) : user.isPending ? (

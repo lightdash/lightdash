@@ -1,11 +1,4 @@
-import {
-    Anchor,
-    Button,
-    List,
-    ScrollArea,
-    type ModalProps,
-} from '@mantine-8/core';
-import { IconTrash } from '@tabler/icons-react';
+import { Anchor, List, ScrollArea, type ModalProps } from '@mantine-8/core';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
@@ -54,22 +47,11 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
             opened={modalProps.opened}
             onClose={modalProps.onClose}
             title="Delete Chart"
-            icon={IconTrash}
-            actions={
-                <Button
-                    color="red"
-                    loading={isDeleting}
-                    onClick={handleConfirm}
-                >
-                    Delete
-                </Button>
-            }
-            description={`
-                    Are you sure you want to delete the chart 
-                   
-                        "${chart.name}"
-                    ?
-                    `}
+            variant="delete"
+            resourceType="chart"
+            resourceLabel={chart.name}
+            onConfirm={handleConfirm}
+            confirmLoading={isDeleting}
         >
             {relatedDashboards.length > 0 && (
                 <Callout

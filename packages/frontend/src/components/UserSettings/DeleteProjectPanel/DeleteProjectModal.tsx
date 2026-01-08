@@ -1,5 +1,4 @@
-import { Button, Text, TextInput, type ModalProps } from '@mantine-8/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { Text, TextInput, type ModalProps } from '@mantine-8/core';
 import { useState, type FC } from 'react';
 import { useDeleteActiveProjectMutation } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
@@ -39,29 +38,19 @@ export const ProjectDeleteModal: FC<
             opened={opened}
             onClose={handleOnClose}
             title="Delete Project"
-            icon={IconAlertCircle}
+            variant="delete"
+            resourceType="project"
+            resourceLabel={project.name}
             size="md"
-            actions={
-                <Button
-                    color="red"
-                    disabled={
-                        confirmOrgName?.toLowerCase() !==
-                        project.name.toLowerCase()
-                    }
-                    loading={isDeleting}
-                    onClick={() => handleConfirm()}
-                >
-                    Delete
-                </Button>
+            onConfirm={handleConfirm}
+            confirmDisabled={
+                confirmOrgName?.toLowerCase() !== project.name.toLowerCase()
             }
+            confirmLoading={isDeleting}
         >
-            <Text>
-                Type the name of this project{' '}
-                <Text span fw={600}>
-                    {project.name}
-                </Text>{' '}
-                to confirm you want to delete this project and its users.
-                This action is not reversible.
+            <Text fz="sm" c="dimmed">
+                Type the name of this project to confirm. This action is not
+                reversible.
             </Text>
 
             <TextInput

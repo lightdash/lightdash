@@ -60,8 +60,24 @@ const getTablesWithValidParameters = (
 };
 
 // Helper function to get a list of all dimensions in an explore
+/**
+ * @deprecated Use `getDimensionMapFromTables` instead
+ */
 export const getDimensions = (explore: Explore): CompiledDimension[] =>
     Object.values(explore.tables).flatMap((t) => Object.values(t.dimensions));
+
+export const getDimensionMapFromTables = (
+    tables: Explore['tables'],
+): Record<string, CompiledDimension> =>
+    Object.values(tables).reduce<Record<string, CompiledDimension>>(
+        (acc, table) => {
+            Object.values(table.dimensions).forEach((dimension) => {
+                acc[getItemId(dimension)] = dimension;
+            });
+            return acc;
+        },
+        {},
+    );
 
 export const getDimensionsWithValidParameters = (
     explore: Explore,
@@ -76,8 +92,22 @@ export const getDimensionsWithValidParameters = (
     );
 
 // Helper function to get a list of all metrics in an explore
+// @deprecated Use `getMetricsMapFromTables` instead
 export const getMetrics = (explore: Explore): CompiledMetric[] =>
     Object.values(explore.tables).flatMap((t) => Object.values(t.metrics));
+
+export const getMetricsMapFromTables = (
+    tables: Explore['tables'],
+): Record<string, CompiledMetric> =>
+    Object.values(tables).reduce<Record<string, CompiledMetric>>(
+        (acc, table) => {
+            Object.values(table.metrics).forEach((metric) => {
+                acc[getItemId(metric)] = metric;
+            });
+            return acc;
+        },
+        {},
+    );
 
 export const getMetricsWithValidParameters = (
     explore: Explore,

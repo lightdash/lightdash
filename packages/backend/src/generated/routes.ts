@@ -4391,11 +4391,34 @@ const models: TsoaRoute.Models = {
         enums: ['none', 'openstreetmap', 'light', 'dark', 'satellite'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MapFieldConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                label: { dataType: 'string' },
+                visible: { dataType: 'boolean' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Record_string.MapFieldConfig_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {},
+            additionalProperties: { ref: 'MapFieldConfig' },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MapChart: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                fieldConfig: { ref: 'Record_string.MapFieldConfig_' },
                 backgroundColor: { dataType: 'string' },
                 tileBackground: { ref: 'MapTileBackground' },
                 heatmapConfig: {
@@ -7206,7 +7229,7 @@ const models: TsoaRoute.Models = {
                                                                                             'nestedObjectLiteral',
                                                                                         nestedProperties:
                                                                                             {
-                                                                                                chartUsage:
+                                                                                                searchRank:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -7229,7 +7252,7 @@ const models: TsoaRoute.Models = {
                                                                                                                 },
                                                                                                             ],
                                                                                                     },
-                                                                                                searchRank:
+                                                                                                chartUsage:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'union',
@@ -7259,6 +7282,12 @@ const models: TsoaRoute.Models = {
                                                                                                         required:
                                                                                                             true,
                                                                                                     },
+                                                                                                label: {
+                                                                                                    dataType:
+                                                                                                        'string',
+                                                                                                    required:
+                                                                                                        true,
+                                                                                                },
                                                                                                 tableName:
                                                                                                     {
                                                                                                         dataType:
@@ -7266,12 +7295,6 @@ const models: TsoaRoute.Models = {
                                                                                                         required:
                                                                                                             true,
                                                                                                     },
-                                                                                                label: {
-                                                                                                    dataType:
-                                                                                                        'string',
-                                                                                                    required:
-                                                                                                        true,
-                                                                                                },
                                                                                                 name: {
                                                                                                     dataType:
                                                                                                         'string',
@@ -7475,7 +7498,7 @@ const models: TsoaRoute.Models = {
                                                                                                 'nestedObjectLiteral',
                                                                                             nestedProperties:
                                                                                                 {
-                                                                                                    chartUsage:
+                                                                                                    searchRank:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'union',
@@ -7498,7 +7521,7 @@ const models: TsoaRoute.Models = {
                                                                                                                     },
                                                                                                                 ],
                                                                                                         },
-                                                                                                    searchRank:
+                                                                                                    chartUsage:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'union',
@@ -7528,6 +7551,12 @@ const models: TsoaRoute.Models = {
                                                                                                             required:
                                                                                                                 true,
                                                                                                         },
+                                                                                                    label: {
+                                                                                                        dataType:
+                                                                                                            'string',
+                                                                                                        required:
+                                                                                                            true,
+                                                                                                    },
                                                                                                     tableName:
                                                                                                         {
                                                                                                             dataType:
@@ -7535,12 +7564,6 @@ const models: TsoaRoute.Models = {
                                                                                                             required:
                                                                                                                 true,
                                                                                                         },
-                                                                                                    label: {
-                                                                                                        dataType:
-                                                                                                            'string',
-                                                                                                        required:
-                                                                                                            true,
-                                                                                                    },
                                                                                                     name: {
                                                                                                         dataType:
                                                                                                             'string',
@@ -12451,6 +12474,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                nullsFirst: { dataType: 'boolean' },
                 direction: { ref: 'SortByDirection', required: true },
                 reference: { dataType: 'string', required: true },
             },

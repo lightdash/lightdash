@@ -48,32 +48,34 @@ export default meta;
 type Story = StoryObj<typeof MantineModal>;
 
 /**
- * Simple confirmation modal using the `description` prop.
- * This is the cleanest pattern for simple yes/no dialogs.
+ * Simple delete confirmation using the `variant="delete"` prop.
+ * The variant automatically adds IconTrash, red button styling, and generates
+ * a description from `resourceType` and `resourceLabel`.
  */
 export const SimpleConfirmation: Story = {
     args: {
         opened: true,
         onClose: () => {},
         title: 'Delete Agent',
-        icon: IconTrash,
-        description:
-            'Are you sure you want to delete this agent? This action cannot be undone.',
-        actions: <Button color="red">Delete</Button>,
+        variant: 'delete',
+        resourceType: 'agent',
+        resourceLabel: 'Sales Assistant',
+        onConfirm: () => {},
     },
 };
 
 /**
  * Delete confirmation with additional warning content.
- * Uses both `description` and `children` for complex content.
+ * Uses `variant="delete"` for auto-generated description plus `children` for extra warnings.
  */
 export const DeleteWithWarning: Story = {
     args: {
         opened: true,
         onClose: () => {},
         title: 'Delete Space',
-        icon: IconTrash,
-        description: 'Are you sure you want to delete space "Jaffle Shop"?',
+        variant: 'delete',
+        resourceType: 'space',
+        resourceLabel: 'Jaffle Shop',
         children: (
             <Callout
                 variant="danger"
@@ -88,7 +90,8 @@ export const DeleteWithWarning: Story = {
                 </List>
             </Callout>
         ),
-        actions: <Button color="red">Delete Space</Button>,
+        onConfirm: () => {},
+        confirmLabel: 'Delete Space',
     },
 };
 
@@ -447,9 +450,9 @@ export const ScrollableListInAlert: Story = {
         opened: true,
         onClose: () => {},
         title: 'Delete Chart',
-        icon: IconTrash,
-        description:
-            'Are you sure you want to delete "Monthly Revenue"? This action cannot be undone.',
+        variant: 'delete',
+        resourceType: 'chart',
+        resourceLabel: 'Monthly Revenue',
         children: (
             <Callout
                 variant="warning"
@@ -484,7 +487,8 @@ export const ScrollableListInAlert: Story = {
                 </ScrollArea.Autosize>
             </Callout>
         ),
-        actions: <Button color="red">Delete Anyway</Button>,
+        onConfirm: () => {},
+        confirmLabel: 'Delete Anyway',
     },
 };
 

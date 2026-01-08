@@ -50,7 +50,7 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
-    const tracking = useTracking(true);
+    const tracking = useTracking({ failSilently: true });
     const metricQueryData = useMetricQueryDataContext(true);
     const { itemsMap } = useVisualizationContext();
 

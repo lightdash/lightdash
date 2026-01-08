@@ -1444,6 +1444,7 @@ export class ProjectModel {
         projectUuid: string,
         email: string,
         role: ProjectMemberRole,
+        roleUuid?: string,
     ): Promise<void> {
         try {
             const [project] = await this.database('projects')
@@ -1471,6 +1472,7 @@ export class ProjectModel {
             await this.database('project_memberships').insert({
                 project_id: project.project_id,
                 role,
+                role_uuid: roleUuid || null,
                 user_id: user.user_id,
             });
         } catch (error: AnyType) {

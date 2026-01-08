@@ -1,5 +1,10 @@
 import { FeatureFlags } from '@lightdash/common';
 import { useLocalStorage } from '@mantine-8/hooks';
+import { useCallback } from 'react';
+import { useParams } from 'react-router';
+import useApp from '../../providers/App/useApp';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import { useFeatureFlagEnabled } from '../useFeatureFlagEnabled';
 
 export type DashboardUIVersion = 'v1' | 'v2';
@@ -15,6 +20,10 @@ const STORAGE_KEY = 'lightdash-dashboard-ui-version';
  * If the feature flag is disabled, users can opt-in to v2 via localStorage preference.
  */
 export const useDashboardUIPreference = () => {
+    const tracking = useTracking({ failSilently: true });
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { user } = useApp();
+
     const [preference, setPreference] = useLocalStorage<DashboardUIVersion>({
         key: STORAGE_KEY,
         defaultValue: 'v1',
@@ -24,6 +33,28 @@ export const useDashboardUIPreference = () => {
         FeatureFlags.DashboardRedesign,
     );
 
+    const handleSetPreference = useCallback(
+        (value: DashboardUIVersion) => {
+            setPreference(value);
+            tracking?.track({
+                name: EventName.DASHBOARD_UI_VERSION_TOGGLED,
+                properties: {
+                    to: value,
+                    organizationId: user.data?.organizationUuid,
+                    projectId: projectUuid,
+                    userId: user.data?.userUuid,
+                },
+            });
+        },
+        [
+            projectUuid,
+            setPreference,
+            tracking,
+            user.data?.organizationUuid,
+            user.data?.userUuid,
+        ],
+    );
+
     // If feature flag is ON, force v2. Otherwise, use user preference.
     const isDashboardRedesignEnabled =
         isDashboardRedesignFlagEnabled || preference === 'v2';
@@ -31,6 +62,6 @@ export const useDashboardUIPreference = () => {
     return {
         isDashboardRedesignEnabled,
         isDashboardRedesignFlagEnabled,
-        setPreference,
+        setPreference: handleSetPreference,
     };
 };

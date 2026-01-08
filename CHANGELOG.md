@@ -1,3 +1,111 @@
+# [0.2317.0](https://github.com/lightdash/lightdash/compare/0.2316.1...0.2317.0) (2026-01-08)
+
+
+### Bug Fixes
+
+* Update who's allowed to manage scheduled deliveries ([#19209](https://github.com/lightdash/lightdash/issues/19209)) ([4a42786](https://github.com/lightdash/lightdash/commit/4a4278689c5a405a0dabf7a807753292f4326dae))
+
+
+### Features
+
+* add organizationUuid to Tags subject in permission check ([#19289](https://github.com/lightdash/lightdash/issues/19289)) ([44c5d59](https://github.com/lightdash/lightdash/commit/44c5d59289ac115f2cf7b08717a39d435db9909a))
+* add variant delete to MantineModal ([#19184](https://github.com/lightdash/lightdash/issues/19184)) ([e7bb15a](https://github.com/lightdash/lightdash/commit/e7bb15ada1929aa3c2a642c53ca407cba5a4570e))
+
+## [0.2316.1](https://github.com/lightdash/lightdash/compare/0.2316.0...0.2316.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* suboptimal state shrinks content ([#19282](https://github.com/lightdash/lightdash/issues/19282)) ([aa0b6a6](https://github.com/lightdash/lightdash/commit/aa0b6a6ce1e2fe9c426f19dd53e55597e14fcfd0))
+* take nullsFirst sort into account when pivoting ([#19222](https://github.com/lightdash/lightdash/issues/19222)) ([51eb9e6](https://github.com/lightdash/lightdash/commit/51eb9e6b52b3f81d0a2507036cd3a2c4394dacf1))
+
+# [0.2316.0](https://github.com/lightdash/lightdash/compare/0.2315.1...0.2316.0) (2026-01-08)
+
+
+### Features
+
+* update last references of migratable Mantine modals ([#19169](https://github.com/lightdash/lightdash/issues/19169)) ([fecc56e](https://github.com/lightdash/lightdash/commit/fecc56e7e638460ca3fdf3eec2ddc00c10118297))
+
+## [0.2315.1](https://github.com/lightdash/lightdash/compare/0.2315.0...0.2315.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* cartesian chart not resizing after running query ([#19251](https://github.com/lightdash/lightdash/issues/19251)) ([9f4f9b0](https://github.com/lightdash/lightdash/commit/9f4f9b0b05a69bf348b9825ee50f885b60554318))
+
+# [0.2315.0](https://github.com/lightdash/lightdash/compare/0.2314.1...0.2315.0) (2026-01-08)
+
+
+### Features
+
+* add roleUuid to project memberships and improve permission checks ([#19247](https://github.com/lightdash/lightdash/issues/19247)) ([d07f921](https://github.com/lightdash/lightdash/commit/d07f9214ae0764c9393ccf6cec5393c45170a106))
+
+## [0.2314.1](https://github.com/lightdash/lightdash/compare/0.2314.0...0.2314.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* improve Google Drive error handling with specific error messages ([#19276](https://github.com/lightdash/lightdash/issues/19276)) ([3cae238](https://github.com/lightdash/lightdash/commit/3cae238aff52b4d0092317378a6614e874ee3821))
+
+# [0.2314.0](https://github.com/lightdash/lightdash/compare/0.2313.1...0.2314.0) (2026-01-08)
+
+
+### Bug Fixes
+
+* e2e tests ([#19273](https://github.com/lightdash/lightdash/issues/19273)) ([1daf307](https://github.com/lightdash/lightdash/commit/1daf307b41ebac10446b3901e27b3ac48d7fcd8f))
+
+
+### Features
+
+* duplicate dashboard filters when duplicating tabs ([#19265](https://github.com/lightdash/lightdash/issues/19265)) ([8c4bed5](https://github.com/lightdash/lightdash/commit/8c4bed57116b68d77b117582bf952b9c494eed22))
+
+## [0.2313.1](https://github.com/lightdash/lightdash/compare/0.2313.0...0.2313.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* add error handling when deleting local files ([#19275](https://github.com/lightdash/lightdash/issues/19275)) ([a7249ac](https://github.com/lightdash/lightdash/commit/a7249ac54013594ecaea4371980306459fddcab3))
+* limit available dimensions to 50 when no explicit column list exists ([#19263](https://github.com/lightdash/lightdash/issues/19263)) ([22b2068](https://github.com/lightdash/lightdash/commit/22b20684351908af16592aceae8505ae403332a4))
+
+# [0.2313.0](https://github.com/lightdash/lightdash/compare/0.2312.1...0.2313.0) (2026-01-08)
+
+
+### Features
+
+* add expiration time to support file uploads ([#19271](https://github.com/lightdash/lightdash/issues/19271)) ([61cf893](https://github.com/lightdash/lightdash/commit/61cf8937d80c00cf751497aaefac8be43c888058))
+* use MantineModal on various modals ([#19167](https://github.com/lightdash/lightdash/issues/19167)) ([00ffa87](https://github.com/lightdash/lightdash/commit/00ffa87f94ecf0f02436ba7d33da63f91c6fa9d1))
+
+
+### Performance Improvements
+
+* add performance timing to prepareSqlChartAsyncQueryArgs ([#19272](https://github.com/lightdash/lightdash/issues/19272)) ([fd383ec](https://github.com/lightdash/lightdash/commit/fd383eca344901a080b094853bf415adb3f7c948))
+
+## [0.2312.1](https://github.com/lightdash/lightdash/compare/0.2312.0...0.2312.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* useTracking hook throws error in scheduled deliveries ([#19270](https://github.com/lightdash/lightdash/issues/19270)) ([047e3fd](https://github.com/lightdash/lightdash/commit/047e3fde05437e574206723cb5b0fffdc4b6ff79))
+
+
+### Performance Improvements
+
+* cache dimensions in MetricQueryBuilder for faster lookups ([#19257](https://github.com/lightdash/lightdash/issues/19257)) ([0a1580d](https://github.com/lightdash/lightdash/commit/0a1580dbf4592b1d54df1d00fd3cc0b54da1556b))
+
+# [0.2312.0](https://github.com/lightdash/lightdash/compare/0.2311.0...0.2312.0) (2026-01-08)
+
+
+### Features
+
+* implement cross-filtering between dashboard tiles based on field overlap ([#19248](https://github.com/lightdash/lightdash/issues/19248)) ([dae0b46](https://github.com/lightdash/lightdash/commit/dae0b46ec06694462f15bfcc1237911f42571b01))
+
+# [0.2311.0](https://github.com/lightdash/lightdash/compare/0.2310.0...0.2311.0) (2026-01-08)
+
+
+### Features
+
+* track DASHBOARD_UI_VERSION_TOGGLED event ([#19266](https://github.com/lightdash/lightdash/issues/19266)) ([f01c51a](https://github.com/lightdash/lightdash/commit/f01c51a05a62266681bd0e73f846d89404d8202a))
+
 # [0.2310.0](https://github.com/lightdash/lightdash/compare/0.2309.0...0.2310.0) (2026-01-07)
 
 

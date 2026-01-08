@@ -330,30 +330,14 @@ export const TokensTable = () => {
             <MantineModal
                 opened={!!tokenToDelete}
                 onClose={() => !isDeleting && setTokenToDelete(undefined)}
-                title={`Delete token ${tokenToDelete?.description}`}
-                icon={IconTrash}
+                title="Delete token"
+                variant="delete"
+                resourceType="token"
+                resourceLabel={tokenToDelete?.description}
                 cancelDisabled={isDeleting}
-                actions={
-                    <Button
-                        color="red"
-                        disabled={isDeleting}
-                        onClick={() => {
-                            mutate(tokenToDelete?.uuid ?? '');
-                        }}
-                    >
-                        Delete
-                    </Button>
-                }
-            >
-                <Text>
-                    Are you sure? This will permanently delete the
-                    <Text fw={600} component="span">
-                        {' '}
-                        {tokenToDelete?.description}{' '}
-                    </Text>
-                    token.
-                </Text>
-            </MantineModal>
+                onConfirm={() => mutate(tokenToDelete?.uuid ?? '')}
+                confirmDisabled={isDeleting}
+            />
 
             <MantineModal
                 opened={!!tokenToCopy}

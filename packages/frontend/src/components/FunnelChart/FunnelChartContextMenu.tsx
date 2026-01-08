@@ -43,7 +43,7 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
-    const tracking = useTracking(true);
+    const tracking = useTracking({ failSilently: true });
     const metricQueryData = useMetricQueryDataContext(true);
 
     if (!value || !tracking || !metricQueryData || !project) {

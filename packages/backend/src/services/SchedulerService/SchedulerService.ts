@@ -163,10 +163,8 @@ export class SchedulerService extends BaseService {
         scheduler: Scheduler;
         resource: ChartSummary | DashboardDAO;
     }> {
-        // editors can "manage" scheduled deliveries,
-        // which means they can edit scheduled deliveries created from other users, even admins
-        // however, interactive users can only "create" scheduled deliveries,
-        // which means they can only edit their own scheduled deliveries
+        // admins can manage all scheduled deliveries,
+        // everyone below can only manage their own scheduled deliveries
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
         const resource = await this.getSchedulerResource(scheduler);
         const { organizationUuid, projectUuid } = resource;
@@ -176,15 +174,13 @@ export class SchedulerService extends BaseService {
             subject('ScheduledDeliveries', {
                 organizationUuid,
                 projectUuid,
+                userUuid: scheduler.createdBy,
             }),
         );
-        const canCreateDeliveries = user.ability.can(
-            'create',
-            subject('ScheduledDeliveries', {
-                organizationUuid,
-                projectUuid,
-            }),
-        );
+
+        if (!canManageDeliveries) {
+            throw new ForbiddenError();
+        }
 
         const canManageGoogleSheets = user.ability.can(
             'manage',
@@ -201,13 +197,7 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const isDeliveryOwner = scheduler.createdBy === user.userUuid;
-
-        if (canManageDeliveries || (canCreateDeliveries && isDeliveryOwner)) {
-            return { scheduler, resource };
-        }
-
-        throw new ForbiddenError();
+        return { scheduler, resource };
     }
 
     private async checkViewResource(
@@ -550,19 +540,6 @@ export class SchedulerService extends BaseService {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         const { organizationUuid } = projectSummary;
 
-        // Check user has manage:ScheduledDeliveries permission
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('ScheduledDeliveries', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
         // Validate all schedulers belong to the project
         const schedulers = await this.schedulerModel.getSchedulersByUuid(
             projectUuid,
@@ -579,6 +556,23 @@ export class SchedulerService extends BaseService {
                     ', ',
                 )}`,
             );
+        }
+
+        // Check user has manage:ScheduledDeliveries permission for each scheduler
+        // Admins can manage all schedulers, editors can only manage their own
+        for (const scheduler of schedulers) {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid,
+                        projectUuid,
+                        userUuid: scheduler.createdBy,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
         }
 
         // Validate new owner exists, is a member of the organization, and can create scheduled deliveries
@@ -1088,11 +1082,11 @@ export class SchedulerService extends BaseService {
             targetUserUuid,
         );
 
-        // Check user can view scheduled deliveries in all projects
+        // Check user can manage scheduled deliveries in all projects
         const projectsWithoutPermission = summary.byProject
             .filter((project) =>
                 user.ability.cannot(
-                    'view',
+                    'manage',
                     subject('ScheduledDeliveries', {
                         organizationUuid,
                         projectUuid: project.projectUuid,

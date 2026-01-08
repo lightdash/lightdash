@@ -2695,33 +2695,54 @@ export class AsyncQueryService extends ProjectService {
             dimension: CustomDimension | CompiledDimension,
         ) => !isCustomDimension(dimension) && !dimension.hidden;
 
-        const availableDimensions = allDimensions.filter(
-            (dimension) =>
+        let validDimensionsCount = 0;
+        const availableDimensions = allDimensions.filter((dimension) => {
+            const isValid =
                 availableTables.has(dimension.table) &&
                 (isValidNonCustomDimension(dimension) ||
-                    isCustomDimension(dimension)) &&
-                (itemShowUnderlyingValues !== undefined
-                    ? (itemShowUnderlyingValues.includes(dimension.name) &&
-                          itemShowUnderlyingTable === dimension.table) ||
-                      itemShowUnderlyingValues.includes(
-                          `${dimension.table}.${dimension.name}`,
-                      )
-                    : true),
-        );
+                    isCustomDimension(dimension));
+            const hasExplicitColumnList =
+                itemShowUnderlyingValues !== undefined;
+            const isInExplicitColumnList =
+                hasExplicitColumnList &&
+                ((itemShowUnderlyingValues.includes(dimension.name) &&
+                    itemShowUnderlyingTable === dimension.table) ||
+                    itemShowUnderlyingValues.includes(
+                        `${dimension.table}.${dimension.name}`,
+                    ));
+
+            if (isValid) {
+                if (hasExplicitColumnList) {
+                    return isInExplicitColumnList;
+                }
+
+                validDimensionsCount += 1;
+                // If there is no explicit column list, we can show up to 50 dimensions
+                return validDimensionsCount <= 50;
+            }
+            return false;
+        });
 
         const availableMetrics = getMetricsWithValidParameters(
             explore,
             combinedParameters,
-        ).filter(
-            (metric) =>
-                availableTables.has(metric.table) &&
-                !metric.hidden &&
+        ).filter((metric) => {
+            const isValid = availableTables.has(metric.table) && !metric.hidden;
+            const hasExplicitColumnList =
+                itemShowUnderlyingValues !== undefined;
+            const isInExplicitColumnList =
+                hasExplicitColumnList &&
                 ((itemShowUnderlyingValues?.includes(metric.name) &&
                     itemShowUnderlyingTable === metric.table) ||
                     itemShowUnderlyingValues?.includes(
                         `${metric.table}.${metric.name}`,
-                    )),
-        );
+                    ));
+            if (isValid) {
+                // If there is no explicit column list, we DON'T show all metrics
+                return hasExplicitColumnList ? isInExplicitColumnList : false;
+            }
+            return false;
+        });
 
         const requestParameters: ExecuteAsyncUnderlyingDataRequestParams = {
             context,
@@ -2912,6 +2933,10 @@ export class AsyncQueryService extends ProjectService {
         tileUuid?: string;
         parameters?: ParametersValuesMap;
     }) {
+        const startTime = performance.now();
+
+        // 1. Warehouse Client & Credentials
+        const sectionStartWarehouse = performance.now();
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
             await this.getWarehouseCredentials({
@@ -2927,13 +2952,20 @@ export class AsyncQueryService extends ProjectService {
             project_uuid: projectUuid,
             query_context: context,
         };
+        const durationWarehouse = performance.now() - sectionStartWarehouse;
 
-        // Get one row to get the column definitions
-        const columns: { name: string; type: DimensionType }[] = [];
-
+        // 2. User Attributes
+        const sectionStartUserAttributes = performance.now();
         // Get user attributes for replacement
         const { userAttributes, intrinsicUserAttributes } =
             await this.getUserAttributes({ account });
+        const durationUserAttributes =
+            performance.now() - sectionStartUserAttributes;
+
+        // 3. Column Discovery
+        const sectionStartColumnDiscovery = performance.now();
+        // Get one row to get the column definitions
+        const columns: { name: string; type: DimensionType }[] = [];
 
         // Replace user attributes first
         const sqlWithUserAttributes = replaceUserAttributesAsStrings(
@@ -2969,7 +3001,11 @@ export class AsyncQueryService extends ProjectService {
                 tags: queryTags,
             },
         );
+        const durationColumnDiscovery =
+            performance.now() - sectionStartColumnDiscovery;
 
+        // 4. Query Building
+        const sectionStartQueryBuilding = performance.now();
         // Convert to ResultColumns format for storing as original columns
         const originalColumns: ResultColumns = columns.reduce((acc, col) => {
             acc[col.name] = {
@@ -3096,13 +3132,35 @@ export class AsyncQueryService extends ProjectService {
                     ),
             },
         );
-
+        const durationQueryBuilding =
+            performance.now() - sectionStartQueryBuilding;
+        const sectionStartSqlGeneration = performance.now();
         const {
             sql: replacedSql,
             parameterReferences,
             missingParameterReferences,
             usedParameters,
         } = queryBuilder.getSqlAndReferences();
+        const durationSqlGeneration =
+            performance.now() - sectionStartSqlGeneration;
+
+        const totalTime = performance.now() - startTime;
+
+        this.logger.info(
+            `prepareSqlChartAsyncQueryArgs completed in ${totalTime.toFixed(
+                2,
+            )}`,
+            {
+                totalTimeMs: totalTime,
+                sections: {
+                    warehouseMs: durationWarehouse.toFixed(2),
+                    userAttributesMs: durationUserAttributes.toFixed(2),
+                    columnDiscoveryMs: durationColumnDiscovery.toFixed(2),
+                    queryBuildingMs: durationQueryBuilding.toFixed(2),
+                    sqlGenerationMs: durationSqlGeneration.toFixed(2),
+                },
+            },
+        );
 
         return {
             metricQuery,

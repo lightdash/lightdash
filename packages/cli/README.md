@@ -1,6 +1,6 @@
 ## Lightdash CLI
 
-Lightash CLI tool
+Lightdash CLI tool
 
 ## How to install
 

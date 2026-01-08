@@ -6,7 +6,6 @@ import {
     CompiledDimension,
     CompiledExploreJoin,
     CompiledMetric,
-    CompiledMetricQuery,
     CompiledTable,
     CustomBinDimension,
     CustomDimension,
@@ -18,11 +17,9 @@ import {
     ForbiddenError,
     getCustomRangeSelectSql,
     getDateDimension,
-    getDimensions,
-    getFieldQuoteChar,
+    getDimensionMapFromTables,
     getFixedWidthBinSelectSql,
     getItemId,
-    getMetrics,
     getSqlForTruncatedDate,
     IntrinsicUserAttributes,
     isCompiledCustomSqlDimension,
@@ -33,34 +30,38 @@ import {
     SortField,
     SupportedDbtAdapter,
     UserAttributeValueMap,
-    WarehouseClient,
     WeekDay,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { intersection, isArray } from 'lodash';
 import { hasUserAttribute } from '../../services/UserAttributesService/UserAttributeUtils';
 
-export const getDimensionFromId = (
-    dimId: FieldId,
-    explore: Explore,
-    adapterType: SupportedDbtAdapter,
-    startOfWeek: WeekDay | null | undefined,
-    checkUnfilteredTables: boolean = true,
-): CompiledDimension => {
-    const dimensions = getDimensions(explore);
-    const dimension = dimensions.find((d) => getItemId(d) === dimId);
+export const getDimensionFromId = ({
+    dimId,
+    dimensions,
+    dimensionsWithoutAccess,
+    adapterType,
+    startOfWeek,
+}: {
+    dimId: FieldId;
+    dimensions: Record<string, CompiledDimension>;
+    dimensionsWithoutAccess?: Record<string, CompiledDimension>;
+    adapterType: SupportedDbtAdapter;
+    startOfWeek: WeekDay | null | undefined;
+}): CompiledDimension => {
+    const dimension = dimensions[dimId];
 
     if (!dimension) {
         const { baseDimensionId, newTimeFrame } = getDateDimension(dimId);
 
         if (baseDimensionId) {
-            const baseField = getDimensionFromId(
-                baseDimensionId,
-                explore,
+            const baseField = getDimensionFromId({
+                dimId: baseDimensionId,
+                dimensions,
+                dimensionsWithoutAccess,
                 adapterType,
                 startOfWeek,
-                checkUnfilteredTables,
-            );
+            });
             if (baseField && newTimeFrame)
                 return {
                     ...baseField,
@@ -75,20 +76,9 @@ export const getDimensionFromId = (
                 };
         }
 
-        // At this point, we couldn't find the dimension with the given id in the explore
-        // it is possible that the explore is a joined table and is filtered by user_attributes
-        // So we check if the dimension exists in the unfiltered tables
-        if (
-            checkUnfilteredTables &&
-            explore.unfilteredTables &&
-            getDimensionFromId(
-                dimId,
-                { ...explore, tables: explore.unfilteredTables },
-                adapterType,
-                startOfWeek,
-                false,
-            )
-        ) {
+        // At this point, we couldn't find the dimension with the given id
+        // it is possible that the it references a dimension that the user doesn't have access to
+        if (dimensionsWithoutAccess && dimensionsWithoutAccess[dimId]) {
             throw new AuthorizationError(
                 "You don't have authorization to access this explore",
             );
@@ -100,42 +90,34 @@ export const getDimensionFromId = (
     return dimension;
 };
 
-export const getDimensionFromFilterTargetId = (
-    filterTargetId: FieldId,
-    explore: Explore,
-    compiledCustomDimensions: CompiledCustomSqlDimension[],
-    adapterType: SupportedDbtAdapter,
-    startOfWeek: WeekDay | null | undefined,
-): CompiledDimension | CompiledCustomSqlDimension => {
+export const getDimensionFromFilterTargetId = ({
+    filterTargetId,
+    dimensions,
+    dimensionsWithoutAccess,
+    compiledCustomDimensions,
+    adapterType,
+    startOfWeek,
+}: {
+    filterTargetId: FieldId;
+    dimensions: Record<string, CompiledDimension>;
+    dimensionsWithoutAccess?: Record<string, CompiledDimension>;
+    compiledCustomDimensions: CompiledCustomSqlDimension[];
+    adapterType: SupportedDbtAdapter;
+    startOfWeek: WeekDay | null | undefined;
+}): CompiledDimension | CompiledCustomSqlDimension => {
     const dim = compiledCustomDimensions.find(
         (cd) => getItemId(cd) === filterTargetId,
     );
     if (dim && isCompiledCustomSqlDimension(dim)) {
         return dim;
     }
-    return getDimensionFromId(
-        filterTargetId,
-        explore,
+    return getDimensionFromId({
+        dimId: filterTargetId,
+        dimensions,
+        dimensionsWithoutAccess,
         adapterType,
         startOfWeek,
-    );
-};
-
-export const getMetricFromId = (
-    metricId: FieldId,
-    explore: Explore,
-    compiledMetricQuery: CompiledMetricQuery,
-) => {
-    const metrics = [
-        ...getMetrics(explore),
-        ...(compiledMetricQuery.compiledAdditionalMetrics || []),
-    ];
-    const metric = metrics.find((m) => getItemId(m) === metricId);
-    if (metric === undefined)
-        throw new FieldReferenceError(
-            `Tried to reference metric with unknown field id: ${metricId}`,
-        );
-    return metric;
+    });
 };
 
 const getWrapChars = (wrapChar: string): [string, string] => {
@@ -603,6 +585,10 @@ export const getCustomBinDimensionSql = ({
 
     const adapterType: SupportedDbtAdapter =
         warehouseSqlBuilder.getAdapterType();
+    const dimensions = getDimensionMapFromTables(explore.tables);
+    const dimensionsWithoutAccess = getDimensionMapFromTables(
+        explore.unfilteredTables ?? {},
+    );
     const ctes = customDimensions.reduce<string[]>((acc, customDimension) => {
         switch (customDimension.binType) {
             case BinType.FIXED_WIDTH:
@@ -610,12 +596,13 @@ export const getCustomBinDimensionSql = ({
                 // No need for cte
                 return acc;
             case BinType.FIXED_NUMBER:
-                const dimension = getDimensionFromId(
-                    customDimension.dimensionId,
-                    explore,
+                const dimension = getDimensionFromId({
+                    dimId: customDimension.dimensionId,
+                    dimensions,
+                    dimensionsWithoutAccess,
                     adapterType,
                     startOfWeek,
-                );
+                });
                 const baseTable = replaceUserAttributesRaw(
                     explore.tables[customDimension.table].sqlTable,
                     intrinsicUserAttributes,
@@ -667,12 +654,13 @@ export const getCustomBinDimensionSql = ({
     const selects: Record<string, string> = {};
 
     customDimensions.forEach((customDimension) => {
-        const dimension = getDimensionFromId(
-            customDimension.dimensionId,
-            explore,
+        const dimension = getDimensionFromId({
+            dimId: customDimension.dimensionId,
+            dimensions,
+            dimensionsWithoutAccess,
             adapterType,
             startOfWeek,
-        );
+        });
         // Check required attribute permission for parent dimension
         assertValidDimensionRequiredAttribute(
             dimension,

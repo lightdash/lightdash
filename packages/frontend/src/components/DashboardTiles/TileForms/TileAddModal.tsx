@@ -153,7 +153,11 @@ export const TileAddModal: FC<AddProps> = ({
                 </Button>
             }
         >
-            <form id="add-tile-form" onSubmit={handleConfirm}>
+            <form
+                id="add-tile-form"
+                onSubmit={handleConfirm}
+                data-testid="add-tile-form"
+            >
                 <Stack gap="lg">
                     {type === DashboardTileTypes.MARKDOWN ? (
                         <MarkdownTileForm

@@ -13,10 +13,12 @@ import {
     FilterGroup,
     FilterRule,
     getCustomMetricDimensionId,
+    getDimensionMapFromTables,
     getDimensions,
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getItemId,
+    getMetricsMapFromTables,
     getParsedReference,
     IntrinsicUserAttributes,
     isAndFilterGroup,
@@ -25,7 +27,6 @@ import {
     isFilterGroup,
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
-    isMetric,
     isNonAggregateMetric,
     isPostCalculationMetric,
     ItemsMap,
@@ -62,7 +63,6 @@ import {
     getDimensionFromId,
     getJoinedTables,
     getJoinType,
-    getMetricFromId,
     isInflationProofMetric,
     replaceUserAttributesAsStrings,
     replaceUserAttributesRaw,
@@ -231,7 +231,35 @@ export function getIntervalSyntax(
 export class MetricQueryBuilder {
     private compilationErrors: string[] = [];
 
-    constructor(private args: BuildQueryProps) {}
+    private readonly exploreDimensions: Record<string, CompiledDimension> = {};
+
+    private readonly exploreDimensionsWithoutAccess: Record<
+        string,
+        CompiledDimension
+    > = {};
+
+    // Contains the metrics from the Explore and the custom metrics from the metric query
+    private readonly availableMetrics: Record<string, CompiledMetric> = {};
+
+    constructor(private args: BuildQueryProps) {
+        const { explore, compiledMetricQuery } = this.args;
+        this.exploreDimensions = getDimensionMapFromTables(explore.tables);
+        this.exploreDimensionsWithoutAccess = getDimensionMapFromTables(
+            explore.unfilteredTables ?? {},
+        );
+        this.availableMetrics = {
+            ...getMetricsMapFromTables(explore.tables),
+            ...compiledMetricQuery.compiledAdditionalMetrics.reduce<
+                Record<string, CompiledMetric>
+            >(
+                (acc, metric) => ({
+                    ...acc,
+                    [getItemId(metric)]: metric,
+                }),
+                {},
+            ),
+        };
+    }
 
     static buildCtesSQL(ctes: string[]) {
         return ctes.length > 0 ? `WITH ${ctes.join(',\n')}` : undefined;
@@ -239,6 +267,16 @@ export class MetricQueryBuilder {
 
     static assembleSqlParts(parts: Array<string | undefined>) {
         return parts.filter((l) => l !== undefined).join('\n');
+    }
+
+    private getMetricFromId(metricId: string): CompiledMetric {
+        const metric = this.availableMetrics[metricId];
+        if (!metric) {
+            throw new FieldReferenceError(
+                `Tried to reference metric with unknown field id: ${metricId}`,
+            );
+        }
+        return metric;
     }
 
     private getDimensionsFilterSQL() {
@@ -317,12 +355,14 @@ export class MetricQueryBuilder {
             ) // exclude custom dimensions as they are handled separately
             .map((field) => {
                 try {
-                    const dimension = getDimensionFromId(
-                        field,
-                        explore,
+                    const dimension = getDimensionFromId({
+                        dimId: field,
+                        dimensions: this.exploreDimensions,
+                        dimensionsWithoutAccess:
+                            this.exploreDimensionsWithoutAccess,
                         adapterType,
                         startOfWeek,
-                    );
+                    });
 
                     assertValidDimensionRequiredAttribute(
                         dimension,
@@ -388,15 +428,18 @@ export class MetricQueryBuilder {
         getFilterRulesFromGroup(filters.dimensions)
             .reduce<string[]>((acc, filterRule) => {
                 try {
-                    const dim = getDimensionFromFilterTargetId(
-                        filterRule.target.fieldId,
-                        explore,
-                        compiledCustomDimensions.filter(
-                            isCompiledCustomSqlDimension,
-                        ),
+                    const dim = getDimensionFromFilterTargetId({
+                        filterTargetId: filterRule.target.fieldId,
+                        dimensions: this.exploreDimensions,
+                        dimensionsWithoutAccess:
+                            this.exploreDimensionsWithoutAccess,
+                        compiledCustomDimensions:
+                            compiledCustomDimensions.filter(
+                                isCompiledCustomSqlDimension,
+                            ),
                         adapterType,
                         startOfWeek,
-                    );
+                    });
                     return [...acc, ...(dim.tablesReferences || [dim.table])];
                 } catch (error) {
                     if (
@@ -453,14 +496,10 @@ export class MetricQueryBuilder {
      * @private
      */
     private getPostCalculationMetrics(): string[] {
-        const { explore, compiledMetricQuery } = this.args;
+        const { compiledMetricQuery } = this.args;
         const { metrics } = compiledMetricQuery;
         return metrics.filter((metricId) => {
-            const metric = getMetricFromId(
-                metricId,
-                explore,
-                compiledMetricQuery,
-            );
+            const metric = this.getMetricFromId(metricId);
             return isPostCalculationMetric(metric);
         });
     }
@@ -471,14 +510,9 @@ export class MetricQueryBuilder {
      * @private
      */
     private getPostCalculationMetricReferences(metricIds: string[]): string[] {
-        const { explore, compiledMetricQuery } = this.args;
         const referencedMetricIds = new Set<string>();
         metricIds.forEach((metricId) => {
-            const metric = getMetricFromId(
-                metricId,
-                explore,
-                compiledMetricQuery,
-            );
+            const metric = this.getMetricFromId(metricId);
             if (isPostCalculationMetric(metric)) {
                 // Extract referenced metrics from PostCalculation metric SQL
                 const references = parseAllReferences(metric.sql, metric.table);
@@ -487,11 +521,8 @@ export class MetricQueryBuilder {
                         table: ref.refTable,
                         name: ref.refName,
                     });
-                    const referencedMetric = getMetricFromId(
-                        referencedMetricId,
-                        explore,
-                        compiledMetricQuery,
-                    );
+                    const referencedMetric =
+                        this.getMetricFromId(referencedMetricId);
                     if (isPostCalculationMetric(referencedMetric)) {
                         throw new CompileError(
                             `PostCalculation metric "${metric.label}" cannot reference another PostCalculation metric "${referencedMetric.label}". PostCalculation metrics can only reference numeric aggregate metrics.`,
@@ -513,7 +544,7 @@ export class MetricQueryBuilder {
      * @private
      */
     private getSelectedAndReferencedMetricIds(): string[] {
-        const { explore, compiledMetricQuery } = this.args;
+        const { compiledMetricQuery } = this.args;
         const { metrics, filters } = compiledMetricQuery;
 
         // Regular metrics
@@ -533,11 +564,7 @@ export class MetricQueryBuilder {
 
         // Exclude PostCalculation metrics
         return Array.from(referencedMetricIds).filter((metricId) => {
-            const metric = getMetricFromId(
-                metricId,
-                explore,
-                compiledMetricQuery,
-            );
+            const metric = this.getMetricFromId(metricId);
             return !isPostCalculationMetric(metric);
         });
     }
@@ -548,7 +575,6 @@ export class MetricQueryBuilder {
         filtersSQL: string | undefined;
     } {
         const {
-            explore,
             compiledMetricQuery,
             warehouseSqlBuilder,
             userAttributes = {},
@@ -570,12 +596,14 @@ export class MetricQueryBuilder {
                     return;
 
                 const dimensionId = getCustomMetricDimensionId(metric);
-                const dimension = getDimensionFromId(
-                    dimensionId,
-                    explore,
+                const dimension = getDimensionFromId({
+                    dimId: dimensionId,
+                    dimensions: this.exploreDimensions,
+                    dimensionsWithoutAccess:
+                        this.exploreDimensionsWithoutAccess,
                     adapterType,
                     startOfWeek,
-                );
+                });
 
                 assertValidDimensionRequiredAttribute(
                     dimension,
@@ -590,11 +618,7 @@ export class MetricQueryBuilder {
         metrics.forEach((field) => {
             try {
                 const alias = field;
-                const metric = getMetricFromId(
-                    field,
-                    explore,
-                    compiledMetricQuery,
-                );
+                const metric = this.getMetricFromId(field);
                 // Add select
                 selects.add(
                     `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`,
@@ -664,7 +688,7 @@ export class MetricQueryBuilder {
     }
 
     private createTableCalculationFilters(): string | undefined {
-        const { compiledMetricQuery, warehouseSqlBuilder } = this.args;
+        const { compiledMetricQuery } = this.args;
         const { filters } = compiledMetricQuery;
 
         const tableCalculationFilters = this.getNestedFilterSQLFromGroup(
@@ -845,10 +869,8 @@ export class MetricQueryBuilder {
                           getItemId(d) ===
                           filterRuleWithParamReplacedValues.target.fieldId,
                   )
-                : getMetricFromId(
+                : this.getMetricFromId(
                       filterRuleWithParamReplacedValues.target.fieldId,
-                      explore,
-                      compiledMetricQuery,
                   );
         if (!field) {
             const errorMessage = `Filter has a reference to an unknown ${fieldType}: ${filterRuleWithParamReplacedValues.target.fieldId}`;
@@ -946,11 +968,7 @@ export class MetricQueryBuilder {
                 excludePostCalculationMetrics &&
                 metrics.includes(sort.fieldId)
             ) {
-                const metric = getMetricFromId(
-                    sort.fieldId,
-                    explore,
-                    compiledMetricQuery,
-                );
+                const metric = this.getMetricFromId(sort.fieldId);
                 if (isPostCalculationMetric(metric)) {
                     // Skip sorting by PostCalculation metrics
                     return acc;
@@ -1080,9 +1098,7 @@ export class MetricQueryBuilder {
                 possibleJoins: explore.joinedTables,
                 baseTable: explore.baseTable,
                 joinedTables,
-                metrics: metrics.map((field) =>
-                    getMetricFromId(field, explore, compiledMetricQuery),
-                ),
+                metrics: metrics.map((field) => this.getMetricFromId(field)),
             });
         } catch (e) {
             // Log error but don't block code execution
@@ -1155,7 +1171,6 @@ export class MetricQueryBuilder {
         } = this.args;
         const { metrics, filters, periodOverPeriod } = compiledMetricQuery;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
-        const stringQuoteChar = warehouseSqlBuilder.getStringQuoteChar();
         const adapterType: SupportedDbtAdapter =
             warehouseSqlBuilder.getAdapterType();
         const startOfWeek = warehouseSqlBuilder.getStartOfWeek();
@@ -1177,7 +1192,7 @@ export class MetricQueryBuilder {
         // Include both selected metrics AND filter-only metrics for fanout protection
         const allMetricsToProcess = [...metrics, ...filterOnlyMetricIds];
         const metricsObjects = allMetricsToProcess.map((field) =>
-            getMetricFromId(field, explore, compiledMetricQuery),
+            this.getMetricFromId(field),
         );
         const metricsWithCteReferences: Array<CompiledMetric> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
@@ -1220,13 +1235,11 @@ export class MetricQueryBuilder {
                             !isInReferencedMetricObjects
                         ) {
                             acc.push(
-                                getMetricFromId(
+                                this.getMetricFromId(
                                     getItemId({
                                         table: metricReference.refTable,
                                         name: metricReference.refName,
                                     }),
-                                    explore,
-                                    compiledMetricQuery,
                                 ),
                             );
                         }
@@ -1429,12 +1442,14 @@ export class MetricQueryBuilder {
                     const popKeysCteName = `cte_pop_keys_${snakeCaseName(
                         tableName,
                     )}`;
-                    const popField = getDimensionFromId(
-                        popFieldId,
-                        explore,
+                    const popField = getDimensionFromId({
+                        dimId: popFieldId,
+                        dimensions: this.exploreDimensions,
+                        dimensionsWithoutAccess:
+                            this.exploreDimensionsWithoutAccess,
                         adapterType,
                         startOfWeek,
-                    );
+                    });
                     const popKeysCteParts = [
                         `SELECT DISTINCT`,
                         [
@@ -1606,12 +1621,14 @@ export class MetricQueryBuilder {
                     )}\n)`,
                 );
 
-                const popField = getDimensionFromId(
-                    popFieldId,
-                    explore,
+                const popField = getDimensionFromId({
+                    dimId: popFieldId,
+                    dimensions: this.exploreDimensions,
+                    dimensionsWithoutAccess:
+                        this.exploreDimensionsWithoutAccess,
                     adapterType,
                     startOfWeek,
-                );
+                });
                 /**
                  * CTE for PoP unaffected metrics
                  * Filters are PoP specific rather than metric query filters
@@ -1760,12 +1777,6 @@ export class MetricQueryBuilder {
                                         `${fieldQuoteChar}${popFieldId}${fieldQuoteChar}`
                                 ) {
                                     // join on PoP field with interval diff
-                                    const popField = getDimensionFromId(
-                                        popFieldId!,
-                                        explore,
-                                        adapterType,
-                                        startOfWeek,
-                                    );
                                     return `( ${getIntervalSyntax(
                                         adapterType,
                                         `${unaffectedMetricsCteName}.${alias}`,
@@ -1979,7 +1990,7 @@ export class MetricQueryBuilder {
         currentName: string,
         interdependentTableCalcs: CompiledTableCalculation[],
     ) {
-        const { warehouseSqlBuilder, compiledMetricQuery } = this.args;
+        const { warehouseSqlBuilder } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
         // Sort table calculations in dependency order
@@ -2013,12 +2024,7 @@ export class MetricQueryBuilder {
         ctes: string[];
         finalCteName: string;
     } {
-        const {
-            explore,
-            compiledMetricQuery,
-            warehouseSqlBuilder,
-            pivotConfiguration,
-        } = this.args;
+        const { warehouseSqlBuilder, pivotConfiguration } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
         const postCalculationMetrics = this.getPostCalculationMetrics();
         const referencedMetricIds = this.getSelectedAndReferencedMetricIds();
@@ -2041,11 +2047,7 @@ export class MetricQueryBuilder {
 
         // Create a single CTE with all PostCalculation metrics
         const metricSelects = postCalculationMetrics.map((metricId) => {
-            const metric = getMetricFromId(
-                metricId,
-                explore,
-                compiledMetricQuery,
-            );
+            const metric = this.getMetricFromId(metricId);
             // Use replaceMetricReferencesWithCteReferences to properly resolve metric references
             const processedSql = this.replaceMetricReferencesWithCteReferences(
                 metric,
@@ -2190,8 +2192,6 @@ export class MetricQueryBuilder {
             const { periodOverPeriod } = compiledMetricQuery;
             const fieldQuoteChar =
                 this.args.warehouseSqlBuilder.getFieldQuoteChar();
-            const stringQuoteChar =
-                this.args.warehouseSqlBuilder.getStringQuoteChar();
             const adapterType: SupportedDbtAdapter =
                 this.args.warehouseSqlBuilder.getAdapterType();
             const startOfWeek = this.args.warehouseSqlBuilder.getStartOfWeek();
@@ -2222,12 +2222,13 @@ export class MetricQueryBuilder {
 
             // Create pop CTE with previous period data
             const popCteName = 'pop_metrics';
-            const popField = getDimensionFromId(
-                popFieldId,
-                explore,
+            const popField = getDimensionFromId({
+                dimId: popFieldId,
+                dimensions: this.exploreDimensions,
+                dimensionsWithoutAccess: this.exploreDimensionsWithoutAccess,
                 adapterType,
                 startOfWeek,
-            );
+            });
 
             // Build pop CTE with same structure as base but filtered for previous period
             const popCteParts = [
