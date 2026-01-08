@@ -14,11 +14,10 @@ export interface SyncModalFormValues {
     saveInNewTab: boolean;
 }
 
-export const [
-    SyncModalFormProvider,
-    useSyncModalFormContext,
-    useSyncModalForm,
-] = createFormContext<SyncModalFormValues>();
+const [SyncModalFormProvider, useSyncModalFormContext, useSyncModalForm] =
+    createFormContext<SyncModalFormValues>();
+
+export { SyncModalFormProvider, useSyncModalForm, useSyncModalFormContext };
 
 export const DEFAULT_VALUES: SyncModalFormValues = {
     name: '',

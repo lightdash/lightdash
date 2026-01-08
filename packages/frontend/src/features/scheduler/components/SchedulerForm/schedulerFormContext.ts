@@ -49,11 +49,10 @@ export interface SchedulerFormValues {
     notificationFrequency?: NotificationFrequency;
 }
 
-export const [
-    SchedulerFormProvider,
-    useSchedulerFormContext,
-    useSchedulerForm,
-] = createFormContext<SchedulerFormValues>();
+const [SchedulerFormProvider, useSchedulerFormContext, useSchedulerForm] =
+    createFormContext<SchedulerFormValues>();
+
+export { SchedulerFormProvider, useSchedulerForm, useSchedulerFormContext };
 
 export const DEFAULT_VALUES: SchedulerFormValues = {
     name: '',
@@ -125,8 +124,8 @@ export const getFormValuesFromScheduler = (
             options.limit === Limit.TABLE
                 ? Limit.TABLE
                 : options.limit === Limit.ALL
-                ? Limit.ALL
-                : Limit.CUSTOM;
+                  ? Limit.ALL
+                  : Limit.CUSTOM;
         if (formOptions.limit === Limit.CUSTOM) {
             formOptions.customLimit = options.limit as number;
         }
