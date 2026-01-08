@@ -205,9 +205,6 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'PinnedItems', {
             organizationUuid: member.organizationUuid,
         });
-        can('view', 'ScheduledDeliveries', {
-            organizationUuid: member.organizationUuid,
-        });
         can('manage', 'DashboardComments', {
             organizationUuid: member.organizationUuid,
         });

@@ -311,13 +311,6 @@ const scopes: Scope[] = [
         ],
     },
     {
-        name: 'view:ScheduledDeliveries',
-        description: 'View scheduled deliveries',
-        isEnterprise: false,
-        group: ScopeGroup.PROJECT_MANAGEMENT,
-        getConditions: addDefaultUuidCondition,
-    },
-    {
         name: 'create:ScheduledDeliveries',
         description: 'Create scheduled deliveries',
         isEnterprise: false,

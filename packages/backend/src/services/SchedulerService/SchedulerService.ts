@@ -1082,11 +1082,11 @@ export class SchedulerService extends BaseService {
             targetUserUuid,
         );
 
-        // Check user can view scheduled deliveries in all projects
+        // Check user can manage scheduled deliveries in all projects
         const projectsWithoutPermission = summary.byProject
             .filter((project) =>
                 user.ability.cannot(
-                    'view',
+                    'manage',
                     subject('ScheduledDeliveries', {
                         organizationUuid,
                         projectUuid: project.projectUuid,

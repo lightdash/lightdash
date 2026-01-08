@@ -81,7 +81,6 @@ describe('roleToScopeMapping', () => {
             // Should have editor-specific scopes
             expect(scopes).toContain('create:Space');
             expect(scopes).toContain('manage:DashboardComments');
-            expect(scopes).toContain('view:ScheduledDeliveries');
         });
 
         it('should have more scopes for higher roles', () => {
@@ -152,7 +151,6 @@ describe('roleToScopeMapping', () => {
                 'manage:Project', // Required for managing non-private spaces
                 'manage:Job',
                 'manage:PinnedItems',
-                'view:ScheduledDeliveries',
                 'manage:DashboardComments',
                 'manage:Tags',
             ];

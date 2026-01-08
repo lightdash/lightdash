@@ -168,10 +168,6 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
 
-        can('view', 'ScheduledDeliveries', {
-            projectUuid: member.projectUuid,
-        });
-
         can('manage', 'DashboardComments', {
             projectUuid: member.projectUuid,
         });

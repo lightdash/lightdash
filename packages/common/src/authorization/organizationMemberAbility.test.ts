@@ -1051,7 +1051,7 @@ describe('Organization member permissions', () => {
                     ).toEqual(true);
                 });
 
-                it('can view all ScheduledDeliveries', () => {
+                it('cannot view all ScheduledDeliveries', () => {
                     expect(
                         ability.can(
                             'view',
@@ -1060,7 +1060,7 @@ describe('Organization member permissions', () => {
                                     ORGANIZATION_EDITOR.organizationUuid,
                             }),
                         ),
-                    ).toEqual(true);
+                    ).toEqual(false);
                 });
 
                 it('can manage only his own ScheduledDeliveries', () => {
@@ -1227,7 +1227,7 @@ describe('Organization member permissions', () => {
                     ).toEqual(true);
                 });
 
-                it('can view all ScheduledDeliveries', () => {
+                it('cannot view all ScheduledDeliveries', () => {
                     expect(
                         ability.can(
                             'view',
@@ -1236,7 +1236,7 @@ describe('Organization member permissions', () => {
                                     ORGANIZATION_DEVELOPER.organizationUuid,
                             }),
                         ),
-                    ).toEqual(true);
+                    ).toEqual(false);
                 });
 
                 it('can manage only his own ScheduledDeliveries', () => {

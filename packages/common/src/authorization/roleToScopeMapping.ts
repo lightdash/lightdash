@@ -58,7 +58,6 @@ const BASE_ROLE_SCOPES = {
         'manage:Space@public', // For non-private spaces
         'manage:Job',
         'manage:PinnedItems',
-        'view:ScheduledDeliveries',
         'manage:DashboardComments',
         'manage:Tags',
 
