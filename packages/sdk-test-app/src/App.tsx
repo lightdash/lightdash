@@ -225,6 +225,18 @@ function App() {
         localStorage.getItem('chartUuidOrSlug') || '',
     );
 
+    // SDK Filters state
+    const [filterValue, setFilterValue] = useState<string>('');
+    const [sdkFilters, setSdkFilters] = useState<
+        | Array<{
+              model: string;
+              field: string;
+              operator: string;
+              value: unknown;
+          }>
+        | undefined
+    >();
+
     useEffect(() => {
         const [lightdashUrl, rest] = embedUrl.split('embed');
         const lightdashToken = rest?.split('#')[1];
@@ -364,6 +376,63 @@ function App() {
                             )}
                         </p>
 
+                        {/* Filter Input Section */}
+                        <div style={{ marginBottom: '16px' }}>
+                            <label style={labelStyle}>
+                                Test Dynamic Filters (Example: Status filter)
+                            </label>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <input
+                                    type="text"
+                                    value={filterValue}
+                                    onChange={(e) =>
+                                        setFilterValue(e.target.value)
+                                    }
+                                    placeholder='e.g., "completed" or "pending"'
+                                    style={{ ...inputStyle, flexGrow: 1 }}
+                                />
+                                <button
+                                    style={buttonStyle}
+                                    onClick={() => {
+                                        if (filterValue.trim()) {
+                                            setSdkFilters([
+                                                {
+                                                    model: 'orders',
+                                                    field: 'status',
+                                                    operator: 'equals',
+                                                    value: filterValue,
+                                                },
+                                            ]);
+                                        } else {
+                                            setSdkFilters(undefined);
+                                        }
+                                    }}
+                                >
+                                    {t('Apply Filter')}
+                                </button>
+                                <button
+                                    style={buttonSecondaryStyle}
+                                    onClick={() => {
+                                        setFilterValue('');
+                                        setSdkFilters(undefined);
+                                    }}
+                                >
+                                    {t('Clear Filter')}
+                                </button>
+                            </div>
+                            {sdkFilters && sdkFilters.length > 0 && (
+                                <p
+                                    style={{
+                                        ...codeDisplayStyle,
+                                        marginTop: '8px',
+                                    }}
+                                >
+                                    Active filter: orders.status equals "
+                                    {filterValue}"
+                                </p>
+                            )}
+                        </div>
+
                         {savedChart && (
                             <button
                                 style={{
@@ -397,6 +466,7 @@ function App() {
                                         'translation',
                                     )}
                                     onExplore={handleExploreClick}
+                                    filters={sdkFilters}
                                 />
                             )}
                         </div>

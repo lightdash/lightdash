@@ -656,6 +656,38 @@ const DashboardProvider: React.FC<
         applyInteractivityFiltering,
     ]);
 
+    // Reactively update filters when SDK filters prop changes
+    // This allows the SDK Dashboard component to dynamically update filters
+    useDeepCompareEffect(() => {
+        // Only apply this logic in SDK mode and after initial load
+        if (embed.mode !== 'sdk' || dashboardFilters === emptyFilters) {
+            return;
+        }
+
+        const currentDashboard = dashboard || embedDashboard;
+        if (!currentDashboard) return;
+
+        const sdkFilters = embed.filters || [];
+
+        // Convert SDK filters to dashboard filters
+        const newDimensionFilters = sdkFilters.map((sdkFilter) =>
+            convertSdkFilterToDashboardFilter(sdkFilter),
+        );
+
+        // Start with base filters
+        let updatedDashboardFilters = clone(currentDashboard.filters);
+
+        // Replace dimension filters with SDK filters
+        updatedDashboardFilters.dimensions = newDimensionFilters;
+
+        // Apply interactivity filtering for embedded dashboards
+        updatedDashboardFilters = applyInteractivityFiltering(
+            updatedDashboardFilters,
+        );
+
+        setDashboardFilters(updatedDashboardFilters);
+    }, [embed.filters, embed.mode]);
+
     // Updates url with temp and overridden filters and deep compare to avoid unnecessary re-renders for dashboardTemporaryFilters
     // Only sync URL in regular dashboards or 'direct' embed mode (not 'sdk' mode)
     useDeepCompareEffect(() => {

@@ -322,4 +322,158 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             expect(window.location.pathname).toBe('/test');
         });
     });
+
+    it('should dynamically update filters when filters prop changes', async () => {
+        const initialFilters = [
+            {
+                model: 'orders',
+                field: 'status',
+                operator: FilterOperator.EQUALS,
+                value: 'completed',
+            },
+        ];
+
+        const { rerender } = render(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={initialFilters}
+            />,
+        );
+
+        // Wait for initial render
+        await waitFor(() => {
+            expect(mockNavigate).not.toHaveBeenCalled();
+        });
+
+        // Update filters to a different value
+        const updatedFilters = [
+            {
+                model: 'orders',
+                field: 'status',
+                operator: FilterOperator.EQUALS,
+                value: 'pending',
+            },
+        ];
+
+        rerender(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={updatedFilters}
+            />,
+        );
+
+        // Verify the component re-rendered with new filters
+        await waitFor(() => {
+            // Navigate should still not be called in SDK mode
+            expect(mockNavigate).not.toHaveBeenCalled();
+        });
+    });
+
+    it('should handle clearing filters dynamically', async () => {
+        const initialFilters = [
+            {
+                model: 'orders',
+                field: 'status',
+                operator: FilterOperator.EQUALS,
+                value: 'completed',
+            },
+        ];
+
+        const { rerender } = render(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={initialFilters}
+            />,
+        );
+
+        // Wait for initial render
+        await waitFor(() => {
+            expect(mockNavigate).not.toHaveBeenCalled();
+        });
+
+        // Clear filters
+        rerender(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={undefined}
+            />,
+        );
+
+        // Verify the component re-rendered without filters
+        await waitFor(() => {
+            // Navigate should still not be called in SDK mode
+            expect(mockNavigate).not.toHaveBeenCalled();
+        });
+    });
+
+    it('should handle multiple filter changes', async () => {
+        const { rerender } = render(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={[]}
+            />,
+        );
+
+        // Apply first filter
+        const filter1 = [
+            {
+                model: 'orders',
+                field: 'status',
+                operator: FilterOperator.EQUALS,
+                value: 'completed',
+            },
+        ];
+
+        rerender(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={filter1}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(mockNavigate).not.toHaveBeenCalled();
+        });
+
+        // Apply second filter
+        const filter2 = [
+            {
+                model: 'orders',
+                field: 'status',
+                operator: FilterOperator.EQUALS,
+                value: 'pending',
+            },
+        ];
+
+        rerender(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={filter2}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(mockNavigate).not.toHaveBeenCalled();
+        });
+
+        // Clear filters
+        rerender(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={[]}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(mockNavigate).not.toHaveBeenCalled();
+        });
+    });
 });
