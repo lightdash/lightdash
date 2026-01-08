@@ -2695,7 +2695,8 @@ export class AsyncQueryService extends ProjectService {
             dimension: CustomDimension | CompiledDimension,
         ) => !isCustomDimension(dimension) && !dimension.hidden;
 
-        const availableDimensions = allDimensions.filter((dimension, index) => {
+        let validDimensionsCount = 0;
+        const availableDimensions = allDimensions.filter((dimension) => {
             const isValid =
                 availableTables.has(dimension.table) &&
                 (isValidNonCustomDimension(dimension) ||
@@ -2707,8 +2708,13 @@ export class AsyncQueryService extends ProjectService {
                 itemShowUnderlyingValues.includes(dimension.name) &&
                 itemShowUnderlyingTable === dimension.table;
             if (isValid) {
+                if (hasExplicitColumnList) {
+                    return isInExplicitColumnList;
+                }
+
+                validDimensionsCount += 1;
                 // If there is no explicit column list, we can show up to 50 dimensions
-                return hasExplicitColumnList ? isInExplicitColumnList : index <= 50;
+                return validDimensionsCount <= 50;
             }
             return false;
         });
