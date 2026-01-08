@@ -1,3 +1,15 @@
+## [0.2312.1](https://github.com/lightdash/lightdash/compare/0.2312.0...0.2312.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* useTracking hook throws error in scheduled deliveries ([#19270](https://github.com/lightdash/lightdash/issues/19270)) ([047e3fd](https://github.com/lightdash/lightdash/commit/047e3fde05437e574206723cb5b0fffdc4b6ff79))
+
+
+### Performance Improvements
+
+* cache dimensions in MetricQueryBuilder for faster lookups ([#19257](https://github.com/lightdash/lightdash/issues/19257)) ([0a1580d](https://github.com/lightdash/lightdash/commit/0a1580dbf4592b1d54df1d00fd3cc0b54da1556b))
+
 # [0.2312.0](https://github.com/lightdash/lightdash/compare/0.2311.0...0.2312.0) (2026-01-08)
 
 
