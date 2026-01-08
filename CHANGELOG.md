@@ -1,3 +1,10 @@
+## [0.2314.1](https://github.com/lightdash/lightdash/compare/0.2314.0...0.2314.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* improve Google Drive error handling with specific error messages ([#19276](https://github.com/lightdash/lightdash/issues/19276)) ([3cae238](https://github.com/lightdash/lightdash/commit/3cae238aff52b4d0092317378a6614e874ee3821))
+
 # [0.2314.0](https://github.com/lightdash/lightdash/compare/0.2313.1...0.2314.0) (2026-01-08)
 
 
