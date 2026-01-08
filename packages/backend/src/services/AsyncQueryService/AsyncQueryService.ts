@@ -2705,8 +2705,12 @@ export class AsyncQueryService extends ProjectService {
                 itemShowUnderlyingValues !== undefined;
             const isInExplicitColumnList =
                 hasExplicitColumnList &&
-                itemShowUnderlyingValues.includes(dimension.name) &&
-                itemShowUnderlyingTable === dimension.table;
+                ((itemShowUnderlyingValues.includes(dimension.name) &&
+                    itemShowUnderlyingTable === dimension.table) ||
+                    itemShowUnderlyingValues.includes(
+                        `${dimension.table}.${dimension.name}`,
+                    ));
+
             if (isValid) {
                 if (hasExplicitColumnList) {
                     return isInExplicitColumnList;
