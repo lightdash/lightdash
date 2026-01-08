@@ -1,3 +1,10 @@
+# [0.2316.0](https://github.com/lightdash/lightdash/compare/0.2315.1...0.2316.0) (2026-01-08)
+
+
+### Features
+
+* update last references of migratable Mantine modals ([#19169](https://github.com/lightdash/lightdash/issues/19169)) ([fecc56e](https://github.com/lightdash/lightdash/commit/fecc56e7e638460ca3fdf3eec2ddc00c10118297))
+
 ## [0.2315.1](https://github.com/lightdash/lightdash/compare/0.2315.0...0.2315.1) (2026-01-08)
 
 
