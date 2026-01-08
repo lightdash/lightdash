@@ -864,7 +864,7 @@ export type LightdashConfig = {
         };
     };
     groups: {
-        enabled: boolean;
+        enabled: boolean | undefined;
     };
     extendedUsageAnalytics: {
         enabled: boolean;
@@ -1634,7 +1634,9 @@ export const parseConfig = (): LightdashConfig => {
             },
         },
         groups: {
-            enabled: process.env.GROUPS_ENABLED === 'true',
+            enabled: process.env.GROUPS_ENABLED
+                ? process.env.GROUPS_ENABLED === 'true'
+                : undefined,
         },
         extendedUsageAnalytics: {
             enabled: process.env.EXTENDED_USAGE_ANALYTICS === 'true',
