@@ -1,3 +1,15 @@
+# [0.2318.0](https://github.com/lightdash/lightdash/compare/0.2317.0...0.2318.0) (2026-01-08)
+
+
+### Bug Fixes
+
+* table calculations cause extra series ([#19274](https://github.com/lightdash/lightdash/issues/19274)) ([204d153](https://github.com/lightdash/lightdash/commit/204d15381e1066f27c206b61d6650442d1a03a82))
+
+
+### Features
+
+* add screenshot ready indicator feature flag ([#19280](https://github.com/lightdash/lightdash/issues/19280)) ([2e300a3](https://github.com/lightdash/lightdash/commit/2e300a30cb69d7b0181e0edf16076e94ff51551a))
+
 # [0.2317.0](https://github.com/lightdash/lightdash/compare/0.2316.1...0.2317.0) (2026-01-08)
 
 
