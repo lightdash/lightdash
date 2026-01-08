@@ -1,3 +1,10 @@
+# [0.2315.0](https://github.com/lightdash/lightdash/compare/0.2314.1...0.2315.0) (2026-01-08)
+
+
+### Features
+
+* add roleUuid to project memberships and improve permission checks ([#19247](https://github.com/lightdash/lightdash/issues/19247)) ([d07f921](https://github.com/lightdash/lightdash/commit/d07f9214ae0764c9393ccf6cec5393c45170a106))
+
 ## [0.2314.1](https://github.com/lightdash/lightdash/compare/0.2314.0...0.2314.1) (2026-01-08)
 
 
