@@ -14,12 +14,12 @@ import {
     Group,
     Highlight,
     Radio,
+    Select,
     Stack,
     Text,
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
-import { Select } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconTool } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -61,13 +61,13 @@ export const FixValidationErrorModal: FC<Props> = ({
         () =>
             Object.entries(fields?.fields || {})
                 .sort(([groupA], [groupB]) => groupA.localeCompare(groupB)) // Sort groups alphabetically
-                .flatMap(([group, items]) =>
-                    items.map((item) => ({
+                .map(([group, items]) => ({
+                    group,
+                    items: items.map((item) => ({
                         value: item,
                         label: item,
-                        group,
                     })),
-                ),
+                })),
         [fields],
     );
 
@@ -165,9 +165,9 @@ export const FixValidationErrorModal: FC<Props> = ({
                 </Button>
             }
         >
-            <Text>
+            <Text fz="sm">
                 Fix{' '}
-                <Text span fw={500}>
+                <Text span fz="sm">
                     {validationError.source}
                 </Text>{' '}
                 error:{' '}
@@ -178,7 +178,10 @@ export const FixValidationErrorModal: FC<Props> = ({
                     )}
                     target="_blank"
                 >
-                    <Text span>{validationError?.name}</Text>
+                    <Text span fz="sm">
+                        {' '}
+                        {validationError?.name}
+                    </Text>
                 </Anchor>
             </Text>
 
@@ -230,17 +233,14 @@ export const FixValidationErrorModal: FC<Props> = ({
                             >
                                 <div>
                                     <Select
-                                        itemComponent={({
-                                            label,
-                                            ...others
-                                        }) => (
+                                        renderOption={({ option }) => (
                                             <Highlight
                                                 highlight={search}
-                                                {...others}
+                                                {...option}
                                                 fz="sm"
-                                                highlightColor="yellow"
+                                                color="yellow"
                                             >
-                                                {label}
+                                                {option.label}
                                             </Highlight>
                                         )}
                                         onSearchChange={setSearch}
@@ -250,7 +250,6 @@ export const FixValidationErrorModal: FC<Props> = ({
                                         required
                                         disabled={isErrorFields}
                                         searchable
-                                        withinPortal
                                         label="New field"
                                         placeholder={`Select a field to rename to`}
                                         onChange={(e) => {
@@ -287,20 +286,19 @@ export const FixValidationErrorModal: FC<Props> = ({
                             <Select
                                 searchValue={search}
                                 onSearchChange={setSearch}
-                                itemComponent={({ label, ...others }) => (
+                                renderOption={({ option }) => (
                                     <Highlight
                                         highlight={search}
-                                        {...others}
+                                        {...option}
                                         fz="sm"
-                                        highlightColor="yellow"
+                                        color="yellow"
                                     >
-                                        {label}
+                                        {option.label}
                                     </Highlight>
                                 )}
                                 data={explores?.map((e) => e.name) || []}
                                 required
                                 searchable
-                                withinPortal
                                 label="New model"
                                 placeholder={`Select a model to rename to`}
                                 onChange={(e) => {
