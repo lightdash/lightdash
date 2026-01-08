@@ -1,3 +1,11 @@
+## [0.2313.1](https://github.com/lightdash/lightdash/compare/0.2313.0...0.2313.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* add error handling when deleting local files ([#19275](https://github.com/lightdash/lightdash/issues/19275)) ([a7249ac](https://github.com/lightdash/lightdash/commit/a7249ac54013594ecaea4371980306459fddcab3))
+* limit available dimensions to 50 when no explicit column list exists ([#19263](https://github.com/lightdash/lightdash/issues/19263)) ([22b2068](https://github.com/lightdash/lightdash/commit/22b20684351908af16592aceae8505ae403332a4))
+
 # [0.2313.0](https://github.com/lightdash/lightdash/compare/0.2312.1...0.2313.0) (2026-01-08)
 
 
