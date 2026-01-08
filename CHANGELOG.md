@@ -1,3 +1,16 @@
+# [0.2313.0](https://github.com/lightdash/lightdash/compare/0.2312.1...0.2313.0) (2026-01-08)
+
+
+### Features
+
+* add expiration time to support file uploads ([#19271](https://github.com/lightdash/lightdash/issues/19271)) ([61cf893](https://github.com/lightdash/lightdash/commit/61cf8937d80c00cf751497aaefac8be43c888058))
+* use MantineModal on various modals ([#19167](https://github.com/lightdash/lightdash/issues/19167)) ([00ffa87](https://github.com/lightdash/lightdash/commit/00ffa87f94ecf0f02436ba7d33da63f91c6fa9d1))
+
+
+### Performance Improvements
+
+* add performance timing to prepareSqlChartAsyncQueryArgs ([#19272](https://github.com/lightdash/lightdash/issues/19272)) ([fd383ec](https://github.com/lightdash/lightdash/commit/fd383eca344901a080b094853bf415adb3f7c948))
+
 ## [0.2312.1](https://github.com/lightdash/lightdash/compare/0.2312.0...0.2312.1) (2026-01-08)
 
 
