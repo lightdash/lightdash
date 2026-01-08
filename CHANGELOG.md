@@ -1,3 +1,10 @@
+# [0.2312.0](https://github.com/lightdash/lightdash/compare/0.2311.0...0.2312.0) (2026-01-08)
+
+
+### Features
+
+* implement cross-filtering between dashboard tiles based on field overlap ([#19248](https://github.com/lightdash/lightdash/issues/19248)) ([dae0b46](https://github.com/lightdash/lightdash/commit/dae0b46ec06694462f15bfcc1237911f42571b01))
+
 # [0.2311.0](https://github.com/lightdash/lightdash/compare/0.2310.0...0.2311.0) (2026-01-08)
 
 
