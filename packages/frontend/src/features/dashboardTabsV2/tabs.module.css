@@ -12,7 +12,7 @@
     top: 0;
     border-bottom: 1px solid transparent;
     z-index: var(--dashboard-tabs-zindex);
-    transform: translate3d(0, 0, 0);
+    isolation: isolate;
 
     /* When header is sticky above (edit mode), position below it */
     &[data-has-header-above='true'] {
