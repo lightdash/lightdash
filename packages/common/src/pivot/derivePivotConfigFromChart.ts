@@ -77,17 +77,26 @@ const getIndexColumn = (
     valuesColumns: PivotConfiguration['valuesColumns'],
     fields: ItemsMap,
     metricQuery: MetricQuery,
+    xField?: string,
 ) => {
     const groupByColumnsReferences =
         groupByColumns?.map((c) => c.reference) ?? [];
     const valuesColumnsReferences =
         valuesColumns?.map((c) => c.reference) ?? [];
+    const sortFieldIds = new Set(metricQuery.sorts.map((s) => s.fieldId));
 
-    // Find any columns that are part of values or group by columns (these become index columns)
+    // Find any columns that are not groupBy or value columns (these become index columns)
+    // Table calculations are only included if they are the xField (used as the x-axis dimension)
+    // or if they are used in sorting. Otherwise we don't want to include them as multiple
+    // index columns cause multiple series.
+    const tableCalcNames = (metricQuery.tableCalculations || [])
+        .filter((tc) => tc.name === xField || sortFieldIds.has(tc.name))
+        .map((tc) => tc.name);
+
     const indexColumnNames = [
         ...metricQuery.dimensions,
         ...metricQuery.metrics,
-        ...(metricQuery.tableCalculations || []).map((tc) => tc.name),
+        ...tableCalcNames,
     ].filter(
         (dim) =>
             !groupByColumnsReferences.includes(dim) &&
@@ -251,6 +260,7 @@ function getCartesianPivotConfiguration(
             valuesColumns,
             fields,
             metricQuery,
+            xField,
         );
 
         const partialPivotConfiguration: Omit<PivotConfiguration, 'sortBy'> = {
