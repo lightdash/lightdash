@@ -1,3 +1,16 @@
+# [0.2317.0](https://github.com/lightdash/lightdash/compare/0.2316.1...0.2317.0) (2026-01-08)
+
+
+### Bug Fixes
+
+* Update who's allowed to manage scheduled deliveries ([#19209](https://github.com/lightdash/lightdash/issues/19209)) ([4a42786](https://github.com/lightdash/lightdash/commit/4a4278689c5a405a0dabf7a807753292f4326dae))
+
+
+### Features
+
+* add organizationUuid to Tags subject in permission check ([#19289](https://github.com/lightdash/lightdash/issues/19289)) ([44c5d59](https://github.com/lightdash/lightdash/commit/44c5d59289ac115f2cf7b08717a39d435db9909a))
+* add variant delete to MantineModal ([#19184](https://github.com/lightdash/lightdash/issues/19184)) ([e7bb15a](https://github.com/lightdash/lightdash/commit/e7bb15ada1929aa3c2a642c53ca407cba5a4570e))
+
 ## [0.2316.1](https://github.com/lightdash/lightdash/compare/0.2316.0...0.2316.1) (2026-01-08)
 
 
