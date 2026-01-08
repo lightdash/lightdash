@@ -79,6 +79,11 @@ export enum FeatureFlags {
      * Dashboard redesign
      */
     DashboardRedesign = 'dashboard-redesign',
+
+    /**
+     * Use screenshot ready indicator for scheduler screenshots
+     */
+    ScreenshotReadyIndicator = 'screenshot-ready-indicator',
 }
 
 export type FeatureFlag = {
