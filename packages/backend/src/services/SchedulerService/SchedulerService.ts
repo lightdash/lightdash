@@ -19,6 +19,7 @@ import {
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
+    JobStatusType,
     KnexPaginateArgs,
     KnexPaginatedData,
     MissingConfigError,
@@ -33,6 +34,7 @@ import {
     SchedulerRun,
     SchedulerRunLogsResponse,
     SchedulerRunStatus,
+    SchedulerTaskName,
     SchedulerWithLogs,
     SessionUser,
     UnexpectedGoogleSheetsError,
@@ -56,6 +58,7 @@ import {
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { JobModel } from '../../models/JobModel/JobModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -80,6 +83,7 @@ type SchedulerServiceArguments = {
     userModel: UserModel;
     googleDriveClient: GoogleDriveClient;
     userService: UserService;
+    jobModel: JobModel;
 };
 
 export class SchedulerService extends BaseService {
@@ -107,6 +111,8 @@ export class SchedulerService extends BaseService {
 
     userService: UserService;
 
+    jobModel: JobModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -120,6 +126,7 @@ export class SchedulerService extends BaseService {
         userModel,
         googleDriveClient,
         userService,
+        jobModel,
     }: SchedulerServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -134,6 +141,7 @@ export class SchedulerService extends BaseService {
         this.userModel = userModel;
         this.googleDriveClient = googleDriveClient;
         this.userService = userService;
+        this.jobModel = jobModel;
     }
 
     private async getSchedulerResource(
@@ -1256,5 +1264,111 @@ export class SchedulerService extends BaseService {
         });
 
         return { reassignedCount };
+    }
+
+    async checkForStuckJobs(): Promise<{
+        runningCount: number;
+        warningCount: number;
+        errorCount: number;
+    }> {
+        this.logger.info('Starting check for stuck jobs');
+
+        const runningJobs = await this.schedulerClient.getRecentRunningJobs();
+
+        const now = new Date();
+        const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+        const ONE_HOUR_MS = 60 * 60 * 1000;
+        const ONE_MINUTE_MS = 60 * 1000;
+
+        // Categorize jobs by duration
+        const jobsToLog: Array<{
+            job: typeof runningJobs[number];
+            durationMinutes: number;
+        }> = [];
+        let warningCount = 0;
+
+        runningJobs.forEach((job) => {
+            const durationMs = now.getTime() - job.lockedAt.getTime();
+            const durationMinutes = Math.round(durationMs / ONE_MINUTE_MS);
+
+            const logContext = {
+                jobId: job.id,
+                taskIdentifier: job.taskIdentifier,
+                lockedAt: job.lockedAt.toISOString(),
+                durationMinutes,
+            };
+
+            if (durationMs >= ONE_HOUR_MS) {
+                // Over 1 hour: log error and schedule for DB logging
+                this.logger.error(
+                    `Stuck job detected (over 1 hour): ${job.taskIdentifier} (job ${job.id}) running for ${durationMinutes} min`,
+                    logContext,
+                );
+                jobsToLog.push({ job, durationMinutes });
+            } else if (durationMs >= THIRTY_MINUTES_MS) {
+                // Over 30 minutes: log warning only
+                warningCount += 1;
+                this.logger.warn(
+                    `Potentially stuck job (over 30 min): ${job.taskIdentifier} (job ${job.id}) running for ${durationMinutes} min`,
+                    logContext,
+                );
+            }
+        });
+
+        // Log all error jobs to DB in parallel
+        await Promise.all(
+            jobsToLog.map(({ job, durationMinutes }) =>
+                this.schedulerModel.logSchedulerJob({
+                    task: job.taskIdentifier as SchedulerTaskName,
+                    schedulerUuid: job.payload.schedulerUuid as
+                        | string
+                        | undefined,
+                    jobId: job.id,
+                    scheduledTime: job.runAt,
+                    status: SchedulerJobStatus.ERROR,
+                    details: {
+                        error: 'This job took longer than expected and was stopped after 1 hour—please try again. If the issue persists, contact support.',
+                        lockedAt: job.lockedAt.toISOString(),
+                        lockedBy: job.lockedBy,
+                        projectUuid: job.payload.projectUuid as
+                            | string
+                            | undefined,
+                        organizationUuid: job.payload.organizationUuid as
+                            | string
+                            | undefined,
+                        createdByUserUuid: job.payload.userUuid as
+                            | string
+                            | undefined,
+                    },
+                }),
+            ),
+        );
+
+        // Update Lightdash job status to ERROR for compile project jobs
+        await Promise.all(
+            jobsToLog.map(({ job }) =>
+                this.jobModel.update(job.payload.jobUuid as string, {
+                    jobStatus: JobStatusType.ERROR,
+                }),
+            ),
+        );
+
+        // Remove stuck jobs from graphile queue to prevent indefinite running
+        if (jobsToLog.length > 0) {
+            const jobIdsToFail = jobsToLog.map(({ job }) => job.id);
+            await this.schedulerClient.failJobs(jobIdsToFail);
+            this.logger.info(
+                `Removed ${jobIdsToFail.length} stuck jobs from queue`,
+                { jobIds: jobIdsToFail },
+            );
+        }
+
+        const errorCount = jobsToLog.length;
+
+        this.logger.info(
+            `Completed stuck job check: ${runningJobs.length} running, ${warningCount} warnings (30-60 min), ${errorCount} errors (>1 hour)`,
+        );
+
+        return { runningCount: runningJobs.length, warningCount, errorCount };
     }
 }

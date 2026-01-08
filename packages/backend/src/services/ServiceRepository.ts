@@ -653,6 +653,7 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     googleDriveClient: this.clients.getGoogleDriveClient(),
                     userService: this.getUserService(),
+                    jobModel: this.models.getJobModel(),
                 }),
         );
     }
