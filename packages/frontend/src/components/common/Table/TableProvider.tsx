@@ -13,7 +13,12 @@ import {
 } from './constants';
 import Context from './context';
 import { getGroupedRowModelLightdash } from './getGroupedRowModelLightdash';
-import { type ProviderProps, type TableColumn } from './types';
+import {
+    type ColumnSizingContext,
+    type ProviderProps,
+    type TableColumn,
+} from './types';
+import { useColumnSizing } from './useColumnSizing';
 
 const rowColumn: TableColumn = {
     id: ROW_NUMBER_COLUMN_ID,
@@ -42,11 +47,19 @@ const calculateColumnVisibility = (columns: ProviderProps['columns']) =>
         {},
     );
 
-export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
+interface TableProviderInternalProps extends ProviderProps {
+    /** Container width in pixels, for column sizing calculations */
+    containerWidth?: number;
+}
+
+export const TableProvider: FC<
+    React.PropsWithChildren<TableProviderInternalProps>
+> = ({
     hideRowNumbers,
     showColumnCalculation,
     showSubtotals,
     children,
+    containerWidth = 800,
     ...rest
 }) => {
     const {
@@ -58,6 +71,8 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         pagination,
         columnProperties,
         minMaxMap,
+        onColumnWidthChange,
+        enableColumnResizing = false,
     } = rest;
     const [grouping, setGrouping] = useState<GroupingState>([]);
     const [columnVisibility, setColumnVisibility] = useState({});
@@ -156,6 +171,67 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
         return data.slice(start, end);
     }, [data, paginationState]);
 
+    // Get column IDs for sizing calculations (excluding row number column which has fixed width)
+    const sizableColumnIds = useMemo(() => {
+        return visibleColumns
+            .filter(
+                (col) => col.id !== ROW_NUMBER_COLUMN_ID && !col.meta?.frozen,
+            )
+            .map((col) => col.id)
+            .filter((id): id is string => id !== undefined);
+    }, [visibleColumns]);
+
+    // Calculate the width available for sizable columns
+    const frozenTotalWidth = useMemo(() => {
+        const rowNumWidth = hideRowNumbers ? 0 : rowColumnWidth;
+        const frozenWidth = stickyColumns.length * frozenColumnWidth;
+        return rowNumWidth + frozenWidth;
+    }, [
+        hideRowNumbers,
+        rowColumnWidth,
+        stickyColumns.length,
+        frozenColumnWidth,
+    ]);
+
+    const sizableContainerWidth = Math.max(
+        0,
+        containerWidth - frozenTotalWidth,
+    );
+
+    const columnSizingResult = useColumnSizing({
+        containerWidth: sizableContainerWidth,
+        columnIds: sizableColumnIds,
+        columnProperties,
+        onColumnWidthChange,
+    });
+
+    // Build column sizing context
+    const columnSizing: ColumnSizingContext = useMemo(
+        () => ({
+            enabled: enableColumnResizing,
+            isReady: containerWidth > 0,
+            hasLockedWidths: columnSizingResult.hasLockedWidths,
+            columnWidths: columnSizingResult.columnWidths,
+            frozenTotalWidth,
+            needsHorizontalScroll: columnSizingResult.needsHorizontalScroll,
+            startResize: columnSizingResult.startResize,
+            updateResize: columnSizingResult.updateResize,
+            endResize: columnSizingResult.endResize,
+            resetColumnWidth: columnSizingResult.resetColumnWidth,
+            resetAllColumnWidths: columnSizingResult.resetAllColumnWidths,
+            isColumnLocked: columnSizingResult.isColumnLocked,
+            resizingColumnId: columnSizingResult.resizeState?.columnId ?? null,
+            hadLockedWidthsBeforeResize:
+                columnSizingResult.resizeState?.hadLockedWidthsBefore ?? false,
+        }),
+        [
+            columnSizingResult,
+            enableColumnResizing,
+            frozenTotalWidth,
+            containerWidth,
+        ],
+    );
+
     const table = useReactTable({
         data: isInfiniteScrollEnabled ? data : pageRows,
         columns: visibleColumns,
@@ -195,6 +271,7 @@ export const TableProvider: FC<React.PropsWithChildren<ProviderProps>> = ({
                 table,
                 isInfiniteScrollEnabled,
                 setIsInfiniteScrollEnabled,
+                columnSizing,
                 ...rest,
             }}
         >

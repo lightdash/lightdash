@@ -1,3 +1,4 @@
+import { type ColumnProperties } from '@lightdash/common';
 import { Box, Button, Flex, Text } from '@mantine/core';
 import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
@@ -177,6 +178,21 @@ const SimpleTable: FC<SimpleTableProps> = ({
         );
     }, []);
 
+    // Column width change handler for table visualization
+    const handleColumnWidthChange = useCallback(
+        (columnId: string, width: number | undefined) => {
+            if (!isTableVisualizationConfig(visualizationConfig)) return;
+
+            const widthUpdate: Partial<ColumnProperties> =
+                width === undefined ? { width: undefined } : { width };
+            visualizationConfig.chartConfig.updateColumnProperty(
+                columnId,
+                widthUpdate,
+            );
+        },
+        [visualizationConfig],
+    );
+
     useEffect(() => {
         if (shouldPaginateResults) return;
 
@@ -311,6 +327,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 headerContextMenu={headerContextMenu}
                 cellContextMenu={cellContextMenu}
                 pagination={{ showResultsTotal }}
+                enableColumnResizing={!minimal}
+                onColumnWidthChange={handleColumnWidthChange}
                 {...rest}
             />
         </Box>

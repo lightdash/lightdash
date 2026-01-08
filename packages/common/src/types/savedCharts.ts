@@ -244,6 +244,8 @@ export type ColumnProperties = {
     frozen?: boolean;
     displayStyle?: 'text' | 'bar';
     color?: string;
+    /** User-locked pixel width. If undefined, column uses auto-sizing. */
+    width?: number;
 };
 
 export type TableChart = {

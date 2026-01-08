@@ -35,6 +35,7 @@ interface TableContainerProps {
     $shouldExpand?: boolean;
     $padding?: number;
     $tableFont?: string;
+    $fitContent?: boolean;
 }
 
 export const TableContainer = styled.div<
@@ -42,7 +43,15 @@ export const TableContainer = styled.div<
 >`
     display: flex;
     flex-direction: column;
-    min-width: 100%;
+    ${({ $fitContent }) =>
+        $fitContent
+            ? `
+                width: fit-content;
+                max-width: 100%;
+            `
+            : `
+                min-width: 100%;
+            `}
     overflow: hidden;
 
     font-family: ${({ $tableFont }) => $tableFont ?? 'Inter, sans-serif'};
@@ -290,7 +299,9 @@ export const FooterCell = styled.th<{ $isNaN: boolean }>`
     background-color: var(--mantine-color-ldGray-0);
 `;
 
-export const Th = styled.th``;
+export const Th = styled.th`
+    position: relative;
+`;
 
 export const ThContainer = styled.div`
     display: flex;

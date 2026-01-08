@@ -4,6 +4,7 @@ import { Tooltip, useMantineTheme } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import isEqual from 'lodash/isEqual';
 import React, { useEffect, type FC } from 'react';
+import { ROW_NUMBER_COLUMN_ID } from '../constants';
 import {
     Th,
     ThActionsContainer,
@@ -12,6 +13,7 @@ import {
 } from '../Table.styles';
 import { useTableContext } from '../useTableContext';
 import { HeaderDndContext, HeaderDroppable } from './HeaderDnD';
+import { ResizeHandle } from './ResizeHandle';
 
 interface TableHeaderProps {
     minimal?: boolean;
@@ -23,9 +25,10 @@ const TableHeader: FC<TableHeaderProps> = ({
     showSubtotals = true,
 }) => {
     const theme = useMantineTheme();
-    const { table, headerContextMenu, columns } = useTableContext();
+    const { table, headerContextMenu, columns, columnSizing } =
+        useTableContext();
     const HeaderContextMenu = headerContextMenu;
-    const currentColOrder = React.useRef<Array<string>>([]);
+    const currentColOrder = React.useRef<Array<string>>();
 
     useEffect(() => {
         if (showSubtotals) {
@@ -78,13 +81,27 @@ const TableHeader: FC<TableHeaderProps> = ({
                                     ? meta.item.description
                                     : undefined;
 
+                            // Get computed width from column sizing (for sizable columns)
+                            // Fall back to meta.width for fixed columns (row number, frozen)
+                            // Only use computed widths when column resizing is enabled
+                            const columnId = header.column.id;
+                            const isResizableColumn =
+                                columnId !== ROW_NUMBER_COLUMN_ID &&
+                                !meta?.frozen;
+                            const computedWidth =
+                                columnSizing.enabled && isResizableColumn
+                                    ? columnSizing.columnWidths[columnId]
+                                    : meta?.width;
+
                             return (
                                 <Th
                                     key={header.id}
                                     colSpan={header.colSpan}
                                     style={{
                                         ...meta?.style,
-                                        width: meta?.width,
+                                        width: computedWidth,
+                                        minWidth: computedWidth,
+                                        maxWidth: computedWidth,
                                         backgroundColor:
                                             meta?.bgColor ??
                                             theme.colors.ldGray[0],
@@ -158,6 +175,12 @@ const TableHeader: FC<TableHeaderProps> = ({
                                             </ThContainer>
                                         )}
                                     </Draggable>
+                                    {/* Resize handle for non-minimal mode on resizable columns */}
+                                    {!minimal &&
+                                        columnSizing.enabled &&
+                                        isResizableColumn && (
+                                            <ResizeHandle columnId={columnId} />
+                                        )}
                                 </Th>
                             );
                         })}

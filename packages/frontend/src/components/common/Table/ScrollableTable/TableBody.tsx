@@ -30,10 +30,11 @@ import MantineIcon from '../../MantineIcon';
 import {
     FROZEN_COLUMN_BACKGROUND,
     ROW_HEIGHT_PX,
+    ROW_NUMBER_COLUMN_ID,
     SMALL_TEXT_LENGTH,
 } from '../constants';
 import { Tr } from '../Table.styles';
-import { type TableContext } from '../types';
+import { type ColumnSizingContext, type TableContext } from '../types';
 import { useTableContext } from '../useTableContext';
 import { countSubRows } from '../utils';
 import BodyCell from './BodyCell';
@@ -63,6 +64,7 @@ interface TableRowProps {
     cellContextMenu?: TableContext['cellContextMenu'];
     conditionalFormattings: TableContext['conditionalFormattings'];
     minMaxMap: TableContext['minMaxMap'];
+    columnSizing: ColumnSizingContext;
     minimal?: boolean;
 }
 
@@ -72,6 +74,7 @@ const TableRow: FC<TableRowProps> = ({
     cellContextMenu,
     conditionalFormattings,
     minMaxMap,
+    columnSizing,
     minimal = false,
 }) => {
     const { colorScheme } = useMantineColorScheme();
@@ -156,11 +159,29 @@ const TableRow: FC<TableRowProps> = ({
                 const suppressContextMenu =
                     cell.getIsPlaceholder() || cell.getIsAggregated();
 
+                // Get computed width from column sizing (only when enabled)
+                const columnId = cell.column.id;
+                const isResizableColumn =
+                    columnId !== ROW_NUMBER_COLUMN_ID && !meta?.frozen;
+                const computedWidth =
+                    columnSizing.enabled && isResizableColumn
+                        ? columnSizing.columnWidths[columnId]
+                        : undefined;
+
+                const cellStyle = {
+                    ...meta?.style,
+                    ...(computedWidth !== undefined && {
+                        width: computedWidth,
+                        minWidth: computedWidth,
+                        maxWidth: computedWidth,
+                    }),
+                };
+
                 return (
                     <BodyCell
                         minimal={minimal}
                         key={cell.id}
-                        style={meta?.style}
+                        style={cellStyle}
                         backgroundColor={backgroundColor}
                         fontColor={fontColor}
                         className={meta?.className}
@@ -251,6 +272,7 @@ const VirtualizedTableBody: FC<{
         cellContextMenu,
         conditionalFormattings,
         minMaxMap,
+        columnSizing,
         isInfiniteScrollEnabled,
         isFetchingRows,
         fetchMoreRows,
@@ -367,6 +389,7 @@ const VirtualizedTableBody: FC<{
                               cellContextMenu={cellContextMenu}
                               conditionalFormattings={conditionalFormattings}
                               minMaxMap={minMaxMap}
+                              columnSizing={columnSizing}
                           />
                       );
                   })}

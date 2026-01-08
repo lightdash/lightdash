@@ -1,0 +1,20 @@
+.resizeHandle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 100%;
+    cursor: col-resize;
+    user-select: none;
+    z-index: 10;
+}
+
+.resizeHandle:hover,
+.resizeHandle.isResizing {
+    background-color: var(--mantine-color-blue-4);
+    opacity: 0.5;
+}
+
+.resizeHandle.isResizing {
+    opacity: 0.7;
+}
