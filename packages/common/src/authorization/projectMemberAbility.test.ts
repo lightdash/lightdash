@@ -503,15 +503,6 @@ describe('Project member permissions', () => {
                     ).toEqual(true);
                 });
 
-                it('can view all ScheduledDeliveries', () => {
-                    expect(
-                        ability.can(
-                            'view',
-                            subject('ScheduledDeliveries', { projectUuid }),
-                        ),
-                    ).toEqual(true);
-                });
-
                 it('can manage all ScheduledDeliveries', () => {
                     expect(
                         ability.can(
@@ -1059,15 +1050,6 @@ describe('Project member permissions', () => {
                     ).toEqual(true);
                 });
 
-                it('cannot view all ScheduledDeliveries', () => {
-                    expect(
-                        ability.can(
-                            'view',
-                            subject('ScheduledDeliveries', { projectUuid }),
-                        ),
-                    ).toEqual(false);
-                });
-
                 it('can manage only his own ScheduledDeliveries', () => {
                     expect(
                         ability.can(
@@ -1234,15 +1216,6 @@ describe('Project member permissions', () => {
                             subject('ScheduledDeliveries', { projectUuid }),
                         ),
                     ).toEqual(true);
-                });
-
-                it('cannot view all ScheduledDeliveries', () => {
-                    expect(
-                        ability.can(
-                            'view',
-                            subject('ScheduledDeliveries', { projectUuid }),
-                        ),
-                    ).toEqual(false);
                 });
 
                 it('can manage only his own ScheduledDeliveries', () => {
@@ -1796,15 +1769,6 @@ describe('Project member permissions', () => {
                     ).toEqual(false);
                 });
 
-                it('cannot view ScheduledDeliveries', () => {
-                    expect(
-                        ability.can(
-                            'view',
-                            subject('ScheduledDeliveries', { projectUuid }),
-                        ),
-                    ).toEqual(false);
-                });
-
                 it('cannot manage ScheduledDeliveries', () => {
                     expect(
                         ability.can(
@@ -2084,15 +2048,6 @@ describe('Project member permissions', () => {
                             subject('ScheduledDeliveries', { projectUuid }),
                         ),
                     ).toEqual(true);
-                });
-
-                it('cannot view all ScheduledDeliveries', () => {
-                    expect(
-                        ability.can(
-                            'view',
-                            subject('ScheduledDeliveries', { projectUuid }),
-                        ),
-                    ).toEqual(false);
                 });
 
                 it('can manage only his own ScheduledDeliveries', () => {

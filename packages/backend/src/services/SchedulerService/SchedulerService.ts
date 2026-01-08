@@ -163,8 +163,8 @@ export class SchedulerService extends BaseService {
         scheduler: Scheduler;
         resource: ChartSummary | DashboardDAO;
     }> {
-        // editors can "manage" their own scheduled deliveries,
-        // however, interactive users can only "create" scheduled deliveries
+        // admins can manage all scheduled deliveries,
+        // everyone below can only manage their own scheduled deliveries
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
         const resource = await this.getSchedulerResource(scheduler);
         const { organizationUuid, projectUuid } = resource;

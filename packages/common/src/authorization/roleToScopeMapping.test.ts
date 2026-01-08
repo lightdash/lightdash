@@ -130,7 +130,7 @@ describe('roleToScopeMapping', () => {
             // Based on projectMemberAbility.ts, an editor can:
             // - Do everything interactive_viewer can do (view content, export, create deliveries & manage own deliveries)
             // - Create spaces
-            // - Manage non-private spaces, jobs, pinned items, dashboard comments, tags and view scheduled deliveries
+            // - Manage non-private spaces, jobs, pinned items, scheduled deliveries, dashboard comments, tags
             // NOTE: Adding manage:Project to enable managing non-private spaces
             const editorScopes = [
                 // Interactive viewer scopes (inherited)
