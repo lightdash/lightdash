@@ -110,6 +110,9 @@ export const lightdashConfigMock: LightdashConfig = {
     pylon: {
         appId: '',
     },
+    headway: {
+        enabled: false,
+    },
     lightdashSecret: 'look away this is a secret',
     logging: {
         level: 'debug',

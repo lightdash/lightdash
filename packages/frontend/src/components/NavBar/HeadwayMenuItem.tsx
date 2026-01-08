@@ -14,11 +14,12 @@ type Props = {
 const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
     const theme = useMantineTheme();
     const { track } = useTracking();
-    const { user } = useApp();
+    const { user, health } = useApp();
     const isHeadwayloaded = useHeadway();
+    const headwayEnabled = health.data?.headway?.enabled;
 
     useEffect(() => {
-        if (!projectUuid || !isHeadwayloaded) return;
+        if (!projectUuid || !isHeadwayloaded || !headwayEnabled) return;
 
         const trackNotifications = {
             user_id: user.data?.userUuid,
@@ -60,9 +61,10 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
         user.data?.organizationUuid,
         user.data?.userUuid,
         isHeadwayloaded,
+        headwayEnabled,
     ]);
 
-    if (!isHeadwayloaded || !projectUuid) return null;
+    if (!isHeadwayloaded || !projectUuid || !headwayEnabled) return null;
 
     return (
         <Tooltip color="dark" label="What's new?" withinPortal>

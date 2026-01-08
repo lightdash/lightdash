@@ -118,6 +118,9 @@ export class HealthService extends BaseService {
                               .digest('hex')
                         : undefined,
             },
+            headway: {
+                enabled: this.lightdashConfig.headway.enabled,
+            },
             siteUrl: this.lightdashConfig.siteUrl,
             staticIp: this.lightdashConfig.staticIp,
             posthog: this.lightdashConfig.posthog,

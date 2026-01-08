@@ -73,6 +73,9 @@ export const BaseResponse: HealthState = {
     pylon: {
         appId: '',
     },
+    headway: {
+        enabled: false,
+    },
     query: {
         csvCellsLimit: 100000,
         maxLimit: 5000,

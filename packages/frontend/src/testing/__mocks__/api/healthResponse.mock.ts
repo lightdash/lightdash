@@ -33,6 +33,9 @@ export default function mockHealthResponse(
         pylon: {
             appId: '',
         },
+        headway: {
+            enabled: false,
+        },
         siteUrl: 'http://localhost:3000',
         staticIp: '',
         posthog: undefined,
