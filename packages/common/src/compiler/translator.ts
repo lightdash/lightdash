@@ -604,6 +604,7 @@ export const convertTable = (
                                                           sql: dim.sql,
                                                           description:
                                                               dim.description,
+                                                          hidden: dim.hidden,
                                                       },
                                                   },
                                               }
