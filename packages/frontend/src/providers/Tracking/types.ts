@@ -458,6 +458,16 @@ type ThemeToggledEvent = {
     };
 };
 
+type DashboardUiVersionToggledEvent = {
+    name: EventName.DASHBOARD_UI_VERSION_TOGGLED;
+    properties: {
+        to: string;
+        organizationId: string | undefined;
+        projectId: string | undefined;
+        userId: string | undefined;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | FormClickedEvent
@@ -496,7 +506,8 @@ export type EventData =
     | AiAgentChartHowItsCalculatedClickedEvent
     | AiAgentChartCreatedEvent
     | AiAgentChartExploredEvent
-    | ThemeToggledEvent;
+    | ThemeToggledEvent
+    | DashboardUiVersionToggledEvent;
 
 export type IdentifyData = {
     id: string;

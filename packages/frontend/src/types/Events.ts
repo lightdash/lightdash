@@ -163,4 +163,7 @@ export enum EventName {
 
     // Theme
     THEME_TOGGLED = 'theme.toggled',
+
+    // Dashboard UI Version Toggle
+    DASHBOARD_UI_VERSION_TOGGLED = 'dashboard_ui_version.toggled',
 }
