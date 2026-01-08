@@ -20,7 +20,7 @@ const STORAGE_KEY = 'lightdash-dashboard-ui-version';
  * If the feature flag is disabled, users can opt-in to v2 via localStorage preference.
  */
 export const useDashboardUIPreference = () => {
-    const { track } = useTracking();
+    const tracking = useTracking({ failSilently: true });
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
 
@@ -36,7 +36,7 @@ export const useDashboardUIPreference = () => {
     const handleSetPreference = useCallback(
         (value: DashboardUIVersion) => {
             setPreference(value);
-            track({
+            tracking?.track({
                 name: EventName.DASHBOARD_UI_VERSION_TOGGLED,
                 properties: {
                     to: value,
@@ -49,7 +49,7 @@ export const useDashboardUIPreference = () => {
         [
             projectUuid,
             setPreference,
-            track,
+            tracking,
             user.data?.organizationUuid,
             user.data?.userUuid,
         ],

@@ -44,7 +44,7 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
     onCopy,
 }) => {
     const { user } = useApp();
-    const tracking = useTracking(true);
+    const tracking = useTracking({ failSilently: true });
     const metricQueryData = useMetricQueryDataContext(true);
 
     // FIXME: get rid of this from here

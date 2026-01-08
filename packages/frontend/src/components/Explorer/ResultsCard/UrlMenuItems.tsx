@@ -27,7 +27,7 @@ const UrlMenuItem: FC<{
     row: Record<string, Record<string, ResultValue>>;
     showError?: boolean;
 }> = ({ urlConfig, itemsMap, itemIdsInRow, value, row, showError = true }) => {
-    const tracking = useTracking(true);
+    const tracking = useTracking({ failSilently: true });
     const [url, renderError] = useMemo(() => {
         let parsedUrl: string | undefined = undefined;
         let errorMessage: string | undefined = undefined;
