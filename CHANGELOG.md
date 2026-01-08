@@ -1,3 +1,11 @@
+## [0.2316.1](https://github.com/lightdash/lightdash/compare/0.2316.0...0.2316.1) (2026-01-08)
+
+
+### Bug Fixes
+
+* suboptimal state shrinks content ([#19282](https://github.com/lightdash/lightdash/issues/19282)) ([aa0b6a6](https://github.com/lightdash/lightdash/commit/aa0b6a6ce1e2fe9c426f19dd53e55597e14fcfd0))
+* take nullsFirst sort into account when pivoting ([#19222](https://github.com/lightdash/lightdash/issues/19222)) ([51eb9e6](https://github.com/lightdash/lightdash/commit/51eb9e6b52b3f81d0a2507036cd3a2c4394dacf1))
+
 # [0.2316.0](https://github.com/lightdash/lightdash/compare/0.2315.1...0.2316.0) (2026-01-08)
 
 
