@@ -6696,6 +6696,7 @@ export class ProjectService extends BaseService {
                 'manage',
                 subject('Tags', {
                     projectUuid,
+                    organizationUuid,
                 }),
             )
         ) {
