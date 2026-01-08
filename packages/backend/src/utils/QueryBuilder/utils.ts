@@ -6,7 +6,6 @@ import {
     CompiledDimension,
     CompiledExploreJoin,
     CompiledMetric,
-    CompiledMetricQuery,
     CompiledTable,
     CustomBinDimension,
     CustomDimension,
@@ -21,7 +20,6 @@ import {
     getDimensionMapFromTables,
     getFixedWidthBinSelectSql,
     getItemId,
-    getMetrics,
     getSqlForTruncatedDate,
     IntrinsicUserAttributes,
     isCompiledCustomSqlDimension,
@@ -120,23 +118,6 @@ export const getDimensionFromFilterTargetId = ({
         adapterType,
         startOfWeek,
     });
-};
-
-export const getMetricFromId = (
-    metricId: FieldId,
-    explore: Explore,
-    compiledMetricQuery: CompiledMetricQuery,
-) => {
-    const metrics = [
-        ...getMetrics(explore),
-        ...(compiledMetricQuery.compiledAdditionalMetrics || []),
-    ];
-    const metric = metrics.find((m) => getItemId(m) === metricId);
-    if (metric === undefined)
-        throw new FieldReferenceError(
-            `Tried to reference metric with unknown field id: ${metricId}`,
-        );
-    return metric;
 };
 
 const getWrapChars = (wrapChar: string): [string, string] => {
