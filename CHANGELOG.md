@@ -1,3 +1,10 @@
+# [0.2325.0](https://github.com/lightdash/lightdash/compare/0.2324.0...0.2325.0) (2026-01-09)
+
+
+### Features
+
+* add shipping counts by method chart to seed data ([#19245](https://github.com/lightdash/lightdash/issues/19245)) ([3c6ef99](https://github.com/lightdash/lightdash/commit/3c6ef996a8f549f7a2f0c4e710b910d1b25ccbd0))
+
 # [0.2324.0](https://github.com/lightdash/lightdash/compare/0.2323.1...0.2324.0) (2026-01-09)
 
 
