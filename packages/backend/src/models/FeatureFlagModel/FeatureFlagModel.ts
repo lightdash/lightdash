@@ -81,7 +81,7 @@ export class FeatureFlagModel {
         featureFlagId,
     }: FeatureFlagLogicArgs) {
         const enabled =
-            this.lightdashConfig.groups.enabled ||
+            this.lightdashConfig.groups.enabled ??
             (user
                 ? await isFeatureFlagEnabled(
                       FeatureFlags.UserGroupsEnabled,

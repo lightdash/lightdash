@@ -573,3 +573,16 @@ test('should set useSqlPivotResults only when the environment variable is set', 
     const falseConfig = parseConfig();
     expect(falseConfig.query.useSqlPivotResults).toBe(false);
 });
+
+test('should set groups.enabled only when the environment variable is set', () => {
+    const undefinedConfig = parseConfig();
+    expect(undefinedConfig.groups.enabled).toBeUndefined();
+
+    process.env.GROUPS_ENABLED = 'true';
+    const trueConfig = parseConfig();
+    expect(trueConfig.groups.enabled).toBe(true);
+
+    process.env.GROUPS_ENABLED = 'false';
+    const falseConfig = parseConfig();
+    expect(falseConfig.groups.enabled).toBe(false);
+});
