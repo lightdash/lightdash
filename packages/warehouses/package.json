@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/warehouses",
-    "version": "0.2324.0",
+    "version": "0.2325.0",
     "license": "MIT",
     "repository": {
         "type": "git",
@@ -20,7 +20,7 @@
         "pg": "^8.13.1",
         "pg-cursor": "^2.10.0",
         "node-fetch": "^2.7.0",
-        "snowflake-sdk": "~2.3.1",
+        "snowflake-sdk": "~2.3.3",
         "ssh2": "^1.14.0",
         "trino-client": "0.2.6"
     },
