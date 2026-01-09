@@ -1,3 +1,10 @@
+## [0.2320.2](https://github.com/lightdash/lightdash/compare/0.2320.1...0.2320.2) (2026-01-09)
+
+
+### Bug Fixes
+
+* use null coalescing check for useSqlPivotResults feature flag ([#19269](https://github.com/lightdash/lightdash/issues/19269)) ([fa211d7](https://github.com/lightdash/lightdash/commit/fa211d771b7268104abf128afbb4a258c3ddc691))
+
 ## [0.2320.1](https://github.com/lightdash/lightdash/compare/0.2320.0...0.2320.1) (2026-01-09)
 
 
