@@ -156,6 +156,7 @@ export type VisualizationTableConfigProps =
         invalidateCache: boolean | undefined;
         parameters?: ParametersValuesMap;
         dateZoom?: DateZoom;
+        disableTableColumnTotals?: boolean;
     };
 
 // Treemap

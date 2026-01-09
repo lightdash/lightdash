@@ -1,4 +1,4 @@
-import { FeatureFlags, type FieldId } from '@lightdash/common';
+import { ExploreType, FeatureFlags, type FieldId } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
 import useEmbed from '../ee/providers/Embed/useEmbed';
@@ -19,6 +19,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
+import { useMetricFlowQueryExecutor } from '../features/metricFlow/hooks/useMetricFlowQueryExecutor';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
@@ -87,6 +88,7 @@ export const useExplorerQueryManager = () => {
         refetchOnMount: false,
         refetchOnWindowFocus: false,
     });
+    const isSemanticLayerExplore = explore?.type === ExploreType.SEMANTIC_LAYER;
     const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
@@ -132,16 +134,41 @@ export const useExplorerQueryManager = () => {
     const [mainQueryExecutor] = useQueryExecutor(
         validQueryArgs,
         missingRequiredParameters,
-        true,
+        !isSemanticLayerExplore,
         queryUuidHistory,
         setQueryUuidHistory,
     );
-    const { query, queryResults } = mainQueryExecutor;
+    const metricQueryForExecution = validQueryArgs?.query ?? metricQuery;
+    const metricFlowExecutor = useMetricFlowQueryExecutor({
+        projectUuid,
+        explore,
+        metricQuery: metricQueryForExecution,
+        missingRequiredParameters,
+        enabled: !!validQueryArgs && isSemanticLayerExplore,
+    });
+    const query = isSemanticLayerExplore
+        ? metricFlowExecutor.query
+        : mainQueryExecutor.query;
+    const queryResults = isSemanticLayerExplore
+        ? metricFlowExecutor.queryResults
+        : mainQueryExecutor.queryResults;
+    const metricFlowSql = isSemanticLayerExplore
+        ? metricFlowExecutor.metricFlowSql
+        : undefined;
+    const metricFlowStatus = isSemanticLayerExplore
+        ? metricFlowExecutor.metricFlowStatus
+        : undefined;
+    const metricFlowError = isSemanticLayerExplore
+        ? metricFlowExecutor.metricFlowError
+        : undefined;
 
     // Unpivoted query executor for results table
-    const unpivotedEnabled = !!unpivotedQueryArgs;
+    const unpivotedEnabled = !!unpivotedQueryArgs && !isSemanticLayerExplore;
+    const effectiveUnpivotedQueryArgs = isSemanticLayerExplore
+        ? null
+        : unpivotedQueryArgs;
     const [unpivotedQueryExecutor] = useQueryExecutor(
-        unpivotedQueryArgs,
+        effectiveUnpivotedQueryArgs,
         missingRequiredParameters,
         unpivotedEnabled,
         unpivotedQueryUuidHistory,
@@ -209,6 +236,9 @@ export const useExplorerQueryManager = () => {
         queryResults,
         unpivotedQuery,
         unpivotedQueryResults,
+        metricFlowSql,
+        metricFlowStatus,
+        metricFlowError,
 
         // Computed state
         isLoading,

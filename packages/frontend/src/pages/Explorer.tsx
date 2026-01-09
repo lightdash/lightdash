@@ -1,10 +1,14 @@
 import { subject } from '@casl/ability';
-import { memo, useCallback, useState } from 'react';
+import { IconAlertTriangle } from '@tabler/icons-react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { Provider } from 'react-redux';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 
+import { ExploreType, type SummaryExplore } from '@lightdash/common';
 import { useHotkeys } from '@mantine/hooks';
+import LoadingState from '../components/common/LoadingState';
 import Page from '../components/common/Page/Page';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
 import ForbiddenPanel from '../components/ForbiddenPanel';
@@ -22,6 +26,7 @@ import {
     useExplorerRoute,
     useExplorerUrlState,
 } from '../hooks/useExplorerRoute';
+import { useExplores } from '../hooks/useExplores';
 import useApp from '../providers/App/useApp';
 import { defaultState } from '../providers/Explorer/defaultState';
 
@@ -38,6 +43,8 @@ const ExplorerContent = memo(() => {
     // Get table name from Redux
     const tableId = useExplorerSelector(selectTableName);
     const { data } = useExplore(tableId);
+    const isSemanticLayerExplore = data?.type === ExploreType.SEMANTIC_LAYER;
+    const pageTitle = isSemanticLayerExplore ? '探索' : data?.label || 'Tables';
 
     const handleClearQuery = useCallback(() => {
         dispatch(
@@ -54,7 +61,7 @@ const ExplorerContent = memo(() => {
 
     return (
         <Page
-            title={data ? data?.label : 'Tables'}
+            title={pageTitle}
             sidebar={<ExploreSideBar />}
             withFullHeight
             withPaddedContent
@@ -95,8 +102,28 @@ const ExplorerPage = memo(() => {
         projectUuid: string;
         tableId?: string;
     }>();
+    const location = useLocation();
+    const navigate = useNavigate();
 
-    const { user } = useApp();
+    const { user, health } = useApp();
+    const hasSemanticLayer = !!health.data?.hasDbtSemanticLayer;
+    const shouldResolveSemanticLayer =
+        hasSemanticLayer && !tableId && !!projectUuid;
+    const exploresResult = useExplores(projectUuid, true, {
+        enabled: shouldResolveSemanticLayer,
+    });
+    const defaultSemanticExplore = useMemo(() => {
+        if (!exploresResult.data?.length) return undefined;
+        const semanticExplores = exploresResult.data.filter(
+            (explore): explore is SummaryExplore =>
+                !('errors' in explore) &&
+                explore.type === ExploreType.SEMANTIC_LAYER,
+        );
+        if (semanticExplores.length === 0) return undefined;
+        return [...semanticExplores].sort((a, b) =>
+            a.label.localeCompare(b.label),
+        )[0];
+    }, [exploresResult.data]);
 
     const cannotViewProject = user.data?.ability?.cannot(
         'view',
@@ -113,8 +140,48 @@ const ExplorerPage = memo(() => {
         }),
     );
 
+    useEffect(() => {
+        if (!shouldResolveSemanticLayer || !defaultSemanticExplore) return;
+        void navigate(
+            {
+                pathname: `/projects/${projectUuid}/tables/${defaultSemanticExplore.name}`,
+                search: location.search,
+            },
+            { replace: true },
+        );
+    }, [
+        defaultSemanticExplore,
+        location.search,
+        navigate,
+        projectUuid,
+        shouldResolveSemanticLayer,
+    ]);
+
     if (cannotViewProject || cannotManageExplore) {
         return <ForbiddenPanel />;
+    }
+
+    if (shouldResolveSemanticLayer) {
+        if (exploresResult.isLoading) {
+            return <LoadingState title="Loading semantic layer" />;
+        }
+        if (exploresResult.isError) {
+            return (
+                <SuboptimalState
+                    icon={IconAlertTriangle}
+                    title="Could not load explores"
+                />
+            );
+        }
+        if (!defaultSemanticExplore) {
+            return (
+                <SuboptimalState
+                    icon={IconAlertTriangle}
+                    title="No semantic layer explores"
+                />
+            );
+        }
+        return <LoadingState title="Loading semantic layer" />;
     }
 
     // Key ensures component remounts when navigating between tables

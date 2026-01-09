@@ -155,12 +155,16 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     const breadcrumbs = useMemo(() => {
         if (!explore) return [];
+        const exploreTitle =
+            explore.type === ExploreType.SEMANTIC_LAYER
+                ? '探索'
+                : explore.label;
         const items = onBack
             ? [
                   { title: 'Tables', onClick: onBack },
-                  { title: explore.label, active: true },
+                  { title: exploreTitle, active: true },
               ]
-            : [{ title: explore.label, active: true }];
+            : [{ title: exploreTitle, active: true }];
         return items;
     }, [onBack, explore]);
 

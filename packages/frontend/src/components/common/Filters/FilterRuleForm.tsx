@@ -36,12 +36,14 @@ const FilterRuleForm: FC<Props> = memo(
         onDelete,
         onConvertToGroup,
     }) => {
-        const { popoverProps, baseTable } = useFiltersContext();
+        const { popoverProps, baseTable, getFieldId, createFilterRule } =
+            useFiltersContext();
+        const resolveFieldId = getFieldId ?? getItemId;
         const activeField = useMemo(() => {
             return fields.find(
-                (field) => getItemId(field) === filterRule.target.fieldId,
+                (field) => resolveFieldId(field) === filterRule.target.fieldId,
             );
-        }, [fields, filterRule.target.fieldId]);
+        }, [fields, filterRule.target.fieldId, resolveFieldId]);
 
         const filterType = useMemo(() => {
             return activeField
@@ -56,7 +58,7 @@ const FilterRuleForm: FC<Props> = memo(
         const onFieldChange = useCallback(
             (fieldId: string) => {
                 const selectedField = fields.find(
-                    (field) => getItemId(field) === fieldId,
+                    (field) => resolveFieldId(field) === fieldId,
                 );
                 if (selectedField && activeField) {
                     if (selectedField.type === activeField.type) {
@@ -78,11 +80,22 @@ const FilterRuleForm: FC<Props> = memo(
 
                         onChange(newFilterRule);
                     } else {
-                        onChange(createFilterRuleFromField(selectedField));
+                        onChange(
+                            createFilterRule
+                                ? createFilterRule(selectedField)
+                                : createFilterRuleFromField(selectedField),
+                        );
                     }
                 }
             },
-            [activeField, fields, filterRule, onChange],
+            [
+                activeField,
+                createFilterRule,
+                fields,
+                filterRule,
+                onChange,
+                resolveFieldId,
+            ],
         );
         const isRequired = filterRule.required;
         const isRequiredLabel = isRequired
@@ -111,7 +124,7 @@ const FilterRuleForm: FC<Props> = memo(
                     items={fields}
                     onChange={(field) => {
                         if (!field) return;
-                        onFieldChange(getItemId(field));
+                        onFieldChange(resolveFieldId(field));
                     }}
                     baseTable={baseTable}
                 />

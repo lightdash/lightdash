@@ -1,9 +1,9 @@
 import {
+    ExploreType,
     getItemId,
     getItemLabelWithoutTableName,
     isCustomDimension,
     isField,
-    isFilterableField,
     isMetric,
     isNumericItem,
     isTableCalculation,
@@ -13,6 +13,7 @@ import { ActionIcon, Menu, Text } from '@mantine/core';
 import {
     IconChevronDown,
     IconFilter,
+    IconInfoCircle,
     IconPencil,
     IconTrash,
 } from '@tabler/icons-react';
@@ -20,6 +21,7 @@ import { useMemo, useState, type FC } from 'react';
 import {
     explorerActions,
     selectAdditionalMetrics,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -27,6 +29,7 @@ import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
 } from '../../../features/tableCalculation';
+import { useExplore } from '../../../hooks/useExplore';
 import { useFilters } from '../../../hooks/useFilters';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -46,7 +49,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
     onToggleCalculationEditModal,
     onToggleCalculationDeleteModal,
 }) => {
-    const { addFilter } = useFilters();
+    const { addFilter, canFilterField } = useFilters();
     const { track } = useTracking();
 
     const meta = header.column.columnDef.meta;
@@ -54,6 +57,11 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const sort = meta?.sort?.sort;
 
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const tableName = useExplorerSelector(selectTableName);
+    const { data: explore } = useExplore(tableName, {
+        refetchOnMount: false,
+    });
+    const isSemanticLayerExplore = explore?.type === ExploreType.SEMANTIC_LAYER;
     const dispatch = useExplorerDispatch();
 
     const additionalMetric = useMemo(
@@ -70,7 +78,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
         const itemFieldId = getItemId(item);
         return (
             <>
-                {isFilterableField(item) && (
+                {canFilterField(item) && (
                     <>
                         <Menu.Item
                             icon={<MantineIcon icon={IconFilter} />}
@@ -94,6 +102,26 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <Menu.Divider />
                 {isMetric(item) && (
                     <>
+                        {(item.description || isSemanticLayerExplore) && (
+                            <>
+                                <Menu.Item
+                                    icon={<MantineIcon icon={IconInfoCircle} />}
+                                    onClick={() => {
+                                        dispatch(
+                                            explorerActions.openItemDetail({
+                                                itemType: 'field',
+                                                label: item.label || item.name,
+                                                description: item.description,
+                                                fieldItem: item,
+                                            }),
+                                        );
+                                    }}
+                                >
+                                    View description
+                                </Menu.Item>
+                                <Menu.Divider />
+                            </>
+                        )}
                         {!isItemAdditionalMetric && isNumericItem(item) && (
                             <>
                                 <FormatMenuOptions item={item} />
@@ -151,7 +179,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
     } else if (item && isCustomDimension(item)) {
         return (
             <>
-                {isFilterableField(item) && (
+                {canFilterField(item) && (
                     <>
                         <Menu.Item
                             icon={<MantineIcon icon={IconFilter} />}

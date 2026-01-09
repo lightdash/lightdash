@@ -86,6 +86,7 @@ export type VisualizationProviderProps = {
     containerHeight?: number;
     isDashboard?: boolean;
     dateZoom?: DateZoom;
+    disableTableColumnTotals?: boolean;
 };
 
 const VisualizationProvider: FC<
@@ -117,6 +118,7 @@ const VisualizationProvider: FC<
     containerHeight,
     isDashboard,
     dateZoom,
+    disableTableColumnTotals,
 }) => {
     const itemsMap = useMemo(() => {
         return resultsData?.fields;
@@ -152,7 +154,7 @@ const VisualizationProvider: FC<
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
         initialPivotDimensions,
         useSqlPivotResults?.enabled
-            ? unsavedMetricQuery ?? lastValidResultsData?.metricQuery
+            ? (unsavedMetricQuery ?? lastValidResultsData?.metricQuery)
             : lastValidResultsData?.metricQuery,
         onPivotDimensionsChange,
     );
@@ -346,6 +348,7 @@ const VisualizationProvider: FC<
         containerWidth,
         containerHeight,
         isDashboard,
+        disableTableColumnTotals,
     };
 
     switch (chartConfig.type) {
@@ -502,6 +505,7 @@ const VisualizationProvider: FC<
                     invalidateCache={invalidateCache}
                     parameters={parameters}
                     dateZoom={dateZoom}
+                    disableTableColumnTotals={disableTableColumnTotals}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

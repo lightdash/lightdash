@@ -8,11 +8,20 @@ import MantineIcon from '../../common/MantineIcon';
 
 interface OpenInSqlRunnerButtonProps {
     projectUuid: string;
+    sql?: string | null;
+    isDisabled?: boolean;
 }
 
 const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
-    ({ projectUuid }) => {
-        const { data, isInitialLoading, error } = useCompiledSql();
+    ({ projectUuid, sql, isDisabled }) => {
+        const shouldFetchSql = sql === undefined;
+        const { data, isInitialLoading, error } = useCompiledSql({
+            enabled: shouldFetchSql,
+        });
+        const resolvedSql = sql ?? data?.query;
+        const isButtonDisabled =
+            !!isDisabled ||
+            (shouldFetchSql ? isInitialLoading || !!error : !resolvedSql);
 
         return (
             <Button
@@ -21,9 +30,9 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
                 to={{
                     pathname: `/projects/${projectUuid}/sql-runner`,
                 }}
-                state={{ sql: data?.query }} // pass SQL as location state
+                state={{ sql: resolvedSql }} // pass SQL as location state
                 leftIcon={<MantineIcon icon={IconTerminal2} color="ldGray.7" />}
-                disabled={isInitialLoading || !!error}
+                disabled={isButtonDisabled}
             >
                 Open in SQL Runner
             </Button>

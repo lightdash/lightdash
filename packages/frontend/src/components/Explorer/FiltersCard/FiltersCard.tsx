@@ -1,15 +1,25 @@
 import {
+    DimensionType,
+    ExploreType,
     FilterOperator,
     countTotalFilterRules,
+    getFilterRuleFromFieldWithDefaultValue,
     getItemId,
+    getItemMap,
     getTotalFilterRules,
     getVisibleFields,
+    isDimension,
     isFilterableField,
+    isMetric,
     overrideFilterGroupWithFilterRules,
     reduceRequiredDimensionFiltersToFilterRules,
     resetRequiredFilterRules,
+    type AndFilterGroup,
     type FilterRule,
+    type FilterableField,
+    type FilterableItem,
     type Filters,
+    type ParametersValuesMap,
 } from '@lightdash/common';
 import { Badge, Text, Tooltip } from '@mantine/core';
 import {
@@ -20,6 +30,8 @@ import {
     useState,
     type FC,
 } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { getMetricFlowDimensionValues } from '../../../api/MetricFlowAPI';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -33,6 +45,8 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import useSemanticLayerDimensions from '../../../features/metricFlow/hooks/useSemanticLayerDimensions';
+import { convertMetricQueryToMetricFlowQuery } from '../../../features/metricFlow/utils/convertMetricQueryToMetricFlowQuery';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
@@ -59,6 +73,30 @@ const FiltersCard: FC = memo(() => {
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const { data } = useExplore(tableName);
+    const isSemanticLayerExplore = data?.type === ExploreType.SEMANTIC_LAYER;
+    const metricFlowQuery = useMemo(() => {
+        if (!isSemanticLayerExplore || !data) return undefined;
+        return convertMetricQueryToMetricFlowQuery(metricQuery, data);
+    }, [data, isSemanticLayerExplore, metricQuery]);
+    const selectedMetricNames = metricFlowQuery?.metrics ?? {};
+    const hasSelectedMetrics = Object.keys(selectedMetricNames).length > 0;
+    const { data: semanticLayerDimensions } = useSemanticLayerDimensions(
+        projectUuid,
+        selectedMetricNames,
+        {
+            enabled:
+                isSemanticLayerExplore && hasSelectedMetrics && !!projectUuid,
+        },
+    );
+    const availableDimensionNames = useMemo(() => {
+        if (!isSemanticLayerExplore || !hasSelectedMetrics) return undefined;
+        if (!semanticLayerDimensions) return undefined;
+        return new Set(
+            semanticLayerDimensions.dimensions.map((dimension) =>
+                dimension.name.toLowerCase(),
+            ),
+        );
+    }, [hasSelectedMetrics, isSemanticLayerExplore, semanticLayerDimensions]);
 
     // Cache visible fields to avoid repeated expensive flatMap operations
     const visibleFields = useMemo(
@@ -161,6 +199,15 @@ const FiltersCard: FC = memo(() => {
         () => countTotalFilterRules(processedFilters),
         [processedFilters],
     );
+    const metricFlowFilterFieldNames = useMemo(
+        () =>
+            new Set(
+                getTotalFilterRules(processedFilters).map(
+                    (rule) => rule.target.fieldId,
+                ),
+            ),
+        [processedFilters],
+    );
 
     useEffect(() => {
         if (hasDefaultFiltersApplied) return;
@@ -225,11 +272,117 @@ const FiltersCard: FC = memo(() => {
         tableCalculations,
     });
 
+    const metricFlowFilterFields = useMemo<
+        Record<string, FilterableField & { suggestions?: string[] }>
+    >(() => {
+        if (!data) return {};
+        const tableDimensions = Object.values(data.tables).flatMap((table) =>
+            Object.entries(table.dimensions),
+        );
+        return tableDimensions.reduce<
+            Record<string, FilterableField & { suggestions?: string[] }>
+        >((acc, [fieldId, field]) => {
+            if (!isDimension(field)) return acc;
+            if (field.isIntervalBase) return acc;
+            if (
+                (field.type === DimensionType.TIMESTAMP ||
+                    field.type === DimensionType.DATE) &&
+                !field.timeInterval
+            ) {
+                return acc;
+            }
+            if (availableDimensionNames) {
+                const baseName =
+                    field.timeIntervalBaseDimensionName?.toLowerCase();
+                const fieldName = field.name.toLowerCase();
+                if (
+                    !availableDimensionNames.has(fieldName) &&
+                    (!baseName || !availableDimensionNames.has(baseName)) &&
+                    !metricFlowFilterFieldNames.has(field.name)
+                ) {
+                    return acc;
+                }
+            }
+            acc[field.name] = fieldsWithSuggestions[fieldId] ?? field;
+            return acc;
+        }, {});
+    }, [
+        availableDimensionNames,
+        data,
+        fieldsWithSuggestions,
+        metricFlowFilterFieldNames,
+    ]);
+
+    const metricFlowMetricNames = useMemo(() => {
+        if (!data) return [];
+        const itemsMap = getItemMap(data);
+        return metricQuery.metrics.reduce<string[]>((acc, fieldId) => {
+            const field = itemsMap[fieldId];
+            if (field && isMetric(field)) {
+                acc.push(field.name);
+            }
+            return acc;
+        }, []);
+    }, [data, metricQuery.metrics]);
+
+    const metricFlowAutocompleteKey = useMemo(
+        () => metricFlowMetricNames.slice().sort().join(','),
+        [metricFlowMetricNames],
+    );
+
+    const metricFlowFieldValuesRequest = useCallback(
+        async (args: {
+            projectUuid: string;
+            field: FilterableItem;
+            fieldId: string;
+            tableName?: string;
+            search: string;
+            forceRefresh: boolean;
+            filters: AndFilterGroup | undefined;
+            limit: number;
+            parameterValues?: ParametersValuesMap;
+        }) =>
+            getMetricFlowDimensionValues(args.projectUuid, {
+                dimension: args.field.name,
+                metrics:
+                    metricFlowMetricNames.length > 0
+                        ? metricFlowMetricNames
+                        : undefined,
+                search: args.search,
+                limit: args.limit,
+            }),
+        [metricFlowMetricNames],
+    );
+
+    const getMetricFlowFieldId = useCallback(
+        (field: FilterableField) => field.name,
+        [],
+    );
+
+    const createMetricFlowFilterRule = useCallback(
+        (field: FilterableField, value?: any) =>
+            getFilterRuleFromFieldWithDefaultValue(
+                field,
+                {
+                    id: uuidv4(),
+                    target: { fieldId: field.name },
+                    operator:
+                        value === null
+                            ? FilterOperator.NULL
+                            : FilterOperator.EQUALS,
+                },
+                value ? [value] : [],
+            ),
+        [],
+    );
+
     // Pre-compute filter rule labels for tooltip
     const filterRuleLabels = useMemo(() => {
         return getTotalFilterRules(processedFilters).map((filterRule) => {
-            const field = visibleFields.find(
-                (f) => getItemId(f) === filterRule.target.fieldId,
+            const field = visibleFields.find((f) =>
+                isSemanticLayerExplore
+                    ? f.name === filterRule.target.fieldId
+                    : getItemId(f) === filterRule.target.fieldId,
             );
             if (field && isFilterableField(field)) {
                 const labels = getConditionalRuleLabelFromItem(
@@ -252,7 +405,7 @@ const FiltersCard: FC = memo(() => {
             }
             return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
         });
-    }, [processedFilters, visibleFields]);
+    }, [processedFilters, visibleFields, isSemanticLayerExplore]);
 
     return (
         <CollapsableCard
@@ -310,7 +463,11 @@ const FiltersCard: FC = memo(() => {
             {hasEverOpened && (
                 <FiltersProvider
                     projectUuid={projectUuid}
-                    itemsMap={fieldsWithSuggestions}
+                    itemsMap={
+                        isSemanticLayerExplore
+                            ? metricFlowFilterFields
+                            : fieldsWithSuggestions
+                    }
                     startOfWeek={
                         project.data?.warehouseConnection?.startOfWeek ??
                         undefined
@@ -319,6 +476,29 @@ const FiltersCard: FC = memo(() => {
                         withinPortal: true,
                     }}
                     baseTable={data?.baseTable}
+                    autocompleteEnabled={
+                        isSemanticLayerExplore ? true : undefined
+                    }
+                    autocompleteKey={
+                        isSemanticLayerExplore
+                            ? metricFlowAutocompleteKey
+                            : undefined
+                    }
+                    fieldValuesRequest={
+                        isSemanticLayerExplore
+                            ? metricFlowFieldValuesRequest
+                            : undefined
+                    }
+                    getFieldId={
+                        isSemanticLayerExplore
+                            ? getMetricFlowFieldId
+                            : undefined
+                    }
+                    createFilterRule={
+                        isSemanticLayerExplore
+                            ? createMetricFlowFilterRule
+                            : undefined
+                    }
                 >
                     <FiltersForm
                         isEditMode={isEditMode}

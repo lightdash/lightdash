@@ -15,6 +15,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
+import { createMetricFlowQuery, QueryStatus } from '../api/MetricFlowAPI';
+import { convertMetricQueryToMetricFlowQuery } from '../features/metricFlow/utils/convertMetricQueryToMetricFlowQuery';
+import { isMetricFlowExploreName } from '../features/metricFlow/utils/metricFlowExplore';
+import { pollMetricFlowQueryResults } from '../features/metricFlow/utils/pollMetricFlowQueryResults';
 import {
     convertDateDashboardFilters,
     convertDateFilters,
@@ -86,6 +90,88 @@ const postCalculateTotalForEmbed = async (
     });
 };
 
+const calculateMetricFlowTotal = async ({
+    projectUuid,
+    metricQuery,
+    itemsMap,
+    metricsWithTotals,
+}: {
+    projectUuid: string;
+    metricQuery: MetricQueryRequest;
+    itemsMap: ItemsMap;
+    metricsWithTotals?: string[];
+}): Promise<ApiCalculateTotalResponse['results']> => {
+    const metricsToCalculate =
+        metricsWithTotals && metricsWithTotals.length > 0
+            ? metricsWithTotals
+            : metricQuery.metrics;
+
+    if (!metricsToCalculate.length) {
+        return {};
+    }
+
+    const totalMetricQuery: MetricQuery = {
+        ...(metricQuery as MetricQuery),
+        metrics: metricsToCalculate,
+        dimensions: [],
+        sorts: [],
+    };
+
+    const metricFlowQuery = convertMetricQueryToMetricFlowQuery(
+        totalMetricQuery,
+        itemsMap,
+    );
+
+    const { createQuery } = await createMetricFlowQuery(
+        projectUuid,
+        metricFlowQuery,
+    );
+    const results = await pollMetricFlowQueryResults(
+        projectUuid,
+        createQuery.queryId,
+    );
+
+    if (results.query.status === QueryStatus.FAILED) {
+        throw new Error(results.query.error || 'MetricFlow query failed');
+    }
+
+    const row = results.query.jsonResult?.data?.[0];
+    if (!row) return {};
+
+    const allowedFieldIds = new Set(metricsToCalculate);
+    const fieldIdByName = Object.entries(itemsMap).reduce<
+        Record<string, string>
+    >((acc, [fieldId, item]) => {
+        if (!allowedFieldIds.has(fieldId) || !isField(item)) {
+            return acc;
+        }
+        acc[item.name.toLowerCase()] = fieldId;
+        return acc;
+    }, {});
+
+    return Object.entries(row).reduce<Record<string, number>>(
+        (acc, [columnName, value]) => {
+            const fieldId = fieldIdByName[columnName.toLowerCase()];
+            if (!fieldId) return acc;
+
+            if (typeof value === 'number') {
+                acc[fieldId] = value;
+                return acc;
+            }
+
+            if (typeof value === 'string') {
+                const parsedValue = Number(value);
+                if (!Number.isNaN(parsedValue)) {
+                    acc[fieldId] = parsedValue;
+                }
+            }
+
+            return acc;
+        },
+        {},
+    );
+};
+
 const getCalculationColumnFields = (
     selectedItemIds: string[],
     itemsMap: ItemsMap,
@@ -134,13 +220,16 @@ export const useCalculateTotal = ({
     }, [fieldIds, itemsMap, showColumnCalculation]);
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const isMetricFlowExplore = !!explore && isMetricFlowExploreName(explore);
 
     // only add relevant fields to the key (filters, metrics)
     const queryKey = savedChartUuid
         ? { savedChartUuid, dashboardFilters, invalidateCache, parameters }
         : {
               filters: metricQuery?.filters,
-              metrics: metricQuery?.metrics,
+              metrics: isMetricFlowExplore
+                  ? metricsWithTotals
+                  : metricQuery?.metrics,
               additionalMetrics: metricQuery?.additionalMetrics,
               parameters,
           };
@@ -148,32 +237,41 @@ export const useCalculateTotal = ({
     return useQuery<ApiCalculateTotalResponse['results'], ApiError>({
         queryKey: ['calculate_total', projectUuid, queryKey],
         queryFn: () =>
-            embedToken && projectUuid && savedChartUuid
-                ? postCalculateTotalForEmbed(
-                      projectUuid,
-                      savedChartUuid,
-                      dashboardFilters,
-                      invalidateCache,
-                  )
-                : savedChartUuid
-                ? calculateTotalFromSavedChart(
-                      savedChartUuid,
-                      dashboardFilters,
-                      invalidateCache,
-                      parameters,
-                  )
-                : projectUuid
-                ? calculateTotalFromQuery(
+            isMetricFlowExplore && projectUuid && metricQuery && itemsMap
+                ? calculateMetricFlowTotal({
                       projectUuid,
                       metricQuery,
-                      explore,
-                      parameters,
-                  )
-                : Promise.reject(),
+                      itemsMap,
+                      metricsWithTotals,
+                  })
+                : embedToken && projectUuid && savedChartUuid
+                  ? postCalculateTotalForEmbed(
+                        projectUuid,
+                        savedChartUuid,
+                        dashboardFilters,
+                        invalidateCache,
+                    )
+                  : savedChartUuid
+                    ? calculateTotalFromSavedChart(
+                          savedChartUuid,
+                          dashboardFilters,
+                          invalidateCache,
+                          parameters,
+                      )
+                    : projectUuid
+                      ? calculateTotalFromQuery(
+                            projectUuid,
+                            metricQuery,
+                            explore,
+                            parameters,
+                        )
+                      : Promise.reject(),
         retry: false,
         enabled:
             metricsWithTotals.length > 0 &&
-            (metricQuery || savedChartUuid) !== undefined,
+            (isMetricFlowExplore
+                ? Boolean(metricQuery && itemsMap)
+                : (metricQuery || savedChartUuid) !== undefined),
         onError: (result) =>
             console.error(
                 `Unable to calculate total from query: ${

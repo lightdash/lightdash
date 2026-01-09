@@ -36,6 +36,7 @@ import {
     useExplorerSelector,
     type ExplorerStoreState,
 } from '../../../../../features/explorer/store';
+import { isMetricFlowExploreName } from '../../../../../features/metricFlow/utils/metricFlowExplore';
 
 import { useAddFilter } from '../../../../../hooks/useFilters';
 import useTracking from '../../../../../providers/Tracking/useTracking';
@@ -78,6 +79,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const isSearching = useTableTree((context) => context.isSearching);
     const searchResults = useTableTree((context) => context.searchResults);
     const searchQuery = useTableTree((context) => context.searchQuery);
+    const tableName = useTableTree((context) => context.tableName);
     const missingCustomMetrics = useTableTree(
         (context) => context.missingCustomMetrics,
     );
@@ -102,11 +104,19 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const item = itemsMap[node.key];
 
     const fieldId = useMemo(() => getItemId(item), [item]);
+    const isMetricFlowExplore = useMemo(
+        () => isMetricFlowExploreName(tableName),
+        [tableName],
+    );
+    const filterFieldId = useMemo(
+        () => (isMetricFlowExplore ? item.name : fieldId),
+        [fieldId, isMetricFlowExplore, item.name],
+    );
 
     const selectIsFiltered = useMemo(
         () => (state: ExplorerStoreState) =>
-            selectIsFieldFiltered(state, fieldId),
-        [fieldId],
+            selectIsFieldFiltered(state, filterFieldId),
+        [filterFieldId],
     );
     const selectIsActive = useMemo(
         () => (state: ExplorerStoreState) =>
@@ -161,7 +171,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
     const showFilterAction =
         (isFiltered || isHover) &&
         !isAdditionalMetric(item) &&
-        isFilterableField(item);
+        (isMetricFlowExplore ? isDimension(item) : isFilterableField(item));
 
     const timeIntervalLabel =
         isDimension(item) &&

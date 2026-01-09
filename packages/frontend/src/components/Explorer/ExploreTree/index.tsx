@@ -1,4 +1,5 @@
 import {
+    ExploreType,
     getItemId,
     type AdditionalMetric,
     type CompiledTable,
@@ -23,11 +24,16 @@ import {
     selectAdditionalMetrics,
     selectCustomDimensions,
     selectDimensions,
+    selectMetricQuery,
     selectMissingCustomDimensions,
     selectMissingCustomMetrics,
     selectMissingFieldIds,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import useSemanticLayerDimensions from '../../../features/metricFlow/hooks/useSemanticLayerDimensions';
+import useSemanticLayerMetrics from '../../../features/metricFlow/hooks/useSemanticLayerMetrics';
+import { convertMetricQueryToMetricFlowQuery } from '../../../features/metricFlow/utils/convertMetricQueryToMetricFlowQuery';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import MantineIcon from '../../common/MantineIcon';
 import { getSearchResults } from './TableTree/Tree/utils';
 import {
@@ -43,12 +49,16 @@ type ExploreTreeProps = {
 
 type Records = Record<string, AdditionalMetric | Dimension | Metric>;
 
+const SEMANTIC_LAYER_REFRESH_DEBOUNCE_MS = 250;
+
 const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     explore,
     onSelectedFieldChange,
 }) => {
+    const projectUuid = useProjectUuid();
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
 
     const missingCustomMetrics = useExplorerSelector((state) =>
         selectMissingCustomMetrics(state, explore),
@@ -61,6 +71,65 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     );
     const activeFields = useExplorerSelector(selectActiveFields);
     const selectedDimensions = useExplorerSelector(selectDimensions);
+    const isSemanticLayerExplore = explore.type === ExploreType.SEMANTIC_LAYER;
+
+    const metricFlowQuery = useMemo(() => {
+        if (!isSemanticLayerExplore) return undefined;
+        return convertMetricQueryToMetricFlowQuery(metricQuery, explore);
+    }, [explore, isSemanticLayerExplore, metricQuery]);
+
+    const selectedMetricNames = metricFlowQuery?.metrics ?? {};
+    const selectedDimensionNames = metricFlowQuery?.dimensions ?? {};
+    const [debouncedSelectedMetricNames] = useDebouncedValue(
+        selectedMetricNames,
+        SEMANTIC_LAYER_REFRESH_DEBOUNCE_MS,
+    );
+    const [debouncedSelectedDimensionNames] = useDebouncedValue(
+        selectedDimensionNames,
+        SEMANTIC_LAYER_REFRESH_DEBOUNCE_MS,
+    );
+    const hasSelectedMetrics =
+        Object.keys(debouncedSelectedMetricNames).length > 0;
+    const hasSelectedDimensions =
+        Object.keys(debouncedSelectedDimensionNames).length > 0;
+
+    const { data: semanticLayerDimensions } = useSemanticLayerDimensions(
+        projectUuid,
+        debouncedSelectedMetricNames,
+        {
+            enabled:
+                isSemanticLayerExplore && hasSelectedMetrics && !!projectUuid,
+            keepPreviousData: true,
+        },
+    );
+    const { data: semanticLayerMetrics } = useSemanticLayerMetrics(
+        projectUuid,
+        debouncedSelectedDimensionNames,
+        {
+            enabled:
+                isSemanticLayerExplore &&
+                hasSelectedDimensions &&
+                !!projectUuid,
+        },
+    );
+
+    const availableDimensionNames = useMemo(() => {
+        if (!isSemanticLayerExplore || !hasSelectedMetrics) return undefined;
+        if (!semanticLayerDimensions) return undefined;
+        const names = semanticLayerDimensions.dimensions.map((dimension) =>
+            dimension.name.toLowerCase(),
+        );
+        return new Set(names);
+    }, [hasSelectedMetrics, isSemanticLayerExplore, semanticLayerDimensions]);
+
+    const availableMetricNames = useMemo(() => {
+        if (!isSemanticLayerExplore || !hasSelectedDimensions) return undefined;
+        if (!semanticLayerMetrics) return undefined;
+        const names = semanticLayerMetrics.metricsForDimensions.map((metric) =>
+            metric.name.toLowerCase(),
+        );
+        return new Set(names);
+    }, [hasSelectedDimensions, isSemanticLayerExplore, semanticLayerMetrics]);
 
     const [search, setSearch] = useState<string>('');
     const [isPending, startTransition] = useTransition();
@@ -73,14 +142,93 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         return !!trimmedSearch && trimmedSearch !== '';
     }, [debouncedSearch]);
 
+    const treeExplore = useMemo(() => {
+        if (!isSemanticLayerExplore) return explore;
+
+        const filteredTables = Object.fromEntries(
+            Object.entries(explore.tables).map(([tableName, table]) => {
+                const dimensions = Object.fromEntries(
+                    Object.entries(table.dimensions).filter(
+                        ([fieldId, dimension]) => {
+                            if (!availableDimensionNames) return true;
+                            const baseName =
+                                dimension.timeIntervalBaseDimensionName?.toLowerCase();
+                            return (
+                                activeFields.has(fieldId) ||
+                                (baseName &&
+                                    availableDimensionNames.has(baseName)) ||
+                                availableDimensionNames.has(
+                                    dimension.name.toLowerCase(),
+                                )
+                            );
+                        },
+                    ),
+                );
+                const metrics = Object.fromEntries(
+                    Object.entries(table.metrics).filter(
+                        ([fieldId, metric]) =>
+                            !availableMetricNames ||
+                            activeFields.has(fieldId) ||
+                            availableMetricNames.has(metric.name.toLowerCase()),
+                    ),
+                );
+                return [
+                    tableName,
+                    {
+                        ...table,
+                        dimensions,
+                        metrics,
+                    },
+                ];
+            }),
+        );
+
+        const mergedDimensions = Object.values(filteredTables).reduce(
+            (acc, table) => ({
+                ...acc,
+                ...table.dimensions,
+            }),
+            {},
+        );
+        const mergedMetrics = Object.values(filteredTables).reduce(
+            (acc, table) => ({
+                ...acc,
+                ...table.metrics,
+            }),
+            {},
+        );
+
+        const baseTable = explore.tables[explore.baseTable];
+        const mergedTable = {
+            ...baseTable,
+            name: explore.baseTable,
+            label: explore.label || baseTable.label,
+            dimensions: mergedDimensions,
+            metrics: mergedMetrics,
+        };
+
+        return {
+            ...explore,
+            tables: {
+                [mergedTable.name]: mergedTable,
+            },
+        };
+    }, [
+        availableDimensionNames,
+        availableMetricNames,
+        activeFields,
+        explore,
+        isSemanticLayerExplore,
+    ]);
+
     // Pre-compute node maps for all sections to avoid expensive recomputation during rendering
     const sectionNodeMaps = useMemo(() => {
         return getNodeMapsForVirtualization(
-            explore,
+            treeExplore,
             additionalMetrics,
             customDimensions,
         );
-    }, [explore, additionalMetrics, customDimensions]);
+    }, [treeExplore, additionalMetrics, customDimensions]);
 
     const handleSearchChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,21 +263,20 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         startTransition(() => {
             if (!isSearching) return;
             setSearchResultsMap(
-                Object.values(explore.tables).reduce<Record<string, string[]>>(
-                    (acc, table) => {
-                        return { ...acc, [table.name]: searchResults(table) };
-                    },
-                    {},
-                ),
+                Object.values(treeExplore.tables).reduce<
+                    Record<string, string[]>
+                >((acc, table) => {
+                    return { ...acc, [table.name]: searchResults(table) };
+                }, {}),
             );
         });
-    }, [explore, isSearching, searchResults]);
+    }, [treeExplore, isSearching, searchResults]);
 
     const tableTrees = useMemo(() => {
-        return Object.values(explore.tables)
+        return Object.values(treeExplore.tables)
             .sort((tableA, tableB) => {
-                if (tableA.name === explore.baseTable) return -1;
-                if (tableB.name === explore.baseTable) return 1;
+                if (tableA.name === treeExplore.baseTable) return -1;
+                if (tableB.name === treeExplore.baseTable) return 1;
                 // Sorting explores by label
                 return tableA.label.localeCompare(tableB.label);
             })
@@ -140,7 +287,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                         searchResultsMap[table.name]?.length === 0
                     ) && !table.hidden,
             );
-    }, [explore, isSearching, searchResultsMap]);
+    }, [treeExplore, isSearching, searchResultsMap]);
 
     // Manage table expansion state
     const [expandedTables, setExpandedTables] = useState<Set<string>>(() => {
@@ -181,7 +328,9 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     const virtualizedTreeData = useMemo(() => {
         return flattenTreeForVirtualization({
             tables: tableTrees,
-            showMultipleTables: Object.keys(explore.tables).length > 1,
+            showMultipleTables:
+                Object.keys(treeExplore.tables).length > 1 &&
+                !isSemanticLayerExplore,
             expandedTables,
             expandedGroups,
             searchQuery: debouncedSearch,
@@ -203,7 +352,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         debouncedSearch,
         expandedGroups,
         expandedTables,
-        explore.tables,
+        isSemanticLayerExplore,
         isSearching,
         missingCustomDimensions,
         missingCustomMetrics,
@@ -212,6 +361,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         sectionNodeMaps,
         selectedDimensions,
         tableTrees,
+        treeExplore.tables,
     ]);
 
     return (

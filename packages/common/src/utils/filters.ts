@@ -580,6 +580,7 @@ export const isDimensionValueInvalidDate = (
 export const getFiltersFromGroup = (
     filterGroup: FilterGroup,
     fields: ItemsMap[string][],
+    getFieldId: (field: ItemsMap[string]) => string = getItemId,
 ): Filters => {
     const flatFilterGroup = flattenSameFilterGroupType(filterGroup);
     const items = getItemsFromFilterGroup(flatFilterGroup);
@@ -588,7 +589,7 @@ export const getFiltersFromGroup = (
         if (isFilterRule(item)) {
             // when filter group item is a filter rule, we find the field it's targeting
             const fieldInRule = fields.find(
-                (field) => getItemId(field) === item.target.fieldId,
+                (field) => getFieldId(field) === item.target.fieldId,
             );
 
             // determine the type of the field and add the rule it to the correct filters object property
@@ -633,7 +634,7 @@ export const getFiltersFromGroup = (
         if (isFilterGroup(item)) {
             // when filter group item is a filter group, we need to recursively call this function to extract filters objects from the nested group
             // then we add each field type filter group - from nested filters group - into the correct parent filters object property keeping the parent filter group type (AND/OR)
-            const filters = getFiltersFromGroup(item, fields);
+            const filters = getFiltersFromGroup(item, fields, getFieldId);
 
             if (filters.dimensions) {
                 accumulator.dimensions = {

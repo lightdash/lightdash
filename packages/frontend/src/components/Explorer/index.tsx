@@ -1,5 +1,12 @@
 import { subject } from '@casl/ability';
-import { getAvailableParametersFromTables } from '@lightdash/common';
+import {
+    ExploreType,
+    getAvailableParametersFromTables,
+    getItemId,
+    getItemMap,
+    isDimension,
+    isMetric,
+} from '@lightdash/common';
 import { Stack } from '@mantine/core';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import {
@@ -72,9 +79,13 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const queryUuid = query.data?.queryUuid;
 
         const { data: explore } = useExplore(tableName);
+        const isSemanticLayerExplore =
+            explore?.type === ExploreType.SEMANTIC_LAYER;
 
+        const canCompileSql =
+            !!tableName && !!explore && !isSemanticLayerExplore;
         const { data: { parameterReferences } = {}, isError } = useCompiledSql({
-            enabled: !!tableName,
+            enabled: canCompileSql,
         });
 
         const chartVersionForSort = useMemo(
@@ -100,6 +111,10 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         }, [tableName, sorts.length, defaultSort, dispatch]);
 
         useEffect(() => {
+            if (isSemanticLayerExplore) {
+                dispatch(explorerActions.setParameterReferences([]));
+                return;
+            }
             if (isError) {
                 // If there's an error, we set the parameter references to an empty array
                 dispatch(explorerActions.setParameterReferences([]));
@@ -111,7 +126,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                     ),
                 );
             }
-        }, [parameterReferences, dispatch, isError]);
+        }, [parameterReferences, dispatch, isError, isSemanticLayerExplore]);
 
         const { data: projectParameters } = useParameters(
             projectUuid,
@@ -143,6 +158,84 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         }, [parameterDefinitions, dispatch]);
 
         const { data: org } = useOrganization();
+
+        useEffect(() => {
+            if (!explore || !isSemanticLayerExplore) return;
+
+            const itemsMap = getItemMap(explore);
+            const isSameArray = (a: string[], b: string[]) =>
+                a.length === b.length &&
+                a.every((value, index) => value === b[index]);
+
+            const cleanedDimensions = dimensions.filter((fieldId) => {
+                const item = itemsMap[fieldId];
+                return item && isDimension(item);
+            });
+            const cleanedMetrics = metrics.filter((fieldId) => {
+                const item = itemsMap[fieldId];
+                return item && isMetric(item);
+            });
+            const cleanedSorts = sorts.filter((sort) => itemsMap[sort.fieldId]);
+            const cleanedColumnOrder = columnOrder.filter(
+                (fieldId) => itemsMap[fieldId],
+            );
+
+            const hasDimensionChanges = !isSameArray(
+                cleanedDimensions,
+                dimensions,
+            );
+            const hasMetricChanges = !isSameArray(cleanedMetrics, metrics);
+            const hasSortChanges =
+                cleanedSorts.length !== sorts.length ||
+                cleanedSorts.some(
+                    (sort, index) =>
+                        sorts[index]?.fieldId !== sort.fieldId ||
+                        sorts[index]?.descending !== sort.descending,
+                );
+            const hasColumnOrderChanges = !isSameArray(
+                cleanedColumnOrder,
+                columnOrder,
+            );
+
+            if (metricQuery.tableCalculations.length > 0) {
+                dispatch(explorerActions.setTableCalculations([]));
+            }
+            if (metricQuery.customDimensions?.length) {
+                dispatch(explorerActions.setCustomDimensions([]));
+            }
+            if (metricQuery.additionalMetrics?.length) {
+                metricQuery.additionalMetrics.forEach((metric) => {
+                    dispatch(
+                        explorerActions.removeAdditionalMetric(
+                            getItemId(metric),
+                        ),
+                    );
+                });
+            }
+            if (hasDimensionChanges) {
+                dispatch(explorerActions.setDimensions(cleanedDimensions));
+            }
+            if (hasMetricChanges) {
+                dispatch(explorerActions.setMetrics(cleanedMetrics));
+            }
+            if (hasSortChanges) {
+                dispatch(explorerActions.setSortFields(cleanedSorts));
+            }
+            if (hasColumnOrderChanges) {
+                dispatch(explorerActions.setColumnOrder(cleanedColumnOrder));
+            }
+        }, [
+            columnOrder,
+            dimensions,
+            dispatch,
+            explore,
+            isSemanticLayerExplore,
+            metricQuery.additionalMetrics,
+            metricQuery.customDimensions,
+            metricQuery.tableCalculations,
+            metrics,
+            sorts,
+        ]);
 
         return (
             <MetricQueryDataProvider
@@ -187,15 +280,19 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                     </Can>
                 </Stack>
 
-                {/* These use the metricQueryDataProvider context */}
-                <UnderlyingDataModal />
-                <DrillDownModal />
+                {!isSemanticLayerExplore && (
+                    <>
+                        {/* These use the metricQueryDataProvider context */}
+                        <UnderlyingDataModal />
+                        <DrillDownModal />
 
-                {/* These return safely when unopened */}
-                <CustomDimensionModal />
-                <WriteBackModal />
+                        {/* These return safely when unopened */}
+                        <CustomDimensionModal />
+                        <WriteBackModal />
 
-                {isAdditionalMetricModalOpen && <CustomMetricModal />}
+                        {isAdditionalMetricModalOpen && <CustomMetricModal />}
+                    </>
+                )}
                 {isFormatModalOpen && <FormatModal />}
             </MetricQueryDataProvider>
         );

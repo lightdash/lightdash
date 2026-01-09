@@ -1,4 +1,4 @@
-import { FeatureFlags } from '@lightdash/common';
+import { ExploreType, FeatureFlags } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import {
@@ -39,7 +39,9 @@ export const useExplorerQuery = () => {
 
     const projectUuid = manager.projectUuid;
     const unpivotedQueryArgs = useExplorerSelector(selectUnpivotedQueryArgs);
-    const unpivotedEnabled = !!unpivotedQueryArgs;
+    const isSemanticLayerExplore =
+        manager.explore?.type === ExploreType.SEMANTIC_LAYER;
+    const unpivotedEnabled = !!unpivotedQueryArgs && !isSemanticLayerExplore;
 
     const { data: useSqlPivotResults } = useFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
@@ -63,6 +65,9 @@ export const useExplorerQuery = () => {
     // Action: Get download query UUID
     const getDownloadQueryUuid = useCallback(
         async (limit: number | null, exportPivotedResults: boolean = false) => {
+            if (isSemanticLayerExplore) {
+                throw new Error('Semantic layer downloads are not supported');
+            }
             // When unpivotedResultsEnabled it means that queryResults are pivoted results
             // therefore we need to use unpivotedQueryResults if we want to download raw results
             let queryUuid =
@@ -82,9 +87,8 @@ export const useExplorerQuery = () => {
                                   useSqlPivotResults?.enabled,
                           }
                         : null;
-                const downloadQuery = await executeQueryAndWaitForResults(
-                    queryArgsWithLimit,
-                );
+                const downloadQuery =
+                    await executeQueryAndWaitForResults(queryArgsWithLimit);
                 queryUuid = downloadQuery.queryUuid;
             }
             if (!queryUuid) {
@@ -100,6 +104,7 @@ export const useExplorerQuery = () => {
             validQueryArgs,
             minimal,
             useSqlPivotResults?.enabled,
+            isSemanticLayerExplore,
         ],
     );
 
@@ -109,6 +114,7 @@ export const useExplorerQuery = () => {
         queryResults.queryUuid,
     );
     const cancelQuery = useCallback(() => {
+        if (isSemanticLayerExplore) return;
         void queryClient.cancelQueries({
             queryKey: ['create-query'],
             exact: false,
@@ -116,7 +122,12 @@ export const useExplorerQuery = () => {
         if (queryResults.queryUuid) {
             cancelQueryMutation();
         }
-    }, [queryClient, queryResults.queryUuid, cancelQueryMutation]);
+    }, [
+        isSemanticLayerExplore,
+        queryClient,
+        queryResults.queryUuid,
+        cancelQueryMutation,
+    ]);
 
     return {
         unpivotedEnabled,

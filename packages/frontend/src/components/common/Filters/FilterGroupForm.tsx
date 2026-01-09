@@ -33,6 +33,7 @@ import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../MantineIcon';
 import FilterRuleForm from './FilterRuleForm';
 import { FILTER_SELECT_LIMIT } from './constants';
+import useFiltersContext from './useFiltersContext';
 
 type Props = {
     hideButtons?: boolean;
@@ -60,6 +61,7 @@ const FilterGroupForm: FC<Props> = memo(
     }) => {
         const items = getItemsFromFilterGroup(filterGroup);
         const [conditionLabel, setConditionLabel] = useState('');
+        const { createFilterRule } = useFiltersContext();
 
         const [dimensions, metrics, tableCalculations] = useMemo<
             [
@@ -137,17 +139,23 @@ const FilterGroupForm: FC<Props> = memo(
 
         const onAddFilterRule = useCallback(() => {
             if (availableFieldsForGroupRules.length > 0) {
+                const ruleFactory =
+                    createFilterRule ?? createFilterRuleFromField;
                 onChange({
                     ...filterGroup,
                     [getFilterGroupItemsPropertyName(filterGroup)]: [
                         ...items,
-                        createFilterRuleFromField(
-                            availableFieldsForGroupRules[0],
-                        ),
+                        ruleFactory(availableFieldsForGroupRules[0]),
                     ],
                 });
             }
-        }, [availableFieldsForGroupRules, filterGroup, items, onChange]);
+        }, [
+            availableFieldsForGroupRules,
+            createFilterRule,
+            filterGroup,
+            items,
+            onChange,
+        ]);
 
         const onChangeOperator = useCallback(
             (value: FilterGroupOperator) => {

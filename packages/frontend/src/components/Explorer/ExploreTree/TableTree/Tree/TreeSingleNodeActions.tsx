@@ -8,7 +8,6 @@ import {
     isCustomDimension,
     isCustomSqlDimension,
     isDimension,
-    isFilterableField,
     type AdditionalMetric,
     type CustomDimension,
     type Dimension,
@@ -61,7 +60,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { user } = useApp();
     const { showToastSuccess } = useToaster();
-    const { addFilter } = useFilteredFields();
+    const { addFilter, canFilterField } = useFilteredFields();
     const { track } = useTracking();
 
     const dispatch = useExplorerDispatch();
@@ -124,7 +123,7 @@ const TreeSingleNodeActions: FC<Props> = ({
             onChange={onMenuChange}
         >
             <Menu.Dropdown>
-                {!isAdditionalMetric(item) && isFilterableField(item) ? (
+                {!isAdditionalMetric(item) && canFilterField(item) ? (
                     <Menu.Item
                         component="button"
                         icon={<MantineIcon icon={IconFilter} />}

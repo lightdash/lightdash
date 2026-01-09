@@ -17,6 +17,7 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     invalidateCache,
     parameters,
     dateZoom,
+    disableTableColumnTotals,
 }) => {
     const tableConfig = useTableConfig(
         initialChartConfig,
@@ -30,6 +31,7 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
         invalidateCache,
         parameters,
         dateZoom,
+        disableTableColumnTotals,
     );
 
     useEffect(() => {

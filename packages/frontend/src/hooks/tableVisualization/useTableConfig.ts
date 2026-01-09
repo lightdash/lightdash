@@ -50,12 +50,29 @@ const useTableConfig = (
     invalidateCache?: boolean,
     parameters?: ParametersValuesMap,
     dateZoom?: DateZoom,
+    disableColumnTotals?: boolean,
 ) => {
     const { embedToken } = useEmbed();
 
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
-        !!tableChartConfig?.showColumnCalculation,
+        !disableColumnTotals && !!tableChartConfig?.showColumnCalculation,
     );
+    const columnTotalsEnabled = disableColumnTotals
+        ? false
+        : showColumnCalculation;
+    const handleSetShowColumnCalculation = useCallback(
+        (value: boolean) => {
+            if (disableColumnTotals) return;
+            setShowColumnCalculation(value);
+        },
+        [disableColumnTotals],
+    );
+
+    useEffect(() => {
+        if (disableColumnTotals && showColumnCalculation) {
+            setShowColumnCalculation(false);
+        }
+    }, [disableColumnTotals, showColumnCalculation]);
 
     const [showRowCalculation, setShowRowCalculation] = useState<boolean>(
         !!tableChartConfig?.showRowCalculation,
@@ -210,8 +227,7 @@ const useTableConfig = (
                   dashboardFilters,
                   invalidateCache,
                   itemsMap,
-                  showColumnCalculation:
-                      tableChartConfig?.showColumnCalculation,
+                  showColumnCalculation: columnTotalsEnabled,
                   embedToken,
                   parameters,
               }
@@ -220,8 +236,7 @@ const useTableConfig = (
                   explore: resultsData?.metricQuery?.exploreName,
                   fieldIds: selectedItemIds,
                   itemsMap,
-                  showColumnCalculation:
-                      tableChartConfig?.showColumnCalculation,
+                  showColumnCalculation: columnTotalsEnabled,
                   // embed token is not necessary here because embeds don't use metricQuery for table calculations
                   embedToken: undefined,
                   parameters,
@@ -238,6 +253,7 @@ const useTableConfig = (
                   columnOrder,
                   pivotDimensions,
                   embedToken,
+                  itemsMap,
                   dateZoom,
               }
             : {
@@ -247,6 +263,7 @@ const useTableConfig = (
                   columnOrder,
                   pivotDimensions,
                   embedToken: undefined,
+                  itemsMap,
                   parameters,
                   dateZoom,
               },
@@ -346,7 +363,7 @@ const useTableConfig = (
             metricsAsRows,
             columnOrder,
             hiddenMetricFieldIds,
-            columnTotals: tableChartConfig?.showColumnCalculation,
+            columnTotals: columnTotalsEnabled,
             rowTotals: tableChartConfig?.showRowCalculation,
         };
 
@@ -411,7 +428,7 @@ const useTableConfig = (
         isColumnVisible,
         getField,
         getFieldLabel,
-        tableChartConfig?.showColumnCalculation,
+        columnTotalsEnabled,
         tableChartConfig?.showRowCalculation,
         worker,
         pivotTableMaxColumnLimit,
@@ -603,7 +620,7 @@ const useTableConfig = (
 
     const validConfig: TableChart = useMemo(
         () => ({
-            showColumnCalculation,
+            showColumnCalculation: columnTotalsEnabled,
             showRowCalculation,
             showTableNames,
             showResultsTotal,
@@ -614,7 +631,7 @@ const useTableConfig = (
             metricsAsRows,
         }),
         [
-            showColumnCalculation,
+            columnTotalsEnabled,
             showRowCalculation,
             hideRowNumbers,
             showTableNames,
@@ -631,8 +648,8 @@ const useTableConfig = (
             selectedItemIds,
             columnOrder,
             validConfig,
-            showColumnCalculation,
-            setShowColumnCalculation,
+            showColumnCalculation: columnTotalsEnabled,
+            setShowColumnCalculation: handleSetShowColumnCalculation,
             showRowCalculation,
             setShowRowCalculation,
             showTableNames,
@@ -667,8 +684,8 @@ const useTableConfig = (
             selectedItemIds,
             columnOrder,
             validConfig,
-            showColumnCalculation,
-            setShowColumnCalculation,
+            columnTotalsEnabled,
+            handleSetShowColumnCalculation,
             showRowCalculation,
             setShowRowCalculation,
             showTableNames,

@@ -57,6 +57,7 @@ export type CompiledTable = TableBase & {
 export enum ExploreType {
     VIRTUAL = 'virtual',
     DEFAULT = 'default',
+    SEMANTIC_LAYER = 'semantic_layer',
 }
 
 export type Explore = {

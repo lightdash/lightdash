@@ -1,9 +1,13 @@
 import {
+    createFilterRuleFromField,
+    getItemId,
     isField,
     type AndFilterGroup,
+    type AnyType,
     type DashboardFilters,
     type FieldValueSearchResult,
     type FilterRule,
+    type FilterableField,
     type FilterableItem,
     type ParametersValuesMap,
     type WeekDay,
@@ -19,6 +23,8 @@ type Props<T extends DefaultFieldsMap> = {
     baseTable?: string;
     startOfWeek?: WeekDay;
     dashboardFilters?: DashboardFilters;
+    getFieldId?: (field: FilterableField) => string;
+    createFilterRule?: (field: FilterableField, value?: AnyType) => FilterRule;
     autocompleteEnabled?: boolean;
     autocompleteKey?: string;
     fieldValuesRequest?: (args: {
@@ -42,6 +48,8 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
     baseTable,
     startOfWeek,
     dashboardFilters,
+    getFieldId,
+    createFilterRule,
     autocompleteEnabled = true,
     autocompleteKey,
     fieldValuesRequest,
@@ -74,6 +82,16 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
         },
         [dashboardFilters],
     );
+    const resolveFieldId = useCallback(
+        (field: FilterableField) => getFieldId?.(field) ?? getItemId(field),
+        [getFieldId],
+    );
+    const resolveCreateFilterRule = useCallback(
+        (field: FilterableField, value?: AnyType) =>
+            createFilterRule?.(field, value) ??
+            createFilterRuleFromField(field, value),
+        [createFilterRule],
+    );
     return (
         <Context.Provider
             value={{
@@ -85,6 +103,8 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
                 autocompleteKey,
                 fieldValuesRequest,
                 getField,
+                getFieldId: resolveFieldId,
+                createFilterRule: resolveCreateFilterRule,
                 getAutocompleteFilterGroup,
                 popoverProps,
             }}

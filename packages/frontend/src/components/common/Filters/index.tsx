@@ -1,13 +1,18 @@
 import {
     addFilterRule,
     deleteFilterRuleFromGroup,
+    getFilterGroupItemsPropertyName,
     getFiltersFromGroup,
     getItemId,
+    getItemsFromFilterGroup,
     getTotalFilterRules,
     hasNestedGroups,
     isAndFilterGroup,
+    isCustomSqlDimension,
+    isDimension,
     isFilterableField,
     isOrFilterGroup,
+    isTableCalculation,
     type FilterGroup,
     type FilterRule,
     type Filters,
@@ -48,10 +53,11 @@ type Props = {
 const getInvalidFilterRules = (
     fields: FieldWithSuggestions[],
     filterRules: FilterRule[],
+    getFieldId: (field: FieldWithSuggestions) => string,
 ) =>
     filterRules.reduce<FilterRule[]>((accumulator, filterRule) => {
         const fieldInRule = fields.find(
-            (field) => getItemId(field) === filterRule.target.fieldId,
+            (field) => getFieldId(field) === filterRule.target.fieldId,
         );
 
         if (!fieldInRule) {
@@ -64,7 +70,7 @@ const getInvalidFilterRules = (
 const FiltersForm: FC<Props> = memo(
     ({ filters, setFilters, isEditMode, useSimplifiedForm = true }) => {
         // const theme = useMantineTheme();
-        const { itemsMap, baseTable } =
+        const { itemsMap, baseTable, getFieldId, createFilterRule } =
             useFiltersContext<FieldsWithSuggestions>();
         const [isOpen, toggleFieldInput] = useToggle(false);
         const fields = useMemo<FieldWithSuggestions[]>(() => {
@@ -78,6 +84,7 @@ const FiltersForm: FC<Props> = memo(
         const invalidFilterRules = getInvalidFilterRules(
             fields,
             totalFilterRules,
+            getFieldId ?? getItemId,
         );
         const hasInvalidFilterRules = invalidFilterRules.length > 0;
 
@@ -88,19 +95,51 @@ const FiltersForm: FC<Props> = memo(
 
         const addFieldRule = useCallback(
             (field: FieldWithSuggestions) => {
-                if (isFilterableField(field)) {
+                if (!isFilterableField(field)) return;
+                if (!createFilterRule) {
                     setFilters(addFilterRule({ filters, field }));
                     toggleFieldInput(false);
+                    return;
                 }
+
+                const groupKey = ((f: FieldWithSuggestions): keyof Filters => {
+                    if (isDimension(f) || isCustomSqlDimension(f)) {
+                        return 'dimensions';
+                    }
+                    if (isTableCalculation(f)) {
+                        return 'tableCalculations';
+                    }
+                    return 'metrics';
+                })(field);
+                const group = filters[groupKey];
+                const rule = createFilterRule(field);
+                setFilters({
+                    ...filters,
+                    [groupKey]: {
+                        id: uuidv4(),
+                        ...group,
+                        [getFilterGroupItemsPropertyName(group)]: [
+                            ...getItemsFromFilterGroup(group),
+                            rule,
+                        ],
+                    },
+                });
+                toggleFieldInput(false);
             },
-            [filters, setFilters, toggleFieldInput],
+            [createFilterRule, filters, setFilters, toggleFieldInput],
         );
 
         const updateFiltersFromGroup = useCallback(
             (filterGroup: FilterGroup) => {
-                setFilters(getFiltersFromGroup(filterGroup, fields));
+                setFilters(
+                    getFiltersFromGroup(
+                        filterGroup,
+                        fields,
+                        getFieldId ?? getItemId,
+                    ),
+                );
             },
-            [fields, setFilters],
+            [fields, getFieldId, setFilters],
         );
 
         const andRootFilterGroupItems = useMemo(() => {

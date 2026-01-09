@@ -1,6 +1,7 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Divider,
     Group,
     Loader,
@@ -31,9 +32,14 @@ const CustomVisConfigTabsLazy = lazy(() =>
 type Props = {
     chartType: ChartType;
     onClose: () => void;
+    disableScrollArea?: boolean;
 };
 
-const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
+const VisualizationConfig: FC<Props> = ({
+    chartType,
+    onClose,
+    disableScrollArea = false,
+}) => {
     const ConfigTab = useMemo(() => {
         switch (chartType) {
             case ChartType.BIG_NUMBER:
@@ -89,16 +95,22 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
                 <VisualizationCardOptions />
             </Group>
 
-            <ScrollArea
-                offsetScrollbars
-                variant="primary"
-                className="only-vertical"
-                sx={{ flex: 1 }}
-                type="hover"
-                scrollbarSize={8}
-            >
-                <ConfigTab />
-            </ScrollArea>
+            {disableScrollArea ? (
+                <Box sx={{ flex: 1 }}>
+                    <ConfigTab />
+                </Box>
+            ) : (
+                <ScrollArea
+                    offsetScrollbars
+                    variant="primary"
+                    className="only-vertical"
+                    sx={{ flex: 1 }}
+                    type="hover"
+                    scrollbarSize={8}
+                >
+                    <ConfigTab />
+                </ScrollArea>
+            )}
         </>
     );
 };

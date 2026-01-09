@@ -15,6 +15,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { isMetricFlowExploreName } from '../../../features/metricFlow/utils/metricFlowExplore';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
@@ -58,6 +59,8 @@ const ExploreSideBar = memo(() => {
         void clearExplore();
         void navigate(`/projects/${projectUuid}/tables`);
     }, [clearExplore, navigate, projectUuid]);
+    const isMetricFlowExplore = isMetricFlowExploreName(tableName);
+    const canNavigateBack = canManageExplore && !isMetricFlowExplore;
 
     // When transitioning back to tables it's relatively fast so we don't show any skeleton
     const isTransitioningToExplore = useMemo(
@@ -76,7 +79,7 @@ const ExploreSideBar = memo(() => {
             ) : (
                 <Suspense fallback={<LoadingSkeleton />}>
                     <LazyExplorePanel
-                        onBack={canManageExplore ? handleBack : undefined}
+                        onBack={canNavigateBack ? handleBack : undefined}
                     />
                 </Suspense>
             )}

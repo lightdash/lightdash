@@ -19,7 +19,6 @@ import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
-import ExploreGroup from './ExploreGroup';
 import ExploreNavLink from './ExploreNavLink';
 
 const BasePanel = () => {
@@ -31,95 +30,36 @@ const BasePanel = () => {
     const exploresResult = useExplores(projectUuid, true);
     const { data: org } = useOrganization();
 
-    const [exploreGroupMap, defaultUngroupedExplores, customUngroupedExplores] =
-        useMemo(() => {
-            const validSearch = search ? search.toLowerCase() : '';
-            if (exploresResult.data) {
-                let explores = Object.values(exploresResult.data);
-                if (validSearch !== '') {
-                    explores = new Fuse(Object.values(exploresResult.data), {
-                        keys: ['label'],
-                        ignoreLocation: true,
-                        threshold: 0.3,
-                    })
-                        .search(validSearch)
-                        .map((res) => res.item);
-                }
-
-                return explores.reduce<
-                    [
-                        Record<string, SummaryExplore[]>,
-                        SummaryExplore[],
-                        SummaryExplore[],
-                    ]
-                >(
-                    (acc, explore) => {
-                        if (explore.groupLabel) {
-                            return [
-                                {
-                                    ...acc[0],
-                                    [explore.groupLabel]: acc[0][
-                                        explore.groupLabel
-                                    ]
-                                        ? [
-                                              ...acc[0][explore.groupLabel],
-                                              explore,
-                                          ]
-                                        : [explore],
-                                },
-                                acc[1],
-                                acc[2],
-                            ];
-                        }
-                        if (explore.type === ExploreType.VIRTUAL) {
-                            return [acc[0], acc[1], [...acc[2], explore]];
-                        }
-                        return [acc[0], [...acc[1], explore], acc[2]];
-                    },
-                    [{}, [], []],
-                );
+    const [defaultExplores, customExplores] = useMemo(() => {
+        const validSearch = search ? search.toLowerCase() : '';
+        if (exploresResult.data) {
+            let explores = Object.values(exploresResult.data);
+            if (validSearch !== '') {
+                explores = new Fuse(Object.values(exploresResult.data), {
+                    keys: ['label', 'name', 'groupLabel'],
+                    ignoreLocation: true,
+                    threshold: 0.3,
+                })
+                    .search(validSearch)
+                    .map((res) => res.item);
             }
-            return [{}, [], []];
-        }, [exploresResult.data, search]);
 
-    const groupedExploreLinks = useMemo(
-        () =>
-            Object.keys(exploreGroupMap)
-                .sort((a, b) => a.localeCompare(b))
-                .map((groupLabel) => (
-                    <ExploreGroup label={groupLabel} key={groupLabel}>
-                        {exploreGroupMap[groupLabel]
-                            .sort((a, b) => a.label.localeCompare(b.label))
-                            .map((explore) => (
-                                <ExploreNavLink
-                                    key={explore.name}
-                                    explore={explore}
-                                    query={search}
-                                    onClick={() => {
-                                        startTransition(() => {
-                                            void navigate({
-                                                pathname: `/projects/${projectUuid}/tables/${explore.name}`,
-                                                search: location.search,
-                                            });
-                                        });
-                                    }}
-                                />
-                            ))}
-                    </ExploreGroup>
-                )),
-        [
-            exploreGroupMap,
-            navigate,
-            projectUuid,
-            search,
-            startTransition,
-            location.search,
-        ],
-    );
+            return explores.reduce<[SummaryExplore[], SummaryExplore[]]>(
+                (acc, explore) => {
+                    if (explore.type === ExploreType.VIRTUAL) {
+                        return [acc[0], [...acc[1], explore]];
+                    }
+                    return [[...acc[0], explore], acc[1]];
+                },
+                [[], []],
+            );
+        }
+        return [[], []];
+    }, [exploresResult.data, search]);
 
-    const ungroupedExploreLinks = useMemo(
+    const defaultExploreLinks = useMemo(
         () =>
-            defaultUngroupedExplores
+            defaultExplores
                 .sort((a, b) => a.label.localeCompare(b.label))
                 .map((explore) => (
                     <ExploreNavLink
@@ -137,7 +77,7 @@ const BasePanel = () => {
                     />
                 )),
         [
-            defaultUngroupedExplores,
+            defaultExplores,
             navigate,
             projectUuid,
             search,
@@ -148,7 +88,7 @@ const BasePanel = () => {
 
     const customExploreLinks = useMemo(
         () =>
-            customUngroupedExplores
+            customExplores
                 .sort((a, b) => a.label.localeCompare(b.label))
                 .map((explore) => (
                     <ExploreNavLink
@@ -166,7 +106,7 @@ const BasePanel = () => {
                     />
                 )),
         [
-            customUngroupedExplores,
+            customExplores,
             navigate,
             projectUuid,
             search,
@@ -224,9 +164,8 @@ const BasePanel = () => {
                             spacing="xxs"
                             sx={{ flexGrow: 1, overflowY: 'auto' }}
                         >
-                            {groupedExploreLinks}
-                            {ungroupedExploreLinks}
-                            {customUngroupedExplores.length ? (
+                            {defaultExploreLinks}
+                            {customExplores.length ? (
                                 <>
                                     <Divider size={0.5} c="ldGray.5" my="xs" />
 

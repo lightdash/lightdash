@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, isCustomSqlDimension } from '@lightdash/common';
+import {
+    ExploreType,
+    FeatureFlags,
+    isCustomSqlDimension,
+} from '@lightdash/common';
 import { ActionIcon, Button, Group, Text, Tooltip } from '@mantine/core';
 import { IconCode, IconPlus } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
@@ -8,9 +12,11 @@ import {
     explorerActions,
     selectAdditionalMetrics,
     selectCustomDimensions,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
+import { useExplore } from '../../../../../hooks/useExplore';
 import { useFeatureFlagEnabled } from '../../../../../hooks/useFeatureFlagEnabled';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
@@ -35,6 +41,9 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     const { user } = useApp();
     const { track } = useTracking();
     const dispatch = useExplorerDispatch();
+    const activeTableName = useExplorerSelector(selectTableName);
+    const { data: explore } = useExplore(activeTableName);
+    const isSemanticLayerExplore = explore?.type === ExploreType.SEMANTIC_LAYER;
 
     // Get all custom metrics and dimensions for write-back
     const allAdditionalMetrics = useExplorerSelector(selectAdditionalMetrics);
@@ -119,16 +128,20 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     }, [depth]);
 
     const showAddButton =
-        treeSection === TreeSection.Dimensions && canManageCustomSql;
+        treeSection === TreeSection.Dimensions &&
+        canManageCustomSql &&
+        !isSemanticLayerExplore;
 
     const showWriteBackCustomMetrics =
         treeSection === TreeSection.CustomMetrics &&
         allAdditionalMetrics &&
-        allAdditionalMetrics.length > 0;
+        allAdditionalMetrics.length > 0 &&
+        !isSemanticLayerExplore;
 
     const showWriteBackCustomDimensions =
         treeSection === TreeSection.CustomDimensions &&
-        customDimensionsToWriteBack.length > 0;
+        customDimensionsToWriteBack.length > 0 &&
+        !isSemanticLayerExplore;
 
     return (
         <Group mt="sm" mb="xs" pl={pl} pr="sm" position="apart">

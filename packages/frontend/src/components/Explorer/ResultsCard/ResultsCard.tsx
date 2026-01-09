@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, getItemMap } from '@lightdash/common';
+import { ExploreType, FeatureFlags, getItemMap } from '@lightdash/common';
 import { ActionIcon, Group, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
@@ -56,6 +56,8 @@ const ResultsCard: FC = memo(() => {
     const { data: exploreData } = useExplore(tableName, {
         refetchOnMount: false,
     });
+    const isSemanticLayerExplore =
+        exploreData?.type === ExploreType.SEMANTIC_LAYER;
 
     const itemsMap = useMemo(() => {
         if (exploreData) {
@@ -87,6 +89,9 @@ const ResultsCard: FC = memo(() => {
     const { user } = useApp();
 
     const getGsheetLink = async () => {
+        if (isSemanticLayerExplore) {
+            throw new Error('Semantic layer exports are not supported');
+        }
         if (projectUuid) {
             return uploadGsheet({
                 projectUuid,
@@ -124,7 +129,7 @@ const ResultsCard: FC = memo(() => {
                     {tableName && sorts.length > 0 && (
                         <SortButton isEditMode={isEditMode} sorts={sorts} />
                     )}
-                    {showPeriodOverPeriod && (
+                    {showPeriodOverPeriod && !isSemanticLayerExplore && (
                         <PeriodOverPeriodButton
                             itemsMap={itemsMap}
                             disabled={!isEditMode}
@@ -135,7 +140,8 @@ const ResultsCard: FC = memo(() => {
             rightHeaderElement={
                 projectUuid &&
                 resultsIsOpen &&
-                tableName && (
+                tableName &&
+                !isSemanticLayerExplore && (
                     <>
                         <Can
                             I="manage"

@@ -68,6 +68,11 @@ export const formatCellContent = (
 ) => {
     if (!data) return '-';
 
+    // Apply frontend overrides (formatOptions) without requiring a re-run
+    if (item && 'formatOptions' in item && item.formatOptions) {
+        return formatItemValue(item, data.value.raw, false, parameters);
+    }
+
     // Only re-format on frontend when there are parameters and the format uses them
     // Otherwise, use the pre-formatted value from backend
     const hasParameterFormat =
@@ -157,7 +162,8 @@ const formatBarDisplayCell = (
     // This ensures percentage values stored as decimals (0.05) are properly scaled
     // to match the min/max values calculated by convertFormattedValue (5, 15)
     const convertedValue = convertFormattedValue(value, item);
-    const numericConvertedValue = typeof convertedValue === 'number' ? convertedValue : value;
+    const numericConvertedValue =
+        typeof convertedValue === 'number' ? convertedValue : value;
 
     return (
         <TableCellBar
@@ -199,27 +205,26 @@ const formatImageCell = (
     const row = needsRowContext
         ? info.row
               .getAllCells()
-              .reduce<Record<string, Record<string, ResultValue>>>(
-                  (acc, rowCell) => {
-                      const cellItem = rowCell.column.columnDef.meta?.item;
-                      const rowCellValue = rowCell.getValue();
+              .reduce<
+                  Record<string, Record<string, ResultValue>>
+              >((acc, rowCell) => {
+                  const cellItem = rowCell.column.columnDef.meta?.item;
+                  const rowCellValue = rowCell.getValue();
 
-                      // Handle both ResultRow and RawResultRow formats
-                      const cellResultValue = isResultValue(rowCellValue)
-                          ? (rowCellValue as { value: ResultValue }).value
-                          : {
-                                raw: rowCellValue,
-                                formatted: String(rowCellValue),
-                            };
+                  // Handle both ResultRow and RawResultRow formats
+                  const cellResultValue = isResultValue(rowCellValue)
+                      ? (rowCellValue as { value: ResultValue }).value
+                      : {
+                            raw: rowCellValue,
+                            formatted: String(rowCellValue),
+                        };
 
-                      if (cellItem && isField(cellItem) && cellResultValue) {
-                          acc[cellItem.table] = acc[cellItem.table] || {};
-                          acc[cellItem.table][cellItem.name] = cellResultValue;
-                      }
-                      return acc;
-                  },
-                  {},
-              )
+                  if (cellItem && isField(cellItem) && cellResultValue) {
+                      acc[cellItem.table] = acc[cellItem.table] || {};
+                      acc[cellItem.table][cellItem.name] = cellResultValue;
+                  }
+                  return acc;
+              }, {})
         : {};
 
     try {
@@ -361,11 +366,6 @@ export const useColumns = (): TableColumn[] => {
         // Only apply overrides to items that have them
         return Object.fromEntries(
             Object.entries(baseItemsMap).map(([key, value]) => {
-                const isFromResults = resultsFields && key in resultsFields;
-                if (isFromResults) {
-                    return [key, value];
-                }
-
                 if (!metricOverrides[key]) return [key, value];
 
                 const itemWithoutLegacyFormat = omit(value, [
@@ -381,7 +381,7 @@ export const useColumns = (): TableColumn[] => {
                 ];
             }),
         );
-    }, [baseItemsMap, metricOverrides, resultsFields]);
+    }, [baseItemsMap, metricOverrides]);
 
     const { activeItemsMap, invalidActiveItems } = useMemo<{
         activeItemsMap: ItemsMap;

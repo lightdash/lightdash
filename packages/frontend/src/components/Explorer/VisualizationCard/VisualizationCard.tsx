@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ECHARTS_DEFAULT_COLORS,
+    ExploreType,
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
@@ -146,6 +147,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     const projectUuid = savedChart?.projectUuid || fallBackUUid;
 
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
+    const isSemanticLayerExplore = explore?.type === ExploreType.SEMANTIC_LAYER;
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
@@ -228,6 +230,9 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         showTableNames: boolean,
         customLabels?: Record<string, string>,
     ) => {
+        if (isSemanticLayerExplore) {
+            throw new Error('Semantic layer exports are not supported');
+        }
         if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
             const gsheetResponse = await uploadGsheet({
                 projectUuid,
@@ -346,16 +351,17 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                         projectUuid,
                                     })}
                                 >
-                                    {!!projectUuid && (
-                                        <ChartDownloadMenu
-                                            getDownloadQueryUuid={
-                                                getDownloadQueryUuid
-                                            }
-                                            projectUuid={projectUuid}
-                                            chartName={savedChart?.name}
-                                            getGsheetLink={getGsheetLink}
-                                        />
-                                    )}
+                                    {!!projectUuid &&
+                                        !isSemanticLayerExplore && (
+                                            <ChartDownloadMenu
+                                                getDownloadQueryUuid={
+                                                    getDownloadQueryUuid
+                                                }
+                                                projectUuid={projectUuid}
+                                                chartName={savedChart?.name}
+                                                getGsheetLink={getGsheetLink}
+                                            />
+                                        )}
                                 </Can>
                             </>
                         )
@@ -366,12 +372,14 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                         className="sentry-block ph-no-capture"
                         data-testid="visualization"
                     />
-                    <SeriesContextMenu
-                        echartsSeriesClickEvent={echartsClickEvent?.event}
-                        dimensions={echartsClickEvent?.dimensions}
-                        series={echartsClickEvent?.series}
-                        explore={explore}
-                    />
+                    {!isSemanticLayerExplore && (
+                        <SeriesContextMenu
+                            echartsSeriesClickEvent={echartsClickEvent?.event}
+                            dimensions={echartsClickEvent?.dimensions}
+                            series={echartsClickEvent?.series}
+                            explore={explore}
+                        />
+                    )}
                 </CollapsableCard>
             </VisualizationProvider>
         </ErrorBoundary>

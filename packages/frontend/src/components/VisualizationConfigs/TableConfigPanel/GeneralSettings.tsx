@@ -9,10 +9,7 @@ import ColumnConfiguration from './ColumnConfiguration';
 import DroppableItemsList from './DroppableItemsList';
 import { MAX_PIVOTS } from './constants';
 
-enum DroppableIds {
-    COLUMNS = 'COLUMNS',
-    ROWS = 'ROWS',
-}
+enum DroppableIds
 
 const GeneralSettings: FC = () => {
     const {
@@ -20,6 +17,7 @@ const GeneralSettings: FC = () => {
         pivotDimensions,
         visualizationConfig,
         setPivotDimensions,
+        disableTableColumnTotals,
     } = useVisualizationContext();
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const { showToastError } = useToaster();
@@ -261,6 +259,7 @@ const GeneralSettings: FC = () => {
                     onChange={() => {
                         setShowColumnCalculation(!showColumnCalculation);
                     }}
+                    disabled={disableTableColumnTotals}
                 />
                 <Checkbox
                     label="Show number of results"

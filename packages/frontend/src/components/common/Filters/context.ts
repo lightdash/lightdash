@@ -1,6 +1,8 @@
 import {
     type AndFilterGroup,
+    type AnyType,
     type FieldValueSearchResult,
+    type FilterableField,
     type FilterableItem,
     type FilterRule,
     type ItemsMap,
@@ -34,6 +36,8 @@ export type FiltersContext<T extends DefaultFieldsMap = DefaultFieldsMap> = {
         parameterValues?: ParametersValuesMap;
     }) => Promise<FieldValueSearchResult<string>>;
     getField: (filterRule: FilterRule) => T[keyof T] | undefined;
+    getFieldId?: (field: FilterableField) => string;
+    createFilterRule?: (field: FilterableField, value?: AnyType) => FilterRule;
     getAutocompleteFilterGroup: (
         filterId: string,
         item: FilterableItem,

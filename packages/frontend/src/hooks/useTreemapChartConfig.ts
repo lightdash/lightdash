@@ -219,6 +219,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         showSubtotals: true,
         columnOrder: groupFieldIds,
         pivotDimensions: undefined,
+        itemsMap,
         parameters,
     });
 

@@ -33,6 +33,28 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
 }: ExploreNavLinkProps) => {
     const [isHover, toggleHover] = useToggle();
     const [showCopyButton, setShowCopyButton] = useState(false);
+    const metaLabel = [explore.name, explore.groupLabel]
+        .filter(Boolean)
+        .join(' · ');
+
+    const labelContent = (
+        <Box>
+            <Highlight component={Text} highlight={query ?? ''} truncate>
+                {explore.label}
+            </Highlight>
+            {metaLabel ? (
+                <Highlight
+                    component={Text}
+                    highlight={query ?? ''}
+                    truncate
+                    fz="xs"
+                    c="ldGray.6"
+                >
+                    {metaLabel}
+                </Highlight>
+            ) : null}
+        </Box>
+    );
 
     if ('errors' in explore) {
         const showNoDimensionsIcon = explore.errors.every(
@@ -63,15 +85,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                                     color="ldGray.7"
                                 />
                             }
-                            label={
-                                <Highlight
-                                    component={Text}
-                                    highlight={query ?? ''}
-                                    truncate
-                                >
-                                    {explore.label}
-                                </Highlight>
-                            }
+                            label={labelContent}
                             rightSection={
                                 showNoDimensionsIcon ? (
                                     <Anchor
@@ -159,13 +173,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                     closePreview={() => toggleHover(false)}
                     offset={0}
                 >
-                    <Highlight
-                        component={Text}
-                        highlight={query ?? ''}
-                        truncate
-                    >
-                        {explore.label}
-                    </Highlight>
+                    {labelContent}
                 </TableItemDetailPreview>
             }
         />

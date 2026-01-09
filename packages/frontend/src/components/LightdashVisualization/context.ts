@@ -53,6 +53,7 @@ type VisualizationContext = {
     containerWidth?: number;
     containerHeight?: number;
     isDashboard?: boolean;
+    disableTableColumnTotals?: boolean;
 };
 
 const Context = createContext<VisualizationContext | undefined>(undefined);

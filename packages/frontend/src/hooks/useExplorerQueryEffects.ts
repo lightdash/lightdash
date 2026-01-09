@@ -1,10 +1,11 @@
 import {
     derivePivotConfigurationFromChart,
+    ExploreType,
     FeatureFlags,
     getFieldsFromMetricQuery,
 } from '@lightdash/common';
 import { useLocalStorage } from '@mantine/hooks';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
     AUTO_FETCH_ENABLED_DEFAULT,
     AUTO_FETCH_ENABLED_KEY,
@@ -12,7 +13,6 @@ import {
 import {
     explorerActions,
     selectFromDashboard,
-    selectIsEditMode,
     selectIsExploreFromHere,
     selectIsResultsExpanded,
     selectPendingFetch,
@@ -41,6 +41,8 @@ export const useExplorerQueryEffects = ({
     minimal = false,
 }: { minimal?: boolean } = {}) => {
     const dispatch = useExplorerDispatch();
+    const pendingSemanticAutoFetch = useRef(false);
+    const SEMANTIC_LAYER_AUTO_FETCH_DEBOUNCE_MS = 800;
 
     useEffect(() => {
         dispatch(explorerActions.setIsMinimal(minimal));
@@ -50,7 +52,6 @@ export const useExplorerQueryEffects = ({
     const { runQuery, query, validQueryArgs, explore } =
         useExplorerQueryManager();
 
-    const isEditMode = useExplorerSelector(selectIsEditMode);
     const isResultsOpen = useExplorerSelector(selectIsResultsExpanded);
     const fromDashboard = useExplorerSelector(selectFromDashboard);
     const isExploreFromHere = useExplorerSelector(selectIsExploreFromHere);
@@ -60,6 +61,8 @@ export const useExplorerQueryEffects = ({
     );
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+
+    const isSemanticLayerExplore = explore?.type === ExploreType.SEMANTIC_LAYER;
 
     // Auto-fetch configuration
     const [autoFetchEnabled] = useLocalStorage({
@@ -72,7 +75,13 @@ export const useExplorerQueryEffects = ({
 
     // Check if we need unpivoted data for results table
     const needsUnpivotedData = useMemo(() => {
-        if (!useSqlPivotResults?.enabled || !explore) return false;
+        if (
+            !useSqlPivotResults?.enabled ||
+            !explore ||
+            explore.type === ExploreType.SEMANTIC_LAYER
+        ) {
+            return false;
+        }
 
         const items = getFieldsFromMetricQuery(
             unsavedChartVersion.metricQuery,
@@ -87,35 +96,59 @@ export const useExplorerQueryEffects = ({
         return !!pivotConfiguration;
     }, [useSqlPivotResults?.enabled, explore, unsavedChartVersion]);
 
+    const shouldAutoFetch =
+        autoFetchEnabled ||
+        ((isSavedChart || fromDashboard || isExploreFromHere) &&
+            !query.isFetched);
+
     // Effect 1: Auto-fetch logic
     // Handles both initial fetch and reactive auto-fetch
     useEffect(() => {
-        if (
-            autoFetchEnabled ||
-            ((isSavedChart || fromDashboard || isExploreFromHere) &&
-                !query.isFetched)
-        ) {
+        if (!shouldAutoFetch) return;
+
+        if (!isSemanticLayerExplore) {
+            runQuery();
+            return;
+        }
+
+        const timeout = window.setTimeout(() => {
+            if (query.isFetching) {
+                pendingSemanticAutoFetch.current = true;
+                return;
+            }
+            runQuery();
+        }, SEMANTIC_LAYER_AUTO_FETCH_DEBOUNCE_MS);
+
+        return () => window.clearTimeout(timeout);
+    }, [shouldAutoFetch, runQuery, query.isFetching, isSemanticLayerExplore]);
+
+    useEffect(() => {
+        if (!shouldAutoFetch || !isSemanticLayerExplore) return;
+        if (!query.isFetching && pendingSemanticAutoFetch.current) {
+            pendingSemanticAutoFetch.current = false;
             runQuery();
         }
-    }, [
-        autoFetchEnabled,
-        isSavedChart,
-        fromDashboard,
-        runQuery,
-        query.isFetched,
-        isEditMode,
-        isExploreFromHere,
-    ]);
+    }, [shouldAutoFetch, isSemanticLayerExplore, query.isFetching, runQuery]);
 
     // Effect 2: Handle explicit query execution requests (works regardless of auto-fetch setting)
     const pendingFetch = useExplorerSelector(selectPendingFetch);
 
     useEffect(() => {
         if (pendingFetch) {
-            runQuery();
+            if (isSemanticLayerExplore && query.isFetching) {
+                pendingSemanticAutoFetch.current = true;
+            } else {
+                runQuery();
+            }
             dispatch(explorerActions.clearPendingFetch());
         }
-    }, [pendingFetch, runQuery, dispatch]);
+    }, [
+        pendingFetch,
+        runQuery,
+        dispatch,
+        isSemanticLayerExplore,
+        query.isFetching,
+    ]);
 
     // Effect 3: Setup unpivoted query args when needed
     useEffect(() => {

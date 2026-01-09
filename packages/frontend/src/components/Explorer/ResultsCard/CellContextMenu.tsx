@@ -5,7 +5,6 @@ import {
     isDimension,
     isDimensionValueInvalidDate,
     isField,
-    isFilterableField,
     type Field,
     type ResultValue,
     type TableCalculation,
@@ -34,7 +33,7 @@ const CellContextMenu: FC<
         onExpand: (name: string, data: object) => void;
     }
 > = ({ cell, isEditMode, itemsMap, onExpand }) => {
-    const { addFilter } = useFilters();
+    const { addFilter, canFilterField } = useFilters();
     const { openUnderlyingDataModal, metricQuery } =
         useMetricQueryDataContext();
     const { track } = useTracking();
@@ -87,7 +86,7 @@ const CellContextMenu: FC<
     ]);
 
     const handleFilterByValue = useCallback(() => {
-        if (!item || !isFilterableField(item)) return;
+        if (!item || !canFilterField(item)) return;
 
         track({
             name: EventName.ADD_FILTER_CLICKED,
@@ -99,7 +98,7 @@ const CellContextMenu: FC<
                 : value.raw;
 
         addFilter(item, filterValue);
-    }, [track, addFilter, item, value]);
+    }, [track, addFilter, item, value, canFilterField]);
 
     let parseResult: null | object = null;
     if (
@@ -171,7 +170,7 @@ const CellContextMenu: FC<
                     projectUuid: projectUuid,
                 })}
             >
-                {isEditMode && item && isFilterableField(item) && (
+                {isEditMode && item && canFilterField(item) && (
                     <Menu.Item
                         icon={<MantineIcon icon={IconFilter} />}
                         onClick={handleFilterByValue}
