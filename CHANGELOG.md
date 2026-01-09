@@ -1,3 +1,10 @@
+## [0.2320.4](https://github.com/lightdash/lightdash/compare/0.2320.3...0.2320.4) (2026-01-09)
+
+
+### Bug Fixes
+
+* inherit hidden property from additional dimension rather than base ([#19292](https://github.com/lightdash/lightdash/issues/19292)) ([0895ce7](https://github.com/lightdash/lightdash/commit/0895ce7c7ff4a96f97adf44ba51b780dfabb7d53))
+
 ## [0.2320.3](https://github.com/lightdash/lightdash/compare/0.2320.2...0.2320.3) (2026-01-09)
 
 
