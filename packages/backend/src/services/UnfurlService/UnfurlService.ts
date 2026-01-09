@@ -5,6 +5,7 @@ import {
     AuthorizationError,
     ChartType,
     DownloadFileType,
+    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     isDashboardChartTileType,
@@ -52,6 +53,7 @@ import { slackErrorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
@@ -156,6 +158,7 @@ type UnfurlServiceArguments = {
     downloadFileModel: DownloadFileModel;
     analytics: LightdashAnalytics;
     slackAuthenticationModel: SlackAuthenticationModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class UnfurlService extends BaseService {
@@ -181,6 +184,8 @@ export class UnfurlService extends BaseService {
 
     slackAuthenticationModel: SlackAuthenticationModel;
 
+    featureFlagModel: FeatureFlagModel;
+
     constructor({
         lightdashConfig,
         dashboardModel,
@@ -193,6 +198,7 @@ export class UnfurlService extends BaseService {
         slackClient,
         analytics,
         slackAuthenticationModel,
+        featureFlagModel,
     }: UnfurlServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -206,12 +212,14 @@ export class UnfurlService extends BaseService {
         this.downloadFileModel = downloadFileModel;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private async waitForAllPaginatedResultsResponse(
         page: playwright.Page,
         expectedResponses: number,
         timeout: number,
+        useScreenshotReadyIndicator: boolean,
     ) {
         if (expectedResponses === 0) {
             return undefined;
@@ -296,9 +304,9 @@ export class UnfurlService extends BaseService {
         // Wait for dashboard/chart to be ready for screenshot
         const self = this;
         async function waitForAllLoaded() {
-            if (self.lightdashConfig.scheduler.useScreenshotReadyIndicator) {
+            if (useScreenshotReadyIndicator) {
                 self.logger.info(
-                    'Waiting for screenshot ready indicator (SCHEDULER_USE_SCREENSHOT_READY_INDICATOR=true)',
+                    'Waiting for screenshot ready indicator (feature flag enabled)',
                 );
                 await page.waitForSelector(
                     SCREENSHOT_SELECTORS.READY_INDICATOR,
@@ -342,11 +350,15 @@ export class UnfurlService extends BaseService {
         ]);
     }
 
-    private async waitForPaginatedResultsResponse(page: playwright.Page) {
+    private async waitForPaginatedResultsResponse(
+        page: playwright.Page,
+        useScreenshotReadyIndicator: boolean,
+    ) {
         return this.waitForAllPaginatedResultsResponse(
             page,
             1,
             RESPONSE_TIMEOUT_MS,
+            useScreenshotReadyIndicator,
         );
     }
 
@@ -757,6 +769,21 @@ export class UnfurlService extends BaseService {
                     'page.organizationUuid': organizationUuid ?? 'undefined',
                     'page.userUuid': authUserUuid ?? 'undefined',
                 });
+
+                const screenshotReadyIndicatorFlag =
+                    await this.featureFlagModel.get({
+                        featureFlagId: FeatureFlags.ScreenshotReadyIndicator,
+                        user: organizationUuid
+                            ? {
+                                  userUuid: authUserUuid,
+                                  organizationUuid,
+                                  organizationName: '', // Not used by this feature flag
+                              }
+                            : undefined,
+                    });
+                const useScreenshotReadyIndicator =
+                    screenshotReadyIndicatorFlag.enabled;
+
                 let browser: playwright.Browser | undefined;
                 let page: playwright.Page | undefined;
 
@@ -939,8 +966,7 @@ export class UnfurlService extends BaseService {
                                 | undefined;
                             if (
                                 chartTileUuids &&
-                                !this.lightdashConfig.scheduler
-                                    .useScreenshotReadyIndicator
+                                !useScreenshotReadyIndicator
                             ) {
                                 this.logger.info(
                                     `Dashboard screenshot: Found ${
@@ -968,6 +994,7 @@ export class UnfurlService extends BaseService {
                                         expectedPaginatedResponses,
                                         expectedPaginatedResponses *
                                             RESPONSE_TIMEOUT_MS,
+                                        useScreenshotReadyIndicator,
                                     ); // NOTE: No await here
                             }
 
@@ -1004,8 +1031,7 @@ export class UnfurlService extends BaseService {
                             if (
                                 hasSqlCharts &&
                                 page &&
-                                !this.lightdashConfig.scheduler
-                                    .useScreenshotReadyIndicator
+                                !useScreenshotReadyIndicator
                             ) {
                                 sqlInitialLoadPromises =
                                     filteredSqlChartTileUuids.map((id) => {
@@ -1059,12 +1085,12 @@ export class UnfurlService extends BaseService {
                             lightdashPage === LightdashPage.CHART ||
                             lightdashPage === LightdashPage.EXPLORE
                         ) {
-                            if (
-                                !this.lightdashConfig.scheduler
-                                    .useScreenshotReadyIndicator
-                            ) {
+                            if (!useScreenshotReadyIndicator) {
                                 chartResultsPromises = [
-                                    this.waitForPaginatedResultsResponse(page),
+                                    this.waitForPaginatedResultsResponse(
+                                        page,
+                                        useScreenshotReadyIndicator,
+                                    ),
                                 ]; // NOTE: No await here
                             }
                         }
@@ -1075,8 +1101,7 @@ export class UnfurlService extends BaseService {
 
                         if (
                             chartResultsPromises &&
-                            !this.lightdashConfig.scheduler
-                                .useScreenshotReadyIndicator
+                            !useScreenshotReadyIndicator
                         ) {
                             // We wait after navigating to the page
                             await Promise.allSettled(chartResultsPromises);
@@ -1087,12 +1112,9 @@ export class UnfurlService extends BaseService {
                         );
                     }
 
-                    if (
-                        this.lightdashConfig.scheduler
-                            .useScreenshotReadyIndicator
-                    ) {
+                    if (useScreenshotReadyIndicator) {
                         this.logger.info(
-                            'Waiting for screenshot ready indicator (SCHEDULER_USE_SCREENSHOT_READY_INDICATOR=true)',
+                            'Waiting for screenshot ready indicator (feature flag enabled)',
                         );
                         await page.waitForSelector(
                             SCREENSHOT_SELECTORS.READY_INDICATOR,
