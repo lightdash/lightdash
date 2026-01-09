@@ -1,3 +1,13 @@
+## [0.2320.1](https://github.com/lightdash/lightdash/compare/0.2320.0...0.2320.1) (2026-01-09)
+
+
+### Bug Fixes
+
+* e2e test not finding mantine 8 modal ([#19305](https://github.com/lightdash/lightdash/issues/19305)) ([87d3029](https://github.com/lightdash/lightdash/commit/87d30296859b7fc4a6192c97c2b364e3800cd663))
+* formatting for quick calculations ([#19306](https://github.com/lightdash/lightdash/issues/19306)) ([9882b6d](https://github.com/lightdash/lightdash/commit/9882b6d1a3307eee4d1b843f76a21881519d8521))
+* Table calculation modal border in dark mode ([#19307](https://github.com/lightdash/lightdash/issues/19307)) ([7436ebc](https://github.com/lightdash/lightdash/commit/7436ebc9c5bcdfe54910003253387498f281eb6f))
+* table cell menus not rendering correctly in dashboard v2 ([#19304](https://github.com/lightdash/lightdash/issues/19304)) ([e6c2dc8](https://github.com/lightdash/lightdash/commit/e6c2dc8ba8905d56de533f07ceb74ccd4c219206))
+
 # [0.2320.0](https://github.com/lightdash/lightdash/compare/0.2319.0...0.2320.0) (2026-01-09)
 
 
