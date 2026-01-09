@@ -5484,8 +5484,22 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
+            "FieldCompilationError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "required": ["message"],
+                "type": "object",
+                "description": "Error information stored on a field when compilation fails but\npartial compilation mode is enabled."
+            },
             "CompiledProperties": {
                 "properties": {
+                    "compilationError": {
+                        "$ref": "#/components/schemas/FieldCompilationError",
+                        "description": "When partial compilation mode is enabled, fields that fail to compile\nwill have this property set instead of causing the entire explore to fail."
+                    },
                     "tablesRequiredAttributes": {
                         "$ref": "#/components/schemas/Record_string.Record_string.string-or-string-Array__"
                     },
@@ -5859,8 +5873,37 @@
                 "enum": ["virtual", "default"],
                 "type": "string"
             },
+            "InlineErrorType": {
+                "enum": [
+                    "METADATA_PARSE_ERROR",
+                    "NO_DIMENSIONS_FOUND",
+                    "SKIPPED_JOIN",
+                    "MISSING_TABLE",
+                    "FIELD_ERROR"
+                ],
+                "type": "string"
+            },
+            "InlineError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/InlineErrorType"
+                    }
+                },
+                "required": ["message", "type"],
+                "type": "object"
+            },
             "Explore": {
                 "properties": {
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                    },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
                     },
@@ -8056,12 +8099,12 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -8069,10 +8112,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -8081,8 +8124,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -8176,12 +8219,12 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "searchRank": {
+                                                                                    "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -8189,10 +8232,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -8201,8 +8244,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -18730,6 +18773,13 @@
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
                     }
                 },
                 "type": "object",
@@ -18750,22 +18800,6 @@
                 "required": ["name", "label"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "InlineErrorType": {
-                "enum": ["METADATA_PARSE_ERROR", "NO_DIMENSIONS_FOUND"],
-                "type": "string"
-            },
-            "InlineError": {
-                "properties": {
-                    "message": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/InlineErrorType"
-                    }
-                },
-                "required": ["message", "type"],
-                "type": "object"
             },
             "ExploreError": {
                 "allOf": [
@@ -20977,6 +21011,13 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
                     }
                 },
                 "required": ["name", "label", "tags"],
@@ -21169,6 +21210,13 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
                     }
                 },
                 "required": [
@@ -23871,7 +23919,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2301.4",
+        "version": "0.2318.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

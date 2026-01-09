@@ -1639,6 +1639,9 @@ export class ProjectService extends BaseService {
                             return {
                                 explores: await adapter.compileAllExplores(
                                     trackingParams,
+                                    false, // loadSources
+                                    this.lightdashConfig.partialCompilation
+                                        .enabled,
                                 ),
                                 lightdashProjectConfig:
                                     await adapter.getLightdashProjectConfig(
@@ -1983,6 +1986,8 @@ export class ProjectService extends BaseService {
                             timings.compileExplores.start = performance.now();
                             const explores = await adapter.compileAllExplores(
                                 trackingParams,
+                                false, // loadSources
+                                this.lightdashConfig.partialCompilation.enabled,
                             );
                             timings.compileExplores.end = performance.now();
                             timings.getConfig.start = performance.now();
@@ -4077,7 +4082,11 @@ export class ProjectService extends BaseService {
                 organizationUuid: project.organizationUuid,
                 userUuid: user.userUuid,
             };
-            const explores = await adapter.compileAllExplores(trackingParams);
+            const explores = await adapter.compileAllExplores(
+                trackingParams,
+                false, // loadSources
+                this.lightdashConfig.partialCompilation.enabled,
+            );
             this.analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,

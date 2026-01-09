@@ -216,9 +216,17 @@ export class DbtGitProjectAdapter
         }
     }
 
-    public async compileAllExplores(trackingParams?: TrackingParams) {
+    public async compileAllExplores(
+        trackingParams?: TrackingParams,
+        loadSources?: boolean,
+        allowPartialCompilation?: boolean,
+    ) {
         await this._refreshRepo();
-        return super.compileAllExplores(trackingParams);
+        return super.compileAllExplores(
+            trackingParams,
+            loadSources,
+            allowPartialCompilation,
+        );
     }
 
     public async test() {
