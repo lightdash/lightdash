@@ -35,6 +35,8 @@ const MetricFlowFieldList: FC<Props> = ({
         <>
             {fields?.map((field) => {
                 const labels = convertDimensionNameToLabels(field.name);
+                const resolvedLabel =
+                    field.label?.trim() || labels.dimensionLabel;
                 const isSelected: boolean = !!selectedFields[field.name];
                 const selectedTimeGranularity =
                     selectedFields[field.name]?.grain ?? TimeGranularity.DAY;
@@ -52,7 +54,7 @@ const MetricFlowFieldList: FC<Props> = ({
                                         {labels.tableLabel}
                                     </Text>
                                 ) : null}
-                                {labels.dimensionLabel}
+                                {resolvedLabel}
                             </Group>
                         }
                         disabled={disabled}

@@ -3,14 +3,17 @@ import {
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
     FeatureFlags,
+    FilterOperator,
     MAX_SAFE_INTEGER,
     QueryHistoryStatus,
     derivePivotConfigurationFromChart,
     friendlyName,
+    getFilterRuleFromFieldWithDefaultValue,
     getItemId,
     getItemLabelWithoutTableName,
     isDimension,
     type AndFilterGroup,
+    type AnyType,
     type ApiExecuteAsyncSqlQueryResults,
     type FilterableField,
     type FilterableItem,
@@ -40,6 +43,7 @@ import {
     IconTrashX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { lightdashApi } from '../api';
 import {
     MetricFlowDimensionType,
@@ -71,7 +75,6 @@ import useSemanticLayerDimensions from '../features/metricFlow/hooks/useSemantic
 import useSemanticLayerMetrics from '../features/metricFlow/hooks/useSemanticLayerMetrics';
 import convertFieldMapToTableColumns from '../features/metricFlow/utils/convertFieldMapToTableColumns';
 import convertMetricFlowFieldsToExplore from '../features/metricFlow/utils/convertMetricFlowFieldsToExplore';
-import convertMetricFlowFiltersToWhere from '../features/metricFlow/utils/convertMetricFlowFiltersToWhere';
 import convertMetricFlowQueryResultsToResultsData from '../features/metricFlow/utils/convertMetricFlowQueryResultsToResultsData';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { useOrganization } from '../hooks/organization/useOrganization';
@@ -165,16 +168,6 @@ const MetricFlowPage = () => {
         }, {});
     }, [explore]);
 
-    const whereSql = useMemo(
-        () =>
-            convertMetricFlowFiltersToWhere(
-                filters,
-                filterFieldsMap,
-                project?.warehouseConnection?.startOfWeek,
-            ),
-        [filters, filterFieldsMap, project?.warehouseConnection?.startOfWeek],
-    );
-
     const metricFlowAutocompleteKey = useMemo(
         () => Object.keys(selectedMetrics).sort().join(','),
         [selectedMetrics],
@@ -229,12 +222,33 @@ const MetricFlowPage = () => {
         ];
     }, [sortDescending, sortFieldKey]);
 
+    const getMetricFlowFieldId = useCallback(
+        (field: FilterableField) => field.name,
+        [],
+    );
+    const createMetricFlowFilterRule = useCallback(
+        (field: FilterableField, value?: AnyType) =>
+            getFilterRuleFromFieldWithDefaultValue(
+                field,
+                {
+                    id: uuidv4(),
+                    target: { fieldId: field.name },
+                    operator:
+                        value === null
+                            ? FilterOperator.NULL
+                            : FilterOperator.EQUALS,
+                },
+                value ? [value] : [],
+            ),
+        [],
+    );
+
     const metricFlowQueryResultsQuery = useMetricFlowQueryResults(
         activeProjectUuid,
         {
             metrics: selectedMetrics,
             dimensions: selectedDimensions,
-            where: whereSql,
+            filters,
             orderBy: metricFlowOrderBy,
         },
         {
@@ -283,7 +297,7 @@ const MetricFlowPage = () => {
     >(() => {
         return Object.entries(filterFieldsMap).reduce(
             (acc, [fieldId, field]) => {
-                acc[fieldId] = fieldsWithSuggestions[fieldId] ?? field;
+                acc[field.name] = fieldsWithSuggestions[fieldId] ?? field;
                 return acc;
             },
             {},
@@ -425,7 +439,7 @@ const MetricFlowPage = () => {
             }
 
             const sqlLimit =
-                limit === null ? MAX_SAFE_INTEGER : limit ?? undefined;
+                limit === null ? MAX_SAFE_INTEGER : (limit ?? undefined);
 
             const response = await lightdashApi<ApiExecuteAsyncSqlQueryResults>(
                 {
@@ -560,7 +574,7 @@ const MetricFlowPage = () => {
     return (
         <VisualizationProvider
             chartConfig={chartConfig}
-            initialPivotDimensions={undefined}
+            initialPivotDimensions={pivotFields}
             resultsData={visualizationResultsData}
             isLoading={metricFlowQueryResultsQuery.isLoading}
             onChartConfigChange={setChartConfig}
@@ -569,6 +583,7 @@ const MetricFlowPage = () => {
             columnOrder={columnOrder}
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             colorPalette={org?.chartColors ?? ECHARTS_DEFAULT_COLORS}
+            disableTableColumnTotals
         >
             <Page
                 title="MetricFlow"
@@ -581,6 +596,7 @@ const MetricFlowPage = () => {
                             <VisualizationConfig
                                 chartType={chartConfig.type}
                                 onClose={closeVisualizationConfig}
+                                disableScrollArea
                             />
                         </Stack>
                     ) : null
@@ -597,14 +613,14 @@ const MetricFlowPage = () => {
                                 <PageBreadcrumbs
                                     items={[
                                         {
-                                            title: 'dbt Semantic Layer',
+                                            title: 'Semantic Layer',
                                             active: true,
                                         },
                                     ]}
                                 />
                                 <Tooltip
                                     multiline
-                                    label={`The dbt Semantic Layer integration is in beta and may be unstable`}
+                                    label={`The  Semantic Layer integration is in beta and may be unstable`}
                                 >
                                     <Badge size="sm" variant="light">
                                         BETA
@@ -753,6 +769,8 @@ const MetricFlowPage = () => {
                         <FiltersProvider
                             projectUuid={activeProjectUuid}
                             itemsMap={metricFlowFilterFields}
+                            getFieldId={getMetricFlowFieldId}
+                            createFilterRule={createMetricFlowFilterRule}
                             startOfWeek={
                                 project?.warehouseConnection?.startOfWeek ??
                                 undefined
