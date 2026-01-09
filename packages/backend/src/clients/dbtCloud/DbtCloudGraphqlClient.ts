@@ -31,6 +31,14 @@ type DbtCloudGraphqlClientArgs = {
     lightdashConfig: LightdashConfig;
 };
 
+type MetricFlowRestEnvelope<T> = {
+    ok: boolean;
+    data?: T;
+    error?: {
+        message?: string;
+    };
+};
+
 type GetDimensionsFnArgs = DbtGraphQLGetDimensionsArgs;
 type GetMetricsForDimensionsFnArgs = DbtGraphQLGetMetricsForDimensionsArgs;
 type GetDimensionValuesFnArgs = DbtGraphQLGetDimensionValuesArgs;
@@ -81,6 +89,57 @@ export default class DbtCloudGraphqlClient implements SemanticLayerClient {
                 'X-dbt-partner-source': 'lightdash',
             },
         });
+    }
+
+    private getRestUrl(path: string) {
+        if (!this.domain || !this.bearerToken) {
+            throw new Error('DbtCloudGraphqlClient not initialized');
+        }
+
+        const endpoint = new URL(path, this.domain);
+        if (this.environmentId) {
+            endpoint.searchParams.set('environmentId', this.environmentId);
+        }
+
+        return endpoint;
+    }
+
+    private async fetchRest<T>(path: string): Promise<T | null> {
+        const endpoint = this.getRestUrl(path);
+        const response = await fetch(endpoint.href, {
+            headers: {
+                Authorization: `Bearer ${this.bearerToken}`,
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                `MetricFlow REST request failed (${response.status})`,
+            );
+        }
+
+        const payload = (await response.json()) as MetricFlowRestEnvelope<T>;
+        if (!payload.ok) {
+            throw new Error(
+                payload.error?.message || 'MetricFlow REST request failed',
+            );
+        }
+
+        return payload.data ?? null;
+    }
+
+    async getMetricDefinition(metricName: string): Promise<unknown | null> {
+        const data = await this.fetchRest<{ metricDefinition?: unknown }>(
+            `/api/metrics/${encodeURIComponent(metricName)}/definition`,
+        );
+        return data?.metricDefinition ?? null;
+    }
+
+    async getMetricLineage(metricName: string): Promise<unknown | null> {
+        const data = await this.fetchRest<{ metricLineage?: unknown }>(
+            `/api/metrics/${encodeURIComponent(metricName)}/lineage`,
+        );
+        return data?.metricLineage ?? null;
     }
 
     /**

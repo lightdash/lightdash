@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Get,
     Middlewares,
     OperationId,
     Path,
@@ -40,7 +41,12 @@ export class MetricFlowController extends BaseController {
         @Body()
         body: {
             query: string;
-            operationName?: 'GetFields' | 'CreateQuery' | 'GetQueryResults';
+            operationName?:
+                | 'GetFields'
+                | 'CreateQuery'
+                | 'GetQueryResults'
+                | 'GetMetricDefinition'
+                | 'GetMetricLineage';
         },
     ): Promise<{ status: 'ok'; results: Record<string, unknown> }> {
         this.setStatus(200);
@@ -124,6 +130,56 @@ export class MetricFlowController extends BaseController {
                 cached: false,
                 refreshedAt: new Date(),
             },
+        };
+    }
+
+    /**
+     * Get metric definition from MetricFlow REST API
+     * @param projectUuid the projectId
+     * @param metricName metric name
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/{metricName}/definition')
+    @OperationId('GetDbtSemanticLayerMetricDefinition')
+    async getMetricDefinition(
+        @Path() projectUuid: string,
+        @Path() metricName: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: unknown | null }> {
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await req.clients
+                .getDbtCloudGraphqlClient()
+                .getMetricDefinition(metricName),
+        };
+    }
+
+    /**
+     * Get metric lineage from MetricFlow REST API
+     * @param projectUuid the projectId
+     * @param metricName metric name
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/{metricName}/lineage')
+    @OperationId('GetDbtSemanticLayerMetricLineage')
+    async getMetricLineage(
+        @Path() projectUuid: string,
+        @Path() metricName: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: unknown | null }> {
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await req.clients
+                .getDbtCloudGraphqlClient()
+                .getMetricLineage(metricName),
         };
     }
 }
