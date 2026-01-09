@@ -1,6 +1,8 @@
-import { Anchor, Text } from '@mantine/core';
+import { Anchor, Text, useMantineColorScheme } from '@mantine/core';
 import { IconGraphOff } from '@tabler/icons-react';
-import { Suspense, lazy, useEffect, useRef, type FC } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, type FC } from 'react';
+// @ts-expect-error - vega-themes ESM export not resolved by TS moduleResolution
+import { dark as vegaDarkTheme } from 'vega-themes';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
@@ -24,6 +26,9 @@ const CustomVisualization: FC<Props> = ({
     onScreenshotError,
     ...props
 }) => {
+    const { colorScheme } = useMantineColorScheme();
+    const isDarkMode = colorScheme === 'dark';
+
     const {
         isLoading,
         visualizationConfig,
@@ -33,6 +38,19 @@ const CustomVisualization: FC<Props> = ({
     } = useVisualizationContext();
 
     const hasSignaledScreenshotReady = useRef(false);
+
+    const vegaConfig = useMemo(
+        () => ({
+            ...(isDarkMode ? vegaDarkTheme : {}),
+            background: 'transparent',
+            font: 'Inter, sans-serif',
+            autosize: {
+                type: 'fit' as const,
+                resize: true,
+            },
+        }),
+        [isDarkMode],
+    );
 
     useEffect(() => {
         if (hasSignaledScreenshotReady.current) return;
@@ -133,13 +151,7 @@ const CustomVisualization: FC<Props> = ({
                         // @ts-ignore, see above
                         height: 'container',
                         data: data,
-                        config: {
-                            font: 'Inter, sans-serif',
-                            autosize: {
-                                type: 'fit',
-                                resize: true,
-                            },
-                        },
+                        config: vegaConfig,
                     }}
                     options={{
                         actions: false,
