@@ -1,3 +1,10 @@
+# [0.2322.0](https://github.com/lightdash/lightdash/compare/0.2321.0...0.2322.0) (2026-01-09)
+
+
+### Features
+
+* allow remapping shape keys in maps ([#19174](https://github.com/lightdash/lightdash/issues/19174)) ([77c7d8c](https://github.com/lightdash/lightdash/commit/77c7d8c7637573d77ad1672097defc935f1c9766))
+
 # [0.2321.0](https://github.com/lightdash/lightdash/compare/0.2320.4...0.2321.0) (2026-01-09)
 
 
