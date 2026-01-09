@@ -17,7 +17,12 @@ import {
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
+import {
+    IconBrandGit,
+    IconBrandGithub,
+    IconBrandGitlab,
+    IconInfoCircle,
+} from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -58,13 +63,32 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
 
     const { data: project } = useProject(projectUuid);
     const { data: health } = useHealth();
+    const gitProjectType = project?.dbtConnection.type as
+        | DbtProjectType
+        | undefined;
+    const isGithubProject = gitProjectType === DbtProjectType.GITHUB;
 
     const canWriteToDbtProject = !!(
-        health?.hasGithub &&
-        [DbtProjectType.GITHUB, DbtProjectType.GITLAB].includes(
-            project?.dbtConnection.type as DbtProjectType,
-        )
+        (!isGithubProject || health?.hasGithub) &&
+        [
+            DbtProjectType.GITHUB,
+            DbtProjectType.GITLAB,
+            DbtProjectType.GITEA,
+        ].includes(gitProjectType as DbtProjectType)
     );
+
+    const providerLabel =
+        gitProjectType === DbtProjectType.GITLAB
+            ? 'GitLab'
+            : gitProjectType === DbtProjectType.GITEA
+              ? 'Gitea'
+              : 'GitHub';
+    const ProviderIcon =
+        gitProjectType === DbtProjectType.GITLAB
+            ? IconBrandGitlab
+            : gitProjectType === DbtProjectType.GITEA
+              ? IconBrandGit
+              : IconBrandGithub;
 
     useEffect(() => {
         if (!opened || !projectUuid || !sql || !columns) return;
@@ -108,7 +132,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
             title={
                 <Group spacing="xs">
                     <MantineIcon
-                        icon={IconBrandGithub}
+                        icon={ProviderIcon}
                         size="lg"
                         color="ldGray.7"
                     />
@@ -118,7 +142,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                         withinPortal
                         multiline
                         maw={300}
-                        label="Create a new model in your dbt project from this SQL query. This will create a new branch and start a pull request."
+                        label={`Create a new model in your dbt project from this SQL query. This will create a new branch and start a pull request in ${providerLabel}.`}
                     >
                         <MantineIcon
                             color="ldGray.7"
@@ -153,7 +177,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                                 color="ldGray.9"
                                 fz="xs"
                                 leftSection={
-                                    <MantineIcon icon={IconBrandGithub} />
+                                    <MantineIcon icon={ProviderIcon} />
                                 }
                                 onClick={() => {
                                     window.open(

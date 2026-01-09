@@ -11,6 +11,7 @@ export enum DbtProjectType {
     DBT_CLOUD_IDE = 'dbt_cloud_ide',
     GITHUB = 'github',
     GITLAB = 'gitlab',
+    GITEA = 'gitea',
     BITBUCKET = 'bitbucket',
     AZURE_DEVOPS = 'azure_devops',
     NONE = 'none',
@@ -430,6 +431,16 @@ export interface DbtGitlabProjectConfig extends DbtProjectCompilerBase {
     host_domain?: string;
 }
 
+export interface DbtGiteaProjectConfig extends DbtProjectCompilerBase {
+    type: DbtProjectType.GITEA;
+    username: string;
+    personal_access_token: string;
+    repository: string;
+    branch: string;
+    project_sub_path: string;
+    host_domain?: string;
+}
+
 export interface DbtBitBucketProjectConfig extends DbtProjectCompilerBase {
     type: DbtProjectType.BITBUCKET;
     username: string;
@@ -456,6 +467,7 @@ export type DbtProjectConfig =
     | DbtGithubProjectConfig
     | DbtBitBucketProjectConfig
     | DbtGitlabProjectConfig
+    | DbtGiteaProjectConfig
     | DbtAzureDevOpsProjectConfig
     | DbtNoneProjectConfig
     | DbtManifestProjectConfig;
@@ -465,10 +477,12 @@ export const isGitProjectType = (
 ): connection is
     | DbtGithubProjectConfig
     | DbtBitBucketProjectConfig
-    | DbtGitlabProjectConfig =>
+    | DbtGitlabProjectConfig
+    | DbtGiteaProjectConfig =>
     [
         DbtProjectType.GITHUB,
         DbtProjectType.GITLAB,
+        DbtProjectType.GITEA,
         DbtProjectType.BITBUCKET,
     ].includes(connection.type);
 

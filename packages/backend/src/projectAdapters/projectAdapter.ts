@@ -17,6 +17,7 @@ import { DbtAzureDevOpsProjectAdapter } from './dbtAzureDevOpsProjectAdapter';
 import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
 import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
+import { DbtGiteaProjectAdapter } from './dbtGiteaProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
 import { DbtManifestProjectAdapter } from './dbtManifestProjectAdapter';
@@ -124,6 +125,24 @@ export const projectAdapterFromConfig = async (
                 gitlabPersonalAccessToken: config.personal_access_token,
                 gitlabRepository: config.repository,
                 gitlabBranch: config.branch,
+                projectDirectorySubPath: config.project_sub_path,
+                hostDomain: config.host_domain,
+                warehouseCredentials,
+                targetName: config.target,
+                environment: config.environment,
+                cachedWarehouse,
+                dbtVersion,
+                useDbtLs,
+                selector: config.selector,
+            });
+        case DbtProjectType.GITEA:
+            return new DbtGiteaProjectAdapter({
+                analytics,
+                warehouseClient,
+                username: config.username,
+                personalAccessToken: config.personal_access_token,
+                repository: config.repository,
+                branch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
                 hostDomain: config.host_domain,
                 warehouseCredentials,

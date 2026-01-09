@@ -13,6 +13,7 @@ import DbtCloudForm from './DbtForms/DbtCloudForm';
 import DbtLocalForm from './DbtForms/DbtLocalForm';
 import DbtManifestForm from './DbtForms/DbtManifestForm';
 import DbtNoneForm from './DbtForms/DbtNoneForm';
+import GiteaForm from './DbtForms/GiteaForm';
 import GithubForm from './DbtForms/GithubForm';
 import GitlabForm from './DbtForms/GitlabForm';
 import { dbtDefaults } from './DbtForms/defaultValues';
@@ -57,6 +58,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         const enabledTypes = [
             DbtProjectType.GITHUB,
             DbtProjectType.GITLAB,
+            DbtProjectType.GITEA,
             DbtProjectType.BITBUCKET,
             DbtProjectType.AZURE_DEVOPS,
             DbtProjectType.NONE,
@@ -83,6 +85,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 return GithubForm;
             case DbtProjectType.GITLAB:
                 return GitlabForm;
+            case DbtProjectType.GITEA:
+                return GiteaForm;
             case DbtProjectType.BITBUCKET:
                 return BitBucketForm;
             case DbtProjectType.AZURE_DEVOPS:
@@ -108,6 +112,9 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         },
         [DbtProjectType.GITLAB]: {
             env: `environment-variables-1`,
+        },
+        [DbtProjectType.GITEA]: {
+            env: `environment-variables-3`,
         },
         [DbtProjectType.AZURE_DEVOPS]: {
             env: `environment-variables-2`,

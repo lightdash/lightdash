@@ -42,8 +42,8 @@ export const useGithubDbtWritePreview = () => {
 
         onError: () => {
             showToastError({
-                title: 'Failed to get github preview',
-                subtitle: 'Please check your Github settings.',
+                title: 'Failed to get write preview',
+                subtitle: 'Please check your git connection settings.',
             });
         },
     });

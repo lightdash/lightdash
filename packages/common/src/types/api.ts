@@ -442,6 +442,7 @@ export const DbtProjectTypeLabels: Record<DbtProjectType, string> = {
     [DbtProjectType.DBT_CLOUD_IDE]: 'dbt cloud',
     [DbtProjectType.GITHUB]: 'Github',
     [DbtProjectType.GITLAB]: 'GitLab',
+    [DbtProjectType.GITEA]: 'Gitea',
     [DbtProjectType.BITBUCKET]: 'BitBucket',
     [DbtProjectType.AZURE_DEVOPS]: 'Azure DevOps',
     [DbtProjectType.NONE]: 'CLI',

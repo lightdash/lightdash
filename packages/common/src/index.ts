@@ -777,6 +777,7 @@ export const getProjectDirectory = (
             return dbtConnection.project_dir;
         case DbtProjectType.GITHUB:
         case DbtProjectType.GITLAB:
+        case DbtProjectType.GITEA:
         case DbtProjectType.BITBUCKET:
         case DbtProjectType.AZURE_DEVOPS:
             return dbtConnection.project_sub_path;

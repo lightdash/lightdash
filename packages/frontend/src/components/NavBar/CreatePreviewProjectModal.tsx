@@ -273,9 +273,11 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
 
     const { data: projectDetails } = useProject(selectedProjectUuid);
     const hasGitIntegration = useMemo(() => {
-        return [DbtProjectType.GITHUB, DbtProjectType.GITLAB].includes(
-            projectDetails?.dbtConnection?.type as DbtProjectType,
-        );
+        return [
+            DbtProjectType.GITHUB,
+            DbtProjectType.GITLAB,
+            DbtProjectType.GITEA,
+        ].includes(projectDetails?.dbtConnection?.type as DbtProjectType);
     }, [projectDetails?.dbtConnection?.type]);
 
     useEffect(() => {

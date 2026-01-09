@@ -12,6 +12,8 @@ import {
 import { useClipboard } from '@mantine/hooks';
 import {
     IconBrandGithub,
+    IconBrandGitlab,
+    IconBrandGit,
     IconChevronDown,
     IconDeviceFloppy,
     IconLink,
@@ -55,22 +57,26 @@ export const HeaderCreate: FC = () => {
     );
     const health = useHealth();
     const { data: gitIntegration } = useGitIntegration();
+    const gitProjectType = project?.dbtConnection.type as
+        | DbtProjectType
+        | undefined;
 
     const [writeBackDisabledMessage, writeBackOpenUrl] = useMemo(() => {
         const hasGithubEnabled = gitIntegration?.enabled;
         const hasGitProject = [
             DbtProjectType.GITHUB,
             DbtProjectType.GITLAB,
+            DbtProjectType.GITEA,
         ].includes(project?.dbtConnection.type as DbtProjectType);
         const hasGithubIntegration = health?.data?.hasGithub;
 
-        if (!hasGithubIntegration) {
+        if (gitProjectType === DbtProjectType.GITHUB && !hasGithubIntegration) {
             return [
                 'Github integration is not enabled on this instance, click here to see more details ',
                 'https://docs.lightdash.com/self-host/customize-deployment/environment-variables#github-integration',
             ];
         }
-        if (!hasGithubEnabled) {
+        if (gitProjectType === DbtProjectType.GITHUB && !hasGithubEnabled) {
             return [
                 `Github integration is not active on this organization, click here to open integrations page`,
                 `${health?.data?.siteUrl}/generalSettings/integrations`,
@@ -83,8 +89,8 @@ export const HeaderCreate: FC = () => {
                     <Text span fw={600}>
                         {project?.name}
                     </Text>{' '}
-                    is not connected to a GitHub or GitLab repository, click
-                    here to open project settings page
+                    is not connected to a GitHub, GitLab, or Gitea repository,
+                    click here to open project settings page
                 </Text>,
                 `${health?.data?.siteUrl}/generalSettings/projectManagement/${projectUuid}/settings`,
             ];
@@ -97,6 +103,7 @@ export const HeaderCreate: FC = () => {
         project?.dbtConnection.type,
         project?.name,
         projectUuid,
+        gitProjectType,
     ]);
 
     const isCreateVirtualViewModalOpen = useAppSelector(
@@ -173,9 +180,15 @@ export const HeaderCreate: FC = () => {
             case 'createVirtualView':
                 return <MantineIcon icon={IconTableAlias} />;
             case 'writeBackToDbt':
+                if (gitProjectType === DbtProjectType.GITLAB) {
+                    return <MantineIcon icon={IconBrandGitlab} />;
+                }
+                if (gitProjectType === DbtProjectType.GITEA) {
+                    return <MantineIcon icon={IconBrandGit} />;
+                }
                 return <MantineIcon icon={IconBrandGithub} />;
         }
-    }, []);
+    }, [gitProjectType]);
 
     const untitledName = useMemo(() => {
         if (ctaAction === 'createVirtualView') {

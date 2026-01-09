@@ -3,6 +3,7 @@ import {
     type DbtBitBucketProjectConfig,
     type DbtCloudIDEProjectConfig,
     type DbtGithubProjectConfig,
+    type DbtGiteaProjectConfig,
     type DbtGitlabProjectConfig,
     type DbtLocalProjectConfig,
     type DbtNoneProjectConfig,
@@ -35,6 +36,19 @@ export const gitlabDefaultValues: DbtGitlabProjectConfig = {
     branch: 'main',
     project_sub_path: '/',
     host_domain: 'gitlab.com',
+} as const;
+
+export const giteaDefaultValues: DbtGiteaProjectConfig = {
+    type: DbtProjectType.GITEA,
+    target: '',
+    environment: [],
+    selector: '',
+    username: '',
+    personal_access_token: '',
+    repository: '',
+    branch: 'main',
+    project_sub_path: '/',
+    host_domain: 'https://gitea.com',
 } as const;
 
 export const bitbucketDefaultValues: DbtBitBucketProjectConfig = {
@@ -98,6 +112,7 @@ export const dbtDefaults = {
         [DbtProjectType.DBT]: dbtDefaultValues,
         [DbtProjectType.GITHUB]: githubDefaultValues,
         [DbtProjectType.GITLAB]: gitlabDefaultValues,
+        [DbtProjectType.GITEA]: giteaDefaultValues,
         [DbtProjectType.BITBUCKET]: bitbucketDefaultValues,
         [DbtProjectType.AZURE_DEVOPS]: azureDevopsDefaultValues,
         [DbtProjectType.DBT_CLOUD_IDE]: dbtCloudIdeDefaultValues,

@@ -1218,7 +1218,10 @@ export type SourceCodeEvent = BaseTrack & {
         exploreName?: string;
         filePath: string;
         fileSize: number;
-        gitProvider: DbtProjectType.GITHUB | DbtProjectType.GITLAB;
+        gitProvider:
+            | DbtProjectType.GITHUB
+            | DbtProjectType.GITLAB
+            | DbtProjectType.GITEA;
     };
 };
 
