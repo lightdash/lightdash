@@ -1,4 +1,4 @@
-import { type Metric } from '@lightdash/common';
+import { type Dimension, type Metric } from '@lightdash/common';
 import { Menu } from '@mantine/core';
 import { type FC } from 'react';
 import {
@@ -9,7 +9,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 
 type Props = {
-    item: Metric;
+    item: Metric | Dimension;
 };
 
 const FormatMenuOptions: FC<Props> = ({ item }) => {
@@ -17,7 +17,7 @@ const FormatMenuOptions: FC<Props> = ({ item }) => {
     const dispatch = useExplorerDispatch();
 
     const onCreate = () => {
-        dispatch(explorerActions.toggleFormatModal({ metric: item }));
+        dispatch(explorerActions.toggleFormatModal({ item }));
         track({
             name: EventName.FORMAT_METRIC_BUTTON_CLICKED,
         });

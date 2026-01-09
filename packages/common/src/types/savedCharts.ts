@@ -175,8 +175,12 @@ export type MapChart = {
     // Lat/Long fields
     latitudeFieldId?: string;
     longitudeFieldId?: string;
-    // Country/Region field
+    // Country/Region field for area maps
     locationFieldId?: string;
+    // GeoJSON property key to match against (e.g., 'name', 'ISO3166-1-Alpha-3')
+    // For World map: matches against countries.geojson properties
+    // For US map: matches against us-states.geojson properties
+    geoJsonPropertyKey?: string;
     // Common fields
     valueFieldId?: string;
     showLegend?: boolean;

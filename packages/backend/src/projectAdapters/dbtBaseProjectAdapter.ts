@@ -147,6 +147,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
     public async compileAllExplores(
         trackingParams?: TrackingParams,
         loadSources: boolean = false,
+        allowPartialCompilation: boolean = false,
     ): Promise<(Explore | ExploreError)[]> {
         Logger.debug('Install dependencies');
         // Install dependencies for dbt and fetch the manifest - may raise error meaning no explores compile
@@ -251,6 +252,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 this.warehouseClient,
                 lightdashProjectConfig,
                 disableTimestampConversion,
+                allowPartialCompilation,
             );
             Logger.info('Finished compiling explores');
             return [...lazyExplores, ...failedExplores];
@@ -296,6 +298,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     this.warehouseClient,
                     lightdashProjectConfig,
                     disableTimestampConversion,
+                    allowPartialCompilation,
                 );
                 Logger.info(
                     'Finished compiling explores after missing catalog error',

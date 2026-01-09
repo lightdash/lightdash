@@ -31,6 +31,7 @@ type MapChartConfig = {
     setLatitudeFieldId: (fieldId: string | undefined) => void;
     setLongitudeFieldId: (fieldId: string | undefined) => void;
     setLocationFieldId: (fieldId: string | undefined) => void;
+    setGeoJsonPropertyKey: (key: string | undefined) => void;
     setValueFieldId: (fieldId: string | undefined) => void;
     setColorRange: (colors: string[]) => void;
     addColor: () => void;
@@ -82,6 +83,9 @@ const useMapChartConfig = (
     const [locationFieldId, setLocationFieldIdState] = useState<
         string | undefined
     >(initialConfig?.locationFieldId);
+    const [geoJsonPropertyKey, setGeoJsonPropertyKeyState] = useState<
+        string | undefined
+    >(initialConfig?.geoJsonPropertyKey);
     const [valueFieldId, setValueFieldIdState] = useState<string | undefined>(
         initialConfig?.valueFieldId,
     );
@@ -187,6 +191,7 @@ const useMapChartConfig = (
             latitudeFieldId,
             longitudeFieldId,
             locationFieldId,
+            geoJsonPropertyKey,
             valueFieldId,
             colorRange,
             showLegend,
@@ -210,6 +215,7 @@ const useMapChartConfig = (
         latitudeFieldId,
         longitudeFieldId,
         locationFieldId,
+        geoJsonPropertyKey,
         valueFieldId,
         colorRange,
         showLegend,
@@ -275,6 +281,10 @@ const useMapChartConfig = (
 
     const setLocationFieldId = useCallback((fieldId: string | undefined) => {
         setLocationFieldIdState(fieldId);
+    }, []);
+
+    const setGeoJsonPropertyKey = useCallback((key: string | undefined) => {
+        setGeoJsonPropertyKeyState(key);
     }, []);
 
     const setValueFieldId = useCallback((fieldId: string | undefined) => {
@@ -410,6 +420,7 @@ const useMapChartConfig = (
         setLatitudeFieldId,
         setLongitudeFieldId,
         setLocationFieldId,
+        setGeoJsonPropertyKey,
         setValueFieldId,
         setColorRange,
         addColor,

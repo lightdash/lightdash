@@ -52,24 +52,52 @@ const getFormattedValue = (
     return field.value?.formatted ?? field.value?.raw ?? '';
 };
 
-// Shared tooltip content component
-type MapTooltipContentProps = {
+// Shared props for tooltip and popup content
+type MapContentBaseProps = {
     tooltipFields: TooltipFieldInfo[];
     rowData: Record<string, any>;
     lat?: number;
     lon?: number;
+    // For "no data" regions
+    noData?: {
+        locationLabel: string;
+        locationValue: string;
+    };
 };
 
+type MapTooltipContentProps = MapContentBaseProps;
+
+// NOTE: Using inline styles because this is rendered via renderToString
+// and Mantine styles won't be applied
 const MapTooltipContent: FC<MapTooltipContentProps> = ({
     tooltipFields,
     rowData,
     lat,
     lon,
+    noData,
 }) => {
     const visibleFields = tooltipFields.filter((f) => f.visible);
 
-    // Using inline styles because this is rendered via renderToString
-    // and Mantine styles won't be applied
+    if (noData) {
+        return (
+            <div style={{ padding: '4px 6px' }}>
+                <div style={{ fontSize: 14 }}>
+                    <strong>{noData.locationLabel}:</strong>{' '}
+                    {noData.locationValue}
+                </div>
+                <div
+                    style={{
+                        fontSize: 14,
+                        color: '#868e96',
+                        fontStyle: 'italic',
+                    }}
+                >
+                    No data
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div style={{ padding: '4px 6px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -95,12 +123,7 @@ const MapTooltipContent: FC<MapTooltipContentProps> = ({
     );
 };
 
-// Shared popup content component
-type MapPopupContentProps = {
-    tooltipFields: TooltipFieldInfo[];
-    rowData: Record<string, any>;
-    lat?: number;
-    lon?: number;
+type MapPopupContentProps = MapContentBaseProps & {
     onCopy?: () => void;
 };
 
@@ -110,9 +133,25 @@ const MapPopupContent: FC<MapPopupContentProps> = ({
     lat,
     lon,
     onCopy,
+    noData,
 }) => {
     const visibleFields = tooltipFields.filter((f) => f.visible);
     const hasMultipleFields = visibleFields.length > 1;
+
+    // Show "no data" popup for regions without matching data
+    if (noData) {
+        return (
+            <Box mt="xl" c="dark.9">
+                <Text size="sm">
+                    <strong>{noData.locationLabel}:</strong>{' '}
+                    {noData.locationValue}
+                </Text>
+                <Text size="sm" c="gray.6" fs="italic">
+                    No data
+                </Text>
+            </Box>
+        );
+    }
 
     // Build copy value - CSV format for multiple fields, single value otherwise
     const copyValue =
@@ -327,6 +366,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         const [geoJsonData, setGeoJsonData] =
             useState<GeoJSON.FeatureCollection | null>(null);
+        const [geoJsonLayerKey, setGeoJsonLayerKey] = useState(0);
 
         const hasSignaledScreenshotReady = useRef(false);
 
@@ -462,6 +502,28 @@ const SimpleMap: FC<SimpleMapProps> = memo(
             void loadGeoJson();
         }, [mapConfig?.geoJsonUrl, mapConfig?.isLatLong]);
 
+        // Force re-creating the GeoJSON layer when join key, tooltip fields, or
+        // region data change so bound tooltips/popup content stays in sync.
+        useEffect(() => {
+            if (
+                !geoJsonData ||
+                !mapConfig ||
+                mapConfig.isLatLong ||
+                !geoJsonData.features?.length
+            ) {
+                return;
+            }
+            setGeoJsonLayerKey((key) => key + 1);
+        }, [
+            geoJsonData,
+            mapConfig?.geoJsonUrl,
+            mapConfig?.geoJsonPropertyKey,
+            mapConfig?.regionData,
+            mapConfig?.tooltipFields,
+            mapConfig?.isLatLong,
+            mapConfig,
+        ]);
+
         // Get location type from visualization config
         const locationType = useMemo(
             () =>
@@ -583,11 +645,17 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     };
                 }
 
-                const name =
-                    feature.properties.name?.toLowerCase() ||
-                    feature.properties.NAME?.toLowerCase() ||
-                    '';
-                const regionEntry = regionDataMap.get(name);
+                // Use configured property key to match GeoJSON features to data
+                const propertyKey = mapConfig.geoJsonPropertyKey;
+                const propertyValue = (
+                    feature.properties[propertyKey] ||
+                    feature.properties.name ||
+                    feature.properties.NAME ||
+                    ''
+                )
+                    .toString()
+                    .toLowerCase();
+                const regionEntry = regionDataMap.get(propertyValue);
 
                 if (regionEntry !== undefined) {
                     const color = getColorForValue(
@@ -618,18 +686,35 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         const onEachFeature = useCallback(
             (feature: GeoJSON.Feature, layer: L.Layer) => {
-                const name =
+                // Use configured property key to match GeoJSON features to data
+                const propertyKey = mapConfig?.geoJsonPropertyKey || 'name';
+                const rawPropertyValue =
+                    feature.properties?.[propertyKey] ||
                     feature.properties?.name ||
                     feature.properties?.NAME ||
-                    'Unknown';
-                const regionEntry = regionDataMap.get(name.toLowerCase());
+                    '';
+                const propertyValue = rawPropertyValue.toString().toLowerCase();
+                const regionEntry = regionDataMap.get(propertyValue);
                 const rowData = regionEntry?.rowData || {};
+
+                // For "no data" regions, derive location label from tooltipFields
+                const locationFieldLabel =
+                    mapConfig?.tooltipFields.find(
+                        (f) => f.fieldId === mapConfig?.locationFieldId,
+                    )?.label || 'Location';
+                const noData = regionEntry
+                    ? undefined
+                    : {
+                          locationLabel: locationFieldLabel,
+                          locationValue: rawPropertyValue.toString(),
+                      };
 
                 // eslint-disable-next-line testing-library/render-result-naming-convention
                 const tooltipHtml = renderToString(
                     <MapTooltipContent
                         tooltipFields={mapConfig?.tooltipFields || []}
                         rowData={rowData}
+                        noData={noData}
                     />,
                 );
                 // eslint-disable-next-line testing-library/render-result-naming-convention
@@ -637,6 +722,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     <MapPopupContent
                         tooltipFields={mapConfig?.tooltipFields || []}
                         rowData={rowData}
+                        noData={noData}
                     />,
                 );
 
@@ -682,7 +768,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     });
                 }
             },
-            [regionDataMap, mapConfig?.tooltipFields, handlePopupCopyClick],
+            [
+                regionDataMap,
+                mapConfig?.geoJsonPropertyKey,
+                mapConfig?.tooltipFields,
+                mapConfig?.locationFieldId,
+                handlePopupCopyClick,
+            ],
         );
 
         if (isLoading) {
@@ -830,7 +922,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         {geoJsonData?.features &&
                             geoJsonData.features.length > 0 && (
                                 <GeoJSON
-                                    key={`geojson-${mapConfig.geoJsonUrl}-${geoJsonData.features.length}`}
+                                    key={`geojson-${mapConfig.geoJsonUrl}-${geoJsonLayerKey}-${geoJsonData.features.length}`}
                                     data={geoJsonData}
                                     style={choroplethStyle}
                                     onEachFeature={onEachFeature}

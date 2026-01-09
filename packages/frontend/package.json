@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.2318.1",
+    "version": "0.2324.0",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -141,6 +141,7 @@
         "vega": "^6.2.0",
         "vega-embed": "^7.1.0",
         "vega-lite": "^6.4.1",
+        "vega-themes": "^3.0.0",
         "zod": "^3.25.55"
     },
     "devDependencies": {

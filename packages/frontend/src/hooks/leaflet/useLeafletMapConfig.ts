@@ -48,6 +48,8 @@ export type LeafletMapConfig = {
     locationType: MapChartType;
     mapType: MapChartLocation;
     geoJsonUrl: string | null;
+    // Property key to match in GeoJSON features (e.g., 'name', 'ISO3166-1-Alpha-3')
+    geoJsonPropertyKey: string;
     center: [number, number];
     zoom: number;
     colors: {
@@ -67,6 +69,8 @@ export type LeafletMapConfig = {
     showLegend: boolean;
     valueRange: { min: number; max: number } | null;
     valueFieldLabel: string | null;
+    // The field ID used for location matching (for deriving labels)
+    locationFieldId: string | null;
     // Field configuration for tooltips
     tooltipFields: TooltipFieldInfo[];
 };
@@ -181,6 +185,7 @@ const useLeafletMapConfig = ({
             latitudeFieldId,
             longitudeFieldId,
             locationFieldId,
+            geoJsonPropertyKey: configGeoJsonPropertyKey,
             valueFieldId,
             colorRange,
             defaultZoom,
@@ -361,6 +366,35 @@ const useLeafletMapConfig = ({
             locationType: locationType || MapChartType.SCATTER,
             mapType,
             geoJsonUrl: getGeoJsonUrl(mapType, customGeoJsonUrl),
+            // Determine the geoJsonPropertyKey to use
+            // Default to 'code' for US states, 'ISO3166-1-Alpha-3' for world
+            geoJsonPropertyKey: (() => {
+                // Define valid keys for each map type
+                const usaValidKeys = ['code', 'name'];
+                const worldValidKeys = [
+                    'ISO3166-1-Alpha-3',
+                    'ISO3166-1-Alpha-2',
+                    'name',
+                ];
+
+                if (mapType === MapChartLocation.USA) {
+                    if (
+                        configGeoJsonPropertyKey &&
+                        usaValidKeys.includes(configGeoJsonPropertyKey)
+                    ) {
+                        return configGeoJsonPropertyKey;
+                    }
+                    return 'code';
+                }
+                // For world/other, use configured key if valid for world, otherwise default to ISO3
+                if (
+                    configGeoJsonPropertyKey &&
+                    worldValidKeys.includes(configGeoJsonPropertyKey)
+                ) {
+                    return configGeoJsonPropertyKey;
+                }
+                return 'ISO3166-1-Alpha-3';
+            })(),
             center,
             zoom,
             colors: {
@@ -386,6 +420,7 @@ const useLeafletMapConfig = ({
             showLegend: showLegend ?? false,
             valueRange,
             valueFieldLabel,
+            locationFieldId: locationFieldId ?? null,
             tooltipFields,
         };
     }, [chartConfig, resultsData, theme, itemsMap]);

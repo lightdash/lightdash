@@ -675,7 +675,12 @@ const seriesValueFormatter = (
             round: item.round,
             compact: item.compact,
         });
-        const formatOptions = isMetric(item) ? item.formatOptions : undefined;
+        // Check for formatOptions from both metrics and dimension overrides
+        // Dimension overrides add formatOptions to the item via the itemsMap
+        const formatOptions =
+            isMetric(item) || isDimension(item)
+                ? item.formatOptions
+                : undefined;
         return applyCustomFormat(value, formatOptions || defaultFormatOptions);
     }
 };
@@ -2119,6 +2124,7 @@ const useEchartsCartesianConfig = (
         getSeriesColor,
         minimal,
         parameters,
+        isTouchDevice,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -2669,10 +2675,9 @@ const useEchartsCartesianConfig = (
             show: true,
             trigger: 'axis',
             enterable: true,
-            ...getTooltipStyle(),
-            confine: true,
+            ...getTooltipStyle({ appendToBody: !isTouchDevice }),
             extraCssText: `overflow-y: auto; max-height:280px; ${
-                getTooltipStyle().extraCssText
+                getTooltipStyle({ appendToBody: !isTouchDevice }).extraCssText
             }`,
             axisPointer: getAxisPointerStyle(hasLineAreaScatterSeries),
             formatter: buildCartesianTooltipFormatter({
@@ -2699,6 +2704,7 @@ const useEchartsCartesianConfig = (
         parameters,
         series,
         dataToRender,
+        isTouchDevice,
     ]);
 
     // Calculate max stack label padding for 100% stacking grid

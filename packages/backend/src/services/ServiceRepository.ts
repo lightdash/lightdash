@@ -653,6 +653,7 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     googleDriveClient: this.clients.getGoogleDriveClient(),
                     userService: this.getUserService(),
+                    jobModel: this.models.getJobModel(),
                 }),
         );
     }
@@ -736,6 +737,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     slackAuthenticationModel:
                         this.models.getSlackAuthenticationModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

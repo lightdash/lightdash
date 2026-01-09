@@ -1,15 +1,19 @@
-import { Anchor, Text } from '@mantine/core';
+import { Anchor, Text, useMantineColorScheme } from '@mantine/core';
 import { IconGraphOff } from '@tabler/icons-react';
-import { Suspense, lazy, useEffect, useRef, type FC } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, type FC } from 'react';
+// @ts-expect-error - vega-themes ESM export not resolved by TS moduleResolution
+import { dark as vegaDarkTheme } from 'vega-themes';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { vegaStyleConfig } from './vegaConfig';
 
-const VegaEmbed = lazy(() =>
-    import('react-vega').then((module) => ({ default: module.VegaEmbed })),
-);
+const VegaEmbed = lazy(async () => {
+    const module = await import('react-vega');
+    return { default: module.VegaEmbed };
+});
 
 type Props = {
     className?: string;
@@ -23,6 +27,9 @@ const CustomVisualization: FC<Props> = ({
     onScreenshotError,
     ...props
 }) => {
+    const { colorScheme } = useMantineColorScheme();
+    const isDarkMode = colorScheme === 'dark';
+
     const {
         isLoading,
         visualizationConfig,
@@ -32,6 +39,14 @@ const CustomVisualization: FC<Props> = ({
     } = useVisualizationContext();
 
     const hasSignaledScreenshotReady = useRef(false);
+
+    const vegaConfig = useMemo(
+        () => ({
+            ...(isDarkMode ? vegaDarkTheme : {}),
+            ...vegaStyleConfig,
+        }),
+        [isDarkMode],
+    );
 
     useEffect(() => {
         if (hasSignaledScreenshotReady.current) return;
@@ -132,12 +147,10 @@ const CustomVisualization: FC<Props> = ({
                         // @ts-ignore, see above
                         height: 'container',
                         data: data,
+                        // Merge configs: our defaults first, then user's config overrides
                         config: {
-                            font: 'Inter, sans-serif',
-                            autosize: {
-                                type: 'fit',
-                                resize: true,
-                            },
+                            ...vegaConfig,
+                            ...(spec.config || {}),
                         },
                     }}
                     options={{

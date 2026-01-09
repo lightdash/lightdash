@@ -22,19 +22,25 @@ const stylesToString = (styles: Record<string, unknown>) =>
 /**
  * Get base tooltip styling
  */
-export const getTooltipStyle = () => ({
+export const getTooltipStyle = ({
+    appendToBody = true,
+}: {
+    appendToBody?: boolean;
+} = {}) => ({
     padding: 8,
     borderColor: GRAY_3,
     borderWidth: 1,
     borderRadius: 8,
     backgroundColor: TOOLTIP_BACKGROUND,
-    appendToBody: true,
+    renderMode: 'html' as const,
+    confine: true,
     textStyle: {
         color: GRAY_7,
         fontSize: 12,
     },
     extraCssText:
         'box-shadow: 0px 8px 8px 0px rgba(0, 0, 0, 0.08), 0px 0px 1px 0px rgba(0, 0, 0, 0.25);',
+    ...(appendToBody ? { appendToBody: true } : {}),
 });
 
 /**

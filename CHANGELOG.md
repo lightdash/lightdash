@@ -1,3 +1,97 @@
+# [0.2324.0](https://github.com/lightdash/lightdash/compare/0.2323.1...0.2324.0) (2026-01-09)
+
+
+### Features
+
+* add partial compilation mode for fields with errors ([#19278](https://github.com/lightdash/lightdash/issues/19278)) ([ee6db0d](https://github.com/lightdash/lightdash/commit/ee6db0d9fa9785a28fc10adc046633e4d6258404))
+
+## [0.2323.1](https://github.com/lightdash/lightdash/compare/0.2323.0...0.2323.1) (2026-01-09)
+
+
+### Bug Fixes
+
+* chart tooltips mispositioned on mobile touch devices ([#19317](https://github.com/lightdash/lightdash/issues/19317)) ([2b2dd48](https://github.com/lightdash/lightdash/commit/2b2dd48b37681a7d6bf4e4ed8462e02eaab66752)), closes [#19286](https://github.com/lightdash/lightdash/issues/19286)
+
+# [0.2323.0](https://github.com/lightdash/lightdash/compare/0.2322.1...0.2323.0) (2026-01-09)
+
+
+### Bug Fixes
+
+* optimize react-vega loading by including it in vite dependencies ([#19308](https://github.com/lightdash/lightdash/issues/19308)) ([61ebe8f](https://github.com/lightdash/lightdash/commit/61ebe8f03484074ede87c13f92dad64afb578291))
+
+
+### Features
+
+* add dark mode support for custom visualizations ([#19309](https://github.com/lightdash/lightdash/issues/19309)) ([94f198f](https://github.com/lightdash/lightdash/commit/94f198fd6851e65b28d4ea94a32a771ec77e26ac))
+* update vega config styles to match lightdash charts ([#19313](https://github.com/lightdash/lightdash/issues/19313)) ([dab2404](https://github.com/lightdash/lightdash/commit/dab240455c07a4ed4bc132f902462e1e549fc11d))
+
+## [0.2322.1](https://github.com/lightdash/lightdash/compare/0.2322.0...0.2322.1) (2026-01-09)
+
+
+### Bug Fixes
+
+* show a better tooltip for no data in maps ([#19211](https://github.com/lightdash/lightdash/issues/19211)) ([4f6243a](https://github.com/lightdash/lightdash/commit/4f6243a53aeba40afbcdcd2b3b273069ba16d003))
+
+# [0.2322.0](https://github.com/lightdash/lightdash/compare/0.2321.0...0.2322.0) (2026-01-09)
+
+
+### Features
+
+* allow remapping shape keys in maps ([#19174](https://github.com/lightdash/lightdash/issues/19174)) ([77c7d8c](https://github.com/lightdash/lightdash/commit/77c7d8c7637573d77ad1672097defc935f1c9766))
+
+# [0.2321.0](https://github.com/lightdash/lightdash/compare/0.2320.4...0.2321.0) (2026-01-09)
+
+
+### Features
+
+* add monitoring for stuck scheduler jobs ([#19294](https://github.com/lightdash/lightdash/issues/19294)) ([8d8619c](https://github.com/lightdash/lightdash/commit/8d8619cfe2269406954a3fb3573cf1ae8049f80d))
+* add performance timing metrics to project compilation ([#19295](https://github.com/lightdash/lightdash/issues/19295)) ([c96eeff](https://github.com/lightdash/lightdash/commit/c96eeffca9fcbc3b07224a7bfd0c069d936b6377))
+
+## [0.2320.4](https://github.com/lightdash/lightdash/compare/0.2320.3...0.2320.4) (2026-01-09)
+
+
+### Bug Fixes
+
+* inherit hidden property from additional dimension rather than base ([#19292](https://github.com/lightdash/lightdash/issues/19292)) ([0895ce7](https://github.com/lightdash/lightdash/commit/0895ce7c7ff4a96f97adf44ba51b780dfabb7d53))
+
+## [0.2320.3](https://github.com/lightdash/lightdash/compare/0.2320.2...0.2320.3) (2026-01-09)
+
+
+### Bug Fixes
+
+* groups enabled feature flag checking ([#19284](https://github.com/lightdash/lightdash/issues/19284)) ([1b8a62d](https://github.com/lightdash/lightdash/commit/1b8a62d47e759dbdd9763a71c2779efaf64b3ca5))
+
+## [0.2320.2](https://github.com/lightdash/lightdash/compare/0.2320.1...0.2320.2) (2026-01-09)
+
+
+### Bug Fixes
+
+* use null coalescing check for useSqlPivotResults feature flag ([#19269](https://github.com/lightdash/lightdash/issues/19269)) ([fa211d7](https://github.com/lightdash/lightdash/commit/fa211d771b7268104abf128afbb4a258c3ddc691))
+
+## [0.2320.1](https://github.com/lightdash/lightdash/compare/0.2320.0...0.2320.1) (2026-01-09)
+
+
+### Bug Fixes
+
+* e2e test not finding mantine 8 modal ([#19305](https://github.com/lightdash/lightdash/issues/19305)) ([87d3029](https://github.com/lightdash/lightdash/commit/87d30296859b7fc4a6192c97c2b364e3800cd663))
+* formatting for quick calculations ([#19306](https://github.com/lightdash/lightdash/issues/19306)) ([9882b6d](https://github.com/lightdash/lightdash/commit/9882b6d1a3307eee4d1b843f76a21881519d8521))
+* Table calculation modal border in dark mode ([#19307](https://github.com/lightdash/lightdash/issues/19307)) ([7436ebc](https://github.com/lightdash/lightdash/commit/7436ebc9c5bcdfe54910003253387498f281eb6f))
+* table cell menus not rendering correctly in dashboard v2 ([#19304](https://github.com/lightdash/lightdash/issues/19304)) ([e6c2dc8](https://github.com/lightdash/lightdash/commit/e6c2dc8ba8905d56de533f07ceb74ccd4c219206))
+
+# [0.2320.0](https://github.com/lightdash/lightdash/compare/0.2319.0...0.2320.0) (2026-01-09)
+
+
+### Features
+
+* allow changing date/timestamp dimensions' formatting in results table ([#19277](https://github.com/lightdash/lightdash/issues/19277)) ([43ed90c](https://github.com/lightdash/lightdash/commit/43ed90c4a79bcb61285434bdf1d6c8cd5898230a))
+
+# [0.2319.0](https://github.com/lightdash/lightdash/compare/0.2318.1...0.2319.0) (2026-01-09)
+
+
+### Features
+
+* use feature flag/env var for multi-agent slack channel ([#19242](https://github.com/lightdash/lightdash/issues/19242)) ([9136f43](https://github.com/lightdash/lightdash/commit/9136f43c26497973dc77593a86d252ae618cfa0e))
+
 ## [0.2318.1](https://github.com/lightdash/lightdash/compare/0.2318.0...0.2318.1) (2026-01-08)
 
 

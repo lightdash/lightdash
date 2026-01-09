@@ -1,12 +1,15 @@
 import {
+    DimensionType,
     getItemId,
     getItemLabelWithoutTableName,
     isCustomDimension,
+    isDimension,
     isField,
     isFilterableField,
     isMetric,
     isNumericItem,
     isTableCalculation,
+    isTimeBasedDimension,
     type TableCalculation,
 } from '@lightdash/common';
 import { ActionIcon, Menu, Text } from '@mantine/core';
@@ -92,6 +95,15 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
                 <Menu.Divider />
+
+                {isTimeBasedDimension(item) ||
+                (isDimension(item) && item.type === DimensionType.NUMBER) ? (
+                    <>
+                        <FormatMenuOptions item={item} />
+                        <Menu.Divider />
+                    </>
+                ) : null}
+
                 {isMetric(item) && (
                     <>
                         {!isItemAdditionalMetric && isNumericItem(item) && (

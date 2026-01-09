@@ -560,3 +560,29 @@ describe('parseAndSanitizeSchedulerTasks', () => {
         });
     });
 });
+
+test('should set useSqlPivotResults only when the environment variable is set', () => {
+    const undefinedConfig = parseConfig();
+    expect(undefinedConfig.query.useSqlPivotResults).toBeUndefined();
+
+    process.env.USE_SQL_PIVOT_RESULTS = 'true';
+    const trueConfig = parseConfig();
+    expect(trueConfig.query.useSqlPivotResults).toBe(true);
+
+    process.env.USE_SQL_PIVOT_RESULTS = 'false';
+    const falseConfig = parseConfig();
+    expect(falseConfig.query.useSqlPivotResults).toBe(false);
+});
+
+test('should set groups.enabled only when the environment variable is set', () => {
+    const undefinedConfig = parseConfig();
+    expect(undefinedConfig.groups.enabled).toBeUndefined();
+
+    process.env.GROUPS_ENABLED = 'true';
+    const trueConfig = parseConfig();
+    expect(trueConfig.groups.enabled).toBe(true);
+
+    process.env.GROUPS_ENABLED = 'false';
+    const falseConfig = parseConfig();
+    expect(falseConfig.groups.enabled).toBe(false);
+});

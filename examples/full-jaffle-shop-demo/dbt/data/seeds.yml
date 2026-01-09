@@ -51,3 +51,10 @@ seeds:
         start_date: timestamp
         end_date: timestamp
         active: boolean
+  - name: raw_product_events
+    config:
+      column_types:
+        event_id: integer
+        user_id: integer
+        event_timestamp: timestamp
+        event_properties: "{{ 'variant' if target.type == 'snowflake' else 'jsonb' }}"

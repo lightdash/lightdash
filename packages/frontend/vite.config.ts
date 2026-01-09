@@ -48,6 +48,7 @@ export default defineConfig({
     ],
     optimizeDeps: {
         exclude: ['@lightdash/common'],
+        include: ['react-vega'],
     },
     resolve: {
         alias:

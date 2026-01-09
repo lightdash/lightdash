@@ -604,6 +604,7 @@ export const convertTable = (
                                                           sql: dim.sql,
                                                           description:
                                                               dim.description,
+                                                          hidden: dim.hidden,
                                                       },
                                                   },
                                               }
@@ -869,6 +870,7 @@ export const convertExplores = async (
     warehouseSqlBuilder: WarehouseSqlBuilder,
     lightdashProjectConfig: LightdashProjectConfig,
     disableTimestampConversion?: boolean,
+    allowPartialCompilation?: boolean,
 ): Promise<(Explore | ExploreError)[]> => {
     const tableLineage = translateDbtModelsToTableLineage(models);
     const [tables, exploreErrors] = models.reduce(
@@ -941,7 +943,9 @@ export const convertExplores = async (
         (model) => tableLookup[model.name] !== undefined,
     );
 
-    const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder);
+    const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder, {
+        allowPartialCompilation,
+    });
     const explores: (Explore | ExploreError)[] = validModels.reduce<
         (Explore | ExploreError)[]
     >((acc, model) => {

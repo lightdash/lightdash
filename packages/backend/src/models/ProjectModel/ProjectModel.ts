@@ -128,7 +128,8 @@ type RawSummaryRow = {
     tags: Explore['tags'];
     groupLabel: Explore['groupLabel'] | null;
     type: Explore['type'] | null;
-    errors: ExploreError['errors'] | null;
+    errors: ExploreError['errors'] | null; // Fatal errors from ExploreError
+    warnings: Explore['warnings'] | null; // Non-fatal warnings from partial compilation
     baseTable: Explore['baseTable'];
     baseTableDatabase: Explore['tables'][string]['database'];
     baseTableSchema: Explore['tables'][string]['schema'];
@@ -1135,6 +1136,7 @@ export class ProjectModel {
                     explore->'groupLabel' as "groupLabel",
                     explore->'type' as type,
                     explore->'errors' as errors,
+                    explore->'warnings' as warnings,
                     explore->'baseTable' as "baseTable",
                     explore->'tables'->(explore->>'baseTable')->>'database' as "baseTableDatabase",
                     explore->'tables'->(explore->>'baseTable')->>'schema' as "baseTableSchema",
@@ -1157,7 +1159,8 @@ export class ProjectModel {
             type: row.type ?? undefined,
             baseTableRequiredAttributes:
                 row.baseTableRequiredAttributes ?? undefined,
-            ...(row.errors ? { errors: row.errors } : {}), // Only add errors key if errors are present
+            ...(row.errors ? { errors: row.errors } : {}), // Fatal errors from ExploreError
+            ...(row.warnings ? { warnings: row.warnings } : {}), // Non-fatal warnings from partial compilation
         }));
     }
 

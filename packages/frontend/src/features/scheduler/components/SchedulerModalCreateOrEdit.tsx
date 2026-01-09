@@ -438,8 +438,6 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         currentParameterValues,
     });
 
-    console.log(form.values);
-
     return (
         <SchedulerFormProvider form={form}>
             <MantineModal

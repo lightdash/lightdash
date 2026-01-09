@@ -1639,6 +1639,9 @@ export class ProjectService extends BaseService {
                             return {
                                 explores: await adapter.compileAllExplores(
                                     trackingParams,
+                                    false, // loadSources
+                                    this.lightdashConfig.partialCompilation
+                                        .enabled,
                                 ),
                                 lightdashProjectConfig:
                                     await adapter.getLightdashProjectConfig(
@@ -1908,6 +1911,8 @@ export class ProjectService extends BaseService {
         method: RequestMethod,
         jobUuid: string,
     ) {
+        const totalStartTime = performance.now();
+
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
@@ -1943,10 +1948,20 @@ export class ProjectService extends BaseService {
             ],
         };
 
+        const timings = {
+            testAdapter: { start: 0, end: 0 },
+            compileExplores: { start: 0, end: 0 },
+            getConfig: { start: 0, end: 0 },
+            yaml: { start: 0, end: 0 },
+            parameters: { start: 0, end: 0 },
+            cacheExplores: { start: 0, end: 0 },
+        };
+
         try {
             await this.jobModel.update(job.jobUuid, {
                 jobStatus: JobStatusType.RUNNING,
             });
+            timings.testAdapter.start = performance.now();
             const { adapter, sshTunnel } = await this.jobModel.tryJobStep(
                 job.jobUuid,
                 JobStepType.TESTING_ADAPTOR,
@@ -1956,6 +1971,7 @@ export class ProjectService extends BaseService {
                         user,
                     ),
             );
+            timings.testAdapter.end = performance.now();
             if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
                 await this.jobModel.tryJobStep(
                     job.jobUuid,
@@ -1967,14 +1983,21 @@ export class ProjectService extends BaseService {
                                 organizationUuid: user.organizationUuid,
                                 userUuid: user.userUuid,
                             };
+                            timings.compileExplores.start = performance.now();
                             const explores = await adapter.compileAllExplores(
                                 trackingParams,
+                                false, // loadSources
+                                this.lightdashConfig.partialCompilation.enabled,
                             );
+                            timings.compileExplores.end = performance.now();
+                            timings.getConfig.start = performance.now();
                             const lightdashProjectConfig =
                                 await adapter.getLightdashProjectConfig(
                                     trackingParams,
                                 );
+                            timings.getConfig.end = performance.now();
 
+                            timings.yaml.start = performance.now();
                             await this.replaceYamlTags(
                                 user,
                                 projectUuid,
@@ -1988,11 +2011,15 @@ export class ProjectService extends BaseService {
                                     color: category.color ?? 'gray',
                                 })),
                             );
+                            timings.yaml.end = performance.now();
+                            timings.parameters.start = performance.now();
                             await this.replaceProjectParameters({
                                 user,
                                 projectUuid,
                                 parameters: lightdashProjectConfig.parameters,
                             });
+                            timings.parameters.end = performance.now();
+                            timings.cacheExplores.start = performance.now();
                             await this.saveExploresToCacheAndIndexCatalog(
                                 user.userUuid,
                                 projectUuid,
@@ -2001,6 +2028,7 @@ export class ProjectService extends BaseService {
                                 job.jobUuid,
                                 method,
                             );
+                            timings.cacheExplores.end = performance.now();
                         } finally {
                             await adapter.destroy();
                             await sshTunnel.disconnect();
@@ -2029,6 +2057,33 @@ export class ProjectService extends BaseService {
                     method,
                 ),
             });
+            const totalTime = performance.now() - totalStartTime;
+            const durationTestAdapter =
+                timings.testAdapter.end - timings.testAdapter.start;
+            const durationCompileExplores =
+                timings.compileExplores.end - timings.compileExplores.start;
+            const durationGetConfig =
+                timings.getConfig.end - timings.getConfig.start;
+            const durationYaml = timings.yaml.end - timings.yaml.start;
+            const durationParameters =
+                timings.parameters.end - timings.parameters.start;
+            const durationCacheExplores =
+                timings.cacheExplores.end - timings.cacheExplores.start;
+
+            this.logger.info(
+                `testAndCompileProject completed in ${totalTime.toFixed(2)}ms`,
+                {
+                    totalTimeMs: totalTime,
+                    sections: {
+                        testAdapterMs: durationTestAdapter.toFixed(2),
+                        compileExploresMs: durationCompileExplores.toFixed(2),
+                        getConfigMs: durationGetConfig.toFixed(2),
+                        yamlMs: durationYaml.toFixed(2),
+                        parametersMs: durationParameters.toFixed(2),
+                        cacheExploresMs: durationCacheExplores.toFixed(2),
+                    },
+                },
+            );
         } catch (error) {
             await this.jobModel.setPendingJobsToSkipped(job.jobUuid);
             await this.jobModel.update(job.jobUuid, {
@@ -3282,15 +3337,16 @@ export class ProjectService extends BaseService {
 
                     const fieldsWithOverrides: ItemsMap = Object.fromEntries(
                         Object.entries(fullQuery.fields).map(([key, value]) => {
-                            if (
-                                metricQuery.metricOverrides &&
-                                metricQuery.metricOverrides[key]
-                            ) {
+                            // Check for metric or dimension overrides
+                            const override =
+                                metricQuery.metricOverrides?.[key] ||
+                                metricQuery.dimensionOverrides?.[key];
+                            if (override) {
                                 return [
                                     key,
                                     {
                                         ...value,
-                                        ...metricQuery.metricOverrides[key],
+                                        ...override,
                                     },
                                 ];
                             }
@@ -4026,7 +4082,11 @@ export class ProjectService extends BaseService {
                 organizationUuid: project.organizationUuid,
                 userUuid: user.userUuid,
             };
-            const explores = await adapter.compileAllExplores(trackingParams);
+            const explores = await adapter.compileAllExplores(
+                trackingParams,
+                false, // loadSources
+                this.lightdashConfig.partialCompilation.enabled,
+            );
             this.analytics.track({
                 event: 'project.compiled',
                 userId: user.userUuid,
@@ -4278,6 +4338,8 @@ export class ProjectService extends BaseService {
         requestMethod: RequestMethod,
         jobUuid: string,
     ) {
+        const totalStartTime = performance.now();
+
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
         );
@@ -4309,6 +4371,13 @@ export class ProjectService extends BaseService {
         const onLockFailed = async () => {
             throw new AlreadyProcessingError('Project is already compiling');
         };
+
+        const timings = {
+            yaml: { start: 0, end: 0 },
+            parameters: { start: 0, end: 0 },
+            cacheExplores: { start: 0, end: 0 },
+        };
+
         const onLockAcquired = async () => {
             try {
                 await this.jobModel.update(job.jobUuid, {
@@ -4325,6 +4394,7 @@ export class ProjectService extends BaseService {
                                 requestMethod,
                             );
 
+                        timings.yaml.start = performance.now();
                         await this.replaceYamlTags(
                             user,
                             projectUuid,
@@ -4338,12 +4408,16 @@ export class ProjectService extends BaseService {
                                 color: category.color ?? 'gray',
                             })),
                         );
+                        timings.yaml.end = performance.now();
+                        timings.parameters.start = performance.now();
                         await this.replaceProjectParameters({
                             user,
                             projectUuid,
                             parameters: lightdashProjectConfig.parameters,
                         });
-                        return this.saveExploresToCacheAndIndexCatalog(
+                        timings.parameters.end = performance.now();
+                        timings.cacheExplores.start = performance.now();
+                        const result = this.saveExploresToCacheAndIndexCatalog(
                             user.userUuid,
                             projectUuid,
                             explores,
@@ -4351,6 +4425,9 @@ export class ProjectService extends BaseService {
                             job.jobUuid,
                             requestMethod,
                         );
+                        timings.cacheExplores.end = performance.now();
+
+                        return result;
                     },
                 );
 
@@ -4376,6 +4453,24 @@ export class ProjectService extends BaseService {
                     `Background job failed:${e instanceof Error ? e.stack : e}`,
                 );
             });
+        const totalTime = performance.now() - totalStartTime;
+        const durationYaml = timings.yaml.end - timings.yaml.start;
+        const durationParameters =
+            timings.parameters.end - timings.parameters.start;
+        const durationCacheExplores =
+            timings.cacheExplores.end - timings.cacheExplores.start;
+
+        this.logger.info(
+            `compileProject completed in ${totalTime.toFixed(2)}`,
+            {
+                totalTimeMs: totalTime,
+                sections: {
+                    yamlMs: durationYaml.toFixed(2),
+                    parametersMs: durationParameters.toFixed(2),
+                    cacheExploresMs: durationCacheExplores.toFixed(2),
+                },
+            },
+        );
     }
 
     private async getExploreSummaries(

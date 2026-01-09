@@ -385,7 +385,7 @@ const TableCalculationModal: FC<Props> = ({
                                     radius="xs"
                                     styles={{
                                         panel: {
-                                            borderColor: colors.gray[2],
+                                            borderColor: colors.ldGray[2],
                                             borderWidth: 1,
                                             borderStyle: 'solid',
                                             borderTop: 'none',
@@ -568,7 +568,10 @@ const TableCalculationModal: FC<Props> = ({
                                     type="submit"
                                     ref={submitButtonRef}
                                     data-testid="table-calculation-save-button"
-                                    disabled={form.values.sql.length === 0}
+                                    disabled={
+                                        editMode === EditMode.SQL &&
+                                        form.values.sql.length === 0
+                                    }
                                 >
                                     {tableCalculation
                                         ? 'Save changes'

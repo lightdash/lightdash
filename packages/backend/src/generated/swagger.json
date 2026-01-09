@@ -2439,59 +2439,30 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
-            "FieldType": {
-                "enum": ["metric", "dimension"],
+            "CustomFormatType": {
+                "enum": [
+                    "default",
+                    "percent",
+                    "currency",
+                    "number",
+                    "id",
+                    "date",
+                    "timestamp",
+                    "bytes_si",
+                    "bytes_iec",
+                    "custom"
+                ],
                 "type": "string"
             },
-            "SourcePosition": {
-                "properties": {
-                    "character": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "line": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["character", "line"],
-                "type": "object"
-            },
-            "Source": {
-                "properties": {
-                    "content": {
-                        "type": "string"
-                    },
-                    "highlight": {
-                        "properties": {
-                            "end": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            },
-                            "start": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            }
-                        },
-                        "required": ["end", "start"],
-                        "type": "object"
-                    },
-                    "range": {
-                        "properties": {
-                            "end": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            },
-                            "start": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            }
-                        },
-                        "required": ["end", "start"],
-                        "type": "object"
-                    },
-                    "path": {
-                        "type": "string"
-                    }
-                },
-                "required": ["content", "range", "path"],
-                "type": "object"
+            "NumberSeparator": {
+                "enum": [
+                    "default",
+                    "commaPeriod",
+                    "spacePeriod",
+                    "periodComma",
+                    "noSeparatorPeriod"
+                ],
+                "type": "string"
             },
             "Compact": {
                 "enum": [
@@ -2551,6 +2522,95 @@
                         ]
                     }
                 ]
+            },
+            "CustomFormat": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/CustomFormatType"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias"
+                    },
+                    "prefix": {
+                        "type": "string"
+                    },
+                    "suffix": {
+                        "type": "string"
+                    },
+                    "timeInterval": {
+                        "$ref": "#/components/schemas/TimeFrames"
+                    },
+                    "custom": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "FieldType": {
+                "enum": ["metric", "dimension"],
+                "type": "string"
+            },
+            "SourcePosition": {
+                "properties": {
+                    "character": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "line": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["character", "line"],
+                "type": "object"
+            },
+            "Source": {
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "highlight": {
+                        "properties": {
+                            "end": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            },
+                            "start": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            }
+                        },
+                        "required": ["end", "start"],
+                        "type": "object"
+                    },
+                    "range": {
+                        "properties": {
+                            "end": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            },
+                            "start": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            }
+                        },
+                        "required": ["end", "start"],
+                        "type": "object"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["content", "range", "path"],
+                "type": "object"
             },
             "Format": {
                 "enum": [
@@ -2709,6 +2769,9 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat"
                     },
                     "image": {
                         "properties": {
@@ -2909,66 +2972,6 @@
                 },
                 "required": ["descending", "fieldId"],
                 "type": "object"
-            },
-            "CustomFormatType": {
-                "enum": [
-                    "default",
-                    "percent",
-                    "currency",
-                    "number",
-                    "id",
-                    "date",
-                    "timestamp",
-                    "bytes_si",
-                    "bytes_iec",
-                    "custom"
-                ],
-                "type": "string"
-            },
-            "NumberSeparator": {
-                "enum": [
-                    "default",
-                    "commaPeriod",
-                    "spacePeriod",
-                    "periodComma",
-                    "noSeparatorPeriod"
-                ],
-                "type": "string"
-            },
-            "CustomFormat": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/CustomFormatType"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "separator": {
-                        "$ref": "#/components/schemas/NumberSeparator"
-                    },
-                    "currency": {
-                        "type": "string"
-                    },
-                    "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias"
-                    },
-                    "prefix": {
-                        "type": "string"
-                    },
-                    "suffix": {
-                        "type": "string"
-                    },
-                    "timeInterval": {
-                        "$ref": "#/components/schemas/TimeFrames"
-                    },
-                    "custom": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type"],
-                "type": "object",
-                "additionalProperties": true
             },
             "TableCalculationType": {
                 "enum": ["number", "string", "date", "timestamp", "boolean"],
@@ -3514,6 +3517,22 @@
                 },
                 "type": "object"
             },
+            "Pick_Dimension.formatOptions_": {
+                "properties": {
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DimensionOverrides": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/Pick_Dimension.formatOptions_"
+                },
+                "type": "object"
+            },
             "Pick_CompiledDimension.label-or-name-or-table_": {
                 "properties": {
                     "name": {
@@ -3589,6 +3608,9 @@
                     },
                     "timezone": {
                         "type": "string"
+                    },
+                    "dimensionOverrides": {
+                        "$ref": "#/components/schemas/DimensionOverrides"
                     },
                     "metricOverrides": {
                         "$ref": "#/components/schemas/MetricOverrides"
@@ -5417,6 +5439,9 @@
                             }
                         ]
                     },
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat"
+                    },
                     "image": {
                         "properties": {
                             "fit": {
@@ -5459,8 +5484,22 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
+            "FieldCompilationError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "required": ["message"],
+                "type": "object",
+                "description": "Error information stored on a field when compilation fails but\npartial compilation mode is enabled."
+            },
             "CompiledProperties": {
                 "properties": {
+                    "compilationError": {
+                        "$ref": "#/components/schemas/FieldCompilationError",
+                        "description": "When partial compilation mode is enabled, fields that fail to compile\nwill have this property set instead of causing the entire explore to fail."
+                    },
                     "tablesRequiredAttributes": {
                         "$ref": "#/components/schemas/Record_string.Record_string.string-or-string-Array__"
                     },
@@ -5834,8 +5873,37 @@
                 "enum": ["virtual", "default"],
                 "type": "string"
             },
+            "InlineErrorType": {
+                "enum": [
+                    "METADATA_PARSE_ERROR",
+                    "NO_DIMENSIONS_FOUND",
+                    "SKIPPED_JOIN",
+                    "MISSING_TABLE",
+                    "FIELD_ERROR"
+                ],
+                "type": "string"
+            },
+            "InlineError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/InlineErrorType"
+                    }
+                },
+                "required": ["message", "type"],
+                "type": "object"
+            },
             "Explore": {
                 "properties": {
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                    },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
                     },
@@ -6412,6 +6480,9 @@
                 "properties": {
                     "periodOverPeriod": {
                         "$ref": "#/components/schemas/PeriodOverPeriodComparison"
+                    },
+                    "dimensionOverrides": {
+                        "$ref": "#/components/schemas/DimensionOverrides"
                     },
                     "metricOverrides": {
                         "$ref": "#/components/schemas/MetricOverrides"
@@ -8013,19 +8084,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -8041,12 +8099,12 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -8054,10 +8112,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -8066,8 +8124,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -8161,12 +8219,12 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "searchRank": {
+                                                                                    "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -8174,10 +8232,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -8186,8 +8244,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -18200,22 +18258,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -18715,6 +18773,13 @@
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
                     }
                 },
                 "type": "object",
@@ -18735,22 +18800,6 @@
                 "required": ["name", "label"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "InlineErrorType": {
-                "enum": ["METADATA_PARSE_ERROR", "NO_DIMENSIONS_FOUND"],
-                "type": "string"
-            },
-            "InlineError": {
-                "properties": {
-                    "message": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/InlineErrorType"
-                    }
-                },
-                "required": ["message", "type"],
-                "type": "object"
             },
             "ExploreError": {
                 "allOf": [
@@ -20962,6 +21011,13 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
                     }
                 },
                 "required": ["name", "label", "tags"],
@@ -21154,6 +21210,13 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
                     }
                 },
                 "required": [
@@ -21177,6 +21240,12 @@
             },
             "ApiCompiledQueryResults": {
                 "properties": {
+                    "compilationErrors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "parameterReferences": {
                         "items": {
                             "type": "string"
@@ -22616,6 +22685,9 @@
                     "metricOverrides": {
                         "$ref": "#/components/schemas/MetricOverrides"
                     },
+                    "dimensionOverrides": {
+                        "$ref": "#/components/schemas/DimensionOverrides"
+                    },
                     "periodOverPeriod": {
                         "$ref": "#/components/schemas/PeriodOverPeriodComparison"
                     }
@@ -23847,7 +23919,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2301.4",
+        "version": "0.2318.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
