@@ -3,8 +3,8 @@ name: AI Agent Integration Tests
 on:
     schedule:
         # Runs on Monday to Friday at 8:00 UTC
-        # Use https://crontab.guru/#0_8_*_*_1-5 for reference
-        - cron: '0 8 * * 1-5'
+        # Use https://crontab.guru/#0_8_*_*_1 for reference
+        - cron: '0 8 * * 1'
     workflow_dispatch: # Allow manual trigger from GitHub Actions UI
     pull_request:
         paths:
