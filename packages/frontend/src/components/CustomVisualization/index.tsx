@@ -8,6 +8,7 @@ import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { vegaStyleConfig } from './vegaConfig';
 
 const VegaEmbed = lazy(async () => {
     const module = await import('react-vega');
@@ -42,12 +43,7 @@ const CustomVisualization: FC<Props> = ({
     const vegaConfig = useMemo(
         () => ({
             ...(isDarkMode ? vegaDarkTheme : {}),
-            background: 'transparent',
-            font: 'Inter, sans-serif',
-            autosize: {
-                type: 'fit' as const,
-                resize: true,
-            },
+            ...vegaStyleConfig,
         }),
         [isDarkMode],
     );
@@ -151,7 +147,11 @@ const CustomVisualization: FC<Props> = ({
                         // @ts-ignore, see above
                         height: 'container',
                         data: data,
-                        config: vegaConfig,
+                        // Merge configs: our defaults first, then user's config overrides
+                        config: {
+                            ...vegaConfig,
+                            ...(spec.config || {}),
+                        },
                     }}
                     options={{
                         actions: false,
