@@ -1,3 +1,10 @@
+# [0.2319.0](https://github.com/lightdash/lightdash/compare/0.2318.1...0.2319.0) (2026-01-09)
+
+
+### Features
+
+* use feature flag/env var for multi-agent slack channel ([#19242](https://github.com/lightdash/lightdash/issues/19242)) ([9136f43](https://github.com/lightdash/lightdash/commit/9136f43c26497973dc77593a86d252ae618cfa0e))
+
 ## [0.2318.1](https://github.com/lightdash/lightdash/compare/0.2318.0...0.2318.1) (2026-01-08)
 
 
