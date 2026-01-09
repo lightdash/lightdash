@@ -41,6 +41,7 @@ const useEchartsPieConfig = (
         getGroupColor,
         minimal,
         parameters,
+        isTouchDevice,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -263,7 +264,7 @@ const useEchartsPieConfig = (
             },
             tooltip: {
                 trigger: 'item',
-                ...getTooltipStyle(),
+                ...getTooltipStyle({ appendToBody: !isTouchDevice }),
             },
             series: [pieSeriesOption],
             animation: !(isInDashboard || minimal),
@@ -276,6 +277,7 @@ const useEchartsPieConfig = (
         selectedLegends,
         isInDashboard,
         minimal,
+        isTouchDevice,
     ]);
 
     if (!itemsMap) return;
