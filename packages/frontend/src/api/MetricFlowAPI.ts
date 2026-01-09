@@ -10,11 +10,26 @@ import {
 } from '@lightdash/common';
 import { lightdashApi } from '../api';
 
-export enum MetricFlowDimensionType
+export enum MetricFlowDimensionType {
+    CATEGORICAL = 'CATEGORICAL',
+    TIME = 'TIME',
+}
 
-export enum MetricFlowMetricType
+export enum MetricFlowMetricType {
+    SIMPLE = 'SIMPLE',
+    RATIO = 'RATIO',
+    CUMULATIVE = 'CUMULATIVE',
+    DERIVED = 'DERIVED',
+    CONVERSION = 'CONVERSION',
+}
 
-export enum TimeGranularity
+export enum TimeGranularity {
+    DAY = 'DAY',
+    WEEK = 'WEEK',
+    MONTH = 'MONTH',
+    QUARTER = 'QUARTER',
+    YEAR = 'YEAR',
+}
 
 export type MetricFlowSemanticModel = {
     name: string;
@@ -471,7 +486,13 @@ export function createMetricFlowQuery(
     });
 }
 
-export enum QueryStatus
+export enum QueryStatus {
+    PENDING = 'PENDING',
+    RUNNING = 'RUNNING',
+    COMPILED = 'COMPILED',
+    SUCCESSFUL = 'SUCCESSFUL',
+    FAILED = 'FAILED',
+}
 
 export type GetMetricFlowQueryBase64ResultsResponse = {
     query: {
