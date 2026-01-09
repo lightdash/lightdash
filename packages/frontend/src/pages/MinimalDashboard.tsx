@@ -135,6 +135,7 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                             ) : tile.type === DashboardTileTypes.LOOM ? (
                                 <LoomTile
                                     key={tile.uuid}
+                                    minimal
                                     tile={tile}
                                     isEditMode={false}
                                     onDelete={() => {}}

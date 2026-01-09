@@ -1164,6 +1164,73 @@ export class UnfurlService extends BaseService {
                                 }),
                             ),
                         );
+
+                        // Wait for Loom thumbnail images to load (used in minimal/screenshot mode)
+                        if (lightdashPage === LightdashPage.DASHBOARD) {
+                            // Wait for Loom thumbnail images to appear and load
+                            // The img element only appears after the /api/v1/loom/thumbnail API completes
+                            try {
+                                await page.waitForSelector(
+                                    'img[src*="cdn.loom.com"]',
+                                    { state: 'attached', timeout: 10000 },
+                                );
+
+                                const loomThumbnails = await page
+                                    .locator('img[src*="cdn.loom.com"]')
+                                    .all();
+                                if (loomThumbnails.length > 0) {
+                                    this.logger.info(
+                                        `Found ${loomThumbnails.length} Loom thumbnail(s), waiting for them to load`,
+                                    );
+                                    await Promise.all(
+                                        loomThumbnails.map(
+                                            async (imgLocator) => {
+                                                try {
+                                                    await imgLocator.waitFor({
+                                                        state: 'visible',
+                                                        timeout:
+                                                            RESPONSE_TIMEOUT_MS,
+                                                    });
+                                                    const imgHandle =
+                                                        await imgLocator.elementHandle();
+                                                    if (imgHandle && page) {
+                                                        await page.waitForFunction(
+                                                            (img) =>
+                                                                (
+                                                                    img as HTMLImageElement
+                                                                ).complete &&
+                                                                (
+                                                                    img as HTMLImageElement
+                                                                )
+                                                                    .naturalHeight >
+                                                                    0,
+                                                            imgHandle,
+                                                            {
+                                                                timeout:
+                                                                    RESPONSE_TIMEOUT_MS,
+                                                            },
+                                                        );
+                                                    }
+                                                } catch (imgError) {
+                                                    this.logger.warn(
+                                                        `Failed to wait for Loom thumbnail load: ${getErrorMessage(
+                                                            imgError,
+                                                        )}`,
+                                                    );
+                                                }
+                                            },
+                                        ),
+                                    );
+                                    this.logger.info(
+                                        'Loom thumbnail(s) finished loading',
+                                    );
+                                }
+                            } catch {
+                                this.logger.debug(
+                                    'No Loom thumbnails detected on dashboard',
+                                );
+                            }
+                        }
                     }
 
                     const path = `/tmp/${imageId}.png`;
