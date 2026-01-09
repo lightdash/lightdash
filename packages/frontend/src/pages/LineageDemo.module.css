@@ -1,0 +1,48 @@
+.canvas {
+    flex: 1;
+    min-height: 720px;
+}
+
+.canvasInner {
+    width: 100%;
+    height: 100%;
+}
+
+.panel {
+    margin: 20px;
+}
+
+:global(.react-flow__background) {
+    background-color: #f8fafc;
+}
+
+:global(.react-flow__edge-path) {
+    stroke-dasharray: 0;
+    transition:
+        stroke-width 0.3s,
+        stroke 0.3s;
+}
+
+:global(.field-active-row) {
+    border-left: 3px solid #f59e0b !important;
+    background-color: #fff9db !important;
+    transition: all 0.2s ease;
+}
+
+:global(.react-flow__handle-custom) {
+    width: 6px !important;
+    height: 6px !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+:global(.field-active-row .react-flow__handle-custom) {
+    background: #f59e0b !important;
+    border: 1px solid #ffffff !important;
+}
+
+:global(.lineage-node-paper) {
+    box-shadow:
+        0 10px 25px -5px rgba(0, 0, 0, 0.1),
+        0 8px 10px -6px rgba(0, 0, 0, 0.05) !important;
+}
