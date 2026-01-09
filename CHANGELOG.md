@@ -1,3 +1,16 @@
+# [0.2323.0](https://github.com/lightdash/lightdash/compare/0.2322.1...0.2323.0) (2026-01-09)
+
+
+### Bug Fixes
+
+* optimize react-vega loading by including it in vite dependencies ([#19308](https://github.com/lightdash/lightdash/issues/19308)) ([61ebe8f](https://github.com/lightdash/lightdash/commit/61ebe8f03484074ede87c13f92dad64afb578291))
+
+
+### Features
+
+* add dark mode support for custom visualizations ([#19309](https://github.com/lightdash/lightdash/issues/19309)) ([94f198f](https://github.com/lightdash/lightdash/commit/94f198fd6851e65b28d4ea94a32a771ec77e26ac))
+* update vega config styles to match lightdash charts ([#19313](https://github.com/lightdash/lightdash/issues/19313)) ([dab2404](https://github.com/lightdash/lightdash/commit/dab240455c07a4ed4bc132f902462e1e549fc11d))
+
 ## [0.2322.1](https://github.com/lightdash/lightdash/compare/0.2322.0...0.2322.1) (2026-01-09)
 
 
