@@ -718,7 +718,7 @@ export function convertCustomFormatToFormatExpression(
         case CustomFormatType.ID:
         case CustomFormatType.DATE:
         case CustomFormatType.TIMESTAMP: {
-            // No implementation yet
+            // No format expression needed
             break;
         }
         default: {

@@ -124,8 +124,8 @@ export const getFormValuesFromScheduler = (
             options.limit === Limit.TABLE
                 ? Limit.TABLE
                 : options.limit === Limit.ALL
-                  ? Limit.ALL
-                  : Limit.CUSTOM;
+                ? Limit.ALL
+                : Limit.CUSTOM;
         if (formOptions.limit === Limit.CUSTOM) {
             formOptions.customLimit = options.limit as number;
         }
@@ -174,7 +174,6 @@ export const transformFormValues = (
     values: SchedulerFormValues,
     resourceType: 'chart' | 'dashboard' | undefined,
 ): CreateSchedulerAndTargetsWithoutIds => {
-    console.log(values);
     let options = {};
     if ([SchedulerFormat.CSV, SchedulerFormat.XLSX].includes(values.format)) {
         options = {

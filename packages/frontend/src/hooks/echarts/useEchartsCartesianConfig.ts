@@ -675,7 +675,12 @@ const seriesValueFormatter = (
             round: item.round,
             compact: item.compact,
         });
-        const formatOptions = isMetric(item) ? item.formatOptions : undefined;
+        // Check for formatOptions from both metrics and dimension overrides
+        // Dimension overrides add formatOptions to the item via the itemsMap
+        const formatOptions =
+            isMetric(item) || isDimension(item)
+                ? item.formatOptions
+                : undefined;
         return applyCustomFormat(value, formatOptions || defaultFormatOptions);
     }
 };

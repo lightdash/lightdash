@@ -566,6 +566,7 @@ export interface Dimension extends Field {
     colors?: Record<string, string>;
     isIntervalBase?: boolean;
     aiHint?: string | string[];
+    formatOptions?: CustomFormat;
     image?: {
         url: string;
         width?: number;
@@ -591,6 +592,12 @@ export const isDimension = (
     field: ItemsMap[string] | AdditionalMetric | undefined, // NOTE: `ItemsMap converts AdditionalMetric to Metric
 ): field is Dimension =>
     isField(field) && field.fieldType === FieldType.DIMENSION;
+
+export const isTimeBasedDimension = (
+    item: ItemsMap[string] | AdditionalMetric | undefined,
+): item is Dimension =>
+    isDimension(item) &&
+    (item.type === DimensionType.DATE || item.type === DimensionType.TIMESTAMP);
 
 export interface FilterableDimension extends Dimension {
     type:
@@ -846,3 +853,4 @@ export function getCompactOptionsForFormatType(
         Compact.TRILLIONS,
     ];
 }
+
