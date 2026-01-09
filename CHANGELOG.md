@@ -1,3 +1,11 @@
+## [0.2325.1](https://github.com/lightdash/lightdash/compare/0.2325.0...0.2325.1) (2026-01-09)
+
+
+### Bug Fixes
+
+* accept clientSessionKeepAlive on snowflake ([#19321](https://github.com/lightdash/lightdash/issues/19321)) ([53e5525](https://github.com/lightdash/lightdash/commit/53e55255946e98d7a2c245fa29f44f832a02f53f))
+* upgrade snowflake-sdk to 2.3.3 ([#19322](https://github.com/lightdash/lightdash/issues/19322)) ([bb810c4](https://github.com/lightdash/lightdash/commit/bb810c4eef79759d2288e3cdcd5f8ebe4eb23828))
+
 # [0.2325.0](https://github.com/lightdash/lightdash/compare/0.2324.0...0.2325.0) (2026-01-09)
 
 
