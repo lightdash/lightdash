@@ -1,3 +1,10 @@
+# [0.2320.0](https://github.com/lightdash/lightdash/compare/0.2319.0...0.2320.0) (2026-01-09)
+
+
+### Features
+
+* allow changing date/timestamp dimensions' formatting in results table ([#19277](https://github.com/lightdash/lightdash/issues/19277)) ([43ed90c](https://github.com/lightdash/lightdash/commit/43ed90c4a79bcb61285434bdf1d6c8cd5898230a))
+
 # [0.2319.0](https://github.com/lightdash/lightdash/compare/0.2318.1...0.2319.0) (2026-01-09)
 
 
