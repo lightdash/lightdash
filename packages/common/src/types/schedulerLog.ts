@@ -94,7 +94,13 @@ export type LogCounts = {
     error: number;
 };
 
-export type SchedulerRun = {
+export enum SchedulerRunResourceType {
+    CHART = 'chart',
+    DASHBOARD = 'dashboard',
+    UNSAVED = 'unsaved',
+}
+
+type SavedSchedulerRun = {
     runId: string;
     schedulerUuid: string;
     schedulerName: string;
@@ -105,13 +111,38 @@ export type SchedulerRun = {
     details: Record<string, AnyType> | null;
     logCounts: LogCounts;
     // Metadata for filtering/display
-    resourceType: 'chart' | 'dashboard';
+    resourceType:
+        | SchedulerRunResourceType.CHART
+        | SchedulerRunResourceType.DASHBOARD;
     resourceUuid: string;
     resourceName: string;
     createdByUserUuid: string;
     createdByUserName: string;
     format: SchedulerFormat; // Scheduler format (CSV, IMAGE, GSHEETS, etc)
 };
+
+type UnsavedSchedulerRun = {
+    runId: string;
+    scheduledTime: Date;
+    status: SchedulerJobStatus; // Parent job status from DB
+    runStatus: SchedulerRunStatus; // Computed status for entire run
+    createdAt: Date;
+    details: Record<string, AnyType> | null;
+    logCounts: LogCounts;
+    // Metadata for filtering/display
+    resourceType: SchedulerRunResourceType.UNSAVED;
+};
+
+export function isSavedSchedulerRun(
+    run: SchedulerRun,
+): run is SavedSchedulerRun {
+    return (
+        run.resourceType === SchedulerRunResourceType.CHART ||
+        run.resourceType === SchedulerRunResourceType.DASHBOARD
+    );
+}
+
+export type SchedulerRun = SavedSchedulerRun | UnsavedSchedulerRun;
 
 export type ApiSchedulerRunsResponse = ApiSuccess<
     KnexPaginatedData<SchedulerRun[]>
@@ -127,18 +158,41 @@ export type SchedulerRunLog = BaseSchedulerLog & {
     isParent: boolean;
 };
 
-export type SchedulerRunLogsResponse = {
+type SavedSchedulerRunLogsResponse = {
     runId: string;
     schedulerUuid: string;
     schedulerName: string;
     scheduledTime: Date;
     logs: SchedulerRunLog[];
     // Metadata
-    resourceType: 'chart' | 'dashboard';
+    resourceType:
+        | SchedulerRunResourceType.CHART
+        | SchedulerRunResourceType.DASHBOARD;
     resourceUuid: string;
     resourceName: string;
     createdByUserUuid: string;
     createdByUserName: string;
 };
+
+type UnsavedSchedulerRunLogsResponse = {
+    runId: string;
+    scheduledTime: Date;
+    logs: SchedulerRunLog[];
+    // Metadata
+    resourceType: SchedulerRunResourceType.UNSAVED;
+};
+
+export type SchedulerRunLogsResponse =
+    | SavedSchedulerRunLogsResponse
+    | UnsavedSchedulerRunLogsResponse;
+
+export function isSavedSchedulerRunLogsResponse(
+    response: SchedulerRunLogsResponse,
+): response is SavedSchedulerRunLogsResponse {
+    return (
+        response.resourceType === SchedulerRunResourceType.CHART ||
+        response.resourceType === SchedulerRunResourceType.DASHBOARD
+    );
+}
 
 export type ApiSchedulerRunLogsResponse = ApiSuccess<SchedulerRunLogsResponse>;

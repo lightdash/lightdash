@@ -1,4 +1,5 @@
 import {
+    isSavedSchedulerRun,
     SchedulerFormat,
     SchedulerJobStatus,
     type BatchDeliveryResult,
@@ -63,7 +64,7 @@ const formatTimeOnly = (date: Date): string => {
 
 // Helper to pluralize a word based on count
 const pluralize = (count: number, singular: string, plural?: string): string =>
-    count === 1 ? singular : plural ?? `${singular}s`;
+    count === 1 ? singular : (plural ?? `${singular}s`);
 
 // Helper to build job status summary text
 const buildJobStatusSummary = (
@@ -168,7 +169,7 @@ const JobRow: FC<{
         target: string | null,
         targetType: SchedulerRunLog['targetType'],
     ) => string | null;
-    getFormatDisplayName: (format: SchedulerFormat) => string;
+    getFormatDisplayName: (format: SchedulerFormat | null) => string;
 }> = ({
     job,
     run,
@@ -216,7 +217,9 @@ const JobRow: FC<{
         job.task === 'handleScheduledDelivery'
             ? run && (
                   <Text fz="xs" c="ldGray.6">
-                      {`Generate ${getFormatDisplayName(run.format)}`}
+                      {`Generate ${getFormatDisplayName(
+                          isSavedSchedulerRun(run) ? run.format : null,
+                      )}`}
                   </Text>
               )
             : job.target && (
@@ -514,7 +517,9 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
     const theme = useMantineTheme();
 
     // Helper to format SchedulerFormat enum
-    const getFormatDisplayName = (format: SchedulerFormat): string => {
+    const getFormatDisplayName = (format: SchedulerFormat | null): string => {
+        if (!format) return 'Resource';
+
         switch (format) {
             case SchedulerFormat.CSV:
                 return 'CSV';
@@ -670,9 +675,15 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
         <MantineModal
             opened={opened}
             onClose={onClose}
-            title={run.schedulerName}
+            title={
+                isSavedSchedulerRun(run)
+                    ? run.schedulerName
+                    : 'Unsaved scheduler'
+            }
             size="lg"
-            icon={getSchedulerIconRaw(run)}
+            icon={getSchedulerIconRaw(
+                isSavedSchedulerRun(run) ? run.format : null,
+            )}
             cancelLabel={false}
         >
             <Stack gap="lg">
@@ -697,7 +708,9 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                                 </Text>
                             </Group>
                             <Text fz="sm" fw={500}>
-                                {run.resourceName}
+                                {isSavedSchedulerRun(run)
+                                    ? run.resourceName
+                                    : 'n/a'}
                             </Text>
                         </Box>
                         <Box>
@@ -705,7 +718,9 @@ const RunDetailsModal: FC<RunDetailsModalProps> = ({
                                 Created by
                             </Text>
                             <Text fz="sm" fw={500}>
-                                {run.createdByUserName}
+                                {isSavedSchedulerRun(run)
+                                    ? run.createdByUserName
+                                    : 'n/a'}
                             </Text>
                         </Box>
                     </Group>

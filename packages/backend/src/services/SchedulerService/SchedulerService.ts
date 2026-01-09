@@ -15,6 +15,8 @@ import {
     isCreateSchedulerSlackTarget,
     isDashboardCreateScheduler,
     isDashboardScheduler,
+    isSavedSchedulerRun,
+    isSavedSchedulerRunLogsResponse,
     isSchedulerGsheetsOptions,
     isUserWithOrg,
     isValidFrequency,
@@ -329,8 +331,8 @@ export class SchedulerService extends BaseService {
 
         const latestRunByScheduler = new Map<string, SchedulerRun>();
         runs.data.forEach((run) => {
-            if (!latestRunByScheduler.has(run.schedulerUuid)) {
-                latestRunByScheduler.set(run.schedulerUuid, run);
+            if (!latestRunByScheduler.has(run.runId)) {
+                latestRunByScheduler.set(run.runId, run);
             }
         });
 
@@ -345,7 +347,7 @@ export class SchedulerService extends BaseService {
     }
 
     async getScheduler(
-        user: SessionUser,
+        _user: SessionUser,
         schedulerUuid: string,
     ): Promise<SchedulerAndTargets> {
         return this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
@@ -981,37 +983,41 @@ export class SchedulerService extends BaseService {
         return schedulerRuns;
     }
 
-    async getRunLogs(
-        user: SessionUser,
-        runId: string,
-    ): Promise<SchedulerRunLogsResponse> {
-        // Fetch the run logs
-        const runLogs = await this.schedulerModel.getRunLogs(runId);
-
-        // Get project details for authorization check
-        const scheduler = await this.schedulerModel.getScheduler(
-            runLogs.schedulerUuid,
+    private async getProjectUuidFromSchedulerRunLogs(
+        runLogs: SchedulerRunLogsResponse,
+    ): Promise<string> {
+        console.log(
+            'runLogs',
+            runLogs,
+            isSavedSchedulerRunLogsResponse(runLogs),
         );
+        // Get project details for authorization check
+        const scheduler = isSavedSchedulerRunLogsResponse(runLogs)
+            ? await this.schedulerModel.getScheduler(runLogs.schedulerUuid)
+            : undefined;
+
+        if (!scheduler && runLogs.logs[0].details?.projectUuid) {
+            return runLogs.logs[0].details.projectUuid;
+        }
 
         // Determine projectUuid based on resource type
-        let projectUuid: string;
-        if (scheduler.savedChartUuid) {
+        if (scheduler?.savedChartUuid) {
             try {
                 const chart = await this.savedChartModel.get(
                     scheduler.savedChartUuid,
                 );
-                projectUuid = chart.projectUuid;
+                return chart.projectUuid;
             } catch (error) {
                 throw new NotFoundError(
                     'Chart referenced by scheduler no longer exists',
                 );
             }
-        } else if (scheduler.dashboardUuid) {
+        } else if (scheduler?.dashboardUuid) {
             try {
                 const dashboard = await this.dashboardModel.getByIdOrSlug(
                     scheduler.dashboardUuid,
                 );
-                projectUuid = dashboard.projectUuid;
+                return dashboard.projectUuid;
             } catch (error) {
                 throw new NotFoundError(
                     'Dashboard referenced by scheduler no longer exists',
@@ -1020,6 +1026,18 @@ export class SchedulerService extends BaseService {
         } else {
             throw new NotFoundError('Scheduler resource not found');
         }
+    }
+
+    async getRunLogs(
+        user: SessionUser,
+        runId: string,
+    ): Promise<SchedulerRunLogsResponse> {
+        // Fetch the run logs
+        const runLogs = await this.schedulerModel.getRunLogs(runId);
+
+        const projectUuid = await this.getProjectUuidFromSchedulerRunLogs(
+            runLogs,
+        );
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
 
@@ -1046,7 +1064,9 @@ export class SchedulerService extends BaseService {
             event: 'scheduled_delivery_run_logs.viewed',
             properties: {
                 runId,
-                schedulerUuid: runLogs.schedulerUuid,
+                schedulerUuid: isSavedSchedulerRunLogsResponse(runLogs)
+                    ? runLogs.schedulerUuid
+                    : undefined,
                 organizationId: user.organizationUuid,
                 projectId: projectUuid,
                 numLogs: runLogs.logs.length,

@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    isSavedSchedulerRun,
     SchedulerFormat,
     SchedulerJobStatus,
     type SchedulerAndTargets,
@@ -10,6 +11,7 @@ import { type MantineTheme } from '@mantine-8/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
+    IconClockEdit,
     IconClockFilled,
     IconCsv,
     IconFileTypeXls,
@@ -43,8 +45,10 @@ export type SchedulerColumnName =
     | 'deliveryStarted'
     | 'status';
 
-export const getSchedulerIconRaw = (item: { format: SchedulerFormat }) => {
-    switch (item.format) {
+export const getSchedulerIconRaw = (format: SchedulerFormat | null) => {
+    switch (format) {
+        case null:
+            return IconClockEdit;
         case SchedulerFormat.CSV:
             return IconCsv;
         case SchedulerFormat.XLSX:
@@ -54,34 +58,34 @@ export const getSchedulerIconRaw = (item: { format: SchedulerFormat }) => {
         case SchedulerFormat.GSHEETS:
             return GSheetsIconFilled;
         default:
-            return assertUnreachable(
-                item.format,
-                'Resource type not supported',
-            );
+            return assertUnreachable(format, 'Resource type not supported');
     }
 };
 
-export const getSchedulerIcon = (item: { format: SchedulerFormat }) => {
-    switch (item.format) {
+export const getSchedulerIcon = (item: SchedulerItem | SchedulerRun) => {
+    const format = 'format' in item ? item.format : null;
+
+    switch (format) {
+        case null:
+            return (
+                <IconBox icon={getSchedulerIconRaw(format)} color="indigo.6" />
+            );
         case SchedulerFormat.CSV:
             return (
-                <IconBox icon={getSchedulerIconRaw(item)} color="indigo.6" />
+                <IconBox icon={getSchedulerIconRaw(format)} color="indigo.6" />
             );
         case SchedulerFormat.XLSX:
             return (
-                <IconBox icon={getSchedulerIconRaw(item)} color="indigo.6" />
+                <IconBox icon={getSchedulerIconRaw(format)} color="indigo.6" />
             );
         case SchedulerFormat.IMAGE:
             return (
-                <IconBox icon={getSchedulerIconRaw(item)} color="indigo.6" />
+                <IconBox icon={getSchedulerIconRaw(format)} color="indigo.6" />
             );
         case SchedulerFormat.GSHEETS:
-            return <IconBox icon={getSchedulerIconRaw(item)} color="green" />;
+            return <IconBox icon={getSchedulerIconRaw(format)} color="green" />;
         default:
-            return assertUnreachable(
-                item.format,
-                'Resource type not supported',
-            );
+            return assertUnreachable(format, 'Resource type not supported');
     }
 };
 
@@ -138,6 +142,10 @@ export const getSchedulerLink = (
 
     // Handle SchedulerRun (uses resourceType/resourceUuid)
     if ('resourceType' in item) {
+        if (!isSavedSchedulerRun(item)) {
+            return '';
+        }
+
         const resourcePath =
             item.resourceType === 'chart'
                 ? `/projects/${projectUuid}/saved/${item.resourceUuid}/view`

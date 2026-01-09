@@ -16,6 +16,7 @@ import {
     SchedulerRun,
     SchedulerRunLog,
     SchedulerRunLogsResponse,
+    SchedulerRunResourceType,
     SchedulerRunStatus,
     SchedulerSlackTarget,
     SchedulerTaskName,
@@ -1416,7 +1417,17 @@ export class SchedulerModel {
                 ),
             )
             .whereRaw('job_id = job_group') // Only parent jobs
-            .whereIn('scheduler_uuid', schedulerUuids)
+            .where((builder) =>
+                builder
+                    .whereIn('scheduler_uuid', schedulerUuids)
+                    .orWhere((subBuilder) =>
+                        subBuilder
+                            .whereNull('scheduler_uuid')
+                            .andWhereRaw(`details->>'projectUuid' = ?`, [
+                                projectUuid,
+                            ]),
+                    ),
+            )
             .where('scheduled_time', '>', sevenDaysAgo)
             .where('scheduled_time', '<', new Date())
             .as('ranked_runs');
@@ -1437,7 +1448,7 @@ export class SchedulerModel {
                 `${SchedulerTableName}.name as scheduler_name`,
                 `${SchedulerTableName}.format`,
                 this.database.raw(
-                    `CASE WHEN ${SchedulerTableName}.saved_chart_uuid IS NOT NULL THEN 'chart' ELSE 'dashboard' END as resource_type`,
+                    `CASE WHEN ${SchedulerTableName}.saved_chart_uuid IS NOT NULL THEN '${SchedulerRunResourceType.CHART}' WHEN ${SchedulerTableName}.dashboard_uuid IS NOT NULL THEN '${SchedulerRunResourceType.DASHBOARD}' ELSE '${SchedulerRunResourceType.UNSAVED}' END as resource_type`,
                 ),
                 this.database.raw(
                     `COALESCE(${SchedulerTableName}.saved_chart_uuid, ${SchedulerTableName}.dashboard_uuid) as resource_uuid`,
@@ -1577,7 +1588,7 @@ export class SchedulerModel {
             started_count: string;
             completed_count: string;
             error_count: string;
-            resource_type: 'chart' | 'dashboard';
+            resource_type: SchedulerRunResourceType;
             resource_uuid: string;
             resource_name: string;
             created_by_user_uuid: string;
@@ -1627,7 +1638,7 @@ export class SchedulerModel {
                 `${SchedulerLogTableName}.*`,
                 `${SchedulerTableName}.name as scheduler_name`,
                 this.database.raw(
-                    `CASE WHEN ${SchedulerTableName}.saved_chart_uuid IS NOT NULL THEN 'chart' ELSE 'dashboard' END as resource_type`,
+                    `CASE WHEN ${SchedulerTableName}.saved_chart_uuid IS NOT NULL THEN '${SchedulerRunResourceType.CHART}' WHEN ${SchedulerTableName}.dashboard_uuid IS NOT NULL THEN '${SchedulerRunResourceType.DASHBOARD}' ELSE '${SchedulerRunResourceType.UNSAVED}' END as resource_type`,
                 ),
                 this.database.raw(
                     `COALESCE(${SchedulerTableName}.saved_chart_uuid, ${SchedulerTableName}.dashboard_uuid) as resource_uuid`,

@@ -1,5 +1,7 @@
 import {
+    isSavedSchedulerRun,
     SchedulerJobStatus,
+    SchedulerRunResourceType,
     SchedulerRunStatus,
     type SchedulerRun,
     type SchedulerRunLog,
@@ -261,10 +263,12 @@ const LogsTable: FC<LogsTableProps> = ({
     const availableUsers = useMemo(() => {
         const userMap = new Map<string, { userUuid: string; name: string }>();
         schedulerRunsData?.forEach((run) => {
-            userMap.set(run.createdByUserUuid, {
-                userUuid: run.createdByUserUuid,
-                name: run.createdByUserName,
-            });
+            if (isSavedSchedulerRun(run)) {
+                userMap.set(run.createdByUserUuid, {
+                    userUuid: run.createdByUserUuid,
+                    name: run.createdByUserName,
+                });
+            }
         });
         return Array.from(userMap.values()).sort((a, b) =>
             a.name.localeCompare(b.name),
@@ -278,11 +282,13 @@ const LogsTable: FC<LogsTableProps> = ({
             { schedulerUuid: string; name: string }
         >();
         schedulerRunsData?.forEach((run) => {
-            if (!schedulerMap.has(run.schedulerUuid)) {
-                schedulerMap.set(run.schedulerUuid, {
-                    schedulerUuid: run.schedulerUuid,
-                    name: run.schedulerName,
-                });
+            if (isSavedSchedulerRun(run)) {
+                if (!schedulerMap.has(run.schedulerUuid)) {
+                    schedulerMap.set(run.schedulerUuid, {
+                        schedulerUuid: run.schedulerUuid,
+                        name: run.schedulerName,
+                    });
+                }
             }
         });
         return Array.from(schedulerMap.values()).sort((a, b) =>
@@ -318,58 +324,92 @@ const LogsTable: FC<LogsTableProps> = ({
                     const { run } = row.original;
 
                     return (
-                        <Group wrap="nowrap">
-                            {getSchedulerIcon(run)}
-                            <Stack gap="two">
-                                <Anchor
-                                    component={Link}
-                                    to={getSchedulerLink(run, projectUuid)}
-                                    target="_blank"
-                                >
-                                    <Tooltip
-                                        label={
-                                            <Stack gap="two" fz="xs">
-                                                <Text c="ldGray.5" fz="xs">
-                                                    Scheduler:{' '}
-                                                    <Text
-                                                        c="white"
-                                                        span
-                                                        fz="xs"
-                                                    >
-                                                        {run.schedulerName}
-                                                    </Text>
-                                                </Text>
-                                                <Text c="ldGray.5" fz="xs">
-                                                    Created by:{' '}
-                                                    <Text
-                                                        c="white"
-                                                        span
-                                                        fz="xs"
-                                                    >
-                                                        {run.createdByUserName}
-                                                    </Text>
-                                                </Text>
-                                            </Stack>
+                        <Tooltip
+                            disabled={
+                                run.resourceType !==
+                                SchedulerRunResourceType.UNSAVED
+                            }
+                            label={
+                                'This scheduler run was triggered while editing/creating a scheduled delivery'
+                            }
+                        >
+                            <Group wrap="nowrap">
+                                {getSchedulerIcon(run)}
+                                <Stack gap="two">
+                                    <Anchor
+                                        component={Link}
+                                        to={
+                                            isSavedSchedulerRun(run)
+                                                ? getSchedulerLink(
+                                                      run,
+                                                      projectUuid,
+                                                  )
+                                                : ''
                                         }
+                                        target="_blank"
                                     >
-                                        <Text
-                                            fw={600}
-                                            fz="xs"
-                                            lineClamp={1}
-                                            style={{
-                                                overflowWrap: 'anywhere',
-                                                cursor: 'pointer',
-                                            }}
+                                        <Tooltip
+                                            label={
+                                                <Stack gap="two" fz="xs">
+                                                    <Text c="ldGray.5" fz="xs">
+                                                        Scheduler:{' '}
+                                                        <Text
+                                                            c="white"
+                                                            span
+                                                            fz="xs"
+                                                        >
+                                                            {isSavedSchedulerRun(
+                                                                run,
+                                                            )
+                                                                ? run.schedulerName
+                                                                : 'Unsaved scheduler'}
+                                                        </Text>
+                                                    </Text>
+                                                    <Text c="ldGray.5" fz="xs">
+                                                        Created by:{' '}
+                                                        <Text
+                                                            c="white"
+                                                            span
+                                                            fz="xs"
+                                                        >
+                                                            {isSavedSchedulerRun(
+                                                                run,
+                                                            )
+                                                                ? run.createdByUserName
+                                                                : 'n/a'}
+                                                        </Text>
+                                                    </Text>
+                                                </Stack>
+                                            }
                                         >
-                                            {run.schedulerName}
-                                        </Text>
-                                    </Tooltip>
-                                </Anchor>
-                                <Text fz="xs" c="ldGray.6" maw="190px" truncate>
-                                    {run.resourceName}
-                                </Text>
-                            </Stack>
-                        </Group>
+                                            <Text
+                                                fw={600}
+                                                fz="xs"
+                                                lineClamp={1}
+                                                style={{
+                                                    overflowWrap: 'anywhere',
+                                                    cursor: 'pointer',
+                                                }}
+                                            >
+                                                {isSavedSchedulerRun(run)
+                                                    ? run.schedulerName
+                                                    : 'Unsaved scheduler'}
+                                            </Text>
+                                        </Tooltip>
+                                    </Anchor>
+                                    <Text
+                                        fz="xs"
+                                        c="ldGray.6"
+                                        maw="190px"
+                                        truncate
+                                    >
+                                        {isSavedSchedulerRun(run)
+                                            ? run.resourceName
+                                            : 'n/a'}
+                                    </Text>
+                                </Stack>
+                            </Group>
+                        </Tooltip>
                     );
                 },
             },
@@ -494,61 +534,63 @@ const LogsTable: FC<LogsTableProps> = ({
                         <Group justify="center">
                             {(run.runStatus === SchedulerRunStatus.FAILED ||
                                 run.runStatus ===
-                                    SchedulerRunStatus.PARTIAL_FAILURE) && (
-                                <Box
-                                    component="div"
-                                    onClick={(
-                                        e: React.MouseEvent<HTMLDivElement>,
-                                    ) => {
-                                        e.stopPropagation();
-                                        e.preventDefault();
-                                    }}
-                                >
-                                    <Menu
-                                        withinPortal
-                                        position="bottom-start"
-                                        withArrow
-                                        arrowPosition="center"
-                                        shadow="md"
-                                        offset={-4}
-                                        closeOnItemClick
-                                        closeOnClickOutside
+                                    SchedulerRunStatus.PARTIAL_FAILURE) &&
+                                run.resourceType !==
+                                    SchedulerRunResourceType.UNSAVED && (
+                                    <Box
+                                        component="div"
+                                        onClick={(
+                                            e: React.MouseEvent<HTMLDivElement>,
+                                        ) => {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                        }}
                                     >
-                                        <Menu.Target>
-                                            <ActionIcon
-                                                variant="subtle"
-                                                style={{
-                                                    ':hover': {
-                                                        backgroundColor:
-                                                            theme.colors
-                                                                .gray[1],
-                                                    },
-                                                }}
-                                            >
-                                                <IconDots size={16} />
-                                            </ActionIcon>
-                                        </Menu.Target>
-                                        <Menu.Dropdown maw={280}>
-                                            <Menu.Item
-                                                component="button"
-                                                role="menuitem"
-                                                leftSection={
-                                                    <IconSend size={18} />
-                                                }
-                                                onClick={() => {
-                                                    setSelectedScheduler({
-                                                        uuid: run.schedulerUuid,
-                                                        name: run.schedulerName,
-                                                    });
-                                                    setIsConfirmOpen(true);
-                                                }}
-                                            >
-                                                Send now
-                                            </Menu.Item>
-                                        </Menu.Dropdown>
-                                    </Menu>
-                                </Box>
-                            )}
+                                        <Menu
+                                            withinPortal
+                                            position="bottom-start"
+                                            withArrow
+                                            arrowPosition="center"
+                                            shadow="md"
+                                            offset={-4}
+                                            closeOnItemClick
+                                            closeOnClickOutside
+                                        >
+                                            <Menu.Target>
+                                                <ActionIcon
+                                                    variant="subtle"
+                                                    style={{
+                                                        ':hover': {
+                                                            backgroundColor:
+                                                                theme.colors
+                                                                    .gray[1],
+                                                        },
+                                                    }}
+                                                >
+                                                    <IconDots size={16} />
+                                                </ActionIcon>
+                                            </Menu.Target>
+                                            <Menu.Dropdown maw={280}>
+                                                <Menu.Item
+                                                    component="button"
+                                                    role="menuitem"
+                                                    leftSection={
+                                                        <IconSend size={18} />
+                                                    }
+                                                    onClick={() => {
+                                                        setSelectedScheduler({
+                                                            uuid: run.schedulerUuid,
+                                                            name: run.schedulerName,
+                                                        });
+                                                        setIsConfirmOpen(true);
+                                                    }}
+                                                >
+                                                    Send now
+                                                </Menu.Item>
+                                            </Menu.Dropdown>
+                                        </Menu>
+                                    </Box>
+                                )}
                         </Group>
                     );
                 },
