@@ -1,3 +1,10 @@
+## [0.2322.1](https://github.com/lightdash/lightdash/compare/0.2322.0...0.2322.1) (2026-01-09)
+
+
+### Bug Fixes
+
+* show a better tooltip for no data in maps ([#19211](https://github.com/lightdash/lightdash/issues/19211)) ([4f6243a](https://github.com/lightdash/lightdash/commit/4f6243a53aeba40afbcdcd2b3b273069ba16d003))
+
 # [0.2322.0](https://github.com/lightdash/lightdash/compare/0.2321.0...0.2322.0) (2026-01-09)
 
 
