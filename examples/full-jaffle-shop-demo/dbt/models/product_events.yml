@@ -1,0 +1,222 @@
+version: 2
+
+models:
+  - name: product_events
+    description: "Product events for user journey and funnel analysis. Contains realistic e-commerce funnel data with proper session-based user journeys."
+    config:
+      tags: ["core", "events", "funnel"]
+    meta:
+      primary_key: event_id
+      group_label: funnels
+      group_details:
+        event_info:
+          label: Event Info
+          description: Core event attributes
+        user_info:
+          label: User Info
+          description: User and session details
+        product_info:
+          label: Product Info
+          description: Product-related event properties
+        conversion:
+          label: Conversion
+          description: Metrics for conversion funnel analysis
+    columns:
+      - name: event_id
+        description: "Unique identifier for each event"
+        meta:
+          dimension:
+            type: number
+            groups: ["event_info"]
+
+      - name: user_id
+        description: "ID of the user who triggered the event"
+        meta:
+          dimension:
+            type: string
+            groups: ["user_info"]
+          metrics:
+            unique_users:
+              type: count_distinct
+              description: "Number of unique users"
+
+      - name: session_id
+        description: "Session identifier grouping user events"
+        meta:
+          dimension:
+            type: string
+            groups: ["user_info"]
+          metrics:
+            unique_sessions:
+              type: count_distinct
+              description: "Number of unique sessions"
+
+      - name: event_name
+        description: "Type of event (page_view, product_viewed, add_to_cart, checkout_started, checkout_completed, etc.)"
+        meta:
+          dimension:
+            type: string
+            groups: ["event_info"]
+          metrics:
+            event_count:
+              type: count
+              description: "Total number of events"
+          additional_dimensions:
+            is_conversion_event:
+              type: boolean
+              description: "Whether this is a conversion event (checkout_completed)"
+              sql: ${event_name} = 'checkout_completed'
+            is_funnel_start:
+              type: boolean
+              description: "Whether this is a funnel start event (product_viewed)"
+              sql: ${event_name} = 'product_viewed'
+            funnel_stage:
+              type: number
+              description: "Numeric funnel stage for ordering (1=page_view, 2=product_viewed, 3=add_to_cart, 4=checkout_started, 5=checkout_completed)"
+              sql: |
+                case ${event_name}
+                  when 'page_view' then 1
+                  when 'product_viewed' then 2
+                  when 'add_to_cart' then 3
+                  when 'checkout_started' then 4
+                  when 'payment_info_entered' then 5
+                  when 'checkout_completed' then 6
+                  else 0
+                end
+
+      - name: event_timestamp
+        description: "Timestamp when the event occurred"
+        meta:
+          dimension:
+            type: timestamp
+            groups: ["event_info"]
+            time_intervals:
+              - RAW
+              - HOUR
+              - DAY
+              - DAY_OF_WEEK_NAME
+              - WEEK
+              - MONTH
+              - QUARTER
+              - YEAR
+
+      - name: device_type
+        description: "Device type (desktop, mobile, tablet)"
+        meta:
+          dimension:
+            type: string
+            groups: ["user_info"]
+
+      - name: browser
+        description: "Browser used (Chrome, Safari, Firefox, Edge, Other)"
+        meta:
+          dimension:
+            type: string
+            groups: ["user_info"]
+
+      - name: referrer
+        description: "Traffic source (direct, google, facebook, instagram, twitter, email, affiliate)"
+        meta:
+          dimension:
+            type: string
+            groups: ["user_info"]
+
+      - name: event_properties
+        description: "JSON object containing event-specific properties"
+        meta:
+          dimension:
+            type: string
+            hidden: true
+
+      - name: product_id
+        description: "Product ID from event properties"
+        meta:
+          dimension:
+            type: string
+            groups: ["product_info"]
+
+      - name: product_name
+        description: "Product name from event properties"
+        meta:
+          dimension:
+            type: string
+            groups: ["product_info"]
+
+      - name: product_category
+        description: "Product category (beans, machines, grinders, accessories)"
+        meta:
+          dimension:
+            type: string
+            groups: ["product_info"]
+
+      - name: product_price
+        description: "Product price from event properties"
+        meta:
+          dimension:
+            type: number
+            format: "usd"
+            groups: ["product_info"]
+          metrics:
+            avg_product_price:
+              type: average
+              description: "Average product price"
+              format: "usd"
+
+      - name: quantity
+        description: "Quantity added to cart"
+        meta:
+          dimension:
+            type: number
+            groups: ["product_info"]
+          metrics:
+            total_quantity:
+              type: sum
+              description: "Total quantity of items"
+
+      - name: cart_total
+        description: "Cart total from add_to_cart events"
+        meta:
+          dimension:
+            type: number
+            format: "usd"
+            groups: ["conversion"]
+          metrics:
+            total_cart_value:
+              type: sum
+              description: "Total cart value"
+              format: "usd"
+            avg_cart_value:
+              type: average
+              description: "Average cart value"
+              format: "usd"
+
+      - name: order_total
+        description: "Order total from checkout_completed events"
+        meta:
+          dimension:
+            type: number
+            format: "usd"
+            groups: ["conversion"]
+          metrics:
+            total_revenue:
+              type: sum
+              description: "Total revenue from completed orders"
+              format: "usd"
+            avg_order_value:
+              type: average
+              description: "Average order value"
+              format: "usd"
+
+      - name: payment_method
+        description: "Payment method used (credit_card, paypal, apple_pay, google_pay)"
+        meta:
+          dimension:
+            type: string
+            groups: ["conversion"]
+
+      - name: page_url
+        description: "Page URL from page_view events"
+        meta:
+          dimension:
+            type: string
+            groups: ["event_info"]
