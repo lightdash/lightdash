@@ -10,7 +10,6 @@ import {
     removeEmptyProperties,
     type AdditionalMetric,
     type CustomDimension,
-    type DimensionOverrides,
     type Explore,
     type MetricOverrides,
     type ParametersValuesMap,
@@ -21,7 +20,6 @@ import { ExplorerSection } from '../../../providers/Explorer/types';
 import { cleanConfig } from '../../../providers/Explorer/utils';
 
 const EMPTY_METRIC_OVERRIDES: MetricOverrides = {};
-const EMPTY_DIMENSION_OVERRIDES: DimensionOverrides = {};
 const EMPTY_PARAMETERS: ParametersValuesMap = {};
 
 // Base selectors
@@ -138,11 +136,6 @@ export const selectMetrics = createSelector(
 export const selectMetricOverrides = createSelector(
     [selectMetricQuery],
     (metricQuery) => metricQuery.metricOverrides || EMPTY_METRIC_OVERRIDES,
-);
-
-export const selectDimensionOverrides = createSelector(
-    [selectMetricQuery],
-    (metricQuery) => metricQuery.dimensionOverrides || EMPTY_DIMENSION_OVERRIDES,
 );
 
 // Parameter selectors
