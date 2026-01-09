@@ -40,14 +40,14 @@ jobs:
         run: pnpm install --frozen-lockfile --prefer-offline
       - name: Run quality checks and build in parallel
         run: |
-          pnpm turbo:lint &
-          pnpm turbo:format &
+          pnpm lint &
+          pnpm format &
           pnpm -F frontend unused-exports &
-          pnpm turbo:typecheck &
-          pnpm turbo:build &
+          pnpm typecheck &
+          pnpm build &
           wait
       - name: Run unit tests
-        run: pnpm turbo:test
+        run: pnpm test
 
   # ============================================================================
   # Stage 2: Deploy preview environment (only if stage 1 passes)
