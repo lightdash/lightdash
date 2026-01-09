@@ -1,3 +1,11 @@
+# [0.2321.0](https://github.com/lightdash/lightdash/compare/0.2320.4...0.2321.0) (2026-01-09)
+
+
+### Features
+
+* add monitoring for stuck scheduler jobs ([#19294](https://github.com/lightdash/lightdash/issues/19294)) ([8d8619c](https://github.com/lightdash/lightdash/commit/8d8619cfe2269406954a3fb3573cf1ae8049f80d))
+* add performance timing metrics to project compilation ([#19295](https://github.com/lightdash/lightdash/issues/19295)) ([c96eeff](https://github.com/lightdash/lightdash/commit/c96eeffca9fcbc3b07224a7bfd0c069d936b6377))
+
 ## [0.2320.4](https://github.com/lightdash/lightdash/compare/0.2320.3...0.2320.4) (2026-01-09)
 
 
