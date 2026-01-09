@@ -1,25 +1,26 @@
-import { type FieldValueSearchResult } from '@lightdash/common';
+import {
+    isAndFilterGroup,
+    isFilterGroup,
+    isFilterRule,
+    type FieldValueSearchResult,
+    type FilterGroup,
+    type FilterGroupItem,
+    type FilterRule,
+    type Filters,
+} from '@lightdash/common';
 import { lightdashApi } from '../api';
 
-export enum MetricFlowDimensionType {
-    CATEGORICAL = 'CATEGORICAL',
-    TIME = 'TIME',
-}
+export enum MetricFlowDimensionType
 
-export enum MetricFlowMetricType {
-    SIMPLE = 'SIMPLE',
-    RATIO = 'RATIO',
-    DERIVED = 'DERIVED',
-    CUMULATIVE = 'CUMULATIVE',
-}
+export enum MetricFlowMetricType
 
-export enum TimeGranularity {
-    DAY = 'DAY',
-    WEEK = 'WEEK',
-    MONTH = 'MONTH',
-    QUARTER = 'QUARTER',
-    YEAR = 'YEAR',
-}
+export enum TimeGranularity
+
+export type MetricFlowSemanticModel = {
+    name: string;
+    label?: string | null;
+    description?: string | null;
+};
 
 export type MetricFlowOrderBy =
     | {
@@ -55,19 +56,25 @@ export function getMetricFlowDimensionValues(
 export type GetMetricFlowFieldsResponse = {
     dimensions: Array<{
         name: string;
+        label?: string | null;
         description?: string;
         type: MetricFlowDimensionType;
         queryableGranularities: TimeGranularity[];
+        semanticModel?: MetricFlowSemanticModel | null;
     }>;
     metricsForDimensions: Array<{
         name: string;
+        label?: string | null;
         description?: string;
         type: MetricFlowMetricType;
+        semanticModels?: MetricFlowSemanticModel[] | null;
         dimensions: Array<{
             name: string;
+            label?: string | null;
             description?: string;
             type: MetricFlowDimensionType;
             queryableGranularities: TimeGranularity[];
+            semanticModel?: MetricFlowSemanticModel | null;
         }>;
     }>;
 };
@@ -75,15 +82,95 @@ export type GetMetricFlowFieldsResponse = {
 export type GetSemanticLayerMetricsResponse = {
     metricsForDimensions: Array<{
         name: string;
+        label?: string | null;
         description?: string;
         type: MetricFlowMetricType;
+        semanticModels?: MetricFlowSemanticModel[] | null;
         dimensions: Array<{
             name: string;
+            label?: string | null;
             description?: string;
             type: MetricFlowDimensionType;
             queryableGranularities: TimeGranularity[];
+            semanticModel?: MetricFlowSemanticModel | null;
         }>;
     }>;
+};
+
+export type MetricDefinitionFilter = {
+    dimension: string;
+    operator: string;
+    values?: Array<string | number | boolean | null>;
+};
+
+export type MetricDefinition = {
+    name: string;
+    label?: string | null;
+    description?: string | null;
+    type?: MetricFlowMetricType | string;
+    formulaDisplay?: string | null;
+    filterRaw?: string | null;
+    filterStructured?: MetricDefinitionFilter[];
+    filters?: MetricDefinitionFilter[];
+    inputs?: {
+        inputMetrics?: Array<{
+            name: string;
+            label?: string | null;
+            filterRaw?: string | null;
+            filterStructured?: MetricDefinitionFilter[];
+        }>;
+        inputMeasures?: Array<{
+            name: string;
+            label?: string | null;
+            agg?: string | null;
+            expr?: string | null;
+            filterRaw?: string | null;
+        }>;
+    };
+    dimensions?: Array<{
+        name: string;
+        label?: string | null;
+    }>;
+    semanticModels?: Array<{
+        name: string;
+        label?: string | null;
+        description?: string | null;
+    }>;
+};
+
+export type MetricLineageNode = {
+    id: string;
+    type: string;
+    label?: string | null;
+    name?: string | null;
+    description?: string | null;
+    metricType?: string | null;
+    formulaDisplay?: string | null;
+    filterRaw?: string | null;
+    filterStructured?: MetricDefinitionFilter[] | null;
+    agg?: string | null;
+    expr?: string | null;
+    identifier?: string | null;
+    alias?: string | null;
+    semanticModel?: string | null;
+    relationType?: string | null;
+    resourceType?: string | null;
+    schema?: string | null;
+    database?: string | null;
+};
+
+export type MetricLineageEdge = {
+    from: string;
+    to: string;
+    type?: string | null;
+};
+
+export type MetricLineage = {
+    metricDefinition?: MetricDefinition;
+    lineage?: {
+        nodes: MetricLineageNode[];
+        edges: MetricLineageEdge[];
+    };
 };
 
 export function getSemanticLayerDimensions(
@@ -94,12 +181,24 @@ export function getSemanticLayerDimensions(
             metricsForDimensions(environmentId: $environmentId, dimensions: []) {
                 name
                 description
+                label
                 type
+                semanticModels {
+                  name
+                  label
+                  description
+                }
                 dimensions {
                   name
                   description
+                  label
                   type
                   queryableGranularities
+                  semanticModel {
+                    name
+                    label
+                    description
+                  }
                 } 
             }
             dimensions(environmentId: $environmentId, metrics: [${
@@ -109,8 +208,14 @@ export function getSemanticLayerDimensions(
             }]) {
                 name
                 description
+                label
                 type
                 queryableGranularities
+                semanticModel {
+                  name
+                  label
+                  description
+                }
             }
         }`;
 
@@ -138,12 +243,24 @@ export function getSemanticLayerMetrics(
             }]) {
                 name
                 description
+                label
                 type
+                semanticModels {
+                  name
+                  label
+                  description
+                }
                 dimensions {
                   name
                   description
+                  label
                   type
                   queryableGranularities
+                  semanticModel {
+                    name
+                    label
+                    description
+                  }
                 } 
             }
         }`;
@@ -161,17 +278,162 @@ export type CreateMetricFlowQueryResponse = {
     };
 };
 
+const escapeGraphqlString = (value: string) =>
+    value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+const parseGraphqlJsonScalar = <T>(value: unknown): T | null => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'string') {
+        try {
+            return JSON.parse(value) as T;
+        } catch (error) {
+            console.warn('Failed to parse MetricFlow JSON scalar', error);
+            return null;
+        }
+    }
+    return value as T;
+};
+
+export async function getMetricDefinition(
+    projectUuid: string,
+    metricName: string,
+): Promise<MetricDefinition | null> {
+    const query = `query GetMetricDefinition($environmentId: BigInt!) {
+            metricDefinition(environmentId: $environmentId, metricName: "${escapeGraphqlString(
+                metricName,
+            )}")
+        }`;
+
+    const results = await lightdashApi<any>({
+        url: `/projects/${projectUuid}/dbtsemanticlayer`,
+        method: 'POST',
+        body: JSON.stringify({ query, operationName: 'GetMetricDefinition' }),
+    });
+
+    return parseGraphqlJsonScalar<MetricDefinition>(results?.metricDefinition);
+}
+
+export async function getMetricLineage(
+    projectUuid: string,
+    metricName: string,
+): Promise<MetricLineage | null> {
+    const query = `query GetMetricLineage($environmentId: BigInt!) {
+            metricLineage(environmentId: $environmentId, metricName: "${escapeGraphqlString(
+                metricName,
+            )}")
+        }`;
+
+    const results = await lightdashApi<any>({
+        url: `/projects/${projectUuid}/dbtsemanticlayer`,
+        method: 'POST',
+        body: JSON.stringify({ query, operationName: 'GetMetricLineage' }),
+    });
+
+    return parseGraphqlJsonScalar<MetricLineage>(results?.metricLineage);
+}
+
+const serializeGraphqlValue = (value: unknown): string => {
+    if (value === null) return 'null';
+    if (value === undefined) return 'null';
+    if (typeof value === 'string') {
+        return `"${escapeGraphqlString(value)}"`;
+    }
+    if (typeof value === 'number' || typeof value === 'boolean') {
+        return `${value}`;
+    }
+    if (Array.isArray(value)) {
+        return `[${value.map(serializeGraphqlValue).join(', ')}]`;
+    }
+    return `"${escapeGraphqlString(JSON.stringify(value))}"`;
+};
+
+const serializeFilterRuleInput = (rule: FilterRule): string => {
+    const parts = [
+        `id: "${escapeGraphqlString(rule.id)}"`,
+        `target: { fieldId: "${escapeGraphqlString(rule.target.fieldId)}" }`,
+        `operator: "${escapeGraphqlString(rule.operator)}"`,
+    ];
+
+    if (rule.values !== undefined) {
+        parts.push(`values: ${serializeGraphqlValue(rule.values)}`);
+    }
+    if (rule.settings) {
+        const settingsParts: string[] = [];
+        if (rule.settings.unitOfTime) {
+            settingsParts.push(
+                `unitOfTime: "${escapeGraphqlString(
+                    rule.settings.unitOfTime,
+                )}"`,
+            );
+        }
+        if (rule.settings.completed !== undefined) {
+            settingsParts.push(`completed: ${rule.settings.completed}`);
+        }
+        if (settingsParts.length > 0) {
+            parts.push(`settings: { ${settingsParts.join(', ')} }`);
+        }
+    }
+    if (rule.disabled !== undefined) {
+        parts.push(`disabled: ${rule.disabled}`);
+    }
+
+    return `{ ${parts.join(', ')} }`;
+};
+
+function serializeFilterGroupInput(group: FilterGroup): string {
+    const serializeFilterGroupItemInput = (item: FilterGroupItem): string => {
+        if (isFilterGroup(item)) {
+            return `{ group: ${serializeFilterGroupInput(item)} }`;
+        }
+        if (isFilterRule(item)) {
+            return `{ rule: ${serializeFilterRuleInput(item)} }`;
+        }
+        return '';
+    };
+
+    const items = isAndFilterGroup(group) ? group.and : group.or;
+    const joinKey = isAndFilterGroup(group) ? 'and' : 'or';
+    const serializedItems = items
+        .map(serializeFilterGroupItemInput)
+        .filter((value) => value.length > 0)
+        .join(', ');
+
+    return `{ id: "${escapeGraphqlString(
+        group.id,
+    )}", ${joinKey}: [${serializedItems}] }`;
+}
+
+const serializeFiltersInput = (filters?: Filters): string => {
+    if (!filters) return '{}';
+    const parts: string[] = [];
+    if (filters.dimensions) {
+        parts.push(
+            `dimensions: ${serializeFilterGroupInput(filters.dimensions)}`,
+        );
+    }
+    if (filters.metrics) {
+        parts.push(`metrics: ${serializeFilterGroupInput(filters.metrics)}`);
+    }
+    if (filters.tableCalculations) {
+        parts.push(
+            `tableCalculations: ${serializeFilterGroupInput(
+                filters.tableCalculations,
+            )}`,
+        );
+    }
+    return parts.length > 0 ? `{ ${parts.join(', ')} }` : '{}';
+};
+
 export function createMetricFlowQuery(
     projectUuid: string,
     data: {
         metrics: Record<string, {}>;
         dimensions: Record<string, { grain?: TimeGranularity }>;
-        where?: string[];
+        filters?: Filters;
         orderBy?: MetricFlowOrderBy[];
     },
 ): Promise<CreateMetricFlowQueryResponse> {
-    const whereString =
-        data.where?.map((sql) => `{ sql: ${JSON.stringify(sql)} }`) ?? [];
+    const filtersInput = serializeFiltersInput(data.filters);
     const orderByString =
         data.orderBy?.map((orderBy) => {
             if (orderBy.type === 'metric') {
@@ -195,7 +457,7 @@ export function createMetricFlowQuery(
                         return `{ name: "${dimension}"${grainPart} }`;
                     },
                 )}]
-                where: [${whereString}]
+                filters: ${filtersInput}
                 orderBy: [${orderByString}]
               ) {
                 queryId
@@ -209,13 +471,7 @@ export function createMetricFlowQuery(
     });
 }
 
-export enum QueryStatus {
-    PENDING = 'PENDING',
-    RUNNING = 'RUNNING',
-    COMPILED = 'COMPILED',
-    SUCCESSFUL = 'SUCCESSFUL',
-    FAILED = 'FAILED',
-}
+export enum QueryStatus
 
 export type GetMetricFlowQueryBase64ResultsResponse = {
     query: {

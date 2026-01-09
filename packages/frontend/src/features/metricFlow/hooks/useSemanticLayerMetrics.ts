@@ -18,7 +18,10 @@ const useSemanticLayerMetrics = (
         queryKey: ['semantic_layer_metrics', projectUuid, dimensions],
         enabled: !!projectUuid,
         queryFn: () => getSemanticLayerMetrics(projectUuid!, dimensions || {}),
-        keepPreviousData: true,
+        keepPreviousData:
+            useQueryOptions?.keepPreviousData === undefined
+                ? true
+                : useQueryOptions.keepPreviousData,
         ...useQueryOptions,
     });
 };

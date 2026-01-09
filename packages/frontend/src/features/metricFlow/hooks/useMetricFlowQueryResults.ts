@@ -1,4 +1,4 @@
-import { friendlyName, type ApiError } from '@lightdash/common';
+import { friendlyName, type ApiError, type Filters } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { type ComponentProps } from 'react';
 import {
@@ -21,6 +21,7 @@ type ApiRequestsState = Pick<
         'refetch'
     > & {
         status: ComponentProps<typeof Table>['status'];
+        queryId?: string;
     };
 
 const useMetricFlowQueryResults = (
@@ -28,7 +29,7 @@ const useMetricFlowQueryResults = (
     query?: {
         metrics: Record<string, {}>;
         dimensions: Record<string, { grain?: TimeGranularity }>;
-        where?: string[];
+        filters?: Filters;
         orderBy?: MetricFlowOrderBy[];
     },
     useCreateQueryOptions?: UseQueryOptions<
@@ -48,6 +49,7 @@ const useMetricFlowQueryResults = (
         cacheTime: 0,
         ...useCreateQueryOptions,
     });
+
     const queryId = metricFlowQuery.data?.createQuery.queryId;
     const metricFlowQueryResultsQuery = useQuery<
         GetMetricFlowQueryResultsResponse,
@@ -80,6 +82,7 @@ const useMetricFlowQueryResults = (
             data: undefined,
             status: 'loading',
             refetch: metricFlowQuery.refetch,
+            queryId,
         };
     }
 
@@ -110,6 +113,7 @@ const useMetricFlowQueryResults = (
             data: undefined,
             status: 'error',
             refetch: metricFlowQuery.refetch,
+            queryId,
         };
     }
 
@@ -121,6 +125,7 @@ const useMetricFlowQueryResults = (
             data: undefined,
             status: 'idle',
             refetch: metricFlowQuery.refetch,
+            queryId,
         };
     }
 
@@ -134,6 +139,7 @@ const useMetricFlowQueryResults = (
             ? metricFlowQuery.status
             : metricFlowQueryResultsQuery.status,
         refetch: metricFlowQuery.refetch,
+        queryId,
     };
 };
 

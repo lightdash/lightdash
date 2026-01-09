@@ -15,7 +15,10 @@ const useSemanticLayerDimensions = (
         queryKey: ['semantic_layer_dimensions', projectUuid, metrics],
         enabled: !!projectUuid,
         queryFn: () => getSemanticLayerDimensions(projectUuid!, metrics || {}),
-        keepPreviousData: true,
+        keepPreviousData:
+            useQueryOptions?.keepPreviousData === undefined
+                ? true
+                : useQueryOptions.keepPreviousData,
         select: (data) => {
             // If no dimensions are returned, use the dimensions from the metrics
             if (!metrics || Object.keys(metrics).length === 0) {
