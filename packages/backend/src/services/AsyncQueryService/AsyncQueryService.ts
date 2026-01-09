@@ -64,6 +64,7 @@ import {
     isVizTableConfig,
     ItemsMap,
     MetricQuery,
+    MissingConfigError,
     normalizeIndexColumns,
     NotFoundError,
     type Organization,
@@ -96,9 +97,13 @@ import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
 import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
+import getContentTypeFromFileType from '../../clients/Aws/getContentTypeFromFileType';
 import { S3Client } from '../../clients/Aws/S3Client';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
-import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import {
+    type ResultsFileStorageClient,
+    sanitizeResultsFileExtension,
+} from '../../clients/ResultsFileStorageClients/ResultsFileStorageClient';
 import { measureTime } from '../../logging/measureTime';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -162,7 +167,7 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     cacheService?: ICacheService;
     savedSqlModel: SavedSqlModel;
     featureFlagModel: FeatureFlagModel;
-    resultsStorageClient: S3ResultsFileStorageClient;
+    resultsStorageClient: ResultsFileStorageClient;
     pivotTableService: PivotTableService;
     prometheusMetrics?: PrometheusMetrics;
     schedulerClient: SchedulerClient;
@@ -180,7 +185,7 @@ export class AsyncQueryService extends ProjectService {
 
     featureFlagModel: FeatureFlagModel;
 
-    resultsStorageClient: S3ResultsFileStorageClient;
+    resultsStorageClient: ResultsFileStorageClient;
 
     exportsStorageClient: S3Client;
 
@@ -1083,6 +1088,63 @@ export class AsyncQueryService extends ProjectService {
                 ? DownloadFileType.XLSX
                 : DownloadFileType.CSV;
 
+        if (!this.s3Client.isEnabled()) {
+            if (
+                !this.resultsStorageClient.isEnabled ||
+                this.resultsStorageClient.type !== 'local' ||
+                !fileExtension
+            ) {
+                throw new MissingConfigError(
+                    'Results storage is not configured',
+                );
+            }
+
+            const resultsStream =
+                await this.resultsStorageClient.getDownloadStream(
+                    resultsFileName,
+                );
+
+            const { writeStream, close } =
+                this.resultsStorageClient.createUploadStream(
+                    formattedFileName,
+                    {
+                        contentType: getContentTypeFromFileType(fileType),
+                    },
+                );
+
+            let truncated = false;
+            try {
+                ({ truncated } = await service.streamJsonlRowsToFile(
+                    onlyRaw,
+                    fields,
+                    sortedFieldIds,
+                    headers,
+                    {
+                        readStream: resultsStream,
+                        writeStream,
+                    },
+                ));
+            } finally {
+                await close();
+            }
+
+            const downloadName = attachmentDownloadName
+                ? `${attachmentDownloadName}.${fileExtension}`
+                : undefined;
+            const baseUrl = await this.resultsStorageClient.getFileUrl(
+                formattedFileName,
+                fileExtension,
+            );
+            const fileUrl = downloadName
+                ? `${baseUrl}?downloadName=${encodeURIComponent(downloadName)}`
+                : baseUrl;
+
+            return {
+                fileUrl,
+                truncated,
+            };
+        }
+
         // Transform and export the results from results bucket to exports bucket
         return transformAndExportResults(
             resultsFileName,
@@ -1409,9 +1471,7 @@ export class AsyncQueryService extends ProjectService {
             // If S3 is not configured, we don't write to S3
             stream = this.resultsStorageClient.isEnabled
                 ? this.resultsStorageClient.createUploadStream(
-                      S3ResultsFileStorageClient.sanitizeFileExtension(
-                          fileName,
-                      ),
+                      sanitizeResultsFileExtension(fileName),
                       {
                           contentType: 'application/jsonl',
                       },

@@ -18,7 +18,7 @@ import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import { S3Client } from '../../clients/Aws/S3Client';
 import EmailClient from '../../clients/EmailClient/EmailClient';
-import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import { type ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
@@ -190,7 +190,7 @@ const getMockedAsyncQueryService = (
                 write: jest.fn(),
                 close: jest.fn(),
             })),
-        } as unknown as S3ResultsFileStorageClient,
+        } as unknown as ResultsFileStorageClient,
         featureFlagModel: {} as FeatureFlagModel,
         projectParametersModel: {} as ProjectParametersModel,
         organizationWarehouseCredentialsModel:

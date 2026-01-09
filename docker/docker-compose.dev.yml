@@ -1,6 +1,7 @@
 version: '3.8'
 volumes:
     node_modules:
+    results-data:
 
 # Common configuration for Lightdash services
 x-lightdash-build: &lightdash-build
@@ -12,6 +13,7 @@ x-lightdash-volumes: &lightdash-volumes
     - '../:/usr/app'
     - '../examples/full-jaffle-shop-demo/dbt:/usr/app/dbt'
     - 'node_modules:/usr/app/node_modules/' # clears the node_modules directory so it doesn't sync (v.slow on MacOS)
+    - 'results-data:/var/lib/lightdash/results'
     # - ${HOME}/.config/gcloud:/root/.config/gcloud # Uncomment this line if you want to use your credential as gcloud ADC in dev container
 
 x-lightdash-environment: &lightdash-environment
@@ -29,6 +31,9 @@ x-lightdash-environment: &lightdash-environment
     LIGHTDASH_LICENSE_KEY: ${LIGHTDASH_LICENSE_KEY}
     NODE_ENV: ${NODE_ENV}
     DBT_DEMO_DIR: ${DBT_DEMO_DIR}
+    DBT_CLOUD_BEARER_TOKEN: ${DBT_CLOUD_BEARER_TOKEN}
+    DBT_CLOUD_ENVIRONMENT_ID: ${DBT_CLOUD_ENVIRONMENT_ID}
+    DBT_CLOUD_DOMAIN: ${DBT_CLOUD_DOMAIN}
     AUTH_DISABLE_PASSWORD_AUTHENTICATION: ${AUTH_DISABLE_PASSWORD_AUTHENTICATION}
     AUTH_ENABLE_GROUP_SYNC: ${AUTH_ENABLE_GROUP_SYNC}
     SITE_URL: ${SITE_URL}
@@ -55,16 +60,6 @@ x-lightdash-environment: &lightdash-environment
     AZURE_AI_DEPLOYMENT_NAME: ${AZURE_AI_DEPLOYMENT_NAME}
     AZURE_EMBEDDING_DEPLOYMENT_NAME: ${AZURE_EMBEDDING_DEPLOYMENT_NAME}
     AZURE_USE_DEPLOYMENT_BASED_URLS: ${AZURE_USE_DEPLOYMENT_BASED_URLS}
-    BEDROCK_API_KEY: ${BEDROCK_API_KEY}
-    BEDROCK_BASE_URL: ${BEDROCK_BASE_URL}
-    BEDROCK_REGION: ${BEDROCK_REGION}
-    BEDROCK_ACCESS_KEY_ID: ${BEDROCK_ACCESS_KEY_ID}
-    BEDROCK_SECRET_ACCESS_KEY: ${BEDROCK_SECRET_ACCESS_KEY}
-    BEDROCK_SESSION_TOKEN: ${BEDROCK_SESSION_TOKEN}
-    BEDROCK_MODEL_NAME: ${BEDROCK_MODEL_NAME}
-    BEDROCK_EMBEDDING_MODEL: ${BEDROCK_EMBEDDING_MODEL}
-    BEDROCK_TEMPERATURE: ${BEDROCK_TEMPERATURE}
-    BEDROCK_AVAILABLE_MODELS: ${BEDROCK_AVAILABLE_MODELS}
     POSTHOG_FE_API_HOST: ${POSTHOG_FE_API_HOST}
     POSTHOG_BE_API_HOST: ${POSTHOG_BE_API_HOST}
     SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
@@ -81,17 +76,7 @@ x-lightdash-environment: &lightdash-environment
     AUTH_ENABLE_GCLOUD_ADC: ${AUTH_ENABLE_GCLOUD_ADC}
     AUTH_GOOGLE_OAUTH2_CLIENT_ID: ${AUTH_GOOGLE_OAUTH2_CLIENT_ID}
     AUTH_GOOGLE_OAUTH2_CLIENT_SECRET: ${AUTH_GOOGLE_OAUTH2_CLIENT_SECRET}
-    S3_ENDPOINT: ${S3_ENDPOINT}
-    S3_REGION: ${S3_REGION}
-    S3_BUCKET: ${S3_BUCKET}
-    S3_ACCESS_KEY: ${S3_ACCESS_KEY}
-    S3_SECRET_KEY: ${S3_SECRET_KEY}
-    S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE}
-    S3_EXPIRATION_TIME: ${S3_EXPIRATION_TIME}
-    RESULTS_S3_REGION: ${RESULTS_S3_REGION:-${RESULTS_CACHE_S3_REGION}}
-    RESULTS_S3_BUCKET: ${RESULTS_S3_BUCKET:-${RESULTS_CACHE_S3_BUCKET}}
-    RESULTS_S3_SECRET_KEY: ${RESULTS_S3_SECRET_KEY:-${RESULTS_CACHE_S3_SECRET_KEY}}
-    RESULTS_S3_ACCESS_KEY: ${RESULTS_S3_ACCESS_KEY:-${RESULTS_CACHE_S3_ACCESS_KEY}}
+    RESULTS_LOCAL_PATH: ${RESULTS_LOCAL_PATH:-/var/lib/lightdash/results}
     LIGHTDASH_PROMETHEUS_ENABLED: ${LIGHTDASH_PROMETHEUS_ENABLED}
     TURBO_TOKEN: ${TURBO_TOKEN}
     TURBO_TEAM: ${TURBO_TEAM}
@@ -100,27 +85,12 @@ x-lightdash-environment: &lightdash-environment
 x-lightdash-base: &lightdash-base
     build: *lightdash-build
     depends_on:
-        - minio
         - db-dev
     volumes: *lightdash-volumes
     environment:
         <<: *lightdash-environment
 
 services:
-    minio:
-        image: coollabsio/minio:latest
-        ports:
-            - '9000:9000'
-            - '9001:9001' # for minio console
-        volumes:
-            - ./init-minio.sh:/init-minio.sh
-        entrypoint: '/init-minio.sh'
-        environment:
-            - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-            - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-            - MINIO_DEFAULT_BUCKETS=${MINIO_DEFAULT_BUCKETS}
-            - MINIO_BROWSER=${MINIO_BROWSER:-off}
-
     lightdash-dev:
         <<: *lightdash-base
         environment:
@@ -136,8 +106,7 @@ services:
             - '3000:3000'
             - '6006:6006'
             - '9229:9229'
-        command: ''
-        entrypoint: ['/bin/sh', '-c', 'sleep infinity']
+        command: ['pnpm', 'dev']
 
     db-dev:
         image: pgvector/pgvector:pg16

@@ -1,7 +1,7 @@
 import { DownloadFileType, getErrorMessage } from '@lightdash/common';
 import { Readable, Writable } from 'stream';
 import Logger from '../../logging/logger';
-import { S3ResultsFileStorageClient } from '../ResultsFileStorageClients/S3ResultsFileStorageClient';
+import { type ResultsFileStorageClient } from '../ResultsFileStorageClients/ResultsFileStorageClient';
 import { S3Client } from './S3Client';
 import getContentTypeFromFileType from './getContentTypeFromFileType';
 
@@ -32,7 +32,7 @@ export async function transformAndExportResults(
         writeStream: Writable,
     ) => Promise<{ truncated: boolean }>,
     clients: {
-        resultsStorageClient: S3ResultsFileStorageClient;
+        resultsStorageClient: ResultsFileStorageClient;
         exportsStorageClient: S3Client;
     },
     options?: {

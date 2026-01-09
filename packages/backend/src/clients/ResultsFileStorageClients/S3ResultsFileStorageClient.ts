@@ -14,8 +14,17 @@ import {
     S3CacheClient,
     type S3CacheClientArguments,
 } from '../Aws/S3CacheClient';
+import {
+    type ResultsFileStorageClient,
+    sanitizeResultsFileExtension,
+} from './ResultsFileStorageClient';
 
-export class S3ResultsFileStorageClient extends S3CacheClient {
+export class S3ResultsFileStorageClient
+    extends S3CacheClient
+    implements ResultsFileStorageClient
+{
+    readonly type = 's3';
+
     private readonly s3ExpiresIn: number | undefined;
 
     constructor(args: S3CacheClientArguments) {
@@ -23,16 +32,6 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
 
         const { lightdashConfig } = args;
         this.s3ExpiresIn = lightdashConfig.s3?.expirationTime;
-    }
-
-    static sanitizeFileExtension(
-        fileName: string,
-        fileExtension: string = 'jsonl',
-    ) {
-        const hasExtension = fileName
-            .toLowerCase()
-            .endsWith(`.${fileExtension.toLowerCase()}`);
-        return hasExtension ? fileName : `${fileName}.${fileExtension}`;
     }
 
     get isEnabled() {
@@ -142,10 +141,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             throw new MissingConfigError('S3 configuration is not set');
         }
 
-        const key = S3ResultsFileStorageClient.sanitizeFileExtension(
-            cacheKey,
-            fileExtension,
-        );
+        const key = sanitizeResultsFileExtension(cacheKey, fileExtension);
 
         // Get the S3 URL
         const url = await getSignedUrl(

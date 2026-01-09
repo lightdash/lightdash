@@ -1,4 +1,4 @@
-import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import { type ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/ResultsFileStorageClient';
 import type { LightdashConfig } from '../../config/parseConfig';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { ICacheService } from '../../services/CacheService/ICacheService';
@@ -7,7 +7,7 @@ import { type CacheHitCacheResult } from '../../services/CacheService/types';
 type CacheServiceDependencies = {
     queryHistoryModel: QueryHistoryModel;
     lightdashConfig: LightdashConfig;
-    storageClient: S3ResultsFileStorageClient;
+    storageClient: ResultsFileStorageClient;
 };
 
 // Buffer time to ensure cache doesn't expire while being fetched
@@ -19,7 +19,7 @@ export class CommercialCacheService implements ICacheService {
 
     private readonly lightdashConfig: LightdashConfig;
 
-    storageClient: S3ResultsFileStorageClient;
+    storageClient: ResultsFileStorageClient;
 
     constructor({
         queryHistoryModel,

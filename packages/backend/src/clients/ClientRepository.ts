@@ -7,6 +7,8 @@ import DbtCloudGraphqlClient from './dbtCloud/DbtCloudGraphqlClient';
 import EmailClient from './EmailClient/EmailClient';
 import { GoogleDriveClient } from './Google/GoogleDriveClient';
 import { MicrosoftTeamsClient } from './MicrosoftTeams/MicrosoftTeamsClient';
+import { LocalResultsFileStorageClient } from './ResultsFileStorageClients/LocalResultsFileStorageClient';
+import { type ResultsFileStorageClient } from './ResultsFileStorageClients/ResultsFileStorageClient';
 import { S3ResultsFileStorageClient } from './ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { SlackClient } from './Slack/SlackClient';
 
@@ -24,7 +26,7 @@ export interface ClientManifest {
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     msTeamsClient: MicrosoftTeamsClient;
-    resultsFileStorageClient: S3ResultsFileStorageClient;
+    resultsFileStorageClient: ResultsFileStorageClient;
 }
 
 /**
@@ -193,14 +195,17 @@ export class ClientRepository
         );
     }
 
-    public getResultsFileStorageClient(): S3ResultsFileStorageClient {
-        return this.getClient(
-            'resultsFileStorageClient',
-            () =>
-                new S3ResultsFileStorageClient({
+    public getResultsFileStorageClient(): ResultsFileStorageClient {
+        return this.getClient('resultsFileStorageClient', () => {
+            if (this.context.lightdashConfig.results.local?.path) {
+                return new LocalResultsFileStorageClient({
                     lightdashConfig: this.context.lightdashConfig,
-                }),
-        );
+                });
+            }
+            return new S3ResultsFileStorageClient({
+                lightdashConfig: this.context.lightdashConfig,
+            });
+        });
     }
 
     public getMsTeamsClient(): MicrosoftTeamsClient {

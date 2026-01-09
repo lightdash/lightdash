@@ -1,6 +1,9 @@
-import { AuthorizationError } from '@lightdash/common';
+import { AuthorizationError, NotFoundError } from '@lightdash/common';
+import { randomUUID } from 'crypto';
 import express, { type Router } from 'express';
+import fs from 'fs/promises';
 import passport from 'passport';
+import path from 'path';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     getLoginHint,
@@ -11,6 +14,7 @@ import {
 } from '../controllers/authentication';
 import { databricksPassportStrategy } from '../controllers/authentication/strategies/databricksStrategy';
 import { UserModel } from '../models/UserModel';
+import { createContentDispositionHeader } from '../utils/FileDownloadUtils/FileDownloadUtils';
 import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
 import { inviteLinksRouter } from './inviteLinksRouter';
@@ -44,11 +48,89 @@ apiV1Router.get('/health', async (req, res, next) => {
         .catch(next);
 });
 
+apiV1Router.get('/results/:fileName', async (req, res, next) => {
+    try {
+        const resultsPath = lightdashConfig.results.local?.path;
+        if (!resultsPath) {
+            throw new NotFoundError('Local results storage is not enabled');
+        }
+
+        const { fileName } = req.params;
+        if (!/^[A-Za-z0-9._-]+$/.test(fileName)) {
+            throw new NotFoundError(`File not found: ${fileName}`);
+        }
+
+        const extension = path.extname(fileName).toLowerCase();
+        if (!['.jsonl', '.csv', '.xlsx'].includes(extension)) {
+            throw new NotFoundError(`File not found: ${fileName}`);
+        }
+
+        const resolvedBasePath = path.resolve(resultsPath);
+        const resolvedFilePath = path.resolve(resolvedBasePath, fileName);
+        if (!resolvedFilePath.startsWith(`${resolvedBasePath}${path.sep}`)) {
+            throw new NotFoundError(`File not found: ${fileName}`);
+        }
+
+        try {
+            await fs.access(resolvedFilePath);
+        } catch {
+            throw new NotFoundError(`File not found: ${fileName}`);
+        }
+
+        const contentTypeByExtension: Record<string, string> = {
+            '.jsonl': 'application/x-ndjson',
+            '.csv': 'text/csv',
+            '.xlsx':
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        };
+        const contentType =
+            contentTypeByExtension[extension] || 'application/octet-stream';
+
+        const downloadName =
+            typeof req.query.downloadName === 'string'
+                ? req.query.downloadName
+                : fileName;
+
+        res.set('Content-Type', contentType);
+        res.set(
+            'Content-Disposition',
+            createContentDispositionHeader(downloadName),
+        );
+        res.sendFile(resolvedFilePath);
+    } catch (error) {
+        next(error);
+    }
+});
+
 apiV1Router.get('/flash', (req, res) => {
     res.json({
         status: 'ok',
         results: req.flash(),
     });
+});
+
+apiV1Router.post('/debug/explore-perf', async (req, res, next) => {
+    try {
+        const logPath =
+            process.env.EXPLORE_PERF_LOG_PATH ||
+            '/tmp/lightdash-explore-perf.log';
+        const logDir = path.dirname(logPath);
+        await fs.mkdir(logDir, { recursive: true });
+        const correlationId = req.get('x-explore-perf-id') ?? randomUUID();
+        const entry = {
+            ts: new Date().toISOString(),
+            correlationId,
+            userUuid: req.user?.userUuid,
+            ...req.body,
+        };
+        await fs.appendFile(logPath, `${JSON.stringify(entry)}\n`, 'utf8');
+        res.json({
+            status: 'ok',
+            results: { logged: true, correlationId },
+        });
+    } catch (error) {
+        next(error);
+    }
 });
 
 apiV1Router.post('/login', passport.authenticate('local'), (req, res, next) => {

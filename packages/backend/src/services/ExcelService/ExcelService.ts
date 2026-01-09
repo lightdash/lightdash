@@ -10,6 +10,7 @@ import {
     isNumber,
     ItemsMap,
     MetricQuery,
+    MissingConfigError,
     PivotConfig,
     pivotResultsAsCsv,
     type ReadyQueryResultsPage,
@@ -20,9 +21,10 @@ import moment from 'moment';
 import os from 'os';
 import path from 'path';
 import { Readable, Writable } from 'stream';
+import getContentTypeFromFileType from '../../clients/Aws/getContentTypeFromFileType';
 import { S3Client } from '../../clients/Aws/S3Client';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
-import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import { type ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/ResultsFileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import {
@@ -200,7 +202,7 @@ export class ExcelService {
         resultsFileName: string;
         fields: ItemsMap;
         metricQuery: MetricQuery;
-        resultsStorageClient: S3ResultsFileStorageClient;
+        resultsStorageClient: ResultsFileStorageClient;
         exportsStorageClient: S3Client;
         lightdashConfig: LightdashConfig;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
@@ -263,6 +265,44 @@ export class ExcelService {
             maxColumnLimit: lightdashConfig.pivotTable.maxColumnLimit,
             pivotDetails,
         });
+
+        if (!exportsStorageClient.isEnabled()) {
+            if (
+                !resultsStorageClient.isEnabled ||
+                resultsStorageClient.type !== 'local'
+            ) {
+                throw new MissingConfigError(
+                    'Results storage is not configured',
+                );
+            }
+
+            const { writeStream, close } =
+                resultsStorageClient.createUploadStream(formattedFileName, {
+                    contentType: getContentTypeFromFileType(
+                        DownloadFileType.XLSX,
+                    ),
+                });
+
+            writeStream.write(Buffer.from(excelBuffer));
+            writeStream.end();
+            await close();
+
+            const downloadName = attachmentDownloadName
+                ? `${attachmentDownloadName}.xlsx`
+                : undefined;
+            const baseUrl = await resultsStorageClient.getFileUrl(
+                formattedFileName,
+                'xlsx',
+            );
+            const fileUrl = downloadName
+                ? `${baseUrl}?downloadName=${encodeURIComponent(downloadName)}`
+                : baseUrl;
+
+            return {
+                fileUrl,
+                truncated,
+            };
+        }
 
         // Upload the Excel buffer to exports bucket using cross-bucket transform
         return transformAndExportResults(
@@ -401,7 +441,7 @@ export class ExcelService {
         resultsFileName: string,
         fields: ItemsMap,
         clients: {
-            resultsStorageClient: S3ResultsFileStorageClient;
+            resultsStorageClient: ResultsFileStorageClient;
             exportsStorageClient: S3Client;
         },
         options: {
@@ -457,6 +497,54 @@ export class ExcelService {
                 resultsFileName,
                 truncated,
             );
+
+            if (!exportsStorageClient.isEnabled()) {
+                if (
+                    !resultsStorageClient.isEnabled ||
+                    resultsStorageClient.type !== 'local'
+                ) {
+                    throw new MissingConfigError(
+                        'Results storage is not configured',
+                    );
+                }
+
+                const { writeStream, close } =
+                    resultsStorageClient.createUploadStream(formattedFileName, {
+                        contentType: getContentTypeFromFileType(
+                            DownloadFileType.XLSX,
+                        ),
+                    });
+
+                const fileStream = fs.createReadStream(tempFilePath);
+                try {
+                    await new Promise<void>((resolve, reject) => {
+                        fileStream.on('error', reject);
+                        writeStream.on('error', reject);
+                        fileStream.on('end', resolve);
+                        fileStream.pipe(writeStream);
+                    });
+                } finally {
+                    await close();
+                }
+
+                const downloadName = attachmentDownloadName
+                    ? `${attachmentDownloadName}.xlsx`
+                    : undefined;
+                const baseUrl = await resultsStorageClient.getFileUrl(
+                    formattedFileName,
+                    'xlsx',
+                );
+                const fileUrl = downloadName
+                    ? `${baseUrl}?downloadName=${encodeURIComponent(
+                          downloadName,
+                      )}`
+                    : baseUrl;
+
+                return {
+                    fileUrl,
+                    truncated,
+                };
+            }
 
             // Step 3: Upload temp file to exports bucket (not results bucket)
             const fileStream = fs.createReadStream(tempFilePath);

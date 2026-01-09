@@ -15,7 +15,7 @@ import moment from 'moment';
 import { nanoid } from 'nanoid';
 import { S3Client } from '../../clients/Aws/S3Client';
 import { AttachmentUrl } from '../../clients/EmailClient/EmailClient';
-import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import { type ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/ResultsFileStorageClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
@@ -97,7 +97,7 @@ export class PivotTableService extends BaseService {
         fields: ItemsMap;
         metricQuery: MetricQuery;
         projectUuid: string;
-        storageClient: S3ResultsFileStorageClient;
+        storageClient: ResultsFileStorageClient;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         options: {
             onlyRaw: boolean;

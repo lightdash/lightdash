@@ -841,6 +841,9 @@ export type LightdashConfig = {
         autocompleteEnabled: boolean;
         cacheStateTimeSeconds: number;
         s3?: Omit<S3Config, 'expirationTime'>;
+        local?: {
+            path: string;
+        };
     };
     dbtCloud: {
         bearerToken?: string;
@@ -1569,6 +1572,11 @@ export const parseConfig = (): LightdashConfig => {
                 10,
             ),
             s3: parseResultsS3Config(),
+            local: process.env.RESULTS_LOCAL_PATH
+                ? {
+                      path: process.env.RESULTS_LOCAL_PATH,
+                  }
+                : undefined,
         },
         dbtCloud: {
             bearerToken: process.env.DBT_CLOUD_BEARER_TOKEN,
