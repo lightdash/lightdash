@@ -42,8 +42,8 @@ const CellMenu: FC<React.PropsWithChildren<CellMenuProps>> = ({
                             pointerEvents: 'none',
                             position: 'absolute',
                             zIndex: -1,
-                            left: elementBounds?.x ?? 0 + window.scrollX,
-                            top: elementBounds?.y ?? 0 + window.scrollY,
+                            left: (elementBounds?.x ?? 0) + window.scrollX,
+                            top: (elementBounds?.y ?? 0) + window.scrollY,
                             width: elementBounds?.width ?? 0,
                             height: elementBounds?.height ?? 0,
                         }}
