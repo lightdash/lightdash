@@ -713,17 +713,19 @@ export const getAiConfig = () => ({
                   ),
               }
             : undefined,
-        anthropic: process.env.ANTHROPIC_API_KEY
-            ? {
-                  apiKey: process.env.ANTHROPIC_API_KEY,
-                  modelName:
-                      process.env.ANTHROPIC_MODEL_NAME ||
-                      DEFAULT_ANTHROPIC_MODEL_NAME,
-                  availableModels: getArrayFromCommaSeparatedList(
-                      'ANTHROPIC_AVAILABLE_MODELS',
-                  ),
-              }
-            : undefined,
+        anthropic:
+            process.env.ANTHROPIC_API_KEY &&
+            process.env.ANTHROPIC_API_KEY !== 'undefined'
+                ? {
+                      apiKey: process.env.ANTHROPIC_API_KEY,
+                      modelName:
+                          process.env.ANTHROPIC_MODEL_NAME ||
+                          DEFAULT_ANTHROPIC_MODEL_NAME,
+                      availableModels: getArrayFromCommaSeparatedList(
+                          'ANTHROPIC_AVAILABLE_MODELS',
+                      ),
+                  }
+                : undefined,
         openrouter: process.env.OPENROUTER_API_KEY
             ? {
                   apiKey: process.env.OPENROUTER_API_KEY,
