@@ -1,3 +1,10 @@
+## [0.2320.3](https://github.com/lightdash/lightdash/compare/0.2320.2...0.2320.3) (2026-01-09)
+
+
+### Bug Fixes
+
+* groups enabled feature flag checking ([#19284](https://github.com/lightdash/lightdash/issues/19284)) ([1b8a62d](https://github.com/lightdash/lightdash/commit/1b8a62d47e759dbdd9763a71c2779efaf64b3ca5))
+
 ## [0.2320.2](https://github.com/lightdash/lightdash/compare/0.2320.1...0.2320.2) (2026-01-09)
 
 
