@@ -1,3 +1,10 @@
+## [0.2323.1](https://github.com/lightdash/lightdash/compare/0.2323.0...0.2323.1) (2026-01-09)
+
+
+### Bug Fixes
+
+* chart tooltips mispositioned on mobile touch devices ([#19317](https://github.com/lightdash/lightdash/issues/19317)) ([2b2dd48](https://github.com/lightdash/lightdash/commit/2b2dd48b37681a7d6bf4e4ed8462e02eaab66752)), closes [#19286](https://github.com/lightdash/lightdash/issues/19286)
+
 # [0.2323.0](https://github.com/lightdash/lightdash/compare/0.2322.1...0.2323.0) (2026-01-09)
 
 
