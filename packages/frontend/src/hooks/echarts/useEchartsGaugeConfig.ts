@@ -288,11 +288,46 @@ const useEchartsGaugeConfig = ({
             },
             detail: {
                 valueAnimation: true,
-                fontSize: detailsFontSize,
-                offsetCenter: [0, '-5%'],
-                color: valueColor.text,
+                offsetCenter: [
+                    0,
+                    chartConfig.validConfig.showPercentage ? '0' : '-5%',
+                ],
                 formatter: (value): string => {
-                    return formatItemValue(fieldItem, value, false, parameters);
+                    const showPercentage =
+                        chartConfig.validConfig.showPercentage;
+
+                    const formattedValue = formatItemValue(
+                        fieldItem,
+                        value,
+                        false,
+                        parameters,
+                    );
+
+                    if (showPercentage) {
+                        const percentageValue = `${(
+                            ((toNumber(value) - min) / (effectiveMax - min)) *
+                            100
+                        ).toFixed(0)}%${
+                            chartConfig.validConfig.customPercentageLabel 
+                                ? ` ${chartConfig.validConfig.customPercentageLabel}` 
+                                : ''
+                        }`;
+                        return `{value|${formattedValue}}\n{percentage|${percentageValue}}`;
+                    }
+                    return `{value|${formattedValue}}`;
+                },
+                rich: {
+                    value: {
+                        fontSize: detailsFontSize,
+                        lineHeight: detailsFontSize,
+                        color: valueColor.text,
+                    },
+                    percentage: {
+                        fontSize: tileFontSize,
+                        fontWeight: 450,
+                        lineHeight: tileFontSize * 1.5,
+                        color: theme.fn.darken(valueColor.text, 0.25),
+                    },
                 },
             },
             data: [

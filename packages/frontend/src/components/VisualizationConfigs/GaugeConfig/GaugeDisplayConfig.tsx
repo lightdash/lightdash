@@ -38,6 +38,10 @@ export const GaugeDisplayConfig: FC = memo(() => {
             setShowAxisLabels,
             customLabel,
             setCustomLabel,
+            showPercentage,
+            setShowPercentage,
+            customPercentageLabel,
+            setCustomPercentageLabel,
         },
         numericMetrics,
     } = visualizationConfig;
@@ -151,6 +155,29 @@ export const GaugeDisplayConfig: FC = memo(() => {
                             setShowAxisLabels(event.currentTarget.checked)
                         }
                     />
+
+                    <Checkbox
+                        label="Show as percentage"
+                        description="Display the value as a percentage of the scale"
+                        checked={showPercentage}
+                        onChange={(event) =>
+                            setShowPercentage(event.currentTarget.checked)
+                        }
+                    />
+
+                    {showPercentage && (
+                        <TextInput
+                            label="Custom percentage label"
+                            description="Add a custom label after the percentage"
+                            value={customPercentageLabel || ''}
+                            onChange={(event) =>
+                                setCustomPercentageLabel(
+                                    event.currentTarget.value || undefined,
+                                )
+                            }
+                            placeholder="e.g. 'completed'"
+                        />
+                    )}
 
                     <TextInput
                         label="Custom label"

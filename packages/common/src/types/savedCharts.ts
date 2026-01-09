@@ -140,6 +140,8 @@ export type GaugeChart = {
     showAxisLabels?: boolean;
     sections?: GaugeSection[];
     customLabel?: string;
+    showPercentage?: boolean;
+    customPercentageLabel?: string;
 };
 
 export enum MapChartLocation {
