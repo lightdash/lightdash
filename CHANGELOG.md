@@ -1,3 +1,10 @@
+# [0.2324.0](https://github.com/lightdash/lightdash/compare/0.2323.1...0.2324.0) (2026-01-09)
+
+
+### Features
+
+* add partial compilation mode for fields with errors ([#19278](https://github.com/lightdash/lightdash/issues/19278)) ([ee6db0d](https://github.com/lightdash/lightdash/commit/ee6db0d9fa9785a28fc10adc046633e4d6258404))
+
 ## [0.2323.1](https://github.com/lightdash/lightdash/compare/0.2323.0...0.2323.1) (2026-01-09)
 
 
