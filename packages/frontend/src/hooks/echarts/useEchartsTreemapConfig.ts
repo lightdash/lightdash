@@ -19,8 +19,13 @@ import { useVisualizationContext } from '../../components/LightdashVisualization
 const EchartsTreemapType = 'treemap';
 
 const useEchartsTreemapConfig = (isInDashboard: boolean) => {
-    const { visualizationConfig, itemsMap, colorPalette, parameters } =
-        useVisualizationContext();
+    const {
+        visualizationConfig,
+        itemsMap,
+        colorPalette,
+        parameters,
+        isTouchDevice,
+    } = useVisualizationContext();
     const theme = useMantineTheme();
 
     const chartConfig = useMemo(() => {
@@ -194,7 +199,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
                 fontFamily: theme?.other?.chartFont as string | undefined,
             },
             tooltip: {
-                ...getTooltipStyle(),
+                ...getTooltipStyle({ appendToBody: !isTouchDevice }),
                 trigger: 'item' as const, //Even though this is the default, tooltips will not show up if this is not set.
             },
             series: [treemapSeriesOption],
@@ -205,6 +210,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
         treemapSeriesOption,
         isInDashboard,
         theme?.other?.chartFont,
+        isTouchDevice,
     ]);
     if (!itemsMap) return;
     if (!eChartsOption || !treemapSeriesOption) return;
