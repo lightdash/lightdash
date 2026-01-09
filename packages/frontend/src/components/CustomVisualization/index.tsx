@@ -7,9 +7,10 @@ import { useVisualizationContext } from '../LightdashVisualization/useVisualizat
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
-const VegaEmbed = lazy(() =>
-    import('react-vega').then((module) => ({ default: module.VegaEmbed })),
-);
+const VegaEmbed = lazy(async () => {
+    const module = await import('react-vega');
+    return { default: module.VegaEmbed };
+});
 
 type Props = {
     className?: string;
