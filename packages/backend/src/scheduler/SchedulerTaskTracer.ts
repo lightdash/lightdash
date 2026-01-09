@@ -171,6 +171,7 @@ const getTagsForTask: {
         'organization.uuid': payload.organizationUuid,
     }),
     [SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS]: () => ({}),
+    [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: () => ({}),
 } as const;
 
 // Generic accessor function
