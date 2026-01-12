@@ -307,26 +307,41 @@ const useEchartsGaugeConfig = ({
                         const percentageValue = `${(
                             ((toNumber(value) - min) / (effectiveMax - min)) *
                             100
-                        ).toFixed(0)}%${
-                            chartConfig.validConfig.customPercentageLabel 
-                                ? ` ${chartConfig.validConfig.customPercentageLabel}` 
-                                : ''
-                        }`;
-                        return `{value|${formattedValue}}\n{percentage|${percentageValue}}`;
+                        ).toFixed(0)}%`;
+                        const percentageLabel = chartConfig.validConfig
+                            .customPercentageLabel
+                            ? ` ${chartConfig.validConfig.customPercentageLabel}`
+                            : '';
+                        return `{value|${formattedValue}}\n{percentage|${percentageValue}}{percentageLabel|${percentageLabel}}`;
                     }
                     return `{value|${formattedValue}}`;
                 },
                 rich: {
                     value: {
                         fontSize: detailsFontSize,
-                        lineHeight: detailsFontSize,
+                        lineHeight: detailsFontSize * 1.2,
+                        fontWeight: 600,
                         color: valueColor.text,
                     },
-                    percentage: {
-                        fontSize: tileFontSize,
-                        fontWeight: 450,
+                    percentageLabel: {
+                        fontSize: tileFontSize * 0.8,
                         lineHeight: tileFontSize * 1.5,
-                        color: theme.fn.darken(valueColor.text, 0.25),
+                        color: theme.colors.ldGray[7],
+                        fontWeight: 500,
+                    },
+                    percentage: {
+                        fontSize: tileFontSize * 0.8,
+                        lineHeight: tileFontSize * 1.5,
+                        color: theme.colors.ldGray[7],
+                        fontWeight: 500,
+                        backgroundColor: theme.fn.lighten(
+                            theme.colors.ldGray[0],
+                            0.5,
+                        ),
+                        borderColor: theme.colors.ldGray[2],
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        padding: [4, 8],
                     },
                 },
             },
