@@ -19,10 +19,10 @@ import {
     type HTMLAttributes,
     type ReactNode,
 } from 'react';
-import useEmbed from '../../ee/providers/Embed/useEmbed';
 import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabs/gridUtils';
+import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
-import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
+import { useAccount } from '../../hooks/user/useAccount';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { EmptyChart } from '../SimpleChart';
@@ -130,8 +130,11 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     onScreenshotError,
     ...wrapperProps
 }) => {
-    const ability = useAbilityContext();
-    const { embedToken } = useEmbed();
+    const { data: account } = useAccount();
+    const { shouldShowMenu, canViewUnderlyingData, canDrillInto } =
+        useContextMenuPermissions({
+            minimal,
+        });
 
     const { resultsData, isLoading, visualizationConfig } =
         useVisualizationContext();
@@ -263,8 +266,8 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
     if (isLoading) return <LoadingChart />;
 
     const shouldHideContextMenu =
-        (minimal && !embedToken) ||
-        (embedToken && ability.cannot('view', 'UnderlyingData'));
+        !shouldShowMenu ||
+        (account?.authentication.type === 'jwt' && !canViewUnderlyingData);
 
     return validData ? (
         <Center
@@ -286,7 +289,11 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                         {bigNumber}
                     </BigNumberText>
                 ) : (
-                    <BigNumberContextMenu>
+                    <BigNumberContextMenu
+                        isMinimal={minimal}
+                        canDrillInto={canDrillInto}
+                        canViewUnderlyingData={canViewUnderlyingData}
+                    >
                         <BigNumberText
                             fz={valueFontSize}
                             fw={600}
