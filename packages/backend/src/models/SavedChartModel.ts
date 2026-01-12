@@ -12,6 +12,7 @@ import {
     CustomDimensionType,
     CustomSqlDimension,
     DBFieldTypes,
+    DimensionOverrides,
     ECHARTS_DEFAULT_COLORS,
     Filters,
     getChartKind,
@@ -25,7 +26,6 @@ import {
     LightdashUser,
     MetricFilterRule,
     MetricOverrides,
-    DimensionOverrides,
     NotFoundError,
     Organization,
     PeriodOverPeriodComparison,
@@ -1298,6 +1298,9 @@ export class SavedChartModel {
             sorts: string[];
             customMetricsFilters: MetricFilterRule[];
             dashboardUuid: string | undefined;
+            chartType: ChartConfig['type'];
+            chartConfig: ChartConfig['config'] | undefined;
+            pivotDimensions: string[];
         }>
     > {
         const cteName = 'chart_last_version_cte';
@@ -1312,6 +1315,9 @@ export class SavedChartModel {
                 tableName: 'saved_queries_versions.explore_name',
                 filters: 'saved_queries_versions.filters',
                 parameters: 'saved_queries_versions.parameters',
+                chartType: 'saved_queries_versions.chart_type',
+                chartConfig: 'saved_queries_versions.chart_config',
+                pivotDimensions: 'saved_queries_versions.pivot_dimensions',
                 dimensions: this.database.raw(
                     "COALESCE(ARRAY_AGG(DISTINCT svf.name) FILTER (WHERE svf.field_type = 'dimension'), '{}')",
                 ),
@@ -1376,7 +1382,7 @@ export class SavedChartModel {
                 'saved_queries_versions.saved_queries_version_id',
                 'sqvs.saved_queries_version_id',
             )
-            .groupBy(1, 2, 3, 4, 5, 6);
+            .groupBy(1, 2, 3, 4, 5, 6, 7, 8, 9);
 
         // Filter out charts that are saved in a dashboard and don't belong to any tile in their dashboard last version
         const chartsNotInTilesUuids = await this.getChartsNotInTilesUuids(
@@ -1386,6 +1392,7 @@ export class SavedChartModel {
             .map((chart) => ({
                 ...chart,
                 customMetricsFilters: chart.customMetricsFilters.flat(),
+                pivotDimensions: chart.pivotDimensions ?? [],
             }))
             .filter((chart) => !chartsNotInTilesUuids.includes(chart.uuid));
     }
