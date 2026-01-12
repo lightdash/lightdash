@@ -237,14 +237,6 @@ export const getMantineThemeOverride = (
                 },
             },
 
-            Modal: {
-                defaultProps: {
-                    // FIXME: This makes the mantine modals line up exactly with the Blueprint ones.
-                    // It could be made a less-magic number once we migrate
-                    yOffset: 140,
-                },
-            },
-
             Alert: {
                 styles: (_theme, _params) => ({
                     title: {

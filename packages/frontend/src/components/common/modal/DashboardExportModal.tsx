@@ -214,7 +214,6 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             icon={IconLayoutDashboard}
             size="xl"
             actions={renderActions()}
-            modalRootProps={{ yOffset: '3vh' }}
         >
             <Stack gap="md">
                 <SegmentedControl

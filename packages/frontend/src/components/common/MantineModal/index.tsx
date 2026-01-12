@@ -253,7 +253,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
             opened={opened}
             onClose={onClose}
             size={fullScreen ? 'auto' : size}
-            centered
+            yOffset="8dvh"
             {...modalRootProps}
         >
             <Modal.Overlay />
