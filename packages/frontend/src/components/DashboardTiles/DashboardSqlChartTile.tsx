@@ -194,6 +194,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                 isLoading={!!savedSqlUuid && isChartLoading}
                 hasError
                 title={tileTitle}
+                chartKind={null}
                 {...rest}
             >
                 {(!savedSqlUuid || !isChartLoading) && (
@@ -217,6 +218,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                 title={tile.properties.title || tile.properties.chartName || ''}
                 isLoading={isChartResultsLoading}
                 hasError={!!chartResultsError}
+                chartKind={chartData.config.type}
                 {...rest}
                 titleHref={`/projects/${projectUuid}/sql-runner/${chartData.slug}`}
                 extraMenuItems={
@@ -253,6 +255,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             titleHref={`/projects/${projectUuid}/sql-runner/${chartData.slug}`}
             tile={tile}
             title={tile.properties.title || tile.properties.chartName || ''}
+            chartKind={chartData.config.type}
             {...rest}
             extraMenuItems={
                 projectUuid &&
