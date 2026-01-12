@@ -883,9 +883,6 @@ importers:
       '@tanstack/react-virtual':
         specifier: ^3.10.7
         version: 3.10.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@theme-toggles/react':
-        specifier: ^4.1.0
-        version: 4.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@tiptap/extension-link':
         specifier: ^2.2.4
         version: 2.2.4(@tiptap/core@2.2.4(@tiptap/pm@2.2.4))(@tiptap/pm@2.2.4)
@@ -5935,12 +5932,6 @@ packages:
     engines: {node: '>=12', npm: '>=6'}
     peerDependencies:
       '@testing-library/dom': '>=7.21.4'
-
-  '@theme-toggles/react@4.1.0':
-    resolution: {integrity: sha512-h3SuJMsej8DfelHt5fjNIlaMfJOK52Vku4pPDVoHaTwjAcoTr4fn8hzeur2oiqWBYFYfKugvv1RdQaBFXaiPKg==}
-    peerDependencies:
-      react: ^16 || ^17 || ^18
-      react-dom: ^16 || ^17 || ^18
 
   '@tiptap/core@2.2.4':
     resolution: {integrity: sha512-cRrI8IlLIhCE1hacBQzXIC8dsRvGq6a4lYWQK/BaHuZg21CG7szp3Vd8Ix+ra1f5v0xPOT+Hy+QFNQooRMKMCw==}
@@ -19230,7 +19221,7 @@ snapshots:
 
   '@kwsites/file-exists@1.1.1':
     dependencies:
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -21868,11 +21859,6 @@ snapshots:
     dependencies:
       '@testing-library/dom': 10.4.0
 
-  '@theme-toggles/react@4.1.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
-    dependencies:
-      react: 19.2.0
-      react-dom: 19.2.0(react@19.2.0)
-
   '@tiptap/core@2.2.4(@tiptap/pm@2.2.4)':
     dependencies:
       '@tiptap/pm': 2.2.4
@@ -22653,7 +22639,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/type-utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       eslint: 8.57.1
       graphemer: 1.4.0
       ignore: 5.2.0
@@ -22687,7 +22673,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.5.4)
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       eslint: 8.57.1
     optionalDependencies:
       typescript: 5.5.4
@@ -29485,7 +29471,7 @@ snapshots:
 
   nock@13.5.1:
     dependencies:
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       json-stringify-safe: 5.0.1
       propagate: 2.0.1
     transitivePeerDependencies:
@@ -31705,7 +31691,7 @@ snapshots:
     dependencies:
       '@kwsites/file-exists': 1.1.1
       '@kwsites/promise-deferred': 1.1.1
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
