@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import {
-    AdditionalMetric,
+    type AdditionalMetric,
     CompiledDimension,
     CompiledField,
     Explore,

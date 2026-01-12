@@ -6,6 +6,10 @@ import { barChartConfigSlice } from '../../../components/DataViz/store/barChartS
 import { lineChartConfigSlice } from '../../../components/DataViz/store/lineChartSlice';
 import { pieChartConfigSlice } from '../../../components/DataViz/store/pieChartSlice';
 import { tableVisSlice } from '../../../components/DataViz/store/tableVisSlice';
+import {
+    funnelBuilderListenerMiddleware,
+    funnelBuilderSlice,
+} from '../../funnelBuilder/store';
 import { metricsCatalogSlice } from '../../metricsCatalog/store/metricsCatalogSlice';
 import { listenerMiddleware } from './listenerMiddleware';
 import { sqlRunnerSlice } from './sqlRunnerSlice';
@@ -20,6 +24,7 @@ export const store = configureStore({
         pieChartConfig: pieChartConfigSlice.reducer,
         tableVisConfig: tableVisSlice.reducer,
         [metricsCatalogSlice.name]: metricsCatalogSlice.reducer,
+        [funnelBuilderSlice.name]: funnelBuilderSlice.reducer,
     },
     // Add the listener middleware to the store, this is useful for listening to actions and running side effects
     middleware: (getDefaultMiddleware) =>
@@ -29,7 +34,9 @@ export const store = configureStore({
                 // This is because the function is not serializable, but we need to keep its instance to get the correct chart spec (see prepareAndFetchChartData thunk)
                 ignoredActionPaths: ['payload.getChartSpec'],
             },
-        }).prepend(listenerMiddleware.middleware),
+        })
+            .prepend(listenerMiddleware.middleware)
+            .prepend(funnelBuilderListenerMiddleware.middleware),
     devTools: process.env.NODE_ENV === 'development',
 });
 
