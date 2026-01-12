@@ -1,3 +1,10 @@
+# [0.2327.0](https://github.com/lightdash/lightdash/compare/0.2326.0...0.2327.0) (2026-01-12)
+
+
+### Features
+
+* allow formatting date metrics in results table/ui ([#19335](https://github.com/lightdash/lightdash/issues/19335)) ([8fd17cb](https://github.com/lightdash/lightdash/commit/8fd17cb2860d9eb9b8701204ec56ac583f8a4590))
+
 # [0.2326.0](https://github.com/lightdash/lightdash/compare/0.2325.2...0.2326.0) (2026-01-12)
 
 
