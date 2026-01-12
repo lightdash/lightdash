@@ -188,14 +188,28 @@ const getHeader = (
     itemsMap?: ItemsMap,
     xFieldId?: string,
 ): string => {
+    const firstParam = params[0];
+
     // First try the standard axisValueLabel or name
-    const standardHeader = params[0]?.axisValueLabel ?? params[0]?.name;
+    const standardHeader = firstParam?.axisValueLabel ?? firstParam?.name;
+
+    // Check if ECharts failed to format (e.g., MIN/MAX metrics on date dimensions
+    // have axis type 'value' instead of 'time', causing "Invalid Date")
     if (standardHeader) {
         return String(standardHeader);
     }
 
+    // Fallback: try to format using the raw axis value
+    // This handles cases where ECharts couldn't format the value properly
+    const rawAxisValue = firstParam?.axisValue;
+    if (rawAxisValue !== undefined && rawAxisValue !== null) {
+        if (itemsMap && xFieldId) {
+            return getFormattedValue(rawAxisValue, xFieldId, itemsMap, true);
+        }
+        return String(rawAxisValue);
+    }
+
     // For tuple mode (stacked bars) with time axis, extract x-value from data array
-    const firstParam = params[0];
     if (firstParam?.value && Array.isArray(firstParam.value)) {
         // In tuple mode, first element is typically the x-axis value
         const xValue = firstParam.value[0];
@@ -945,8 +959,19 @@ export const buildCartesianTooltipFormatter =
                 ? field.format !== undefined
                 : false;
             if (hasFormat) {
+                // Use raw value from data object for the specific dimensionId
+                // Don't use axisValue directly as it may be from a different axis
+                // (e.g., in flipped charts, axisValue might be "Phillip" but dimensionId is the date field)
+                const firstParam = params[0];
+                const rawHeaderValue =
+                    (firstParam?.data as Record<string, unknown> | undefined)?.[
+                        dimensionId
+                    ] ??
+                    firstParam?.axisValue ??
+                    header;
+
                 const headerText = getFormattedValue(
-                    header,
+                    rawHeaderValue,
                     dimensionId,
                     itemsMap,
                     undefined,
