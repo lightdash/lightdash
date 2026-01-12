@@ -27,6 +27,8 @@ export type DbProject = {
     dbt_version: string;
     scheduler_timezone: string;
     created_by_user_uuid: string | null;
+    metricflow_project_id: string | null;
+    metricflow_api_token: string | null;
 };
 
 type CreateDbProject = Pick<
@@ -40,6 +42,8 @@ type CreateDbProject = Pick<
     | 'dbt_version'
     | 'created_by_user_uuid'
     | 'organization_warehouse_credentials_uuid'
+    | 'metricflow_project_id'
+    | 'metricflow_api_token'
 > & {
     scheduler_timezone?: string; // On create it will default to 'UTC' as per migration
 };
@@ -55,6 +59,8 @@ type UpdateDbProject = Partial<
         | 'dbt_version'
         | 'copied_from_project_uuid'
         | 'scheduler_timezone'
+        | 'metricflow_project_id'
+        | 'metricflow_api_token'
     >
 >;
 

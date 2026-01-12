@@ -2,6 +2,7 @@ version: '3.8'
 volumes:
     node_modules:
     results-data:
+    gitea-data:
 
 # Common configuration for Lightdash services
 x-lightdash-build: &lightdash-build
@@ -91,67 +92,101 @@ x-lightdash-base: &lightdash-base
         <<: *lightdash-environment
 
 services:
-    lightdash-dev:
-        <<: *lightdash-base
-        environment:
-            <<: *lightdash-environment
-            SCHEDULER_ENABLED: ${SCHEDULER_ENABLED}
-            SCHEDULER_INCLUDE_TASKS: ${SCHEDULER_INCLUDE_TASKS}
-            SCHEDULER_EXCLUDE_TASKS: ${SCHEDULER_EXCLUDE_TASKS}
-            LIGHTDASH_PROMETHEUS_PORT: ${LIGHTDASH_PROMETHEUS_PORT}
-            LIGHTDASH_PROMETHEUS_PATH: ${LIGHTDASH_PROMETHEUS_PATH}
-        ports:
-            - '8080:8080'
-            - '9090:9090'
-            - '3000:3000'
-            - '6006:6006'
-            - '9229:9229'
-        command: ['pnpm', 'dev']
+  gitea:
+    image: gitea/gitea:latest
+    container_name: gitea
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+      - GITEA__database__DB_TYPE=sqlite3 # 使用 SQLite，无需额外安装数据库，最省资源
+    restart: always
+    volumes:
+      - ./gitea:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - "3030:3000" # Web 访问端口
+      - "222:22"    # SSH 访问端口
 
-    db-dev:
-        image: pgvector/pgvector:pg16
-        restart: always
-        environment:
-            POSTGRES_PASSWORD: password
-        ports:
-            - '5432:5432'
+  metricflow-service:
+    build:
+      context: ../packages/metricflow-service
+      dockerfile: Dockerfile
+    restart: always
+    depends_on:
+      - gitea
+    ports:
+      - '8070:8069'
+    environment:
+      ENVIRONMENTS_CONFIG: /opt/config/env.yml
+      DBT_HOST: ${DBT_HOST:-host.docker.internal}
+      DBT_PORT: ${DBT_PORT:-5433}
+    volumes:
+      - ./dev-configs/dbt_repos:/data/mf_repos
+      - ./dev-configs/mf_env.yml:/opt/config/env.yml
+      - ./dev-configs/mf_profile.yml:/root/.dbt/profiles.yml
 
-    ssh-server:
-        image: linuxserver/openssh-server:latest
-        restart: always
-        depends_on:
-            - db-dev
-        environment:
-            - PUID=1000
-            - PGID=1000
-            - TZ=UTC
-            - PUBLIC_KEY=${DEV_SSH_PUBLIC_KEY:-}
-            - USER_NAME=sshuser
-            - SUDO_ACCESS=true
-            - PASSWORD_ACCESS=false
-            - LOG_STDOUT=true
-        ports:
-            - '2222:2222'
-        volumes:
-            - ./dev-configs/sshd_config:/config/sshd/sshd_config
+  lightdash-dev:
+    <<: *lightdash-base
+    environment:
+      <<: *lightdash-environment
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED}
+      SCHEDULER_INCLUDE_TASKS: ${SCHEDULER_INCLUDE_TASKS}
+      SCHEDULER_EXCLUDE_TASKS: ${SCHEDULER_EXCLUDE_TASKS}
+      LIGHTDASH_PROMETHEUS_PORT: ${LIGHTDASH_PROMETHEUS_PORT}
+      LIGHTDASH_PROMETHEUS_PATH: ${LIGHTDASH_PROMETHEUS_PATH}
+    ports:
+      - '8080:8080'
+      - '9090:9090'
+      - '3000:3000'
+      - '6006:6006'
+      - '9229:9229'
+    command: ['pnpm', 'dev']
 
-    headless-browser:
-        image: ghcr.io/browserless/chromium:v2.24.3
-        restart: always
-        ports:
-            - '3001:3000'
+  db-dev:
+    image: pgvector/pgvector:pg16
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: password
+    ports:
+      - '5432:5432'
 
-    prometheus:
-        image: prom/prometheus:latest
-        restart: always
-        ports:
-            - '9091:9090'
-        volumes:
-            - ./dev-configs/prometheus.dev.yml:/etc/prometheus/prometheus.yml
-        command:
-            - '--config.file=/etc/prometheus/prometheus.yml'
-            - '--storage.tsdb.path=/prometheus'
-            - '--web.console.libraries=/etc/prometheus/console_libraries'
-            - '--web.console.templates=/etc/prometheus/consoles'
-            - '--storage.tsdb.retention.time=200h'
-            - '--web.enable-lifecycle'
+  ssh-server:
+    image: linuxserver/openssh-server:latest
+    restart: always
+    depends_on:
+      - db-dev
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      - PUBLIC_KEY=${DEV_SSH_PUBLIC_KEY:-}
+      - USER_NAME=sshuser
+      - SUDO_ACCESS=true
+      - PASSWORD_ACCESS=false
+      - LOG_STDOUT=true
+    ports:
+      - '2222:2222'
+    volumes:
+      - ./dev-configs/sshd_config:/config/sshd/sshd_config
+
+  headless-browser:
+    image: ghcr.io/browserless/chromium:v2.24.3
+    restart: always
+    ports:
+      - '3001:3000'
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: always
+    ports:
+      - '9091:9090'
+    volumes:
+      - ./dev-configs/prometheus.dev.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'

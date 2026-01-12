@@ -845,6 +845,11 @@ export type LightdashConfig = {
             path: string;
         };
     };
+    metricflow: {
+        baseUrl: string;
+        apiToken?: string;
+        timeoutMs: number;
+    };
     dbtCloud: {
         bearerToken?: string;
         environmentId?: string;
@@ -1577,6 +1582,16 @@ export const parseConfig = (): LightdashConfig => {
                       path: process.env.RESULTS_LOCAL_PATH,
                   }
                 : undefined,
+        },
+        metricflow: {
+            baseUrl:
+                process.env.METRICFLOW_BASE_URL ||
+                'http://metricflow-service:8069',
+            apiToken: process.env.METRICFLOW_TOKEN,
+            timeoutMs: parseInt(
+                process.env.METRICFLOW_TIMEOUT_MS || '30000',
+                10,
+            ),
         },
         dbtCloud: {
             bearerToken: process.env.DBT_CLOUD_BEARER_TOKEN,

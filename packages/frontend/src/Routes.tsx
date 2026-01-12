@@ -9,6 +9,7 @@ import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
 import { MetricCatalogView } from './features/metricsCatalog/types';
+import AttributionDashboard from './pages/AttributionDashboard';
 import AuthPopupResult from './pages/AuthPopupResult';
 import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
@@ -20,6 +21,7 @@ import Home from './pages/Home';
 import Invite from './pages/Invite';
 import JoinOrganization from './pages/JoinOrganization';
 import LegacySqlRunner from './pages/LegacySqlRunner';
+import LineageDemo from './pages/LineageDemo';
 import Login from './pages/Login';
 import MetricFlow from './pages/MetricFlow';
 import MetricsCatalog from './pages/MetricsCatalog';
@@ -41,6 +43,7 @@ import UnusedContent from './pages/UnusedContent';
 import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
 import ViewSqlChart from './pages/ViewSqlChart';
+import YamlEditorDemo from './pages/YamlEditorDemo';
 import { TrackPage } from './providers/Tracking/TrackingProvider';
 import { PageName } from './types/Events';
 
@@ -374,6 +377,41 @@ const APP_ROUTES: RouteObject[] = [
                     ...TABLES_ROUTES,
                     ...SQL_RUNNER_ROUTES,
                     ...METRIC_FLOW_ROUTES,
+                    {
+                        path: '/projects/:projectUuid/attribution-dashboard',
+                        element: (
+                            <>
+                                <NavBar />
+                                <TrackPage
+                                    name={PageName.ATTRIBUTION_DASHBOARD}
+                                >
+                                    <AttributionDashboard />
+                                </TrackPage>
+                            </>
+                        ),
+                    },
+                    {
+                        path: '/projects/:projectUuid/lineage-demo',
+                        element: (
+                            <>
+                                <NavBar />
+                                <TrackPage name={PageName.LINEAGE_DEMO}>
+                                    <LineageDemo />
+                                </TrackPage>
+                            </>
+                        ),
+                    },
+                    {
+                        path: '/projects/:projectUuid/yaml-editor-demo',
+                        element: (
+                            <>
+                                <NavBar />
+                                <TrackPage name={PageName.YAML_EDITOR_DEMO}>
+                                    <YamlEditorDemo />
+                                </TrackPage>
+                            </>
+                        ),
+                    },
                     ...CHART_ROUTES,
                     ...DASHBOARD_ROUTES,
                     ...SPACES_ROUTES,

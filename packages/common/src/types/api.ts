@@ -210,6 +210,10 @@ export type UpdateProjectMember = {
 
 export type UpdateMetadata = {
     upstreamProjectUuid?: string | null; // null means we unset this value
+    metricFlow?: {
+        projectId?: string | null;
+        apiToken?: string | null;
+    };
 };
 export type ApiCompiledQueryResults = {
     query: string;

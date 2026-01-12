@@ -4,6 +4,7 @@ import {
     type CreateProject,
     type MostPopularAndRecentlyUpdated,
     type Project,
+    type UpdateMetadata,
     type UpdateProject,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
@@ -49,6 +50,13 @@ const updateProjectSchedulerSettings = async (
         body: JSON.stringify(data),
     });
 
+const updateProjectMetadata = async (uuid: string, data: UpdateMetadata) =>
+    lightdashApi<undefined>({
+        url: `/projects/${uuid}/metadata`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
 export const useProject = (
     id: string | undefined,
     options?: UseQueryOptions<Project, ApiError>,
@@ -86,6 +94,27 @@ export const useUpdateMutation = (uuid: string) => {
             onError: ({ error }) => {
                 showToastApiError({
                     title: `Failed to update project`,
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
+export const useUpdateMetadataMutation = (uuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<undefined, ApiError, UpdateMetadata>(
+        (data) => updateProjectMetadata(uuid, data),
+        {
+            mutationKey: ['project_metadata_update', uuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['project', uuid]);
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to update project metadata`,
                     apiError: error,
                 });
             },

@@ -33,12 +33,45 @@ const mapFilterRuleTarget = (
 ): FilterRule => {
     const field = itemsMap[rule.target.fieldId];
     if (!field || !isDimension(field)) return rule;
+
+    const normalizeTimeValue = (value: unknown) => {
+        if (value === null || value === undefined) return value;
+        if (value instanceof Date && !Number.isNaN(value.valueOf())) {
+            return value.toISOString().slice(0, 10);
+        }
+        const asString = String(value);
+
+        const parsed = new Date(asString);
+        if (!Number.isNaN(parsed.valueOf())) {
+            return parsed.toISOString().slice(0, 10);
+        }
+
+        if (field.timeInterval) {
+            if (/^\\d{4}$/.test(asString)) {
+                return `${asString}-01-01`;
+            }
+            if (/^\\d{4}-\\d{2}$/.test(asString)) {
+                return `${asString}-01`;
+            }
+            const quarter = asString.match(/^(\\d{4})-Q([1-4])$/);
+            if (quarter) {
+                const year = quarter[1];
+                const startMonth = String(
+                    (Number(quarter[2]) - 1) * 3 + 1,
+                ).padStart(2, '0');
+                return `${year}-${startMonth}-01`;
+            }
+        }
+        return value;
+    };
+
     return {
         ...rule,
         target: {
             ...rule.target,
             fieldId: field.name,
         },
+        values: rule.values?.map(normalizeTimeValue),
     };
 };
 

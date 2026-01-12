@@ -29,6 +29,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import Page from '../components/common/Page/Page';
+import semanticGraphRaw from '../data/semantic_graph_income000001.txt?raw';
 import classes from './LineageDemo.module.css';
 
 const AMBER = '#f59e0b';
@@ -71,6 +72,187 @@ type MetricNodeData = {
     filters?: LineageCondition;
     highlightedFields: Set<string>;
     onSelect: (fieldId: string) => void;
+};
+
+type GraphNodeData = {
+    label: string;
+    kind: string;
+    accent: string;
+    isTarget?: boolean;
+    category?: 'model' | 'dimension' | 'measure' | 'metric';
+};
+
+type LineageNodeData = TableNodeData | MetricNodeData | GraphNodeData;
+
+const LINEAGE_TARGET = 'income011';
+const LINEAGE_MAX_DEPTH = 4;
+
+const NODE_ACCENT_MAP: Record<string, string> = {
+    JoinedModel: '#0ea5e9',
+    LocalModel: '#14b8a6',
+    BaseMetric: '#f97316',
+    DerivedMetric: '#f59e0b',
+    Measure: '#6366f1',
+    Dimension: '#94a3b8',
+    KeyAttribute: '#64748b',
+    TimeDimension: '#22c55e',
+    TimeAttribute: '#16a34a',
+    MetricTime: '#10b981',
+    TimeEntity: '#10b981',
+};
+
+const parseNodeLabel = (rawLabel: string) => {
+    const match = /^([A-Za-z0-9_]+)\(([^)]+)\)$/.exec(rawLabel);
+    if (!match) {
+        return { kind: rawLabel, label: rawLabel };
+    }
+    return { kind: match[1], label: match[2] };
+};
+
+const extractSection = (raw: string, startToken: string, endToken: string) => {
+    const startIndex = raw.indexOf(startToken);
+    if (startIndex === -1) return '';
+    const endIndex = raw.indexOf(endToken, startIndex + startToken.length);
+    if (endIndex === -1) return '';
+    return raw.slice(startIndex + startToken.length, endIndex);
+};
+
+const parseNodes = (raw: string) => {
+    const section = extractSection(raw, 'nodes={', '},\n  edges=');
+    if (!section) return [];
+    return section
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => line.replace(/,$/, ''));
+};
+
+const parseEdges = (raw: string) => {
+    const section = extractSection(raw, 'edges={', '},\n)');
+    if (!section) return [];
+    const edges: Array<{ source: string; target: string }> = [];
+    const edgeRegex = /tail_node=([^,]+),\s*head_node=([^,]+),/g;
+    let match: RegExpExecArray | null = edgeRegex.exec(section);
+    while (match) {
+        edges.push({
+            source: match[1].trim(),
+            target: match[2].trim(),
+        });
+        match = edgeRegex.exec(section);
+    }
+    return edges;
+};
+
+const categorizeKind = (kind: string): GraphNodeData['category'] => {
+    if (kind === 'JoinedModel' || kind === 'LocalModel') return 'model';
+    if (
+        kind === 'Dimension' ||
+        kind === 'KeyAttribute' ||
+        kind === 'TimeDimension' ||
+        kind === 'TimeAttribute' ||
+        kind === 'TimeEntity' ||
+        kind === 'MetricTime'
+    )
+        return 'dimension';
+    if (kind === 'Measure') return 'measure';
+    if (kind === 'BaseMetric' || kind === 'DerivedMetric') return 'metric';
+    return 'dimension';
+};
+
+const buildSubgraph = (
+    nodes: string[],
+    edges: Array<{ source: string; target: string }>,
+    targetMetric: string,
+    maxDepth: number,
+) => {
+    const nodeSet = new Set(nodes);
+
+    const targetCandidates = nodes.filter((node) =>
+        node.includes(`(${targetMetric})`),
+    );
+    const targetNode =
+        targetCandidates.find((node) => node.startsWith('BaseMetric')) ||
+        targetCandidates[0];
+    if (!targetNode) return null;
+
+    type QueueItem = { id: string; depth: number };
+    const visited = new Set<string>([targetNode]);
+    const queue: QueueItem[] = [{ id: targetNode, depth: 0 }];
+
+    const forwardEdges = edges.filter(
+        (edge) => nodeSet.has(edge.source) && nodeSet.has(edge.target),
+    );
+
+    while (queue.length) {
+        const current = queue.shift();
+        if (!current || current.depth >= maxDepth) continue;
+        const nextDepth = current.depth + 1;
+
+        forwardEdges.forEach((edge) => {
+            // 上游 -> 目标：tail_node = upstream
+            if (edge.target === current.id && !visited.has(edge.source)) {
+                visited.add(edge.source);
+                queue.push({ id: edge.source, depth: nextDepth });
+            }
+            // 目标 -> 下游：tail_node = current
+            if (edge.source === current.id && !visited.has(edge.target)) {
+                visited.add(edge.target);
+                queue.push({ id: edge.target, depth: nextDepth });
+            }
+        });
+    }
+
+    const columns: Record<NonNullable<GraphNodeData['category']>, string[]> = {
+        model: [],
+        dimension: [],
+        measure: [],
+        metric: [],
+    };
+
+    Array.from(visited).forEach((nodeId) => {
+        const { kind } = parseNodeLabel(nodeId);
+        const category = categorizeKind(kind) ?? 'dimension';
+        columns[category].push(nodeId);
+    });
+
+    (Object.values(columns) as string[][]).forEach((group) => group.sort());
+
+    const columnOrder: Array<GraphNodeData['category']> = [
+        'model',
+        'dimension',
+        'measure',
+        'metric',
+    ];
+
+    const graphNodes: Array<Node<GraphNodeData>> = [];
+    columnOrder.forEach((category, columnIndex) => {
+        const group = columns[category];
+        group.forEach((nodeId, rowIndex) => {
+            const { kind, label } = parseNodeLabel(nodeId);
+            graphNodes.push({
+                id: nodeId,
+                type: 'graphNode',
+                position: { x: columnIndex * 360, y: rowIndex * 140 },
+                data: {
+                    kind,
+                    label,
+                    accent: NODE_ACCENT_MAP[kind] ?? '#64748b',
+                    isTarget: nodeId === targetNode,
+                    category,
+                },
+            });
+        });
+    });
+
+    const graphEdges: Edge[] = forwardEdges
+        .filter((edge) => visited.has(edge.source) && visited.has(edge.target))
+        .map((edge, index) => ({
+            id: `graph-edge-${index}`,
+            source: edge.source,
+            target: edge.target,
+        }));
+
+    return { nodes: graphNodes, edges: graphEdges };
 };
 
 const findDeepLineage = (fieldId: string, edges: Edge[]) => {
@@ -316,6 +498,43 @@ const MetricNode: FC<NodeProps<MetricNodeData>> = ({ id, data }) => {
                 </Stack>
             </Popover.Dropdown>
         </Popover>
+    );
+};
+
+const GraphNode: FC<NodeProps<GraphNodeData>> = ({ data }) => {
+    return (
+        <Paper
+            radius="sm"
+            withBorder
+            className="lineage-node-paper"
+            style={{
+                minWidth: 200,
+                borderColor: data.isTarget ? AMBER : '#e2e8f0',
+            }}
+        >
+            <Handle
+                type="target"
+                position={Position.Left}
+                className="react-flow__handle-custom"
+            />
+            <Box
+                px="sm"
+                py={6}
+                style={{ background: data.accent, color: '#fff' }}
+            >
+                <Text size="xs" fw={700}>
+                    {data.label}
+                </Text>
+                <Text fz={10} sx={{ opacity: 0.85 }}>
+                    {data.kind}
+                </Text>
+            </Box>
+            <Handle
+                type="source"
+                position={Position.Right}
+                className="react-flow__handle-custom"
+            />
+        </Paper>
     );
 };
 
@@ -946,9 +1165,20 @@ const INITIAL_EDGES: Edge[] = [
     },
 ];
 
+const PARSED_GRAPH = buildSubgraph(
+    parseNodes(semanticGraphRaw),
+    parseEdges(semanticGraphRaw),
+    LINEAGE_TARGET,
+    LINEAGE_MAX_DEPTH,
+);
+const GRAPH_NODES = (PARSED_GRAPH?.nodes ?? INITIAL_NODES) as Array<
+    Node<LineageNodeData>
+>;
+const GRAPH_EDGES = PARSED_GRAPH?.edges ?? INITIAL_EDGES;
+
 const LineageDemo: FC = () => {
-    const [nodes, , onNodesChange] = useNodesState(INITIAL_NODES);
-    const [edges, , onEdgesChange] = useEdgesState(INITIAL_EDGES);
+    const [nodes, , onNodesChange] = useNodesState(GRAPH_NODES);
+    const [edges, , onEdgesChange] = useEdgesState(GRAPH_EDGES);
     const [active, setActive] = useState(() => ({
         eIds: new Set<string>(),
         fIds: new Set<string>(),
@@ -989,14 +1219,19 @@ const LineageDemo: FC = () => {
     }, [active.eIds, edges]);
 
     const styledNodes = useMemo(() => {
-        return nodes.map((node) => ({
-            ...node,
-            data: {
-                ...node.data,
-                highlightedFields: active.fIds,
-                onSelect: handleSelect,
-            },
-        }));
+        return nodes.map((node) => {
+            if ('highlightedFields' in node.data) {
+                return {
+                    ...node,
+                    data: {
+                        ...node.data,
+                        highlightedFields: active.fIds,
+                        onSelect: handleSelect,
+                    },
+                };
+            }
+            return node;
+        });
     }, [active.fIds, handleSelect, nodes]);
 
     return (
@@ -1005,14 +1240,14 @@ const LineageDemo: FC = () => {
                 <Box px="lg" pt="lg" pb="sm">
                     <Group position="apart" align="center">
                         <Stack spacing={2}>
-                            <Title order={3}>Lineage Pro Demo</Title>
+                            <Title order={3}>指标血缘子图</Title>
                             <Text size="sm" c="ldGray.6">
-                                Click a field to trace upstream and downstream
-                                lineage.
+                                当前聚焦：{LINEAGE_TARGET}，展示上下游{' '}
+                                {LINEAGE_MAX_DEPTH} 层关系。
                             </Text>
                         </Stack>
                         <Badge variant="light" color="orange">
-                            Preview
+                            income000001
                         </Badge>
                     </Group>
                 </Box>
@@ -1024,6 +1259,7 @@ const LineageDemo: FC = () => {
                         nodeTypes={{
                             tableNode: TableNode,
                             metricNode: MetricNode,
+                            graphNode: GraphNode,
                         }}
                         onNodesChange={onNodesChange}
                         onEdgesChange={onEdgesChange}

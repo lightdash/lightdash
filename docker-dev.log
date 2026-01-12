@@ -1,0 +1,1029 @@
+
+> lightdash@0.2269.2 dev /usr/app
+> pnpm -r --stream --parallel -F common -F warehouses -F backend -F frontend run dev
+
+Scope: 4 of 11 workspace projects
+packages/backend dev$ LIGHTDASH_MODE=development HEADLESS=true tsx watch --clear-screen=false --inspect=0.0.0.0:9229 src/index.ts
+packages/common dev$ tsc --build --watch --preserveWatchOutput --incremental ./tsconfig.build.json
+packages/frontend dev$ vite
+packages/warehouses dev$ pnpm run copy-files && tsc --build --watch --preserveWatchOutput tsconfig.json
+packages/backend dev: Debugger listening on ws://0.0.0.0:9229/f4a2e944-a0b0-4aa4-9d34-99405fde6e6f
+packages/backend dev: For help, see: https://nodejs.org/en/docs/inspector
+packages/common dev: 6:32:25 AM - Starting compilation in watch mode...
+packages/warehouses dev: > @lightdash/warehouses@0.2269.2 copy-files /usr/app/packages/warehouses
+packages/warehouses dev: > copyfiles -u 1 src/warehouseClients/ca-bundle-aws-redshift.crt src/warehouseClients/ca-bundle-aws-rds-global.pem dist/
+packages/common dev: 6:32:25 AM - Found 0 errors. Watching for file changes.
+packages/frontend dev:   VITE v7.1.10  ready in 378 ms
+packages/frontend dev:   ➜  Local:   http://localhost:3000/
+packages/frontend dev:   ➜  Network: http://172.19.0.6:3000/
+packages/warehouses dev: 6:32:25 AM - Starting compilation in watch mode...
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [32minfo[39m: [32mStarting Lightdash server...[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [33mwarn[39m: [33mMissing "SLACK_CLIENT_ID", Slack App will not run[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [37mdebug[39m: [37mUsing S3 storage with access key credentials[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [37mdebug[39m: [37mUsing S3 storage with access key credentials[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [37mdebug[39m: [37mInitialized S3 results cache client[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [37mdebug[39m: [37mUsing S3 storage with access key credentials[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [37mdebug[39m: [37mInitialized S3 results cache client[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [37mdebug[39m: [37mNo instance configuration service found: Unable to initialize service 'instanceConfigurationService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [31merror[39m: [31mError starting slack bot Slack app not found[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [32minfo[39m: [32mPrometheus metrics available at localhost:9090/metrics[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [32minfo[39m: [32mRunning scheduler[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [37mdebug[39m: [37mWorker pool options are {[39m
+packages/backend dev: [37m  connectionString: '',[39m
+packages/backend dev: [37m  logger: Logger {[39m
+packages/backend dev: [37m    _scope: {},[39m
+packages/backend dev: [37m    _logFactory: [Function (anonymous)],[39m
+packages/backend dev: [37m    log: [Function (anonymous)][39m
+packages/backend dev: [37m  },[39m
+packages/backend dev: [37m  concurrency: 3,[39m
+packages/backend dev: [37m  noHandleSignals: true,[39m
+packages/backend dev: [37m  pollInterval: 1000,[39m
+packages/backend dev: [37m  maxPoolSize: 10,[39m
+packages/backend dev: [37m  parsedCronItems: [[39m
+packages/backend dev: [37m    {[39m
+packages/backend dev: [37m      minutes: [Array],[39m
+packages/backend dev: [37m      hours: [Array],[39m
+packages/backend dev: [37m      dates: [Array],[39m
+packages/backend dev: [37m      months: [Array],[39m
+packages/backend dev: [37m      dows: [Array],[39m
+packages/backend dev: [37m      task: 'generateDailyJobs',[39m
+packages/backend dev: [37m      options: [Object],[39m
+packages/backend dev: [37m      payload: {},[39m
+packages/backend dev: [37m      identifier: 'generateDailyJobs'[39m
+packages/backend dev: [37m    },[39m
+packages/backend dev: [37m    {[39m
+packages/backend dev: [37m      minutes: [Array],[39m
+packages/backend dev: [37m      hours: [Array],[39m
+packages/backend dev: [37m      dates: [Array],[39m
+packages/backend dev: [37m      months: [Array],[39m
+packages/backend dev: [37m      dows: [Array],[39m
+packages/backend dev: [37m      task: 'cleanQueryHistory',[39m
+packages/backend dev: [37m      options: [Object],[39m
+packages/backend dev: [37m      payload: {},[39m
+packages/backend dev: [37m      identifier: 'cleanQueryHistory'[39m
+packages/backend dev: [37m    },[39m
+packages/backend dev: [37m    {[39m
+packages/backend dev: [37m      minutes: [Array],[39m
+packages/backend dev: [37m      hours: [Array],[39m
+packages/backend dev: [37m      dates: [Array],[39m
+packages/backend dev: [37m      months: [Array],[39m
+packages/backend dev: [37m      dows: [Array],[39m
+packages/backend dev: [37m      task: 'generateSlackChannelSyncJobs',[39m
+packages/backend dev: [37m      options: [Object],[39m
+packages/backend dev: [37m      payload: {},[39m
+packages/backend dev: [37m      identifier: 'generateSlackChannelSyncJobs'[39m
+packages/backend dev: [37m    }[39m
+packages/backend dev: [37m  ],[39m
+packages/backend dev: [37m  taskList: {[39m
+packages/backend dev: [37m    generateDailyJobs: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    handleScheduledDelivery: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    sendSlackNotification: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    sendMsTeamsNotification: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    sendEmailNotification: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    sendSlackBatchNotification: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    sendEmailBatchNotification: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    sendMsTeamsBatchNotification: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    uploadGsheets: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    downloadCsv: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    uploadGsheetFromQuery: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    createProjectWithCompile: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    compileProject: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    testAndCompileProject: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    validateProject: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    sqlRunner: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    sqlRunnerPivotQuery: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    indexCatalog: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    replaceCustomFields: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    exportCsvDashboard: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    renameResources: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    cleanQueryHistory: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    downloadAsyncQueryResults: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    syncSlackChannels: [AsyncFunction: tracedTask],[39m
+packages/backend dev: [37m    generateSlackChannelSyncJobs: [AsyncFunction: tracedTask][39m
+packages/backend dev: [37m  },[39m
+packages/backend dev: [37m  events: EventEmitterWithExecutionContent {[39m
+packages/backend dev: [37m    _events: [Object: null prototype] {[39m
+packages/backend dev: [37m      'worker:create': [Function (anonymous)],[39m
+packages/backend dev: [37m      'worker:stop': [Function (anonymous)],[39m
+packages/backend dev: [37m      'worker:fatalError': [Function (anonymous)],[39m
+packages/backend dev: [37m      'job:start': [Function (anonymous)],[39m
+packages/backend dev: [37m      'job:success': [Function (anonymous)],[39m
+packages/backend dev: [37m      'job:error': [Function (anonymous)],[39m
+packages/backend dev: [37m      'job:failed': [Function (anonymous)],[39m
+packages/backend dev: [37m      'job:complete': [Function (anonymous)][39m
+packages/backend dev: [37m    },[39m
+packages/backend dev: [37m    _eventsCount: 8,[39m
+packages/backend dev: [37m    _maxListeners: undefined,[39m
+packages/backend dev: [37m    [Symbol(shapeMode)]: false,[39m
+packages/backend dev: [37m    [Symbol(kCapture)]: false[39m
+packages/backend dev: [37m  }[39m
+packages/backend dev: [37m}[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [32minfo[39m: [32mWorker worker-93602165df62c43dd2 was created[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [37mdebug[39m: [37mSpawned[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [32minfo[39m: [32mWorker worker-558e1458808d4c4781 was created[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [37mdebug[39m: [37mSpawned[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [32minfo[39m: [32mWorker worker-40d5cfc7a81b2f19bb was created[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [37mdebug[39m: [37mSpawned[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [37mdebug[39m: [37mWorker connected and looking for jobs... (task names: 'generateDailyJobs', 'handleScheduledDelivery', 'sendSlackNotification', 'sendMsTeamsNotification', 'sendEmailNotification', 'sendSlackBatchNotification', 'sendEmailBatchNotification', 'sendMsTeamsBatchNotification', 'uploadGsheets', 'downloadCsv', 'uploadGsheetFromQuery', 'createProjectWithCompile', 'compileProject', 'testAndCompileProject', 'validateProject', 'sqlRunner', 'sqlRunnerPivotQuery', 'indexCatalog', 'replaceCustomFields', 'exportCsvDashboard', 'renameResources', 'cleanQueryHistory', 'downloadAsyncQueryResults', 'syncSlackChannels', 'generateSlackChannelSyncJobs')[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash][Job:65] [32minfo[39m: [32mWorker worker-93602165df62c43dd2 started job 65 (generateSlackChannelSyncJobs). Attempt 1 of 3[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [37mdebug[39m: [37mFound task 65 (generateSlackChannelSyncJobs)[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash][Job:65] [32minfo[39m: [32mSkipping Slack channel sync generation: Slack is not configured[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash][Job:65] [32minfo[39m: [32mWorker worker-93602165df62c43dd2 successfully executed job 65 (generateSlackChannelSyncJobs)[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash] [37mdebug[39m: [37mCompleted task 65 (generateSlackChannelSyncJobs) with success (5.59ms)[39m
+packages/backend dev: 2026-01-10 06:32:32 [Lightdash][Job:65] [32minfo[39m: [32mWorker worker-93602165df62c43dd2 concluded job 65 (generateSlackChannelSyncJobs)[39m
+packages/warehouses dev: 6:32:33 AM - Found 0 errors. Watching for file changes.
+packages/frontend dev: [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+packages/backend dev: 2026-01-10 06:32:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 8 ms[39m
+packages/backend dev: 2026-01-10 06:32:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 46 ms[39m
+packages/backend dev: 2026-01-10 06:32:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:32:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 11 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 7 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 35 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 4 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 26 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 12 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org/onboardingStatus 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 9 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org/onboardingStatus 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/pinned-lists/18cb0b06-36b8-47ff-84d8-96baefc6b6b9/items 304 - 38 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/most-popular-and-recently-updated 304 - 42 ms[39m
+packages/backend dev: 2026-01-10 06:32:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/spaces 304 - 13 ms[39m
+packages/backend dev: 2026-01-10 06:32:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:32:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 16 ms[39m
+packages/backend dev: 2026-01-10 06:32:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:32:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:32:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:32:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 06:32:56 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 06:32:56 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 06:32:56 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:32:56 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 06:32:56 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 06:32:56 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:32:56 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 06:32:56 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:32:56 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 6 ms[39m
+packages/backend dev: 2026-01-10 06:32:56 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 6 ms[39m
+packages/backend dev: 2026-01-10 06:32:56 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:32:56 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:32:56 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 06:34:00 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired 0.001s too early (clock skew?); rescheduling[39m
+packages/backend dev: 2026-01-10 06:35:56 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 5 ms[39m
+packages/frontend dev: 6:44:54 AM [vite] (client) hmr update /src/pages/AttributionDashboard.tsx
+packages/frontend dev: 6:45:34 AM [vite] (client) hmr update /src/pages/AttributionDashboard.tsx
+packages/backend dev: 2026-01-10 06:46:20 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:46:20 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 16 ms[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 6 ms[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 20 ms[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:46:21 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:49:11 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:49:11 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 11 ms[39m
+packages/backend dev: 2026-01-10 06:49:11 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:49:11 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:49:11 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 14 ms[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 7 ms[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:52:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 3 ms[39m
+packages/frontend dev: 6:53:35 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 6:53:47 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 6:53:58 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 6:55:01 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 6 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 10 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 7 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 12 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 11 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 17 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 7 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 11 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 7 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 9 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 20 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 8 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 11 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 14 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 13 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 20 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 13 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 35 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 6 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 18 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 13 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 24 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 12 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 6 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 7 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 12 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 7 ms[39m
+packages/backend dev: 2026-01-10 06:55:02 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 2 ms[39m
+packages/frontend dev: 6:55:24 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 07:05:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:05:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 16 ms[39m
+packages/backend dev: 2026-01-10 07:05:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:05:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 10 ms[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 15 ms[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:05:54 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 5 ms[39m
+packages/frontend dev: 7:07:28 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:07:36 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 07:08:54 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 11 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 6 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:10:10 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 4 ms[39m
+packages/frontend dev: 7:11:06 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 07:11:26 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:11:26 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 17 ms[39m
+packages/backend dev: 2026-01-10 07:11:26 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:11:26 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:11:26 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 6 ms[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 17 ms[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 8 ms[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:11:27 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:14:27 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 3 ms[39m
+packages/frontend dev: 7:14:42 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:14:58 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 07:14:58 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 07:14:58 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 3 ms[39m
+packages/frontend dev: 7:15:24 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 17 ms[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 7 ms[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 8 ms[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 12 ms[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:15:47 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:18:48 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 12 ms[39m
+packages/frontend dev: 7:20:30 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:20:30 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 07:20:31 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 7 ms[39m
+packages/backend dev: 2026-01-10 07:20:31 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 16 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 22 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 7 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 8 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 13 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:20:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:23:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:26:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 1 ms[39m
+packages/frontend dev: 7:27:46 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:28:15 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:28:34 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:29:03 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:29:23 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:29:49 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 07:29:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 07:30:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:30:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 21 ms[39m
+packages/backend dev: 2026-01-10 07:30:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:30:52 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 8 ms[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 12 ms[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:30:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 3 ms[39m
+packages/frontend dev: 7:32:11 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:32:11 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 07:32:16 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:32:16 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 11 ms[39m
+packages/backend dev: 2026-01-10 07:32:16 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:32:16 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 16 ms[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 11 ms[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:32:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 3 ms[39m
+packages/frontend dev: 7:33:55 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 07:35:05 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:35:05 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 15 ms[39m
+packages/backend dev: 2026-01-10 07:35:05 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:35:05 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:35:05 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:35:05 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 8 ms[39m
+packages/backend dev: 2026-01-10 07:35:06 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 07:35:06 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:35:06 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:35:06 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 07:35:06 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:35:06 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:35:06 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 07:35:06 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:35:06 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 6 ms[39m
+packages/backend dev: 2026-01-10 07:35:06 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:35:06 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 17 ms[39m
+packages/backend dev: 2026-01-10 07:35:06 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:35:06 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 4 ms[39m
+packages/frontend dev: 7:36:05 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:36:07 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 19 ms[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 6 ms[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 21 ms[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 7 ms[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:36:14 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:39:15 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 4 ms[39m
+packages/frontend dev: 7:41:10 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 07:42:15 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:43:16 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:43:16 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 15 ms[39m
+packages/backend dev: 2026-01-10 07:43:16 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:43:16 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:43:16 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:43:16 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:43:17 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 07:43:17 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:43:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:43:17 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 07:43:17 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:43:17 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:43:17 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 07:43:17 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:43:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 13 ms[39m
+packages/backend dev: 2026-01-10 07:43:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 23 ms[39m
+packages/backend dev: 2026-01-10 07:43:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:43:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:43:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 10 ms[39m
+packages/backend dev: 2026-01-10 07:46:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:49:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 3 ms[39m
+packages/frontend dev: 7:51:52 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 07:52:17 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 2 ms[39m
+packages/frontend dev: 7:52:21 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:52:57 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:53:17 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:53:45 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:54:24 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/frontend dev: 7:54:41 AM [vite] (client) hmr update /src/pages/LineageDemo.tsx
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 17 ms[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 12 ms[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 9 ms[39m
+packages/backend dev: 2026-01-10 07:54:55 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 07:55:30 [Lightdash] [35mhttp[39m: [35mGET /api/v1/oauth/.well-known/appspecific/com.chrome.devtools.json 404 - 6 ms[39m
+packages/backend dev: 2026-01-10 07:55:32 [Lightdash] [35mhttp[39m: [35mGET /api/v1/oauth/.well-known/appspecific/com.chrome.devtools.json 404 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:55:34 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:55:34 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 34 ms[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 3 ms[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 1 ms[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 9 ms[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 10 ms[39m
+packages/backend dev: 2026-01-10 07:55:35 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 6 ms[39m
+packages/backend dev: 2026-01-10 08:48:53 [Lightdash] [35mhttp[39m: [35mGET /api/v1/oauth/.well-known/appspecific/com.chrome.devtools.json 404 - 11 ms[39m
+packages/backend dev: 2026-01-10 08:48:57 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 3 ms[39m
+packages/backend dev: 2026-01-10 08:48:57 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 45 ms[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 3 ms[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 8 ms[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 1 ms[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 0 ms[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 9 ms[39m
+packages/backend dev: 2026-01-10 08:48:58 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 4 ms[39m
+packages/backend dev: 2026-01-10 08:49:07 [Lightdash] [35mhttp[39m: [35mGET /api/v1/oauth/.well-known/appspecific/com.chrome.devtools.json 404 - 2 ms[39m
+packages/backend dev: 2026-01-10 08:49:11 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/account 200 - 1 ms[39m
+packages/backend dev: 2026-01-10 08:49:11 [Lightdash] [35mhttp[39m: [35mGET /api/v1/health 304 - 18 ms[39m
+packages/backend dev: 2026-01-10 08:49:11 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/me/email/status 304 - 2 ms[39m
+packages/backend dev: 2026-01-10 08:49:11 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 08:49:11 [Lightdash] [35mhttp[39m: [35mGET /api/v1/org 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 08:49:11 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 08:49:12 [Lightdash] [31merror[39m: [31mHandled error of type MissingConfigError on [GET] /api/v1/aiAgents/admin/settings Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: 2026-01-10 08:49:12 [Lightdash] [31merror[39m: [31mMissingConfigError: Unable to initialize service 'aiOrganizationSettingsService' - no factory or provider.[39m
+packages/backend dev: [31m    at ServiceRepository.getService (/usr/app/packages/backend/src/services/ServiceRepository.ts:1095:23)[39m
+packages/backend dev: [31m    at ServiceRepository.getAiOrganizationSettingsService (/usr/app/packages/backend/src/services/ServiceRepository.ts:954:21)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getAiOrganizationSettingsService (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:189:30)[39m
+packages/backend dev: [31m    at AiAgentAdminController.getSettings (/usr/app/packages/backend/src/ee/controllers/AiAgentAdminController.ts:148:24)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at AiAgentAdminController_getSettings (/usr/app/packages/backend/src/generated/routes.ts:29909:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 08:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/aiAgents/admin/settings 422 - 4 ms[39m
+packages/backend dev: 2026-01-10 08:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/dataCatalog/metrics/has 304 - 9 ms[39m
+packages/backend dev: 2026-01-10 08:49:12 [Lightdash] [31merror[39m: [31mHandled error of type NotFoundError on [GET] /api/v2/feature-flag/ai-copilot Feature flag ai-copilot not found[39m
+packages/backend dev: 2026-01-10 08:49:12 [Lightdash] [31merror[39m: [31mNotFoundError: Feature flag ai-copilot not found[39m
+packages/backend dev: [31m    at FeatureFlagModel.get (/usr/app/packages/backend/src/models/FeatureFlagModel/FeatureFlagModel.ts:57:15)[39m
+packages/backend dev: [31m    at FeatureFlagService.get (/usr/app/packages/backend/src/services/FeatureFlag/FeatureFlagService.ts:32:38)[39m
+packages/backend dev: [31m    at FeatureFlagController.getFeatureFlag (/usr/app/packages/backend/src/controllers/v2/FeatureFlagController.ts:35:66)[39m
+packages/backend dev: [31m    at ExpressTemplateService.buildPromise (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/templateService.ts:29:69)[39m
+packages/backend dev: [31m    at ExpressTemplateService.apiHandler (/usr/app/node_modules/.pnpm/@tsoa+runtime@6.6.0/node_modules/@tsoa/runtime/src/routeGeneration/templates/express/expressTemplateService.ts:37:31)[39m
+packages/backend dev: [31m    at FeatureFlagController_getFeatureFlag (/usr/app/packages/backend/src/generated/routes.ts:46265:39)[39m
+packages/backend dev: [31m    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)[39m
+packages/backend dev: 2026-01-10 08:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/ai-copilot 404 - 4 ms[39m
+packages/backend dev: 2026-01-10 08:49:12 [Lightdash] [33mwarn[39m: [33mPostHog: client not found, check PostHog related environment variables[39m
+packages/backend dev: 2026-01-10 08:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v2/feature-flag/dashboard-comments-enabled 304 - 1 ms[39m
+packages/backend dev: 2026-01-10 08:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/notifications?type=dashboardComments 304 - 5 ms[39m
+packages/backend dev: 2026-01-10 08:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/user/warehouseCredentials 304 - 3 ms[39m
+packages/backend dev: 2026-01-10 08:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/validate?fromSettings=false& 304 - 23 ms[39m
+packages/backend dev: 2026-01-10 08:49:12 [Lightdash] [35mhttp[39m: [35mGET /api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/user-credentials 304 - 11 ms[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (14m57s behind)[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (13m57s behind)[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (12m57s behind)[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (11m57s behind)[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (10m57s behind)[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (9m57s behind)[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (8m57s behind)[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (7m57s behind)[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (6m57s behind)[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (5m57s behind)[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (4m57s behind)[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (3m57s behind)[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (2m57s behind)[39m
+packages/backend dev: 2026-01-10 09:06:57 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (1m57s behind)[39m
+packages/backend dev: 2026-01-10 09:38:59 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired 0.159s too early (clock skew?); rescheduling[39m
+packages/backend dev: 2026-01-10 09:52:00 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired 0.001s too early (clock skew?); rescheduling[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (14m58s behind)[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (13m58s behind)[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (12m58s behind)[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (11m58s behind)[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (10m58s behind)[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (9m58s behind)[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (8m58s behind)[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (7m58s behind)[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (6m58s behind)[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (5m58s behind)[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (4m58s behind)[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (3m58s behind)[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (2m58s behind)[39m
+packages/backend dev: 2026-01-10 10:24:58 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (1m58s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (15m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (14m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (13m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (12m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (11m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (10m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (9m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (8m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (7m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (6m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (5m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (4m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (3m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (2m25s behind)[39m
+packages/backend dev: 2026-01-10 10:41:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (1m25s behind)[39m
+packages/backend dev: 2026-01-10 10:50:23 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (8m23s behind)[39m
+packages/backend dev: 2026-01-10 10:50:23 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (7m23s behind)[39m
+packages/backend dev: 2026-01-10 10:50:23 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (6m23s behind)[39m
+packages/backend dev: 2026-01-10 10:50:23 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (5m23s behind)[39m
+packages/backend dev: 2026-01-10 10:50:23 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (4m23s behind)[39m
+packages/backend dev: 2026-01-10 10:50:23 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (3m23s behind)[39m
+packages/backend dev: 2026-01-10 10:50:23 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (2m23s behind)[39m
+packages/backend dev: 2026-01-10 10:50:23 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (1m23s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (15m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (14m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (13m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (12m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (11m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (10m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (9m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (8m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (7m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (6m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (5m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (4m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (3m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (2m12s behind)[39m
+packages/backend dev: 2026-01-10 11:06:12 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (1m12s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (15m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (14m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (13m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (12m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (11m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (10m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (9m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (8m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (7m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (6m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (5m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (4m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (3m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (2m25s behind)[39m
+packages/backend dev: 2026-01-10 11:23:25 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (1m25s behind)[39m
+packages/backend dev: 2026-01-10 11:31:11 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (7m11s behind)[39m
+packages/backend dev: 2026-01-10 11:31:11 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (6m11s behind)[39m
+packages/backend dev: 2026-01-10 11:31:11 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (5m11s behind)[39m
+packages/backend dev: 2026-01-10 11:31:11 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (4m11s behind)[39m
+packages/backend dev: 2026-01-10 11:31:11 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (3m11s behind)[39m
+packages/backend dev: 2026-01-10 11:31:11 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (2m11s behind)[39m
+packages/backend dev: 2026-01-10 11:31:11 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired too late; catching up (1m11s behind)[39m
+packages/backend dev: 2026-01-10 11:37:00 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired 0.002s too early (clock skew?); rescheduling[39m
+packages/backend dev: 2026-01-10 11:38:59 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired 0.041s too early (clock skew?); rescheduling[39m
+packages/backend dev: 2026-01-10 11:39:59 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired 0.004s too early (clock skew?); rescheduling[39m
+packages/backend dev: 2026-01-10 11:45:00 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired 0.001s too early (clock skew?); rescheduling[39m
+packages/backend dev: 2026-01-10 12:39:00 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired 0.001s too early (clock skew?); rescheduling[39m
+packages/backend dev: 2026-01-10 15:11:59 [Lightdash] [37mdebug[39m: [37mGraphile Worker Cron fired 0.028s too early (clock skew?); rescheduling[39m

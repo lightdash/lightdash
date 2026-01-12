@@ -1,0 +1,20 @@
+[project]
+name = "metricflow-service"
+version = "0.1.0"
+description = "FastAPI wrapper for MetricFlow semantic layer"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.104.0",
+    "strawberry-graphql>=0.209.0",
+    "uvicorn>=0.24.0",
+    "pyyaml>=6.0.1",
+    "dbt-core==1.10.4",
+    "dbt-metricflow>=0.10.1",
+    "dbt-postgres>=1.9.1",
+    "dbt-duckdb>=1.10.0,<1.11",
+    "psycopg2-binary==2.9.9",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

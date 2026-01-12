@@ -15641,6 +15641,7 @@ const models: TsoaRoute.Models = {
             'dbt_cloud_ide',
             'github',
             'gitlab',
+            'gitea',
             'bitbucket',
             'azure_devops',
             'none',
@@ -15775,6 +15776,34 @@ const models: TsoaRoute.Models = {
         additionalProperties: true,
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'DbtProjectType.GITEA': {
+        dataType: 'refEnum',
+        enums: ['gitea'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DbtGiteaProjectConfig: {
+        dataType: 'refObject',
+        properties: {
+            type: { ref: 'DbtProjectType.GITEA', required: true },
+            target: { dataType: 'string' },
+            environment: {
+                dataType: 'array',
+                array: {
+                    dataType: 'refAlias',
+                    ref: 'DbtProjectEnvironmentVariable',
+                },
+            },
+            selector: { dataType: 'string' },
+            username: { dataType: 'string', required: true },
+            personal_access_token: { dataType: 'string', required: true },
+            repository: { dataType: 'string', required: true },
+            branch: { dataType: 'string', required: true },
+            project_sub_path: { dataType: 'string', required: true },
+            host_domain: { dataType: 'string' },
+        },
+        additionalProperties: true,
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'DbtProjectType.AZURE_DEVOPS': {
         dataType: 'refEnum',
         enums: ['azure_devops'],
@@ -15851,6 +15880,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'DbtGithubProjectConfig' },
                 { ref: 'DbtBitBucketProjectConfig' },
                 { ref: 'DbtGitlabProjectConfig' },
+                { ref: 'DbtGiteaProjectConfig' },
                 { ref: 'DbtAzureDevOpsProjectConfig' },
                 { ref: 'DbtNoneProjectConfig' },
                 { ref: 'DbtManifestProjectConfig' },
@@ -15881,11 +15911,25 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricFlowProjectConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                hasApiToken: { dataType: 'boolean' },
+                apiToken: { dataType: 'string' },
+                projectId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Project: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                metricFlow: { ref: 'MetricFlowProjectConfig' },
                 organizationWarehouseCredentialsUuid: { dataType: 'string' },
                 createdByUserUuid: {
                     dataType: 'union',
@@ -16286,6 +16330,25 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                metricFlow: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        apiToken: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        projectId: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                    },
+                },
                 upstreamProjectUuid: {
                     dataType: 'union',
                     subSchemas: [
@@ -17353,7 +17416,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -17363,7 +17426,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -17373,7 +17436,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -17386,7 +17449,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -19283,6 +19346,13 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 dbtVersion: { ref: 'DbtVersionOption', required: true },
+                metricFlow: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'MetricFlowProjectConfig' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 copyWarehouseConnectionFromUpstreamProject: {
                     dataType: 'union',
                     subSchemas: [
@@ -19795,6 +19865,33 @@ const models: TsoaRoute.Models = {
         enums: ['none', 'previous_period'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricFlowFieldsRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dimensions: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            grain: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'string' },
+                                    { dataType: 'enum', enums: [null] },
+                                ],
+                            },
+                            name: { dataType: 'string', required: true },
+                        },
+                    },
+                },
+                metrics: { dataType: 'array', array: { dataType: 'string' } },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FieldValueSearchResult_string_: {
         dataType: 'refAlias',
         type: {
@@ -19808,6 +19905,78 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 search: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetricFlowQueryRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                limit: { dataType: 'double' },
+                orderBy: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            descending: { dataType: 'boolean' },
+                            groupBy: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    grain: {
+                                        dataType: 'union',
+                                        subSchemas: [
+                                            { dataType: 'string' },
+                                            { dataType: 'enum', enums: [null] },
+                                        ],
+                                    },
+                                    name: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                            metric: {
+                                dataType: 'nestedObjectLiteral',
+                                nestedProperties: {
+                                    name: {
+                                        dataType: 'string',
+                                        required: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                filters: { dataType: 'any' },
+                groupBy: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            grain: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'string' },
+                                    { dataType: 'enum', enums: [null] },
+                                ],
+                            },
+                            name: { dataType: 'string', required: true },
+                        },
+                    },
+                },
+                metrics: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'nestedObjectLiteral',
+                        nestedProperties: {
+                            name: { dataType: 'string', required: true },
+                        },
+                    },
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -40299,7 +40468,7 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsMetricFlowController_post: Record<
+    const argsMetricFlowController_getFields: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
@@ -40314,30 +40483,17 @@ export function RegisterRoutes(app: Router) {
             in: 'body',
             name: 'body',
             required: true,
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                operationName: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'enum', enums: ['GetFields'] },
-                        { dataType: 'enum', enums: ['CreateQuery'] },
-                        { dataType: 'enum', enums: ['GetQueryResults'] },
-                        { dataType: 'enum', enums: ['GetMetricDefinition'] },
-                        { dataType: 'enum', enums: ['GetMetricLineage'] },
-                    ],
-                },
-                query: { dataType: 'string', required: true },
-            },
+            ref: 'MetricFlowFieldsRequest',
         },
     };
     app.post(
-        '/api/v1/projects/:projectUuid/dbtsemanticlayer',
+        '/api/v1/projects/:projectUuid/metricflow/fields',
         ...fetchMiddlewares<RequestHandler>(MetricFlowController),
         ...fetchMiddlewares<RequestHandler>(
-            MetricFlowController.prototype.post,
+            MetricFlowController.prototype.getFields,
         ),
 
-        async function MetricFlowController_post(
+        async function MetricFlowController_getFields(
             request: ExRequest,
             response: ExResponse,
             next: any,
@@ -40347,7 +40503,7 @@ export function RegisterRoutes(app: Router) {
             let validatedArgs: any[] = [];
             try {
                 validatedArgs = templateService.getValidatedArgs({
-                    args: argsMetricFlowController_post,
+                    args: argsMetricFlowController_getFields,
                     request,
                     response,
                 });
@@ -40366,7 +40522,7 @@ export function RegisterRoutes(app: Router) {
                 }
 
                 await templateService.apiHandler({
-                    methodName: 'post',
+                    methodName: 'getFields',
                     controller,
                     response,
                     next,
@@ -40396,6 +40552,8 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                endTime: { dataType: 'string' },
+                startTime: { dataType: 'string' },
                 limit: { dataType: 'double' },
                 search: { dataType: 'string' },
                 metrics: { dataType: 'array', array: { dataType: 'string' } },
@@ -40404,7 +40562,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.post(
-        '/api/v1/projects/:projectUuid/dbtsemanticlayer/dimension-values',
+        '/api/v1/projects/:projectUuid/metricflow/dimension-values',
         ...fetchMiddlewares<RequestHandler>(MetricFlowController),
         ...fetchMiddlewares<RequestHandler>(
             MetricFlowController.prototype.getDimensionValues,
@@ -40471,7 +40629,7 @@ export function RegisterRoutes(app: Router) {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.get(
-        '/api/v1/projects/:projectUuid/dbtsemanticlayer/metrics/:metricName/definition',
+        '/api/v1/projects/:projectUuid/metricflow/metrics/:metricName/definition',
         ...fetchMiddlewares<RequestHandler>(MetricFlowController),
         ...fetchMiddlewares<RequestHandler>(
             MetricFlowController.prototype.getMetricDefinition,
@@ -40538,7 +40696,7 @@ export function RegisterRoutes(app: Router) {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.get(
-        '/api/v1/projects/:projectUuid/dbtsemanticlayer/metrics/:metricName/lineage',
+        '/api/v1/projects/:projectUuid/metricflow/metrics/:metricName/lineage',
         ...fetchMiddlewares<RequestHandler>(MetricFlowController),
         ...fetchMiddlewares<RequestHandler>(
             MetricFlowController.prototype.getMetricLineage,
@@ -40574,6 +40732,207 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getMetricLineage',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsMetricFlowController_createQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'MetricFlowQueryRequest',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/metricflow/queries',
+        ...fetchMiddlewares<RequestHandler>(MetricFlowController),
+        ...fetchMiddlewares<RequestHandler>(
+            MetricFlowController.prototype.createQuery,
+        ),
+
+        async function MetricFlowController_createQuery(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsMetricFlowController_createQuery,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<MetricFlowController>(
+                        MetricFlowController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsMetricFlowController_getQuery: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        queryId: {
+            in: 'path',
+            name: 'queryId',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/metricflow/queries/:queryId',
+        ...fetchMiddlewares<RequestHandler>(MetricFlowController),
+        ...fetchMiddlewares<RequestHandler>(
+            MetricFlowController.prototype.getQuery,
+        ),
+
+        async function MetricFlowController_getQuery(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsMetricFlowController_getQuery,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<MetricFlowController>(
+                        MetricFlowController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsMetricFlowController_compileSql: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'MetricFlowQueryRequest',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/metricflow/compile-sql',
+        ...fetchMiddlewares<RequestHandler>(MetricFlowController),
+        ...fetchMiddlewares<RequestHandler>(
+            MetricFlowController.prototype.compileSql,
+        ),
+
+        async function MetricFlowController_compileSql(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsMetricFlowController_compileSql,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<MetricFlowController>(
+                        MetricFlowController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'compileSql',
                     controller,
                     response,
                     next,

@@ -139,6 +139,11 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
+    metricflow: {
+        baseUrl: 'http://metricflow-service:8069',
+        apiToken: 'test-token',
+        timeoutMs: 30000,
+    },
     dbtCloud: {
         domain: 'https://semantic-layer.cloud.getdbt.com',
         bearerToken: undefined,

@@ -6,6 +6,7 @@ import { DataOps } from '../components/DataOps';
 import ProjectUserAccess from '../components/ProjectAccess';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectParameters from '../components/ProjectParameters';
+import ProjectMetricFlowSettings from '../components/ProjectSettings/ProjectMetricFlowSettings';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import SettingsScheduler from '../components/SettingsScheduler';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
@@ -30,45 +31,55 @@ const ProjectSettings: FC = () => {
         }
         return [
             {
-                path: `/settings`,
+                path: 'settings',
                 element: <UpdateProjectConnection projectUuid={projectUuid} />,
             },
             {
-                path: `/tablesConfiguration`,
+                index: true,
+                element: <Navigate to="settings" replace />,
+            },
+            {
+                path: 'tablesConfiguration',
                 element: (
                     <ProjectTablesConfiguration projectUuid={projectUuid} />
                 ),
             },
             {
-                path: `/changesets`,
+                path: 'changesets',
                 element: <ProjectChangesets projectUuid={projectUuid} />,
             },
             {
-                path: `/projectAccess`,
+                path: 'projectAccess',
                 element: <ProjectUserAccess projectUuid={projectUuid} />,
             },
             {
-                path: `/usageAnalytics`,
+                path: 'usageAnalytics',
                 element: <SettingsUsageAnalytics projectUuid={projectUuid} />,
             },
             {
-                path: `/scheduledDeliveries`,
+                path: 'scheduledDeliveries',
                 element: <SettingsScheduler projectUuid={projectUuid} />,
             },
             {
-                path: `/validator`,
+                path: 'validator',
                 element: <SettingsValidator projectUuid={projectUuid} />,
             },
             {
-                path: `/dataOps`,
+                path: 'dataOps',
                 element: <DataOps projectUuid={projectUuid} />,
             },
             {
-                path: `/parameters`,
+                path: 'parameters',
                 element: <ProjectParameters projectUuid={projectUuid} />,
             },
             {
-                path: `/compilationHistory`,
+                path: 'metricflow',
+                element: (
+                    <ProjectMetricFlowSettings projectUuid={projectUuid} />
+                ),
+            },
+            {
+                path: 'compilationHistory',
                 element: <CompilationHistory projectUuid={projectUuid} />,
             },
             {
@@ -76,7 +87,7 @@ const ProjectSettings: FC = () => {
                 element: <Navigate to={`/generalSettings`} />,
             },
             {
-                path: '/embed', // commercial route
+                path: 'embed', // commercial route
                 element: <SettingsEmbed projectUuid={projectUuid} />,
             },
         ];

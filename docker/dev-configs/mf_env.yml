@@ -1,0 +1,19 @@
+environments:
+  - projectId: mf_local
+    name: mf_local
+    project_dir: /data/mf_repos/mf_local
+    profiles_dir: /root/.dbt
+    semantic_manifest_path: /data/mf_repos/mf_local/target/semantic_manifest.json
+    repo: http://gitea:3000/simon/M1
+    default_ref: main
+    tokens:
+      - test-token
+  - projectId: mdr_local
+    name: mdr_local
+    project_dir: /data/mf_repos/mdr_local
+    profiles_dir: /root/.dbt
+    semantic_manifest_path: /data/mf_repos/mdr_local/target/semantic_manifest.json
+    repo: http://localhost:3030/simon/MDR
+    default_ref: main
+    tokens:
+      - test-token

@@ -1,0 +1,15 @@
+medical:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('DBT_HOST', 'host.docker.internal') }}"
+      port: "{{ env_var('DBT_PORT', 5433) | int }}"
+      user: admin
+      password: admin
+      dbname: medical
+      schema: mdr
+      threads: 4
+      keepalives_idle: 0
+      connect_timeout: 10
+      search_path: public

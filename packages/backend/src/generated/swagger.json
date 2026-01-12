@@ -16271,6 +16271,7 @@
                     "dbt_cloud_ide",
                     "github",
                     "gitlab",
+                    "gitea",
                     "bitbucket",
                     "azure_devops",
                     "none",
@@ -16487,6 +16488,57 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "DbtProjectType.GITEA": {
+                "enum": ["gitea"],
+                "type": "string"
+            },
+            "DbtGiteaProjectConfig": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DbtProjectType.GITEA"
+                    },
+                    "target": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "items": {
+                            "$ref": "#/components/schemas/DbtProjectEnvironmentVariable"
+                        },
+                        "type": "array"
+                    },
+                    "selector": {
+                        "type": "string"
+                    },
+                    "username": {
+                        "type": "string"
+                    },
+                    "personal_access_token": {
+                        "type": "string"
+                    },
+                    "repository": {
+                        "type": "string"
+                    },
+                    "branch": {
+                        "type": "string"
+                    },
+                    "project_sub_path": {
+                        "type": "string"
+                    },
+                    "host_domain": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type",
+                    "username",
+                    "personal_access_token",
+                    "repository",
+                    "branch",
+                    "project_sub_path"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
             "DbtProjectType.AZURE_DEVOPS": {
                 "enum": ["azure_devops"],
                 "type": "string"
@@ -16606,6 +16658,9 @@
                         "$ref": "#/components/schemas/DbtGitlabProjectConfig"
                     },
                     {
+                        "$ref": "#/components/schemas/DbtGiteaProjectConfig"
+                    },
+                    {
                         "$ref": "#/components/schemas/DbtAzureDevOpsProjectConfig"
                     },
                     {
@@ -16642,8 +16697,26 @@
                     }
                 ]
             },
+            "MetricFlowProjectConfig": {
+                "properties": {
+                    "hasApiToken": {
+                        "type": "boolean"
+                    },
+                    "apiToken": {
+                        "type": "string"
+                    },
+                    "projectId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["projectId"],
+                "type": "object"
+            },
             "Project": {
                 "properties": {
+                    "metricFlow": {
+                        "$ref": "#/components/schemas/MetricFlowProjectConfig"
+                    },
                     "organizationWarehouseCredentialsUuid": {
                         "type": "string"
                     },
@@ -17109,6 +17182,19 @@
             },
             "UpdateMetadata": {
                 "properties": {
+                    "metricFlow": {
+                        "properties": {
+                            "apiToken": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "projectId": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
                     "upstreamProjectUuid": {
                         "type": "string",
                         "nullable": true
@@ -18099,22 +18185,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -20073,6 +20159,9 @@
                     "dbtVersion": {
                         "$ref": "#/components/schemas/DbtVersionOption"
                     },
+                    "metricFlow": {
+                        "$ref": "#/components/schemas/MetricFlowProjectConfig"
+                    },
                     "copyWarehouseConnectionFromUpstreamProject": {
                         "type": "boolean"
                     },
@@ -20506,6 +20595,33 @@
                 "enum": ["none", "previous_period"],
                 "type": "string"
             },
+            "MetricFlowFieldsRequest": {
+                "properties": {
+                    "dimensions": {
+                        "items": {
+                            "properties": {
+                                "grain": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "metrics": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "type": "object"
+            },
             "FieldValueSearchResult_string_": {
                 "properties": {
                     "refreshedAt": {
@@ -20526,6 +20642,78 @@
                     }
                 },
                 "required": ["refreshedAt", "cached", "results", "search"],
+                "type": "object"
+            },
+            "MetricFlowQueryRequest": {
+                "properties": {
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "orderBy": {
+                        "items": {
+                            "properties": {
+                                "descending": {
+                                    "type": "boolean"
+                                },
+                                "groupBy": {
+                                    "properties": {
+                                        "grain": {
+                                            "type": "string",
+                                            "nullable": true
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["name"],
+                                    "type": "object"
+                                },
+                                "metric": {
+                                    "properties": {
+                                        "name": {
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["name"],
+                                    "type": "object"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {},
+                    "groupBy": {
+                        "items": {
+                            "properties": {
+                                "grain": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "metrics": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["metrics"],
                 "type": "object"
             },
             "ApiGroupResponse": {
@@ -33998,9 +34186,9 @@
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/dbtsemanticlayer": {
+        "/api/v1/projects/{projectUuid}/metricflow/fields": {
             "post": {
-                "operationId": "GetDbtSemanticLayerData",
+                "operationId": "GetMetricFlowFields",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -34009,7 +34197,21 @@
                                 "schema": {
                                     "properties": {
                                         "results": {
-                                            "$ref": "#/components/schemas/Record_string.unknown_"
+                                            "properties": {
+                                                "metricsForDimensions": {
+                                                    "items": {},
+                                                    "type": "array"
+                                                },
+                                                "dimensions": {
+                                                    "items": {},
+                                                    "type": "array"
+                                                }
+                                            },
+                                            "required": [
+                                                "metricsForDimensions",
+                                                "dimensions"
+                                            ],
+                                            "type": "object"
                                         },
                                         "status": {
                                             "type": "string",
@@ -34034,12 +34236,10 @@
                         }
                     }
                 },
-                "description": "Get DbtSemanticLayer data",
-                "tags": ["DbtSemanticLayer"],
+                "tags": ["MetricFlow"],
                 "security": [],
                 "parameters": [
                     {
-                        "description": "the projectId",
                         "in": "path",
                         "name": "projectUuid",
                         "required": true,
@@ -34049,38 +34249,20 @@
                     }
                 ],
                 "requestBody": {
-                    "description": "graphql query",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
-                                "properties": {
-                                    "operationName": {
-                                        "type": "string",
-                                        "enum": [
-                                            "GetFields",
-                                            "CreateQuery",
-                                            "GetQueryResults",
-                                            "GetMetricDefinition",
-                                            "GetMetricLineage"
-                                        ]
-                                    },
-                                    "query": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": ["query"],
-                                "type": "object",
-                                "description": "graphql query"
+                                "$ref": "#/components/schemas/MetricFlowFieldsRequest"
                             }
                         }
                     }
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/dbtsemanticlayer/dimension-values": {
+        "/api/v1/projects/{projectUuid}/metricflow/dimension-values": {
             "post": {
-                "operationId": "GetDbtSemanticLayerDimensionValues",
+                "operationId": "GetMetricFlowDimensionValues",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -34114,12 +34296,10 @@
                         }
                     }
                 },
-                "description": "Get dimension values for autocomplete",
-                "tags": ["DbtSemanticLayer"],
+                "tags": ["MetricFlow"],
                 "security": [],
                 "parameters": [
                     {
-                        "description": "the projectId",
                         "in": "path",
                         "name": "projectUuid",
                         "required": true,
@@ -34129,12 +34309,17 @@
                     }
                 ],
                 "requestBody": {
-                    "description": "dimension and metrics",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "endTime": {
+                                        "type": "string"
+                                    },
+                                    "startTime": {
+                                        "type": "string"
+                                    },
                                     "limit": {
                                         "type": "number",
                                         "format": "double"
@@ -34153,17 +34338,16 @@
                                     }
                                 },
                                 "required": ["dimension"],
-                                "type": "object",
-                                "description": "dimension and metrics"
+                                "type": "object"
                             }
                         }
                     }
                 }
             }
         },
-        "/api/v1/projects/{projectUuid}/dbtsemanticlayer/metrics/{metricName}/definition": {
+        "/api/v1/projects/{projectUuid}/metricflow/metrics/{metricName}/definition": {
             "get": {
-                "operationId": "GetDbtSemanticLayerMetricDefinition",
+                "operationId": "GetMetricFlowMetricDefinition",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -34197,12 +34381,10 @@
                         }
                     }
                 },
-                "description": "Get metric definition from MetricFlow REST API",
-                "tags": ["DbtSemanticLayer"],
+                "tags": ["MetricFlow"],
                 "security": [],
                 "parameters": [
                     {
-                        "description": "the projectId",
                         "in": "path",
                         "name": "projectUuid",
                         "required": true,
@@ -34211,7 +34393,6 @@
                         }
                     },
                     {
-                        "description": "metric name",
                         "in": "path",
                         "name": "metricName",
                         "required": true,
@@ -34222,9 +34403,9 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/dbtsemanticlayer/metrics/{metricName}/lineage": {
+        "/api/v1/projects/{projectUuid}/metricflow/metrics/{metricName}/lineage": {
             "get": {
-                "operationId": "GetDbtSemanticLayerMetricLineage",
+                "operationId": "GetMetricFlowMetricLineage",
                 "responses": {
                     "200": {
                         "description": "Success",
@@ -34258,12 +34439,10 @@
                         }
                     }
                 },
-                "description": "Get metric lineage from MetricFlow REST API",
-                "tags": ["DbtSemanticLayer"],
+                "tags": ["MetricFlow"],
                 "security": [],
                 "parameters": [
                     {
-                        "description": "the projectId",
                         "in": "path",
                         "name": "projectUuid",
                         "required": true,
@@ -34272,7 +34451,6 @@
                         }
                     },
                     {
-                        "description": "metric name",
                         "in": "path",
                         "name": "metricName",
                         "required": true,
@@ -34281,6 +34459,198 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/metricflow/queries": {
+            "post": {
+                "operationId": "CreateMetricFlowQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "properties": {
+                                                "createQuery": {
+                                                    "properties": {
+                                                        "queryId": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": ["queryId"],
+                                                    "type": "object"
+                                                }
+                                            },
+                                            "required": ["createQuery"],
+                                            "type": "object"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["MetricFlow"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MetricFlowQueryRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/metricflow/queries/{queryId}": {
+            "get": {
+                "operationId": "GetMetricFlowQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "properties": {
+                                                "query": {}
+                                            },
+                                            "required": ["query"],
+                                            "type": "object"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["MetricFlow"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "queryId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/metricflow/compile-sql": {
+            "post": {
+                "operationId": "CompileMetricFlowSql",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {},
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["MetricFlow"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MetricFlowQueryRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/groups/{groupUuid}": {

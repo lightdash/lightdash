@@ -1,0 +1,22 @@
+[diff]
+	algorithm = histogram
+[core]
+	logallrefupdates = true
+	quotePath = false
+	commitGraph = true
+[gc]
+	reflogexpire = 90
+	writeCommitGraph = true
+[user]
+	name = Gitea
+	email = gitea@fake.local
+[receive]
+	advertisePushOptions = true
+	procReceiveRefs = refs/for
+[fetch]
+	writeCommitGraph = true
+[safe]
+	directory = *
+[uploadpack]
+	allowfilter = true
+	allowAnySHA1InWant = true

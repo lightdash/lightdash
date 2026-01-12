@@ -1,35 +1,17 @@
 import {
     isAndFilterGroup,
     isFilterGroup,
-    isFilterRule,
     type FieldValueSearchResult,
     type FilterGroup,
-    type FilterGroupItem,
-    type FilterRule,
     type Filters,
 } from '@lightdash/common';
 import { lightdashApi } from '../api';
 
-export enum MetricFlowDimensionType {
-    CATEGORICAL = 'CATEGORICAL',
-    TIME = 'TIME',
-}
+export enum MetricFlowDimensionType
 
-export enum MetricFlowMetricType {
-    SIMPLE = 'SIMPLE',
-    RATIO = 'RATIO',
-    CUMULATIVE = 'CUMULATIVE',
-    DERIVED = 'DERIVED',
-    CONVERSION = 'CONVERSION',
-}
+export enum MetricFlowMetricType
 
-export enum TimeGranularity {
-    DAY = 'DAY',
-    WEEK = 'WEEK',
-    MONTH = 'MONTH',
-    QUARTER = 'QUARTER',
-    YEAR = 'YEAR',
-}
+export enum TimeGranularity
 
 export type MetricFlowSemanticModel = {
     name: string;
@@ -62,7 +44,7 @@ export function getMetricFlowDimensionValues(
     data: MetricFlowDimensionValuesRequest,
 ): Promise<FieldValueSearchResult<string>> {
     return lightdashApi<FieldValueSearchResult<string>>({
-        url: `/projects/${projectUuid}/dbtsemanticlayer/dimension-values`,
+        url: `/projects/${projectUuid}/metricflow/dimension-values`,
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -192,52 +174,12 @@ export function getSemanticLayerDimensions(
     projectUuid: string,
     metrics: Record<string, {}>,
 ): Promise<GetMetricFlowFieldsResponse> {
-    const query = `query GetFields($environmentId: BigInt!) {
-            metricsForDimensions(environmentId: $environmentId, dimensions: []) {
-                name
-                description
-                label
-                type
-                semanticModels {
-                  name
-                  label
-                  description
-                }
-                dimensions {
-                  name
-                  description
-                  label
-                  type
-                  queryableGranularities
-                  semanticModel {
-                    name
-                    label
-                    description
-                  }
-                } 
-            }
-            dimensions(environmentId: $environmentId, metrics: [${
-                Object.entries(metrics).map(
-                    ([metric]) => `{ name: "${metric}" }`,
-                ) ?? ''
-            }]) {
-                name
-                description
-                label
-                type
-                queryableGranularities
-                semanticModel {
-                  name
-                  label
-                  description
-                }
-            }
-        }`;
-
-    return lightdashApi<any>({
-        url: `/projects/${projectUuid}/dbtsemanticlayer`,
+    return lightdashApi<GetMetricFlowFieldsResponse>({
+        url: `/projects/${projectUuid}/metricflow/fields`,
         method: 'POST',
-        body: JSON.stringify({ query, operationName: 'GetFields' }),
+        body: JSON.stringify({
+            metrics: Object.keys(metrics ?? {}),
+        }),
     });
 }
 
@@ -245,45 +187,17 @@ export function getSemanticLayerMetrics(
     projectUuid: string,
     dimensions: Record<string, { grain?: TimeGranularity }>,
 ): Promise<GetSemanticLayerMetricsResponse> {
-    const query = `query GetFields($environmentId: BigInt!) {
-            metricsForDimensions(environmentId: $environmentId, dimensions: [${
-                Object.entries(dimensions)
-                    .filter(([dimension]) => dimension !== 'metric_time') // TODO: remove this when dbt stops throwing error when filtering by "metric_time"
-                    .map(([dimension, options]) => {
-                        const grainPart = options.grain
-                            ? `, grain: ${options.grain}`
-                            : '';
-                        return `{ name: "${dimension}"${grainPart} }`;
-                    }) ?? ''
-            }]) {
-                name
-                description
-                label
-                type
-                semanticModels {
-                  name
-                  label
-                  description
-                }
-                dimensions {
-                  name
-                  description
-                  label
-                  type
-                  queryableGranularities
-                  semanticModel {
-                    name
-                    label
-                    description
-                  }
-                } 
-            }
-        }`;
-
-    return lightdashApi<any>({
-        url: `/projects/${projectUuid}/dbtsemanticlayer`,
+    return lightdashApi<GetSemanticLayerMetricsResponse>({
+        url: `/projects/${projectUuid}/metricflow/fields`,
         method: 'POST',
-        body: JSON.stringify({ query, operationName: 'GetFields' }),
+        body: JSON.stringify({
+            dimensions: Object.entries(dimensions ?? {}).map(
+                ([dimension, options]) => ({
+                    name: dimension,
+                    grain: options.grain,
+                }),
+            ),
+        }),
     });
 }
 
@@ -293,151 +207,31 @@ export type CreateMetricFlowQueryResponse = {
     };
 };
 
-const escapeGraphqlString = (value: string) =>
-    value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-
-const parseGraphqlJsonScalar = <T>(value: unknown): T | null => {
-    if (value === null || value === undefined) return null;
-    if (typeof value === 'string') {
-        try {
-            return JSON.parse(value) as T;
-        } catch (error) {
-            console.warn('Failed to parse MetricFlow JSON scalar', error);
-            return null;
-        }
-    }
-    return value as T;
-};
-
 export async function getMetricDefinition(
     projectUuid: string,
     metricName: string,
 ): Promise<MetricDefinition | null> {
-    const query = `query GetMetricDefinition($environmentId: BigInt!) {
-            metricDefinition(environmentId: $environmentId, metricName: "${escapeGraphqlString(
-                metricName,
-            )}")
-        }`;
-
-    const results = await lightdashApi<any>({
-        url: `/projects/${projectUuid}/dbtsemanticlayer`,
-        method: 'POST',
-        body: JSON.stringify({ query, operationName: 'GetMetricDefinition' }),
+    return lightdashApi<MetricDefinition | null>({
+        url: `/projects/${projectUuid}/metricflow/metrics/${encodeURIComponent(
+            metricName,
+        )}/definition`,
+        method: 'GET',
+        body: undefined,
     });
-
-    return parseGraphqlJsonScalar<MetricDefinition>(results?.metricDefinition);
 }
 
 export async function getMetricLineage(
     projectUuid: string,
     metricName: string,
 ): Promise<MetricLineage | null> {
-    const query = `query GetMetricLineage($environmentId: BigInt!) {
-            metricLineage(environmentId: $environmentId, metricName: "${escapeGraphqlString(
-                metricName,
-            )}")
-        }`;
-
-    const results = await lightdashApi<any>({
-        url: `/projects/${projectUuid}/dbtsemanticlayer`,
-        method: 'POST',
-        body: JSON.stringify({ query, operationName: 'GetMetricLineage' }),
+    return lightdashApi<MetricLineage | null>({
+        url: `/projects/${projectUuid}/metricflow/metrics/${encodeURIComponent(
+            metricName,
+        )}/lineage`,
+        method: 'GET',
+        body: undefined,
     });
-
-    return parseGraphqlJsonScalar<MetricLineage>(results?.metricLineage);
 }
-
-const serializeGraphqlValue = (value: unknown): string => {
-    if (value === null) return 'null';
-    if (value === undefined) return 'null';
-    if (typeof value === 'string') {
-        return `"${escapeGraphqlString(value)}"`;
-    }
-    if (typeof value === 'number' || typeof value === 'boolean') {
-        return `${value}`;
-    }
-    if (Array.isArray(value)) {
-        return `[${value.map(serializeGraphqlValue).join(', ')}]`;
-    }
-    return `"${escapeGraphqlString(JSON.stringify(value))}"`;
-};
-
-const serializeFilterRuleInput = (rule: FilterRule): string => {
-    const parts = [
-        `id: "${escapeGraphqlString(rule.id)}"`,
-        `target: { fieldId: "${escapeGraphqlString(rule.target.fieldId)}" }`,
-        `operator: "${escapeGraphqlString(rule.operator)}"`,
-    ];
-
-    if (rule.values !== undefined) {
-        parts.push(`values: ${serializeGraphqlValue(rule.values)}`);
-    }
-    if (rule.settings) {
-        const settingsParts: string[] = [];
-        if (rule.settings.unitOfTime) {
-            settingsParts.push(
-                `unitOfTime: "${escapeGraphqlString(
-                    rule.settings.unitOfTime,
-                )}"`,
-            );
-        }
-        if (rule.settings.completed !== undefined) {
-            settingsParts.push(`completed: ${rule.settings.completed}`);
-        }
-        if (settingsParts.length > 0) {
-            parts.push(`settings: { ${settingsParts.join(', ')} }`);
-        }
-    }
-    if (rule.disabled !== undefined) {
-        parts.push(`disabled: ${rule.disabled}`);
-    }
-
-    return `{ ${parts.join(', ')} }`;
-};
-
-function serializeFilterGroupInput(group: FilterGroup): string {
-    const serializeFilterGroupItemInput = (item: FilterGroupItem): string => {
-        if (isFilterGroup(item)) {
-            return `{ group: ${serializeFilterGroupInput(item)} }`;
-        }
-        if (isFilterRule(item)) {
-            return `{ rule: ${serializeFilterRuleInput(item)} }`;
-        }
-        return '';
-    };
-
-    const items = isAndFilterGroup(group) ? group.and : group.or;
-    const joinKey = isAndFilterGroup(group) ? 'and' : 'or';
-    const serializedItems = items
-        .map(serializeFilterGroupItemInput)
-        .filter((value) => value.length > 0)
-        .join(', ');
-
-    return `{ id: "${escapeGraphqlString(
-        group.id,
-    )}", ${joinKey}: [${serializedItems}] }`;
-}
-
-const serializeFiltersInput = (filters?: Filters): string => {
-    if (!filters) return '{}';
-    const parts: string[] = [];
-    if (filters.dimensions) {
-        parts.push(
-            `dimensions: ${serializeFilterGroupInput(filters.dimensions)}`,
-        );
-    }
-    if (filters.metrics) {
-        parts.push(`metrics: ${serializeFilterGroupInput(filters.metrics)}`);
-    }
-    if (filters.tableCalculations) {
-        parts.push(
-            `tableCalculations: ${serializeFilterGroupInput(
-                filters.tableCalculations,
-            )}`,
-        );
-    }
-    return parts.length > 0 ? `{ ${parts.join(', ')} }` : '{}';
-};
 
 export function createMetricFlowQuery(
     projectUuid: string,
@@ -446,62 +240,71 @@ export function createMetricFlowQuery(
         dimensions: Record<string, { grain?: TimeGranularity }>;
         filters?: Filters;
         orderBy?: MetricFlowOrderBy[];
+        limit?: number;
     },
 ): Promise<CreateMetricFlowQueryResponse> {
-    const filtersInput = serializeFiltersInput(data.filters);
-    const orderByString =
-        data.orderBy?.map((orderBy) => {
-            if (orderBy.type === 'metric') {
-                return `{ metric: { name: "${orderBy.name}" }, descending: ${orderBy.descending} }`;
-            }
-            const grainPart = orderBy.grain ? `, grain: ${orderBy.grain}` : '';
-            return `{ groupBy: { name: "${orderBy.name}"${grainPart} }, descending: ${orderBy.descending} }`;
-        }) ?? [];
-    const query: string = `
-            mutation CreateQuery($environmentId: BigInt!) {
-              createQuery(
-                environmentId: $environmentId
-                metrics: [${Object.entries(data?.metrics).map(
-                    ([metric]) => `{ name: "${metric}" }`,
-                )}]
-                groupBy: [${Object.entries(data.dimensions ?? {}).map(
-                    ([dimension, options]) => {
-                        const grainPart = options.grain
-                            ? `, grain: ${options.grain}`
-                            : '';
-                        return `{ name: "${dimension}"${grainPart} }`;
-                    },
-                )}]
-                filters: ${filtersInput}
-                orderBy: [${orderByString}]
-              ) {
-                queryId
-              }
-            }`;
+    const mapFilterGroup = (group: FilterGroup) => {
+        const items = isAndFilterGroup(group) ? group.and : group.or;
+        const key = isAndFilterGroup(group) ? 'and' : 'or';
+        return {
+            id: group.id,
+            [key]: items.map((item) =>
+                isFilterGroup(item)
+                    ? { group: mapFilterGroup(item) }
+                    : { rule: item },
+            ),
+        };
+    };
+
+    const mapFilters = (filters?: Filters) => {
+        if (!filters) return undefined;
+        return {
+            dimensions: filters.dimensions
+                ? mapFilterGroup(filters.dimensions)
+                : undefined,
+            metrics: filters.metrics
+                ? mapFilterGroup(filters.metrics)
+                : undefined,
+            tableCalculations: filters.tableCalculations
+                ? mapFilterGroup(filters.tableCalculations)
+                : undefined,
+        };
+    };
 
     return lightdashApi<any>({
-        url: `/projects/${projectUuid}/dbtsemanticlayer`,
+        url: `/projects/${projectUuid}/metricflow/queries`,
         method: 'POST',
-        body: JSON.stringify({ query, operationName: 'CreateQuery' }),
+        body: JSON.stringify({
+            metrics: Object.keys(data?.metrics ?? {}).map((name) => ({ name })),
+            groupBy: Object.entries(data.dimensions ?? {}).map(
+                ([dimension, options]) => ({
+                    name: dimension,
+                    grain: options.grain,
+                }),
+            ),
+            filters: mapFilters(data.filters),
+            orderBy:
+                data.orderBy?.map((orderBy) => {
+                    if (orderBy.type === 'metric') {
+                        return {
+                            metric: { name: orderBy.name },
+                            descending: orderBy.descending,
+                        };
+                    }
+                    return {
+                        groupBy: {
+                            name: orderBy.name,
+                            grain: orderBy.grain,
+                        },
+                        descending: orderBy.descending,
+                    };
+                }) ?? [],
+            limit: data.limit,
+        }),
     });
 }
 
-export enum QueryStatus {
-    PENDING = 'PENDING',
-    RUNNING = 'RUNNING',
-    COMPILED = 'COMPILED',
-    SUCCESSFUL = 'SUCCESSFUL',
-    FAILED = 'FAILED',
-}
-
-export type GetMetricFlowQueryBase64ResultsResponse = {
-    query: {
-        status: QueryStatus;
-        sql: string;
-        jsonResult: string; // base64 encoded
-        error: string;
-    };
-};
+export enum QueryStatus
 
 export type MetricFlowJsonResults = {
     schema: {
@@ -531,46 +334,9 @@ export function getMetricFlowQueryResults(
     projectUuid: string,
     queryId: string,
 ): Promise<GetMetricFlowQueryResultsResponse> {
-    const query: string = `query GetQueryResults($environmentId: BigInt!) {
-              query(environmentId: $environmentId, queryId: "${queryId}") {
-                status
-                sql
-                jsonResult
-                error
-              }
-            }`;
-
-    return lightdashApi<any>({
-        url: `/projects/${projectUuid}/dbtsemanticlayer`,
-        method: 'POST',
-        body: JSON.stringify({ query, operationName: 'GetQueryResults' }),
-    }).then((response: GetMetricFlowQueryBase64ResultsResponse) => {
-        let jsonResult: MetricFlowJsonResults | null = null;
-        if (response.query.jsonResult) {
-            try {
-                const decoded =
-                    typeof TextDecoder === 'undefined'
-                        ? decodeURIComponent(
-                              escape(atob(response.query.jsonResult)),
-                          )
-                        : new TextDecoder('utf-8').decode(
-                              Uint8Array.from(
-                                  atob(response.query.jsonResult),
-                                  (char) => char.charCodeAt(0),
-                              ),
-                          );
-                jsonResult = JSON.parse(decoded) as MetricFlowJsonResults;
-            } catch (error) {
-                console.warn('Failed to parse MetricFlow query results', error);
-            }
-        }
-
-        return {
-            ...response,
-            query: {
-                ...response.query,
-                jsonResult,
-            },
-        } as GetMetricFlowQueryResultsResponse;
+    return lightdashApi<GetMetricFlowQueryResultsResponse>({
+        url: `/projects/${projectUuid}/metricflow/queries/${queryId}`,
+        method: 'GET',
+        body: undefined,
     });
 }

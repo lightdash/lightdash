@@ -107,6 +107,7 @@ import {
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
     mergeWarehouseCredentials,
+    MetricFlowProjectConfig,
     MetricQuery,
     MissingWarehouseCredentialsError,
     MostPopularAndRecentlyUpdated,
@@ -5188,6 +5189,69 @@ export class ProjectService extends BaseService {
         }
 
         await this.projectModel.updateMetadata(projectUuid, data);
+    }
+
+    async getMetricFlowConfig(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<MetricFlowProjectConfig | undefined> {
+        const project = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return project.metricFlow;
+    }
+
+    async getResolvedMetricFlowConfig(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<MetricFlowProjectConfig> {
+        const project = await this.projectModel.getWithSensitiveFields(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const projectId =
+            project.metricFlow?.projectId ||
+            project.projectUuid ||
+            project.name;
+
+        if (!projectId) {
+            throw new ParameterError('MetricFlow projectId is required');
+        }
+
+        const apiToken =
+            project.metricFlow?.apiToken ||
+            this.lightdashConfig.metricflow.apiToken;
+
+        return {
+            projectId,
+            apiToken,
+            hasApiToken: !!apiToken,
+        };
     }
 
     async deleteProjectAccess(
