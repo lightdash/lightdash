@@ -1,3 +1,10 @@
+# [0.2328.0](https://github.com/lightdash/lightdash/compare/0.2327.0...0.2328.0) (2026-01-12)
+
+
+### Features
+
+* small export dashboard modal improvements ([#19337](https://github.com/lightdash/lightdash/issues/19337)) ([11c0ff8](https://github.com/lightdash/lightdash/commit/11c0ff8aa4131ca634270c7000953d482ed46190))
+
 # [0.2327.0](https://github.com/lightdash/lightdash/compare/0.2326.0...0.2327.0) (2026-01-12)
 
 
