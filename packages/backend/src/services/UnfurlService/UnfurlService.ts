@@ -998,20 +998,6 @@ export class UnfurlService extends BaseService {
                                     ); // NOTE: No await here
                             }
 
-                            // Create separate arrays for each type of SQL response
-                            let sqlInitialLoadPromises:
-                                | (Promise<playwright.Response> | undefined)[]
-                                | undefined;
-                            let sqlResultsJobPromises:
-                                | (Promise<playwright.Response> | undefined)[]
-                                | undefined;
-                            let sqlResultsPromises:
-                                | (Promise<playwright.Response> | undefined)[]
-                                | undefined;
-                            let sqlPivotPromises:
-                                | (Promise<playwright.Response> | undefined)[]
-                                | undefined;
-
                             const filteredSqlChartTileUuids =
                                 sqlChartTileUuids?.filter(
                                     (id): id is string => !!id,
@@ -1025,62 +1011,7 @@ export class UnfurlService extends BaseService {
                                 }`,
                             );
 
-                            const hasSqlCharts =
-                                filteredSqlChartTileUuids &&
-                                filteredSqlChartTileUuids.length > 0;
-                            if (
-                                hasSqlCharts &&
-                                page &&
-                                !useScreenshotReadyIndicator
-                            ) {
-                                sqlInitialLoadPromises =
-                                    filteredSqlChartTileUuids.map((id) => {
-                                        const responsePattern = new RegExp(
-                                            `/sqlRunner/saved/${id}`,
-                                        );
-                                        return page?.waitForResponse(
-                                            responsePattern,
-                                            { timeout: RESPONSE_TIMEOUT_MS },
-                                        );
-                                    });
-
-                                sqlResultsJobPromises =
-                                    filteredSqlChartTileUuids.map(
-                                        (id) =>
-                                            page?.waitForResponse(
-                                                new RegExp(
-                                                    `/sqlRunner/saved/${id}/results-job`,
-                                                ),
-                                                {
-                                                    timeout:
-                                                        RESPONSE_TIMEOUT_MS,
-                                                },
-                                            ), // NOTE: No await here
-                                    );
-
-                                // These are shared responses for all SQL charts
-                                sqlResultsPromises = [
-                                    page?.waitForResponse(
-                                        /\/sqlRunner\/results/,
-                                        { timeout: RESPONSE_TIMEOUT_MS },
-                                    ), // NOTE: No await here
-                                ];
-
-                                sqlPivotPromises = [
-                                    page?.waitForResponse(
-                                        /\/sqlRunner\/runPivotQuery/,
-                                        { timeout: RESPONSE_TIMEOUT_MS },
-                                    ), // NOTE: No await here
-                                ];
-                            }
-
-                            chartResultsPromises = [
-                                exploreChartResultsPromise,
-                                ...(sqlInitialLoadPromises || []),
-                                ...(sqlResultsJobPromises || []),
-                                ...(sqlResultsPromises || []),
-                                ...(sqlPivotPromises || []),
-                            ];
+                            chartResultsPromises = [exploreChartResultsPromise];
                         } else if (
                             lightdashPage === LightdashPage.CHART ||
                             lightdashPage === LightdashPage.EXPLORE
