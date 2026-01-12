@@ -8,6 +8,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
+    HealthState,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     LightdashMode,
@@ -689,6 +690,7 @@ export class UnfurlService extends BaseService {
         if (unfurlImage.imageUrl === undefined) {
             throw new Error('Unable to unfurl image');
         }
+        this.logger.info(`Dashboard "${name}" exported successfully`);
         return unfurlImage.imageUrl;
     }
 
@@ -905,6 +907,48 @@ export class UnfurlService extends BaseService {
                             resultsEndpointRegexes.some((regex) =>
                                 regex.test(responseUrl),
                             );
+
+                        const isHealthEndpointMatch =
+                            responseUrl.includes('api/v1/health');
+
+                        if (isHealthEndpointMatch) {
+                            response.body().then(
+                                (buffer) => {
+                                    const status = response.status();
+                                    if (status >= 400) {
+                                        this.logger.error(
+                                            `Headless browser response error - url: ${responseUrl}, code: ${response.status()}, text: ${buffer}`,
+                                        );
+                                    } else {
+                                        try {
+                                            const json = JSON.parse(
+                                                buffer.toString(),
+                                            ) as HealthState;
+                                            if (
+                                                json.isAuthenticated === false
+                                            ) {
+                                                this.logger.error(
+                                                    `Headless browser health check failed: user is not authenticated - url: ${responseUrl}`,
+                                                );
+                                            }
+                                        } catch (parseError) {
+                                            this.logger.warn(
+                                                `Failed to parse health response - url: ${responseUrl}, error: ${getErrorMessage(
+                                                    parseError,
+                                                )}`,
+                                            );
+                                        }
+                                    }
+                                },
+                                (error) => {
+                                    this.logger.error(
+                                        `Headless browser response buffer error: ${getErrorMessage(
+                                            error,
+                                        )}`,
+                                    );
+                                },
+                            );
+                        }
 
                         if (isResultsEndpointMatch) {
                             response.body().then(
@@ -1420,6 +1464,7 @@ export class UnfurlService extends BaseService {
     }
 
     private async getUserCookie(userUuid: string): Promise<string> {
+        this.logger.debug(`Getting cookie for user ${userUuid}`);
         const token = getAuthenticationToken(userUuid);
         // Use internal URL for the request (could be the same as the site URL)
         const internalUrl = new URL(
@@ -1451,6 +1496,7 @@ export class UnfurlService extends BaseService {
                 }`,
             );
         }
+        this.logger.debug(`Successfully got cookie for user ${userUuid}`);
         return header;
     }
 
