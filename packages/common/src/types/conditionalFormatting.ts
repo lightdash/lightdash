@@ -38,6 +38,7 @@ export type ConditionalFormattingConfigWithSingleColor = {
     target: FieldTarget | null;
     color: string;
     rules: ConditionalFormattingWithFilterOperator[];
+    applyTo?: ConditionalFormattingColorApplyTo;
 };
 
 export const isConditionalFormattingConfigWithSingleColor = (
@@ -49,6 +50,7 @@ export type ConditionalFormattingConfigWithColorRange = {
     target: FieldTarget | null;
     color: ConditionalFormattingColorRange;
     rule: ConditionalFormattingMinMax<number | 'auto'>;
+    applyTo?: ConditionalFormattingColorApplyTo;
 };
 
 export const isConditionalFormattingConfigWithColorRange = (
@@ -96,6 +98,11 @@ export enum ConditionalFormattingComparisonType {
     VALUES = 'values',
     TARGET_FIELD = 'target_field',
     TARGET_TO_VALUES = 'target_to_values',
+}
+
+export enum ConditionalFormattingColorApplyTo {
+    CELL = 'cell',
+    TEXT = 'text',
 }
 
 export type ConditionalRuleLabel = {

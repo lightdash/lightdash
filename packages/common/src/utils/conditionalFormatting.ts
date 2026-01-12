@@ -7,6 +7,7 @@ import type {
     ItemsMap,
 } from '..';
 import {
+    ConditionalFormattingColorApplyTo,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isConditionalFormattingWithCompareTarget,
@@ -635,6 +636,11 @@ type GetColorFromRangeFunction = (
     minMaxRange: ConditionalFormattingMinMax,
 ) => string | undefined;
 
+export type ConditionalFormattingColorResult = {
+    color: string;
+    applyTo: ConditionalFormattingColorApplyTo;
+};
+
 export const getConditionalFormattingColorWithColorRange = ({
     field,
     value,
@@ -647,7 +653,7 @@ export const getConditionalFormattingColorWithColorRange = ({
     config: ConditionalFormattingConfigWithColorRange;
     minMaxMap: ConditionalFormattingMinMaxMap | undefined;
     getColorFromRange: GetColorFromRangeFunction;
-}) => {
+}): ConditionalFormattingColorResult | undefined => {
     if (!field) return undefined;
 
     const numericValue = typeof value === 'string' ? parseFloat(value) : value;
@@ -682,14 +688,23 @@ export const getConditionalFormattingColorWithColorRange = ({
         max = config.rule.max;
     }
 
-    return getColorFromRange(convertedValue, config.color, { min, max });
+    const color = getColorFromRange(convertedValue, config.color, { min, max });
+    if (!color) return undefined;
+
+    return {
+        color,
+        applyTo: config.applyTo ?? ConditionalFormattingColorApplyTo.CELL,
+    };
 };
 
 export const getConditionalFormattingColorWithSingleColor = ({
     config,
 }: {
     config: ConditionalFormattingConfigWithSingleColor;
-}) => config.color;
+}): ConditionalFormattingColorResult => ({
+    color: config.color,
+    applyTo: config.applyTo ?? ConditionalFormattingColorApplyTo.CELL,
+});
 
 export const getConditionalFormattingColor = ({
     field,
@@ -703,7 +718,7 @@ export const getConditionalFormattingColor = ({
     config: ConditionalFormattingConfig | undefined;
     minMaxMap: ConditionalFormattingMinMaxMap | undefined;
     getColorFromRange: GetColorFromRangeFunction;
-}) => {
+}): ConditionalFormattingColorResult | undefined => {
     if (!config) return undefined;
 
     if (isConditionalFormattingConfigWithSingleColor(config)) {
