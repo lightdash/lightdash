@@ -44,6 +44,8 @@ describe('Embed Chart JWT API', () => {
 
                         // Update embed config to include the charts we're testing with
                         // Keep existing dashboards (if any) and add our test charts
+                        // Add a small delay to avoid transient 502 errors in preview environments
+                        cy.wait(500);
                         updateEmbedConfig({
                             dashboardUuids:
                                 originalEmbedConfig.dashboardUuids || [],
@@ -54,6 +56,15 @@ describe('Embed Chart JWT API', () => {
                             allowAllCharts: false,
                         }).then((updateResp) => {
                             expect(updateResp.status).to.eq(200);
+                            // Verify the config was updated before proceeding
+                            cy.wait(500);
+                            getEmbedConfig().then((verifyResp) => {
+                                expect(verifyResp.status).to.eq(200);
+                                const updatedConfig = verifyResp.body.results;
+                                expect(updatedConfig.chartUuids).to.include(
+                                    testChartUuid,
+                                );
+                            });
                         });
                     });
                 });
