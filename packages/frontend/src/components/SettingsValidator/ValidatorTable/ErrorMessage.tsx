@@ -108,13 +108,17 @@ const ErrorMessageByType: FC<{
 export const ErrorMessage: FC<{ validationError: ValidationResponse }> = ({
     validationError,
 }) => {
+    const isWarning =
+        isChartValidationError(validationError) &&
+        validationError.errorType === ValidationErrorType.ChartConfiguration;
+
     return (
         <Stack spacing={4}>
-            <Text fw={600} color="red.6" fz={11}>
+            <Text fw={600} color={isWarning ? 'orange.6' : 'red.6'} fz={11}>
                 {validationError.errorType
                     ? friendlyName(validationError.errorType)
                     : ''}{' '}
-                error
+                {isWarning ? 'warning' : 'error'}
             </Text>
             <ErrorMessageByType validationError={validationError} />
         </Stack>
