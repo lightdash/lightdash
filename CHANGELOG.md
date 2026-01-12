@@ -1,3 +1,11 @@
+## [0.2329.1](https://github.com/lightdash/lightdash/compare/0.2329.0...0.2329.1) (2026-01-12)
+
+
+### Bug Fixes
+
+* correct interval syntax in stuck job query ([#19360](https://github.com/lightdash/lightdash/issues/19360)) ([4fbd8d1](https://github.com/lightdash/lightdash/commit/4fbd8d19271082938f68a07d5a346b6e54ba2533))
+* underlying data not prioritizing base table dimensions ([#19353](https://github.com/lightdash/lightdash/issues/19353)) ([f4380fc](https://github.com/lightdash/lightdash/commit/f4380fca5d7755e65e7a68ad8fb48de0d1155a5f))
+
 # [0.2329.0](https://github.com/lightdash/lightdash/compare/0.2328.0...0.2329.0) (2026-01-12)
 
 
