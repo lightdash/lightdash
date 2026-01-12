@@ -1,5 +1,5 @@
 import { type Dashboard, type InteractivityOptions } from '@lightdash/common';
-import { ActionIcon, Tooltip } from '@mantine/core';
+import { ActionIcon, getDefaultZIndex, Tooltip } from '@mantine/core';
 import { IconPrinter } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -54,6 +54,7 @@ const EmbedDashboardExportPdf: FC<Props> = ({
                     }
                 }}
                 size="lg"
+                radius="md"
                 sx={{
                     ...(inHeader
                         ? {}
@@ -62,10 +63,10 @@ const EmbedDashboardExportPdf: FC<Props> = ({
                               top: 20,
                               right: 72, // Make sure the button does not overlap the chart options
                           }),
-                    zIndex: 1000,
+                    zIndex: getDefaultZIndex('modal') - 1,
                 }}
             >
-                <MantineIcon size="xl" icon={IconPrinter} />
+                <MantineIcon icon={IconPrinter} />
             </ActionIcon>
         </Tooltip>
     );
