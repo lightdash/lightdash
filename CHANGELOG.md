@@ -1,3 +1,10 @@
+# [0.2330.0](https://github.com/lightdash/lightdash/compare/0.2329.1...0.2330.0) (2026-01-12)
+
+
+### Features
+
+* export FilterOperator from frontend SDK ([#19368](https://github.com/lightdash/lightdash/issues/19368)) ([150d7f3](https://github.com/lightdash/lightdash/commit/150d7f335dab8533eaf8c08d2a2f5d5a96990ca8))
+
 ## [0.2329.1](https://github.com/lightdash/lightdash/compare/0.2329.0...0.2329.1) (2026-01-12)
 
 
