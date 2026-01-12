@@ -33,8 +33,6 @@ import styles from './SimpleStatistic.module.css';
 
 interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
-    isTitleHidden?: boolean;
-    isDashboard?: boolean;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 }
