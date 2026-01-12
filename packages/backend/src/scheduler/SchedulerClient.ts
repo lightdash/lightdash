@@ -302,12 +302,12 @@ export class SchedulerClient {
             this.analytics.track({
                 event: 'scheduler_job.deleted',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: context.organizationUuid,
+                projectId: context.projectUuid,
+                userId: context.userUuid,
                 properties: {
                     jobId: id,
                     schedulerId: schedulerUuid,
-                    organizationId: context.organizationUuid,
-                    projectId: context.projectUuid,
-                    userId: context.userUuid,
                 },
             });
         });
@@ -366,12 +366,12 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: scheduler.organizationUuid,
+            projectId: scheduler.projectUuid,
+            userId: scheduler.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: schedulerUuid,
-                organizationId: scheduler.organizationUuid,
-                projectId: scheduler.projectUuid,
-                userId: scheduler.userUuid,
             },
         });
 
@@ -404,13 +404,13 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
                 schedulerTargetId: undefined,
-                organizationId: traceProperties.organizationUuid,
-                projectId: traceProperties.projectUuid,
-                userId: traceProperties.userUuid,
                 type: 'gsheets',
                 format: scheduler.format,
                 sendNow: scheduler.schedulerUuid === undefined,
@@ -513,13 +513,13 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: targetUuid,
-                organizationId: traceProperties.organizationUuid,
-                projectId: traceProperties.projectUuid,
-                userId: traceProperties.userUuid,
                 type,
                 format: scheduler.format,
                 sendNow: schedulerUuid === undefined,
@@ -561,12 +561,12 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
-                organizationId: traceProperties.organizationUuid,
-                projectId: traceProperties.projectUuid,
-                userId: traceProperties.userUuid,
                 type: 'slack',
                 targetCount: targets.length,
                 format: scheduler.format,
@@ -612,12 +612,12 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
-                organizationId: traceProperties.organizationUuid,
-                projectId: traceProperties.projectUuid,
-                userId: traceProperties.userUuid,
                 type: 'email',
                 targetCount: targets.length,
                 format: scheduler.format,
@@ -663,12 +663,12 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
-                organizationId: traceProperties.organizationUuid,
-                projectId: traceProperties.projectUuid,
-                userId: traceProperties.userUuid,
                 type: 'msteams',
                 targetCount: targets.length,
                 format: scheduler.format,
