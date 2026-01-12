@@ -224,6 +224,9 @@ export class HealthService extends BaseService {
             echarts6: {
                 enabled: this.lightdashConfig.echarts6.enabled,
             },
+            funnelBuilder: {
+                enabled: this.lightdashConfig.funnelBuilder.enabled,
+            },
         };
     }
 
