@@ -1,3 +1,15 @@
+# [0.2329.0](https://github.com/lightdash/lightdash/compare/0.2328.0...0.2329.0) (2026-01-12)
+
+
+### Bug Fixes
+
+* display sql table chart full-width ([#19329](https://github.com/lightdash/lightdash/issues/19329)) ([4b865ee](https://github.com/lightdash/lightdash/commit/4b865ee3df0580455e30387bb970a1cf74b82176))
+
+
+### Features
+
+* render sql chart loading skeleton based on chart type ([#19328](https://github.com/lightdash/lightdash/issues/19328)) ([dcb7ec9](https://github.com/lightdash/lightdash/commit/dcb7ec966284101bdf6e70c965a470bff64c2ccf))
+
 # [0.2328.0](https://github.com/lightdash/lightdash/compare/0.2327.0...0.2328.0) (2026-01-12)
 
 
