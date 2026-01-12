@@ -139,7 +139,8 @@
         "clean-node-modules": "./scripts/clean-node-modules.sh && pnpm install",
         "clean-build-cache": "./scripts/clean-build-cache.sh",
         "clean": "pnpm clean-build-cache && pnpm clean-node-modules",
-        "clean-and-build": "pnpm clean && pnpm build"
+        "clean-and-build": "pnpm clean && pnpm build",
+        "http": "pnpx httpyac"
     },
     "lint-staged": {
         "packages/frontend/src/**/*.(ts|tsx|json|css)": [
