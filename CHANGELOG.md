@@ -1,3 +1,10 @@
+## [0.2325.2](https://github.com/lightdash/lightdash/compare/0.2325.1...0.2325.2) (2026-01-12)
+
+
+### Bug Fixes
+
+* add descriptive error messages for permission failures ([#19332](https://github.com/lightdash/lightdash/issues/19332)) ([88a6b62](https://github.com/lightdash/lightdash/commit/88a6b62f871e10ce61d319c56105163314c11cf5))
+
 ## [0.2325.1](https://github.com/lightdash/lightdash/compare/0.2325.0...0.2325.1) (2026-01-09)
 
 
