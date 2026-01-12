@@ -4,6 +4,7 @@ import {
     assertUnreachable,
     AuthorizationError,
     ChartType,
+    DashboardTileTypes,
     DownloadFileType,
     FeatureFlags,
     ForbiddenError,
@@ -41,7 +42,7 @@ import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
-import playwright from 'playwright';
+import playwright, { type ElementHandle } from 'playwright';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/S3Client';
 import { SlackClient } from '../../clients/Slack/SlackClient';
@@ -374,6 +375,7 @@ export class UnfurlService extends BaseService {
             resourceUuid?: string;
             chartTileUuids?: (string | null)[];
             sqlChartTileUuids?: (string | null)[];
+            loomTileUuids?: (string | null)[];
         }
     > {
         switch (parsedUrl.lightdashPage) {
@@ -406,6 +408,9 @@ export class UnfurlService extends BaseService {
                     sqlChartTileUuids: filteredTiles
                         .filter(isDashboardSqlChartTile)
                         .map((t) => t.properties.savedSqlUuid),
+                    loomTileUuids: filteredTiles
+                        .filter((t) => t.type === DashboardTileTypes.LOOM)
+                        .map((t) => t.uuid),
                 };
             case LightdashPage.CHART:
                 if (!parsedUrl.chartUuid)
@@ -478,6 +483,7 @@ export class UnfurlService extends BaseService {
             resourceUuid,
             chartTileUuids: rest.chartTileUuids,
             sqlChartTileUuids: rest.sqlChartTileUuids,
+            loomTileUuids: rest.loomTileUuids,
         };
     }
 
@@ -558,6 +564,7 @@ export class UnfurlService extends BaseService {
             selector,
             chartTileUuids: details?.chartTileUuids,
             sqlChartTileUuids: details?.sqlChartTileUuids,
+            loomTileUuids: details?.loomTileUuids,
             context,
             contextId,
             selectedTabs,
@@ -708,6 +715,7 @@ export class UnfurlService extends BaseService {
         selector = 'body',
         chartTileUuids = undefined,
         sqlChartTileUuids = undefined,
+        loomTileUuids = undefined,
         retries = this.lightdashConfig.headlessBrowser.maxScreenshotRetries ??
             DEFAULT_SCREENSHOT_RETRIES,
         context,
@@ -729,6 +737,7 @@ export class UnfurlService extends BaseService {
         selector?: string;
         chartTileUuids?: (string | null)[] | undefined;
         sqlChartTileUuids?: (string | null)[] | undefined;
+        loomTileUuids?: (string | null)[] | undefined;
         retries?: number;
         context: ScreenshotContext;
         contextId?: unknown;
@@ -837,6 +846,31 @@ export class UnfurlService extends BaseService {
                                 ? contextId.toString()
                                 : 'undefined',
                         },
+                    });
+
+                    // Polyfill crypto.randomUUID (needed for Loom iframes)
+                    await page.addInitScript(() => {
+                        if (
+                            typeof crypto !== 'undefined' &&
+                            !crypto.randomUUID
+                        ) {
+                            crypto.randomUUID =
+                                (): `${string}-${string}-${string}-${string}-${string}` =>
+                                    '10000000-1000-4000-8000-100000000000'.replace(
+                                        /[018]/g,
+                                        (c: string) =>
+                                            // eslint-disable-next-line no-bitwise
+                                            (
+                                                Number(c) ^
+                                                // eslint-disable-next-line no-bitwise
+                                                (crypto.getRandomValues(
+                                                    new Uint8Array(1),
+                                                )[0] &
+                                                    // eslint-disable-next-line no-bitwise
+                                                    (15 >> (Number(c) / 4)))
+                                            ).toString(16),
+                                    ) as `${string}-${string}-${string}-${string}-${string}`;
+                        }
                     });
 
                     // Add sendNowSchedulerFilters and sendNowSchedulerParameters to the page session storage
@@ -1122,8 +1156,29 @@ export class UnfurlService extends BaseService {
                                 ];
                             }
 
+                            let loomTileResultsPromises:
+                                | (Promise<ElementHandle | null> | undefined)[]
+                                | undefined;
+
+                            if (loomTileUuids && loomTileUuids.length > 0) {
+                                this.logger.info(
+                                    `Dashboard screenshot: Waiting for ${loomTileUuids.length} Loom tile(s) to load`,
+                                );
+                                loomTileResultsPromises = loomTileUuids.map(
+                                    (id) =>
+                                        page?.waitForSelector(
+                                            `#loom-loaded-${id}`,
+                                            {
+                                                state: 'attached',
+                                                timeout: RESPONSE_TIMEOUT_MS,
+                                            },
+                                        ),
+                                );
+                            }
+
                             chartResultsPromises = [
                                 exploreChartResultsPromise,
+                                ...(loomTileResultsPromises || []),
                                 ...(sqlInitialLoadPromises || []),
                                 ...(sqlResultsJobPromises || []),
                                 ...(sqlResultsPromises || []),
@@ -1324,6 +1379,7 @@ export class UnfurlService extends BaseService {
                             selector,
                             chartTileUuids,
                             sqlChartTileUuids,
+                            loomTileUuids,
                             retries,
                             context,
                             contextId,
