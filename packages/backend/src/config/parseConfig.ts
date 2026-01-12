@@ -997,6 +997,9 @@ export type LightdashConfig = {
     partialCompilation: {
         enabled: boolean;
     };
+    funnelBuilder: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1779,6 +1782,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         partialCompilation: {
             enabled: process.env.PARTIAL_COMPILATION_ENABLED === 'true',
+        },
+        funnelBuilder: {
+            enabled: process.env.FUNNEL_BUILDER_ENABLED === 'true',
         },
     };
 };

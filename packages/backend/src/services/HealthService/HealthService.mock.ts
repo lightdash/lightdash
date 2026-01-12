@@ -106,6 +106,9 @@ export const BaseResponse: HealthState = {
     echarts6: {
         enabled: false,
     },
+    funnelBuilder: {
+        enabled: false,
+    },
 };
 
 export const userMock = {
