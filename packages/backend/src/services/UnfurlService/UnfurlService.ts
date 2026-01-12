@@ -923,9 +923,13 @@ export class UnfurlService extends BaseService {
                                         try {
                                             const json = JSON.parse(
                                                 buffer.toString(),
-                                            ) as HealthState;
+                                            ) as {
+                                                status: 'ok';
+                                                results: HealthState;
+                                            };
                                             if (
-                                                json.isAuthenticated === false
+                                                json.results.isAuthenticated ===
+                                                false
                                             ) {
                                                 this.logger.error(
                                                     `Headless browser health check failed: user is not authenticated - url: ${responseUrl}`,
