@@ -1,3 +1,10 @@
+# [0.2326.0](https://github.com/lightdash/lightdash/compare/0.2325.2...0.2326.0) (2026-01-12)
+
+
+### Features
+
+* add percentage display option to gauge charts ([#19315](https://github.com/lightdash/lightdash/issues/19315)) ([92be2ad](https://github.com/lightdash/lightdash/commit/92be2ad4db9c715ad38adc0c9dcc5fa719b42a1a))
+
 ## [0.2325.2](https://github.com/lightdash/lightdash/compare/0.2325.1...0.2325.2) (2026-01-12)
 
 
