@@ -142,7 +142,9 @@ export class RolesService extends BaseService {
                 }),
             )
         ) {
-            throw new ForbiddenError();
+            throw new ForbiddenError(
+                'You do not have permission to manage this organization',
+            );
         }
     }
 
@@ -182,7 +184,9 @@ export class RolesService extends BaseService {
                     }),
                 )
             ) {
-                throw new ForbiddenError();
+                throw new ForbiddenError(
+                    'You do not have permission to manage this project',
+                );
             }
         }
     }
@@ -562,10 +566,7 @@ export class RolesService extends BaseService {
     ): Promise<RoleAssignment> {
         const { roleId } = request;
         const project = await this.projectModel.getSummary(projectUuid);
-        RolesService.validateOrganizationAccess(
-            account,
-            project.organizationUuid,
-        );
+
         await this.validateProjectAccess(account, projectUuid);
         const role = await this.rolesModel.getRoleWithScopesByUuid(roleId);
 
