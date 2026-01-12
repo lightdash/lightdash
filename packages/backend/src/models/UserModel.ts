@@ -437,6 +437,7 @@ export class UserModel {
             isSetupComplete,
             isActive,
         }: Partial<UpdateUserArgs>,
+        isEmailVerified: boolean = false,
     ): Promise<LightdashUser> {
         await this.database.transaction(async (trx) => {
             const [user] = await trx(UserTableName)
@@ -466,6 +467,19 @@ export class UserModel {
                     email: email.toLowerCase(),
                     is_primary: true,
                 });
+                // If user needs to create a new email
+                // we can automatically verify the email
+                // This is useful for SCIM users who changed their email
+                if (isEmailVerified) {
+                    await trx(EmailTableName)
+                        .where({
+                            user_id: user.user_id,
+                            email: email.toLowerCase(),
+                        })
+                        .update({
+                            is_verified: true,
+                        });
+                }
             }
         });
         return this.getUserDetailsByUuid(userUuid);
