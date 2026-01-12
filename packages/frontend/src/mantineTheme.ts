@@ -5,6 +5,7 @@ import {
     type MantineThemeOverride,
     type Tuple,
 } from '@mantine/core';
+import type {} from 'csstype';
 // eslint-disable-next-line css-modules/no-unused-class
 import styles from './styles/mantine-overrides/tooltip.module.css';
 
@@ -374,4 +375,4 @@ export const getMantineThemeOverride = (
                   }
                 : undefined),
         }),
-    } satisfies MantineThemeOverride);
+    }) satisfies MantineThemeOverride;
