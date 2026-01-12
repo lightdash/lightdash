@@ -132,7 +132,7 @@ describe('Dashboard', () => {
         cy.findAllByText('Add tile').click({ multiple: true });
         cy.findByText('Saved chart').click();
         cy.findByRole('dialog').findByPlaceholderText('Search...').click();
-        // serach
+        // search
         cy.findByRole('dialog')
             .findByPlaceholderText('Search...')
             .type('How much revenue');
