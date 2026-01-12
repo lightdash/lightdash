@@ -50,6 +50,7 @@ export function convertLightdashModelToDbtModel(
             colors: dimension.colors,
             urls: dimension.urls,
             required_attributes: dimension.required_attributes,
+            any_attributes: dimension.any_attributes,
             ai_hint: dimension.ai_hint,
             tags: dimension.tags,
             compact: dimension.compact,
@@ -82,6 +83,7 @@ export function convertLightdashModelToDbtModel(
         sql_where: model.sql_where,
         sql_from: sqlFrom, // from_sql maps directly to sql_from
         required_attributes: model.required_attributes,
+        any_attributes: model.any_attributes,
         group_details: model.group_details,
         default_time_dimension: model.default_time_dimension,
         spotlight: model.spotlight,

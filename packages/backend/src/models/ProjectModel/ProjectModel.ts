@@ -144,6 +144,7 @@ type RawSummaryRow = {
     baseTableRequiredAttributes:
         | Explore['tables'][string]['requiredAttributes']
         | null;
+    baseTableAnyAttributes: Explore['tables'][string]['anyAttributes'] | null;
     aiHint: Explore['aiHint'] | null;
 };
 
@@ -1136,6 +1137,7 @@ export class ProjectModel {
         Array<
             SummaryExplore & {
                 baseTableRequiredAttributes: Explore['tables'][string]['requiredAttributes'];
+                baseTableAnyAttributes: Explore['tables'][string]['anyAttributes'];
             }
         >
     > {
@@ -1154,6 +1156,7 @@ export class ProjectModel {
                     explore->'tables'->(explore->>'baseTable')->>'schema' as "baseTableSchema",
                     explore->'tables'->(explore->>'baseTable')->>'description' as "baseTableDescription",
                     explore->'tables'->(explore->>'baseTable')->'requiredAttributes' as "baseTableRequiredAttributes",
+                    explore->'tables'->(explore->>'baseTable')->'anyAttributes' as "baseTableAnyAttributes",
                     explore->'aiHint' as "aiHint"
                 `),
             )
@@ -1171,6 +1174,7 @@ export class ProjectModel {
             type: row.type ?? undefined,
             baseTableRequiredAttributes:
                 row.baseTableRequiredAttributes ?? undefined,
+            baseTableAnyAttributes: row.baseTableAnyAttributes ?? undefined,
             ...(row.errors ? { errors: row.errors } : {}), // Fatal errors from ExploreError
             ...(row.warnings ? { warnings: row.warnings } : {}), // Non-fatal warnings from partial compilation
         }));
