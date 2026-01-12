@@ -989,6 +989,9 @@ export type SchedulerJobEvent = BaseTrack & {
     properties: {
         jobId: string;
         schedulerId: string | undefined;
+        organizationId: string;
+        projectId: string;
+        userId: string;
         sendNow?: boolean;
         isThresholdAlert?: boolean;
     };

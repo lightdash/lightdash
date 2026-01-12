@@ -281,7 +281,14 @@ export class SchedulerClient {
         return parseInt(results.rows[0].count, 10);
     }
 
-    async deleteScheduledJobs(schedulerUuid: string): Promise<void> {
+    async deleteScheduledJobs(
+        schedulerUuid: string,
+        context: {
+            organizationUuid: string;
+            projectUuid: string;
+            userUuid: string;
+        },
+    ): Promise<void> {
         const graphileClient = await this.graphileUtils;
         const jobsToDelete = await this.getScheduledJobs(schedulerUuid);
         Logger.info(
@@ -298,6 +305,9 @@ export class SchedulerClient {
                 properties: {
                     jobId: id,
                     schedulerId: schedulerUuid,
+                    organizationId: context.organizationUuid,
+                    projectId: context.projectUuid,
+                    userId: context.userUuid,
                 },
             });
         });
@@ -359,6 +369,9 @@ export class SchedulerClient {
             properties: {
                 jobId: id,
                 schedulerId: schedulerUuid,
+                organizationId: scheduler.organizationUuid,
+                projectId: scheduler.projectUuid,
+                userId: scheduler.userUuid,
             },
         });
 
@@ -1186,9 +1199,9 @@ export class SchedulerClient {
     > {
         const graphileClient = await this.graphileUtils;
         const query = `
-            select 
-              last_error is not null as error, 
-              locked_by is not null as locked, 
+            select
+              last_error is not null as error,
+              locked_by is not null as locked,
               count(*) as count
             from graphile_worker.jobs
             group by 1, 2

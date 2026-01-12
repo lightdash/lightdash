@@ -2883,6 +2883,9 @@ export default class SchedulerTask {
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
+                organizationId: schedulerPayload.organizationUuid,
+                projectId: schedulerPayload.projectUuid,
+                userId: schedulerPayload.userUuid,
                 sendNow: schedulerUuid === undefined,
                 isThresholdAlert: scheduler.thresholds !== undefined,
             },
@@ -3025,6 +3028,9 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    organizationId: schedulerPayload.organizationUuid,
+                    projectId: schedulerPayload.projectUuid,
+                    userId: schedulerPayload.userUuid,
                     isThresholdAlert: scheduler.thresholds !== undefined,
                     hasPartialFailures:
                         partialFailures && partialFailures.length > 0,
@@ -3038,6 +3044,9 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    organizationId: schedulerPayload.organizationUuid,
+                    projectId: schedulerPayload.projectUuid,
+                    userId: schedulerPayload.userUuid,
                 },
             });
             await this.schedulerService.logSchedulerJob({
