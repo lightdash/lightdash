@@ -1863,6 +1863,15 @@ export const GenericDashboardChartTile: FC<
     }>();
     const { user } = useApp();
 
+    const markTileScreenshotErrored = useDashboardContext(
+        (c) => c.markTileScreenshotErrored,
+    );
+    useEffect(() => {
+        if (error !== null) {
+            markTileScreenshotErrored(tile.uuid);
+        }
+    }, [error, markTileScreenshotErrored, tile.uuid]);
+
     const userCanManageChart =
         dashboardChartReadyQuery?.chart &&
         user.data?.ability?.can(
