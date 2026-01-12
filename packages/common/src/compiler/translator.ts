@@ -189,6 +189,7 @@ const convertDimension = (
         round: meta.dimension?.round,
         compact: meta.dimension?.compact,
         requiredAttributes: meta.dimension?.required_attributes,
+        anyAttributes: meta.dimension?.any_attributes,
         colors: meta.dimension?.colors,
         ...(meta.dimension?.urls ? { urls: meta.dimension.urls } : {}),
         ...(meta.dimension?.image ? { image: meta.dimension.image } : {}),
@@ -692,6 +693,7 @@ export const convertTable = (
                             metric,
                             tableLabel,
                             requiredAttributes: dimension.requiredAttributes, // TODO Join dimension required_attributes with metric required_attributes
+                            anyAttributes: dimension.anyAttributes, // TODO Join dimension any_attributes with metric any_attributes
                             spotlightConfig: {
                                 ...spotlightConfig,
                                 default_visibility:
@@ -818,6 +820,7 @@ export const convertTable = (
             defaultFilters: meta.default_filters,
         }),
         requiredAttributes: meta.required_attributes,
+        anyAttributes: meta.any_attributes,
         groupDetails,
         ...(meta.default_time_dimension
             ? {

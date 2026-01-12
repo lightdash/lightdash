@@ -560,6 +560,7 @@ export interface Dimension extends Field {
      */
     group?: string;
     requiredAttributes?: Record<string, string | string[]>;
+    anyAttributes?: Record<string, string | string[]>;
     timeInterval?: TimeFrames;
     timeIntervalBaseDimensionName?: string;
     isAdditionalDimension?: boolean;
@@ -753,6 +754,7 @@ export interface Metric extends Field {
     formatOptions?: CustomFormat;
     dimensionReference?: string; // field id of the dimension this metric is based on
     requiredAttributes?: Record<string, string | string[]>; // Required attributes for the dimension this metric is based on
+    anyAttributes?: Record<string, string | string[]>; // Any of these attributes must match (OR logic)
     defaultTimeDimension?: DefaultTimeDimension; // Default time dimension for the metric when the user has not specified a time dimension
     spotlight?: {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];
@@ -873,4 +875,3 @@ export function getCompactOptionsForFormatType(
         Compact.TRILLIONS,
     ];
 }
-
