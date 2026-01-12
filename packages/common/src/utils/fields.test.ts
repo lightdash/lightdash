@@ -1,12 +1,16 @@
 import { getFieldsFromMetricQuery } from '../index';
 import { CustomFormatType, isField, NumberSeparator } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
-import { compareMetricAndCustomMetric } from './fields';
+import {
+    compareMetricAndCustomMetric,
+    getDimensionsWithValidParameters,
+} from './fields';
 import {
     customMetric,
     emptyExplore,
     emptyMetricQuery,
     explore,
+    exploreWithJoinedTables,
     metric,
     metricFilterRule,
     metricQuery,
@@ -291,5 +295,33 @@ describe('compareMetricAndCustomMetric', () => {
         });
         expect(result6.isExactMatch).toEqual(false);
         expect(result6.isSuggestedMatch).toEqual(false);
+    });
+});
+
+describe('getDimensionsWithValidParameters', () => {
+    test('should return base table dimensions before joined table dimensions', () => {
+        const result = getDimensionsWithValidParameters(
+            exploreWithJoinedTables,
+            {},
+        );
+
+        // Should have 4 dimensions total (2 from base, 2 from joined)
+        expect(result).toHaveLength(4);
+
+        // Get dimension names in order
+        const dimensionNames = result.map((d) => d.name);
+
+        // Base table dimensions (base_dim1, base_dim2) should come before
+        // joined table dimensions (joined_dim1, joined_dim2)
+        const baseDim1Idx = dimensionNames.indexOf('base_dim1');
+        const baseDim2Idx = dimensionNames.indexOf('base_dim2');
+        const joinedDim1Idx = dimensionNames.indexOf('joined_dim1');
+        const joinedDim2Idx = dimensionNames.indexOf('joined_dim2');
+
+        // All base table dimensions should come before any joined table dimension
+        expect(baseDim1Idx).toBeLessThan(joinedDim1Idx);
+        expect(baseDim1Idx).toBeLessThan(joinedDim2Idx);
+        expect(baseDim2Idx).toBeLessThan(joinedDim1Idx);
+        expect(baseDim2Idx).toBeLessThan(joinedDim2Idx);
     });
 });

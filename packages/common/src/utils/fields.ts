@@ -82,14 +82,39 @@ export const getDimensionMapFromTables = (
 export const getDimensionsWithValidParameters = (
     explore: Explore,
     combinedParameters: ParametersValuesMap,
-): CompiledDimension[] =>
-    getTablesWithValidParameters(explore, combinedParameters).flatMap((t) =>
-        Object.values(t.dimensions).filter(
-            (d) =>
-                d.parameterReferences?.every((p) => combinedParameters[p]) ??
-                true,
-        ),
+): CompiledDimension[] => {
+    function dimensionHasAllValidParameters(
+        dimension: CompiledDimension,
+    ): boolean {
+        return (
+            dimension.parameterReferences?.every(
+                (p) => combinedParameters[p],
+            ) ?? true
+        );
+    }
+
+    const tablesWithValidParameters = getTablesWithValidParameters(
+        explore,
+        combinedParameters,
     );
+
+    // Dimensions with valid parameters in the base table
+    const baseTableDimensions = tablesWithValidParameters
+        .filter((t) => t.name === explore.baseTable)
+        .flatMap((t) =>
+            Object.values(t.dimensions).filter(dimensionHasAllValidParameters),
+        );
+
+    // Dimensions with valid parameters in the joined tables
+    const joinedTableDimensions = tablesWithValidParameters
+        .filter((t) => t.name !== explore.baseTable)
+        .flatMap((t) =>
+            Object.values(t.dimensions).filter(dimensionHasAllValidParameters),
+        );
+
+    // Prioritize base table dimensions over joined table dimensions
+    return [...baseTableDimensions, ...joinedTableDimensions];
+};
 
 // Helper function to get a list of all metrics in an explore
 // @deprecated Use `getMetricsMapFromTables` instead
