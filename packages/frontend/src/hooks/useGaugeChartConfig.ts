@@ -51,6 +51,12 @@ const useGaugeChartConfig = (
     const [customLabel, setCustomLabel] = useState<string | undefined>(
         initialChartConfig?.customLabel,
     );
+    const [showPercentage, setShowPercentage] = useState<boolean>(
+        initialChartConfig?.showPercentage ?? false,
+    );
+    const [customPercentageLabel, setCustomPercentageLabel] = useState<
+        string | undefined
+    >(initialChartConfig?.customPercentageLabel);
 
     // Get the effective selected field - use state value or fallback to first available
     const effectiveSelectedField = useMemo(() => {
@@ -81,6 +87,8 @@ const useGaugeChartConfig = (
             showAxisLabels,
             sections,
             customLabel,
+            showPercentage,
+            customPercentageLabel,
         };
     }, [
         effectiveSelectedField,
@@ -90,6 +98,8 @@ const useGaugeChartConfig = (
         showAxisLabels,
         sections,
         customLabel,
+        showPercentage,
+        customPercentageLabel,
     ]);
 
     return useMemo(
@@ -111,6 +121,10 @@ const useGaugeChartConfig = (
             setSections,
             customLabel,
             setCustomLabel,
+            showPercentage,
+            setShowPercentage,
+            customPercentageLabel,
+            setCustomPercentageLabel,
         }),
         [
             validConfig,
@@ -123,6 +137,8 @@ const useGaugeChartConfig = (
             showAxisLabels,
             sections,
             customLabel,
+            showPercentage,
+            customPercentageLabel,
         ],
     );
 };

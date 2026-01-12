@@ -2,8 +2,9 @@ import {
     CustomFormatType,
     NumberSeparator,
     getCustomFormat,
+    getEffectiveItemType,
     getItemId,
-    getItemType,
+    getItemMap,
     hasFormatting,
     isDimension,
     isMetric,
@@ -19,11 +20,15 @@ import { memo, useCallback, useEffect, useMemo } from 'react';
 import { type ValueOf } from 'type-fest';
 import {
     explorerActions,
+    selectAdditionalMetrics,
     selectFormatModal,
     selectMetricQuery,
+    selectTableCalculations,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useExplore } from '../../../hooks/useExplore';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import { FormatForm } from '../FormatForm';
@@ -44,6 +49,25 @@ export const FormatModal = memo(() => {
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const metricOverrides = metricQuery.metricOverrides;
     const dimensionOverrides = metricQuery.dimensionOverrides;
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const tableName = useExplorerSelector(selectTableName);
+
+    // Get explore data to determine effective item type for formatting
+    const { data: exploreData } = useExplore(tableName, {
+        refetchOnMount: false,
+    });
+
+    const itemsMap = useMemo(() => {
+        if (exploreData) {
+            return getItemMap(
+                exploreData,
+                additionalMetrics,
+                tableCalculations,
+            );
+        }
+        return undefined;
+    }, [exploreData, additionalMetrics, tableCalculations]);
 
     const toggleModal = useCallback(() => {
         dispatch(explorerActions.toggleFormatModal());
@@ -167,7 +191,7 @@ export const FormatModal = memo(() => {
                     formatInputProps={getFormatInputProps}
                     format={form.values.format}
                     setFormatFieldValue={setFormatFieldValue}
-                    itemType={item ? getItemType(item) : undefined}
+                    itemType={getEffectiveItemType(item, itemsMap)}
                 />
             </form>
         </MantineModal>

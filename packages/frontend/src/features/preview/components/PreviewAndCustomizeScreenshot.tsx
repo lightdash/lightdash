@@ -35,9 +35,9 @@ type PreviewAndCustomizeScreenshotProps = {
             selectedTabs: string[] | null;
         }
     >;
-    previewChoice: (typeof CUSTOM_WIDTH_OPTIONS)[number]['value'] | undefined;
+    previewChoice: typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined;
     setPreviewChoice: (
-        prev: (typeof CUSTOM_WIDTH_OPTIONS)[number]['value'] | undefined,
+        prev: typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined,
     ) => void;
     onPreviewClick?: () => Promise<void>;
     currentPreview?: string;
@@ -118,7 +118,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                                         align="center"
                                         justify="center"
                                         direction="column"
-                                        bg="gray.1"
+                                        bg="ldGray.1"
                                     >
                                         <MantineIcon
                                             icon={IconEyeClosed}

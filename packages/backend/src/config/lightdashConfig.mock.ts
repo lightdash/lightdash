@@ -292,4 +292,7 @@ export const lightdashConfigMock: LightdashConfig = {
     partialCompilation: {
         enabled: false,
     },
+    funnelBuilder: {
+        enabled: false,
+    },
 };

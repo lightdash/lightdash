@@ -7,6 +7,7 @@ import {
     MultiSelect,
     SegmentedControl,
     Stack,
+    Text,
     Tooltip,
 } from '@mantine-8/core';
 import {
@@ -175,18 +176,12 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     const renderActions = () => {
         if (exportType === 'csv') {
             return (
-                <Tooltip
-                    withinPortal
-                    position="bottom"
-                    label="Export results in table for all charts in a zip file"
+                <Button
+                    onClick={handleCsvExport}
+                    leftSection={<MantineIcon icon={IconCsv} />}
                 >
-                    <Button
-                        onClick={handleCsvExport}
-                        leftSection={<MantineIcon icon={IconCsv} />}
-                    >
-                        Export CSV
-                    </Button>
-                </Tooltip>
+                    Export CSV
+                </Button>
             );
         }
 
@@ -214,21 +209,29 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             icon={IconLayoutDashboard}
             size="xl"
             actions={renderActions()}
-            modalRootProps={{ yOffset: '3vh' }}
         >
             <Stack gap="md">
-                <SegmentedControl
-                    data={[
-                        { label: 'Image', value: 'image' },
-                        { label: '.csv', value: 'csv' },
-                    ]}
-                    w="min-content"
-                    radius="md"
-                    value={exportType}
-                    onChange={(value) =>
-                        setExportType(value as 'image' | 'csv')
-                    }
-                />
+                <Stack gap="xs">
+                    <Input.Label>Export format</Input.Label>
+                    <SegmentedControl
+                        data={[
+                            { label: 'Image', value: 'image' },
+                            { label: '.csv', value: 'csv' },
+                        ]}
+                        w="min-content"
+                        radius="md"
+                        value={exportType}
+                        onChange={(value) =>
+                            setExportType(value as 'image' | 'csv')
+                        }
+                    />
+                    {exportType === 'csv' && (
+                        <Text fs="italic" fz="sm" c="dimmed">
+                            All charts from all tabs will be exported as tables
+                            in a ZIP file.
+                        </Text>
+                    )}
+                </Stack>
 
                 {exportType === 'csv' && (
                     <>

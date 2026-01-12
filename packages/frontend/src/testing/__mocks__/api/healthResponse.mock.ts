@@ -107,6 +107,9 @@ export default function mockHealthResponse(
         echarts6: {
             enabled: false,
         },
+        funnelBuilder: {
+            enabled: false,
+        },
         ...overrides,
     };
 }

@@ -1219,7 +1219,7 @@ export class SchedulerClient {
                 WHERE locked_by IS NOT NULL
                   AND locked_at IS NOT NULL
                   AND run_at < now()
-                  AND locked_at > now() - interval $1
+                  AND locked_at > now() - $1::interval
                 ORDER BY locked_at ASC
             `,
                 [`${SchedulerClient.STUCK_JOB_WINDOW} hours`],

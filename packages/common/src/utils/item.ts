@@ -158,6 +158,71 @@ export const isDateItem = (
     return true;
 };
 
+/**
+ * Gets the effective type for formatting purposes.
+ * For metrics that return date/timestamp values (MIN/MAX on date dimensions),
+ * returns the underlying dimension type instead of the metric type.
+ *
+ * @param item - The item to get the effective type for
+ * @param itemsMap - Optional itemsMap to look up dimension types
+ * @returns The effective type for formatting (DimensionType, MetricType, or TableCalculationType)
+ */
+export const getEffectiveItemType = (
+    item: ItemsMap[string] | AdditionalMetric | undefined,
+    itemsMap?: ItemsMap,
+): DimensionType | MetricType | TableCalculationType | undefined => {
+    if (!item) {
+        return undefined;
+    }
+
+    // For metrics with MIN/MAX on date dimensions, return the dimension type
+    if (
+        isMetric(item) &&
+        (item.type === MetricType.MIN || item.type === MetricType.MAX) &&
+        item.dimensionReference &&
+        itemsMap
+    ) {
+        const dimension = itemsMap[item.dimensionReference];
+        if (dimension && isDimension(dimension)) {
+            if (
+                dimension.type === DimensionType.DATE ||
+                dimension.type === DimensionType.TIMESTAMP
+            ) {
+                return dimension.type;
+            }
+        }
+    }
+
+    return getItemType(item);
+};
+
+/**
+ * Checks if a metric returns a date/timestamp value.
+ * This is true when:
+ * 1. The metric type is directly DATE or TIMESTAMP
+ * 2. The metric type is MIN or MAX and the underlying dimension (via dimensionReference) is a date/timestamp
+ *
+ * @param item - The metric to check
+ * @param itemsMap - Optional itemsMap to look up the dimension type from dimensionReference
+ * @returns true if the metric returns a date/timestamp value
+ */
+export const isMetricWithDateValue = (
+    item: ItemsMap[string] | AdditionalMetric | undefined,
+    itemsMap?: ItemsMap,
+): boolean => {
+    if (!item || !isMetric(item)) {
+        return false;
+    }
+    const effectiveType = getEffectiveItemType(item, itemsMap);
+    const dateTypes: (DimensionType | MetricType)[] = [
+        DimensionType.DATE,
+        DimensionType.TIMESTAMP,
+        MetricType.DATE,
+        MetricType.TIMESTAMP,
+    ];
+    return dateTypes.includes(effectiveType as DimensionType | MetricType);
+};
+
 export const replaceDimensionInExplore = (
     explore: Explore,
     dimension: CompiledDimension,

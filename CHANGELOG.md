@@ -1,3 +1,51 @@
+## [0.2329.1](https://github.com/lightdash/lightdash/compare/0.2329.0...0.2329.1) (2026-01-12)
+
+
+### Bug Fixes
+
+* correct interval syntax in stuck job query ([#19360](https://github.com/lightdash/lightdash/issues/19360)) ([4fbd8d1](https://github.com/lightdash/lightdash/commit/4fbd8d19271082938f68a07d5a346b6e54ba2533))
+* underlying data not prioritizing base table dimensions ([#19353](https://github.com/lightdash/lightdash/issues/19353)) ([f4380fc](https://github.com/lightdash/lightdash/commit/f4380fca5d7755e65e7a68ad8fb48de0d1155a5f))
+
+# [0.2329.0](https://github.com/lightdash/lightdash/compare/0.2328.0...0.2329.0) (2026-01-12)
+
+
+### Bug Fixes
+
+* display sql table chart full-width ([#19329](https://github.com/lightdash/lightdash/issues/19329)) ([4b865ee](https://github.com/lightdash/lightdash/commit/4b865ee3df0580455e30387bb970a1cf74b82176))
+
+
+### Features
+
+* render sql chart loading skeleton based on chart type ([#19328](https://github.com/lightdash/lightdash/issues/19328)) ([dcb7ec9](https://github.com/lightdash/lightdash/commit/dcb7ec966284101bdf6e70c965a470bff64c2ccf))
+
+# [0.2328.0](https://github.com/lightdash/lightdash/compare/0.2327.0...0.2328.0) (2026-01-12)
+
+
+### Features
+
+* small export dashboard modal improvements ([#19337](https://github.com/lightdash/lightdash/issues/19337)) ([11c0ff8](https://github.com/lightdash/lightdash/commit/11c0ff8aa4131ca634270c7000953d482ed46190))
+
+# [0.2327.0](https://github.com/lightdash/lightdash/compare/0.2326.0...0.2327.0) (2026-01-12)
+
+
+### Features
+
+* allow formatting date metrics in results table/ui ([#19335](https://github.com/lightdash/lightdash/issues/19335)) ([8fd17cb](https://github.com/lightdash/lightdash/commit/8fd17cb2860d9eb9b8701204ec56ac583f8a4590))
+
+# [0.2326.0](https://github.com/lightdash/lightdash/compare/0.2325.2...0.2326.0) (2026-01-12)
+
+
+### Features
+
+* add percentage display option to gauge charts ([#19315](https://github.com/lightdash/lightdash/issues/19315)) ([92be2ad](https://github.com/lightdash/lightdash/commit/92be2ad4db9c715ad38adc0c9dcc5fa719b42a1a))
+
+## [0.2325.2](https://github.com/lightdash/lightdash/compare/0.2325.1...0.2325.2) (2026-01-12)
+
+
+### Bug Fixes
+
+* add descriptive error messages for permission failures ([#19332](https://github.com/lightdash/lightdash/issues/19332)) ([88a6b62](https://github.com/lightdash/lightdash/commit/88a6b62f871e10ce61d319c56105163314c11cf5))
+
 ## [0.2325.1](https://github.com/lightdash/lightdash/compare/0.2325.0...0.2325.1) (2026-01-09)
 
 

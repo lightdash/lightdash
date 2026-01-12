@@ -424,6 +424,9 @@ export type HealthState = {
     echarts6: {
         enabled: boolean;
     };
+    funnelBuilder: {
+        enabled: boolean;
+    };
 };
 
 export enum DBFieldTypes {

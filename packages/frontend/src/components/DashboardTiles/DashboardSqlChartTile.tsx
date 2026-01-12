@@ -23,6 +23,7 @@ import {
 import { useParams } from 'react-router';
 import { useSavedSqlChartResults } from '../../features/sqlRunner/hooks/useSavedSqlChartResults';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
+import { useDashboardUIPreference } from '../../hooks/dashboard/useDashboardUIPreference';
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -78,6 +79,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     const context = useSearchParams('context') || undefined;
     const savedSqlUuid = tile.properties.savedSqlUuid || undefined;
     const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
+    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
     const canManageSqlRunner = user.data?.ability?.can(
         'manage',
         subject('SqlRunner', {
@@ -194,6 +196,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                 isLoading={!!savedSqlUuid && isChartLoading}
                 hasError
                 title={tileTitle}
+                chartKind={null}
                 {...rest}
             >
                 {(!savedSqlUuid || !isChartLoading) && (
@@ -217,6 +220,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                 title={tile.properties.title || tile.properties.chartName || ''}
                 isLoading={isChartResultsLoading}
                 hasError={!!chartResultsError}
+                chartKind={chartData.config.type}
                 {...rest}
                 titleHref={`/projects/${projectUuid}/sql-runner/${chartData.slug}`}
                 extraMenuItems={
@@ -253,6 +257,11 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             titleHref={`/projects/${projectUuid}/sql-runner/${chartData.slug}`}
             tile={tile}
             title={tile.properties.title || tile.properties.chartName || ''}
+            chartKind={chartData.config.type}
+            fullWidth={
+                isDashboardRedesignEnabled &&
+                chartData.config.type === ChartKind.TABLE
+            }
             {...rest}
             extraMenuItems={
                 projectUuid &&
