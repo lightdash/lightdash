@@ -17,6 +17,7 @@ import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
+import { FunnelService } from './FunnelService/FunnelService';
 import { GdriveService } from './GdriveService/GdriveService';
 import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
@@ -95,6 +96,7 @@ interface ServiceManifest {
     contentService: ContentService;
     coderService: CoderService;
     featureFlagService: FeatureFlagService;
+    funnelService: FunnelService;
     spotlightService: SpotlightService;
     lightdashAnalyticsService: LightdashAnalyticsService;
     asyncQueryService: AsyncQueryService;
@@ -933,6 +935,18 @@ export class ServiceRepository
                 new FeatureFlagService({
                     lightdashConfig: this.context.lightdashConfig,
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                }),
+        );
+    }
+
+    public getFunnelService(): FunnelService {
+        return this.getService(
+            'funnelService',
+            () =>
+                new FunnelService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    projectModel: this.models.getProjectModel(),
+                    projectService: this.getProjectService(),
                 }),
         );
     }

@@ -1,0 +1,92 @@
+# Funnel Builder API Examples
+#
+# Run all requests: pnpm http examples/api/funnel.http --all
+# Run single request: pnpm http examples/api/funnel.http -n "Login"
+
+### Login
+POST http://localhost:3000/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+### Funnel Builder API
+# These endpoints power the funnel builder feature.
+# Requires SQL Runner access to the project.
+
+#### Get event names for funnel step selection
+# Returns distinct values from the event name dimension (up to 1000)
+GET http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/funnel/event-names?exploreName=product_events&eventDimensionId=product_events_event_name&timestampFieldId=product_events_event_timestamp
+
+#### Run funnel query - e-commerce conversion funnel
+# Classic e-commerce funnel: product view → add to cart → checkout → purchase
+POST http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/funnel/query
+Content-Type: application/json
+
+{
+    "exploreName": "product_events",
+    "timestampFieldId": "product_events_event_timestamp",
+    "userIdFieldId": "product_events_user_id",
+    "eventNameFieldId": "product_events_event_name",
+    "steps": [
+        { "stepOrder": 1, "eventName": "product_viewed" },
+        { "stepOrder": 2, "eventName": "add_to_cart" },
+        { "stepOrder": 3, "eventName": "checkout_started" },
+        { "stepOrder": 4, "eventName": "checkout_completed" }
+    ],
+    "dateRange": {
+        "type": "preset",
+        "preset": "last_30_days"
+    },
+    "conversionWindow": {
+        "value": 7,
+        "unit": "days"
+    }
+}
+
+#### Run funnel query - checkout funnel with breakdown by device
+# Breaks down conversion by device type to see mobile vs desktop performance
+POST http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/funnel/query
+Content-Type: application/json
+
+{
+    "exploreName": "product_events",
+    "timestampFieldId": "product_events_event_timestamp",
+    "userIdFieldId": "product_events_user_id",
+    "eventNameFieldId": "product_events_event_name",
+    "breakdownDimensionId": "product_events_device_type",
+    "steps": [
+        { "stepOrder": 1, "eventName": "add_to_cart" },
+        { "stepOrder": 2, "eventName": "checkout_started" },
+        { "stepOrder": 3, "eventName": "checkout_completed" }
+    ],
+    "dateRange": {
+        "type": "preset",
+        "preset": "last_90_days"
+    },
+    "conversionWindow": {
+        "value": 24,
+        "unit": "hours"
+    }
+}
+
+#### Run funnel query - simple 2-step funnel
+POST http://localhost:3000/api/v1/projects/3675b69e-8324-4110-bdca-059031aa8da3/funnel/query
+Content-Type: application/json
+
+{
+    "exploreName": "product_events",
+    "timestampFieldId": "product_events_event_timestamp",
+    "userIdFieldId": "product_events_user_id",
+    "eventNameFieldId": "product_events_event_name",
+    "steps": [
+        { "stepOrder": 1, "eventName": "page_view" },
+        { "stepOrder": 2, "eventName": "product_viewed" }
+    ],
+    "dateRange": {
+        "type": "preset",
+        "preset": "last_30_days"
+    }
+}
