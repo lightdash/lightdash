@@ -1,4 +1,5 @@
 import {
+    ConditionalFormattingColorApplyTo,
     formatItemValue,
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
@@ -742,7 +743,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                         rowFields: rowFieldsForCell,
                                     });
 
-                                const conditionalFormattingColor =
+                                const conditionalFormattingResult =
                                     getConditionalFormattingColor({
                                         field: item,
                                         value: value?.raw,
@@ -767,6 +768,10 @@ const PivotTable: FC<PivotTableProps> = ({
                                         },
                                     });
 
+                                const applyToText =
+                                    conditionalFormattingResult?.applyTo ===
+                                    ConditionalFormattingColorApplyTo.TEXT;
+
                                 const conditionalFormatting = (() => {
                                     const tooltipContent =
                                         getConditionalFormattingDescription(
@@ -777,29 +782,33 @@ const PivotTable: FC<PivotTableProps> = ({
                                         );
 
                                     if (
-                                        !conditionalFormattingColor ||
+                                        !conditionalFormattingResult ||
                                         !isHexCodeColor(
-                                            conditionalFormattingColor,
+                                            conditionalFormattingResult.color,
                                         )
                                     ) {
                                         return undefined;
                                     }
 
-                                    return {
-                                        tooltipContent,
-                                        color: readableColor(
-                                            conditionalFormattingColor,
-                                        ),
-                                        backgroundColor:
-                                            conditionalFormattingColor,
-                                    };
+                                    // When applying to text, set color directly without background
+                                    // When applying to cell, set background and calculate readable text color
+                                    return applyToText
+                                        ? {
+                                              tooltipContent,
+                                              color: conditionalFormattingResult.color,
+                                          }
+                                        : {
+                                              tooltipContent,
+                                              color: readableColor(
+                                                  conditionalFormattingResult.color,
+                                              ),
+                                              backgroundColor:
+                                                  conditionalFormattingResult.color,
+                                          };
                                 })();
 
-                                // When conditional formatting is applied, always use calculated contrast color
-                                // to ensure text remains readable regardless of light/dark mode
-                                const fontColor = conditionalFormattingColor
-                                    ? readableColor(conditionalFormattingColor)
-                                    : undefined;
+                                // Font color is set by conditionalFormatting above
+                                const fontColor = conditionalFormatting?.color;
 
                                 const suppressContextMenu =
                                     (value === undefined ||
