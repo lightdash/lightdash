@@ -4727,6 +4727,9 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     organizationUuid,
                     userUuid,
                     slackSettings,
+                    {
+                        projectType: ProjectType.DEFAULT,
+                    },
                 );
 
                 if (availableAgents.length === 0) {
