@@ -1,3 +1,10 @@
+## [0.2331.4](https://github.com/lightdash/lightdash/compare/0.2331.3...0.2331.4) (2026-01-13)
+
+
+### Bug Fixes
+
+* load context menu for pie and funnel charts on dashboard v1&v2 ([#19386](https://github.com/lightdash/lightdash/issues/19386)) ([d0ecf7d](https://github.com/lightdash/lightdash/commit/d0ecf7dc7df6044b4ea348d36a3cf887ebfe3b4b))
+
 ## [0.2331.3](https://github.com/lightdash/lightdash/compare/0.2331.2...0.2331.3) (2026-01-13)
 
 
