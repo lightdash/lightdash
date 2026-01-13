@@ -731,6 +731,12 @@ export class ExploreCompiler {
         const currentRef = `${metric.table}.${metric.name}`;
         const currentShortRef = metric.name;
         let tablesReferences = new Set([metric.table]);
+        if (metric.sql === undefined || metric.sql === null) {
+            throw new CompileError(
+                `Metric "${metric.name}" in table "${metric.table}" is missing a sql definition`,
+                {},
+            );
+        }
         let renderedSql = metric.sql.replace(
             lightdashVariablePattern,
             (_, p1) => {
