@@ -1,3 +1,12 @@
+## [0.2331.3](https://github.com/lightdash/lightdash/compare/0.2331.2...0.2331.3) (2026-01-13)
+
+
+### Bug Fixes
+
+* centralize exports conditions for charts images ([#19384](https://github.com/lightdash/lightdash/issues/19384)) ([f677380](https://github.com/lightdash/lightdash/commit/f677380c3776ae43af987e5ec6fa3265235f5191))
+* infinite isLoading when there's no dashboard in the chart space ([#19385](https://github.com/lightdash/lightdash/issues/19385)) ([ca7c455](https://github.com/lightdash/lightdash/commit/ca7c4551e3423524c890c9de2f1442b88f27c111))
+* resolve mantine type error ([#19371](https://github.com/lightdash/lightdash/issues/19371)) ([6e21f7b](https://github.com/lightdash/lightdash/commit/6e21f7bf012e822c1fe55a576577130c9502cc6c))
+
 ## [0.2331.2](https://github.com/lightdash/lightdash/compare/0.2331.1...0.2331.2) (2026-01-13)
 
 
