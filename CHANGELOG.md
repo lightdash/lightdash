@@ -1,3 +1,10 @@
+## [0.2331.1](https://github.com/lightdash/lightdash/compare/0.2331.0...0.2331.1) (2026-01-13)
+
+
+### Bug Fixes
+
+* replace logger.warning with logger.warn method ([#19380](https://github.com/lightdash/lightdash/issues/19380)) ([d1f7024](https://github.com/lightdash/lightdash/commit/d1f7024627171aeb4c5f4d3d07fd5eab5051d095))
+
 # [0.2331.0](https://github.com/lightdash/lightdash/compare/0.2330.0...0.2331.0) (2026-01-13)
 
 
