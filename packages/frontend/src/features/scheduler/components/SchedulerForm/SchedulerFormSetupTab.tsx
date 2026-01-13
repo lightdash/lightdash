@@ -99,13 +99,15 @@ export const SchedulerFormSetupTab: FC<Props> = ({
         return SlackStates.SUCCESS;
     }, [isInitialLoading, organizationHasSlack, slackInstallation]);
 
-    const [allTabsSelected, setAllTabsSelected] = useState(
-        form.values.selectedTabs === null ||
+    const allTabsSelected = useMemo(() => {
+        return (
+            form.values.selectedTabs === null ||
             isEqual(
                 dashboard?.tabs.map((tab) => tab.uuid),
                 form.values.selectedTabs,
-            ), // make sure tab ids are identical
-    );
+            )
+        );
+    }, [form.values.selectedTabs, dashboard?.tabs]);
 
     const [emailValidationError, setEmailValidationError] = useState<
         string | undefined
@@ -343,7 +345,8 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                                     position="top"
                                     withinPortal
                                     disabled={
-                                        (form.values.emailTargets?.length || 0) > 0
+                                        (form.values.emailTargets?.length ||
+                                            0) > 0
                                     }
                                 >
                                     <Box display="flex" w="fit-content">
@@ -488,7 +491,6 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                         labelPosition="right"
                         checked={allTabsSelected}
                         onChange={(e) => {
-                            setAllTabsSelected((old) => !old);
                             form.setFieldValue(
                                 'selectedTabs',
                                 e.target.checked ? null : [],
