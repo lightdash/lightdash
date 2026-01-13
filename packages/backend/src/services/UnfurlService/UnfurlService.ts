@@ -70,7 +70,7 @@ const uuidRegex = new RegExp(uuid, 'g');
 const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
 const createQueryEndpointRegex = /\/query/;
-const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}`);
+const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}(?!/results)`);
 
 const viewport = {
     width: 1400,
