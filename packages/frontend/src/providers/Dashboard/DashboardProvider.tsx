@@ -69,6 +69,7 @@ const DashboardProvider: React.FC<
     React.PropsWithChildren<{
         schedulerFilters?: DashboardFilterRule[] | undefined;
         schedulerParameters?: ParametersValuesMap | undefined;
+        schedulerTabsSelected?: string[] | undefined;
         dateZoom?: DateGranularity | undefined;
         projectUuid?: string;
         embedToken?: string;
@@ -79,6 +80,7 @@ const DashboardProvider: React.FC<
 > = ({
     schedulerFilters,
     schedulerParameters,
+    schedulerTabsSelected,
     dateZoom,
     projectUuid,
     embedToken,
@@ -417,6 +419,18 @@ const DashboardProvider: React.FC<
     const expectedScreenshotTileUuids = useMemo(() => {
         if (!dashboardTiles) return [];
 
+        // When schedulerTabsSelected is provided, use it to filter tiles for screenshots
+        if (schedulerTabsSelected && schedulerTabsSelected.length > 0) {
+            return dashboardTiles
+                .filter(
+                    (tile) =>
+                        isDashboardChartTileType(tile) ||
+                        isDashboardSqlChartTile(tile),
+                )
+                .filter((tile) => schedulerTabsSelected.includes(tile.tabUuid!))
+                .map((tile) => tile.uuid);
+        }
+
         if (dashboardTabs && dashboardTabs.length > 0 && !activeTab) return [];
 
         return dashboardTiles
@@ -430,7 +444,7 @@ const DashboardProvider: React.FC<
                 return !tile.tabUuid || tile.tabUuid === activeTab.uuid;
             })
             .map((tile) => tile.uuid);
-    }, [dashboardTiles, activeTab, dashboardTabs]);
+    }, [dashboardTiles, activeTab, dashboardTabs, schedulerTabsSelected]);
 
     const isReadyForScreenshot = useMemo(() => {
         if (expectedScreenshotTileUuids.length === 0) {
