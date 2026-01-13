@@ -22,6 +22,8 @@ declare module '@rudderstack/rudder-sdk-node' {
     }
     export interface Track {
         userId?: string;
+        organizationId?: string;
+        projectId?: string;
         anonymousId?: string;
         event: string;
         properties?: Record<string, AnyType>;
