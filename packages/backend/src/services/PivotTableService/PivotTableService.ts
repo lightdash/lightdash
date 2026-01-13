@@ -274,7 +274,7 @@ export class PivotTableService extends BaseService {
                 try {
                     await fsPromise.unlink(filePath);
                 } catch (error) {
-                    this.logger.warning(
+                    this.logger.warn(
                         `Error deleting local file ${filePath}: ${error}`,
                     );
                 }
