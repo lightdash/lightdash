@@ -128,6 +128,7 @@ import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
+import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../common/ChartDownload/chartDownloadUtils';
 import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/utils';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -154,7 +155,7 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
             metricQuery: savedChart.metricQuery,
             columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
-                ? savedChart.chartConfig.config.showTableNames ?? false
+                ? (savedChart.chartConfig.config.showTableNames ?? false)
                 : true,
             customLabels: getCustomLabelsFromTableConfig(
                 savedChart.chartConfig.config,
@@ -1333,11 +1334,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                             </Menu.Item>
                                         </>
                                     )}
-                                    {chart.chartConfig.type !==
-                                        ChartType.TABLE &&
-                                        userCanExportData &&
-                                        chart.chartConfig.type !==
-                                            ChartType.BIG_NUMBER && (
+                                    {!CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
+                                        chart.chartConfig.type,
+                                    ) &&
+                                        userCanExportData && (
                                             <DashboardExportImage
                                                 echartRef={echartRef}
                                                 chartName={chart.name}
@@ -1526,7 +1526,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 getDownloadQueryUuid={getDownloadQueryUuid}
                 showTableNames={
                     isTableChartConfig(chart.chartConfig.config)
-                        ? chart.chartConfig.config.showTableNames ?? false
+                        ? (chart.chartConfig.config.showTableNames ?? false)
                         : true
                 }
                 chartName={title || chart.name}
@@ -1727,9 +1727,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                                 </Menu.Item>
                             )}
                             {canExportImages &&
-                                chart.chartConfig.type !== ChartType.TABLE &&
-                                chart.chartConfig.type !==
-                                    ChartType.BIG_NUMBER && (
+                                !CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
+                                    chart.chartConfig.type,
+                                ) && (
                                     <DashboardExportImage
                                         echartRef={echartRef}
                                         chartName={chart.name}
@@ -1809,7 +1809,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     getDownloadQueryUuid={getDownloadQueryUuid}
                     showTableNames={
                         isTableChartConfig(chart.chartConfig.config)
-                            ? chart.chartConfig.config.showTableNames ?? false
+                            ? (chart.chartConfig.config.showTableNames ?? false)
                             : true
                     }
                     chartName={title || chart.name}
