@@ -92,11 +92,12 @@ const FunnelChart: FC<FunnelChartProps> = memo(
                 const event = e.event?.event as unknown as PointerEvent;
                 const data = e.data as FunnelSeriesDataPoint;
 
+                // Use pageX/pageY (document coordinates) to account for scroll
                 setMenuProps({
                     value: data.meta.value,
                     position: {
-                        left: event.clientX,
-                        top: event.clientY,
+                        left: event.pageX,
+                        top: event.pageY,
                     },
                     rows: data.meta.rows,
                 });
