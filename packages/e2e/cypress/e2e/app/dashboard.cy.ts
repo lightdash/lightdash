@@ -132,9 +132,18 @@ describe('Dashboard', () => {
         cy.findAllByText('Add tile').click({ multiple: true });
         cy.findByText('Saved chart').click();
         cy.findByRole('dialog').findByPlaceholderText('Search...').click();
-        cy.contains('How much revenue').click();
+        // search
+        cy.findByRole('dialog')
+            .findByPlaceholderText('Search...')
+            .type('How much revenue');
+        cy.findByRole('option', {
+            name: 'How much revenue do we have per payment method?',
+        }).click();
         cy.findByRole('dialog').get('.mantine-MultiSelect-input').click(); // Close dropdown
         cy.findByText('Add').click();
+        cy.findByText('How much revenue do we have per payment method?').should(
+            'exist',
+        );
 
         // Create chart within dashboard
         cy.findAllByText('Add tile').click({ multiple: true });

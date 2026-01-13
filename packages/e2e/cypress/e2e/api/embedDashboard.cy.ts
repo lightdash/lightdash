@@ -41,6 +41,17 @@ describe('Embed Dashboard JWT API', () => {
                     allowAllCharts: originalEmbedConfig.allowAllCharts || false,
                 }).then((updateResp) => {
                     expect(updateResp.status).to.eq(200);
+                    // Wait a moment for database commit/replication, especially important
+                    // in preview environments where there might be replication lag
+                    cy.wait(500);
+                    // Verify the config was updated before proceeding
+                    getEmbedConfig().then((verifyResp) => {
+                        expect(verifyResp.status).to.eq(200);
+                        const updatedConfig = verifyResp.body.results;
+                        expect(updatedConfig.dashboardUuids).to.include(
+                            testDashboardUuid,
+                        );
+                    });
                 });
             });
         });
@@ -87,25 +98,36 @@ describe('Embed Dashboard JWT API', () => {
         before(() => {
             // Login to create the JWT token, then clear the session
             cy.login();
-            getEmbedUrl({
-                user: {
-                    externalId: 'dashboard-user@example.com',
-                    email: 'dashboard-user@example.com',
-                },
-                content: {
-                    type: 'dashboard',
-                    dashboardUuid: testDashboardUuid,
-                    canExportCsv: true,
-                    canExportImages: false,
-                    canViewUnderlyingData: true,
-                    canDateZoom: true,
-                    projectUuid: SEED_PROJECT.project_uuid,
-                },
-                expiresIn: '24h',
-            }).then((resp) => {
-                expect(resp.status).to.eq(200);
-                const { url } = resp.body.results;
-                [, dashboardJwtToken] = url.split('#');
+            // Verify embed config is ready before creating token
+            // This ensures the same embed secret is used for signing and verification
+            // Critical in preview environments where replication lag can cause
+            // token creation and validation to read different database states
+            getEmbedConfig().then((configResp) => {
+                expect(configResp.status).to.eq(200);
+                const config = configResp.body.results;
+                expect(config.dashboardUuids).to.include(testDashboardUuid);
+
+                // Config verified, create the token
+                getEmbedUrl({
+                    user: {
+                        externalId: 'dashboard-user@example.com',
+                        email: 'dashboard-user@example.com',
+                    },
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid: testDashboardUuid,
+                        canExportCsv: true,
+                        canExportImages: false,
+                        canViewUnderlyingData: true,
+                        canDateZoom: true,
+                        projectUuid: SEED_PROJECT.project_uuid,
+                    },
+                    expiresIn: '24h',
+                }).then((resp) => {
+                    expect(resp.status).to.eq(200);
+                    const { url } = resp.body.results;
+                    [, dashboardJwtToken] = url.split('#');
+                });
             });
         });
 

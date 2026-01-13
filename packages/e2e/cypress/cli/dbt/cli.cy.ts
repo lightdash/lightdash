@@ -130,7 +130,8 @@ describe('CLI', () => {
             .should('contain', 'Done 🕶');
     });
 
-    it('Should lightdash generate with --exclude', () => {
+    it.skip('Should lightdash generate with --exclude', () => {
+        // skipping because product_events is not in the seed data
         cy.exec(
             `${cliCommand} generate -y --project-dir ${projectDir} --profiles-dir ${profilesDir} --exclude events`,
             {
