@@ -1,3 +1,10 @@
+# [0.2334.0](https://github.com/lightdash/lightdash/compare/0.2333.0...0.2334.0) (2026-01-13)
+
+
+### Features
+
+* add field descriptions to metric labels in PivotTable tooltips ([#19409](https://github.com/lightdash/lightdash/issues/19409)) ([e52811f](https://github.com/lightdash/lightdash/commit/e52811f7d18dd3ada6152a8101577c538f2915ba))
+
 # [0.2333.0](https://github.com/lightdash/lightdash/compare/0.2332.2...0.2333.0) (2026-01-13)
 
 
