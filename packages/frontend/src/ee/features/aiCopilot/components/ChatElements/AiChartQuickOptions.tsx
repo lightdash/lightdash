@@ -284,6 +284,9 @@ export const AiChartQuickOptions = ({
                         tableName: metricQuery.exploreName,
                         chartConfig,
                         tableConfig: { columnOrder },
+                        pivotConfig: pivotDimensions?.length
+                            ? { columns: pivotDimensions }
+                            : undefined,
                     }}
                     onConfirm={onSaveChart}
                     onClose={close}
