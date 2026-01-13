@@ -8,4 +8,5 @@ module.exports = {
         '/dist/',
         '.*\\.integration\\.test\\.ts$',
     ],
+    maxWorkers: '50%',
 };

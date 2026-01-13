@@ -130,6 +130,11 @@ export default defineConfig({
             VITE_REACT_SCAN_ENABLED: 'false',
             VITE_REACT_QUERY_DEVTOOLS_ENABLED: 'false',
         },
+        poolOptions: {
+            forks: {
+                maxForks: '50%',
+            },
+        },
     },
     server: {
         port: FE_PORT,

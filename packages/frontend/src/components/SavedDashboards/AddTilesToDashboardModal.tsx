@@ -202,7 +202,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
 
     const {
         data: selectedDashboard,
-        isLoading: isLoadingSelectedDashboard,
+        isFetching: isFetchingSelectedDashboard,
         isError: isSelectedDashboardError,
     } = useDashboardQuery(form.getInputProps('dashboardUuid').value);
     const { mutateAsync: createDashboard } = useCreateMutation(
@@ -303,7 +303,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
         (isCreatingNewSpace && form.getInputProps('spaceName').value === '') ||
         (!isCreatingNewDashboard &&
             form.getInputProps('dashboardUuid').value &&
-            (isLoadingSelectedDashboard ||
+            (isFetchingSelectedDashboard ||
                 isSelectedDashboardError ||
                 !selectedDashboard));
 
@@ -317,7 +317,7 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                 <Button
                     type="submit"
                     form={ADD_TO_DASHBOARD_FORM_ID}
-                    loading={isLoading || isLoadingSelectedDashboard}
+                    loading={isLoading || isFetchingSelectedDashboard}
                     disabled={isSubmitDisabled}
                 >
                     Add to dashboard
