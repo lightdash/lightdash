@@ -86,49 +86,49 @@ import {
     AiAgentToolCallEvent,
     AiAgentUpdatedEvent,
     LightdashAnalytics,
-} from '../../analytics/LightdashAnalytics';
-import { fromSession } from '../../auth/account';
-import { type SlackClient } from '../../clients/Slack/SlackClient';
-import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logging/logger';
+} from '../../../analytics/LightdashAnalytics';
+import { fromSession } from '../../../auth/account';
+import { type SlackClient } from '../../../clients/Slack/SlackClient';
+import { LightdashConfig } from '../../../config/parseConfig';
+import Logger from '../../../logging/logger';
 import {
     CatalogModel,
     CatalogSearchContext,
-} from '../../models/CatalogModel/CatalogModel';
-import { ChangesetModel } from '../../models/ChangesetModel';
-import { GroupsModel } from '../../models/GroupsModel';
-import { OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SearchModel } from '../../models/SearchModel';
-import { UserAttributesModel } from '../../models/UserAttributesModel';
-import { UserModel } from '../../models/UserModel';
-import PrometheusMetrics from '../../prometheus';
-import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQueryService';
-import { CatalogService } from '../../services/CatalogService/CatalogService';
-import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
-import { ProjectService } from '../../services/ProjectService/ProjectService';
-import { ShareService } from '../../services/ShareService/ShareService';
-import { SpaceService } from '../../services/SpaceService/SpaceService';
+} from '../../../models/CatalogModel/CatalogModel';
+import { ChangesetModel } from '../../../models/ChangesetModel';
+import { GroupsModel } from '../../../models/GroupsModel';
+import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { SearchModel } from '../../../models/SearchModel';
+import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { UserModel } from '../../../models/UserModel';
+import PrometheusMetrics from '../../../prometheus';
+import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { CatalogService } from '../../../services/CatalogService/CatalogService';
+import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { ShareService } from '../../../services/ShareService/ShareService';
+import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import {
     doesExploreMatchRequiredAttributes,
     getFilteredExplore,
-} from '../../services/UserAttributesService/UserAttributeUtils';
-import { wrapSentryTransaction } from '../../utils';
-import { AiAgentModel } from '../models/AiAgentModel';
-import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
-import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
-import { selectBestAgentWithContext } from './ai/agents/agentSelector';
+} from '../../../services/UserAttributesService/UserAttributeUtils';
+import { wrapSentryTransaction } from '../../../utils';
+import { AiAgentModel } from '../../models/AiAgentModel';
+import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
+import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import { selectBestAgentWithContext } from '../ai/agents/agentSelector';
 import {
     generateAgentResponse,
     streamAgentResponse,
-} from './ai/agents/agentV2';
-import { generateEmbedding } from './ai/agents/embeddingGenerator';
-import { generateArtifactQuestion } from './ai/agents/questionGenerator';
-import { evaluateAgentReadiness } from './ai/agents/readinessScorer';
-import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
-import { getAvailableModels, getDefaultModel, getModel } from './ai/models';
-import { matchesPreset } from './ai/models/presets';
-import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
+} from '../ai/agents/agentV2';
+import { generateEmbedding } from '../ai/agents/embeddingGenerator';
+import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
+import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
+import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
+import { getAvailableModels, getDefaultModel, getModel } from '../ai/models';
+import { matchesPreset } from '../ai/models/presets';
+import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
     CreateChangeFn,
     FindContentFn,
@@ -143,7 +143,7 @@ import {
     StoreToolCallFn,
     StoreToolResultsFn,
     UpdateProgressFn,
-} from './ai/types/aiAgentDependencies';
+} from '../ai/types/aiAgentDependencies';
 import {
     getAgentConfirmationBlocks,
     getAgentSelectionBlocks,
@@ -154,11 +154,11 @@ import {
     getProposeChangeBlocks,
     getReferencedArtifactsBlocks,
     getThinkingBlocks,
-} from './ai/utils/getSlackBlocks';
-import { llmAsAJudge } from './ai/utils/llmAsAJudge';
-import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
-import { validateSelectedFieldsExistence } from './ai/utils/validators';
-import { AiOrganizationSettingsService } from './AiOrganizationSettingsService';
+} from '../ai/utils/getSlackBlocks';
+import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
+import { populateCustomMetricsSQL } from '../ai/utils/populateCustomMetricsSQL';
+import { validateSelectedFieldsExistence } from '../ai/utils/validators';
+import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>
@@ -3990,6 +3990,109 @@ Use them as a reference, but do all the due dilligence and follow the instructio
     }
 
     /**
+     * Centralized agent selection logic for Slack multi-agent channels:
+     * - 0 agents: shows error message
+     * - 1 agent: auto-selects
+     * - multiple agents: uses LLM to pick, falls back to UI if low confidence
+     *
+     * IMPORTANT: This function should ONLY be called for multi-agent channel contexts.
+     * Regular channels should use channel-based agent routing instead.
+     *
+     * @returns The selected agent, or undefined if selection is pending (UI shown) or no agents available
+     */
+    private async selectAgentForSlack({
+        availableAgents,
+        messageText,
+        channelId,
+        threadTs,
+        say,
+        botUserId,
+        client,
+        isMultiAgentChannel,
+    }: {
+        availableAgents: AiAgentWithContext[];
+        messageText: string;
+        channelId: string;
+        threadTs: string | undefined;
+        say: Function;
+        botUserId: string | undefined;
+        client: WebClient;
+        isMultiAgentChannel: boolean;
+    }): Promise<AiAgentWithContext | undefined> {
+        // Guard: This function is only meant for multi-agent channel contexts
+        if (!isMultiAgentChannel) {
+            Logger.warn(
+                'selectAgentForSlack called outside of multi-agent channel context - this is likely a bug',
+            );
+            return undefined;
+        }
+
+        const noAgentsMessage =
+            '⚠️ No AI agents are available. Please contact your administrator to configure agents.';
+
+        if (availableAgents.length === 0) {
+            await say({
+                text: noAgentsMessage,
+                thread_ts: threadTs,
+            });
+            return undefined;
+        }
+
+        if (availableAgents.length === 1) {
+            return availableAgents[0];
+        }
+
+        // Multiple agents - use LLM to select the best one
+        const { model } = getModel(this.lightdashConfig.ai.copilot);
+
+        const { agent: selectedAgent, selection } =
+            await selectBestAgentWithContext(
+                model,
+                availableAgents,
+                messageText,
+            );
+
+        Logger.info(
+            `Agent selected by LLM ${JSON.stringify({
+                agentUuid: selectedAgent.uuid,
+                agentName: selectedAgent.name,
+                reasoning: selection.reasoning,
+                confidence: selection.confidence,
+            })}`,
+        );
+
+        // If confidence is low, show selection UI instead
+        if (selection.confidence === 'low') {
+            Logger.info(
+                `Low confidence in agent selection - showing manual selection UI,
+                ${JSON.stringify({ reasoning: selection.reasoning })},`,
+            );
+            await this.showAgentSelectionUI(
+                availableAgents,
+                channelId,
+                threadTs,
+                say,
+            );
+            return undefined;
+        }
+
+        // Post confirmation message for the selected agent
+        const botMentionName = botUserId ? `<@${botUserId}>` : undefined;
+        await AiAgentService.postAgentConfirmation(
+            client,
+            selectedAgent,
+            channelId,
+            threadTs,
+            {
+                isMultiAgentChannel: true,
+                botMentionName,
+            },
+        );
+
+        return selectedAgent;
+    }
+
+    /**
      * Post agent confirmation message showing which agent the user is chatting with
      */
     private static async postAgentConfirmation(
@@ -4150,8 +4253,13 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             return;
         }
 
-        const { teamId } = context;
+        const { teamId, botUserId } = context;
         if (!teamId) {
+            return;
+        }
+
+        // Skip if message contains bot mention - let handleAppMention handle it
+        if (botUserId && event.text?.includes(`<@${botUserId}>`)) {
             return;
         }
 
@@ -4169,11 +4277,11 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             return;
         }
 
+        const isMultiAgentChannel =
+            slackSettings.aiMultiAgentChannelId === event.channel;
+
         // Only respond in the designated multi-agent channel
-        if (
-            !slackSettings.aiMultiAgentChannelId ||
-            slackSettings.aiMultiAgentChannelId !== event.channel
-        ) {
+        if (!isMultiAgentChannel) {
             return;
         }
 
@@ -4219,73 +4327,20 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 },
             );
 
-            if (availableAgents.length === 0) {
-                await say({
-                    text: '⚠️ No AI agents are available. Please contact your administrator to configure agents.',
-                    thread_ts: event.ts,
-                });
-                return;
-            }
+            agentConfig = await this.selectAgentForSlack({
+                availableAgents,
+                messageText: event.text,
+                channelId: event.channel,
+                threadTs: event.ts,
+                say,
+                botUserId: context.botUserId,
+                client,
+                isMultiAgentChannel,
+            });
 
-            if (availableAgents.length === 1) {
-                // Auto-select the only available agent
-                [agentConfig] = availableAgents;
-            } else {
-                // Multiple agents - use LLM to select the best one
-                const { model } = getModel(this.lightdashConfig.ai.copilot);
-
-                const { agent: selectedAgent, selection } =
-                    await selectBestAgentWithContext(
-                        model,
-                        availableAgents,
-                        event.text,
-                    );
-
-                Logger.info(
-                    `Agent selected by LLM ${JSON.stringify({
-                        agentUuid: selectedAgent.uuid,
-                        agentName: selectedAgent.name,
-                        reasoning: selection.reasoning,
-                        confidence: selection.confidence,
-                    })}`,
-                );
-
-                // If confidence is low, show selection UI instead
-                if (selection.confidence === 'low') {
-                    Logger.info(
-                        `Low confidence in agent selection - showing manual selection UI,
-                        ${JSON.stringify({ reasoning: selection.reasoning })},`,
-                    );
-                    await this.showAgentSelectionUI(
-                        availableAgents,
-                        event.channel,
-                        event.ts,
-                        say,
-                    );
-                    return;
-                }
-
-                const botMentionName = context.botUserId
-                    ? `<@${context.botUserId}>`
-                    : undefined;
-
-                await AiAgentService.postAgentConfirmation(
-                    client,
-                    selectedAgent,
-                    event.channel,
-                    event.ts,
-                    {
-                        isMultiAgentChannel: true,
-                        botMentionName,
-                    },
-                );
-
-                agentConfig = selectedAgent;
-            }
-
-            // At this point, we should have a selected agent
             if (!agentConfig) {
-                throw new Error('No agent selected - this should not happen');
+                // Selection pending (UI shown) or no agents available
+                return;
             }
 
             // Verify access for the selected agent
@@ -4727,30 +4782,23 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     organizationUuid,
                     userUuid,
                     slackSettings,
+                    {
+                        projectType: ProjectType.DEFAULT,
+                    },
                 );
 
-                if (availableAgents.length === 0) {
-                    // No agents available - show error
-                    await say({
-                        text: '⚠️ No AI agents are available. Please contact your administrator to configure agents.',
-                        thread_ts: event.ts,
-                    });
-                    return;
-                }
+                agentConfig = await this.selectAgentForSlack({
+                    availableAgents,
+                    messageText: event.text ?? '',
+                    channelId: event.channel,
+                    threadTs: event.ts,
+                    say,
+                    botUserId: context.botUserId,
+                    client,
+                    isMultiAgentChannel,
+                });
 
-                if (availableAgents.length === 1) {
-                    // Auto-select the only available agent
-                    [agentConfig] = availableAgents;
-                }
-
-                if (availableAgents.length > 1) {
-                    // Multiple agents - show selection UI
-                    await this.showAgentSelectionUI(
-                        availableAgents,
-                        event.channel,
-                        event.ts,
-                        say,
-                    );
+                if (!agentConfig) {
                     return;
                 }
             }
@@ -4776,12 +4824,30 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 }
 
                 if (!agentConfig) {
-                    // Thread exists but no agent assigned - this shouldn't happen
-                    await say({
-                        text: '⚠️ Could not find the agent for this conversation. Please start a new conversation.',
-                        thread_ts: event.ts,
+                    // Thread exists but no agent assigned - user tagged agent mid-thread
+                    const availableAgents = await this.getAvailableAgents(
+                        organizationUuid,
+                        userUuid,
+                        slackSettings,
+                        {
+                            projectType: ProjectType.DEFAULT,
+                        },
+                    );
+
+                    agentConfig = await this.selectAgentForSlack({
+                        availableAgents,
+                        messageText: event.text ?? '',
+                        channelId: event.channel,
+                        threadTs: event.thread_ts,
+                        say,
+                        botUserId: context.botUserId,
+                        client,
+                        isMultiAgentChannel,
                     });
-                    return;
+
+                    if (!agentConfig) {
+                        return;
+                    }
                 }
             }
 

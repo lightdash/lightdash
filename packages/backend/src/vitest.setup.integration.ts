@@ -17,7 +17,7 @@ import App from './App';
 import { parseConfig } from './config/parseConfig';
 import { getEnterpriseAppArguments } from './ee';
 import { AiAgentModel } from './ee/models/AiAgentModel';
-import { AiAgentService } from './ee/services/AiAgentService';
+import { AiAgentService } from './ee/services/AiAgentService/AiAgentService';
 import knexConfig from './knexfile';
 
 export interface IntegrationTestContext {
