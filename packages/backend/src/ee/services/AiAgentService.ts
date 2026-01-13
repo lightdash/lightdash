@@ -4150,8 +4150,13 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             return;
         }
 
-        const { teamId } = context;
+        const { teamId, botUserId } = context;
         if (!teamId) {
+            return;
+        }
+
+        // Skip if message contains bot mention - let handleAppMention handle it
+        if (botUserId && event.text?.includes(`<@${botUserId}>`)) {
             return;
         }
 
