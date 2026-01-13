@@ -86,49 +86,49 @@ import {
     AiAgentToolCallEvent,
     AiAgentUpdatedEvent,
     LightdashAnalytics,
-} from '../../analytics/LightdashAnalytics';
-import { fromSession } from '../../auth/account';
-import { type SlackClient } from '../../clients/Slack/SlackClient';
-import { LightdashConfig } from '../../config/parseConfig';
-import Logger from '../../logging/logger';
+} from '../../../analytics/LightdashAnalytics';
+import { fromSession } from '../../../auth/account';
+import { type SlackClient } from '../../../clients/Slack/SlackClient';
+import { LightdashConfig } from '../../../config/parseConfig';
+import Logger from '../../../logging/logger';
 import {
     CatalogModel,
     CatalogSearchContext,
-} from '../../models/CatalogModel/CatalogModel';
-import { ChangesetModel } from '../../models/ChangesetModel';
-import { GroupsModel } from '../../models/GroupsModel';
-import { OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
-import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
-import { SearchModel } from '../../models/SearchModel';
-import { UserAttributesModel } from '../../models/UserAttributesModel';
-import { UserModel } from '../../models/UserModel';
-import PrometheusMetrics from '../../prometheus';
-import { AsyncQueryService } from '../../services/AsyncQueryService/AsyncQueryService';
-import { CatalogService } from '../../services/CatalogService/CatalogService';
-import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
-import { ProjectService } from '../../services/ProjectService/ProjectService';
-import { ShareService } from '../../services/ShareService/ShareService';
-import { SpaceService } from '../../services/SpaceService/SpaceService';
+} from '../../../models/CatalogModel/CatalogModel';
+import { ChangesetModel } from '../../../models/ChangesetModel';
+import { GroupsModel } from '../../../models/GroupsModel';
+import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { SearchModel } from '../../../models/SearchModel';
+import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { UserModel } from '../../../models/UserModel';
+import PrometheusMetrics from '../../../prometheus';
+import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { CatalogService } from '../../../services/CatalogService/CatalogService';
+import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { ShareService } from '../../../services/ShareService/ShareService';
+import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import {
     doesExploreMatchRequiredAttributes,
     getFilteredExplore,
-} from '../../services/UserAttributesService/UserAttributeUtils';
-import { wrapSentryTransaction } from '../../utils';
-import { AiAgentModel } from '../models/AiAgentModel';
-import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAuthenticationModel';
-import { CommercialSchedulerClient } from '../scheduler/SchedulerClient';
-import { selectBestAgentWithContext } from './ai/agents/agentSelector';
+} from '../../../services/UserAttributesService/UserAttributeUtils';
+import { wrapSentryTransaction } from '../../../utils';
+import { AiAgentModel } from '../../models/AiAgentModel';
+import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
+import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import { selectBestAgentWithContext } from '../ai/agents/agentSelector';
 import {
     generateAgentResponse,
     streamAgentResponse,
-} from './ai/agents/agentV2';
-import { generateEmbedding } from './ai/agents/embeddingGenerator';
-import { generateArtifactQuestion } from './ai/agents/questionGenerator';
-import { evaluateAgentReadiness } from './ai/agents/readinessScorer';
-import { generateThreadTitle as generateTitleFromMessages } from './ai/agents/titleGenerator';
-import { getAvailableModels, getDefaultModel, getModel } from './ai/models';
-import { matchesPreset } from './ai/models/presets';
-import { AiAgentArgs, AiAgentDependencies } from './ai/types/aiAgent';
+} from '../ai/agents/agentV2';
+import { generateEmbedding } from '../ai/agents/embeddingGenerator';
+import { generateArtifactQuestion } from '../ai/agents/questionGenerator';
+import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
+import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
+import { getAvailableModels, getDefaultModel, getModel } from '../ai/models';
+import { matchesPreset } from '../ai/models/presets';
+import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
     CreateChangeFn,
     FindContentFn,
@@ -143,7 +143,7 @@ import {
     StoreToolCallFn,
     StoreToolResultsFn,
     UpdateProgressFn,
-} from './ai/types/aiAgentDependencies';
+} from '../ai/types/aiAgentDependencies';
 import {
     getAgentConfirmationBlocks,
     getAgentSelectionBlocks,
@@ -154,11 +154,11 @@ import {
     getProposeChangeBlocks,
     getReferencedArtifactsBlocks,
     getThinkingBlocks,
-} from './ai/utils/getSlackBlocks';
-import { llmAsAJudge } from './ai/utils/llmAsAJudge';
-import { populateCustomMetricsSQL } from './ai/utils/populateCustomMetricsSQL';
-import { validateSelectedFieldsExistence } from './ai/utils/validators';
-import { AiOrganizationSettingsService } from './AiOrganizationSettingsService';
+} from '../ai/utils/getSlackBlocks';
+import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
+import { populateCustomMetricsSQL } from '../ai/utils/populateCustomMetricsSQL';
+import { validateSelectedFieldsExistence } from '../ai/utils/validators';
+import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 
 type ThreadMessageContext = Array<
     Required<Pick<MessageElement, 'text' | 'user' | 'ts'>>

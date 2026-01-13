@@ -65,7 +65,7 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import Logger from '../../logging/logger';
-import { type AiAgentService } from '../services/AiAgentService';
+import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
 
 @Route('/api/v1/projects/{projectUuid}/aiAgents')
 @Hidden()
