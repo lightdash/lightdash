@@ -21,6 +21,7 @@ import {
 } from '../CollapsableCard/constants';
 import MantineIcon from '../MantineIcon';
 import ChartDownloadOptions from './ChartDownloadOptions';
+import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from './chartDownloadUtils';
 
 export type ChartDownloadMenuProps = {
     getDownloadQueryUuid: (
@@ -83,6 +84,13 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             [getDownloadQueryUuid],
         );
 
+        if (
+            CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
+                visualizationConfig.chartType,
+            )
+        ) {
+            return null;
+        }
         return isTableVisualizationConfig(visualizationConfig) &&
             getChartDownloadQueryUuid ? (
             <Can
