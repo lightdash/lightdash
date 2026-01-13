@@ -7,20 +7,22 @@ import {
     Anchor,
     Button,
     Flex,
-    Paper,
     PasswordInput,
     Stack,
     Tabs,
     Text,
     Title,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconAlertCircle, IconKey } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { useMemo, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { lightdashApi } from '../../../../api';
 import { EmptyState } from '../../../../components/common/EmptyState';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { SettingsGridCard } from '../../../../components/common/Settings/SettingsCard';
+import {
+    SettingsCard,
+    SettingsGridCard,
+} from '../../../../components/common/Settings/SettingsCard';
 import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -191,17 +193,24 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     return (
         <Stack mb="lg">
             <SettingsGridCard>
-                <Stack spacing="sm">
-                    <Title order={4}>Embed secret</Title>
-                    <Text color="dimmed">
-                        The secret is used to generate embed tokens for
-                        embedding dashboards.
-                    </Text>
-                    <Text color="dimmed" fz="xs">
-                        Read more about using embed secret in our{' '}
-                        <Anchor href="https://docs.lightdash.com/references/embedding">
+                <Stack gap="sm">
+                    <Stack gap="xs">
+                        <Title order={4}>Embed secret</Title>
+                        <Text c="dimmed" fz="sm">
+                            Use this secret to generate embed tokens for
+                            embedding dashboards and charts.
+                        </Text>
+                    </Stack>
+                    <Text c="dimmed" fz="xs">
+                        Learn more on how to use your embed secret in our{' '}
+                        <Anchor
+                            href="https://docs.lightdash.com/references/embedding"
+                            fz="xs"
+                            target="_blank"
+                        >
                             docs guide
                         </Anchor>
+                        .
                     </Text>
                 </Stack>
                 <Stack>
@@ -224,9 +233,12 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     </Flex>
                 </Stack>
             </SettingsGridCard>
-            <Paper shadow="sm" withBorder p="md">
-                <Stack spacing="sm" mb="md">
-                    <Title order={4}>Allowed dashboards and charts</Title>
+            <SettingsCard>
+                <Stack gap="xs" mb="md">
+                    <Title order={4}>Allowed content</Title>
+                    <Text c="dimmed" fz="sm">
+                        Select the content you want to allow to be embedded.
+                    </Text>
                 </Stack>
                 <EmbedAllowListForm
                     disabled={isSaving}
@@ -235,10 +247,13 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     charts={charts || []}
                     onSave={updateEmbedConfig}
                 />
-            </Paper>
-            <Paper shadow="sm" withBorder p="md">
-                <Stack spacing="sm" mb="md">
+            </SettingsCard>
+            <SettingsCard>
+                <Stack gap="xs" mb="md">
                     <Title order={4}>Preview & code snippet</Title>
+                    <Text c="dimmed" fz="sm">
+                        Preview your embed URL and copy it to your clipboard.
+                    </Text>
                 </Stack>
                 <Tabs defaultValue="dashboards" keepMounted>
                     <Tabs.List>
@@ -264,7 +279,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         </Stack>
                     </Tabs.Panel>
                 </Tabs>
-            </Paper>
+            </SettingsCard>
         </Stack>
     );
 };
