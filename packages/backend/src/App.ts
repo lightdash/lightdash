@@ -323,7 +323,7 @@ export default class App {
                 cors({
                     methods: 'OPTIONS, GET, HEAD, PUT, PATCH, POST, DELETE',
                     allowedHeaders: '*',
-                    credentials: false,
+                    credentials: this.lightdashConfig.cookieSameSite === 'none',
                     origin: allowedOrigins,
                 }),
             );
