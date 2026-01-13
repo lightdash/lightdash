@@ -3990,6 +3990,109 @@ Use them as a reference, but do all the due dilligence and follow the instructio
     }
 
     /**
+     * Centralized agent selection logic for Slack multi-agent channels:
+     * - 0 agents: shows error message
+     * - 1 agent: auto-selects
+     * - multiple agents: uses LLM to pick, falls back to UI if low confidence
+     *
+     * IMPORTANT: This function should ONLY be called for multi-agent channel contexts.
+     * Regular channels should use channel-based agent routing instead.
+     *
+     * @returns The selected agent, or undefined if selection is pending (UI shown) or no agents available
+     */
+    private async selectAgentForSlack({
+        availableAgents,
+        messageText,
+        channelId,
+        threadTs,
+        say,
+        botUserId,
+        client,
+        isMultiAgentChannel,
+    }: {
+        availableAgents: AiAgentWithContext[];
+        messageText: string;
+        channelId: string;
+        threadTs: string | undefined;
+        say: Function;
+        botUserId: string | undefined;
+        client: WebClient;
+        isMultiAgentChannel: boolean;
+    }): Promise<AiAgentWithContext | undefined> {
+        // Guard: This function is only meant for multi-agent channel contexts
+        if (!isMultiAgentChannel) {
+            Logger.warn(
+                'selectAgentForSlack called outside of multi-agent channel context - this is likely a bug',
+            );
+            return undefined;
+        }
+
+        const noAgentsMessage =
+            '⚠️ No AI agents are available. Please contact your administrator to configure agents.';
+
+        if (availableAgents.length === 0) {
+            await say({
+                text: noAgentsMessage,
+                thread_ts: threadTs,
+            });
+            return undefined;
+        }
+
+        if (availableAgents.length === 1) {
+            return availableAgents[0];
+        }
+
+        // Multiple agents - use LLM to select the best one
+        const { model } = getModel(this.lightdashConfig.ai.copilot);
+
+        const { agent: selectedAgent, selection } =
+            await selectBestAgentWithContext(
+                model,
+                availableAgents,
+                messageText,
+            );
+
+        Logger.info(
+            `Agent selected by LLM ${JSON.stringify({
+                agentUuid: selectedAgent.uuid,
+                agentName: selectedAgent.name,
+                reasoning: selection.reasoning,
+                confidence: selection.confidence,
+            })}`,
+        );
+
+        // If confidence is low, show selection UI instead
+        if (selection.confidence === 'low') {
+            Logger.info(
+                `Low confidence in agent selection - showing manual selection UI,
+                ${JSON.stringify({ reasoning: selection.reasoning })},`,
+            );
+            await this.showAgentSelectionUI(
+                availableAgents,
+                channelId,
+                threadTs,
+                say,
+            );
+            return undefined;
+        }
+
+        // Post confirmation message for the selected agent
+        const botMentionName = botUserId ? `<@${botUserId}>` : undefined;
+        await AiAgentService.postAgentConfirmation(
+            client,
+            selectedAgent,
+            channelId,
+            threadTs,
+            {
+                isMultiAgentChannel: true,
+                botMentionName,
+            },
+        );
+
+        return selectedAgent;
+    }
+
+    /**
      * Post agent confirmation message showing which agent the user is chatting with
      */
     private static async postAgentConfirmation(
@@ -4174,11 +4277,11 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             return;
         }
 
+        const isMultiAgentChannel =
+            slackSettings.aiMultiAgentChannelId === event.channel;
+
         // Only respond in the designated multi-agent channel
-        if (
-            !slackSettings.aiMultiAgentChannelId ||
-            slackSettings.aiMultiAgentChannelId !== event.channel
-        ) {
+        if (!isMultiAgentChannel) {
             return;
         }
 
@@ -4224,73 +4327,20 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 },
             );
 
-            if (availableAgents.length === 0) {
-                await say({
-                    text: '⚠️ No AI agents are available. Please contact your administrator to configure agents.',
-                    thread_ts: event.ts,
-                });
-                return;
-            }
+            agentConfig = await this.selectAgentForSlack({
+                availableAgents,
+                messageText: event.text,
+                channelId: event.channel,
+                threadTs: event.ts,
+                say,
+                botUserId: context.botUserId,
+                client,
+                isMultiAgentChannel,
+            });
 
-            if (availableAgents.length === 1) {
-                // Auto-select the only available agent
-                [agentConfig] = availableAgents;
-            } else {
-                // Multiple agents - use LLM to select the best one
-                const { model } = getModel(this.lightdashConfig.ai.copilot);
-
-                const { agent: selectedAgent, selection } =
-                    await selectBestAgentWithContext(
-                        model,
-                        availableAgents,
-                        event.text,
-                    );
-
-                Logger.info(
-                    `Agent selected by LLM ${JSON.stringify({
-                        agentUuid: selectedAgent.uuid,
-                        agentName: selectedAgent.name,
-                        reasoning: selection.reasoning,
-                        confidence: selection.confidence,
-                    })}`,
-                );
-
-                // If confidence is low, show selection UI instead
-                if (selection.confidence === 'low') {
-                    Logger.info(
-                        `Low confidence in agent selection - showing manual selection UI,
-                        ${JSON.stringify({ reasoning: selection.reasoning })},`,
-                    );
-                    await this.showAgentSelectionUI(
-                        availableAgents,
-                        event.channel,
-                        event.ts,
-                        say,
-                    );
-                    return;
-                }
-
-                const botMentionName = context.botUserId
-                    ? `<@${context.botUserId}>`
-                    : undefined;
-
-                await AiAgentService.postAgentConfirmation(
-                    client,
-                    selectedAgent,
-                    event.channel,
-                    event.ts,
-                    {
-                        isMultiAgentChannel: true,
-                        botMentionName,
-                    },
-                );
-
-                agentConfig = selectedAgent;
-            }
-
-            // At this point, we should have a selected agent
             if (!agentConfig) {
-                throw new Error('No agent selected - this should not happen');
+                // Selection pending (UI shown) or no agents available
+                return;
             }
 
             // Verify access for the selected agent
@@ -4737,28 +4787,18 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     },
                 );
 
-                if (availableAgents.length === 0) {
-                    // No agents available - show error
-                    await say({
-                        text: '⚠️ No AI agents are available. Please contact your administrator to configure agents.',
-                        thread_ts: event.ts,
-                    });
-                    return;
-                }
+                agentConfig = await this.selectAgentForSlack({
+                    availableAgents,
+                    messageText: event.text ?? '',
+                    channelId: event.channel,
+                    threadTs: event.ts,
+                    say,
+                    botUserId: context.botUserId,
+                    client,
+                    isMultiAgentChannel,
+                });
 
-                if (availableAgents.length === 1) {
-                    // Auto-select the only available agent
-                    [agentConfig] = availableAgents;
-                }
-
-                if (availableAgents.length > 1) {
-                    // Multiple agents - show selection UI
-                    await this.showAgentSelectionUI(
-                        availableAgents,
-                        event.channel,
-                        event.ts,
-                        say,
-                    );
+                if (!agentConfig) {
                     return;
                 }
             }
@@ -4785,7 +4825,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
                 if (!agentConfig) {
                     // Thread exists but no agent assigned - user tagged agent mid-thread
-                    // Show agent selection UI to let them pick
                     const availableAgents = await this.getAvailableAgents(
                         organizationUuid,
                         userUuid,
@@ -4795,23 +4834,18 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         },
                     );
 
-                    if (availableAgents.length === 0) {
-                        await say({
-                            text: "⚠️ You don't have access to any AI agents in this workspace. Please contact your administrator.",
-                            thread_ts: event.thread_ts,
-                        });
-                        return;
-                    }
+                    agentConfig = await this.selectAgentForSlack({
+                        availableAgents,
+                        messageText: event.text ?? '',
+                        channelId: event.channel,
+                        threadTs: event.thread_ts,
+                        say,
+                        botUserId: context.botUserId,
+                        client,
+                        isMultiAgentChannel,
+                    });
 
-                    if (availableAgents.length === 1) {
-                        [agentConfig] = availableAgents;
-                    } else {
-                        await this.showAgentSelectionUI(
-                            availableAgents,
-                            event.channel,
-                            event.thread_ts,
-                            say,
-                        );
+                    if (!agentConfig) {
                         return;
                     }
                 }
