@@ -1,3 +1,10 @@
+## [0.2332.2](https://github.com/lightdash/lightdash/compare/0.2332.1...0.2332.2) (2026-01-13)
+
+
+### Bug Fixes
+
+* throw error for metrics missing SQL definition ([#19377](https://github.com/lightdash/lightdash/issues/19377)) ([11a577e](https://github.com/lightdash/lightdash/commit/11a577eacb1e128a50527577685de1dc932d3676))
+
 ## [0.2332.1](https://github.com/lightdash/lightdash/compare/0.2332.0...0.2332.1) (2026-01-13)
 
 
