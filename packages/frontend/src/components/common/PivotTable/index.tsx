@@ -810,6 +810,25 @@ const PivotTable: FC<PivotTableProps> = ({
                                 // Font color is set by conditionalFormatting above
                                 const fontColor = conditionalFormatting?.color;
 
+                                // Get field description for label cells (metric labels when metricsAsRows is enabled)
+                                const labelFieldDescription = (() => {
+                                    if (meta?.type !== 'label')
+                                        return undefined;
+                                    const labelInfo = data.indexValues[
+                                        rowIndex
+                                    ]?.find(
+                                        (indexValue) =>
+                                            indexValue.type === 'label',
+                                    );
+                                    if (!labelInfo) return undefined;
+                                    const labelField = getField(
+                                        labelInfo.fieldId,
+                                    );
+                                    return isField(labelField)
+                                        ? labelField.description
+                                        : undefined;
+                                })();
+
                                 const suppressContextMenu =
                                     (value === undefined ||
                                         cell.getIsPlaceholder()) &&
@@ -833,6 +852,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             conditionalFormatting?.backgroundColor
                                         }
                                         withTooltip={
+                                            labelFieldDescription ||
                                             conditionalFormatting?.tooltipContent
                                         }
                                         withInteractions={allowInteractions}
