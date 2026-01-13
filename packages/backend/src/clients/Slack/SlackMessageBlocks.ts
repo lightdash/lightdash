@@ -580,6 +580,7 @@ export type Unfurl = {
     resourceUuid: string | undefined;
     chartTileUuids?: (string | null)[];
     sqlChartTileUuids?: (string | null)[];
+    loomTileUuids?: (string | null)[];
 };
 
 export const getUnfurlBlocks = (

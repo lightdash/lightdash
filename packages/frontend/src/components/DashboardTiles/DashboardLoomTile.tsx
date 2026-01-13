@@ -1,4 +1,5 @@
 import { type DashboardLoomTile } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import React, { useMemo, useState, type FC } from 'react';
 import { DashboardTileComments } from '../../features/comments';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -18,6 +19,7 @@ const LoomTile: FC<Props> = (props) => {
         },
     } = props;
 
+    const [isLoomLoaded, setIsLoomLoaded] = useState(false);
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(
         (c) => c.dashboardCommentsCheck?.canViewDashboardComments,
@@ -55,7 +57,11 @@ const LoomTile: FC<Props> = (props) => {
                 style={{
                     flex: 1,
                 }}
+                onLoad={() => {
+                    setIsLoomLoaded(true);
+                }}
             />
+            {isLoomLoaded && <Box id={`loom-loaded-${uuid}`} display="none" />}
         </TileBase>
     );
 };

@@ -1,3 +1,10 @@
+## [0.2332.1](https://github.com/lightdash/lightdash/compare/0.2332.0...0.2332.1) (2026-01-13)
+
+
+### Bug Fixes
+
+* wait for loom iframes to load for screenshots ([#19339](https://github.com/lightdash/lightdash/issues/19339)) ([441afb3](https://github.com/lightdash/lightdash/commit/441afb323c309ff2437ef4c539937550bd9bd46c))
+
 # [0.2332.0](https://github.com/lightdash/lightdash/compare/0.2331.5...0.2332.0) (2026-01-13)
 
 
