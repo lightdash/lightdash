@@ -1,3 +1,18 @@
+# [0.2333.0](https://github.com/lightdash/lightdash/compare/0.2332.2...0.2333.0) (2026-01-13)
+
+
+### Bug Fixes
+
+* skip message processing if it contains bot mention ([#19391](https://github.com/lightdash/lightdash/issues/19391)) ([354e411](https://github.com/lightdash/lightdash/commit/354e411908c3bdd1d4d5751b1784225b4ff039a7))
+
+
+### Features
+
+* add option to apply conditional formatting to text ([#19330](https://github.com/lightdash/lightdash/issues/19330)) ([953f3ea](https://github.com/lightdash/lightdash/commit/953f3ea332f57a308852a50baa2eae3376119c86))
+* add projectType parameter to agent availability check ([#19389](https://github.com/lightdash/lightdash/issues/19389)) ([985d7d5](https://github.com/lightdash/lightdash/commit/985d7d5d35a1a564c802c0a685bcb18362b26bdf))
+* allow users to select AI agent when tagged mid-thread ([#19390](https://github.com/lightdash/lightdash/issues/19390)) ([37e273e](https://github.com/lightdash/lightdash/commit/37e273e194e1ef711471bd6481ef03a88ba40978))
+* send CSV files for table visualizations in Slack ([#19392](https://github.com/lightdash/lightdash/issues/19392)) ([bfb4665](https://github.com/lightdash/lightdash/commit/bfb4665346ccff571022a6b5b531628d4e542ad9))
+
 ## [0.2332.2](https://github.com/lightdash/lightdash/compare/0.2332.1...0.2332.2) (2026-01-13)
 
 
