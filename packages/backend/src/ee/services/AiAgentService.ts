@@ -4779,12 +4779,36 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 }
 
                 if (!agentConfig) {
-                    // Thread exists but no agent assigned - this shouldn't happen
-                    await say({
-                        text: '⚠️ Could not find the agent for this conversation. Please start a new conversation.',
-                        thread_ts: event.ts,
-                    });
-                    return;
+                    // Thread exists but no agent assigned - user tagged agent mid-thread
+                    // Show agent selection UI to let them pick
+                    const availableAgents = await this.getAvailableAgents(
+                        organizationUuid,
+                        userUuid,
+                        slackSettings,
+                        {
+                            projectType: ProjectType.DEFAULT,
+                        },
+                    );
+
+                    if (availableAgents.length === 0) {
+                        await say({
+                            text: "⚠️ You don't have access to any AI agents in this workspace. Please contact your administrator.",
+                            thread_ts: event.thread_ts,
+                        });
+                        return;
+                    }
+
+                    if (availableAgents.length === 1) {
+                        [agentConfig] = availableAgents;
+                    } else {
+                        await this.showAgentSelectionUI(
+                            availableAgents,
+                            event.channel,
+                            event.thread_ts,
+                            say,
+                        );
+                        return;
+                    }
                 }
             }
 
