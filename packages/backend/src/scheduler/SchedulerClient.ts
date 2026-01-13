@@ -281,7 +281,14 @@ export class SchedulerClient {
         return parseInt(results.rows[0].count, 10);
     }
 
-    async deleteScheduledJobs(schedulerUuid: string): Promise<void> {
+    async deleteScheduledJobs(
+        schedulerUuid: string,
+        context: {
+            organizationUuid: string;
+            projectUuid: string;
+            userUuid: string;
+        },
+    ): Promise<void> {
         const graphileClient = await this.graphileUtils;
         const jobsToDelete = await this.getScheduledJobs(schedulerUuid);
         Logger.info(
@@ -295,6 +302,9 @@ export class SchedulerClient {
             this.analytics.track({
                 event: 'scheduler_job.deleted',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: context.organizationUuid,
+                projectId: context.projectUuid,
+                userId: context.userUuid,
                 properties: {
                     jobId: id,
                     schedulerId: schedulerUuid,
@@ -356,6 +366,9 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: scheduler.organizationUuid,
+            projectId: scheduler.projectUuid,
+            userId: scheduler.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: schedulerUuid,
@@ -391,6 +404,9 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
@@ -497,6 +513,9 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: schedulerUuid,
@@ -542,6 +561,9 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
@@ -590,6 +612,9 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
@@ -638,6 +663,9 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
@@ -1186,9 +1214,9 @@ export class SchedulerClient {
     > {
         const graphileClient = await this.graphileUtils;
         const query = `
-            select 
-              last_error is not null as error, 
-              locked_by is not null as locked, 
+            select
+              last_error is not null as error,
+              locked_by is not null as locked,
               count(*) as count
             from graphile_worker.jobs
             group by 1, 2

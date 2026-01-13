@@ -423,7 +423,11 @@ export class SchedulerService extends BaseService {
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
 
-        await this.schedulerClient.deleteScheduledJobs(schedulerUuid);
+        await this.schedulerClient.deleteScheduledJobs(schedulerUuid, {
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+        });
         await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
         const scheduler = await this.schedulerModel.updateScheduler({
@@ -497,10 +501,16 @@ export class SchedulerService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+        const {
+            resource: { organizationUuid, projectUuid },
+        } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
 
         // Remove scheduled jobs, even if the scheduler is not enabled
-        await this.schedulerClient.deleteScheduledJobs(schedulerUuid);
+        await this.schedulerClient.deleteScheduledJobs(schedulerUuid, {
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+        });
         await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
         const scheduler = await this.schedulerModel.setSchedulerEnabled(
@@ -512,8 +522,6 @@ export class SchedulerService extends BaseService {
             const defaultTimezone = await this.getSchedulerDefaultTimezone(
                 schedulerUuid,
             );
-            const { organizationUuid, projectUuid } =
-                await this.getCreateSchedulerResource(scheduler);
 
             // If the scheduler is enabled, we need to generate the daily jobs
             await this.schedulerClient.generateDailyJobsForScheduler(
@@ -671,7 +679,11 @@ export class SchedulerService extends BaseService {
             scheduler,
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
-        await this.schedulerClient.deleteScheduledJobs(schedulerUuid);
+        await this.schedulerClient.deleteScheduledJobs(schedulerUuid, {
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+        });
         await this.schedulerModel.deleteScheduler(schedulerUuid);
         await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
