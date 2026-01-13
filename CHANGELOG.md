@@ -1,3 +1,10 @@
+# [0.2331.0](https://github.com/lightdash/lightdash/compare/0.2330.0...0.2331.0) (2026-01-13)
+
+
+### Features
+
+* auto-verify emails for SCIM users when email is updated ([#19362](https://github.com/lightdash/lightdash/issues/19362)) ([2b090ca](https://github.com/lightdash/lightdash/commit/2b090ca7a0b340569d91834cb8b1e1d30dbbf166))
+
 # [0.2330.0](https://github.com/lightdash/lightdash/compare/0.2329.1...0.2330.0) (2026-01-12)
 
 
