@@ -923,14 +923,10 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Path() slug: string,
         @Body()
-        chart: Omit<
-            ChartAsCode,
-            'metricQuery' | 'chartConfig' | 'description'
-        > & {
+        chart: Omit<ChartAsCode, 'chartConfig' | 'description'> & {
             skipSpaceCreate?: boolean;
             publicSpaceCreate?: boolean;
             chartConfig: AnyType;
-            metricQuery: AnyType;
             description?: string | null; // Allow both undefined and null
         },
         @Request() req: express.Request,
@@ -1020,13 +1016,9 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Path() slug: string,
         @Body()
-        dashboard: Omit<
-            DashboardAsCode,
-            'filters' | 'tiles' | 'description'
-        > & {
+        dashboard: Omit<DashboardAsCode, 'tiles' | 'description'> & {
             skipSpaceCreate?: boolean;
             publicSpaceCreate?: boolean;
-            filters: AnyType;
             tiles: AnyType;
             description?: string | null; // Allow both undefined and null
         }, // Simplify filter type for tsoa
