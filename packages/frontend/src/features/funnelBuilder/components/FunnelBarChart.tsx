@@ -135,36 +135,25 @@ export const FunnelBarChart: FC = () => {
                 });
             });
 
-            // Tooltip formatter
-            const tooltipFormatter = (
-                params: Array<{
-                    seriesName: string;
-                    dataIndex: number;
-                    value: number;
-                    marker: string;
-                }>,
-            ) => {
-                if (!params.length) return '';
-                const stepName = stepNames[params[0].dataIndex];
-                // Filter out drop-off series from tooltip
-                const mainParams = params.filter(
-                    (p) => !p.seriesName.endsWith('-dropoff'),
-                );
-                const lines = mainParams.map((p) => {
-                    const step = stepLookup.get(`${stepName}|${p.seriesName}`);
-                    const label = step
-                        ? formatStepTooltipLabel(step)
-                        : `${p.value.toFixed(1)}%`;
-                    return `${p.marker} ${p.seriesName}: ${label}`;
-                });
-                return `<strong>${friendlyName(stepName)}</strong><br/>${lines.join('<br/>')}`;
+            // Tooltip formatter for item trigger (single series)
+            const tooltipFormatter = (params: {
+                seriesName: string;
+                dataIndex: number;
+                value: number;
+                marker: string;
+            }) => {
+                // Hide tooltip for drop-off series
+                if (params.seriesName.endsWith('-dropoff')) return '';
+                const stepName = stepNames[params.dataIndex];
+                const step = stepLookup.get(`${stepName}|${params.seriesName}`);
+                if (!step) return '';
+                return `<div style="font-weight:600;margin-bottom:8px">${friendlyName(stepName)}</div><div style="color:#888;font-size:12px;margin-bottom:8px">${params.marker} ${params.seriesName}</div>${formatStepTooltipLabel(step)}`;
             };
 
             return {
                 animation: false,
                 tooltip: {
-                    trigger: 'axis' as const,
-                    axisPointer: { type: 'shadow' as const },
+                    trigger: 'item' as const,
                     formatter: tooltipFormatter,
                 },
                 legend: {
@@ -209,27 +198,22 @@ export const FunnelBarChart: FC = () => {
             return Math.max(0, prevRate - step.conversionRate);
         });
 
-        // Tooltip formatter
-        const simpleTooltipFormatter = (
-            params: Array<{
-                seriesName: string;
-                dataIndex: number;
-                marker: string;
-            }>,
-        ) => {
-            if (!params.length) return '';
-            const step = steps[params[0].dataIndex];
-            // Only show main series data
-            const mainParam = params.find((p) => p.seriesName === 'Conversion');
-            if (!mainParam) return '';
-            return `<strong>${friendlyName(step.stepName)}</strong><br/>${mainParam.marker} ${formatStepTooltipLabel(step)}`;
+        // Tooltip formatter for item trigger (single series)
+        const simpleTooltipFormatter = (params: {
+            seriesName: string;
+            dataIndex: number;
+            marker: string;
+        }) => {
+            // Hide tooltip for drop-off series
+            if (params.seriesName === 'Drop-off') return '';
+            const step = steps[params.dataIndex];
+            return `<div style="font-weight:600;margin-bottom:8px">${friendlyName(step.stepName)}</div>${formatStepTooltipLabel(step)}`;
         };
 
         return {
             animation: false,
             tooltip: {
-                trigger: 'axis' as const,
-                axisPointer: { type: 'shadow' as const },
+                trigger: 'item' as const,
                 formatter: simpleTooltipFormatter,
             },
             xAxis: {

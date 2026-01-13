@@ -123,7 +123,7 @@ export const FunnelResultsTable: FC = () => {
                                     </Table.Td>
                                     <Table.Td ta="right" ff="monospace">
                                         {step
-                                            ? `${step.conversionRate.toFixed(1)}%`
+                                            ? `${step.stepConversionRate.toFixed(1)}%`
                                             : '—'}
                                     </Table.Td>
                                     <Table.Td ta="right" ff="monospace">

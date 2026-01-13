@@ -8093,19 +8093,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -21064,10 +21051,6 @@
                     "sql": {
                         "type": "string"
                     },
-                    "totalUsersAtStep1": {
-                        "type": "number",
-                        "format": "double"
-                    },
                     "steps": {
                         "items": {
                             "$ref": "#/components/schemas/FunnelStepResult"
@@ -21075,7 +21058,7 @@
                         "type": "array"
                     }
                 },
-                "required": ["sql", "totalUsersAtStep1", "steps"],
+                "required": ["sql", "steps"],
                 "type": "object"
             },
             "ApiFunnelQueryResponse": {
@@ -24143,7 +24126,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2328.0",
+        "version": "0.2332.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -35754,7 +35737,7 @@
                         }
                     }
                 },
-                "description": "Get distinct event names from a dimension for funnel step selection",
+                "description": "Get distinct event names from a dimension for funnel step selection.\nScans the last 30 days of data to limit query cost.",
                 "summary": "Get event names",
                 "tags": ["Funnel"],
                 "security": [],
@@ -35781,6 +35764,15 @@
                         "description": "The dimension containing event names",
                         "in": "query",
                         "name": "eventDimensionId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The timestamp dimension used to filter to last 30 days",
+                        "in": "query",
+                        "name": "timestampFieldId",
                         "required": true,
                         "schema": {
                             "type": "string"

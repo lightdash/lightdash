@@ -70,14 +70,21 @@ export const addEventFieldChangeListener = (
         actionCreator: setEventNameFieldId,
         effect: async (action, listenerApi) => {
             const state = listenerApi.getState();
-            const { projectUuid, exploreName } = state.funnelBuilder;
+            const { projectUuid, exploreName, timestampFieldId } =
+                state.funnelBuilder;
 
-            if (action.payload && projectUuid && exploreName) {
+            if (
+                action.payload &&
+                projectUuid &&
+                exploreName &&
+                timestampFieldId
+            ) {
                 await listenerApi.dispatch(
                     fetchEventNames({
                         projectUuid,
                         exploreName,
                         eventDimensionId: action.payload,
+                        timestampFieldId,
                     }),
                 );
             }

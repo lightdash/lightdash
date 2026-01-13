@@ -13,17 +13,22 @@ import {
 
 export const fetchEventNames = createAsyncThunk<
     string[],
-    { projectUuid: string; exploreName: string; eventDimensionId: string },
+    {
+        projectUuid: string;
+        exploreName: string;
+        eventDimensionId: string;
+        timestampFieldId: string;
+    },
     { rejectValue: ApiErrorDetail }
 >(
     'funnelBuilder/fetchEventNames',
     async (
-        { projectUuid, exploreName, eventDimensionId },
+        { projectUuid, exploreName, eventDimensionId, timestampFieldId },
         { rejectWithValue },
     ) => {
         try {
             return await lightdashApi<string[]>({
-                url: `/projects/${projectUuid}/funnel/event-names?exploreName=${exploreName}&eventDimensionId=${eventDimensionId}`,
+                url: `/projects/${projectUuid}/funnel/event-names?exploreName=${exploreName}&eventDimensionId=${eventDimensionId}&timestampFieldId=${timestampFieldId}`,
                 method: 'GET',
                 body: undefined,
             });

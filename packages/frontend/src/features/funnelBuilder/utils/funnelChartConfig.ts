@@ -95,12 +95,22 @@ export function formatTimeDuration(seconds: number | null | undefined): string {
 }
 
 /**
- * Format step info for tooltip (plain text, not rich text).
+ * Format step info for tooltip as an HTML table.
+ * Shows total users, step conversion, and overall conversion.
  */
 export function formatStepTooltipLabel(step: FunnelStepResult): string {
-    return `${step.conversionRate.toFixed(
-        1,
-    )}% (${step.totalUsers.toLocaleString()} users)`;
+    const rows = [
+        ['Users', step.totalUsers.toLocaleString()],
+        ['Conversion', `${step.stepConversionRate.toFixed(1)}%`],
+        ['Overall', `${step.conversionRate.toFixed(1)}%`],
+    ];
+    const rowsHtml = rows
+        .map(
+            ([label, value]) =>
+                `<tr><td style="color:#888;padding-right:12px">${label}</td><td style="text-align:right;font-weight:600">${value}</td></tr>`,
+        )
+        .join('');
+    return `<table style="border-spacing:0;line-height:1.6">${rowsHtml}</table>`;
 }
 
 /**
@@ -108,7 +118,7 @@ export function formatStepTooltipLabel(step: FunnelStepResult): string {
  * Uses ECharts rich text format for styling.
  */
 export function formatFunnelBarLabel(step: FunnelStepResult): string {
-    return `{percent|${step.conversionRate.toFixed(
+    return `{percent|${step.stepConversionRate.toFixed(
         1,
     )}%}\n{count|${step.totalUsers.toLocaleString()}}`;
 }
