@@ -25,7 +25,9 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
-import MantineModal from '../../../components/common/MantineModal';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useUser from '../../../hooks/user/useUser';
@@ -138,18 +140,18 @@ const useSchedulerFormModal = ({
                       ),
                   })
                 : isThresholdAlert
-                ? DEFAULT_VALUES_ALERT
-                : {
-                      ...DEFAULT_VALUES,
-                      selectedTabs: isDashboardTabsAvailable
-                          ? dashboard?.tabs.map((tab) => tab.uuid)
-                          : null,
-                      parameters:
-                          isDashboard &&
-                          Object.keys(dashboardParameterValues).length > 0
-                              ? dashboardParameterValues
-                              : undefined,
-                  },
+                  ? DEFAULT_VALUES_ALERT
+                  : {
+                        ...DEFAULT_VALUES,
+                        selectedTabs: isDashboardTabsAvailable
+                            ? dashboard?.tabs.map((tab) => tab.uuid)
+                            : null,
+                        parameters:
+                            isDashboard &&
+                            Object.keys(dashboardParameterValues).length > 0
+                                ? dashboardParameterValues
+                                : undefined,
+                    },
         validateInputOnBlur: ['options.customLimit'],
 
         validate: {
@@ -284,8 +286,8 @@ const useSchedulerFormModal = ({
                   dashboardUuid: scheduler.data?.dashboardUuid ?? null,
               }
             : isChart
-            ? { savedChartUuid: resourceUuid, dashboardUuid: null }
-            : { dashboardUuid: resourceUuid, savedChartUuid: null };
+              ? { savedChartUuid: resourceUuid, dashboardUuid: null }
+              : { dashboardUuid: resourceUuid, savedChartUuid: null };
 
         const unsavedScheduler: CreateSchedulerAndTargets = {
             ...schedulerData,
@@ -314,8 +316,8 @@ const useSchedulerFormModal = ({
     const confirmText = isEditMode
         ? 'Save'
         : isThresholdAlert
-        ? 'Create alert'
-        : 'Create schedule';
+          ? 'Create alert'
+          : 'Create schedule';
 
     return {
         isEditMode,
@@ -338,14 +340,14 @@ const useSchedulerFormModal = ({
     };
 };
 
-interface Props {
+type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     resourceUuid: string;
     createMutation: UseMutationResult<
         SchedulerAndTargets,
         ApiError,
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >;
-    onClose: () => void;
+
     onBack: () => void;
     isChart: boolean;
     isThresholdAlert?: boolean;
@@ -354,7 +356,7 @@ interface Props {
     availableParameters?: ParameterDefinitions;
     /** undefined = create mode, string = edit mode */
     schedulerUuidToEdit: string | undefined;
-}
+};
 
 export const SchedulerModalCreateOrEdit: FC<Props> = ({
     resourceUuid,
@@ -366,6 +368,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     currentParameterValues,
     availableParameters,
     onClose,
+    opened,
     onBack,
 }) => {
     const [schedulerUuid, setSchedulerUuid] = useState<string | undefined>(
@@ -373,6 +376,11 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     );
     const navigate = useNavigate();
     const { search, pathname } = useLocation();
+
+    // Sync schedulerUuid when schedulerUuidToEdit prop changes (component stays mounted)
+    useEffect(() => {
+        setSchedulerUuid(schedulerUuidToEdit);
+    }, [schedulerUuidToEdit]);
 
     // Handle URL params for deep linking to edit
     useEffect(() => {
@@ -441,8 +449,9 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     return (
         <SchedulerFormProvider form={form}>
             <MantineModal
-                opened
+                opened={opened}
                 onClose={onClose}
+                modalRootProps={{ lockScroll: false }}
                 size="xl"
                 title={isThresholdAlert ? 'Alerts' : 'Scheduled deliveries'}
                 icon={isThresholdAlert ? IconBell : IconSend}

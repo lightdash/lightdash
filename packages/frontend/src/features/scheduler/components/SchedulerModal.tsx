@@ -62,10 +62,10 @@ const SchedulersModal: FC<
         return null;
     };
 
-    if (modalState === States.LIST) {
-        return (
+    return (
+        <>
             <MantineModal
-                opened={isOpen}
+                opened={isOpen && modalState === States.LIST}
                 onClose={onClose}
                 size="xl"
                 title={isThresholdAlert ? 'Alerts' : 'Scheduled deliveries'}
@@ -100,29 +100,27 @@ const SchedulersModal: FC<
                     />
                 </Box>
             </MantineModal>
-        );
-    }
 
-    if (modalState === States.EDIT || modalState === States.CREATE) {
-        return (
             <SchedulerModalCreateOrEdit
                 resourceUuid={resourceUuid}
                 schedulerUuidToEdit={
                     modalState === States.EDIT ? schedulerUuidToEdit : undefined
                 }
-                createMutation={createMutation}
+                opened={
+                    isOpen &&
+                    (modalState === States.EDIT || modalState === States.CREATE)
+                }
                 onClose={onClose}
                 onBack={() => setModalState(States.LIST)}
+                createMutation={createMutation}
                 isChart={isChart}
                 isThresholdAlert={isThresholdAlert}
                 itemsMap={itemsMap}
                 currentParameterValues={currentParameterValues}
                 availableParameters={availableParameters}
             />
-        );
-    }
-
-    return null;
+        </>
+    );
 };
 
 export default SchedulersModal;
