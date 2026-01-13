@@ -1,3 +1,10 @@
+## [0.2334.1](https://github.com/lightdash/lightdash/compare/0.2334.0...0.2334.1) (2026-01-13)
+
+
+### Bug Fixes
+
+* exclude query results from pagination regex ([#19396](https://github.com/lightdash/lightdash/issues/19396)) ([31a16ed](https://github.com/lightdash/lightdash/commit/31a16edff7ae73bab2cf50bd2bf5f294518392db))
+
 # [0.2334.0](https://github.com/lightdash/lightdash/compare/0.2333.0...0.2334.0) (2026-01-13)
 
 
