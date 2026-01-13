@@ -4756,6 +4756,12 @@
             },
             "GaugeChart": {
                 "properties": {
+                    "customPercentageLabel": {
+                        "type": "string"
+                    },
+                    "showPercentage": {
+                        "type": "boolean"
+                    },
                     "customLabel": {
                         "type": "string"
                     },
@@ -4893,6 +4899,9 @@
                         "type": "boolean"
                     },
                     "valueFieldId": {
+                        "type": "string"
+                    },
+                    "geoJsonPropertyKey": {
                         "type": "string"
                     },
                     "locationFieldId": {
@@ -8074,6 +8083,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -15242,7 +15264,8 @@
                     "cleanQueryHistory",
                     "downloadAsyncQueryResults",
                     "syncSlackChannels",
-                    "generateSlackChannelSyncJobs"
+                    "generateSlackChannelSyncJobs",
+                    "checkForStuckJobs"
                 ]
             },
             "BaseSchedulerLog": {
@@ -18258,22 +18281,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -20977,6 +21000,207 @@
                     }
                 },
                 "required": ["filePath", "sha", "content"],
+                "type": "object"
+            },
+            "ApiFunnelEventNamesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "FunnelStepResult": {
+                "properties": {
+                    "breakdownValue": {
+                        "type": "string"
+                    },
+                    "medianTimeToConvertSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "stepConversionRate": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "conversionRate": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalUsers": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "stepName": {
+                        "type": "string"
+                    },
+                    "stepOrder": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "medianTimeToConvertSeconds",
+                    "stepConversionRate",
+                    "conversionRate",
+                    "totalUsers",
+                    "stepName",
+                    "stepOrder"
+                ],
+                "type": "object"
+            },
+            "FunnelQueryResult": {
+                "properties": {
+                    "sql": {
+                        "type": "string"
+                    },
+                    "totalUsersAtStep1": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "steps": {
+                        "items": {
+                            "$ref": "#/components/schemas/FunnelStepResult"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["sql", "totalUsersAtStep1", "steps"],
+                "type": "object"
+            },
+            "ApiFunnelQueryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/FunnelQueryResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "FunnelStep": {
+                "properties": {
+                    "eventName": {
+                        "type": "string"
+                    },
+                    "stepOrder": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["eventName", "stepOrder"],
+                "type": "object"
+            },
+            "Exclude_FunnelDatePreset.custom_": {
+                "type": "string",
+                "enum": [
+                    "last_7_days",
+                    "last_14_days",
+                    "last_30_days",
+                    "last_90_days",
+                    "last_6_months",
+                    "last_12_months"
+                ],
+                "description": "Exclude from T those types that are assignable to U"
+            },
+            "FunnelDateRange": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "preset": {
+                                "$ref": "#/components/schemas/Exclude_FunnelDatePreset.custom_"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["preset"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["preset", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "end": {
+                                "type": "string"
+                            },
+                            "start": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["custom"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["end", "start", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "FunnelQueryRequest": {
+                "properties": {
+                    "breakdownDimensionId": {
+                        "type": "string"
+                    },
+                    "conversionWindow": {
+                        "properties": {
+                            "unit": {
+                                "type": "string",
+                                "enum": ["hours", "days", "weeks"]
+                            },
+                            "value": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["unit", "value"],
+                        "type": "object"
+                    },
+                    "dateRange": {
+                        "$ref": "#/components/schemas/FunnelDateRange"
+                    },
+                    "steps": {
+                        "items": {
+                            "$ref": "#/components/schemas/FunnelStep"
+                        },
+                        "type": "array"
+                    },
+                    "eventNameFieldId": {
+                        "type": "string"
+                    },
+                    "userIdFieldId": {
+                        "type": "string"
+                    },
+                    "timestampFieldId": {
+                        "type": "string"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "dateRange",
+                    "steps",
+                    "eventNameFieldId",
+                    "userIdFieldId",
+                    "timestampFieldId",
+                    "exploreName"
+                ],
                 "type": "object"
             },
             "Pick_Explore.SummaryExploreFields_": {
@@ -23919,7 +24143,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2318.1",
+        "version": "0.2328.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -35503,6 +35727,120 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/funnel/event-names": {
+            "get": {
+                "operationId": "GetFunnelEventNames",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiFunnelEventNamesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get distinct event names from a dimension for funnel step selection",
+                "summary": "Get event names",
+                "tags": ["Funnel"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The project UUID",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The explore to query",
+                        "in": "query",
+                        "name": "exploreName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The dimension containing event names",
+                        "in": "query",
+                        "name": "eventDimensionId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/funnel/query": {
+            "post": {
+                "operationId": "RunFunnelQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiFunnelQueryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Execute a funnel analysis query and return conversion metrics",
+                "summary": "Run funnel query",
+                "tags": ["Funnel"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The project UUID",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "The funnel query configuration",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FunnelQueryRequest",
+                                "description": "The funnel query configuration"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/explores": {
