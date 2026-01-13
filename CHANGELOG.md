@@ -1,3 +1,10 @@
+## [0.2331.5](https://github.com/lightdash/lightdash/compare/0.2331.4...0.2331.5) (2026-01-13)
+
+
+### Bug Fixes
+
+* Grouped charts made by AI agent don't save with group in chart config ([#19381](https://github.com/lightdash/lightdash/issues/19381)) ([b60787d](https://github.com/lightdash/lightdash/commit/b60787dafe604b170b8eff5071843e0fa2dbfd77))
+
 ## [0.2331.4](https://github.com/lightdash/lightdash/compare/0.2331.3...0.2331.4) (2026-01-13)
 
 
