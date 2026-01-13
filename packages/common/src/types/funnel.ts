@@ -20,6 +20,8 @@ export type FunnelDateRange =
     | { type: 'preset'; preset: Exclude<FunnelDatePreset, 'custom'> }
     | { type: 'custom'; start: string; end: string }; // ISO date strings
 
+export type FunnelConversionWindowUnit = 'hours' | 'days' | 'weeks';
+
 export type FunnelQueryRequest = {
     exploreName: string;
     timestampFieldId: string;
@@ -29,7 +31,7 @@ export type FunnelQueryRequest = {
     dateRange: FunnelDateRange;
     conversionWindow?: {
         value: number;
-        unit: 'hours' | 'days' | 'weeks';
+        unit: FunnelConversionWindowUnit;
     };
     breakdownDimensionId?: string;
 };

@@ -8,7 +8,10 @@ import {
     type Dimension,
 } from '../types/field';
 import { WarehouseTypes } from '../types/projects';
-import { type WarehouseClient } from '../types/warehouse';
+import {
+    type TimeIntervalUnit,
+    type WarehouseClient,
+} from '../types/warehouse';
 import { type VizColumn } from '../visualizations/types';
 import { WeekDay } from './timeFrames';
 
@@ -120,6 +123,13 @@ export const createTemporaryVirtualView = (
         parseWarehouseCatalog: () => ({}),
         parseError: (error) => error,
         escapeString: (value) => value,
+        castToTimestamp: (date) => `CAST('${date.toISOString()}' AS TIMESTAMP)`,
+        getIntervalSql: (value: number, unit: TimeIntervalUnit) =>
+            `INTERVAL '${value} ${unit}'`,
+        getTimestampDiffSeconds: (startTimestampSql, endTimestampSql) =>
+            `EXTRACT(EPOCH FROM (${endTimestampSql} - ${startTimestampSql}))`,
+        getMedianSql: (valueSql) =>
+            `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${valueSql})`,
     };
 
     return createVirtualView(

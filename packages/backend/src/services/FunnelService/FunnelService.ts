@@ -5,6 +5,7 @@ import {
     CompiledField,
     Explore,
     ForbiddenError,
+    FunnelConversionWindowUnit,
     FunnelQueryRequest,
     FunnelQueryResult,
     FunnelStep,
@@ -15,8 +16,10 @@ import {
     NotFoundError,
     resolveFunnelDateRange,
     SessionUser,
+    TimeIntervalUnit,
+    type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import type { WarehouseClient } from '@lightdash/warehouses';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
@@ -29,6 +32,15 @@ type FunnelServiceArguments = {
 };
 
 export class FunnelService extends BaseService {
+    private static readonly conversionWindowUnitMap: Record<
+        FunnelConversionWindowUnit,
+        TimeIntervalUnit
+    > = {
+        hours: TimeIntervalUnit.HOUR,
+        days: TimeIntervalUnit.DAY,
+        weeks: TimeIntervalUnit.WEEK,
+    };
+
     private lightdashConfig: LightdashConfig;
 
     private projectModel: ProjectModel;
@@ -90,9 +102,9 @@ export class FunnelService extends BaseService {
     private static generateFunnelSql(
         request: FunnelQueryRequest,
         explore: Explore,
-        warehouseClient: WarehouseClient,
+        sqlBuilder: WarehouseSqlBuilder,
     ): string {
-        const stringQuote = warehouseClient.getStringQuoteChar();
+        const stringQuote = sqlBuilder.getStringQuoteChar();
         const fieldMap = getFieldMap(explore);
 
         // Helper to safely quote user-provided string values
@@ -130,13 +142,16 @@ export class FunnelService extends BaseService {
 
         // Resolve date range from preset or custom
         const { start, end } = resolveFunnelDateRange(request.dateRange);
-        const startDateStr = start.toISOString();
-        const endDateStr = end.toISOString();
 
         // Build conversion window interval
         const windowInterval = request.conversionWindow
-            ? `INTERVAL '${request.conversionWindow.value} ${request.conversionWindow.unit}'`
-            : `INTERVAL '30 days'`; // Default 30 day window
+            ? sqlBuilder.getIntervalSql(
+                  request.conversionWindow.value,
+                  FunnelService.conversionWindowUnitMap[
+                      request.conversionWindow.unit
+                  ],
+              )
+            : sqlBuilder.getIntervalSql(30, TimeIntervalUnit.DAY);
 
         const breakdownSelect = breakdownField
             ? `, ${breakdownField.compiledSql} AS breakdown_value`
@@ -183,12 +198,13 @@ step_${idx + 1}_users AS (
         ${
             idx > 0
                 ? `,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (
-            ORDER BY EXTRACT(EPOCH FROM (s${idx + 1}.step_${
-                      idx + 1
-                  }_time - s${idx}.step_${idx}_time))
-        ) AS median_time_to_convert`
-                : ', NULL::float AS median_time_to_convert'
+        ${sqlBuilder.getMedianSql(
+            sqlBuilder.getTimestampDiffSeconds(
+                `s${idx}.step_${idx}_time`,
+                `s${idx + 1}.step_${idx + 1}_time`,
+            ),
+        )} AS median_time_to_convert`
+                : `, CAST(NULL AS ${sqlBuilder.getFloatingType()}) AS median_time_to_convert`
         }
         ${breakdownField ? `, s${idx + 1}.breakdown_value` : ''}
     FROM step_${idx + 1}_users s${idx + 1}
@@ -220,8 +236,8 @@ WITH filtered_events AS (
         ${timestampField.compiledSql} AS event_timestamp
         ${breakdownSelect}
     FROM ${baseTable}
-    WHERE ${timestampField.compiledSql} >= '${startDateStr}'::timestamp
-      AND ${timestampField.compiledSql} < '${endDateStr}'::timestamp
+    WHERE ${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(start)}
+      AND ${timestampField.compiledSql} < ${sqlBuilder.castToTimestamp(end)}
       AND ${eventNameField.compiledSql} IN (${stepNames.join(', ')})
 ),
 user_step_times AS (
@@ -307,16 +323,24 @@ ORDER BY ${breakdownField ? 'breakdown_value, ' : ''}step_order
         );
         const baseTable = explore.tables[explore.baseTable].sqlTable;
 
+        // Get SQL builder based on warehouse type (no credentials needed for SQL generation)
+        const credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const sqlBuilder = warehouseSqlBuilderFromType(credentials.type);
+
         // Filter to last 30 days to limit scan cost
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const startDate = thirtyDaysAgo.toISOString();
 
         const sql = `
             SELECT DISTINCT ${eventField.compiledSql} AS event_name
             FROM ${baseTable}
             WHERE ${eventField.compiledSql} IS NOT NULL
-              AND ${timestampField.compiledSql} >= '${startDate}'::timestamp
+              AND ${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(
+            thirtyDaysAgo,
+        )}
             ORDER BY event_name
             LIMIT 1000
         `;
@@ -356,18 +380,17 @@ ORDER BY ${breakdownField ? 'breakdown_value, ' : ''}step_order
 
         const explore = exploreResult;
 
-        // Get warehouse client to generate the SQL with proper escaping
-        const warehouseClient =
-            await this.projectModel.getWarehouseClientFromCredentials(
-                await this.projectModel.getWarehouseCredentialsForProject(
-                    projectUuid,
-                ),
+        // Get SQL builder based on warehouse type (no credentials needed for SQL generation)
+        const credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
             );
+        const sqlBuilder = warehouseSqlBuilderFromType(credentials.type);
 
         const sql = FunnelService.generateFunnelSql(
             request,
             explore,
-            warehouseClient,
+            sqlBuilder,
         );
 
         this.logger.debug('Running funnel query', { sql });

@@ -11,6 +11,7 @@ import {
 } from '../types/field';
 import { type CreateWarehouseCredentials } from '../types/projects';
 import {
+    type TimeIntervalUnit,
     type WarehouseClient,
     type WarehouseSqlBuilder,
 } from '../types/warehouse';
@@ -126,6 +127,18 @@ const warehouseClientMock: WarehouseClient = {
     },
     escapeString(value) {
         return value;
+    },
+    castToTimestamp(date) {
+        return `CAST('${date.toISOString()}' AS TIMESTAMP)`;
+    },
+    getIntervalSql(value: number, unit: TimeIntervalUnit) {
+        return `INTERVAL '${value} ${unit}'`;
+    },
+    getTimestampDiffSeconds(startTimestampSql, endTimestampSql) {
+        return `EXTRACT(EPOCH FROM (${endTimestampSql} - ${startTimestampSql}))`;
+    },
+    getMedianSql(valueSql) {
+        return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${valueSql})`;
     },
 };
 

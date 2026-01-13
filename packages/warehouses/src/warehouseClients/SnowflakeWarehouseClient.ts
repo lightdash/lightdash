@@ -183,6 +183,14 @@ export class SnowflakeSqlBuilder extends WarehouseBaseSqlBuilder {
                 .replaceAll('\0', '')
         );
     }
+
+    getTimestampDiffSeconds(
+        startTimestampSql: string,
+        endTimestampSql: string,
+    ): string {
+        // Snowflake uses DATEDIFF function
+        return `DATEDIFF('second', ${startTimestampSql}, ${endTimestampSql})`;
+    }
 }
 
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
