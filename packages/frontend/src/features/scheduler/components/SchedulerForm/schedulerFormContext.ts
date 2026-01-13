@@ -100,11 +100,14 @@ export const getSelectedTabsForDashboardScheduler = (
     return (
         isDashboardScheduler(schedulerData) && {
             selectedTabs: isDashboardTabsAvailable
-                ? intersection(
-                      schedulerData.selectedTabs,
-                      dashboard?.tabs.map((tab) => tab.uuid),
-                  )
-                : null, // remove tabs that have been deleted
+                ? // null means "all tabs" - preserve that, otherwise filter out deleted tabs
+                  schedulerData.selectedTabs === null
+                    ? null
+                    : intersection(
+                          schedulerData.selectedTabs,
+                          dashboard?.tabs.map((tab) => tab.uuid),
+                      )
+                : null,
         }
     );
 };
@@ -124,8 +127,8 @@ export const getFormValuesFromScheduler = (
             options.limit === Limit.TABLE
                 ? Limit.TABLE
                 : options.limit === Limit.ALL
-                ? Limit.ALL
-                : Limit.CUSTOM;
+                  ? Limit.ALL
+                  : Limit.CUSTOM;
         if (formOptions.limit === Limit.CUSTOM) {
             formOptions.customLimit = options.limit as number;
         }
