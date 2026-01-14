@@ -1,5 +1,4 @@
-import { Button, Menu } from '@mantine/core';
-
+import { Button, Menu } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -18,7 +17,10 @@ export const AddRoleButton: FC<Props> = ({ onClickDuplicate, size = 'md' }) => {
     return (
         <Menu position="bottom-end">
             <Menu.Target>
-                <Button size={size} leftIcon={<MantineIcon icon={IconPlus} />}>
+                <Button
+                    size={size}
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                >
                     Add role
                 </Button>
             </Menu.Target>

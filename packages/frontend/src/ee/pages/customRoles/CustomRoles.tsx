@@ -1,11 +1,11 @@
-import { Group, Stack, Title } from '@mantine/core';
+import { type RoleWithScopes } from '@lightdash/common';
+import { Group, Stack } from '@mantine-8/core';
 import { IconIdBadge2 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-
-import { type RoleWithScopes } from '@lightdash/common';
 import { EmptyState } from '../../../components/common/EmptyState';
 import MantineIcon from '../../../components/common/MantineIcon';
+import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
 import PageSpinner from '../../../components/PageSpinner';
 import { AddRoleButton } from '../../features/customRoles/components/AddRoleButton';
 import { CustomRolesTable } from '../../features/customRoles/CustomRolesTable';
@@ -43,18 +43,26 @@ export const CustomRoles = () => {
     const hasRoles = (listRoles?.data?.length ?? 0) > 0;
 
     return (
-        <Stack mb="lg">
+        <Stack mb="lg" gap="md">
+            <Group justify="space-between" align="flex-start">
+                <PageBreadcrumbs
+                    items={[
+                        {
+                            title: 'Custom roles',
+                            active: true,
+                        },
+                    ]}
+                />
+                {hasRoles && (
+                    <AddRoleButton
+                        onClickDuplicate={() => setIsDuplicateModalOpen(true)}
+                        size="xs"
+                    />
+                )}
+            </Group>
+
             {hasRoles ? (
                 <>
-                    <Group position="apart">
-                        <Title order={5}>Custom roles</Title>
-                        <AddRoleButton
-                            onClickDuplicate={() =>
-                                setIsDuplicateModalOpen(true)
-                            }
-                            size="xs"
-                        />
-                    </Group>
                     <CustomRolesTable
                         roles={listRoles?.data ?? []}
                         onDelete={handleDeleteRole}

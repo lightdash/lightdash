@@ -1,8 +1,6 @@
-import { Group, Paper, Title } from '@mantine/core';
-import { IconIdBadge2 } from '@tabler/icons-react';
+import { Stack } from '@mantine-8/core';
 import { useNavigate } from 'react-router';
-
-import MantineIcon from '../../../components/common/MantineIcon';
+import PageBreadcrumbs from '../../../components/common/PageBreadcrumbs';
 import { RoleBuilder } from '../../features/customRoles/components/RoleBuilder';
 import { useCustomRoles } from '../../features/customRoles/useCustomRoles';
 
@@ -30,12 +28,19 @@ export const CustomRoleCreate = () => {
     };
 
     return (
-        <Paper h="87vh" shadow="sm" withBorder p="md">
-            <Title order={4}>
-                <Group>
-                    <MantineIcon icon={IconIdBadge2} /> Create Custom Role
-                </Group>
-            </Title>
+        <Stack gap="md" h="100%">
+            <PageBreadcrumbs
+                items={[
+                    {
+                        title: 'Custom roles',
+                        to: '/generalSettings/customRoles',
+                    },
+                    {
+                        title: 'Create custom role',
+                        active: true,
+                    },
+                ]}
+            />
 
             <RoleBuilder
                 initialValues={initialValues}
@@ -43,6 +48,6 @@ export const CustomRoleCreate = () => {
                 isWorking={createRole.isLoading}
                 mode="create"
             />
-        </Paper>
+        </Stack>
     );
 };
