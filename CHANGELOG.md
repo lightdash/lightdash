@@ -1,3 +1,15 @@
+# [0.2335.0](https://github.com/lightdash/lightdash/compare/0.2334.1...0.2335.0) (2026-01-14)
+
+
+### Bug Fixes
+
+* unfurl url repeating tabs uuid ([#19417](https://github.com/lightdash/lightdash/issues/19417)) ([1a85e21](https://github.com/lightdash/lightdash/commit/1a85e2153c3699084ed74a4741e382914294e512))
+
+
+### Features
+
+* include private channels in Slack channel selection for AI Agent ([#19426](https://github.com/lightdash/lightdash/issues/19426)) ([e6c5a4b](https://github.com/lightdash/lightdash/commit/e6c5a4b790b90a825197e533b5d231f54bd2201d))
+
 ## [0.2334.1](https://github.com/lightdash/lightdash/compare/0.2334.0...0.2334.1) (2026-01-13)
 
 
