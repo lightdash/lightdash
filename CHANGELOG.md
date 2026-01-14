@@ -1,3 +1,16 @@
+# [0.2340.0](https://github.com/lightdash/lightdash/compare/0.2339.0...0.2340.0) (2026-01-14)
+
+
+### Bug Fixes
+
+* hide chart config errors in CLI by default ([#19451](https://github.com/lightdash/lightdash/issues/19451)) ([4a86ab3](https://github.com/lightdash/lightdash/commit/4a86ab3dd2e9a6b909c1c6fa9cf4f8436eb7db5e))
+* show fix dialog for chart config in validator ([#19446](https://github.com/lightdash/lightdash/issues/19446)) ([da08727](https://github.com/lightdash/lightdash/commit/da08727110c8f689cc3a652135fb6aeebddf14b4))
+
+
+### Features
+
+* hide chart config warnings in the UI ([#19450](https://github.com/lightdash/lightdash/issues/19450)) ([7dd8a1c](https://github.com/lightdash/lightdash/commit/7dd8a1c9589de557701245d6d9bbcf05eabfb1ea))
+
 # [0.2339.0](https://github.com/lightdash/lightdash/compare/0.2338.1...0.2339.0) (2026-01-14)
 
 
