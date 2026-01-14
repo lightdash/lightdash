@@ -1,5 +1,6 @@
 import {
     isChartValidationError,
+    ValidationErrorType,
     type ValidationErrorChartResponse,
 } from '@lightdash/common';
 import {
@@ -21,6 +22,7 @@ import useApp from '../../providers/App/useApp';
 import { formatTime } from '../SchedulersView/SchedulersViewUtils';
 import MantineIcon from '../common/MantineIcon';
 import { ValidatorTable } from './ValidatorTable';
+import { ChartConfigurationErrorModal } from './ValidatorTable/ChartConfigurationErrorModal';
 import { FixValidationErrorModal } from './ValidatorTable/FixValidationErrorModal';
 
 const MIN_ROWS_TO_ENABLE_SCROLLING = 6;
@@ -40,6 +42,8 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     );
     const [selectedValidationError, setSelectedValidationError] =
         useState<ValidationErrorChartResponse>();
+    const [selectedConfigError, setSelectedConfigError] =
+        useState<ValidationErrorChartResponse>();
     return (
         <>
             <FixValidationErrorModal
@@ -47,6 +51,12 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                 allValidationErrors={data}
                 onClose={() => {
                     setSelectedValidationError(undefined);
+                }}
+            />
+            <ChartConfigurationErrorModal
+                validationError={selectedConfigError}
+                onClose={() => {
+                    setSelectedConfigError(undefined);
                 }}
             />
             <Text color="dimmed">
@@ -106,9 +116,18 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                                     if (
                                         isChartValidationError(validationError)
                                     ) {
-                                        setSelectedValidationError(
-                                            validationError,
-                                        );
+                                        if (
+                                            validationError.errorType ===
+                                            ValidationErrorType.ChartConfiguration
+                                        ) {
+                                            setSelectedConfigError(
+                                                validationError,
+                                            );
+                                        } else {
+                                            setSelectedValidationError(
+                                                validationError,
+                                            );
+                                        }
                                     }
                                 }}
                             />
