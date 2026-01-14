@@ -54,6 +54,16 @@ type Reference = {
     refTable: string;
     refName: string;
 };
+
+type FieldContext = {
+    fieldType:
+        | 'metric'
+        | 'dimension'
+        | 'custom_dimension'
+        | 'join'
+        | 'sql_where';
+    fieldName: string;
+};
 export const getParsedReference = (
     ref: string,
     currentTable: string,
@@ -593,6 +603,7 @@ export class ExploreCompiler {
                     p1,
                     tables,
                     table.name,
+                    { fieldType: 'sql_where', fieldName: table.name },
                 );
 
                 return compiledReference.sql;
@@ -747,6 +758,10 @@ export class ExploreCompiler {
                     );
                 }
 
+                const fieldContext = {
+                    fieldType: 'metric' as const,
+                    fieldName: metric.name,
+                };
                 const compiledReference =
                     isNonAggregateMetric(metric) ||
                     isPostCalculationMetric(metric)
@@ -755,11 +770,13 @@ export class ExploreCompiler {
                               tables,
                               metric.table,
                               availableParameters,
+                              fieldContext,
                           )
                         : this.compileDimensionReference(
                               p1,
                               tables,
                               metric.table,
+                              fieldContext,
                           );
                 tablesReferences = new Set([
                     ...tablesReferences,
@@ -909,6 +926,7 @@ export class ExploreCompiler {
                 p1,
                 tables,
                 dimension.table,
+                { fieldType: 'dimension', fieldName: dimension.name },
             );
             tablesReferences = new Set([
                 ...tablesReferences,
@@ -943,6 +961,10 @@ export class ExploreCompiler {
                     p1,
                     tables,
                     dimension.table,
+                    {
+                        fieldType: 'custom_dimension',
+                        fieldName: dimension.name,
+                    },
                 );
                 tablesReferences = new Set([
                     ...tablesReferences,
@@ -993,6 +1015,7 @@ export class ExploreCompiler {
         ref: string,
         tables: Record<string, Table>,
         currentTable: string,
+        fieldContext?: FieldContext,
     ): { sql: string; tablesReferences: Set<string> } {
         // Reference to current table
         if (ref === 'TABLE') {
@@ -1010,8 +1033,11 @@ export class ExploreCompiler {
         const referencedDimension = referencedTable?.dimensions[refName];
 
         if (referencedDimension === undefined) {
+            const fieldInfo = fieldContext
+                ? ` in ${fieldContext.fieldType} "${fieldContext.fieldName}"`
+                : '';
             throw new CompileError(
-                `Model "${currentTable}" has a dimension reference: \${${ref}} which matches no dimension`,
+                `Model "${currentTable}"${fieldInfo} has a dimension reference: \${${ref}} which matches no dimension`,
                 {},
             );
         }
@@ -1034,6 +1060,7 @@ export class ExploreCompiler {
         tables: Record<string, Table>,
         currentTable: string,
         availableParameters: string[],
+        fieldContext?: FieldContext,
     ): { sql: string; tablesReferences: Set<string> } {
         // Reference to current table
         if (ref === 'TABLE') {
@@ -1053,8 +1080,11 @@ export class ExploreCompiler {
         const referencedMetric = referencedTable?.metrics[refName];
 
         if (referencedMetric === undefined) {
+            const fieldInfo = fieldContext
+                ? ` in ${fieldContext.fieldType} "${fieldContext.fieldName}"`
+                : '';
             throw new CompileError(
-                `Model "${currentTable}" has a metric reference: \${${ref}} which matches no metric`,
+                `Model "${currentTable}"${fieldInfo} has a metric reference: \${${ref}} which matches no metric`,
                 {},
             );
         }
@@ -1085,6 +1115,7 @@ export class ExploreCompiler {
                 p1,
                 tables,
                 join.table,
+                { fieldType: 'join', fieldName: join.table },
             );
             // Update table references
             compiledReference.tablesReferences.forEach((value) =>
