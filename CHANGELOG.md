@@ -1,3 +1,18 @@
+# [0.2336.0](https://github.com/lightdash/lightdash/compare/0.2335.0...0.2336.0) (2026-01-14)
+
+
+### Bug Fixes
+
+* can view underlying data in non-cartesian tiles if enabled on embedded content ([#19354](https://github.com/lightdash/lightdash/issues/19354)) ([2909d34](https://github.com/lightdash/lightdash/commit/2909d34ecd2a062ffe4267610c727b07d4381239))
+* creating charts from editing doesn't respect tabs ([#19430](https://github.com/lightdash/lightdash/issues/19430)) ([39ce72f](https://github.com/lightdash/lightdash/commit/39ce72f3760b98f869612ea0f971378a663a167a))
+* filter dashboard parameters by active tab tiles (V2) ([#19431](https://github.com/lightdash/lightdash/issues/19431)) ([096f847](https://github.com/lightdash/lightdash/commit/096f847c5f323df74266ae50ff87e6e5375ecc79))
+* load embed chart on generate & copy URL action in embed settings ([#19397](https://github.com/lightdash/lightdash/issues/19397)) ([fb839f6](https://github.com/lightdash/lightdash/commit/fb839f69038bf5149472037dc79bc0239b82729f))
+
+
+### Features
+
+* populate SQL for additional metrics in Slack artifact blocks ([#19435](https://github.com/lightdash/lightdash/issues/19435)) ([c3fee67](https://github.com/lightdash/lightdash/commit/c3fee67560ac725011bee596d07b5caae3811b8e))
+
 # [0.2335.0](https://github.com/lightdash/lightdash/compare/0.2334.1...0.2335.0) (2026-01-14)
 
 
