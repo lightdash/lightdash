@@ -1,4 +1,4 @@
-import { Button, Group, Stack, Title } from '@mantine/core';
+import { Button, Group, Stack, Title } from '@mantine-8/core';
 import { IconKey } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useAccessToken } from '../../../hooks/useAccessToken';
@@ -16,7 +16,7 @@ const AccessTokensPanel: FC = () => {
         <Stack mb="lg">
             {hasAvailableTokens ? (
                 <>
-                    <Group position="apart">
+                    <Group justify="space-between">
                         <Title order={5}>Personal access tokens</Title>
                         <Button onClick={() => setIsCreatingToken(true)}>
                             Generate new token

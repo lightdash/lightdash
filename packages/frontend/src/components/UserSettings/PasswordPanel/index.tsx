@@ -1,5 +1,5 @@
 import { getPasswordSchema } from '@lightdash/common';
-import { Button, Flex, PasswordInput, Stack } from '@mantine/core';
+import { Button, Flex, PasswordInput, Stack } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { type FC } from 'react';
 import { z } from 'zod';
@@ -92,7 +92,6 @@ const PasswordPanel: FC = () => {
 
                     <Button
                         type="submit"
-                        display="block"
                         loading={isUpdatingUserPassword}
                         disabled={isUpdatingUserPassword}
                     >
