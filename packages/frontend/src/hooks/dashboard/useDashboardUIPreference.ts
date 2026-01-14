@@ -5,7 +5,7 @@ import { useParams } from 'react-router';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { useFeatureFlagEnabled } from '../useFeatureFlagEnabled';
+import { useFeatureFlag } from '../useFeatureFlagEnabled';
 
 export type DashboardUIVersion = 'v1' | 'v2';
 
@@ -29,9 +29,11 @@ export const useDashboardUIPreference = () => {
         defaultValue: 'v1',
     });
 
-    const isDashboardRedesignFlagEnabled = useFeatureFlagEnabled(
+    const { data: dashboardRedesignFlag } = useFeatureFlag(
         FeatureFlags.DashboardRedesign,
     );
+    const isDashboardRedesignFlagEnabled =
+        dashboardRedesignFlag?.enabled ?? false;
 
     const handleSetPreference = useCallback(
         (value: DashboardUIVersion) => {
