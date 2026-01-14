@@ -4,9 +4,9 @@ import {
     type SavedChart,
     type UpdateEmbed,
 } from '@lightdash/common';
-import { Button, Flex, MultiSelect, Stack, Switch } from '@mantine/core';
+import { Button, Flex, MultiSelect, Stack, Switch } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
-import React, { type FC } from 'react';
+import { type FC } from 'react';
 
 const EmbedAllowListForm: FC<{
     disabled: boolean;
@@ -63,7 +63,6 @@ const EmbedAllowListForm: FC<{
                                 : 'Select a dashboard...'
                         }
                         searchable
-                        withinPortal
                         description="Only these dashboards will be allowed to be embedded."
                         {...form.getInputProps('dashboardUuids')}
                     />
@@ -95,7 +94,6 @@ const EmbedAllowListForm: FC<{
                                 : 'Select a chart...'
                         }
                         searchable
-                        withinPortal
                         description="Only these charts will be allowed to be embedded."
                         {...form.getInputProps('chartUuids')}
                     />

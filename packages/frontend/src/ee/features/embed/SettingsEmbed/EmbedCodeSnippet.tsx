@@ -7,9 +7,15 @@ import {
     isDashboardUuidContent,
     type CreateEmbedJwt,
 } from '@lightdash/common';
-import { Tabs } from '@mantine/core';
+import { Tabs } from '@mantine-8/core';
 import { Prism } from '@mantine/prism';
+import {
+    IconBrandGolang,
+    IconBrandNodejs,
+    IconBrandPython,
+} from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
+import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 
 // Not sure why lint-staged is removing the value of this enum.
@@ -557,9 +563,30 @@ const EmbedCodeSnippet: FC<{
     return (
         <Tabs defaultValue="node">
             <Tabs.List>
-                <Tabs.Tab value="node">NodeJS</Tabs.Tab>
-                <Tabs.Tab value="python">Python</Tabs.Tab>
-                <Tabs.Tab value="go">Go</Tabs.Tab>
+                <Tabs.Tab
+                    value="node"
+                    leftSection={
+                        <MantineIcon icon={IconBrandNodejs} size="sm" />
+                    }
+                >
+                    NodeJS
+                </Tabs.Tab>
+                <Tabs.Tab
+                    value="python"
+                    leftSection={
+                        <MantineIcon icon={IconBrandPython} size="sm" />
+                    }
+                >
+                    Python
+                </Tabs.Tab>
+                <Tabs.Tab
+                    value="go"
+                    leftSection={
+                        <MantineIcon icon={IconBrandGolang} size="sm" />
+                    }
+                >
+                    Go
+                </Tabs.Tab>
             </Tabs.List>
             <Tabs.Panel value="node" pt="xs">
                 <Prism language="javascript" onCopy={handleCopySnippet}>
