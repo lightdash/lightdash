@@ -1,3 +1,10 @@
+## [0.2340.1](https://github.com/lightdash/lightdash/compare/0.2340.0...0.2340.1) (2026-01-14)
+
+
+### Bug Fixes
+
+* wait for sql runner results correctly when unfurling ([#19415](https://github.com/lightdash/lightdash/issues/19415)) ([e77bbed](https://github.com/lightdash/lightdash/commit/e77bbedde931da3f54f631183f0956732392081d))
+
 # [0.2340.0](https://github.com/lightdash/lightdash/compare/0.2339.0...0.2340.0) (2026-01-14)
 
 
