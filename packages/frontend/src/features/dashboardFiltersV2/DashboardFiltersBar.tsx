@@ -108,6 +108,7 @@ export const DashboardFiltersBar: FC<Props> = ({
 
                                     <ParametersV2
                                         isEditMode={isEditMode}
+                                        activeTabUuid={activeTabUuid}
                                         parameterValues={parameterValues}
                                         onParameterChange={onParameterChange}
                                         onClearAll={onParameterClearAll}
