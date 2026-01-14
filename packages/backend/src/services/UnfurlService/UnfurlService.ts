@@ -39,6 +39,7 @@ import {
 import { StringIndexed } from '@slack/bolt/dist/types/helpers';
 import { WebClient } from '@slack/web-api';
 import * as fsPromise from 'fs/promises';
+import { uniq } from 'lodash';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
@@ -627,9 +628,11 @@ export class UnfurlService extends BaseService {
         const selectedTabsParams = new URLSearchParams();
         const selectedTabsList =
             selectedTabs ??
-            dashboard.tiles
-                .map((tile) => tile.tabUuid)
-                .filter((tabUuid) => !!tabUuid);
+            uniq(
+                dashboard.tiles
+                    .map((tile) => tile.tabUuid)
+                    .filter((tabUuid) => !!tabUuid),
+            );
 
         if (selectedTabsList.length > 0)
             selectedTabsParams.set(
