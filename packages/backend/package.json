@@ -34,7 +34,6 @@
         "copyfiles": "^2.4.1",
         "jest-fetch-mock": "^3.0.3",
         "knex-mock-client": "^1.11.0",
-        "nodemon": "^3.1.9",
         "ts-node": "^10.9.2"
     },
     "dependencies": {
@@ -185,6 +184,6 @@
         "rollback-all": "knex migrate:rollback --all --knexfile src/knexfile.ts",
         "rollback-all-production": "knex migrate:rollback --all --knexfile dist/knexfile.js",
         "repl": "node dist/ee/repl/index.js",
-        "repl-dev": "nodemon --exec tsx src/ee/repl/index.ts"
+        "repl-dev": "tsx watch src/ee/repl/index.ts"
     }
 }
