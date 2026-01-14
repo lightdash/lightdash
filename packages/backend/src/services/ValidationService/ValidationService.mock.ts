@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     AbilityAction,
     AnyType,
+    ChartType,
     DimensionType,
     Explore,
     ExploreError,
@@ -106,6 +107,15 @@ export const chartForValidation: Awaited<
             operator: FilterOperator.ENDS_WITH,
         },
     ],
+    chartType: ChartType.CARTESIAN,
+    chartConfig: {
+        layout: {
+            xField: 'table_dimension',
+            yField: ['table_metric'],
+        },
+        eChartsConfig: {},
+    },
+    pivotDimensions: [],
 };
 
 export const chartForValidationWithJoinedField: Awaited<
@@ -116,6 +126,15 @@ export const chartForValidationWithJoinedField: Awaited<
     dimensions: ['table_dimension', 'another_table_dimension'],
     metrics: ['table_metric', 'another_table_metric'],
     sorts: ['another_table_dimension'],
+    // Use both dimensions - one in x-axis, one in pivot
+    chartConfig: {
+        layout: {
+            xField: 'table_dimension',
+            yField: ['table_metric', 'another_table_metric'],
+        },
+        eChartsConfig: {},
+    },
+    pivotDimensions: ['another_table_dimension'],
 };
 
 export const chartForValidationWithCustomMetricFilters: Awaited<
@@ -142,6 +161,15 @@ export const chartForValidationWithCustomMetricFilters: Awaited<
             operator: FilterOperator.STARTS_WITH,
         },
     ],
+    // Use both dimensions - one in x-axis, one in pivot
+    chartConfig: {
+        layout: {
+            xField: 'table_dimension',
+            yField: ['table_metric'],
+        },
+        eChartsConfig: {},
+    },
+    pivotDimensions: ['another_table_dimension'],
 };
 
 export const dashboardForValidation: {

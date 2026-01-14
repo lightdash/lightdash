@@ -1,8 +1,6 @@
 import {
-    ChartType,
     FeatureFlags,
-    isCustomDimension,
-    isDimension,
+    hasUnusedDimensions,
     type ChartConfig,
     type ItemsMap,
     type MetricQuery,
@@ -88,36 +86,14 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
 
     // Determine if query includes dimensions not used in the cartesian chart config
     const shouldShowUnusedDims = useMemo(() => {
-        // Don't show when not using cartesian charts
-        if (chartConfig?.type !== ChartType.CARTESIAN) {
-            return false;
-        }
-
-        const itemsMap = resultsData?.fields;
-        const layout = chartConfig.config?.layout as
-            | { xField?: string; yField?: string[] }
-            | undefined;
-        const usedDims = new Set<string>();
-
-        const maybeAddIfDimension = (field?: string) => {
-            if (!field || !itemsMap) return;
-            const item = itemsMap[field];
-            if ((item && isDimension(item)) || isCustomDimension(item))
-                usedDims.add(field);
-        };
-
-        maybeAddIfDimension(layout?.xField);
-        (layout?.yField ?? []).forEach((f) => maybeAddIfDimension(f));
-        (dirtyPivotDimensions ?? []).forEach((f) => usedDims.add(f));
-
-        const metricQueryDims = resultsData?.metricQuery?.dimensions ?? [];
-        const unusedQueryDimensions = metricQueryDims.filter(
-            (d) => !usedDims.has(d),
-        );
-        return unusedQueryDimensions.length > 0;
+        return hasUnusedDimensions({
+            chartType: chartConfig.type,
+            chartConfig: chartConfig.config,
+            pivotDimensions: dirtyPivotDimensions,
+            queryDimensions: resultsData?.metricQuery?.dimensions ?? [],
+        });
     }, [
         resultsData?.metricQuery?.dimensions,
-        resultsData?.fields,
         chartConfig?.type,
         chartConfig.config,
         dirtyPivotDimensions,
