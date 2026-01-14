@@ -1,5 +1,6 @@
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import {
+    isDashboardChartTileType,
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
@@ -301,11 +302,31 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             );
 
             if (tilesToDuplicate && tilesToDuplicate.length > 0) {
-                const duplicatedTiles = tilesToDuplicate.map((tile) => ({
-                    ...tile,
-                    uuid: uuid4(),
-                    tabUuid: newTab.uuid,
-                }));
+                const duplicatedTiles = tilesToDuplicate.map((tile) => {
+                    // For chart tiles that belong to the dashboard, mark them for duplication
+                    // so the backend creates a copy of the chart when saving
+                    if (
+                        isDashboardChartTileType(tile) &&
+                        tile.properties.belongsToDashboard &&
+                        tile.properties.savedChartUuid
+                    ) {
+                        return {
+                            ...tile,
+                            uuid: uuid4(),
+                            tabUuid: newTab.uuid,
+                            properties: {
+                                ...tile.properties,
+                                shouldDuplicateChart: true,
+                            },
+                        };
+                    }
+
+                    return {
+                        ...tile,
+                        uuid: uuid4(),
+                        tabUuid: newTab.uuid,
+                    };
+                });
 
                 // Directly add tiles to the dashboard without using handleAddTiles
                 // to avoid automatic assignment to current active tab
