@@ -1,35 +1,41 @@
-import { subject } from '@casl/ability';
-import { hasCustomBinDimension, type ResultValue } from '@lightdash/common';
+import { type ResultValue } from '@lightdash/common';
 import { Menu, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
-import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
+import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
-import { useCallback, useMemo, type FC } from 'react';
+import { useMemo, type FC } from 'react';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useAccount } from '../../hooks/user/useAccount';
-import { Can } from '../../providers/Ability';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
+import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
-const BigNumberContextMenu: FC<React.PropsWithChildren<{}>> = ({
-    children,
-}) => {
+type BigNumberContextMenuProps = {
+    isMinimal?: boolean;
+    canDrillInto: boolean;
+    canViewUnderlyingData: boolean;
+};
+
+const BigNumberContextMenu: FC<
+    React.PropsWithChildren<BigNumberContextMenuProps>
+> = ({ children, isMinimal = false, canDrillInto, canViewUnderlyingData }) => {
     const clipboard = useClipboard({ timeout: 200 });
     const { showToastSuccess } = useToaster();
     const { resultsData, visualizationConfig, itemsMap } =
         useVisualizationContext();
-    const { openUnderlyingDataModal, openDrillDownModal, metricQuery } =
-        useMetricQueryDataContext();
+    // Always fail silently - parent component controls when this menu is rendered
+    const metricQueryData = useMetricQueryDataContext(true);
 
-    const { track } = useTracking();
+    const tracking = useTracking({ failSilently: true });
     const { data: account } = useAccount();
     const projectUuid = useProjectUuid();
-    const organizationUuid = account?.organization?.organizationUuid;
+    const { data: organization } = useOrganization();
     const userId = account?.user?.id;
 
     const isBigNumber = isBigNumberVisualizationConfig(visualizationConfig);
@@ -56,13 +62,21 @@ const BigNumberContextMenu: FC<React.PropsWithChildren<{}>> = ({
         }
     }, [fieldValues, visualizationConfig, isBigNumber]);
 
+    // Early return if context is not available
+    if (!metricQueryData) {
+        return <>{children}</>;
+    }
+
+    const { openUnderlyingDataModal, openDrillDownModal, metricQuery } =
+        metricQueryData;
+
     const handleCopyToClipboard = () => {
         if (!value) return;
         clipboard.copy(value.formatted);
         showToastSuccess({ title: 'Copied to clipboard!' });
     };
 
-    const handleViewUnderlyingData = useCallback(() => {
+    const handleViewUnderlyingData = () => {
         if (!isBigNumber) return;
 
         const { chartConfig } = visualizationConfig;
@@ -72,49 +86,21 @@ const BigNumberContextMenu: FC<React.PropsWithChildren<{}>> = ({
         }
 
         openUnderlyingDataModal({ item, value, fieldValues });
-        track({
-            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-            properties: {
-                organizationId: organizationUuid,
-                userId,
-                projectId: projectUuid,
-            },
-        });
-    }, [
-        projectUuid,
-        itemsMap,
-        value,
-        item,
-        fieldValues,
-        track,
-        openUnderlyingDataModal,
-        organizationUuid,
-        userId,
-        isBigNumber,
-        visualizationConfig,
-    ]);
+    };
 
-    const handleOpenDrillIntoModal = useCallback(() => {
+    const handleOpenDrillIntoModal = () => {
         if (!item) return;
 
         openDrillDownModal({ item, fieldValues });
-        track({
+        tracking?.track({
             name: EventName.DRILL_BY_CLICKED,
             properties: {
-                organizationId: organizationUuid,
+                organizationId: organization?.organizationUuid,
                 userId,
                 projectId: projectUuid,
             },
         });
-    }, [
-        item,
-        fieldValues,
-        openDrillDownModal,
-        projectUuid,
-        track,
-        organizationUuid,
-        userId,
-    ]);
+    };
 
     if (!item && !value) return <>{children}</>;
 
@@ -141,41 +127,23 @@ const BigNumberContextMenu: FC<React.PropsWithChildren<{}>> = ({
                     </Menu.Item>
                 )}
 
-                {item && !hasCustomBinDimension(metricQuery) && (
-                    <Can
-                        I="view"
-                        this={subject('UnderlyingData', {
-                            organizationUuid,
-                            projectUuid,
-                        })}
-                    >
-                        <Menu.Item
-                            icon={<MantineIcon icon={IconStack} />}
-                            onClick={handleViewUnderlyingData}
-                        >
-                            View underlying data
-                        </Menu.Item>
-                    </Can>
+                {item && metricQuery && canViewUnderlyingData && (
+                    <UnderlyingDataMenuItem
+                        metricQuery={metricQuery}
+                        onViewUnderlyingData={handleViewUnderlyingData}
+                    />
                 )}
 
-                {item && value && (
-                    <Can
-                        I="manage"
-                        this={subject('Explore', {
-                            organizationUuid,
-                            projectUuid,
-                        })}
+                {!isMinimal && item && value && canDrillInto && (
+                    <Menu.Item
+                        icon={<MantineIcon icon={IconArrowBarToDown} />}
+                        onClick={handleOpenDrillIntoModal}
                     >
-                        <Menu.Item
-                            icon={<MantineIcon icon={IconArrowBarToDown} />}
-                            onClick={handleOpenDrillIntoModal}
-                        >
-                            Drill into{' '}
-                            <Text span fw={500}>
-                                {value.formatted}
-                            </Text>
-                        </Menu.Item>
-                    </Can>
+                        Drill into{' '}
+                        <Text span fw={500}>
+                            {value.formatted}
+                        </Text>
+                    </Menu.Item>
                 )}
             </Menu.Dropdown>
         </Menu>

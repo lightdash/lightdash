@@ -25,7 +25,7 @@ const LinkButton: FC<LinkButtonProps> = ({
     ...rest
 }) => {
     const navigate = useNavigate();
-    const { track } = useTracking();
+    const tracking = useTracking({ failSilently: true });
 
     return (
         <Button
@@ -49,7 +49,7 @@ const LinkButton: FC<LinkButtonProps> = ({
 
                 onClick?.(e);
 
-                if (trackingEvent) track(trackingEvent);
+                if (trackingEvent && tracking) tracking.track(trackingEvent);
             }}
         />
     );
