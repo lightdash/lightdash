@@ -13,6 +13,7 @@ import AiAgentNewThreadPage from './pages/AiAgents/AiAgentNewThreadPage';
 import AiAgentsNotAuthorizedPage from './pages/AiAgents/AiAgentsNotAuthorizedPage';
 import { AiAgentsRootLayout } from './pages/AiAgents/AiAgentsRootLayout';
 import ProjectAiAgentEditPage from './pages/AiAgents/ProjectAiAgentEditPage';
+import EmbedChart from './pages/EmbedChart';
 import EmbedDashboard from './pages/EmbedDashboard';
 import EmbedExplore from './pages/EmbedExplore';
 import { SlackAuthSuccess } from './pages/SlackAuthSuccess';
@@ -35,6 +36,14 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
                 element: (
                     <TrackPage name={PageName.EMBED_DASHBOARD}>
                         <EmbedDashboard />
+                    </TrackPage>
+                ),
+            },
+            {
+                path: '/embed/:projectUuid/chart/:chartUuid',
+                element: (
+                    <TrackPage name={PageName.EMBED_SAVED_CHART}>
+                        <EmbedChart />
                     </TrackPage>
                 ),
             },
