@@ -4170,11 +4170,17 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ConditionalFormattingColorApplyTo: {
+        dataType: 'refEnum',
+        enums: ['cell', 'text'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ConditionalFormattingConfigWithSingleColor: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                applyTo: { ref: 'ConditionalFormattingColorApplyTo' },
                 rules: {
                     dataType: 'array',
                     array: {
@@ -4240,6 +4246,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                applyTo: { ref: 'ConditionalFormattingColorApplyTo' },
                 rule: {
                     ref: 'ConditionalFormattingMinMax_number-or-auto_',
                     required: true,
@@ -14121,6 +14128,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                aiMultiAgentProjectUuids: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 aiMultiAgentChannelId: { dataType: 'string' },
                 aiRequireOAuth: { dataType: 'boolean' },
                 aiThreadAccessConsent: { dataType: 'boolean' },
@@ -14157,6 +14171,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                aiMultiAgentProjectUuids: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 aiMultiAgentChannelId: { dataType: 'string' },
                 aiRequireOAuth: { dataType: 'boolean' },
                 hasRequiredScopes: { dataType: 'boolean', required: true },
@@ -20386,6 +20407,19 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    FunnelConversionWindowUnit: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['hours'] },
+                { dataType: 'enum', enums: ['days'] },
+                { dataType: 'enum', enums: ['weeks'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     FunnelQueryRequest: {
         dataType: 'refAlias',
         type: {
@@ -20396,12 +20430,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         unit: {
-                            dataType: 'union',
-                            subSchemas: [
-                                { dataType: 'enum', enums: ['hours'] },
-                                { dataType: 'enum', enums: ['days'] },
-                                { dataType: 'enum', enums: ['weeks'] },
-                            ],
+                            ref: 'FunnelConversionWindowUnit',
                             required: true,
                         },
                         value: { dataType: 'double', required: true },

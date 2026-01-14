@@ -4527,8 +4527,15 @@
                     }
                 ]
             },
+            "ConditionalFormattingColorApplyTo": {
+                "enum": ["cell", "text"],
+                "type": "string"
+            },
             "ConditionalFormattingConfigWithSingleColor": {
                 "properties": {
+                    "applyTo": {
+                        "$ref": "#/components/schemas/ConditionalFormattingColorApplyTo"
+                    },
                     "rules": {
                         "items": {
                             "$ref": "#/components/schemas/ConditionalFormattingWithFilterOperator"
@@ -4594,6 +4601,9 @@
             },
             "ConditionalFormattingConfigWithColorRange": {
                 "properties": {
+                    "applyTo": {
+                        "$ref": "#/components/schemas/ConditionalFormattingColorApplyTo"
+                    },
                     "rule": {
                         "$ref": "#/components/schemas/ConditionalFormattingMinMax_number-or-auto_"
                     },
@@ -14532,6 +14542,13 @@
             },
             "SlackAppCustomSettings": {
                 "properties": {
+                    "aiMultiAgentProjectUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "aiMultiAgentChannelId": {
                         "type": "string"
                     },
@@ -14561,6 +14578,13 @@
             },
             "SlackSettings": {
                 "properties": {
+                    "aiMultiAgentProjectUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "aiMultiAgentChannelId": {
                         "type": "string"
                     },
@@ -21160,6 +21184,10 @@
                     }
                 ]
             },
+            "FunnelConversionWindowUnit": {
+                "type": "string",
+                "enum": ["hours", "days", "weeks"]
+            },
             "FunnelQueryRequest": {
                 "properties": {
                     "breakdownDimensionId": {
@@ -21168,8 +21196,7 @@
                     "conversionWindow": {
                         "properties": {
                             "unit": {
-                                "type": "string",
-                                "enum": ["hours", "days", "weeks"]
+                                "$ref": "#/components/schemas/FunnelConversionWindowUnit"
                             },
                             "value": {
                                 "type": "number",
@@ -24151,7 +24178,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2346.0",
+        "version": "0.2348.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

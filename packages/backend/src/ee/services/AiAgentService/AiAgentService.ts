@@ -577,9 +577,9 @@ export class AiAgentService {
 
         const agents = await this.aiAgentModel.findAllAgents({
             organizationUuid,
-            filter: {
-                projectUuid,
-            },
+            filter: projectUuid
+                ? { projectFilter: { projectUuid } }
+                : undefined,
         });
 
         const agentsWithAccess = (
@@ -3921,11 +3921,32 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         organizationUuid: string,
         userUuid: string,
         slackSettings: { aiRequireOAuth?: boolean },
-        filter?: { projectType?: ProjectType; projectUuid?: string },
+        filter?: {
+            projectType?: ProjectType;
+            projectFilter?:
+                | { projectUuid: string }
+                | { projectUuids: string[] };
+        },
     ): Promise<AiAgentWithContext[]> {
+        // Validate project UUIDs exist in DB to prevent errors from deleted projects
+        let projectFilter = filter?.projectFilter;
+        if (projectFilter && 'projectUuids' in projectFilter) {
+            const validProjectUuids =
+                await this.aiAgentModel.filterExistingProjectUuids(
+                    projectFilter.projectUuids,
+                );
+            projectFilter =
+                validProjectUuids.length > 0
+                    ? { projectUuids: validProjectUuids }
+                    : undefined;
+        }
+
         const allAgents = await this.aiAgentModel.findAllAgents({
             organizationUuid,
-            filter,
+            filter: {
+                projectType: filter?.projectType,
+                projectFilter,
+            },
         });
 
         const user = await this.userModel.findSessionUserAndOrgByUuid(
@@ -4331,6 +4352,12 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 slackSettings,
                 {
                     projectType: ProjectType.DEFAULT,
+                    projectFilter: slackSettings.aiMultiAgentProjectUuids
+                        ? {
+                              projectUuids:
+                                  slackSettings.aiMultiAgentProjectUuids,
+                          }
+                        : undefined,
                 },
             );
 
@@ -4791,6 +4818,12 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     slackSettings,
                     {
                         projectType: ProjectType.DEFAULT,
+                        projectFilter: slackSettings.aiMultiAgentProjectUuids
+                            ? {
+                                  projectUuids:
+                                      slackSettings.aiMultiAgentProjectUuids,
+                              }
+                            : undefined,
                     },
                 );
 
@@ -4838,6 +4871,13 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         slackSettings,
                         {
                             projectType: ProjectType.DEFAULT,
+                            projectFilter:
+                                slackSettings.aiMultiAgentProjectUuids
+                                    ? {
+                                          projectUuids:
+                                              slackSettings.aiMultiAgentProjectUuids,
+                                      }
+                                    : undefined,
                         },
                     );
 
