@@ -10,11 +10,12 @@ import {
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../MantineIcon';
+import { getModelKey } from './utils';
 
 interface Props extends Omit<ButtonProps, 'value' | 'onChange'> {
     models: AiModelOption[];
     value: string | null;
-    onChange: (modelId: string) => void;
+    onChange: (modelKey: string) => void;
 }
 
 export const ModelSelector: FC<Props> = ({
@@ -24,7 +25,7 @@ export const ModelSelector: FC<Props> = ({
     ...buttonProps
 }) => {
     const selectedModel = useMemo(
-        () => models.find((m) => m.name === value),
+        () => models.find((m) => getModelKey(m) === value),
         [models, value],
     );
 
@@ -84,11 +85,12 @@ export const ModelSelector: FC<Props> = ({
                             )}
 
                             {providerModels.map((model) => {
-                                const isSelected = model.name === value;
+                                const modelKey = getModelKey(model);
+                                const isSelected = modelKey === value;
                                 return (
                                     <Menu.Item
-                                        key={model.name}
-                                        onClick={() => onChange(model.name)}
+                                        key={modelKey}
+                                        onClick={() => onChange(modelKey)}
                                         rightSection={
                                             isSelected ? (
                                                 <MantineIcon
