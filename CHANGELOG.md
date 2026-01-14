@@ -1,3 +1,16 @@
+# [0.2337.0](https://github.com/lightdash/lightdash/compare/0.2336.0...0.2337.0) (2026-01-14)
+
+
+### Bug Fixes
+
+* monkey patch `removeChild` and `insertBefore` to prevent react crash ([#19410](https://github.com/lightdash/lightdash/issues/19410)) ([8e8f776](https://github.com/lightdash/lightdash/commit/8e8f776425201634b99918b7c70121e3165a1f1c))
+
+
+### Features
+
+* add validation errors for extra fields ([#19357](https://github.com/lightdash/lightdash/issues/19357)) ([ae00ada](https://github.com/lightdash/lightdash/commit/ae00adab2ea3f155543a384bde585e4b06057068))
+* link to chart editor from validator warning ([#19366](https://github.com/lightdash/lightdash/issues/19366)) ([a6f24c9](https://github.com/lightdash/lightdash/commit/a6f24c99314feb414332bcf70a3d81ee95d0e584))
+
 # [0.2336.0](https://github.com/lightdash/lightdash/compare/0.2335.0...0.2336.0) (2026-01-14)
 
 
