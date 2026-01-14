@@ -157,12 +157,22 @@ const Dashboard: FC = () => {
             dashboardTemporaryFilters.metrics.length > 0,
         [dashboardTemporaryFilters],
     );
+    // Callback to sync local state with server response after save
+    // This is needed when the backend modifies tiles (e.g., duplicating charts during tab duplication)
+    const handleDashboardUpdateSuccess = useCallback(
+        (updatedDashboard: IDashboard) => {
+            setDashboardTiles(updatedDashboard.tiles);
+            setDashboardTabs(updatedDashboard.tabs);
+        },
+        [setDashboardTiles, setDashboardTabs],
+    );
+
     const {
         mutate,
         isSuccess,
         reset,
         isLoading: isSaving,
-    } = useUpdateDashboard(dashboardUuid);
+    } = useUpdateDashboard(dashboardUuid, false, handleDashboardUpdateSuccess);
 
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
         useContentAction(projectUuid);
@@ -782,7 +792,6 @@ const Dashboard: FC = () => {
                         onConfirm={duplicateModalHandlers.close}
                     />
                 )}
-
             </Page>
         </>
     );
