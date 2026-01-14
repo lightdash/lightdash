@@ -54,10 +54,10 @@ export const SchedulerModal: FC<
     useEffect(() => {
         if (isOpen && !state.list) {
             open('list');
-        } else if (!isOpen && state.list) {
+        } else if (!isOpen && (state.list || state.createOrEdit)) {
             closeAll();
         }
-    }, [isOpen, state.list, open, closeAll]);
+    }, [isOpen, state.list, state.createOrEdit, open, closeAll]);
 
     // Handle closing all modals
     const handleClose = () => {
