@@ -1283,6 +1283,46 @@ export class UnfurlService extends BaseService {
                         );
                     }
 
+                    // Check if the error boundary is present before proceeding
+                    const errorBoundaryElement = await page
+                        .locator(SCREENSHOT_SELECTORS.ERROR_BOUNDARY)
+                        .first()
+                        .elementHandle({ timeout: 0 })
+                        .catch(() => null);
+
+                    if (errorBoundaryElement) {
+                        const errorType =
+                            await errorBoundaryElement.getAttribute(
+                                'data-error-type',
+                            );
+                        const errorMessage =
+                            await errorBoundaryElement.getAttribute(
+                                'data-error-message',
+                            );
+                        const sentryEventId =
+                            await errorBoundaryElement.getAttribute(
+                                'data-sentry-event-id',
+                            );
+
+                        this.logger.error(
+                            `Error boundary detected on page - type: ${errorType}, message: ${errorMessage}, sentryEventId: ${sentryEventId}, url: ${url}`,
+                        );
+
+                        throw new ScreenshotError(
+                            `Frontend error boundary detected: ${
+                                errorType === 'chunk'
+                                    ? 'Application update required (chunk load error)'
+                                    : errorMessage || 'Unknown error'
+                            }`,
+                            {
+                                url,
+                                lightdashPage,
+                                context,
+                                originalError: `ErrorBoundary rendered - type: ${errorType}, message: ${errorMessage}, sentryEventId: ${sentryEventId}`,
+                            },
+                        );
+                    }
+
                     if (useScreenshotReadyIndicator) {
                         this.logger.info(
                             'Waiting for screenshot ready indicator (feature flag enabled)',

@@ -56,6 +56,16 @@ export const MARKDOWN_TILE_CLASS = 'markdown-tile';
 export const DASHBOARD_GRID_CLASS = 'react-grid-layout';
 
 /**
+ * ID of the element rendered by the error boundary fallback.
+ * The UnfurlService checks for this element to detect when an error occurred.
+ *
+ * Usage:
+ * - Frontend: Rendered by ErrorBoundary fallback component
+ * - Backend: Checked by UnfurlService.saveScreenshot() to detect errors
+ */
+export const ERROR_BOUNDARY_ID = 'lightdash-error-boundary';
+
+/**
  * CSS Selectors (with prefix for direct use in querySelector/CSS)
  */
 export const SCREENSHOT_SELECTORS = {
@@ -69,4 +79,6 @@ export const SCREENSHOT_SELECTORS = {
     MARKDOWN_TILE: `.${MARKDOWN_TILE_CLASS}`,
     /** Class selector: .react-grid-layout */
     DASHBOARD_GRID: `.${DASHBOARD_GRID_CLASS}`,
+    /** ID selector: #lightdash-error-boundary */
+    ERROR_BOUNDARY: `#${ERROR_BOUNDARY_ID}`,
 } as const;

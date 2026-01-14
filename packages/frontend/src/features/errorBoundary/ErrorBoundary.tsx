@@ -1,3 +1,4 @@
+import { ERROR_BOUNDARY_ID } from '@lightdash/common';
 import { Box, Button, Flex, Stack, Text, type FlexProps } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import * as Sentry from '@sentry/react';
@@ -100,6 +101,8 @@ const ErrorFallback: FC<{
         // Auto-reload already attempted, show manual refresh UI
         return (
             <Flex
+                id={ERROR_BOUNDARY_ID}
+                data-error-type="chunk"
                 justify="flex-start"
                 align="center"
                 direction="column"
@@ -113,6 +116,12 @@ const ErrorFallback: FC<{
     // Regular error - show error details
     return (
         <Flex
+            id={ERROR_BOUNDARY_ID}
+            data-error-type="general"
+            data-error-message={
+                error instanceof Error ? error.message : String(error)
+            }
+            data-sentry-event-id={eventId}
             justify="flex-start"
             align="center"
             direction="column"
