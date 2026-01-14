@@ -62,6 +62,7 @@ The user asks questions about the following coding languages:
 - See `stories/Modal.stories.tsx` for usage examples
 - For forms: use `id` on the form and `form="form-id"` on submit button
 - For alerts inside modals: use `Callout` with variants `danger`, `warning`, `info`
+- **For multiple modals**: Use `useMantineModalStack` from `components/common/MantineModal/useMantineModalStack` to manage multiple modals with proper scroll locking
 
 ### Hooks
 - Create custom hooks for reusable logic

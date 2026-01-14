@@ -14,7 +14,7 @@ import {
     useDashboardSchedulerCreateMutation,
     useDashboardSchedulers,
 } from '../hooks/useDashboardSchedulers';
-import SchedulerModal from './SchedulerModal';
+import { SchedulerModal } from './SchedulerModal';
 
 interface DashboardSchedulersProps {
     dashboardUuid: string;

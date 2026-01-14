@@ -208,6 +208,7 @@ const MyComponent = () => {
 - See `stories/Modal.stories.tsx` for usage examples
 - For forms inside modals: use `id` on the form and `form="form-id"` on the submit button
 - For alerts inside modals: use `Callout` with variants `danger`, `warning`, `info`
+- **For multiple modals**: Use `useMantineModalStack` from `components/common/MantineModal/useMantineModalStack` to manage multiple modals with proper scroll locking. This hook tracks which modals are open, locks body scroll when any modal is open, and properly restores scroll when all modals are closed.
 
 ### Callouts
 

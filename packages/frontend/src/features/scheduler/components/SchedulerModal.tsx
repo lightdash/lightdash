@@ -6,14 +6,15 @@ import {
 import { Box, Button, Group } from '@mantine-8/core';
 import { IconBell, IconSend } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
-import React, { useState, type FC } from 'react';
+import React, { useEffect, useState, type FC } from 'react';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import MantineModal from '../../../components/common/MantineModal';
+import { useMantineModalStack } from '../../../components/common/MantineModal/useMantineModalStack';
 import { States } from '../utils';
 import { SchedulerModalCreateOrEdit } from './SchedulerModalCreateOrEdit';
 import SchedulersList from './SchedulersList';
 
-const SchedulersModal: FC<
+export const SchedulerModal: FC<
     Pick<
         React.ComponentProps<typeof SchedulerModalCreateOrEdit>,
         | 'resourceUuid'
@@ -41,20 +42,59 @@ const SchedulersModal: FC<
     availableParameters,
     onClose = () => {},
 }) => {
+    const stack = useMantineModalStack(['list', 'createOrEdit'] as const);
     const [modalState, setModalState] = useState<States>(States.LIST);
     const [schedulerUuidToEdit, setSchedulerUuidToEdit] = useState<
         string | undefined
     >();
+
+    const { open, state, closeAll } = stack;
+
+    // Sync external isOpen prop with the list modal
+    useEffect(() => {
+        if (isOpen && !state.list) {
+            open('list');
+        } else if (!isOpen && state.list) {
+            closeAll();
+        }
+    }, [isOpen, state.list, open, closeAll]);
+
+    // Handle closing all modals
+    const handleClose = () => {
+        stack.closeAll();
+        onClose();
+    };
+
+    // Handle opening create modal
+    const handleCreate = () => {
+        setModalState(States.CREATE);
+        stack.close('list');
+        stack.open('createOrEdit');
+    };
+
+    // Handle opening edit modal
+    const handleEdit = (schedulerUuid: string) => {
+        setModalState(States.EDIT);
+        setSchedulerUuidToEdit(schedulerUuid);
+        stack.close('list');
+        stack.open('createOrEdit');
+    };
+
+    // Handle going back from create/edit to list
+    const handleBack = () => {
+        setModalState(States.LIST);
+        stack.close('createOrEdit');
+        stack.open('list');
+    };
+
     const Actions = () => {
         if (modalState === States.LIST) {
             return (
                 <Group>
-                    <Button variant="default" onClick={onClose}>
+                    <Button variant="default" onClick={handleClose}>
                         Cancel
                     </Button>
-                    <Button onClick={() => setModalState(States.CREATE)}>
-                        Create new
-                    </Button>
+                    <Button onClick={handleCreate}>Create new</Button>
                 </Group>
             );
         }
@@ -62,11 +102,13 @@ const SchedulersModal: FC<
         return null;
     };
 
-    if (modalState === States.LIST) {
-        return (
+    const listModalProps = stack.register('list');
+
+    return (
+        <>
             <MantineModal
-                opened={isOpen}
-                onClose={onClose}
+                opened={listModalProps.opened}
+                onClose={handleClose}
                 size="xl"
                 title={isThresholdAlert ? 'Alerts' : 'Scheduled deliveries'}
                 icon={isThresholdAlert ? IconBell : IconSend}
@@ -93,36 +135,30 @@ const SchedulersModal: FC<
                     <SchedulersList
                         schedulersQuery={schedulersQuery}
                         isThresholdAlertList={isThresholdAlert}
-                        onEdit={(schedulerUuid) => {
-                            setModalState(States.EDIT);
-                            setSchedulerUuidToEdit(schedulerUuid);
-                        }}
+                        onEdit={handleEdit}
                     />
                 </Box>
             </MantineModal>
-        );
-    }
 
-    if (modalState === States.EDIT || modalState === States.CREATE) {
-        return (
-            <SchedulerModalCreateOrEdit
-                resourceUuid={resourceUuid}
-                schedulerUuidToEdit={
-                    modalState === States.EDIT ? schedulerUuidToEdit : undefined
-                }
-                createMutation={createMutation}
-                onClose={onClose}
-                onBack={() => setModalState(States.LIST)}
-                isChart={isChart}
-                isThresholdAlert={isThresholdAlert}
-                itemsMap={itemsMap}
-                currentParameterValues={currentParameterValues}
-                availableParameters={availableParameters}
-            />
-        );
-    }
-
-    return null;
+            {(modalState === States.EDIT || modalState === States.CREATE) && (
+                <SchedulerModalCreateOrEdit
+                    resourceUuid={resourceUuid}
+                    schedulerUuidToEdit={
+                        modalState === States.EDIT
+                            ? schedulerUuidToEdit
+                            : undefined
+                    }
+                    createMutation={createMutation}
+                    opened={stack.state.createOrEdit}
+                    onClose={handleClose}
+                    onBack={handleBack}
+                    isChart={isChart}
+                    isThresholdAlert={isThresholdAlert}
+                    itemsMap={itemsMap}
+                    currentParameterValues={currentParameterValues}
+                    availableParameters={availableParameters}
+                />
+            )}
+        </>
+    );
 };
-
-export default SchedulersModal;

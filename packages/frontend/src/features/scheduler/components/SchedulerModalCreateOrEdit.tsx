@@ -138,18 +138,18 @@ const useSchedulerFormModal = ({
                       ),
                   })
                 : isThresholdAlert
-                ? DEFAULT_VALUES_ALERT
-                : {
-                      ...DEFAULT_VALUES,
-                      selectedTabs: isDashboardTabsAvailable
-                          ? dashboard?.tabs.map((tab) => tab.uuid)
-                          : null,
-                      parameters:
-                          isDashboard &&
-                          Object.keys(dashboardParameterValues).length > 0
-                              ? dashboardParameterValues
-                              : undefined,
-                  },
+                  ? DEFAULT_VALUES_ALERT
+                  : {
+                        ...DEFAULT_VALUES,
+                        selectedTabs: isDashboardTabsAvailable
+                            ? dashboard?.tabs.map((tab) => tab.uuid)
+                            : null,
+                        parameters:
+                            isDashboard &&
+                            Object.keys(dashboardParameterValues).length > 0
+                                ? dashboardParameterValues
+                                : undefined,
+                    },
         validateInputOnBlur: ['options.customLimit'],
 
         validate: {
@@ -284,8 +284,8 @@ const useSchedulerFormModal = ({
                   dashboardUuid: scheduler.data?.dashboardUuid ?? null,
               }
             : isChart
-            ? { savedChartUuid: resourceUuid, dashboardUuid: null }
-            : { dashboardUuid: resourceUuid, savedChartUuid: null };
+              ? { savedChartUuid: resourceUuid, dashboardUuid: null }
+              : { dashboardUuid: resourceUuid, savedChartUuid: null };
 
         const unsavedScheduler: CreateSchedulerAndTargets = {
             ...schedulerData,
@@ -314,8 +314,8 @@ const useSchedulerFormModal = ({
     const confirmText = isEditMode
         ? 'Save'
         : isThresholdAlert
-        ? 'Create alert'
-        : 'Create schedule';
+          ? 'Create alert'
+          : 'Create schedule';
 
     return {
         isEditMode,
@@ -345,6 +345,7 @@ interface Props {
         ApiError,
         { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
     >;
+    opened: boolean;
     onClose: () => void;
     onBack: () => void;
     isChart: boolean;
@@ -365,6 +366,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     itemsMap,
     currentParameterValues,
     availableParameters,
+    opened,
     onClose,
     onBack,
 }) => {
@@ -441,7 +443,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     return (
         <SchedulerFormProvider form={form}>
             <MantineModal
-                opened
+                opened={opened}
                 onClose={onClose}
                 size="xl"
                 title={isThresholdAlert ? 'Alerts' : 'Scheduled deliveries'}
