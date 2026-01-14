@@ -737,6 +737,7 @@ export const AiAgentFormSetup = ({
                                             )}
                                         </Text>
                                         <SlackChannelSelect
+                                            includeGroups
                                             multiple
                                             withRefresh
                                             size="sm"
