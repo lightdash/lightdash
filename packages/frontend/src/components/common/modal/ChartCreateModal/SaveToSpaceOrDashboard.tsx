@@ -4,6 +4,7 @@ import {
     DashboardTileTypes,
     assertUnreachable,
     getDefaultChartTileSize,
+    hasUnusedDimensions,
     type CreateSavedChartVersion,
     type DashboardChartTile,
     type DashboardVersionedFields,
@@ -34,6 +35,7 @@ import { useCreateMutation } from '../../../../hooks/useSavedQuery';
 import { useSpaceManagement } from '../../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
 import useApp from '../../../../providers/App/useApp';
+import Callout from '../../Callout';
 import MantineIcon from '../../MantineIcon';
 import classes from './ChartCreateModal.module.css';
 import SaveToDashboardForm from './SaveToDashboardForm';
@@ -110,6 +112,18 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     const form = useForm<FormValues>({
         validate: zodResolver(saveToSpaceOrDashboardSchema),
     });
+
+    // Check if the chart has unused dimensions that may cause incorrect results
+    const showUnusedDimensionsWarning = useMemo(() => {
+        const pivotDimensions = savedData.pivotConfig?.columns ?? [];
+        const queryDimensions = savedData.metricQuery?.dimensions ?? [];
+        return hasUnusedDimensions({
+            chartType: savedData.chartConfig?.type,
+            chartConfig: savedData.chartConfig?.config,
+            pivotDimensions,
+            queryDimensions,
+        });
+    }, [savedData]);
 
     const {
         data: dashboards,
@@ -418,6 +432,18 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                 </Stack>
                             </Radio.Group>
                         </Stack>
+
+                        {showUnusedDimensionsWarning && (
+                            <Callout
+                                variant="warning"
+                                title="Chart configuration warning"
+                            >
+                                This chart has dimensions in the query that are
+                                not used in the chart configuration (x-axis,
+                                y-axis, or group by). This may cause incorrect
+                                results.
+                            </Callout>
+                        )}
                     </>
                 )}
 

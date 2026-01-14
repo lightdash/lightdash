@@ -3,6 +3,7 @@ import {
     AiAgentMessageAssistantArtifact,
     AiAgentToolResult,
     AiArtifact,
+    type Explore,
     FollowUpTools,
     followUpToolsText,
     parseVizConfig,
@@ -10,6 +11,7 @@ import {
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
 import { partition } from 'lodash';
+import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 
 /**
  * Returns compact Slack blocks showing a "thinking" animation with a GIF.
@@ -212,6 +214,7 @@ export async function getArtifactBlocks(
     siteUrl: string,
     maxQueryLimit: number,
     createShareUrl: (path: string, params: string) => Promise<string>,
+    getExplore: (exploreName: string) => Promise<Explore>,
     artifacts?: AiArtifact[],
 ): Promise<(Block | KnownBlock)[]> {
     // TODO: Assuming each thread has just one artifact for now
@@ -230,16 +233,35 @@ export async function getArtifactBlocks(
         throw new Error('Failed to parse viz config');
     }
 
+    // Get explore to populate SQL for additional metrics
+    const explore = await getExplore(vizConfig.metricQuery.exploreName);
+    const additionalMetricsWithSql = populateCustomMetricsSQL(
+        vizConfig.metricQuery.additionalMetrics,
+        explore,
+    );
+
+    // Build column order including all field types
+    const additionalMetricFieldIds = additionalMetricsWithSql.map(
+        (m) => `${m.table}_${m.name}`,
+    );
+    const tableCalculationNames = vizConfig.metricQuery.tableCalculations.map(
+        (tc) => tc.name,
+    );
+    const columnOrder = [
+        ...vizConfig.metricQuery.dimensions,
+        ...vizConfig.metricQuery.metrics,
+        ...additionalMetricFieldIds,
+        ...tableCalculationNames,
+    ];
+
     const configState = {
         tableName: vizConfig.metricQuery.exploreName,
         metricQuery: {
             ...vizConfig.metricQuery,
-            tableCalculations: [],
+            additionalMetrics: additionalMetricsWithSql,
         },
         tableConfig: {
-            columnOrder: vizConfig.metricQuery.dimensions.concat(
-                vizConfig.metricQuery.metrics,
-            ),
+            columnOrder,
         },
         chartConfig: {
             type: 'table',

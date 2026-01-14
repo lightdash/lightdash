@@ -7,7 +7,14 @@ import {
     type DashboardFilterInteractivityOptions,
     type SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
-import { Checkbox, Flex, Group, Select, Stack, Text } from '@mantine/core';
+import {
+    Checkbox,
+    Divider,
+    Group,
+    SegmentedControl,
+    Stack,
+    Text,
+} from '@mantine-8/core';
 import { useCallback, useMemo } from 'react';
 import { type FieldsWithSuggestions } from '../../../../components/Explorer/FiltersCard/useFieldsWithSuggestions';
 import { getConditionalRuleLabelFromItem } from '../../../../components/common/Filters/FilterInputs/utils';
@@ -130,36 +137,44 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
     );
 
     return (
-        <Stack mt="sm">
-            <Flex align="center" gap="sm">
-                <Text size="sm">Users can change:</Text>
-                <Select
-                    defaultValue={FilterInteractivityValues.none}
-                    onChange={(value: FilterInteractivityValues) => {
-                        setInteractivityOptions({ enabled: value });
+        <Stack gap="sm">
+            <Group gap="xs">
+                <Text size="sm" fw={500}>
+                    Users can change:
+                </Text>
+                <SegmentedControl
+                    radius="md"
+                    value={interactivityOptions.enabled as string}
+                    onChange={(value: string) => {
+                        setInteractivityOptions({
+                            enabled: value as FilterInteractivityValues,
+                        });
                     }}
                     data={[
                         {
-                            value: FilterInteractivityValues.none,
                             label: getFilterInteractivityValueLabel(
                                 FilterInteractivityValues.none,
                             ),
+                            value: FilterInteractivityValues.none,
                         },
                         {
-                            value: FilterInteractivityValues.some,
                             label: getFilterInteractivityValueLabel(
                                 FilterInteractivityValues.some,
                             ),
+                            value: FilterInteractivityValues.some,
+                            disabled: dashboardFilters?.length === 0,
                         },
                         {
-                            value: FilterInteractivityValues.all,
                             label: getFilterInteractivityValueLabel(
                                 FilterInteractivityValues.all,
                             ),
+                            value: FilterInteractivityValues.all,
+                            disabled: dashboardFilters?.length === 0,
                         },
                     ]}
+                    size="xs"
                 />
-            </Flex>
+            </Group>
             {interactivityOptions.enabled ===
                 FilterInteractivityValues.some && (
                 <Checkbox.Group
@@ -168,7 +183,7 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                         setInteractivityOptions({ allowedFilters: values });
                     }}
                 >
-                    <Group spacing="lg">
+                    <Group>
                         {dashboardFilters &&
                             dashboardFilters.map((filter) => {
                                 const field =
@@ -189,22 +204,31 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                                         value={filter.id}
                                         label={
                                             <>
-                                                <Text fw={600} span>
+                                                <Text fw={600} span fz="xs">
                                                     {labels.field}{' '}
                                                 </Text>
                                                 {filter.disabled ? (
-                                                    <Text span color="ldGray.6">
+                                                    <Text
+                                                        span
+                                                        c="ldGray.6"
+                                                        fz="xs"
+                                                    >
                                                         is any value
                                                     </Text>
                                                 ) : (
                                                     <>
                                                         <Text
                                                             span
-                                                            color="ldGray.7"
+                                                            c="ldGray.7"
+                                                            fz="xs"
                                                         >
                                                             {labels.operator}{' '}
                                                         </Text>
-                                                        <Text fw={700} span>
+                                                        <Text
+                                                            fw={700}
+                                                            span
+                                                            fz="xs"
+                                                        >
                                                             {labels.value}
                                                         </Text>
                                                     </>
@@ -217,6 +241,7 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                     </Group>
                 </Checkbox.Group>
             )}
+            <Divider />
         </Stack>
     );
 };

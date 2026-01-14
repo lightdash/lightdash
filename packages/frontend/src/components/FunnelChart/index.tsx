@@ -8,7 +8,7 @@ import useEchartsFunnelConfig, {
     type FunnelSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsFunnelConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
-import useApp from '../../providers/App/useApp';
+import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import LoadingChart from '../common/LoadingChart';
@@ -40,7 +40,8 @@ const EchartOptions: Opts = { renderer: 'svg' };
 
 const FunnelChart: FC<FunnelChartProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
-        const { chartRef, isLoading, resultsData } = useVisualizationContext();
+        const { chartRef, isLoading, resultsData, minimal } =
+            useVisualizationContext();
         const { selectedLegends, onLegendChange } =
             useLegendDoubleClickSelection();
 
@@ -48,8 +49,10 @@ const FunnelChart: FC<FunnelChartProps> = memo(
             selectedLegends,
             props.isInDashboard,
         );
-
-        const { user } = useApp();
+        const { shouldShowMenu, canViewUnderlyingData } =
+            useContextMenuPermissions({
+                minimal,
+            });
 
         const [isOpen, { open, close }] = useDisclosure();
 
@@ -145,13 +148,14 @@ const FunnelChart: FC<FunnelChartProps> = memo(
                     }}
                 />
 
-                {user.data && (
+                {shouldShowMenu && (
                     <FunnelChartContextMenu
                         value={menuProps?.value}
                         menuPosition={menuProps?.position}
                         rows={menuProps?.rows}
                         opened={isOpen}
                         onClose={handleCloseContextMenu}
+                        canViewUnderlyingData={canViewUnderlyingData}
                     />
                 )}
             </>

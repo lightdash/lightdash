@@ -14,7 +14,6 @@ import {
     getItemMap,
     getPivotConfig,
     getVisibleFields,
-    hasCustomBinDimension,
     isCartesianChartConfig,
     isCompleteLayout,
     isDashboardChartTileType,
@@ -57,7 +56,6 @@ import {
     IconCopy,
     IconFilter,
     IconFolders,
-    IconStack,
     IconTableExport,
     IconTelescope,
     IconVariable,
@@ -102,6 +100,7 @@ import { useDashboardUIPreference } from '../../hooks/dashboard/useDashboardUIPr
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
@@ -155,7 +154,7 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
             metricQuery: savedChart.metricQuery,
             columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
-                ? (savedChart.chartConfig.config.showTableNames ?? false)
+                ? savedChart.chartConfig.config.showTableNames ?? false
                 : true,
             customLabels: getCustomLabelsFromTableConfig(
                 savedChart.chartConfig.config,
@@ -557,6 +556,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
 
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
     const projectUuid = useProjectUuid();
+    const { canViewExplore, canViewUnderlyingData, canDrillInto } =
+        useContextMenuPermissions({ minimal: false });
 
     const chartKind = useMemo(
         () => getChartKind(chart.chartConfig.type, chart.chartConfig.config),
@@ -631,13 +632,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         'manage',
         subject('SavedChart', { ...chart }),
     );
-    const userCanViewExplore = ability?.can(
-        'view',
-        subject('Explore', {
-            organizationUuid: chart.organizationUuid,
-            projectUuid: chart.projectUuid,
-        }),
-    );
+    const userCanViewExplore = canViewExplore;
     const userCanExportData = ability.can(
         'manage',
         subject('ExportCsv', {
@@ -693,23 +688,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 },
             }),
         });
-
-        track({
-            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-            properties: {
-                organizationId: organizationUuid,
-                userId: account?.user?.id,
-                projectId: projectUuid,
-            },
-        });
     }, [
         viewUnderlyingDataOptions,
         dateZoomGranularity,
         openUnderlyingDataModal,
-        track,
-        organizationUuid,
-        account?.user?.id,
-        projectUuid,
         metricQuery?.metadata?.hasADateDimension,
         savedChartUuid,
         chartsWithDateZoomApplied,
@@ -1434,30 +1416,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     Copy value
                                 </Menu.Item>
                             )}
-                            <Can
-                                I="view"
-                                this={subject('UnderlyingData', {
-                                    organizationUuid,
-                                    projectUuid: projectUuid,
-                                })}
-                            >
-                                {!hasCustomBinDimension(metricQuery) && (
-                                    <Menu.Item
-                                        icon={<MantineIcon icon={IconStack} />}
-                                        onClick={handleViewUnderlyingData}
-                                    >
-                                        View underlying data
-                                    </Menu.Item>
-                                )}
-                            </Can>
+                            {metricQuery && canViewUnderlyingData && (
+                                <UnderlyingDataMenuItem
+                                    metricQuery={metricQuery}
+                                    onViewUnderlyingData={
+                                        handleViewUnderlyingData
+                                    }
+                                />
+                            )}
 
-                            <Can
-                                I="manage"
-                                this={subject('Explore', {
-                                    organizationUuid,
-                                    projectUuid: projectUuid,
-                                })}
-                            >
+                            {canDrillInto && (
                                 <DrillDownMenuItem
                                     {...viewUnderlyingDataOptions}
                                     trackingData={{
@@ -1466,7 +1434,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                         projectId: projectUuid,
                                     }}
                                 />
-                            </Can>
+                            )}
 
                             {dashboardTileFilterOptions.length > 0 && (
                                 <FilterDashboardTo
@@ -1526,7 +1494,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 getDownloadQueryUuid={getDownloadQueryUuid}
                 showTableNames={
                     isTableChartConfig(chart.chartConfig.config)
-                        ? (chart.chartConfig.config.showTableNames ?? false)
+                        ? chart.chartConfig.config.showTableNames ?? false
                         : true
                 }
                 chartName={title || chart.name}
@@ -1568,7 +1536,10 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         executeQueryResponse: { metricQuery },
     } = dashboardChartReadyQuery;
     const projectUuid = useProjectUuid();
-    const ability = useAbilityContext();
+    const { canViewExplore } = useContextMenuPermissions({
+        organizationUuid: chart.organizationUuid,
+        projectUuid: chart.projectUuid,
+    });
     const [echartRef, setEchartRef] = useState<
         RefObject<EChartsReact | null> | undefined
     >();
@@ -1579,13 +1550,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         }
     }, [onExplore, chart]);
 
-    const canExplore = ability.can(
-        'view',
-        subject('Explore', {
-            organizationUuid: chart.organizationUuid,
-            projectUuid,
-        }),
-    );
+    const canExplore = canViewExplore;
 
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
@@ -1809,7 +1774,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     getDownloadQueryUuid={getDownloadQueryUuid}
                     showTableNames={
                         isTableChartConfig(chart.chartConfig.config)
-                            ? (chart.chartConfig.config.showTableNames ?? false)
+                            ? chart.chartConfig.config.showTableNames ?? false
                             : true
                     }
                     chartName={title || chart.name}

@@ -870,6 +870,11 @@ program
         parseDisableTimestampConversionOption,
         false,
     )
+    .option(
+        '--show-chart-configuration-warnings',
+        'Show chart configuration warnings (e.g., unused dimensions). These are hidden by default.',
+        false,
+    )
     .addOption(
         new Option('--only <elems...>', 'Specify project elements to validate')
             .choices(Object.values(ValidationTarget))

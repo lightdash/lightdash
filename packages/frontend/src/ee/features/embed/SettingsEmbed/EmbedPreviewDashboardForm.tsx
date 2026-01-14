@@ -11,16 +11,19 @@ import {
 import {
     ActionIcon,
     Button,
+    Divider,
     Flex,
     Group,
     Input,
+    Paper,
+    SegmentedControl,
     Select,
     Stack,
     Switch,
     Text,
     TextInput,
     Title,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconEye, IconLink, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
@@ -114,7 +117,7 @@ const EmbedPreviewDashboardForm: FC<{
             },
         },
     });
-    const { onSubmit, validate, values: formValues } = form;
+    const { onSubmit, values: formValues } = form;
 
     const convertFormValuesToCreateEmbedJwt = useCallback(
         (values: FormValues, isPreview: boolean = false): CreateEmbedJwt => {
@@ -161,7 +164,7 @@ const EmbedPreviewDashboardForm: FC<{
     );
 
     const handlePreview = useCallback(async () => {
-        const state = validate();
+        const state = form.validate();
         if (state.hasErrors) {
             return;
         }
@@ -171,12 +174,7 @@ const EmbedPreviewDashboardForm: FC<{
         );
         //Open data.url on new tab
         window.open(data.url, '_blank');
-    }, [
-        formValues,
-        validate,
-        convertFormValuesToCreateEmbedJwt,
-        createEmbedUrl,
-    ]);
+    }, [formValues, form, convertFormValuesToCreateEmbedJwt, createEmbedUrl]);
 
     const generateUrl = useCallback(async () => {
         const data = await createEmbedUrl(
@@ -190,176 +188,237 @@ const EmbedPreviewDashboardForm: FC<{
 
     return (
         <form id="generate-embed-url" onSubmit={handleCopySubmit}>
-            <Stack mb={'md'}>
-                <Stack spacing="xs">
-                    <Title order={5}>Preview</Title>
-                    <Text color="dimmed">
-                        Preview your embed URL and copy it to your clipboard.
-                    </Text>
-                </Stack>
+            <Stack gap="md" mb="md">
                 <Select
                     required
-                    label={'Dashboard'}
+                    label="Dashboard"
                     data={dashboards.map((dashboard) => ({
                         value: dashboard.uuid,
                         label: dashboard.name,
                     }))}
                     placeholder="Select a dashboard..."
                     searchable
-                    withinPortal
                     {...form.getInputProps('dashboardUuid')}
                 />
-                <Select
-                    required
-                    label={'Expires in'}
-                    data={['1 hour', '1 day', '1 week', '30 days', '1 year']}
-                    withinPortal
-                    {...form.getInputProps('expiresIn')}
-                />
-                <Input.Wrapper label="User identifier">
-                    <TextInput
-                        size={'xs'}
-                        placeholder="1234"
-                        {...form.getInputProps(`externalId`)}
-                    />
-                </Input.Wrapper>
-                <Input.Wrapper label="User email">
-                    <TextInput
-                        size={'xs'}
-                        placeholder="Type an email to add as intrinsic user attribute"
-                        {...form.getInputProps('email')}
-                    />
-                </Input.Wrapper>
-                <Input.Wrapper label="User attributes">
-                    {form.values.userAttributes.map((item, index) => (
-                        <Group key={item.uuid} mt="xs">
-                            <TextInput
-                                size={'xs'}
-                                placeholder="E.g. user_country"
-                                {...form.getInputProps(
-                                    `userAttributes.${index}.key`,
-                                )}
-                            />
-                            <TextInput
-                                size={'xs'}
-                                placeholder="E.g. US"
-                                {...form.getInputProps(
-                                    `userAttributes.${index}.value`,
-                                )}
-                            />
-                            <ActionIcon
-                                variant="light"
-                                onClick={() =>
-                                    form.removeListItem('userAttributes', index)
-                                }
-                            >
-                                <MantineIcon color="red" icon={IconTrash} />
-                            </ActionIcon>
-                        </Group>
-                    ))}
-                    <Group>
-                        <Button
-                            size="xs"
-                            mr="xxs"
-                            variant="default"
-                            mt="xs"
-                            leftIcon={<MantineIcon icon={IconPlus} />}
-                            onClick={() =>
-                                form.insertListItem('userAttributes', {
-                                    key: '',
-                                    value: '',
-                                    uuid: uuidv4(),
-                                })
-                            }
-                        >
-                            Add attribute
-                        </Button>
-                    </Group>
-                </Input.Wrapper>
-                <Input.Wrapper label="Interactivity">
-                    <EmbedFiltersInteractivity
-                        dashboardUuid={
-                            form.getInputProps('dashboardUuid').value
-                        }
-                        onInteractivityOptionsChange={(
-                            interactivityOptions,
-                        ) => {
-                            form.setFieldValue(
-                                'dashboardFiltersInteractivity',
-                                interactivityOptions,
-                            );
-                        }}
-                        interactivityOptions={
-                            form.getInputProps('dashboardFiltersInteractivity')
-                                .value
-                        }
-                    />
-                </Input.Wrapper>
 
-                <Switch
-                    checked={form.values.parameterInteractivity.enabled}
-                    onChange={(event) =>
-                        form.setFieldValue('parameterInteractivity', {
-                            enabled: event.currentTarget.checked,
-                        })
-                    }
-                    labelPosition="left"
-                    label={`Allow users to change parameters`}
-                />
-                <Switch
-                    {...form.getInputProps(`canExportCsv`)}
-                    labelPosition="left"
-                    label={`Can export CSV`}
-                />
-                <Switch
-                    {...form.getInputProps(`canExportImages`)}
-                    labelPosition="left"
-                    label={`Can export Images`}
-                />
-                <Switch
-                    {...form.getInputProps(`canExportPagePdf`)}
-                    labelPosition="left"
-                    label={`Can export page to PDF`}
-                    defaultChecked={true}
-                />
-                <Switch
-                    {...form.getInputProps(`canDateZoom`)}
-                    labelPosition="left"
-                    label={`Can date zoom`}
-                />
-                <Switch
-                    {...form.getInputProps(`canExplore`)}
-                    labelPosition="left"
-                    label={`Can explore charts`}
-                />
-                <Switch
-                    {...form.getInputProps(`canViewUnderlyingData`)}
-                    labelPosition="left"
-                    label={`Can view underlying data`}
-                />
+                <Stack gap="xs">
+                    <Text size="sm" fw={500}>
+                        Expires in
+                    </Text>
+                    <SegmentedControl
+                        value={form.values.expiresIn}
+                        radius="md"
+                        onChange={(value) =>
+                            form.setFieldValue('expiresIn', value)
+                        }
+                        data={[
+                            { label: '1 hour', value: '1 hour' },
+                            { label: '1 day', value: '1 day' },
+                            { label: '1 week', value: '1 week' },
+                            { label: '30 days', value: '30 days' },
+                            { label: '1 year', value: '1 year' },
+                        ]}
+                        size="xs"
+                    />
+                </Stack>
+
+                <Paper p="md" withBorder>
+                    <Stack gap="md">
+                        <Title order={6}>Identification & Security</Title>
+                        <Stack gap="xs">
+                            <Input.Wrapper label="User identifier">
+                                <TextInput
+                                    size="xs"
+                                    placeholder="1234"
+                                    {...form.getInputProps('externalId')}
+                                />
+                            </Input.Wrapper>
+
+                            <Input.Wrapper label="User email">
+                                <TextInput
+                                    size="xs"
+                                    placeholder="Type an email to add as intrinsic user attribute"
+                                    {...form.getInputProps('email')}
+                                />
+                            </Input.Wrapper>
+
+                            <Input.Wrapper label="User attributes">
+                                <Stack gap="xs" mt="xs">
+                                    {form.values.userAttributes.map(
+                                        (item, index) => (
+                                            <Group
+                                                key={item.uuid}
+                                                gap="xs"
+                                                wrap="nowrap"
+                                            >
+                                                <TextInput
+                                                    size="xs"
+                                                    placeholder="E.g. user_country"
+                                                    style={{ flex: 1 }}
+                                                    {...form.getInputProps(
+                                                        `userAttributes.${index}.key`,
+                                                    )}
+                                                />
+                                                <TextInput
+                                                    size="xs"
+                                                    placeholder="E.g. US"
+                                                    style={{ flex: 1 }}
+                                                    {...form.getInputProps(
+                                                        `userAttributes.${index}.value`,
+                                                    )}
+                                                />
+                                                <ActionIcon
+                                                    variant="light"
+                                                    color="red"
+                                                    onClick={() =>
+                                                        form.removeListItem(
+                                                            'userAttributes',
+                                                            index,
+                                                        )
+                                                    }
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconTrash}
+                                                    />
+                                                </ActionIcon>
+                                            </Group>
+                                        ),
+                                    )}
+                                    <Button
+                                        size="xs"
+                                        variant="default"
+                                        leftSection={
+                                            <MantineIcon icon={IconPlus} />
+                                        }
+                                        onClick={() =>
+                                            form.insertListItem(
+                                                'userAttributes',
+                                                {
+                                                    key: '',
+                                                    value: '',
+                                                    uuid: uuidv4(),
+                                                },
+                                            )
+                                        }
+                                    >
+                                        Add attribute
+                                    </Button>
+                                </Stack>
+                            </Input.Wrapper>
+                        </Stack>
+                    </Stack>
+                </Paper>
+
+                <Paper p="md" withBorder>
+                    <Stack gap="sm">
+                        <Title order={6}>Interactivity & Permissions</Title>
+                        <Stack gap="md">
+                            <EmbedFiltersInteractivity
+                                dashboardUuid={form.values.dashboardUuid}
+                                onInteractivityOptionsChange={(
+                                    interactivityOptions,
+                                ) => {
+                                    form.setFieldValue(
+                                        'dashboardFiltersInteractivity',
+                                        interactivityOptions,
+                                    );
+                                }}
+                                interactivityOptions={
+                                    form.values.dashboardFiltersInteractivity
+                                }
+                            />
+
+                            <Stack gap="xs">
+                                <Text size="sm" fw={500}>
+                                    Users can:
+                                </Text>
+                                <Switch
+                                    checked={
+                                        form.values.parameterInteractivity
+                                            .enabled
+                                    }
+                                    onChange={(event) =>
+                                        form.setFieldValue(
+                                            'parameterInteractivity',
+                                            {
+                                                enabled:
+                                                    event.currentTarget.checked,
+                                            },
+                                        )
+                                    }
+                                    label="Change parameters"
+                                />
+                                <Switch
+                                    {...form.getInputProps('canExportCsv', {
+                                        type: 'checkbox',
+                                    })}
+                                    label="Export CSV"
+                                />
+                                <Switch
+                                    {...form.getInputProps('canExportImages', {
+                                        type: 'checkbox',
+                                    })}
+                                    label="Export Images"
+                                />
+                                <Switch
+                                    {...form.getInputProps('canExportPagePdf', {
+                                        type: 'checkbox',
+                                    })}
+                                    label="Export page to PDF"
+                                    defaultChecked={true}
+                                />
+                                <Switch
+                                    {...form.getInputProps('canDateZoom', {
+                                        type: 'checkbox',
+                                    })}
+                                    label="Date zoom"
+                                />
+                                <Switch
+                                    {...form.getInputProps('canExplore', {
+                                        type: 'checkbox',
+                                    })}
+                                    label="Explore charts"
+                                />
+                                <Switch
+                                    {...form.getInputProps(
+                                        'canViewUnderlyingData',
+                                        {
+                                            type: 'checkbox',
+                                        },
+                                    )}
+                                    label="View underlying data"
+                                />
+                            </Stack>
+                        </Stack>
+                    </Stack>
+                </Paper>
+
                 <Flex justify="flex-end" gap="sm">
                     <Button
-                        variant={'light'}
-                        leftIcon={<MantineIcon icon={IconEye} />}
+                        variant="light"
+                        leftSection={<MantineIcon icon={IconEye} />}
                         onClick={handlePreview}
                     >
                         Preview
                     </Button>
                     <Button
-                        variant={'outline'}
+                        variant="default"
                         type="submit"
-                        leftIcon={<MantineIcon icon={IconLink} />}
+                        leftSection={<MantineIcon icon={IconLink} />}
                     >
                         Generate & copy URL
                     </Button>
                 </Flex>
             </Stack>
-            <Stack mb="md">
-                <Stack spacing="xs">
+
+            <Divider mb="md" />
+
+            <Stack gap="md" mb="md">
+                <Stack gap="xs">
                     <Title order={5}>Code snippet</Title>
-                    <Text color="dimmed">
+                    <Text c="dimmed" fz="sm">
                         Copy and paste this code snippet into your application
-                        to generate embed urls.
+                        to generate embed URLs.
                     </Text>
                 </Stack>
                 <EmbedCodeSnippet

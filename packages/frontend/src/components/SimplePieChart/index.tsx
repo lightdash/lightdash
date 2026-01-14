@@ -7,7 +7,7 @@ import useEchartsPieConfig, {
     type PieSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsPieConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
-import useApp from '../../providers/App/useApp';
+import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import LoadingChart from '../common/LoadingChart';
@@ -39,7 +39,8 @@ const EchartOptions: Opts = { renderer: 'svg' };
 
 const SimplePieChart: FC<SimplePieChartProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
-        const { chartRef, isLoading, resultsData } = useVisualizationContext();
+        const { chartRef, isLoading, resultsData, minimal } =
+            useVisualizationContext();
         const { selectedLegends, onLegendChange } =
             useLegendDoubleClickSelection();
 
@@ -47,7 +48,10 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
             selectedLegends,
             props.isInDashboard,
         );
-        const { user } = useApp();
+        const { shouldShowMenu, canViewUnderlyingData } =
+            useContextMenuPermissions({
+                minimal,
+            });
 
         const [isOpen, { open, close }] = useDisclosure();
         const [menuProps, setMenuProps] = useState<{
@@ -137,13 +141,14 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
                     }}
                 />
 
-                {user.data && (
+                {shouldShowMenu && (
                     <PieChartContextMenu
                         value={menuProps?.value}
                         menuPosition={menuProps?.position}
                         rows={menuProps?.rows}
                         opened={isOpen}
                         onClose={handleCloseContextMenu}
+                        canViewUnderlyingData={canViewUnderlyingData}
                     />
                 )}
             </>

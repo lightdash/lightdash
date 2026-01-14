@@ -176,10 +176,15 @@ export class EmbedService extends BaseService {
             expiresIn || '1h',
         );
 
-        const url = new URL(
-            `/embed/${projectUuid}#${jwtToken}`,
-            this.lightdashConfig.siteUrl,
-        );
+        // Generate different URL paths based on content type
+        let urlPath: string;
+        if (jwtData.content.type === 'chart') {
+            urlPath = `/embed/${projectUuid}/chart/${jwtData.content.contentId}#${jwtToken}`;
+        } else {
+            urlPath = `/embed/${projectUuid}#${jwtToken}`;
+        }
+
+        const url = new URL(urlPath, this.lightdashConfig.siteUrl);
         return {
             url: url.href,
         };

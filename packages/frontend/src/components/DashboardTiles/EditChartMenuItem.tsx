@@ -19,6 +19,8 @@ const EditChartMenuItem: FC<Props> = ({ tile, ...props }) => {
     const haveTilesChanged = useDashboardContext((c) => c.haveTilesChanged);
     const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
     const dashboard = useDashboardContext((c) => c.dashboard);
+    const activeTab = useDashboardContext((c) => c.activeTab);
+    const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
 
     const { storeDashboard } = useDashboardStorage();
 
@@ -43,6 +45,8 @@ const EditChartMenuItem: FC<Props> = ({ tile, ...props }) => {
                         haveFiltersChanged,
                         dashboard?.uuid,
                         dashboard?.name,
+                        activeTab?.uuid,
+                        dashboardTabs,
                     );
                 }
             }}

@@ -193,40 +193,33 @@ describe('expandFieldsWithSets', () => {
     });
 
     describe('Nested Sets', () => {
-        it('should expand nested set references (one level)', () => {
-            const table = createMockTable(
-                'orders',
-                ['order_id', 'customer_id', 'total', 'tax'],
-                [],
-                {
-                    id_fields: {
-                        fields: ['order_id', 'customer_id'],
-                    },
-                    money_fields: {
-                        fields: ['total', 'tax'],
-                    },
-                    all_fields: {
-                        fields: ['id_fields*', 'money_fields*'],
-                    },
-                },
-            );
+        it('should expand nested set references (up to 3 levels)', () => {
+            const table = createMockTable('orders', ['a', 'b', 'c', 'd'], [], {
+                level1: { fields: ['a'] },
+                level2: { fields: ['level1*', 'b'] },
+                level3a: { fields: ['level2*', 'c'] },
+                level3b: { fields: ['level2*', '-a'] },
+            });
 
-            const result = expandFieldsWithSets(['all_fields*'], table);
+            const result = expandFieldsWithSets(['level3a*'], table);
 
-            expect(result).toEqual(['order_id', 'customer_id', 'total', 'tax']);
+            expect(result).toEqual(['a', 'b', 'c']);
+
+            const result2 = expandFieldsWithSets(['level3b*'], table);
+
+            expect(result2).toEqual(['b']);
         });
 
-        it('should throw error for sets with more than one level of nesting', () => {
-            const table = createMockTable('orders', ['a', 'b', 'c'], [], {
+        it('should throw error for sets with more than 3 levels of nesting', () => {
+            const table = createMockTable('orders', ['a', 'b', 'c', 'd'], [], {
                 level1: { fields: ['a'] },
                 level2: { fields: ['level1*', 'b'] },
                 level3: { fields: ['level2*', 'c'] },
+                level4: { fields: ['level3*', 'd'] },
             });
 
-            // level3 contains level2*, and level2 contains level1*
-            // This violates one-level nesting rule
-            expect(() => expandFieldsWithSets(['level3*'], table)).toThrow(
-                /only one level of nesting is allowed/,
+            expect(() => expandFieldsWithSets(['level4*'], table)).toThrow(
+                /Only up to 3 levels of nesting are allowed/,
             );
         });
     });

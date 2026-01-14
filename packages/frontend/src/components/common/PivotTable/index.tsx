@@ -878,6 +878,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 }
                                                 onClose={onClose}
                                                 onCopy={onCopy}
+                                                isMinimal={isMinimal}
                                             >
                                                 {render()}
                                             </ValueCellMenu>

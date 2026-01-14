@@ -347,6 +347,7 @@ const MinimalDashboard: FC = () => {
         <DashboardProvider
             schedulerFilters={schedulerFilters}
             schedulerParameters={schedulerParameters}
+            schedulerTabsSelected={schedulerTabsSelected}
             dateZoom={dateZoom}
             defaultInvalidateCache={true}
         >
