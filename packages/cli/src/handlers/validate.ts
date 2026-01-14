@@ -11,6 +11,7 @@ import {
     ParameterError,
     SchedulerJobStatus,
     UnexpectedServerError,
+    ValidationErrorType,
     ValidationTarget,
 } from '@lightdash/common';
 import columnify from 'columnify';
@@ -65,6 +66,7 @@ type ValidateHandlerOptions = CompileHandlerOptions & {
     verbose: boolean;
     preview: boolean;
     only: ValidationTarget[];
+    showChartConfigurationWarnings: boolean;
 };
 
 export const waitUntilFinished = async (jobUuid: string): Promise<string> => {
@@ -139,14 +141,31 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
 
     await waitUntilFinished(jobId);
 
-    const validation = await getValidation(projectUuid, jobId);
+    const allValidation = await getValidation(projectUuid, jobId);
+
+    // Filter out chart configuration warnings unless explicitly requested
+    const validation = options.showChartConfigurationWarnings
+        ? allValidation
+        : allValidation.filter(
+              (v) =>
+                  !isChartValidationError(v) ||
+                  v.errorType !== ValidationErrorType.ChartConfiguration,
+          );
+
+    const hiddenWarningsCount = allValidation.length - validation.length;
 
     if (validation.length === 0) {
         const timeInSeconds = new Date().getTime() - timeStart.getTime();
+        const hiddenMessage =
+            hiddenWarningsCount > 0
+                ? ` (${hiddenWarningsCount} chart configuration warning${
+                      hiddenWarningsCount > 1 ? 's' : ''
+                  } hidden, use --show-chart-configuration-warnings to show)`
+                : '';
         spinner?.succeed(
             `  Validation finished without errors in ${Math.trunc(
                 timeInSeconds / 1000,
-            )}s`,
+            )}s${hiddenMessage}`,
         );
     } else {
         const timeInSeconds = new Date().getTime() - timeStart.getTime();
@@ -217,6 +236,16 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
                 `lightdash preview`,
             )}`,
         );
+
+        if (hiddenWarningsCount > 0) {
+            console.error(
+                `\n${styles.secondary(
+                    `Note: ${hiddenWarningsCount} chart configuration warning${
+                        hiddenWarningsCount > 1 ? 's' : ''
+                    } hidden. Use --show-chart-configuration-warnings to show.`,
+                )}`,
+            );
+        }
 
         process.exit(1);
     }
