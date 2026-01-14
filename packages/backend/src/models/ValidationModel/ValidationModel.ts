@@ -98,13 +98,19 @@ export class ValidationModel {
                 );
             } catch (error: unknown) {
                 const FOREIGN_KEY_VIOLATION_ERROR_CODE = '23503';
+                const handledConstraints = [
+                    'validations_project_uuid_foreign',
+                    'validations_saved_chart_uuid_foreign',
+                    'validations_dashboard_uuid_foreign',
+                ];
                 if (
                     error instanceof DatabaseError &&
                     error.code === FOREIGN_KEY_VIOLATION_ERROR_CODE &&
-                    error.constraint === 'validations_project_uuid_foreign'
+                    error.constraint &&
+                    handledConstraints.includes(error.constraint)
                 ) {
                     Logger.warn(
-                        `Failed to insert validations: Project UUID (${validations[0].projectUuid}) does not exist. This may happen if the project was deleted during validation.`,
+                        `Failed to insert validations: Foreign key constraint violation (${error.constraint}). This may happen if the project, chart, or dashboard was deleted during validation.`,
                     );
                     return;
                 }
