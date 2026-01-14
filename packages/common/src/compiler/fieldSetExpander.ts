@@ -44,14 +44,20 @@ function applyExclusionsAndDeduplicate(
 }
 
 /**
- * Expands a single set, handling nested set references (one level deep only)
+ * Expands a single set, handling nested set references (up to 3 levels deep)
  * and applying any exclusions defined within the set
  */
 function expandSingleSet(
     setName: string,
     setDefinition: FieldSetDefinition,
     currentTable: Table,
+    depth = 1,
 ): string[] {
+    if (depth > 3) {
+        throw new CompileError(
+            `Set nesting limit reached. Only up to 3 levels of nesting are allowed.`,
+        );
+    }
     // Separate inclusions and exclusions within this set definition
     const { inclusions, exclusions } = separateInclusionsAndExclusions(
         setDefinition.fields,
@@ -61,7 +67,7 @@ function expandSingleSet(
 
     for (const setField of inclusions) {
         if (setField.endsWith('*')) {
-            // Nested set reference - expand it directly (one level)
+            // Nested set reference - expand it directly
             const nestedSetName = setField.substring(0, setField.length - 1);
 
             // Check if nested set exists
@@ -89,23 +95,12 @@ function expandSingleSet(
                 );
             }
 
-            // Nested sets cannot themselves contain set references
-            // (this ensures max one level of nesting)
-            if (
-                nestedSetDef.fields.some(
-                    (f) => f.endsWith('*') && !f.startsWith('-'),
-                )
-            ) {
-                throw new CompileError(
-                    `Set "${nestedSetName}" contains set references, but only one level of nesting is allowed. Set "${setName}" → "${nestedSetName}" → another set is not permitted.`,
-                );
-            }
-
             // Expand the nested set (which will also handle its own exclusions)
             const nestedExpanded = expandSingleSet(
                 nestedSetName,
                 nestedSetDef,
                 currentTable,
+                depth + 1,
             );
             expandedFields.push(...nestedExpanded);
         } else {
@@ -164,8 +159,7 @@ function expandSetReferences(
  * Expands field references that include set references (ending with *)
  * and applies exclusions (starting with -)
  *
- * Supports one level of set nesting: a set can reference another set,
- * but the referenced set cannot contain set references.
+ * Supports up to 3 levels of set nesting.
  *
  * @param fields - Array of field names, set references (ending with *), or exclusions (starting with -)
  * @param currentTable - The table containing the sets being expanded

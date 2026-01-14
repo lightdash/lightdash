@@ -497,26 +497,40 @@ function validateSets(
                 }
             }
 
-            // Validate one-level nesting: if this set references another set,
-            // the referenced set cannot itself contain set references
+            // Validate nesting level: if this set references another set,
+            // we check up to 3 levels of nesting
+            const checkNesting = (
+                fields: (string | unknown)[],
+                depth: number,
+            ) => {
+                if (depth > 3) {
+                    throw new ParseError(
+                        `Set "${setName}" in model "${model.name}" exceeds the maximum nesting level of 3.`,
+                    );
+                }
+
+                fields.forEach((f) => {
+                    if (
+                        typeof f === 'string' &&
+                        f.endsWith('*') &&
+                        !f.startsWith('-')
+                    ) {
+                        const referencedSetName = f.substring(0, f.length - 1);
+                        const referencedSet = meta.sets?.[referencedSetName];
+
+                        if (referencedSet) {
+                            checkNesting(referencedSet.fields, depth + 1);
+                        }
+                    }
+                });
+            };
+
             if (!isModelFieldName && field.endsWith('*')) {
                 const referencedSetName = field.substring(0, field.length - 1);
                 const referencedSet = meta.sets?.[referencedSetName];
 
                 if (referencedSet) {
-                    // Check if the referenced set contains any set references
-                    const hasNestedSetReferences = referencedSet.fields.some(
-                        (f) =>
-                            typeof f === 'string' &&
-                            f.endsWith('*') &&
-                            !f.startsWith('-'),
-                    );
-
-                    if (hasNestedSetReferences) {
-                        throw new ParseError(
-                            `Set "${setName}" in model "${model.name}" references set "${referencedSetName}", which itself contains set references. Only one level of set nesting is allowed.`,
-                        );
-                    }
+                    checkNesting(referencedSet.fields, 2);
                 }
             }
         });
