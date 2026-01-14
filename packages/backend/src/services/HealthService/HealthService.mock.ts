@@ -69,6 +69,7 @@ export const BaseResponse: HealthState = {
     posthog: undefined,
     pylon: {
         appId: '',
+        verificationHash: undefined,
     },
     query: {
         csvCellsLimit: 100000,
