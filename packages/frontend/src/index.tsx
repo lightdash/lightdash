@@ -10,6 +10,9 @@ if (typeof Node !== 'undefined' && Node.prototype) {
     const originalRemoveChild = Node.prototype.removeChild;
     Node.prototype.removeChild = function <T extends Node>(child: T): T {
         if (child.parentNode !== this) {
+            console.warn(
+                '[DOM Monkey Patch] Suppressed removeChild error (likely caused by Google Translate)',
+            );
             return child;
         }
         return originalRemoveChild.call(this, child) as T;
@@ -21,6 +24,9 @@ if (typeof Node !== 'undefined' && Node.prototype) {
         referenceNode: Node | null,
     ): T {
         if (referenceNode && referenceNode.parentNode !== this) {
+            console.warn(
+                '[DOM Monkey Patch] Suppressed insertBefore error (likely caused by Google Translate)',
+            );
             return newNode;
         }
         return originalInsertBefore.call(this, newNode, referenceNode) as T;
