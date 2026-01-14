@@ -102,6 +102,7 @@ export enum ValidationErrorType {
     Model = 'model',
     Dimension = 'dimension',
     CustomMetric = 'custom metric',
+    ChartConfiguration = 'chart configuration',
 }
 
 export enum DashboardFilterValidationErrorType {

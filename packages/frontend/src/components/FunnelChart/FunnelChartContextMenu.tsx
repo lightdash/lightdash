@@ -1,20 +1,11 @@
-import { subject } from '@casl/ability';
-import {
-    hasCustomBinDimension,
-    type ResultRow,
-    type ResultValue,
-} from '@lightdash/common';
+import { type ResultRow, type ResultValue } from '@lightdash/common';
 import { Box, Menu, Portal, type MenuProps } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
-import { IconCopy, IconStack } from '@tabler/icons-react';
+import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useParams } from 'react-router';
 import useToaster from '../../hooks/toaster/useToaster';
-import { useProject } from '../../hooks/useProject';
-import useApp from '../../providers/App/useApp';
-import useTracking from '../../providers/Tracking/useTracking';
-import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
+import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import { isFunnelVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
@@ -26,6 +17,7 @@ export type FunnelChartContextMenuProps = {
     };
     value?: ResultValue;
     rows?: ResultRow[];
+    canViewUnderlyingData: boolean;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
@@ -35,35 +27,23 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
     opened,
     onOpen,
     onClose,
+    canViewUnderlyingData,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { user } = useApp();
-    const { data: project } = useProject(projectUuid);
     const { visualizationConfig } = useVisualizationContext();
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
-    const tracking = useTracking({ failSilently: true });
     const metricQueryData = useMetricQueryDataContext(true);
 
-    if (!value || !tracking || !metricQueryData || !project) {
+    if (!value || !metricQueryData) {
         return null;
     }
 
     const { openUnderlyingDataModal, metricQuery } = metricQueryData;
-    const { track } = tracking;
 
     if (!isFunnelVisualizationConfig(visualizationConfig)) return null;
 
     const { chartConfig } = visualizationConfig;
-
-    const canViewUnderlyingData = user.data?.ability?.can(
-        'view',
-        subject('UnderlyingData', {
-            organizationUuid: project?.organizationUuid,
-            projectUuid: project?.projectUuid,
-        }),
-    );
 
     const handleCopy = () => {
         if (value) {
@@ -87,15 +67,6 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
             item: chartConfig.selectedField,
             value,
             fieldValues,
-        });
-
-        track({
-            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-            properties: {
-                organizationId: user?.data?.organizationUuid,
-                userId: user?.data?.userUuid,
-                projectId: projectUuid,
-            },
         });
     };
 
@@ -131,15 +102,12 @@ const FunnelChartContextMenu: FC<FunnelChartContextMenuProps> = ({
                     Copy value
                 </Menu.Item>
 
-                {canViewUnderlyingData &&
-                !hasCustomBinDimension(metricQuery) ? (
-                    <Menu.Item
-                        icon={<MantineIcon icon={IconStack} />}
-                        onClick={handleOpenUnderlyingDataModal}
-                    >
-                        View underlying data
-                    </Menu.Item>
-                ) : null}
+                {metricQuery && canViewUnderlyingData && (
+                    <UnderlyingDataMenuItem
+                        metricQuery={metricQuery}
+                        onViewUnderlyingData={handleOpenUnderlyingDataModal}
+                    />
+                )}
             </Menu.Dropdown>
         </Menu>
     );

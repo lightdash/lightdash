@@ -112,7 +112,15 @@ const EmbedChart: FC<Props> = ({ containerStyles, savedQueryUuid }) => {
     }
 
     return (
-        <div style={containerStyles}>
+        <div
+            style={
+                containerStyles ?? {
+                    height: '100vh',
+                    overflowY: 'auto',
+                    margin: '16px',
+                }
+            }
+        >
             <MinimalSavedExplorer savedQueryUuid={savedQueryUuid} />
         </div>
     );

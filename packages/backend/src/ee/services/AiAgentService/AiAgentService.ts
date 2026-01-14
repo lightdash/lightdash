@@ -3334,6 +3334,13 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             this.lightdashConfig.siteUrl,
             this.lightdashConfig.ai.copilot.maxQueryLimit,
             createShareUrl,
+            (exploreName) =>
+                this.getExplore(
+                    user,
+                    slackPrompt.projectUuid,
+                    null,
+                    exploreName,
+                ),
             threadArtifacts,
         );
         const proposeChangeBlocks = getProposeChangeBlocks(

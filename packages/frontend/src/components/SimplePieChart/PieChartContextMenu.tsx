@@ -1,25 +1,21 @@
-import { subject } from '@casl/ability';
 import {
     createDashboardFilterRuleFromField,
-    hasCustomBinDimension,
     isDimension,
     isFilterableDimension,
     type FilterDashboardToRule,
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
-import { Box, Menu, Portal, Text, type MenuProps } from '@mantine/core';
+import { Box, Menu, Portal, type MenuProps } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
-import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
+import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProject } from '../../hooks/useProject';
-import useApp from '../../providers/App/useApp';
-import useTracking from '../../providers/Tracking/useTracking';
-import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
+import { UnderlyingDataMenuItem } from '../DashboardTiles/UnderlyingDataMenuItem';
 import { isPieVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
@@ -31,6 +27,7 @@ export type PieChartContextMenuProps = {
     };
     value?: ResultValue;
     rows?: ResultRow[];
+    canViewUnderlyingData: boolean;
 } & Pick<MenuProps, 'position' | 'opened' | 'onOpen' | 'onClose'>;
 
 const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
@@ -40,9 +37,9 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
     opened,
     onOpen,
     onClose,
+    canViewUnderlyingData,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { user } = useApp();
     const { data: project } = useProject(projectUuid);
     const { visualizationConfig } = useVisualizationContext();
     const location = useLocation();
@@ -50,39 +47,18 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
 
     const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 200 });
-    const tracking = useTracking({ failSilently: true });
     const metricQueryData = useMetricQueryDataContext(true);
     const { itemsMap } = useVisualizationContext();
 
-    if (!value || !tracking || !metricQueryData || !project) {
+    if (!value || !metricQueryData || !project) {
         return null;
     }
 
     const { openUnderlyingDataModal, metricQuery } = metricQueryData;
-    const { track } = tracking;
 
     if (!isPieVisualizationConfig(visualizationConfig)) return null;
 
     const { chartConfig } = visualizationConfig;
-
-    const canViewUnderlyingData = user.data?.ability?.can(
-        'view',
-        subject('UnderlyingData', {
-            organizationUuid: project?.organizationUuid,
-            projectUuid: project?.projectUuid,
-        }),
-    );
-
-    const canViewDrillInto =
-        // TODO: implement this
-        false &&
-        user.data?.ability?.can(
-            'manage',
-            subject('Explore', {
-                organizationUuid: project?.organizationUuid,
-                projectUuid: project?.projectUuid,
-            }),
-        );
 
     const handleCopy = () => {
         if (value) {
@@ -112,31 +88,6 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
             value,
             fieldValues,
         });
-
-        track({
-            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-            properties: {
-                organizationId: user?.data?.organizationUuid,
-                userId: user?.data?.userUuid,
-                projectId: projectUuid,
-            },
-        });
-    };
-
-    const handleOpenDrillIntoModal = () => {
-        // TODO: implement this
-        // openDrillDownModal({
-        //     item,
-        //     fieldValues: underlyingFieldValues,
-        // });
-        // track({
-        //     name: EventName.DRILL_BY_CLICKED,
-        //     properties: {
-        //         organizationId: user.data?.organizationUuid,
-        //         userId: user.data?.userUuid,
-        //         projectId: projectUuid,
-        //     },
-        // });
     };
 
     const filters =
@@ -191,29 +142,16 @@ const PieChartContextMenu: FC<PieChartContextMenuProps> = ({
                     Copy value
                 </Menu.Item>
 
-                {canViewUnderlyingData &&
-                !hasCustomBinDimension(metricQuery) ? (
-                    <Menu.Item
-                        icon={<MantineIcon icon={IconStack} />}
-                        onClick={handleOpenUnderlyingDataModal}
-                    >
-                        View underlying data
-                    </Menu.Item>
-                ) : null}
+                {metricQuery && canViewUnderlyingData && (
+                    <UnderlyingDataMenuItem
+                        metricQuery={metricQuery}
+                        onViewUnderlyingData={handleOpenUnderlyingDataModal}
+                    />
+                )}
                 {isDashboardPage && (
                     <FilterDashboardTo filters={filters ?? []} />
                 )}
-                {canViewDrillInto ? (
-                    <Menu.Item
-                        icon={<MantineIcon icon={IconArrowBarToDown} />}
-                        onClick={handleOpenDrillIntoModal}
-                    >
-                        Drill into{' '}
-                        <Text span fw={500}>
-                            {value.formatted}
-                        </Text>
-                    </Menu.Item>
-                ) : null}
+                {/* TODO: implement drill-into functionality when ready */}
             </Menu.Dropdown>
         </Menu>
     );

@@ -1,3 +1,95 @@
+## [0.2340.1](https://github.com/lightdash/lightdash/compare/0.2340.0...0.2340.1) (2026-01-14)
+
+
+### Bug Fixes
+
+* wait for sql runner results correctly when unfurling ([#19415](https://github.com/lightdash/lightdash/issues/19415)) ([e77bbed](https://github.com/lightdash/lightdash/commit/e77bbedde931da3f54f631183f0956732392081d))
+
+# [0.2340.0](https://github.com/lightdash/lightdash/compare/0.2339.0...0.2340.0) (2026-01-14)
+
+
+### Bug Fixes
+
+* hide chart config errors in CLI by default ([#19451](https://github.com/lightdash/lightdash/issues/19451)) ([4a86ab3](https://github.com/lightdash/lightdash/commit/4a86ab3dd2e9a6b909c1c6fa9cf4f8436eb7db5e))
+* show fix dialog for chart config in validator ([#19446](https://github.com/lightdash/lightdash/issues/19446)) ([da08727](https://github.com/lightdash/lightdash/commit/da08727110c8f689cc3a652135fb6aeebddf14b4))
+
+
+### Features
+
+* hide chart config warnings in the UI ([#19450](https://github.com/lightdash/lightdash/issues/19450)) ([7dd8a1c](https://github.com/lightdash/lightdash/commit/7dd8a1c9589de557701245d6d9bbcf05eabfb1ea))
+
+# [0.2339.0](https://github.com/lightdash/lightdash/compare/0.2338.1...0.2339.0) (2026-01-14)
+
+
+### Bug Fixes
+
+* handle additional foreign key constraints in validation error handling ([#19433](https://github.com/lightdash/lightdash/issues/19433)) ([684f0ef](https://github.com/lightdash/lightdash/commit/684f0eff27d7666dc8177c703540e1362628412a))
+
+
+### Features
+
+* add config warning to chart save ([#19370](https://github.com/lightdash/lightdash/issues/19370)) ([a413bce](https://github.com/lightdash/lightdash/commit/a413bce9eafb6da78f7b8ceabe33d1530169000c))
+
+## [0.2338.1](https://github.com/lightdash/lightdash/compare/0.2338.0...0.2338.1) (2026-01-14)
+
+
+### Bug Fixes
+
+* pass schedulerTabsSelected to DashboardProvider for correct screenshot tile filtering ([#19404](https://github.com/lightdash/lightdash/issues/19404)) ([b0458ec](https://github.com/lightdash/lightdash/commit/b0458ecc3bc6c44687d6864a9a3b1f19e807e022))
+* use back-end proxy for checking dashboard redesign flag ([#19442](https://github.com/lightdash/lightdash/issues/19442)) ([1c372ea](https://github.com/lightdash/lightdash/commit/1c372ea4799837c84f1c02cb16875b7ca120af50))
+
+# [0.2338.0](https://github.com/lightdash/lightdash/compare/0.2337.0...0.2338.0) (2026-01-14)
+
+
+### Bug Fixes
+
+* generate correct verification hash for pylon ([#19437](https://github.com/lightdash/lightdash/issues/19437)) ([a679afd](https://github.com/lightdash/lightdash/commit/a679afd1df155033a5914e16ecf7d8f9373350b0))
+
+
+### Features
+
+* increase field set nesting limit from 1 to 3 levels ([#19432](https://github.com/lightdash/lightdash/issues/19432)) ([f318ae5](https://github.com/lightdash/lightdash/commit/f318ae5e6fd0ad28c0f4492f7f63c629e1d20f4d))
+
+# [0.2337.0](https://github.com/lightdash/lightdash/compare/0.2336.0...0.2337.0) (2026-01-14)
+
+
+### Bug Fixes
+
+* monkey patch `removeChild` and `insertBefore` to prevent react crash ([#19410](https://github.com/lightdash/lightdash/issues/19410)) ([8e8f776](https://github.com/lightdash/lightdash/commit/8e8f776425201634b99918b7c70121e3165a1f1c))
+
+
+### Features
+
+* add validation errors for extra fields ([#19357](https://github.com/lightdash/lightdash/issues/19357)) ([ae00ada](https://github.com/lightdash/lightdash/commit/ae00adab2ea3f155543a384bde585e4b06057068))
+* link to chart editor from validator warning ([#19366](https://github.com/lightdash/lightdash/issues/19366)) ([a6f24c9](https://github.com/lightdash/lightdash/commit/a6f24c99314feb414332bcf70a3d81ee95d0e584))
+
+# [0.2336.0](https://github.com/lightdash/lightdash/compare/0.2335.0...0.2336.0) (2026-01-14)
+
+
+### Bug Fixes
+
+* can view underlying data in non-cartesian tiles if enabled on embedded content ([#19354](https://github.com/lightdash/lightdash/issues/19354)) ([2909d34](https://github.com/lightdash/lightdash/commit/2909d34ecd2a062ffe4267610c727b07d4381239))
+* creating charts from editing doesn't respect tabs ([#19430](https://github.com/lightdash/lightdash/issues/19430)) ([39ce72f](https://github.com/lightdash/lightdash/commit/39ce72f3760b98f869612ea0f971378a663a167a))
+* filter dashboard parameters by active tab tiles (V2) ([#19431](https://github.com/lightdash/lightdash/issues/19431)) ([096f847](https://github.com/lightdash/lightdash/commit/096f847c5f323df74266ae50ff87e6e5375ecc79))
+* load embed chart on generate & copy URL action in embed settings ([#19397](https://github.com/lightdash/lightdash/issues/19397)) ([fb839f6](https://github.com/lightdash/lightdash/commit/fb839f69038bf5149472037dc79bc0239b82729f))
+
+
+### Features
+
+* populate SQL for additional metrics in Slack artifact blocks ([#19435](https://github.com/lightdash/lightdash/issues/19435)) ([c3fee67](https://github.com/lightdash/lightdash/commit/c3fee67560ac725011bee596d07b5caae3811b8e))
+
+# [0.2335.0](https://github.com/lightdash/lightdash/compare/0.2334.1...0.2335.0) (2026-01-14)
+
+
+### Bug Fixes
+
+* unfurl url repeating tabs uuid ([#19417](https://github.com/lightdash/lightdash/issues/19417)) ([1a85e21](https://github.com/lightdash/lightdash/commit/1a85e2153c3699084ed74a4741e382914294e512))
+
+
+### Features
+
+* include private channels in Slack channel selection for AI Agent ([#19426](https://github.com/lightdash/lightdash/issues/19426)) ([e6c5a4b](https://github.com/lightdash/lightdash/commit/e6c5a4b790b90a825197e533b5d231f54bd2201d))
+
 ## [0.2334.1](https://github.com/lightdash/lightdash/compare/0.2334.0...0.2334.1) (2026-01-13)
 
 

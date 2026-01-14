@@ -26,6 +26,8 @@ type CommonProps = {
     withRefresh?: boolean;
     /** Include direct messages in the channel list */
     includeDms?: boolean;
+    /** Include private channels (groups) in the channel list */
+    includeGroups?: boolean;
 };
 
 type SingleSelectProps = CommonProps & {
@@ -50,6 +52,7 @@ export const SlackChannelSelect: FC<
         size = 'xs',
         withRefresh = false,
         includeDms = false,
+        includeGroups = false,
     } = props;
 
     const [search, setSearch] = useState<string | undefined>(undefined);
@@ -95,7 +98,7 @@ export const SlackChannelSelect: FC<
         {
             excludeArchived: true,
             excludeDms: !includeDms,
-            excludeGroups: true,
+            excludeGroups: !includeGroups,
             includeChannelIds,
         },
         { enabled: !disabled },

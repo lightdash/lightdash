@@ -106,17 +106,7 @@ export class HealthService extends BaseService {
             intercom: this.lightdashConfig.intercom,
             pylon: {
                 appId: this.lightdashConfig.pylon.appId,
-                verificationHash:
-                    this.lightdashConfig.pylon.identityVerificationSecret &&
-                    user?.email
-                        ? createHmac(
-                              'sha256',
-                              this.lightdashConfig.pylon
-                                  .identityVerificationSecret,
-                          )
-                              .update(user?.email)
-                              .digest('hex')
-                        : undefined,
+                verificationHash: this.getPylonVerificationHash(user?.email),
             },
             siteUrl: this.lightdashConfig.siteUrl,
             staticIp: this.lightdashConfig.staticIp,
@@ -243,5 +233,18 @@ export class HealthService extends BaseService {
             this.lightdashConfig.auth.google.oauth2ClientSecret !== undefined &&
             this.lightdashConfig.auth.google.enabled
         );
+    }
+
+    private getPylonVerificationHash(email: string | undefined) {
+        if (!this.lightdashConfig.pylon.identityVerificationSecret || !email) {
+            return undefined;
+        }
+
+        const secretBytes = Buffer.from(
+            this.lightdashConfig.pylon.identityVerificationSecret,
+            'hex',
+        );
+
+        return createHmac('sha256', secretBytes).update(email).digest('hex');
     }
 }

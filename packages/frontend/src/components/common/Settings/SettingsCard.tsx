@@ -6,7 +6,7 @@ const SettingsCard: FC<React.PropsWithChildren<PaperProps>> = ({
     ...rest
 }) => {
     return (
-        <Paper shadow="sm" withBorder p="md" {...rest}>
+        <Paper shadow="subtle" withBorder p="md" radius="md" {...rest}>
             {children}
         </Paper>
     );

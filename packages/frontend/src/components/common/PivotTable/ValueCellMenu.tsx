@@ -1,20 +1,21 @@
-import { subject } from '@casl/ability';
 import {
     createDashboardFilterRuleFromField,
-    hasCustomBinDimension,
     isDimension,
     isDimensionValueInvalidDate,
     type ItemsMap,
     type ResultValue,
 } from '@lightdash/common';
 import { Menu, Text, type MenuProps } from '@mantine/core';
-import { IconArrowBarToDown, IconCopy, IconStack } from '@tabler/icons-react';
+import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { FilterDashboardTo } from '../../../features/dashboardFilters/FilterDashboardTo';
-import useApp from '../../../providers/App/useApp';
+import { useContextMenuPermissions } from '../../../hooks/useContextMenuPermissions';
+import { useProject } from '../../../hooks/useProject';
+import { useAccount } from '../../../hooks/user/useAccount';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { UnderlyingDataMenuItem } from '../../DashboardTiles/UnderlyingDataMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import MantineIcon from '../MantineIcon';
 
@@ -29,6 +30,7 @@ type ValueCellMenuProps = {
         colIndex: number,
         rowIndex: number,
     ) => Record<string, ResultValue>;
+    isMinimal?: boolean;
 } & Pick<MenuProps, 'opened' | 'onOpen' | 'onClose'>;
 
 const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
@@ -42,15 +44,21 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
     onOpen,
     onClose,
     onCopy,
+    isMinimal = false,
 }) => {
-    const { user } = useApp();
     const tracking = useTracking({ failSilently: true });
     const metricQueryData = useMetricQueryDataContext(true);
+    const { data: account } = useAccount();
 
     // FIXME: get rid of this from here
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: project } = useProject(projectUuid);
     const location = useLocation();
     const isDashboardPage = location.pathname.includes('/dashboards');
+
+    const { canDrillInto, canViewUnderlyingData } = useContextMenuPermissions({
+        minimal: isMinimal,
+    });
 
     if (!value || !tracking || !metricQueryData) {
         return <>{children}</>;
@@ -62,26 +70,6 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
 
     const hasUnderlyingData = getUnderlyingFieldValues && item;
     const hasDrillInto = getUnderlyingFieldValues && item;
-
-    const canViewUnderlyingData =
-        hasUnderlyingData &&
-        user.data?.ability?.can(
-            'view',
-            subject('UnderlyingData', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid: projectUuid,
-            }),
-        );
-
-    const canViewDrillInto =
-        hasDrillInto &&
-        user.data?.ability?.can(
-            'manage',
-            subject('Explore', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid: projectUuid,
-            }),
-        );
 
     const handleOpenUnderlyingDataModal = () => {
         if (
@@ -102,15 +90,6 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
             item,
             value,
             fieldValues: underlyingFieldValues,
-        });
-
-        track({
-            name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
-            properties: {
-                organizationId: user?.data?.organizationUuid,
-                userId: user?.data?.userUuid,
-                projectId: projectUuid,
-            },
         });
     };
 
@@ -137,8 +116,8 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
         track({
             name: EventName.DRILL_BY_CLICKED,
             properties: {
-                organizationId: user.data?.organizationUuid,
-                userId: user.data?.userUuid,
+                organizationId: project?.organizationUuid,
+                userId: account?.user?.id,
                 projectId: projectUuid,
             },
         });
@@ -194,44 +173,33 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
                     Copy value
                 </Menu.Item>
 
-                {item &&
-                (canViewUnderlyingData || canViewDrillInto) &&
-                !hasCustomBinDimension(metricQuery) ? (
-                    <>
-                        {canViewUnderlyingData ? (
-                            <Menu.Item
-                                icon={
-                                    <MantineIcon
-                                        icon={IconStack}
-                                        size="md"
-                                        fillOpacity={0}
-                                    />
-                                }
-                                onClick={handleOpenUnderlyingDataModal}
-                            >
-                                View underlying data
-                            </Menu.Item>
-                        ) : null}
+                {hasUnderlyingData &&
+                    !isDimension(item) &&
+                    metricQuery &&
+                    canViewUnderlyingData && (
+                        <UnderlyingDataMenuItem
+                            metricQuery={metricQuery}
+                            onViewUnderlyingData={handleOpenUnderlyingDataModal}
+                        />
+                    )}
 
-                        {canViewDrillInto ? (
-                            <Menu.Item
-                                icon={
-                                    <MantineIcon
-                                        icon={IconArrowBarToDown}
-                                        size="md"
-                                        fillOpacity={0}
-                                    />
-                                }
-                                onClick={handleOpenDrillIntoModal}
-                            >
-                                Drill into{' '}
-                                <Text span fw={500}>
-                                    {value.formatted}
-                                </Text>
-                            </Menu.Item>
-                        ) : null}
-                    </>
-                ) : null}
+                {!isMinimal && hasDrillInto && canDrillInto && project && (
+                    <Menu.Item
+                        icon={
+                            <MantineIcon
+                                icon={IconArrowBarToDown}
+                                size="md"
+                                fillOpacity={0}
+                            />
+                        }
+                        onClick={handleOpenDrillIntoModal}
+                    >
+                        Drill into{' '}
+                        <Text span fw={500}>
+                            {value.formatted}
+                        </Text>
+                    </Menu.Item>
+                )}
                 {isDashboardPage && filters.length > 0 && (
                     <FilterDashboardTo filters={filters} />
                 )}

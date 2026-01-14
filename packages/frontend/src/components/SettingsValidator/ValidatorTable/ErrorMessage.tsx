@@ -4,6 +4,7 @@ import {
     isChartValidationError,
     isDashboardValidationError,
     isTableValidationError,
+    ValidationErrorType,
     type ValidationResponse,
 } from '@lightdash/common';
 import { Mark, Stack, Text } from '@mantine/core';
@@ -28,6 +29,20 @@ const ErrorMessageByType: FC<{
     validationError: ValidationResponse;
 }> = ({ validationError }) => {
     if (isChartValidationError(validationError)) {
+        // Handle chart configuration errors (unused dimensions)
+        if (
+            validationError.errorType === ValidationErrorType.ChartConfiguration
+        ) {
+            return (
+                <Text>
+                    <CustomMark>{validationError.fieldName}</CustomMark> is
+                    included in the query but not used in the chart
+                    configuration (x-axis, y-axis, or group by). This can cause
+                    incorrect rendering. We recommend removing unused dimensions
+                    from the query.
+                </Text>
+            );
+        }
         return (
             <Text>
                 <CustomMark>{validationError.fieldName}</CustomMark> no longer
@@ -93,13 +108,17 @@ const ErrorMessageByType: FC<{
 export const ErrorMessage: FC<{ validationError: ValidationResponse }> = ({
     validationError,
 }) => {
+    const isWarning =
+        isChartValidationError(validationError) &&
+        validationError.errorType === ValidationErrorType.ChartConfiguration;
+
     return (
         <Stack spacing={4}>
-            <Text fw={600} color="red.6" fz={11}>
+            <Text fw={600} color={isWarning ? 'orange.6' : 'red.6'} fz={11}>
                 {validationError.errorType
                     ? friendlyName(validationError.errorType)
                     : ''}{' '}
-                error
+                {isWarning ? 'warning' : 'error'}
             </Text>
             <ErrorMessageByType validationError={validationError} />
         </Stack>

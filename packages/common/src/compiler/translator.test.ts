@@ -650,7 +650,33 @@ describe('convert tables from dbt models', () => {
             );
         });
 
-        it('throws when set has nested set references beyond one level', () => {
+        it('allows set references up to 3 levels', () => {
+            expect(
+                convertTable(
+                    SupportedDbtAdapter.BIGQUERY,
+                    {
+                        ...MODEL_WITH_NO_METRICS,
+                        meta: {
+                            sets: {
+                                level1: {
+                                    fields: ['user_id'],
+                                },
+                                level2: {
+                                    fields: ['level1*'],
+                                },
+                                level3: {
+                                    fields: ['level2*'],
+                                },
+                            },
+                        },
+                    },
+                    [],
+                    DEFAULT_SPOTLIGHT_CONFIG,
+                ),
+            ).toBeTruthy();
+        });
+
+        it('throws when set has nested set references beyond 3 levels', () => {
             expect(() =>
                 convertTable(
                     SupportedDbtAdapter.BIGQUERY,
@@ -658,14 +684,17 @@ describe('convert tables from dbt models', () => {
                         ...MODEL_WITH_NO_METRICS,
                         meta: {
                             sets: {
-                                base_set: {
+                                level1: {
                                     fields: ['user_id'],
                                 },
-                                middle_set: {
-                                    fields: ['base_set*'],
+                                level2: {
+                                    fields: ['level1*'],
                                 },
-                                top_set: {
-                                    fields: ['middle_set*'],
+                                level3: {
+                                    fields: ['level2*'],
+                                },
+                                level4: {
+                                    fields: ['level3*'],
                                 },
                             },
                         },
@@ -674,7 +703,7 @@ describe('convert tables from dbt models', () => {
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toThrowError(
-                `Set "top_set" in model "myTable" references set "middle_set", which itself contains set references. Only one level of set nesting is allowed.`,
+                `Set "level4" in model "myTable" exceeds the maximum nesting level of 3.`,
             );
         });
 

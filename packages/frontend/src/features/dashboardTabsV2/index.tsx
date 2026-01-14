@@ -11,7 +11,7 @@ import { Button, Group, Tabs } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
-import { useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
@@ -166,6 +166,9 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
     );
+    const tileParameterReferences = useDashboardContext(
+        (c) => c.tileParameterReferences,
+    );
 
     // filters bar state
     const [isFiltersCollapsed, setIsFiltersCollapsed] =
@@ -243,12 +246,6 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
         filterableFieldsByTileUuid,
     ]);
 
-    // Collapsed summary values
-    const totalFiltersCount =
-        dashboardFilters.dimensions.length +
-        dashboardTemporaryFilters.dimensions.length;
-    const totalParametersCount = Object.keys(parameters).length;
-
     const sortedTiles = dashboardTiles?.sort((a, b) => {
         if (a.y === b.y) {
             // If 'y' is the same, sort by 'x'
@@ -259,18 +256,50 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
         }
     });
 
-    const isActiveTile = (tile: DashboardTile) => {
-        const tileBelongsToActiveTab = tile.tabUuid === activeTab?.uuid; // tiles belongs to current tab
-        const defaultTabOrFirstTabActived =
-            activeTab?.uuid === defaultTab?.uuid ||
-            activeTab?.uuid === sortedTabs?.[0]?.uuid;
-        const tileHasStaleTabReference =
-            !dashboardTabs?.some((tab) => tab.uuid === tile.tabUuid) &&
-            defaultTabOrFirstTabActived; // tile des not belong to any tab and display it on default tab
-        return (
-            !tabsEnabled || tileBelongsToActiveTab || tileHasStaleTabReference
+    const firstSortedTabUuid = sortedTabs?.[0]?.uuid;
+    const isActiveTile = useCallback(
+        (tile: DashboardTile) => {
+            const tileBelongsToActiveTab = tile.tabUuid === activeTab?.uuid; // tiles belongs to current tab
+            const defaultTabOrFirstTabActived =
+                activeTab?.uuid === defaultTab?.uuid ||
+                activeTab?.uuid === firstSortedTabUuid;
+            const tileHasStaleTabReference =
+                !dashboardTabs?.some((tab) => tab.uuid === tile.tabUuid) &&
+                defaultTabOrFirstTabActived; // tile des not belong to any tab and display it on default tab
+            return (
+                !tabsEnabled ||
+                tileBelongsToActiveTab ||
+                tileHasStaleTabReference
+            );
+        },
+        [
+            activeTab?.uuid,
+            defaultTab?.uuid,
+            firstSortedTabUuid,
+            dashboardTabs,
+            tabsEnabled,
+        ],
+    );
+
+    const activeTabParameters = useMemo(() => {
+        if (!dashboardTiles) return parameters;
+
+        const activeParamKeys = dashboardTiles
+            .filter(isActiveTile)
+            .flatMap((tile) => tileParameterReferences[tile.uuid] ?? []);
+
+        return Object.fromEntries(
+            Object.entries(parameters).filter(([key]) =>
+                activeParamKeys.includes(key),
+            ),
         );
-    };
+    }, [dashboardTiles, parameters, tileParameterReferences, isActiveTile]);
+
+    // Collapsed summary values
+    const totalFiltersCount =
+        dashboardFilters.dimensions.length +
+        dashboardTemporaryFilters.dimensions.length;
+    const totalParametersCount = Object.keys(activeTabParameters).length;
 
     const currentTabHasTiles = !!sortedTiles?.some((tile) =>
         isActiveTile(tile),
@@ -614,7 +643,9 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                                     hasDashboardTiles={
                                                         !!hasDashboardTiles
                                                     }
-                                                    parameters={parameters}
+                                                    parameters={
+                                                        activeTabParameters
+                                                    }
                                                     parameterValues={
                                                         parameterValues
                                                     }
