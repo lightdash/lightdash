@@ -71,6 +71,7 @@ const uuidRegex = new RegExp(uuid, 'g');
 const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
 const createQueryEndpointRegex = /\/query/;
+// Matches /query/{uuid} but NOT /query/{uuid}/results (SQL chart endpoint)
 const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}(?!/results)`);
 
 const viewport = {
@@ -363,6 +364,80 @@ export class UnfurlService extends BaseService {
             RESPONSE_TIMEOUT_MS,
             useScreenshotReadyIndicator,
         );
+    }
+
+    /**
+     * Waits for SQL chart /results responses.
+     * SQL charts use /query/{uuid}/results endpoint with chunked encoding.
+     * Uses a single listener that counts unique responses to avoid the issue
+     * where multiple waitForResponse with same predicate resolve with same response.
+     */
+    private async waitForSqlChartResultsResponses(
+        page: playwright.Page,
+        expectedResponses: number,
+        timeout: number,
+    ): Promise<void> {
+        if (expectedResponses === 0) {
+            return;
+        }
+
+        const sqlQueryResultsRegex = new RegExp(`/query/${uuid}/results`);
+        let responseCount = 0;
+        const seenQueryUuids = new Set<string>();
+
+        this.logger.debug(
+            `Waiting for ${expectedResponses} SQL chart /results responses`,
+        );
+
+        // Define handler outside promise scope so it can be cleaned up from both success and timeout paths
+        let resolvePromise: () => void;
+        let timeoutId: NodeJS.Timeout | undefined;
+        const responseHandler = (response: playwright.Response) => {
+            const responseUrl = response.url();
+
+            if (sqlQueryResultsRegex.test(responseUrl)) {
+                // Extract queryUuid to avoid counting same response twice
+                const match = responseUrl.match(uuidRegex);
+                const queryUuid = match ? match[match.length - 1] : responseUrl;
+
+                if (!seenQueryUuids.has(queryUuid)) {
+                    seenQueryUuids.add(queryUuid);
+                    responseCount += 1;
+
+                    if (responseCount === expectedResponses) {
+                        this.logger.info(
+                            `SQL chart results complete: ${responseCount}/${expectedResponses}`,
+                        );
+                        page.off('response', responseHandler);
+                        if (timeoutId) {
+                            clearTimeout(timeoutId);
+                        }
+                        resolvePromise();
+                    }
+                }
+            }
+        };
+
+        const responsePromise = new Promise<void>((resolve) => {
+            resolvePromise = resolve;
+            page.on('response', responseHandler);
+        });
+
+        const timeoutPromise = new Promise<void>((_, reject) => {
+            timeoutId = setTimeout(() => {
+                page.off('response', responseHandler); // Clean up handler on timeout
+                this.logger.warn(
+                    `SQL chart results timeout: ${responseCount}/${expectedResponses} received`,
+                );
+                reject(
+                    new Error(
+                        `SQL chart results timeout after ${timeout}ms. Expected ${expectedResponses} but received ${responseCount}.`,
+                    ),
+                );
+            }, timeout);
+        });
+
+        await Promise.race([responsePromise, timeoutPromise]);
     }
 
     async getTitleAndDescription(
@@ -935,6 +1010,14 @@ export class UnfurlService extends BaseService {
                     // Log all query results errors
                     page.on('response', async (response) => {
                         const responseUrl = response.url();
+
+                        // Skip /query/{uuid}/results - uses chunked encoding, handled separately
+                        const isSqlResultsEndpoint =
+                            /\/query\/[0-9a-f-]+\/results/.test(responseUrl);
+                        if (isSqlResultsEndpoint) {
+                            return; // Skip logging for SQL chart results (chunked response)
+                        }
+
                         const resultsEndpointRegexes = [
                             createQueryEndpointRegex, // create query
                             paginatedQueryEndpointRegex, // get paginated results
@@ -1090,7 +1173,7 @@ export class UnfurlService extends BaseService {
                                 | (Promise<playwright.Response> | undefined)[]
                                 | undefined;
                             let sqlResultsPromises:
-                                | (Promise<playwright.Response> | undefined)[]
+                                | (Promise<void> | undefined)[]
                                 | undefined;
                             let sqlPivotPromises:
                                 | (Promise<playwright.Response> | undefined)[]
@@ -1128,34 +1211,17 @@ export class UnfurlService extends BaseService {
                                         );
                                     });
 
-                                sqlResultsJobPromises =
-                                    filteredSqlChartTileUuids.map(
-                                        (id) =>
-                                            page?.waitForResponse(
-                                                new RegExp(
-                                                    `/sqlRunner/saved/${id}/results-job`,
-                                                ),
-                                                {
-                                                    timeout:
-                                                        RESPONSE_TIMEOUT_MS,
-                                                },
-                                            ), // NOTE: No await here
+                                // Wait for SQL chart /results responses using dedicated method
+                                const sqlResultsPromise =
+                                    this.waitForSqlChartResultsResponses(
+                                        page,
+                                        filteredSqlChartTileUuids.length,
+                                        filteredSqlChartTileUuids.length *
+                                            RESPONSE_TIMEOUT_MS,
                                     );
 
-                                // These are shared responses for all SQL charts
-                                sqlResultsPromises = [
-                                    page?.waitForResponse(
-                                        /\/sqlRunner\/results/,
-                                        { timeout: RESPONSE_TIMEOUT_MS },
-                                    ), // NOTE: No await here
-                                ];
-
-                                sqlPivotPromises = [
-                                    page?.waitForResponse(
-                                        /\/sqlRunner\/runPivotQuery/,
-                                        { timeout: RESPONSE_TIMEOUT_MS },
-                                    ), // NOTE: No await here
-                                ];
+                                // Wrap in array to match expected type
+                                sqlResultsPromises = [sqlResultsPromise];
                             }
 
                             let loomTileResultsPromises:
