@@ -6,6 +6,7 @@ import {
 import {
     Box,
     Button,
+    Checkbox,
     Group,
     Loader,
     Paper,
@@ -13,7 +14,7 @@ import {
     useMantineTheme,
 } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import {
     useValidation,
     useValidationMutation,
@@ -44,6 +45,28 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
         useState<ValidationErrorChartResponse>();
     const [selectedConfigError, setSelectedConfigError] =
         useState<ValidationErrorChartResponse>();
+    const [showConfigWarnings, setShowConfigWarnings] = useState(false);
+
+    const configWarningCount = useMemo(() => {
+        if (!data) return 0;
+        return data.filter(
+            (error) =>
+                isChartValidationError(error) &&
+                error.errorType === ValidationErrorType.ChartConfiguration,
+        ).length;
+    }, [data]);
+
+    // Filter out chart configuration warnings unless checkbox is checked
+    const filteredData = useMemo(() => {
+        if (!data) return undefined;
+        if (showConfigWarnings) return data;
+        return data.filter(
+            (error) =>
+                !isChartValidationError(error) ||
+                error.errorType !== ValidationErrorType.ChartConfiguration,
+        );
+    }, [data, showConfigWarnings]);
+
     return (
         <>
             <FixValidationErrorModal
@@ -74,13 +97,23 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                         borderBottomColor: theme.colors.ldGray[3],
                     }}
                 >
-                    <Text fw={500} fz="xs" c="ldGray.6">
-                        {!!data?.length
-                            ? `Last validated at: ${formatTime(
-                                  data[0].createdAt,
-                              )}`
-                            : null}
-                    </Text>
+                    <Group spacing="lg">
+                        <Text fw={500} fz="xs" c="ldGray.6">
+                            {!!data?.length
+                                ? `Last validated at: ${formatTime(
+                                      data[0].createdAt,
+                                  )}`
+                                : null}
+                        </Text>
+                        <Checkbox
+                            size="xs"
+                            label={`Show chart configuration warnings (${configWarningCount})`}
+                            checked={showConfigWarnings}
+                            onChange={(e) =>
+                                setShowConfigWarnings(e.currentTarget.checked)
+                            }
+                        />
+                    </Group>
                     <Button
                         onClick={() => {
                             setIsValidating(true);
@@ -94,11 +127,13 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                 <Box
                     sx={{
                         overflowY:
-                            data && data.length > MIN_ROWS_TO_ENABLE_SCROLLING
+                            filteredData &&
+                            filteredData.length > MIN_ROWS_TO_ENABLE_SCROLLING
                                 ? 'scroll'
                                 : 'auto',
                         maxHeight:
-                            data && data.length > MIN_ROWS_TO_ENABLE_SCROLLING
+                            filteredData &&
+                            filteredData.length > MIN_ROWS_TO_ENABLE_SCROLLING
                                 ? '500px'
                                 : 'auto',
                     }}
@@ -107,10 +142,10 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                         <Group position="center" spacing="xs" p="md">
                             <Loader color="gray" />
                         </Group>
-                    ) : !!data?.length ? (
+                    ) : !!filteredData?.length ? (
                         <>
                             <ValidatorTable
-                                data={data}
+                                data={filteredData}
                                 projectUuid={projectUuid}
                                 onSelectValidationError={(validationError) => {
                                     if (
