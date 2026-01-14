@@ -1,3 +1,11 @@
+## [0.2338.1](https://github.com/lightdash/lightdash/compare/0.2338.0...0.2338.1) (2026-01-14)
+
+
+### Bug Fixes
+
+* pass schedulerTabsSelected to DashboardProvider for correct screenshot tile filtering ([#19404](https://github.com/lightdash/lightdash/issues/19404)) ([b0458ec](https://github.com/lightdash/lightdash/commit/b0458ecc3bc6c44687d6864a9a3b1f19e807e022))
+* use back-end proxy for checking dashboard redesign flag ([#19442](https://github.com/lightdash/lightdash/issues/19442)) ([1c372ea](https://github.com/lightdash/lightdash/commit/1c372ea4799837c84f1c02cb16875b7ca120af50))
+
 # [0.2338.0](https://github.com/lightdash/lightdash/compare/0.2337.0...0.2338.0) (2026-01-14)
 
 
