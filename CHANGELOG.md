@@ -1,3 +1,15 @@
+# [0.2338.0](https://github.com/lightdash/lightdash/compare/0.2337.0...0.2338.0) (2026-01-14)
+
+
+### Bug Fixes
+
+* generate correct verification hash for pylon ([#19437](https://github.com/lightdash/lightdash/issues/19437)) ([a679afd](https://github.com/lightdash/lightdash/commit/a679afd1df155033a5914e16ecf7d8f9373350b0))
+
+
+### Features
+
+* increase field set nesting limit from 1 to 3 levels ([#19432](https://github.com/lightdash/lightdash/issues/19432)) ([f318ae5](https://github.com/lightdash/lightdash/commit/f318ae5e6fd0ad28c0f4492f7f63c629e1d20f4d))
+
 # [0.2337.0](https://github.com/lightdash/lightdash/compare/0.2336.0...0.2337.0) (2026-01-14)
 
 
