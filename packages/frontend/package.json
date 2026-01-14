@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.2270.1",
+    "version": "0.2334.1",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -55,7 +55,6 @@
         "@tanstack/react-query-devtools": "^4.36.1",
         "@tanstack/react-table": "^8.15.3",
         "@tanstack/react-virtual": "^3.10.7",
-        "@theme-toggles/react": "^4.1.0",
         "@tiptap/extension-link": "^2.2.4",
         "@tiptap/extension-mention": "^2.2.4",
         "@tiptap/extension-placeholder": "^2.2.4",
@@ -93,7 +92,7 @@
         "html2canvas-pro": "^1.5.13",
         "immer": "^10.1.1",
         "js-yaml": "^4.1.1",
-        "jspdf": "^3.0.2",
+        "jspdf": "^4.0.0",
         "leaflet": "^1.9.4",
         "leaflet.heat": "^0.2.0",
         "lodash": "^4.17.21",
@@ -122,7 +121,7 @@
         "react-scan": "^0.3.3",
         "react-use": "^17.6.0",
         "react-use-intercom": "^4.1.0",
-        "react-vega": "^7.6.0",
+        "react-vega": "^8.0.0",
         "recharts": "^2.15.0",
         "rehype-external-links": "^3.0.0",
         "reselect": "5.1.1",
@@ -138,7 +137,10 @@
         "use-context-selector": "^1.4.1",
         "use-local-storage-state": "17",
         "uuid": "^8.3.2",
-        "vega-lite": "^5.16.1",
+        "vega": "^6.2.0",
+        "vega-embed": "^7.1.0",
+        "vega-lite": "^6.4.1",
+        "vega-themes": "^3.0.0",
         "zod": "^3.25.55"
     },
     "devDependencies": {
@@ -171,6 +173,7 @@
         "@types/topojson-specification": "^1.0.5",
         "@types/uuid": "^8.3.4",
         "@vitejs/plugin-react": "^4.4.1",
+        "csstype": "^3.2.3",
         "eslint-plugin-css-modules": "^2.11.0",
         "eslint-plugin-jest-dom": "^5.1.0",
         "eslint-plugin-jsx-a11y": "^6.6.1",

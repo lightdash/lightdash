@@ -375,7 +375,7 @@ const explorerSlice = createSlice({
         },
         toggleFormatModal: (
             state,
-            action: PayloadAction<{ metric?: Metric } | undefined>,
+            action: PayloadAction<{ item?: Metric | Dimension } | undefined>,
         ) => {
             state.modals.format = {
                 isOpen: !state.modals.format.isOpen,
@@ -395,6 +395,24 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.metricQuery.metricOverrides = {};
             }
             state.unsavedChartVersion.metricQuery.metricOverrides[metricId] = {
+                formatOptions,
+            };
+        },
+        updateDimensionFormat: (
+            state,
+            action: PayloadAction<{
+                dimension: Dimension;
+                formatOptions: CustomFormat | undefined;
+            }>,
+        ) => {
+            const { dimension, formatOptions } = action.payload;
+            const dimensionId = getItemId(dimension);
+            if (!state.unsavedChartVersion.metricQuery.dimensionOverrides) {
+                state.unsavedChartVersion.metricQuery.dimensionOverrides = {};
+            }
+            state.unsavedChartVersion.metricQuery.dimensionOverrides[
+                dimensionId
+            ] = {
                 formatOptions,
             };
         },

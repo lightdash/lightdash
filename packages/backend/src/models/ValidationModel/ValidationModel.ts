@@ -14,11 +14,13 @@ import {
     ValidationSourceType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { DatabaseError } from 'pg';
 import {
     DashboardsTableName,
     DashboardTable,
     DashboardVersionsTableName,
 } from '../../database/entities/dashboards';
+import { ProjectTableName } from '../../database/entities/projects';
 import {
     SavedChartsTableName,
     SavedChartTable,
@@ -29,6 +31,7 @@ import {
     DbValidationTable,
     ValidationTableName,
 } from '../../database/entities/validation';
+import Logger from '../../logging/logger';
 
 type ValidationModelArguments = {
     database: Knex;
@@ -41,42 +44,93 @@ export class ValidationModel {
         this.database = args.database;
     }
 
-    async create(
+    async create({
+        projectUuid,
+        validations,
+        jobId,
+    }: {
+        projectUuid: string;
+        validations: CreateValidation[];
+        jobId?: string;
+    }): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            // Lock the project to avoid concurrent validation updates
+            await trx(ProjectTableName)
+                .where('project_uuid', projectUuid)
+                .forUpdate();
+
+            if (validations.length > 0) {
+                await ValidationModel.create(trx, validations, jobId);
+            }
+        });
+    }
+
+    static async create(
+        transaction: Knex.Transaction,
         validations: CreateValidation[],
         jobId?: string,
     ): Promise<void> {
         if (validations.length > 0) {
-            await this.database.batchInsert(
-                ValidationTableName,
-                validations.map((validation) => ({
-                    project_uuid: validation.projectUuid,
-                    error: validation.error,
-                    job_id: jobId ?? null,
-                    error_type: validation.errorType,
-                    source: validation.source ?? null,
-                    ...(isTableValidationError(validation) && {
-                        model_name: validation.modelName,
-                    }),
-                    ...(isChartValidationError(validation) && {
-                        saved_chart_uuid: validation.chartUuid,
-                        field_name: validation.fieldName,
-                        chart_name: validation.chartName ?? null,
-                    }),
-                    ...(isDashboardValidationError(validation) && {
-                        dashboard_uuid: validation.dashboardUuid,
-                        field_name: validation.fieldName ?? null,
-                        chart_name: validation.chartName ?? null,
-                        model_name: validation.name,
-                    }),
-                })),
-            );
+            try {
+                await transaction.batchInsert(
+                    ValidationTableName,
+                    validations.map((validation) => ({
+                        project_uuid: validation.projectUuid,
+                        error: validation.error,
+                        job_id: jobId ?? null,
+                        error_type: validation.errorType,
+                        source: validation.source ?? null,
+                        ...(isTableValidationError(validation) && {
+                            model_name: validation.modelName,
+                        }),
+                        ...(isChartValidationError(validation) && {
+                            saved_chart_uuid: validation.chartUuid,
+                            field_name: validation.fieldName,
+                            chart_name: validation.chartName ?? null,
+                        }),
+                        ...(isDashboardValidationError(validation) && {
+                            dashboard_uuid: validation.dashboardUuid,
+                            field_name: validation.fieldName ?? null,
+                            chart_name: validation.chartName ?? null,
+                            model_name: validation.name,
+                        }),
+                    })),
+                );
+            } catch (error: unknown) {
+                const FOREIGN_KEY_VIOLATION_ERROR_CODE = '23503';
+                if (
+                    error instanceof DatabaseError &&
+                    error.code === FOREIGN_KEY_VIOLATION_ERROR_CODE &&
+                    error.constraint === 'validations_project_uuid_foreign'
+                ) {
+                    Logger.warn(
+                        `Failed to insert validations: Project UUID (${validations[0].projectUuid}) does not exist. This may happen if the project was deleted during validation.`,
+                    );
+                    return;
+                }
+                throw error;
+            }
         }
     }
 
-    async delete(projectUuid: string): Promise<void> {
-        await this.database(ValidationTableName)
-            .where({ project_uuid: projectUuid })
-            .delete();
+    async replaceProjectValidations(
+        projectUuid: string,
+        validations: CreateValidation[],
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            // Lock the project to avoid concurrent validation updates
+            await trx(ProjectTableName)
+                .where('project_uuid', projectUuid)
+                .forUpdate();
+
+            await trx(ValidationTableName)
+                .where({ project_uuid: projectUuid })
+                .delete();
+
+            if (validations.length > 0) {
+                await ValidationModel.create(trx, validations);
+            }
+        });
     }
 
     async getByValidationId(

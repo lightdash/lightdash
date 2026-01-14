@@ -5,28 +5,22 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Anchor,
     Box,
     Button,
-    Card,
-    Flex,
     Group,
-    Menu,
-    Popover,
+    Paper,
     Stack,
     Switch,
     Text,
     Tooltip,
-} from '@mantine/core';
-import {
-    IconDots,
-    IconInfoCircle,
-    IconPencil,
-    IconRefresh,
-    IconTrash,
-} from '@tabler/icons-react';
+} from '@mantine-8/core';
+import { IconPencil, IconSend, IconTrash } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 import { useChartSchedulers } from '../../../features/scheduler/hooks/useChartSchedulers';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
@@ -36,6 +30,7 @@ import { useSendNowScheduler } from '../../scheduler/hooks/useScheduler';
 import { useSchedulersEnabledUpdateMutation } from '../../scheduler/hooks/useSchedulersUpdateMutation';
 import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
+import { GoogleSheetsInfoPopover } from './GoogleSheetsInfoPopover';
 
 const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
     const { mutate: mutateSchedulerEnabled } =
@@ -48,15 +43,16 @@ const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
     return (
         <Tooltip
             withinPortal
+            variant="xs"
+            maw={130}
             label={
                 scheduler.enabled
                     ? 'Toggle off to temporarily pause notifications'
                     : 'Notifications paused. Toggle on to resume'
             }
         >
-            <Box>
+            <Box mr="sm">
                 <Switch
-                    mr="sm"
                     checked={schedulerEnabled}
                     onChange={() => {
                         mutateSchedulerEnabled(!schedulerEnabled);
@@ -68,7 +64,9 @@ const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
     );
 };
 
-export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
+type Props = { chartUuid: string } & Pick<MantineModalProps, 'onClose'>;
+
+export const SyncModalView: FC<Props> = ({ chartUuid, onClose }) => {
     const { data } = useChartSchedulers(chartUuid);
     const { setAction, setCurrentSchedulerUuid } = useSyncModal();
     const googleSheetsSyncs = data?.filter(
@@ -85,95 +83,78 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
     if (!project) return null;
 
     return (
-        <>
-            <Stack spacing="lg" mih={300}>
-                {googleSheetsSyncs && googleSheetsSyncs.length ? (
-                    <Stack pt="md" pb="xl">
-                        {googleSheetsSyncs.map((sync) => (
-                            <Card
-                                key={sync.schedulerUuid}
-                                withBorder
-                                pos="relative"
-                                p="xs"
-                                sx={{
-                                    overflow: 'visible', // To show tooltips on hover
-                                }}
-                            >
-                                <Flex align="center" justify="space-between">
-                                    <Stack spacing="xs">
-                                        <Text fz="sm" fw={500}>
-                                            {sync.name}
-                                        </Text>
+        <MantineModal
+            opened
+            onClose={onClose}
+            title="Sync with Google Sheets"
+            icon={GSheetsIcon}
+            size="xl"
+            leftActions={<GoogleSheetsInfoPopover />}
+            actions={
+                <Button onClick={() => setAction(SyncModalAction.CREATE)}>
+                    Create
+                </Button>
+            }
+            modalBodyProps={{
+                bg: 'background',
+                mah: 500,
+                mih: 300,
+            }}
+        >
+            {googleSheetsSyncs && googleSheetsSyncs.length ? (
+                <Stack>
+                    {googleSheetsSyncs.map((sync) => (
+                        <Paper
+                            key={sync.schedulerUuid}
+                            p="sm"
+                            withBorder
+                            style={{
+                                overflow: 'hidden',
+                            }}
+                        >
+                            <Group wrap="nowrap" justify="space-between">
+                                <Stack gap="xs">
+                                    <Text fz="sm" fw={600} truncate>
+                                        {sync.name}
+                                    </Text>
 
-                                        <Flex
-                                            align="center"
-                                            justify="space-between"
-                                        >
-                                            <Text
-                                                span
-                                                size="xs"
-                                                color="ldGray.6"
-                                            >
-                                                {getHumanReadableCronExpression(
-                                                    sync.cron,
-                                                    sync.timezone ||
-                                                        project.schedulerTimezone,
-                                                )}
-                                            </Text>
-                                        </Flex>
-                                    </Stack>
-                                    <Group mr="lg">
-                                        <Tooltip withinPortal label="Sync now">
-                                            <ActionIcon
-                                                color="ldGray.7"
-                                                p="xs"
-                                                size="lg"
-                                                disabled={isSendingNowLoading}
-                                                onClick={() => {
-                                                    track({
-                                                        name: EventName.SCHEDULER_SEND_NOW_BUTTON,
-                                                    });
-                                                    mutateSendNow(sync);
-                                                }}
-                                            >
-                                                <MantineIcon
-                                                    icon={IconRefresh}
-                                                />
-                                            </ActionIcon>
-                                        </Tooltip>
+                                    <Text size="xs" c="ldGray.6">
+                                        {getHumanReadableCronExpression(
+                                            sync.cron,
+                                            sync.timezone ||
+                                                project.schedulerTimezone,
+                                        )}
+                                    </Text>
+                                </Stack>
 
-                                        <ToggleSyncEnabled scheduler={sync} />
-                                    </Group>
-                                </Flex>
+                                <Group wrap="nowrap" gap="xs">
+                                    <ToggleSyncEnabled scheduler={sync} />
 
-                                <Menu
-                                    shadow="md"
-                                    withinPortal
-                                    withArrow
-                                    offset={{
-                                        crossAxis: -4,
-                                        mainAxis: -4,
-                                    }}
-                                    position="bottom-end"
-                                >
-                                    <Menu.Target>
+                                    <Tooltip withinPortal label="Sync now">
                                         <ActionIcon
-                                            pos="absolute"
-                                            top={0}
-                                            right={0}
-                                        >
-                                            <MantineIcon icon={IconDots} />
-                                        </ActionIcon>
-                                    </Menu.Target>
-
-                                    <Menu.Dropdown>
-                                        <Menu.Item
+                                            variant="light"
+                                            radius="md"
+                                            color="ldDark.9"
                                             disabled={isSendingNowLoading}
-                                            icon={
-                                                <MantineIcon
-                                                    icon={IconPencil}
-                                                />
-                                            }
+                                            onClick={() => {
+                                                track({
+                                                    name: EventName.SCHEDULER_SEND_NOW_BUTTON,
+                                                });
+                                                mutateSendNow(sync);
+                                            }}
+                                        >
+                                            <MantineIcon
+                                                color="ldDark.9"
+                                                icon={IconSend}
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+
+                                    <Tooltip withinPortal label="Edit">
+                                        <ActionIcon
+                                            variant="light"
+                                            radius="md"
+                                            color="ldDark.9"
                                             onClick={() => {
                                                 setAction(SyncModalAction.EDIT);
                                                 setCurrentSchedulerUuid(
@@ -181,15 +162,18 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                                 );
                                             }}
                                         >
-                                            Edit
-                                        </Menu.Item>
-                                        <Menu.Item
-                                            icon={
-                                                <MantineIcon
-                                                    color="red"
-                                                    icon={IconTrash}
-                                                />
-                                            }
+                                            <MantineIcon
+                                                color="ldDark.9"
+                                                icon={IconPencil}
+                                            />
+                                        </ActionIcon>
+                                    </Tooltip>
+
+                                    <Tooltip withinPortal label="Delete">
+                                        <ActionIcon
+                                            variant="light"
+                                            color="red"
+                                            radius="md"
                                             onClick={() => {
                                                 setAction(
                                                     SyncModalAction.DELETE,
@@ -199,84 +183,25 @@ export const SyncModalView: FC<{ chartUuid: string }> = ({ chartUuid }) => {
                                                 );
                                             }}
                                         >
-                                            Delete
-                                        </Menu.Item>
-                                    </Menu.Dropdown>
-                                </Menu>
-                            </Card>
-                        ))}
-                    </Stack>
-                ) : (
-                    <Group
-                        position="center"
-                        ta="center"
-                        spacing="xs"
-                        my="sm"
-                        pt="md"
-                    >
-                        <Text fz="sm" fw={450} c="ldGray.7">
-                            This chart has no Syncs set up yet
-                        </Text>
-                        <Text fz="xs" fw={400} c="ldGray.6">
-                            Get started by clicking 'Create new Sync' to
-                            seamlessly integrate your chart data with Google
-                            Sheets
-                        </Text>
-                    </Group>
-                )}
-            </Stack>
-            <Flex
-                sx={(theme) => ({
-                    position: 'sticky',
-                    backgroundColor: theme.colors.background[0],
-                    borderTop: `1px solid ${theme.colors.ldGray[4]}`,
-                    bottom: 0,
-                    zIndex: 2,
-                    margin: -16, // TODO: is there a way to negate theme values?
-                    padding: theme.spacing.md,
-                })}
-                justify="space-between"
-                align="center"
-            >
-                <Popover withinPortal width={150} withArrow>
-                    <Popover.Target>
-                        <Button
-                            size="xs"
-                            fz={9}
-                            variant="subtle"
-                            color="gray"
-                            leftIcon={
-                                <MantineIcon size={12} icon={IconInfoCircle} />
-                            }
-                        >
-                            Google API Services User Data Policy
-                        </Button>
-                    </Popover.Target>
-
-                    <Popover.Dropdown>
-                        <Text fz={9}>
-                            Lightdash's use and transfer of information received
-                            from Google APIs adhere to{' '}
-                            <Anchor
-                                target="_blank"
-                                href="https://developers.google.com/terms/api-services-user-data-policy"
-                            >
-                                Google API Services User Data Policy
-                            </Anchor>
-                            , including the Limited Use requirements.
-                        </Text>
-                    </Popover.Dropdown>
-                </Popover>
-
-                <Button
-                    size="sm"
-                    display="block"
-                    ml="auto"
-                    onClick={() => setAction(SyncModalAction.CREATE)}
-                >
-                    Create New Sync
-                </Button>
-            </Flex>
-        </>
+                                            <MantineIcon icon={IconTrash} />
+                                        </ActionIcon>
+                                    </Tooltip>
+                                </Group>
+                            </Group>
+                        </Paper>
+                    ))}
+                </Stack>
+            ) : (
+                <Group justify="center" ta="center" gap="xs" my="sm" pt="md">
+                    <Text fz="sm" fw={450} c="ldGray.7">
+                        This chart has no Syncs set up yet
+                    </Text>
+                    <Text fz="xs" fw={400} c="ldGray.6">
+                        Get started by clicking 'Create new Sync' to seamlessly
+                        integrate your chart data with Google Sheets
+                    </Text>
+                </Group>
+            )}
+        </MantineModal>
     );
 };

@@ -4,9 +4,12 @@ import {
     assertUnreachable,
     AuthorizationError,
     ChartType,
+    DashboardTileTypes,
     DownloadFileType,
+    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
+    HealthState,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     LightdashMode,
@@ -15,6 +18,7 @@ import {
     ParameterError,
     QueryHistoryStatus,
     RequestMethod,
+    SCREENSHOT_SELECTORS,
     ScreenshotError,
     SessionStorageKeys,
     SessionUser,
@@ -38,7 +42,7 @@ import * as fsPromise from 'fs/promises';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import { PDFDocument } from 'pdf-lib';
-import playwright from 'playwright';
+import playwright, { type ElementHandle } from 'playwright';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { S3Client } from '../../clients/Aws/S3Client';
 import { SlackClient } from '../../clients/Slack/SlackClient';
@@ -51,6 +55,7 @@ import { slackErrorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
@@ -65,7 +70,7 @@ const uuidRegex = new RegExp(uuid, 'g');
 const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
 const createQueryEndpointRegex = /\/query/;
-const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}`);
+const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}(?!/results)`);
 
 const viewport = {
     width: 1400,
@@ -155,6 +160,7 @@ type UnfurlServiceArguments = {
     downloadFileModel: DownloadFileModel;
     analytics: LightdashAnalytics;
     slackAuthenticationModel: SlackAuthenticationModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class UnfurlService extends BaseService {
@@ -180,6 +186,8 @@ export class UnfurlService extends BaseService {
 
     slackAuthenticationModel: SlackAuthenticationModel;
 
+    featureFlagModel: FeatureFlagModel;
+
     constructor({
         lightdashConfig,
         dashboardModel,
@@ -192,6 +200,7 @@ export class UnfurlService extends BaseService {
         slackClient,
         analytics,
         slackAuthenticationModel,
+        featureFlagModel,
     }: UnfurlServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -205,12 +214,14 @@ export class UnfurlService extends BaseService {
         this.downloadFileModel = downloadFileModel;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private async waitForAllPaginatedResultsResponse(
         page: playwright.Page,
         expectedResponses: number,
         timeout: number,
+        useScreenshotReadyIndicator: boolean,
     ) {
         if (expectedResponses === 0) {
             return undefined;
@@ -228,11 +239,37 @@ export class UnfurlService extends BaseService {
                     this.logger.debug(
                         `Received paginated response: ${response.url()}`,
                     );
-                    const body = await response.body();
-                    const json = JSON.parse(body.toString()) as Partial<{
+
+                    if (!response.ok()) {
+                        this.logger.warn(
+                            `Paginated response returned non-OK status ${response.status()} for ${response.url()}`,
+                        );
+                        return;
+                    }
+
+                    let body: Buffer;
+                    try {
+                        body = await response.body();
+                    } catch (error) {
+                        this.logger.debug(
+                            `Failed to get response body for ${response.url()}, skipping`,
+                        );
+                        return;
+                    }
+                    let json: Partial<{
                         status: 'ok';
                         results: ApiGetAsyncQueryResults;
                     }>;
+                    try {
+                        json = JSON.parse(body.toString());
+                    } catch (parseError) {
+                        this.logger.warn(
+                            `Failed to parse paginated response as JSON from ${response.url()}: ${body
+                                .toString()
+                                .slice(0, 100)}`,
+                        );
+                        return;
+                    }
 
                     // Check if is last page (aka has no next page)
                     if (
@@ -269,14 +306,17 @@ export class UnfurlService extends BaseService {
         // Wait for dashboard/chart to be ready for screenshot
         const self = this;
         async function waitForAllLoaded() {
-            if (self.lightdashConfig.scheduler.useScreenshotReadyIndicator) {
+            if (useScreenshotReadyIndicator) {
                 self.logger.info(
-                    'Waiting for screenshot ready indicator (SCHEDULER_USE_SCREENSHOT_READY_INDICATOR=true)',
+                    'Waiting for screenshot ready indicator (feature flag enabled)',
                 );
-                await page.waitForSelector('#lightdash-ready-indicator', {
-                    state: 'attached',
-                    timeout,
-                });
+                await page.waitForSelector(
+                    SCREENSHOT_SELECTORS.READY_INDICATOR,
+                    {
+                        state: 'attached',
+                        timeout,
+                    },
+                );
                 self.logger.info(
                     'Screenshot ready indicator found - dashboard is ready',
                 );
@@ -285,12 +325,12 @@ export class UnfurlService extends BaseService {
 
             // Legacy approach: wait for loading overlays
             // Wait for all the loading overlays to be in the DOM
-            await page.waitForSelector('.loading_chart_overlay', {
+            await page.waitForSelector(SCREENSHOT_SELECTORS.LOADING_OVERLAY, {
                 state: 'attached',
             });
 
             // Wait for the loading overlay to be hidden (loading is complete)
-            await page.waitForSelector('.loading_chart_overlay', {
+            await page.waitForSelector(SCREENSHOT_SELECTORS.LOADING_OVERLAY, {
                 state: 'hidden',
             });
         }
@@ -312,11 +352,15 @@ export class UnfurlService extends BaseService {
         ]);
     }
 
-    private async waitForPaginatedResultsResponse(page: playwright.Page) {
+    private async waitForPaginatedResultsResponse(
+        page: playwright.Page,
+        useScreenshotReadyIndicator: boolean,
+    ) {
         return this.waitForAllPaginatedResultsResponse(
             page,
             1,
             RESPONSE_TIMEOUT_MS,
+            useScreenshotReadyIndicator,
         );
     }
 
@@ -331,6 +375,7 @@ export class UnfurlService extends BaseService {
             resourceUuid?: string;
             chartTileUuids?: (string | null)[];
             sqlChartTileUuids?: (string | null)[];
+            loomTileUuids?: (string | null)[];
         }
     > {
         switch (parsedUrl.lightdashPage) {
@@ -363,6 +408,9 @@ export class UnfurlService extends BaseService {
                     sqlChartTileUuids: filteredTiles
                         .filter(isDashboardSqlChartTile)
                         .map((t) => t.properties.savedSqlUuid),
+                    loomTileUuids: filteredTiles
+                        .filter((t) => t.type === DashboardTileTypes.LOOM)
+                        .map((t) => t.uuid),
                 };
             case LightdashPage.CHART:
                 if (!parsedUrl.chartUuid)
@@ -435,6 +483,7 @@ export class UnfurlService extends BaseService {
             resourceUuid,
             chartTileUuids: rest.chartTileUuids,
             sqlChartTileUuids: rest.sqlChartTileUuids,
+            loomTileUuids: rest.loomTileUuids,
         };
     }
 
@@ -515,6 +564,7 @@ export class UnfurlService extends BaseService {
             selector,
             chartTileUuids: details?.chartTileUuids,
             sqlChartTileUuids: details?.sqlChartTileUuids,
+            loomTileUuids: details?.loomTileUuids,
             context,
             contextId,
             selectedTabs,
@@ -647,6 +697,7 @@ export class UnfurlService extends BaseService {
         if (unfurlImage.imageUrl === undefined) {
             throw new Error('Unable to unfurl image');
         }
+        this.logger.info(`Dashboard "${name}" exported successfully`);
         return unfurlImage.imageUrl;
     }
 
@@ -664,6 +715,7 @@ export class UnfurlService extends BaseService {
         selector = 'body',
         chartTileUuids = undefined,
         sqlChartTileUuids = undefined,
+        loomTileUuids = undefined,
         retries = this.lightdashConfig.headlessBrowser.maxScreenshotRetries ??
             DEFAULT_SCREENSHOT_RETRIES,
         context,
@@ -685,6 +737,7 @@ export class UnfurlService extends BaseService {
         selector?: string;
         chartTileUuids?: (string | null)[] | undefined;
         sqlChartTileUuids?: (string | null)[] | undefined;
+        loomTileUuids?: (string | null)[] | undefined;
         retries?: number;
         context: ScreenshotContext;
         contextId?: unknown;
@@ -727,6 +780,21 @@ export class UnfurlService extends BaseService {
                     'page.organizationUuid': organizationUuid ?? 'undefined',
                     'page.userUuid': authUserUuid ?? 'undefined',
                 });
+
+                const screenshotReadyIndicatorFlag =
+                    await this.featureFlagModel.get({
+                        featureFlagId: FeatureFlags.ScreenshotReadyIndicator,
+                        user: organizationUuid
+                            ? {
+                                  userUuid: authUserUuid,
+                                  organizationUuid,
+                                  organizationName: '', // Not used by this feature flag
+                              }
+                            : undefined,
+                    });
+                const useScreenshotReadyIndicator =
+                    screenshotReadyIndicatorFlag.enabled;
+
                 let browser: playwright.Browser | undefined;
                 let page: playwright.Page | undefined;
 
@@ -778,6 +846,30 @@ export class UnfurlService extends BaseService {
                                 ? contextId.toString()
                                 : 'undefined',
                         },
+                    });
+
+                    // Polyfill crypto.randomUUID (needed for Loom iframes)
+                    await page.addInitScript(() => {
+                        if (
+                            typeof crypto !== 'undefined' &&
+                            !crypto.randomUUID
+                        ) {
+                            /* eslint-disable no-bitwise */
+                            crypto.randomUUID =
+                                (): `${string}-${string}-${string}-${string}-${string}` =>
+                                    '10000000-1000-4000-8000-100000000000'.replace(
+                                        /[018]/g,
+                                        (c: string) =>
+                                            (
+                                                Number(c) ^
+                                                (crypto.getRandomValues(
+                                                    new Uint8Array(1),
+                                                )[0] &
+                                                    (15 >> (Number(c) / 4)))
+                                            ).toString(16),
+                                    ) as `${string}-${string}-${string}-${string}-${string}`;
+                            /* eslint-enable no-bitwise */
+                        }
                     });
 
                     // Add sendNowSchedulerFilters and sendNowSchedulerParameters to the page session storage
@@ -849,6 +941,52 @@ export class UnfurlService extends BaseService {
                                 regex.test(responseUrl),
                             );
 
+                        const isHealthEndpointMatch =
+                            responseUrl.includes('api/v1/health');
+
+                        if (isHealthEndpointMatch) {
+                            response.body().then(
+                                (buffer) => {
+                                    const status = response.status();
+                                    if (status >= 400) {
+                                        this.logger.error(
+                                            `Headless browser response error - url: ${responseUrl}, code: ${response.status()}, text: ${buffer}`,
+                                        );
+                                    } else {
+                                        try {
+                                            const json = JSON.parse(
+                                                buffer.toString(),
+                                            ) as {
+                                                status: 'ok';
+                                                results: HealthState;
+                                            };
+                                            if (
+                                                json.results.isAuthenticated ===
+                                                false
+                                            ) {
+                                                this.logger.error(
+                                                    `Headless browser health check failed: user is not authenticated - url: ${responseUrl}`,
+                                                );
+                                            }
+                                        } catch (parseError) {
+                                            this.logger.warn(
+                                                `Failed to parse health response - url: ${responseUrl}, error: ${getErrorMessage(
+                                                    parseError,
+                                                )}`,
+                                            );
+                                        }
+                                    }
+                                },
+                                (error) => {
+                                    this.logger.error(
+                                        `Headless browser response buffer error: ${getErrorMessage(
+                                            error,
+                                        )}`,
+                                    );
+                                },
+                            );
+                        }
+
                         if (isResultsEndpointMatch) {
                             response.body().then(
                                 (buffer) => {
@@ -907,7 +1045,10 @@ export class UnfurlService extends BaseService {
                             let exploreChartResultsPromise:
                                 | Promise<unknown>
                                 | undefined;
-                            if (chartTileUuids) {
+                            if (
+                                chartTileUuids &&
+                                !useScreenshotReadyIndicator
+                            ) {
                                 this.logger.info(
                                     `Dashboard screenshot: Found ${
                                         chartTileUuids.length
@@ -934,6 +1075,7 @@ export class UnfurlService extends BaseService {
                                         expectedPaginatedResponses,
                                         expectedPaginatedResponses *
                                             RESPONSE_TIMEOUT_MS,
+                                        useScreenshotReadyIndicator,
                                     ); // NOTE: No await here
                             }
 
@@ -967,7 +1109,11 @@ export class UnfurlService extends BaseService {
                             const hasSqlCharts =
                                 filteredSqlChartTileUuids &&
                                 filteredSqlChartTileUuids.length > 0;
-                            if (hasSqlCharts && page) {
+                            if (
+                                hasSqlCharts &&
+                                page &&
+                                !useScreenshotReadyIndicator
+                            ) {
                                 sqlInitialLoadPromises =
                                     filteredSqlChartTileUuids.map((id) => {
                                         const responsePattern = new RegExp(
@@ -1009,8 +1155,29 @@ export class UnfurlService extends BaseService {
                                 ];
                             }
 
+                            let loomTileResultsPromises:
+                                | (Promise<ElementHandle | null> | undefined)[]
+                                | undefined;
+
+                            if (loomTileUuids && loomTileUuids.length > 0) {
+                                this.logger.info(
+                                    `Dashboard screenshot: Waiting for ${loomTileUuids.length} Loom tile(s) to load`,
+                                );
+                                loomTileResultsPromises = loomTileUuids.map(
+                                    (id) =>
+                                        page?.waitForSelector(
+                                            `#loom-loaded-${id}`,
+                                            {
+                                                state: 'attached',
+                                                timeout: RESPONSE_TIMEOUT_MS,
+                                            },
+                                        ),
+                                );
+                            }
+
                             chartResultsPromises = [
                                 exploreChartResultsPromise,
+                                ...(loomTileResultsPromises || []),
                                 ...(sqlInitialLoadPromises || []),
                                 ...(sqlResultsJobPromises || []),
                                 ...(sqlResultsPromises || []),
@@ -1020,16 +1187,24 @@ export class UnfurlService extends BaseService {
                             lightdashPage === LightdashPage.CHART ||
                             lightdashPage === LightdashPage.EXPLORE
                         ) {
-                            chartResultsPromises = [
-                                this.waitForPaginatedResultsResponse(page),
-                            ]; // NOTE: No await here
+                            if (!useScreenshotReadyIndicator) {
+                                chartResultsPromises = [
+                                    this.waitForPaginatedResultsResponse(
+                                        page,
+                                        useScreenshotReadyIndicator,
+                                    ),
+                                ]; // NOTE: No await here
+                            }
                         }
 
                         await page.goto(url, {
                             timeout: 150000,
                         });
 
-                        if (chartResultsPromises) {
+                        if (
+                            chartResultsPromises &&
+                            !useScreenshotReadyIndicator
+                        ) {
                             // We wait after navigating to the page
                             await Promise.allSettled(chartResultsPromises);
                         }
@@ -1039,15 +1214,12 @@ export class UnfurlService extends BaseService {
                         );
                     }
 
-                    if (
-                        this.lightdashConfig.scheduler
-                            .useScreenshotReadyIndicator
-                    ) {
+                    if (useScreenshotReadyIndicator) {
                         this.logger.info(
-                            'Waiting for screenshot ready indicator (SCHEDULER_USE_SCREENSHOT_READY_INDICATOR=true)',
+                            'Waiting for screenshot ready indicator (feature flag enabled)',
                         );
                         await page.waitForSelector(
-                            '#lightdash-ready-indicator',
+                            SCREENSHOT_SELECTORS.READY_INDICATOR,
                             {
                                 state: 'attached',
                                 timeout: RESPONSE_TIMEOUT_MS,
@@ -1060,7 +1232,7 @@ export class UnfurlService extends BaseService {
                         if (lightdashPage === LightdashPage.DASHBOARD) {
                             // Wait for markdown tiles specifically
                             const markdownTiles = await page
-                                .locator('.markdown-tile')
+                                .locator(SCREENSHOT_SELECTORS.MARKDOWN_TILE)
                                 .all();
                             await Promise.all(
                                 markdownTiles.map((tile) =>
@@ -1068,7 +1240,7 @@ export class UnfurlService extends BaseService {
                                 ),
                             );
                             const loadingChartOverlays = await page
-                                .locator('.loading_chart_overlay')
+                                .locator(SCREENSHOT_SELECTORS.LOADING_OVERLAY)
                                 .all();
                             await Promise.all(
                                 loadingChartOverlays.map(
@@ -1084,7 +1256,7 @@ export class UnfurlService extends BaseService {
                         // If some charts are still loading even though their API requests have finished(or past the timeout), we wait for them to finish
                         // Reference: https://playwright.dev/docs/api/class-locator#locator-all
                         const loadingCharts = await page
-                            .locator('.loading_chart')
+                            .locator(SCREENSHOT_SELECTORS.LOADING_CHART)
                             .all();
                         await Promise.all(
                             loadingCharts.map((loadingChart) =>
@@ -1103,7 +1275,7 @@ export class UnfurlService extends BaseService {
                     if (lightdashPage === LightdashPage.EXPLORE) {
                         finalSelector = `[data-testid="visualization"]`;
                     } else if (lightdashPage === LightdashPage.DASHBOARD) {
-                        finalSelector = '.react-grid-layout';
+                        finalSelector = SCREENSHOT_SELECTORS.DASHBOARD_GRID;
                     }
 
                     const fullPage = await page.locator(finalSelector);
@@ -1159,6 +1331,7 @@ export class UnfurlService extends BaseService {
                         errorMessage.includes(
                             'Target page, context or browser has been closed',
                         ) ||
+                        errorMessage.includes('not attached to the DOM') ||
                         isQueueFullError;
 
                     if (isRetryableError && retries) {
@@ -1205,6 +1378,7 @@ export class UnfurlService extends BaseService {
                             selector,
                             chartTileUuids,
                             sqlChartTileUuids,
+                            loomTileUuids,
                             retries,
                             context,
                             contextId,
@@ -1349,6 +1523,7 @@ export class UnfurlService extends BaseService {
     }
 
     private async getUserCookie(userUuid: string): Promise<string> {
+        this.logger.debug(`Getting cookie for user ${userUuid}`);
         const token = getAuthenticationToken(userUuid);
         // Use internal URL for the request (could be the same as the site URL)
         const internalUrl = new URL(
@@ -1380,6 +1555,7 @@ export class UnfurlService extends BaseService {
                 }`,
             );
         }
+        this.logger.debug(`Successfully got cookie for user ${userUuid}`);
         return header;
     }
 
@@ -1444,6 +1620,14 @@ export class UnfurlService extends BaseService {
                     );
 
                     await this.sendUnfurl(event, l.url, details, client);
+
+                    // Skip image generation if link preview images are disabled
+                    if (
+                        !this.lightdashConfig.slack
+                            ?.linkShareImagePreviewEnabled
+                    ) {
+                        return;
+                    }
 
                     const imageId = `slack-image-${useNanoid()}`;
                     const authUserUuid =

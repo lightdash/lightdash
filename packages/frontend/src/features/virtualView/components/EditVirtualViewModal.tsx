@@ -1,14 +1,5 @@
 import { type Explore } from '@lightdash/common';
-import {
-    Button,
-    Center,
-    Group,
-    Loader,
-    Modal,
-    Stack,
-    Text,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, Center, Loader, Modal, Stack, Text } from '@mantine-8/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import {
     Suspense,
@@ -19,7 +10,9 @@ import {
     type FC,
 } from 'react';
 import { useNavigate } from 'react-router';
-import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 import {
     explorerActions,
     selectTableName,
@@ -29,7 +22,7 @@ import {
 import useSearchParams from '../../../hooks/useSearchParams';
 import { defaultState } from '../../../providers/Explorer/defaultState';
 
-type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
+type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     activeTableName: string;
     setIsEditVirtualViewOpen: (value: boolean) => void;
     explore: Explore;
@@ -71,82 +64,67 @@ export const EditVirtualViewModal: FC<Props> = ({
         }
     };
 
-    return (
-        <Modal
-            opened={opened}
-            closeOnClickOutside={false}
-            withCloseButton={false}
-            onClose={handleClose}
-            title={
-                modalStep === 'unsavedChanges' ? (
-                    <Group spacing="xs">
-                        <MantineIcon icon={IconAlertCircle} />
-                        <Text fw={500}>You have unsaved changes</Text>
-                    </Group>
-                ) : null
-            }
-            size={modalStep === 'editVirtualView' ? '97vw' : 'lg'}
-            yOffset={modalStep === 'editVirtualView' ? '3vh' : undefined}
-            xOffset={modalStep === 'editVirtualView' ? '2vw' : undefined}
-            centered={modalStep !== 'editVirtualView'}
-            styles={(theme) => ({
-                header: {
-                    padding:
-                        modalStep === 'editVirtualView' ? 0 : theme.spacing.md,
-                },
-                body: {
-                    padding:
-                        modalStep === 'editVirtualView' ? 0 : theme.spacing.md,
-                },
-            })}
-        >
-            {modalStep === 'unsavedChanges' && (
-                <Stack>
-                    <Text fz="sm">
-                        Are you sure you want to leave this page? Changes you've
-                        made to your query will not be saved.
-                    </Text>
-                    <Group position="right">
-                        <Button variant="outline" onClick={onClose}>
-                            Cancel
-                        </Button>
-                        <Button
-                            color="red"
-                            onClick={() => {
-                                startTransition(() => {
-                                    handleClearQuery();
-                                    setModalStep('editVirtualView');
-                                });
-                            }}
-                            loading={isPending}
-                        >
-                            Discard & continue
-                        </Button>
-                    </Group>
-                </Stack>
-            )}
-            {modalStep === 'editVirtualView' && (
-                <Suspense
-                    fallback={
-                        <Center h="95vh" w="95vw">
-                            <Stack align="center" justify="center">
-                                <Loader variant="bars" />
-                                <Text fw={500}>Loading SQL Runner...</Text>
-                            </Stack>
-                        </Center>
-                    }
-                >
-                    <SqlRunnerPage
-                        isEditMode
-                        virtualViewState={{
-                            name: explore.name,
-                            label: explore.label,
-                            sql: explore.tables[activeTableName].sqlTable,
-                            onCloseEditVirtualView: onClose,
+    if (modalStep === 'unsavedChanges') {
+        return (
+            <MantineModal
+                opened={opened}
+                onClose={onClose}
+                title="You have unsaved changes"
+                icon={IconAlertCircle}
+                description="Are you sure you want to leave this page? Changes you've made to your query will not be saved."
+                actions={
+                    <Button
+                        color="red"
+                        onClick={() => {
+                            startTransition(() => {
+                                handleClearQuery();
+                                setModalStep('editVirtualView');
+                            });
                         }}
-                    />
-                </Suspense>
-            )}
-        </Modal>
+                        loading={isPending}
+                    >
+                        Discard & continue
+                    </Button>
+                }
+            />
+        );
+    }
+
+    return (
+        <Modal.Root
+            opened={opened && modalStep === 'editVirtualView'}
+            onClose={handleClose}
+            size="97vw"
+            centered={false}
+            yOffset="3vh"
+            xOffset="2vw"
+            closeOnClickOutside={false}
+        >
+            <Modal.Overlay />
+            <Modal.Content>
+                <Modal.Body p={0}>
+                    <Suspense
+                        fallback={
+                            <Center h="95vh" w="95vw">
+                                <Stack align="center" justify="center">
+                                    <Loader type="bars" />
+                                    <Text fw={500}>Loading SQL Runner...</Text>
+                                </Stack>
+                            </Center>
+                        }
+                    >
+                        <SqlRunnerPage
+                            isEditMode
+                            virtualViewState={{
+                                name: explore.name,
+                                label: explore.label,
+                                sql: explore.tables[activeTableName].sqlTable,
+                                onCloseEditVirtualView: onClose,
+                            }}
+                        />
+                    </Suspense>
+                </Modal.Body>
+            </Modal.Content>
+        </Modal.Root>
     );
 };

@@ -25,15 +25,14 @@ import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
-import { EmptyChart, LoadingChart } from '../SimpleChart';
+import { EmptyChart } from '../SimpleChart';
+import LoadingChart from '../common/LoadingChart';
 import MantineIcon from '../common/MantineIcon';
 import BigNumberContextMenu from './BigNumberContextMenu';
 import styles from './SimpleStatistic.module.css';
 
 interface SimpleStatisticsProps extends HTMLAttributes<HTMLDivElement> {
     minimal?: boolean;
-    isTitleHidden?: boolean;
-    isDashboard?: boolean;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 }
@@ -280,13 +279,6 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
                 setRef(elem);
             }}
             {...wrapperProps}
-            styles={{
-                root: {
-                    // TODO: remove this once Inter is the default font
-                    fontFamily:
-                        'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-                },
-            }}
         >
             <Flex style={{ flexShrink: 1 }} justify="center" align="center">
                 {shouldHideContextMenu ? (

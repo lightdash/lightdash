@@ -83,14 +83,34 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
 
     const rolesData = useMemo(() => {
         if (!organizationRoles) return [];
-        return organizationRoles.map(
-            (role: Pick<Role, 'roleUuid' | 'name' | 'ownerType'>) => ({
-                value: role.roleUuid,
-                label: role.name,
-                group:
-                    role.ownerType === 'system' ? 'System role' : 'Custom role',
-            }),
+
+        const systemRoles: { value: string; label: string }[] = [];
+        const customRoles: { value: string; label: string }[] = [];
+
+        organizationRoles.forEach(
+            (role: Pick<Role, 'roleUuid' | 'name' | 'ownerType'>) => {
+                const item = { value: role.roleUuid, label: role.name };
+                if (role.ownerType === 'system') {
+                    systemRoles.push(item);
+                } else {
+                    customRoles.push(item);
+                }
+            },
         );
+
+        const roleGroups: {
+            group: string;
+            items: { value: string; label: string }[];
+        }[] = [];
+
+        if (systemRoles.length > 0) {
+            roleGroups.push({ group: 'System role', items: systemRoles });
+        }
+        if (customRoles.length > 0) {
+            roleGroups.push({ group: 'Custom role', items: customRoles });
+        }
+
+        return roleGroups;
     }, [organizationRoles]);
 
     const canManageProjectAccess = ability.can(

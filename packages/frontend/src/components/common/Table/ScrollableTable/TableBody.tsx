@@ -1,4 +1,5 @@
 import {
+    ConditionalFormattingColorApplyTo,
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
@@ -112,7 +113,7 @@ const TableRow: FC<TableRowProps> = ({
                         rowFields,
                     });
 
-                const conditionalFormattingColor =
+                const conditionalFormattingResult =
                     getConditionalFormattingColor({
                         field,
                         value: cellValue?.value?.raw,
@@ -131,10 +132,14 @@ const TableRow: FC<TableRowProps> = ({
                         },
                     });
 
-                // Frozen/locked rows should have a fixed background, unless there is a conditional formatting color
+                const applyToText =
+                    conditionalFormattingResult?.applyTo ===
+                    ConditionalFormattingColorApplyTo.TEXT;
+
+                // Frozen/locked rows should have a fixed background, unless there is a conditional formatting color applied to cell
                 let backgroundColor: string | undefined;
-                if (conditionalFormattingColor) {
-                    backgroundColor = conditionalFormattingColor;
+                if (conditionalFormattingResult && !applyToText) {
+                    backgroundColor = conditionalFormattingResult.color;
                 } else if (meta?.frozen) {
                     backgroundColor = FROZEN_COLUMN_BACKGROUND;
                 }
@@ -147,11 +152,16 @@ const TableRow: FC<TableRowProps> = ({
                 );
 
                 const toggleExpander = row.getToggleExpandedHandler();
-                // When conditional formatting is applied, always use calculated contrast color
-                // to ensure text remains readable regardless of light/dark mode
-                const fontColor = conditionalFormattingColor
-                    ? getReadableTextColor(conditionalFormattingColor)
-                    : undefined;
+                // When conditional formatting is applied to cell, use calculated contrast color
+                // When applied to text, use the formatting color directly
+                let fontColor: string | undefined;
+                if (conditionalFormattingResult) {
+                    fontColor = applyToText
+                        ? conditionalFormattingResult.color
+                        : getReadableTextColor(
+                              conditionalFormattingResult.color,
+                          );
+                }
 
                 const suppressContextMenu =
                     cell.getIsPlaceholder() || cell.getIsAggregated();

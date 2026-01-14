@@ -8,6 +8,7 @@ import {
 import { toNumber } from 'lodash';
 import { type ItemsMap, isField, isTableCalculation } from '../../types/field';
 import { type ParametersValuesMap } from '../../types/parameters';
+import { type ResultRow } from '../../types/results';
 import { hashFieldReference } from '../../types/savedCharts';
 import { TimeFrames } from '../../types/timeFrames';
 import { formatItemValue } from '../../utils/formatting';
@@ -187,14 +188,28 @@ const getHeader = (
     itemsMap?: ItemsMap,
     xFieldId?: string,
 ): string => {
+    const firstParam = params[0];
+
     // First try the standard axisValueLabel or name
-    const standardHeader = params[0]?.axisValueLabel ?? params[0]?.name;
+    const standardHeader = firstParam?.axisValueLabel ?? firstParam?.name;
+
+    // Check if ECharts failed to format (e.g., MIN/MAX metrics on date dimensions
+    // have axis type 'value' instead of 'time', causing "Invalid Date")
     if (standardHeader) {
         return String(standardHeader);
     }
 
+    // Fallback: try to format using the raw axis value
+    // This handles cases where ECharts couldn't format the value properly
+    const rawAxisValue = firstParam?.axisValue;
+    if (rawAxisValue !== undefined && rawAxisValue !== null) {
+        if (itemsMap && xFieldId) {
+            return getFormattedValue(rawAxisValue, xFieldId, itemsMap, true);
+        }
+        return String(rawAxisValue);
+    }
+
     // For tuple mode (stacked bars) with time axis, extract x-value from data array
-    const firstParam = params[0];
     if (firstParam?.value && Array.isArray(firstParam.value)) {
         // In tuple mode, first element is typically the x-axis value
         const xValue = firstParam.value[0];
@@ -538,6 +553,7 @@ export const buildCartesianTooltipFormatter =
         tooltipHtmlTemplate,
         pivotValuesColumnsMap,
         parameters,
+        rows,
     }: {
         itemsMap?: ItemsMap;
         stackValue: string | boolean | undefined;
@@ -548,6 +564,7 @@ export const buildCartesianTooltipFormatter =
         tooltipHtmlTemplate?: string;
         pivotValuesColumnsMap?: Record<string, PivotValuesColumn>;
         parameters?: ParametersValuesMap;
+        rows?: (ResultRow | Record<string, unknown>)[];
     }): TooltipComponentFormatterCallback<
         TooltipFormatterParams | TooltipFormatterParams[]
     > =>
@@ -831,13 +848,58 @@ export const buildCartesianTooltipFormatter =
 
             if (ctx.dataMode === 'tuple' && Array.isArray(firstValue)) {
                 // Tuple mode (stacked bars): map dimension names to array indices
+                // When stacked, the tuple only contains [categoryValue, numericValue] for each series,
+                // so fields not in the current series won't be in dimensionNames.
+                // Fall back to looking up the value from the original rows using the x-axis value.
+                const xAxisIndex = ctx.flipAxes ? 1 : 0;
+                const xAxisValue = firstValue[xAxisIndex];
+                // Get all rows matching the x-axis value (there may be multiple due to pivoting)
+                // Note: rows can be either ResultRow format ({ field: { value: { raw } } })
+                // or flat format ({ field: value }) depending on the data source
+                const matchingRows =
+                    rows && xFieldId
+                        ? rows.filter((row) => {
+                              const cell = row[xFieldId];
+                              // Handle both formats: flat value or ResultRow structure
+                              const cellValue =
+                                  cell &&
+                                  typeof cell === 'object' &&
+                                  'value' in cell
+                                      ? (cell as { value?: { raw?: unknown } })
+                                            .value?.raw
+                                      : cell;
+                              return cellValue === xAxisValue;
+                          })
+                        : [];
+
                 fields?.forEach((field) => {
                     const ref = field.slice(2, -1);
                     const dimensionIndex =
                         firstParam.dimensionNames?.indexOf(ref);
 
+                    let val: unknown;
                     if (dimensionIndex !== undefined && dimensionIndex >= 0) {
-                        const val = unwrapValue(firstValue[dimensionIndex]);
+                        val = unwrapValue(firstValue[dimensionIndex]);
+                    } else {
+                        // Fallback: search through all matching rows to find the field value
+                        for (const row of matchingRows) {
+                            const cell = row[ref];
+                            // Handle both formats: flat value or ResultRow structure
+                            const cellValue =
+                                cell &&
+                                typeof cell === 'object' &&
+                                'value' in cell
+                                    ? (cell as { value?: { raw?: unknown } })
+                                          .value?.raw
+                                    : cell;
+                            if (cellValue !== undefined) {
+                                val = cellValue;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (val !== undefined) {
                         const formatted = getFormattedValue(
                             val,
                             ref,
@@ -897,8 +959,19 @@ export const buildCartesianTooltipFormatter =
                 ? field.format !== undefined
                 : false;
             if (hasFormat) {
+                // Use raw value from data object for the specific dimensionId
+                // Don't use axisValue directly as it may be from a different axis
+                // (e.g., in flipped charts, axisValue might be "Phillip" but dimensionId is the date field)
+                const firstParam = params[0];
+                const rawHeaderValue =
+                    (firstParam?.data as Record<string, unknown> | undefined)?.[
+                        dimensionId
+                    ] ??
+                    firstParam?.axisValue ??
+                    header;
+
                 const headerText = getFormattedValue(
-                    header,
+                    rawHeaderValue,
                     dimensionId,
                     itemsMap,
                     undefined,

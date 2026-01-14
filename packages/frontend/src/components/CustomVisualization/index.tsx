@@ -1,15 +1,19 @@
-import { Anchor, Text } from '@mantine/core';
-import { IconChartBarOff } from '@tabler/icons-react';
-import { Suspense, lazy, useEffect, useRef, type FC } from 'react';
+import { Anchor, Text, useMantineColorScheme } from '@mantine/core';
+import { IconGraphOff } from '@tabler/icons-react';
+import { Suspense, lazy, useEffect, useMemo, useRef, type FC } from 'react';
+// @ts-expect-error - vega-themes ESM export not resolved by TS moduleResolution
+import { dark as vegaDarkTheme } from 'vega-themes';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import { isCustomVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
-import { LoadingChart } from '../SimpleChart';
+import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { vegaStyleConfig } from './vegaConfig';
 
-const VegaLite = lazy(() =>
-    import('react-vega').then((module) => ({ default: module.VegaLite })),
-);
+const VegaEmbed = lazy(async () => {
+    const module = await import('react-vega');
+    return { default: module.VegaEmbed };
+});
 
 type Props = {
     className?: string;
@@ -23,6 +27,9 @@ const CustomVisualization: FC<Props> = ({
     onScreenshotError,
     ...props
 }) => {
+    const { colorScheme } = useMantineColorScheme();
+    const isDarkMode = colorScheme === 'dark';
+
     const {
         isLoading,
         visualizationConfig,
@@ -32,6 +39,14 @@ const CustomVisualization: FC<Props> = ({
     } = useVisualizationContext();
 
     const hasSignaledScreenshotReady = useRef(false);
+
+    const vegaConfig = useMemo(
+        () => ({
+            ...(isDarkMode ? vegaDarkTheme : {}),
+            ...vegaStyleConfig,
+        }),
+        [isDarkMode],
+    );
 
     useEffect(() => {
         if (hasSignaledScreenshotReady.current) return;
@@ -76,7 +91,7 @@ const CustomVisualization: FC<Props> = ({
                             create your chart.
                         </Text>
                     }
-                    icon={IconChartBarOff}
+                    icon={IconGraphOff}
                 />
             </div>
         );
@@ -86,6 +101,19 @@ const CustomVisualization: FC<Props> = ({
     // configuration for the chart. We should consider renaming it generally.
     const visProps =
         visualizationConfig.chartConfig as CustomVisualizationConfigAndData;
+
+    // Show empty state if there's no data
+    if (!visProps.series || visProps.series.length === 0) {
+        return (
+            <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+                <SuboptimalState
+                    title="No data available"
+                    description="Query metrics and dimensions with results."
+                    icon={IconGraphOff}
+                />
+            </div>
+        );
+    }
 
     const data = { values: visProps.series };
 
@@ -101,17 +129,10 @@ const CustomVisualization: FC<Props> = ({
             }}
         >
             <Suspense fallback={<LoadingChart />}>
-                <VegaLite
+                <VegaEmbed
                     style={{
                         width: containerWidth,
                         height: containerHeight,
-                    }}
-                    config={{
-                        font: 'Inter, sans-serif',
-                        autosize: {
-                            type: 'fit',
-                            resize: true,
-                        },
                     }}
                     // TODO: We are ignoring some typescript errors here because the type
                     // that vegalite expects doesn't include a few of the properties
@@ -125,10 +146,16 @@ const CustomVisualization: FC<Props> = ({
                         width: 'container',
                         // @ts-ignore, see above
                         height: 'container',
-                        data: { name: 'values' },
+                        data: data,
+                        // Merge configs: our defaults first, then user's config overrides
+                        config: {
+                            ...vegaConfig,
+                            ...(spec.config || {}),
+                        },
                     }}
-                    data={data}
-                    actions={false}
+                    options={{
+                        actions: false,
+                    }}
                 />
             </Suspense>
         </div>

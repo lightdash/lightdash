@@ -1,16 +1,10 @@
 import { type DashboardTab } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Modal,
-    Stack,
-    TextInput,
-    Title,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, TextInput, type ModalProps } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
+import { IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { z } from 'zod';
+import MantineModal from '../../components/common/MantineModal';
 
 type DuplicateTabModalProps = ModalProps & {
     tab: DashboardTab;
@@ -18,10 +12,10 @@ type DuplicateTabModalProps = ModalProps & {
 };
 
 const DuplicateTabModal: FC<DuplicateTabModalProps> = ({
+    opened,
+    onClose,
     tab,
     onConfirm,
-    onClose,
-    ...modalProps
 }) => {
     const formSchema = z.object({
         name: z
@@ -45,42 +39,36 @@ const DuplicateTabModal: FC<DuplicateTabModalProps> = ({
 
     const handleClose = () => {
         form.reset();
-        onClose?.();
+        onClose();
     };
 
     return (
-        <Modal
-            title={
-                <Group spacing="xs">
-                    <Title order={4}>Duplicate Tab</Title>
-                </Group>
-            }
-            {...modalProps}
-            size="sm"
+        <MantineModal
+            opened={opened}
             onClose={handleClose}
+            title="Duplicate Tab"
+            icon={IconCopy}
+            size="sm"
+            actions={
+                <Button
+                    type="submit"
+                    form="duplicate-tab-form"
+                    disabled={!form.isValid()}
+                >
+                    Create duplicate
+                </Button>
+            }
         >
-            <form onSubmit={handleConfirm}>
-                <Stack spacing="lg" pt="sm">
-                    <TextInput
-                        label="Tab name"
-                        required
-                        placeholder={`Copy of ${tab.name}`}
-                        data-autofocus
-                        {...form.getInputProps('name')}
-                    />
-
-                    <Group position="right" mt="sm">
-                        <Button variant="outline" onClick={handleClose}>
-                            Cancel
-                        </Button>
-
-                        <Button type="submit" disabled={!form.isValid()}>
-                            Create duplicate
-                        </Button>
-                    </Group>
-                </Stack>
+            <form id="duplicate-tab-form" onSubmit={handleConfirm}>
+                <TextInput
+                    label="Tab name"
+                    required
+                    placeholder={`Copy of ${tab.name}`}
+                    data-autofocus
+                    {...form.getInputProps('name')}
+                />
             </form>
-        </Modal>
+        </MantineModal>
     );
 };
 

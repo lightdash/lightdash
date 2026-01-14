@@ -12,7 +12,6 @@ import {
     getItemId,
     isExploreError,
     NameChanges,
-    NotExistsError,
     NotFoundError,
     NotImplementedError,
     ParameterError,
@@ -198,7 +197,7 @@ export class RenameService extends BaseService {
                     this.projectModel.getExploreFromCache(projectUuid, from),
                 );
                 if (isError(toExists) && isError(fromExists)) {
-                    throw new NotExistsError(
+                    throw new NotFoundError(
                         `Neither "${from}" nor "${to}" explores exist in the project.`,
                     );
                 }

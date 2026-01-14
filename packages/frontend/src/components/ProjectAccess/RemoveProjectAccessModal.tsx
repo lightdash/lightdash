@@ -1,40 +1,33 @@
-import { Button, Group, Modal, Text, Title } from '@mantine/core';
+import { Button } from '@mantine-8/core';
 import { IconKey } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { type ProjectUserWithRole } from '../../hooks/useProjectUsersWithRoles';
-import MantineIcon from '../common/MantineIcon';
+import MantineModal from '../common/MantineModal';
 
 type Props = {
-    user: Pick<ProjectUserWithRole, 'email'>;
+    user: Pick<ProjectUserWithRole, 'firstName' | 'lastName' | 'email'>;
     onDelete: () => void;
     onClose: () => void;
 };
 
 const RemoveProjectAccessModal: FC<Props> = ({ user, onDelete, onClose }) => {
     return (
-        <Modal
+        <MantineModal
             opened
             onClose={onClose}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon size="lg" icon={IconKey} color="red" />
-                    <Title order={4}>Revoke project access</Title>
-                </Group>
-            }
-        >
-            <Text pb="md">
-                Are you sure you want to revoke project access for this user{' '}
-                {user.email} ?
-            </Text>
-            <Group spacing="xs" position="right">
-                <Button variant="outline" onClick={onClose} color="dark">
-                    Cancel
-                </Button>
+            title="Revoke project access"
+            icon={IconKey}
+            description={`Are you sure you want to revoke project access for "${
+                user.firstName && user.lastName
+                    ? `${user.firstName} ${user.lastName}`
+                    : user.email
+            }"?`}
+            actions={
                 <Button color="red" onClick={onDelete}>
                     Delete
                 </Button>
-            </Group>
-        </Modal>
+            }
+        />
     );
 };
 

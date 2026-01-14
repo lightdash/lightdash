@@ -16,7 +16,6 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
-import AddResourceToSpaceModal from '../components/Explorer/SpaceBrowser/AddResourceToSpaceModal';
 import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateResourceToSpace';
 import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrowserMenu';
 import { AddToSpaceResources } from '../components/Explorer/SpaceBrowser/types';
@@ -82,7 +81,6 @@ const Space: FC = () => {
         useState<boolean>(false);
     const [isCreateNestedSpaceOpen, setIsCreateNestedSpaceOpen] =
         useState<boolean>(false);
-    const [addToSpace, setAddToSpace] = useState<AddToSpaceResources>();
     const [createToSpace, setCreateToSpace] = useState<AddToSpaceResources>();
 
     const { mutateAsync: contentAction, isLoading: isContentActionLoading } =
@@ -354,13 +352,6 @@ const Space: FC = () => {
                             : 'shared'
                     }
                 />
-
-                {addToSpace && (
-                    <AddResourceToSpaceModal
-                        resourceType={addToSpace}
-                        onClose={() => setAddToSpace(undefined)}
-                    />
-                )}
 
                 {createToSpace && (
                     <CreateResourceToSpace resourceType={createToSpace} />

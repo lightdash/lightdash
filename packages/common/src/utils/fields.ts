@@ -3,21 +3,16 @@ import {
     type CompiledDimension,
     type CompiledField,
     type CompiledMetric,
-    type CustomDimension,
-    type Dimension,
-    type ItemsMap,
     type Metric,
-    type TableCalculation,
 } from '../types/field';
 import { isDateFilterRule, type DateFilterSettings } from '../types/filter';
-import { type AdditionalMetric, type MetricQuery } from '../types/metricQuery';
+import { type AdditionalMetric } from '../types/metricQuery';
 import type { ParametersValuesMap } from '../types/parameters';
 import {
     type ReplaceCustomFields,
     type ReplaceableCustomFields,
     type ReplaceableFieldMatchMap,
 } from '../types/savedCharts';
-import { convertAdditionalMetric } from './additionalMetrics';
 import { getFormatExpression } from './formatting';
 import { getItemId } from './item';
 
@@ -65,24 +60,79 @@ const getTablesWithValidParameters = (
 };
 
 // Helper function to get a list of all dimensions in an explore
+/**
+ * @deprecated Use `getDimensionMapFromTables` instead
+ */
 export const getDimensions = (explore: Explore): CompiledDimension[] =>
     Object.values(explore.tables).flatMap((t) => Object.values(t.dimensions));
+
+export const getDimensionMapFromTables = (
+    tables: Explore['tables'],
+): Record<string, CompiledDimension> =>
+    Object.values(tables).reduce<Record<string, CompiledDimension>>(
+        (acc, table) => {
+            Object.values(table.dimensions).forEach((dimension) => {
+                acc[getItemId(dimension)] = dimension;
+            });
+            return acc;
+        },
+        {},
+    );
 
 export const getDimensionsWithValidParameters = (
     explore: Explore,
     combinedParameters: ParametersValuesMap,
-): CompiledDimension[] =>
-    getTablesWithValidParameters(explore, combinedParameters).flatMap((t) =>
-        Object.values(t.dimensions).filter(
-            (d) =>
-                d.parameterReferences?.every((p) => combinedParameters[p]) ??
-                true,
-        ),
+): CompiledDimension[] => {
+    function dimensionHasAllValidParameters(
+        dimension: CompiledDimension,
+    ): boolean {
+        return (
+            dimension.parameterReferences?.every(
+                (p) => combinedParameters[p],
+            ) ?? true
+        );
+    }
+
+    const tablesWithValidParameters = getTablesWithValidParameters(
+        explore,
+        combinedParameters,
     );
 
+    // Dimensions with valid parameters in the base table
+    const baseTableDimensions = tablesWithValidParameters
+        .filter((t) => t.name === explore.baseTable)
+        .flatMap((t) =>
+            Object.values(t.dimensions).filter(dimensionHasAllValidParameters),
+        );
+
+    // Dimensions with valid parameters in the joined tables
+    const joinedTableDimensions = tablesWithValidParameters
+        .filter((t) => t.name !== explore.baseTable)
+        .flatMap((t) =>
+            Object.values(t.dimensions).filter(dimensionHasAllValidParameters),
+        );
+
+    // Prioritize base table dimensions over joined table dimensions
+    return [...baseTableDimensions, ...joinedTableDimensions];
+};
+
 // Helper function to get a list of all metrics in an explore
+// @deprecated Use `getMetricsMapFromTables` instead
 export const getMetrics = (explore: Explore): CompiledMetric[] =>
     Object.values(explore.tables).flatMap((t) => Object.values(t.metrics));
+
+export const getMetricsMapFromTables = (
+    tables: Explore['tables'],
+): Record<string, CompiledMetric> =>
+    Object.values(tables).reduce<Record<string, CompiledMetric>>(
+        (acc, table) => {
+            Object.values(table.metrics).forEach((metric) => {
+                acc[getItemId(metric)] = metric;
+            });
+            return acc;
+        },
+        {},
+    );
 
 export const getMetricsWithValidParameters = (
     explore: Explore,
@@ -100,59 +150,6 @@ export const getFields = (explore: Explore): CompiledField[] => [
     ...getDimensions(explore),
     ...getMetrics(explore),
 ];
-
-export const getFieldsFromMetricQuery = (
-    metricQuery: MetricQuery,
-    explore: Explore,
-): ItemsMap => {
-    const exploreFields = getFields(explore);
-    const fields = [...metricQuery.dimensions, ...metricQuery.metrics].reduce<
-        Record<string, Dimension | Metric>
-    >((acc, metricField) => {
-        const field = exploreFields.find((f) => metricField === getItemId(f));
-        if (field) {
-            return { ...acc, [metricField]: field };
-        }
-        return acc;
-    }, {});
-    const additionalMetrics = (metricQuery.additionalMetrics || [])
-        .filter((cd) => metricQuery.metrics.includes(getItemId(cd)))
-        .reduce<Record<string, Metric>>((acc, additionalMetric) => {
-            const table = explore.tables[additionalMetric.table];
-            if (table) {
-                const metric = convertAdditionalMetric({
-                    additionalMetric,
-                    table,
-                });
-                return { ...acc, [getItemId(additionalMetric)]: metric };
-            }
-            return acc;
-        }, {});
-    const tableCalculations = metricQuery.tableCalculations.reduce<
-        Record<string, TableCalculation>
-    >(
-        (acc, tableCalculation) => ({
-            ...acc,
-            [tableCalculation.name]: tableCalculation,
-        }),
-        {},
-    );
-    const customDimensions = metricQuery.customDimensions
-        ?.filter((cd) => metricQuery.dimensions.includes(getItemId(cd)))
-        .reduce<Record<string, CustomDimension>>(
-            (acc, customDimension) => ({
-                ...acc,
-                [getItemId(customDimension)]: customDimension,
-            }),
-            {},
-        );
-    return {
-        ...fields,
-        ...tableCalculations,
-        ...customDimensions,
-        ...additionalMetrics,
-    };
-};
 
 export function compareMetricAndCustomMetric({
     metric,

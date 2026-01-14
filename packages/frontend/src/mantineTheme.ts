@@ -5,6 +5,7 @@ import {
     type MantineThemeOverride,
     type Tuple,
 } from '@mantine/core';
+import type {} from 'csstype';
 // eslint-disable-next-line css-modules/no-unused-class
 import styles from './styles/mantine-overrides/tooltip.module.css';
 
@@ -164,6 +165,7 @@ export const getMantineThemeOverride = (
         },
 
         fontFamily: [
+            'Inter',
             '-apple-system',
             'BlinkMacSystemFont',
             'Segoe UI',
@@ -346,6 +348,7 @@ export const getMantineThemeOverride = (
                 fontWeight: 600,
             },
 
+            // TODO: remove after we migrate dashboards to v2 (feature flag: DashboardRedesign, dashboard-redesign)
             '.react-draggable.react-draggable-dragging .tile-base': {
                 border: `1px solid ${theme.colors.blue[5]}`,
             },
@@ -356,6 +359,9 @@ export const getMantineThemeOverride = (
             '.ace_editor *': {
                 fontFamily:
                     "Menlo, 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace",
+            },
+            '.wmde-markdown, .wmde-markdown-var': {
+                fontFamily: theme.fontFamily,
             },
             '@keyframes fadeIn': {
                 from: { opacity: 0 },
@@ -369,4 +375,4 @@ export const getMantineThemeOverride = (
                   }
                 : undefined),
         }),
-    } satisfies MantineThemeOverride);
+    }) satisfies MantineThemeOverride;

@@ -157,7 +157,7 @@ type CliCompileStarted = BaseTrack & {
     event: 'compile.started';
     properties: {
         executionId: string;
-        dbtVersion: string;
+        dbtVersion?: string;
         skipDbtCompile: boolean;
         skipWarehouseCatalog: boolean;
         useDbtList: boolean;
@@ -170,14 +170,14 @@ type CliCompileCompleted = BaseTrack & {
         explores: number;
         errors: number;
         dbtMetrics: number;
-        dbtVersion: string;
+        dbtVersion?: string;
     };
 };
 type CliCompileError = BaseTrack & {
     event: 'compile.error';
     properties: {
         executionId: string;
-        dbtVersion: string;
+        dbtVersion?: string;
         error: string;
     };
 };

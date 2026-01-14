@@ -3,6 +3,7 @@ import {
     type FilterableItem,
     type FilterRule,
     type ItemsMap,
+    type ParametersValuesMap,
     type WeekDay,
 } from '@lightdash/common';
 import { type PopoverProps } from '@mantine/core';
@@ -24,6 +25,7 @@ export type FiltersContext<T extends DefaultFieldsMap = DefaultFieldsMap> = {
         item: FilterableItem,
     ) => AndFilterGroup | undefined;
     popoverProps?: Omit<PopoverProps, 'children'>;
+    parameterValues?: ParametersValuesMap;
 };
 
 const Context = createContext<FiltersContext | undefined>(undefined);

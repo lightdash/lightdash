@@ -73,17 +73,6 @@ export class AuthorizationError extends LightdashError {
     }
 }
 
-export class NotExistsError extends LightdashError {
-    constructor(message: string) {
-        super({
-            message,
-            name: 'NotExistsError',
-            statusCode: 404,
-            data: {},
-        });
-    }
-}
-
 export class ExpiredError extends LightdashError {
     constructor(message: string) {
         super({
@@ -397,14 +386,14 @@ export class SlackError extends LightdashError {
     }
 }
 
-export class AllSlackDeliveriesFailedError extends LightdashError {
+export class SlackFileUploadError extends LightdashError {
     constructor(
-        message: string = 'All Slack deliveries failed',
+        message: string = 'Slack file upload failed',
         data: { [key: string]: AnyType } = {},
     ) {
         super({
             message,
-            name: 'AllSlackDeliveriesFailedError',
+            name: 'SlackFileUploadError',
             statusCode: 400,
             data,
         });
@@ -419,20 +408,6 @@ export class MsTeamsError extends LightdashError {
         super({
             message,
             name: 'MsTeamsError',
-            statusCode: 400,
-            data,
-        });
-    }
-}
-
-export class AllMSTeamsDeliveriesFailedError extends LightdashError {
-    constructor(
-        message: string = 'All MS Teams deliveries failed',
-        data: { [key: string]: AnyType } = {},
-    ) {
-        super({
-            message,
-            name: 'AllMSTeamsDeliveriesFailed',
             statusCode: 400,
             data,
         });
@@ -525,6 +500,19 @@ export class S3Error extends LightdashError {
             name: 'S3Error',
             statusCode: 500,
             data,
+        });
+    }
+}
+
+export class ResultsExpiredError extends LightdashError {
+    constructor(
+        message = 'Your results have expired. Please refresh the page or re-run the query.',
+    ) {
+        super({
+            message,
+            name: 'ResultsExpiredError',
+            statusCode: 404,
+            data: {},
         });
     }
 }
@@ -696,6 +684,17 @@ export class ChangesetConflictError extends LightdashError {
             name: 'ChangesetConflictError',
             statusCode: 409,
             data,
+        });
+    }
+}
+
+export class InvalidSpaceStateError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'InvalidSpaceStateError',
+            statusCode: 500,
+            data: {},
         });
     }
 }

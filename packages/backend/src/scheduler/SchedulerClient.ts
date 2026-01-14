@@ -101,6 +101,8 @@ export class SchedulerClient {
 
     schedulerModel: SchedulerModel;
 
+    private static STUCK_JOB_WINDOW = 1.5;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -279,7 +281,14 @@ export class SchedulerClient {
         return parseInt(results.rows[0].count, 10);
     }
 
-    async deleteScheduledJobs(schedulerUuid: string): Promise<void> {
+    async deleteScheduledJobs(
+        schedulerUuid: string,
+        context: {
+            organizationUuid: string;
+            projectUuid: string;
+            userUuid: string;
+        },
+    ): Promise<void> {
         const graphileClient = await this.graphileUtils;
         const jobsToDelete = await this.getScheduledJobs(schedulerUuid);
         Logger.info(
@@ -293,6 +302,9 @@ export class SchedulerClient {
             this.analytics.track({
                 event: 'scheduler_job.deleted',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: context.organizationUuid,
+                projectId: context.projectUuid,
+                userId: context.userUuid,
                 properties: {
                     jobId: id,
                     schedulerId: schedulerUuid,
@@ -354,6 +366,9 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: scheduler.organizationUuid,
+            projectId: scheduler.projectUuid,
+            userId: scheduler.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: schedulerUuid,
@@ -389,6 +404,9 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
@@ -495,6 +513,9 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: schedulerUuid,
@@ -540,6 +561,9 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
@@ -588,6 +612,9 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
@@ -636,6 +663,9 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: traceProperties.organizationUuid,
+            projectId: traceProperties.projectUuid,
+            userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
@@ -1184,9 +1214,9 @@ export class SchedulerClient {
     > {
         const graphileClient = await this.graphileUtils;
         const query = `
-            select 
-              last_error is not null as error, 
-              locked_by is not null as locked, 
+            select
+              last_error is not null as error,
+              locked_by is not null as locked,
               count(*) as count
             from graphile_worker.jobs
             group by 1, 2
@@ -1196,6 +1226,59 @@ export class SchedulerClient {
             return rows;
         });
         return stats;
+    }
+
+    async getRecentRunningJobs(): Promise<
+        {
+            id: string;
+            taskIdentifier: string;
+            lockedAt: Date;
+            lockedBy: string;
+            runAt: Date;
+            payload: Record<string, unknown>;
+        }[]
+    > {
+        const graphileClient = await this.graphileUtils;
+        const result = await graphileClient.withPgClient(async (pgClient) => {
+            const { rows } = await pgClient.query(
+                `
+                SELECT id, task_identifier, locked_at, locked_by, run_at, payload
+                FROM graphile_worker.jobs
+                WHERE locked_by IS NOT NULL
+                  AND locked_at IS NOT NULL
+                  AND run_at < now()
+                  AND locked_at > now() - $1::interval
+                ORDER BY locked_at ASC
+            `,
+                [`${SchedulerClient.STUCK_JOB_WINDOW} hours`],
+            );
+            return rows;
+        });
+        return result.map(
+            (row: {
+                id: string;
+                task_identifier: string;
+                locked_at: Date;
+                locked_by: string;
+                run_at: Date;
+                payload: Record<string, unknown> | null;
+            }) => ({
+                id: row.id,
+                taskIdentifier: row.task_identifier,
+                lockedAt: new Date(row.locked_at),
+                lockedBy: row.locked_by,
+                runAt: new Date(row.run_at),
+                payload: row.payload || {},
+            }),
+        );
+    }
+
+    async failJobs(jobIds: string[]): Promise<void> {
+        if (jobIds.length === 0) return;
+        const graphileClient = await this.graphileUtils;
+        // Note: graphile-worker's completeJobs removes jobs from the queue
+        // The "failed" status is tracked in our scheduler_log table separately
+        await graphileClient.permanentlyFailJobs(jobIds);
     }
 
     async downloadAsyncQueryResults(payload: DownloadAsyncQueryResultsPayload) {

@@ -25,6 +25,10 @@ export const TableScrollableWrapper = styled.div<{
             border-left: none;
             border-right: none;
         `}
+
+    &:not(:has(thead tr)):not(:has(tbody tr)) {
+        border: none;
+    }
 `;
 
 interface TableContainerProps {

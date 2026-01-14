@@ -2439,59 +2439,30 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
-            "FieldType": {
-                "enum": ["metric", "dimension"],
+            "CustomFormatType": {
+                "enum": [
+                    "default",
+                    "percent",
+                    "currency",
+                    "number",
+                    "id",
+                    "date",
+                    "timestamp",
+                    "bytes_si",
+                    "bytes_iec",
+                    "custom"
+                ],
                 "type": "string"
             },
-            "SourcePosition": {
-                "properties": {
-                    "character": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "line": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["character", "line"],
-                "type": "object"
-            },
-            "Source": {
-                "properties": {
-                    "content": {
-                        "type": "string"
-                    },
-                    "highlight": {
-                        "properties": {
-                            "end": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            },
-                            "start": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            }
-                        },
-                        "required": ["end", "start"],
-                        "type": "object"
-                    },
-                    "range": {
-                        "properties": {
-                            "end": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            },
-                            "start": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            }
-                        },
-                        "required": ["end", "start"],
-                        "type": "object"
-                    },
-                    "path": {
-                        "type": "string"
-                    }
-                },
-                "required": ["content", "range", "path"],
-                "type": "object"
+            "NumberSeparator": {
+                "enum": [
+                    "default",
+                    "commaPeriod",
+                    "spacePeriod",
+                    "periodComma",
+                    "noSeparatorPeriod"
+                ],
+                "type": "string"
             },
             "Compact": {
                 "enum": [
@@ -2551,6 +2522,95 @@
                         ]
                     }
                 ]
+            },
+            "CustomFormat": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/CustomFormatType"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias"
+                    },
+                    "prefix": {
+                        "type": "string"
+                    },
+                    "suffix": {
+                        "type": "string"
+                    },
+                    "timeInterval": {
+                        "$ref": "#/components/schemas/TimeFrames"
+                    },
+                    "custom": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "FieldType": {
+                "enum": ["metric", "dimension"],
+                "type": "string"
+            },
+            "SourcePosition": {
+                "properties": {
+                    "character": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "line": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["character", "line"],
+                "type": "object"
+            },
+            "Source": {
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "highlight": {
+                        "properties": {
+                            "end": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            },
+                            "start": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            }
+                        },
+                        "required": ["end", "start"],
+                        "type": "object"
+                    },
+                    "range": {
+                        "properties": {
+                            "end": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            },
+                            "start": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            }
+                        },
+                        "required": ["end", "start"],
+                        "type": "object"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["content", "range", "path"],
+                "type": "object"
             },
             "Format": {
                 "enum": [
@@ -2709,6 +2769,9 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat"
                     },
                     "image": {
                         "properties": {
@@ -2909,66 +2972,6 @@
                 },
                 "required": ["descending", "fieldId"],
                 "type": "object"
-            },
-            "CustomFormatType": {
-                "enum": [
-                    "default",
-                    "percent",
-                    "currency",
-                    "number",
-                    "id",
-                    "date",
-                    "timestamp",
-                    "bytes_si",
-                    "bytes_iec",
-                    "custom"
-                ],
-                "type": "string"
-            },
-            "NumberSeparator": {
-                "enum": [
-                    "default",
-                    "commaPeriod",
-                    "spacePeriod",
-                    "periodComma",
-                    "noSeparatorPeriod"
-                ],
-                "type": "string"
-            },
-            "CustomFormat": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/CustomFormatType"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "separator": {
-                        "$ref": "#/components/schemas/NumberSeparator"
-                    },
-                    "currency": {
-                        "type": "string"
-                    },
-                    "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias"
-                    },
-                    "prefix": {
-                        "type": "string"
-                    },
-                    "suffix": {
-                        "type": "string"
-                    },
-                    "timeInterval": {
-                        "$ref": "#/components/schemas/TimeFrames"
-                    },
-                    "custom": {
-                        "type": "string"
-                    }
-                },
-                "required": ["type"],
-                "type": "object",
-                "additionalProperties": true
             },
             "TableCalculationType": {
                 "enum": ["number", "string", "date", "timestamp", "boolean"],
@@ -3514,6 +3517,22 @@
                 },
                 "type": "object"
             },
+            "Pick_Dimension.formatOptions_": {
+                "properties": {
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat"
+                    }
+                },
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "DimensionOverrides": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/Pick_Dimension.formatOptions_"
+                },
+                "type": "object"
+            },
             "Pick_CompiledDimension.label-or-name-or-table_": {
                 "properties": {
                     "name": {
@@ -3589,6 +3608,9 @@
                     },
                     "timezone": {
                         "type": "string"
+                    },
+                    "dimensionOverrides": {
+                        "$ref": "#/components/schemas/DimensionOverrides"
                     },
                     "metricOverrides": {
                         "$ref": "#/components/schemas/MetricOverrides"
@@ -3973,6 +3995,9 @@
                     },
                     "label": {
                         "properties": {
+                            "showOverlappingLabels": {
+                                "type": "boolean"
+                            },
                             "position": {
                                 "type": "string",
                                 "enum": [
@@ -4115,6 +4140,14 @@
                     },
                     "showAxisTicks": {
                         "type": "boolean"
+                    },
+                    "axisLabelFontSize": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "axisTitleFontSize": {
+                        "type": "number",
+                        "format": "double"
                     }
                 },
                 "type": "object",
@@ -4723,6 +4756,12 @@
             },
             "GaugeChart": {
                 "properties": {
+                    "customPercentageLabel": {
+                        "type": "string"
+                    },
+                    "showPercentage": {
+                        "type": "boolean"
+                    },
                     "customLabel": {
                         "type": "string"
                     },
@@ -4780,13 +4819,52 @@
                 "enum": ["none", "openstreetmap", "light", "dark", "satellite"],
                 "type": "string"
             },
+            "MapFieldConfig": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "visible": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
+            },
+            "Record_string.MapFieldConfig_": {
+                "properties": {},
+                "additionalProperties": {
+                    "$ref": "#/components/schemas/MapFieldConfig"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
             "MapChart": {
                 "properties": {
+                    "fieldConfig": {
+                        "$ref": "#/components/schemas/Record_string.MapFieldConfig_"
+                    },
                     "backgroundColor": {
                         "type": "string"
                     },
                     "tileBackground": {
                         "$ref": "#/components/schemas/MapTileBackground"
+                    },
+                    "heatmapConfig": {
+                        "properties": {
+                            "opacity": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "blur": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "radius": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "type": "object"
                     },
                     "sizeFieldId": {
                         "type": "string"
@@ -4821,6 +4899,9 @@
                         "type": "boolean"
                     },
                     "valueFieldId": {
+                        "type": "string"
+                    },
+                    "geoJsonPropertyKey": {
                         "type": "string"
                     },
                     "locationFieldId": {
@@ -5367,6 +5448,9 @@
                             }
                         ]
                     },
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat"
+                    },
                     "image": {
                         "properties": {
                             "fit": {
@@ -5409,8 +5493,22 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
+            "FieldCompilationError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "required": ["message"],
+                "type": "object",
+                "description": "Error information stored on a field when compilation fails but\npartial compilation mode is enabled."
+            },
             "CompiledProperties": {
                 "properties": {
+                    "compilationError": {
+                        "$ref": "#/components/schemas/FieldCompilationError",
+                        "description": "When partial compilation mode is enabled, fields that fail to compile\nwill have this property set instead of causing the entire explore to fail."
+                    },
                     "tablesRequiredAttributes": {
                         "$ref": "#/components/schemas/Record_string.Record_string.string-or-string-Array__"
                     },
@@ -5784,8 +5882,37 @@
                 "enum": ["virtual", "default"],
                 "type": "string"
             },
+            "InlineErrorType": {
+                "enum": [
+                    "METADATA_PARSE_ERROR",
+                    "NO_DIMENSIONS_FOUND",
+                    "SKIPPED_JOIN",
+                    "MISSING_TABLE",
+                    "FIELD_ERROR"
+                ],
+                "type": "string"
+            },
+            "InlineError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/InlineErrorType"
+                    }
+                },
+                "required": ["message", "type"],
+                "type": "object"
+            },
             "Explore": {
                 "properties": {
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
+                    },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
                     },
@@ -6357,6 +6484,151 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "MetricQueryRequest": {
+                "properties": {
+                    "periodOverPeriod": {
+                        "$ref": "#/components/schemas/PeriodOverPeriodComparison"
+                    },
+                    "dimensionOverrides": {
+                        "$ref": "#/components/schemas/DimensionOverrides"
+                    },
+                    "metricOverrides": {
+                        "$ref": "#/components/schemas/MetricOverrides"
+                    },
+                    "timezone": {
+                        "type": "string"
+                    },
+                    "metadata": {
+                        "properties": {
+                            "hasADateDimension": {
+                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name-or-table_"
+                            }
+                        },
+                        "required": ["hasADateDimension"],
+                        "type": "object"
+                    },
+                    "dateZoom": {
+                        "$ref": "#/components/schemas/DateZoom"
+                    },
+                    "customDimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimension"
+                        },
+                        "type": "array"
+                    },
+                    "csvLimit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "additionalMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/AdditionalMetric"
+                        },
+                        "type": "array"
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        "type": "array"
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "properties": {
+                            "tableCalculations": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "metrics": {
+                                "$ref": "#/components/schemas/AnyType"
+                            },
+                            "dimensions": {
+                                "$ref": "#/components/schemas/AnyType"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldId"
+                        },
+                        "type": "array"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "tableCalculations",
+                    "limit",
+                    "sorts",
+                    "filters",
+                    "metrics",
+                    "dimensions",
+                    "exploreName"
+                ],
+                "type": "object"
+            },
+            "CalculateTotalFromQuery": {
+                "properties": {
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
+                    },
+                    "explore": {
+                        "type": "string"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQueryRequest"
+                    }
+                },
+                "required": ["explore", "metricQuery"],
+                "type": "object"
+            },
+            "CalculateSubtotalsFromQuery": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CalculateTotalFromQuery"
+                    },
+                    {
+                        "properties": {
+                            "dateZoom": {
+                                "$ref": "#/components/schemas/DateZoom"
+                            },
+                            "parameters": {
+                                "$ref": "#/components/schemas/ParametersValuesMap"
+                            },
+                            "pivotDimensions": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object"
+                    }
+                ]
             },
             "FieldValueSearchResult": {
                 "properties": {
@@ -7811,6 +8083,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -12671,6 +12956,9 @@
             },
             "VizSortBy": {
                 "properties": {
+                    "nullsFirst": {
+                        "type": "boolean"
+                    },
                     "direction": {
                         "$ref": "#/components/schemas/SortByDirection"
                     },
@@ -14976,7 +15264,8 @@
                     "cleanQueryHistory",
                     "downloadAsyncQueryResults",
                     "syncSlackChannels",
-                    "generateSlackChannelSyncJobs"
+                    "generateSlackChannelSyncJobs",
+                    "checkForStuckJobs"
                 ]
             },
             "BaseSchedulerLog": {
@@ -15483,6 +15772,41 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiSuccess_SchedulerAndTargets-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/SchedulerAndTargets"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiReassignSchedulerOwnerResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SchedulerAndTargets-Array_"
+            },
+            "ReassignSchedulerOwnerRequest": {
+                "properties": {
+                    "newOwnerUserUuid": {
+                        "type": "string"
+                    },
+                    "schedulerUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["newOwnerUserUuid", "schedulerUuids"],
+                "type": "object"
+            },
             "ScheduledJobs": {
                 "properties": {
                     "id": {
@@ -15591,102 +15915,6 @@
                     }
                 },
                 "required": ["results", "status"],
-                "type": "object"
-            },
-            "MetricQueryRequest": {
-                "properties": {
-                    "periodOverPeriod": {
-                        "$ref": "#/components/schemas/PeriodOverPeriodComparison"
-                    },
-                    "metricOverrides": {
-                        "$ref": "#/components/schemas/MetricOverrides"
-                    },
-                    "timezone": {
-                        "type": "string"
-                    },
-                    "metadata": {
-                        "properties": {
-                            "hasADateDimension": {
-                                "$ref": "#/components/schemas/Pick_CompiledDimension.label-or-name-or-table_"
-                            }
-                        },
-                        "required": ["hasADateDimension"],
-                        "type": "object"
-                    },
-                    "dateZoom": {
-                        "$ref": "#/components/schemas/DateZoom"
-                    },
-                    "customDimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/CustomDimension"
-                        },
-                        "type": "array"
-                    },
-                    "csvLimit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "additionalMetrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/AdditionalMetric"
-                        },
-                        "type": "array"
-                    },
-                    "tableCalculations": {
-                        "items": {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        "type": "array"
-                    },
-                    "limit": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "sorts": {
-                        "items": {
-                            "$ref": "#/components/schemas/SortField"
-                        },
-                        "type": "array"
-                    },
-                    "filters": {
-                        "properties": {
-                            "tableCalculations": {
-                                "$ref": "#/components/schemas/AnyType"
-                            },
-                            "metrics": {
-                                "$ref": "#/components/schemas/AnyType"
-                            },
-                            "dimensions": {
-                                "$ref": "#/components/schemas/AnyType"
-                            }
-                        },
-                        "type": "object"
-                    },
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array"
-                    },
-                    "dimensions": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldId"
-                        },
-                        "type": "array"
-                    },
-                    "exploreName": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "tableCalculations",
-                    "limit",
-                    "sorts",
-                    "filters",
-                    "metrics",
-                    "dimensions",
-                    "exploreName"
-                ],
                 "type": "object"
             },
             "Pick_ChartVersion.chartUuid-or-versionUuid-or-createdAt-or-createdBy_": {
@@ -16998,52 +17226,6 @@
                 "required": ["rows", "fields"],
                 "type": "object"
             },
-            "CalculateTotalFromQuery": {
-                "properties": {
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
-                    "explore": {
-                        "type": "string"
-                    },
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQueryRequest"
-                    }
-                },
-                "required": ["explore", "metricQuery"],
-                "type": "object"
-            },
-            "CalculateSubtotalsFromQuery": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CalculateTotalFromQuery"
-                    },
-                    {
-                        "properties": {
-                            "dateZoom": {
-                                "$ref": "#/components/schemas/DateZoom"
-                            },
-                            "parameters": {
-                                "$ref": "#/components/schemas/ParametersValuesMap"
-                            },
-                            "pivotDimensions": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "columnOrder": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columnOrder"],
-                        "type": "object"
-                    }
-                ]
-            },
             "DbtExposureType": {
                 "enum": [
                     "dashboard",
@@ -18099,22 +18281,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -18614,6 +18796,13 @@
                     },
                     "parameters": {
                         "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
+                    },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
                     }
                 },
                 "type": "object",
@@ -18634,22 +18823,6 @@
                 "required": ["name", "label"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "InlineErrorType": {
-                "enum": ["METADATA_PARSE_ERROR", "NO_DIMENSIONS_FOUND"],
-                "type": "string"
-            },
-            "InlineError": {
-                "properties": {
-                    "message": {
-                        "type": "string"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/InlineErrorType"
-                    }
-                },
-                "required": ["message", "type"],
-                "type": "object"
             },
             "ExploreError": {
                 "allOf": [
@@ -19514,6 +19687,88 @@
                     }
                 },
                 "required": ["role"],
+                "type": "object"
+            },
+            "UserSchedulersSummary": {
+                "properties": {
+                    "byProject": {
+                        "items": {
+                            "properties": {
+                                "count": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "projectName": {
+                                    "type": "string"
+                                },
+                                "projectUuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["count", "projectName", "projectUuid"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "hasGsheetsSchedulers": {
+                        "type": "boolean"
+                    },
+                    "totalCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["byProject", "hasGsheetsSchedulers", "totalCount"],
+                "type": "object"
+            },
+            "ApiSuccess_UserSchedulersSummary_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/UserSchedulersSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUserSchedulersSummaryResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_UserSchedulersSummary_"
+            },
+            "ApiSuccess__reassignedCount-number__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "reassignedCount": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["reassignedCount"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiReassignUserSchedulersResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__reassignedCount-number__"
+            },
+            "ReassignUserSchedulersRequest": {
+                "properties": {
+                    "newOwnerUserUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["newOwnerUserUuid"],
                 "type": "object"
             },
             "OrganizationMemberRole.EDITOR": {
@@ -20747,6 +21002,207 @@
                 "required": ["filePath", "sha", "content"],
                 "type": "object"
             },
+            "ApiFunnelEventNamesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "FunnelStepResult": {
+                "properties": {
+                    "breakdownValue": {
+                        "type": "string"
+                    },
+                    "medianTimeToConvertSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "stepConversionRate": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "conversionRate": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalUsers": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "stepName": {
+                        "type": "string"
+                    },
+                    "stepOrder": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "medianTimeToConvertSeconds",
+                    "stepConversionRate",
+                    "conversionRate",
+                    "totalUsers",
+                    "stepName",
+                    "stepOrder"
+                ],
+                "type": "object"
+            },
+            "FunnelQueryResult": {
+                "properties": {
+                    "sql": {
+                        "type": "string"
+                    },
+                    "totalUsersAtStep1": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "steps": {
+                        "items": {
+                            "$ref": "#/components/schemas/FunnelStepResult"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["sql", "totalUsersAtStep1", "steps"],
+                "type": "object"
+            },
+            "ApiFunnelQueryResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/FunnelQueryResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "FunnelStep": {
+                "properties": {
+                    "eventName": {
+                        "type": "string"
+                    },
+                    "stepOrder": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["eventName", "stepOrder"],
+                "type": "object"
+            },
+            "Exclude_FunnelDatePreset.custom_": {
+                "type": "string",
+                "enum": [
+                    "last_7_days",
+                    "last_14_days",
+                    "last_30_days",
+                    "last_90_days",
+                    "last_6_months",
+                    "last_12_months"
+                ],
+                "description": "Exclude from T those types that are assignable to U"
+            },
+            "FunnelDateRange": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "preset": {
+                                "$ref": "#/components/schemas/Exclude_FunnelDatePreset.custom_"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["preset"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["preset", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "end": {
+                                "type": "string"
+                            },
+                            "start": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["custom"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["end", "start", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "FunnelQueryRequest": {
+                "properties": {
+                    "breakdownDimensionId": {
+                        "type": "string"
+                    },
+                    "conversionWindow": {
+                        "properties": {
+                            "unit": {
+                                "type": "string",
+                                "enum": ["hours", "days", "weeks"]
+                            },
+                            "value": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["unit", "value"],
+                        "type": "object"
+                    },
+                    "dateRange": {
+                        "$ref": "#/components/schemas/FunnelDateRange"
+                    },
+                    "steps": {
+                        "items": {
+                            "$ref": "#/components/schemas/FunnelStep"
+                        },
+                        "type": "array"
+                    },
+                    "eventNameFieldId": {
+                        "type": "string"
+                    },
+                    "userIdFieldId": {
+                        "type": "string"
+                    },
+                    "timestampFieldId": {
+                        "type": "string"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "dateRange",
+                    "steps",
+                    "eventNameFieldId",
+                    "userIdFieldId",
+                    "timestampFieldId",
+                    "exploreName"
+                ],
+                "type": "object"
+            },
             "Pick_Explore.SummaryExploreFields_": {
                 "properties": {
                     "name": {
@@ -20779,6 +21235,13 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
                     }
                 },
                 "required": ["name", "label", "tags"],
@@ -20971,6 +21434,13 @@
                                 "type": "array"
                             }
                         ]
+                    },
+                    "warnings": {
+                        "items": {
+                            "$ref": "#/components/schemas/InlineError"
+                        },
+                        "type": "array",
+                        "description": "Non-fatal warnings from partial compilation.\nPresent when some joins or fields failed to compile but the explore is still usable.\nOnly populated when PARTIAL_COMPILATION_ENABLED=true."
                     }
                 },
                 "required": [
@@ -20994,6 +21464,12 @@
             },
             "ApiCompiledQueryResults": {
                 "properties": {
+                    "compilationErrors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "parameterReferences": {
                         "items": {
                             "type": "string"
@@ -22433,6 +22909,9 @@
                     "metricOverrides": {
                         "$ref": "#/components/schemas/MetricOverrides"
                     },
+                    "dimensionOverrides": {
+                        "$ref": "#/components/schemas/DimensionOverrides"
+                    },
                     "periodOverPeriod": {
                         "$ref": "#/components/schemas/PeriodOverPeriodComparison"
                     }
@@ -23664,7 +24143,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2265.4",
+        "version": "0.2328.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -29631,6 +30110,60 @@
                 }
             }
         },
+        "/api/v1/schedulers/{projectUuid}/reassign-owner": {
+            "patch": {
+                "operationId": "reassignSchedulerOwner",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiReassignSchedulerOwnerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Reassign ownership of multiple schedulers",
+                "summary": "Reassign scheduler owner",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "the scheduler UUIDs and new owner UUID",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReassignSchedulerOwnerRequest",
+                                "description": "the scheduler UUIDs and new owner UUID"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/schedulers/{schedulerUuid}/jobs": {
             "get": {
                 "operationId": "getScheduledJobs",
@@ -33133,6 +33666,14 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "googleOidcOnly",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
                     }
                 ]
             }
@@ -33310,6 +33851,102 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/org/user/{userUuid}/schedulers-summary": {
+            "get": {
+                "operationId": "GetUserSchedulersSummary",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUserSchedulersSummaryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets a summary of scheduled deliveries owned by a user across all projects",
+                "summary": "Get user schedulers",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the user",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/org/user/{userUuid}/reassign-schedulers": {
+            "patch": {
+                "operationId": "ReassignUserSchedulers",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiReassignUserSchedulersResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Reassigns all scheduled deliveries from one user to another",
+                "summary": "Reassign schedulers",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the uuid of the user whose schedulers will be reassigned",
+                        "in": "path",
+                        "name": "userUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "the new owner details",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReassignUserSchedulersRequest",
+                                "description": "the new owner details"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/org/allowedEmailDomains": {
@@ -35090,6 +35727,120 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/funnel/event-names": {
+            "get": {
+                "operationId": "GetFunnelEventNames",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiFunnelEventNamesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get distinct event names from a dimension for funnel step selection",
+                "summary": "Get event names",
+                "tags": ["Funnel"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The project UUID",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The explore to query",
+                        "in": "query",
+                        "name": "exploreName",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The dimension containing event names",
+                        "in": "query",
+                        "name": "eventDimensionId",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/funnel/query": {
+            "post": {
+                "operationId": "RunFunnelQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiFunnelQueryResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Execute a funnel analysis query and return conversion metrics",
+                "summary": "Run funnel query",
+                "tags": ["Funnel"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The project UUID",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "The funnel query configuration",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FunnelQueryRequest",
+                                "description": "The funnel query configuration"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/explores": {

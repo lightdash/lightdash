@@ -590,4 +590,112 @@ export async function seed(knex: Knex): Promise<void> {
             },
         },
     );
+
+    await savedChartModel.create(
+        SEED_PROJECT.project_uuid,
+        SEED_ORG_1_ADMIN.user_uuid,
+        {
+            slug: generateSlug('Shipping counts by method'),
+            name: 'Shipping counts by method',
+            description: '',
+            tableName: 'orders',
+            metricQuery: {
+                exploreName: 'orders',
+                dimensions: ['orders_order_date_day', 'orders_shipping_method'],
+                metrics: ['orders_unique_order_count'],
+                filters: {},
+                sorts: [
+                    {
+                        fieldId: 'orders_order_date_day',
+                        descending: false,
+                    },
+                ],
+                limit: 500,
+                tableCalculations: [
+                    {
+                        name: 'cumulative_order_count',
+                        displayName: 'Cumulative order count',
+                        sql: 'SUM(${orders.unique_order_count})\nOVER(ORDER BY ${orders.order_date_day})',
+                    },
+                ],
+            },
+            chartConfig: {
+                type: ChartType.CUSTOM,
+                config: {
+                    spec: {
+                        spec: {
+                            mark: 'area',
+                            width: 600,
+                            height: 60,
+                            encoding: {
+                                x: {
+                                    axis: {
+                                        grid: true,
+                                    },
+                                    type: 'temporal',
+                                    field: 'orders_order_date_day',
+                                    title: 'Order Month',
+                                },
+                                y: {
+                                    axis: {
+                                        grid: false,
+                                    },
+                                    type: 'quantitative',
+                                    field: 'orders_unique_order_count',
+                                    title: 'Distinct Orders',
+                                },
+                                color: {
+                                    type: 'nominal',
+                                    field: 'orders_shipping_method',
+                                    legend: null,
+                                },
+                                tooltip: [
+                                    {
+                                        type: 'nominal',
+                                        field: 'orders_shipping_method',
+                                        title: 'Browser',
+                                    },
+                                    {
+                                        type: 'temporal',
+                                        field: 'orders_order_date_day',
+                                        title: 'Order Month',
+                                    },
+                                    {
+                                        type: 'quantitative',
+                                        field: 'orders_unique_order_count',
+                                        title: 'Distinct Orders',
+                                    },
+                                ],
+                            },
+                        },
+                        facet: {
+                            row: {
+                                type: 'nominal',
+                                field: 'orders_shipping_method',
+                                title: 'Browser',
+                            },
+                        },
+                        $schema:
+                            'https://vega.github.io/schema/vega-lite/v6.json',
+                        resolve: {
+                            scale: {
+                                y: 'independent',
+                            },
+                        },
+                        description:
+                            'Distinct order counts by browser and month.',
+                    },
+                },
+            },
+            tableConfig: {
+                columnOrder: [
+                    'orders_order_date_day',
+                    'orders_shipping_method',
+                    'orders_unique_order_count',
+                    'cumulative_order_count',
+                ],
+            },
+            updatedByUser,
+        },
+    );
 }

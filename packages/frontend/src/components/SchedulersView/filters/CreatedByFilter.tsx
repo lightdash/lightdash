@@ -35,7 +35,7 @@ const CreatedByFilter: FC<CreatedByFilterProps> = ({
                 <Tooltip
                     withinPortal
                     variant="xs"
-                    label="Filter by user who created the scheduler"
+                    label="Filter by user who owns the scheduler"
                 >
                     <Button
                         h={32}
@@ -73,14 +73,14 @@ const CreatedByFilter: FC<CreatedByFilterProps> = ({
                             ) : null
                         }
                     >
-                        Creator
+                        Owner
                     </Button>
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown p="sm">
                 <Stack gap={4}>
                     <Text fz="xs" c="ldGray.9" fw={600}>
-                        Filter by created by:
+                        Filter by owner:
                     </Text>
 
                     <ScrollArea.Autosize mah={200} type="always" scrollbars="y">

@@ -140,6 +140,8 @@ export type GaugeChart = {
     showAxisLabels?: boolean;
     sections?: GaugeSection[];
     customLabel?: string;
+    showPercentage?: boolean;
+    customPercentageLabel?: string;
 };
 
 export enum MapChartLocation {
@@ -163,6 +165,11 @@ export enum MapTileBackground {
     SATELLITE = 'satellite',
 }
 
+export type MapFieldConfig = {
+    visible?: boolean;
+    label?: string;
+};
+
 export type MapChart = {
     mapType?: MapChartLocation;
     customGeoJsonUrl?: string;
@@ -170,8 +177,12 @@ export type MapChart = {
     // Lat/Long fields
     latitudeFieldId?: string;
     longitudeFieldId?: string;
-    // Country/Region field
+    // Country/Region field for area maps
     locationFieldId?: string;
+    // GeoJSON property key to match against (e.g., 'name', 'ISO3166-1-Alpha-3')
+    // For World map: matches against countries.geojson properties
+    // For US map: matches against us-states.geojson properties
+    geoJsonPropertyKey?: string;
     // Common fields
     valueFieldId?: string;
     showLegend?: boolean;
@@ -185,9 +196,16 @@ export type MapChart = {
     minBubbleSize?: number;
     maxBubbleSize?: number;
     sizeFieldId?: string;
-    // Tile background
+    // Heatmap settings
+    heatmapConfig?: {
+        radius?: number;
+        blur?: number;
+        opacity?: number;
+    };
     tileBackground?: MapTileBackground;
     backgroundColor?: string;
+    // Field configuration (controls tooltip visibility and custom labels)
+    fieldConfig?: Record<string, MapFieldConfig>;
 };
 
 export enum FunnelChartDataInput {
@@ -310,6 +328,7 @@ export type Series = {
     label?: {
         show?: boolean;
         position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
+        showOverlappingLabels?: boolean;
     };
     hidden?: boolean;
     areaStyle?: Record<string, unknown>;
@@ -359,6 +378,8 @@ export type CompleteEChartsConfig = {
     yAxis: Axis[];
     tooltip?: string;
     showAxisTicks?: boolean;
+    axisLabelFontSize?: number;
+    axisTitleFontSize?: number;
 };
 
 export type EChartsConfig = Partial<CompleteEChartsConfig>;

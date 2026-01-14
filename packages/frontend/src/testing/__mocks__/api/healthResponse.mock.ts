@@ -46,9 +46,6 @@ export default function mockHealthResponse(
             maxColumnLimit: 100,
         },
         hasSlack: false,
-        slack: {
-            multiAgentChannelEnabled: false,
-        },
         auth: {
             disablePasswordAuthentication: false,
             google: {
@@ -108,6 +105,9 @@ export default function mockHealthResponse(
             isAmbientAiEnabled: false,
         },
         echarts6: {
+            enabled: false,
+        },
+        funnelBuilder: {
             enabled: false,
         },
         ...overrides,

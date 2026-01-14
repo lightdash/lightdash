@@ -157,7 +157,8 @@ const formatBarDisplayCell = (
     // This ensures percentage values stored as decimals (0.05) are properly scaled
     // to match the min/max values calculated by convertFormattedValue (5, 15)
     const convertedValue = convertFormattedValue(value, item);
-    const numericConvertedValue = typeof convertedValue === 'number' ? convertedValue : value;
+    const numericConvertedValue =
+        typeof convertedValue === 'number' ? convertedValue : value;
 
     return (
         <TableCellBar

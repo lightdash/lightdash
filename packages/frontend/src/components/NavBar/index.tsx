@@ -39,7 +39,11 @@ const useNavBarMode = () => {
     };
 };
 
-const NavBar = memo(() => {
+interface NavBarProps {
+    isFixed?: boolean;
+}
+
+const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { isFullscreen } = useFullscreen();
 
@@ -58,6 +62,10 @@ const NavBar = memo(() => {
 
     const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
 
+    // Calculate placeholder height: navbar + banner (if preview project)
+    const headerContainerHeight =
+        NAVBAR_HEIGHT + (isCurrentProjectPreview ? BANNER_HEIGHT : 0);
+
     const getHeaderStyles = useCallback(
         (theme: MantineTheme) => ({
             ...defaultNavbarStyles,
@@ -70,8 +78,6 @@ const NavBar = memo(() => {
         }),
         [navBarMode],
     );
-    const headerContainerHeight =
-        NAVBAR_HEIGHT + (isCurrentProjectPreview ? BANNER_HEIGHT : 0);
 
     const renderNavBarContent = () => {
         switch (navBarMode) {
@@ -95,19 +101,19 @@ const NavBar = memo(() => {
     return (
         <MantineProvider theme={darkTheme}>
             {isCurrentProjectPreview && <PreviewBanner />}
-            {/* hack to make navbar fixed and maintain space */}
-            <Box h={!isFullscreen ? headerContainerHeight : 0} />
             <Header
                 height={NAVBAR_HEIGHT}
-                fixed
+                fixed={isFixed}
                 mt={isCurrentProjectPreview ? BANNER_HEIGHT : 0}
                 display={isFullscreen ? 'none' : 'flex'}
                 px="md"
-                zIndex={getDefaultZIndex('app')}
+                zIndex={isFixed ? getDefaultZIndex('app') : undefined}
                 styles={(theme) => ({ root: getHeaderStyles(theme) })}
             >
                 {renderNavBarContent()}
             </Header>
+            {/* Placeholder to reserve space when navbar is fixed */}
+            {isFixed && !isFullscreen && <Box h={headerContainerHeight} />}
         </MantineProvider>
     );
 });

@@ -118,6 +118,10 @@ const FilterMultiStringInput: FC<Props> = ({
                     </Group>
                 )}
                 styles={{
+                    input: {
+                        maxHeight: '350px',
+                        overflowY: 'auto',
+                    },
                     item: {
                         // makes add new item button sticky to bottom
                         '&:last-child:not([value])': {

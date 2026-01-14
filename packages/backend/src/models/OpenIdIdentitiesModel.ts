@@ -1,6 +1,5 @@
 import {
     CreateOpenIdIdentity,
-    NotExistsError,
     NotFoundError,
     OpenIdIdentity,
     OpenIdIdentityIssuerType,
@@ -69,7 +68,7 @@ export class OpenIdIdentityModel {
             .where('issuer', issuer)
             .andWhere('subject', subject);
         if (identity === undefined) {
-            throw new NotExistsError('Cannot find openid identity');
+            throw new NotFoundError('Cannot find openid identity');
         }
         return OpenIdIdentityModel._parseDbIdentity(identity);
     }

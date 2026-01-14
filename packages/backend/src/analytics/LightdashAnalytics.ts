@@ -1004,12 +1004,18 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     properties: {
         jobId: string;
         schedulerId?: string;
+        schedulerTargetId?: string;
         resourceType?: 'dashboard' | 'chart';
         type: 'slack' | 'email' | 'gsheets' | 'msteams';
         format?: SchedulerFormat;
         withPdf?: boolean;
         sendNow: boolean;
         isThresholdAlert?: boolean;
+        targetCount?: number;
+        succeeded?: number;
+        failed?: number;
+        partialFailure?: boolean;
+        error?: string;
     };
 };
 
@@ -1461,6 +1467,16 @@ export type AiAgentArtifactsRetrievedEvent = BaseTrack & {
     };
 };
 
+export type SchedulerOwnershipReassignedEvent = BaseTrack & {
+    event: 'scheduler.ownership_reassigned';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        schedulerUuids: string[];
+        newOwnerUserUuid: string;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -1562,7 +1578,8 @@ type TypedEvent =
     | McpToolCallEvent
     | AiAgentToolCallEvent
     | AiAgentArtifactVersionVerifiedEvent
-    | AiAgentArtifactsRetrievedEvent;
+    | AiAgentArtifactsRetrievedEvent
+    | SchedulerOwnershipReassignedEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {

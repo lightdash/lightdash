@@ -1,6 +1,5 @@
-import { Button, Group, Modal, Stack, Text } from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import { Text } from '@mantine-8/core';
+import MantineModal from '../../../components/common/MantineModal';
 import { useDeleteVirtualView } from '../../virtualView/hooks/useVirtualView';
 
 export const DeleteVirtualViewModal = ({
@@ -15,43 +14,26 @@ export const DeleteVirtualViewModal = ({
     projectUuid: string;
 }) => {
     const { mutate, isLoading } = useDeleteVirtualView(projectUuid);
-    const onDelete = () => {
+    const handleConfirm = () => {
         mutate({ projectUuid, name: virtualViewName });
-        // TODO: run validation query
         onClose();
     };
+
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            keepMounted={false}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon icon={IconTrash} size="lg" color="ldGray.7" />
-                    <Text fw={500}>Delete virtual view</Text>
-                </Group>
-            }
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
-            })}
+            title="Delete virtual view"
+            variant="delete"
+            resourceType="virtual view"
+            resourceLabel={virtualViewName}
+            onConfirm={handleConfirm}
+            confirmLoading={isLoading}
         >
-            <Stack pt="sm">
-                <Text>
-                    Are you sure you want to delete this virtual view? This
-                    action cannot be undone and charts based on this virtual
-                    view will break.
-                </Text>
-
-                <Group position="right" mt="sm">
-                    <Button color="dark" variant="outline" onClick={onClose}>
-                        Cancel
-                    </Button>
-
-                    <Button loading={isLoading} color="red" onClick={onDelete}>
-                        Delete
-                    </Button>
-                </Group>
-            </Stack>
-        </Modal>
+            <Text fz="sm" c="dimmed">
+                This action cannot be undone and charts based on this virtual
+                view will break.
+            </Text>
+        </MantineModal>
     );
 };

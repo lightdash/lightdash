@@ -5,7 +5,9 @@ import { BANNER_HEIGHT } from '../common/Page/constants';
 
 export const PreviewBanner = () => (
     <Center
+        id="preview-banner"
         pos="fixed"
+        top={0}
         w="100%"
         h={BANNER_HEIGHT}
         bg="blue.6"

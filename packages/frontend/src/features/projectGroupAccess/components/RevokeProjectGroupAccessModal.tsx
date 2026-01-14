@@ -1,13 +1,14 @@
 import { type GroupWithMembers } from '@lightdash/common';
-import { Button, Group, Modal, Text, Title } from '@mantine/core';
+import { Button } from '@mantine-8/core';
 import { IconKey } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 
-type RevokeProjectGroupAccessModalProps = {
+type RevokeProjectGroupAccessModalProps = Pick<MantineModalProps, 'onClose'> & {
     group: GroupWithMembers;
     onDelete: () => void;
-    onClose: () => void;
 };
 
 const RevokeProjectGroupAccessModal: FC<RevokeProjectGroupAccessModalProps> = ({
@@ -16,31 +17,18 @@ const RevokeProjectGroupAccessModal: FC<RevokeProjectGroupAccessModalProps> = ({
     onClose,
 }) => {
     return (
-        <Modal
+        <MantineModal
             opened
             onClose={onClose}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon size="lg" icon={IconKey} color="red" />
-                    <Title order={4}>Revoke group project access</Title>
-                </Group>
-            }
-        >
-            <Text pb="md">
-                Are you sure you want to revoke project access for this group "
-                {group.name}"?
-            </Text>
-
-            <Group spacing="xs" position="right">
-                <Button variant="outline" onClick={onClose} color="dark">
-                    Cancel
-                </Button>
-
+            title="Revoke group project access"
+            icon={IconKey}
+            description={`Are you sure you want to revoke project access for this group "${group.name}"?`}
+            actions={
                 <Button color="red" onClick={onDelete}>
                     Revoke
                 </Button>
-            </Group>
-        </Modal>
+            }
+        />
     );
 };
 

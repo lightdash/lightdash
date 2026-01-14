@@ -34,7 +34,7 @@ const LightdashVisualization = memo(
             {
                 isDashboard = false,
                 tileUuid,
-                isTitleHidden = false,
+                isTitleHidden: _isTitleHidden = false,
                 className,
                 onScreenshotReady,
                 onScreenshotError,
@@ -96,8 +96,6 @@ const LightdashVisualization = memo(
                     return (
                         <SimpleStatistic
                             minimal={minimal}
-                            isTitleHidden={isTitleHidden}
-                            isDashboard={isDashboard}
                             className={className}
                             data-testid={props['data-testid']}
                             onScreenshotReady={onScreenshotReady}

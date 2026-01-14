@@ -16,14 +16,15 @@ import {
     type PivotReference,
     type ResultValue,
 } from '@lightdash/common';
-import { Button, Group, Modal, Stack, Title } from '@mantine/core';
-import { IconExternalLink } from '@tabler/icons-react';
+import { Button } from '@mantine-8/core';
+import { IconArrowBarToDown, IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import FieldSelect from '../common/FieldSelect';
 import MantineIcon from '../common/MantineIcon';
+import MantineModal from '../common/MantineModal';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
 type CombineFiltersArgs = {
@@ -212,37 +213,33 @@ export const DrillDownModal: FC = () => {
     }, [closeDrillDownModal]);
 
     return (
-        <Modal
+        <MantineModal
             opened={isDrillDownModalOpen}
             onClose={onClose}
-            title={<Title order={4}>Drill into "{value}"</Title>}
+            title={`Drill into "${value}"`}
+            size="md"
+            icon={IconArrowBarToDown}
+            actions={
+                <Button
+                    component="a"
+                    target="_blank"
+                    href={url}
+                    leftSection={<MantineIcon icon={IconExternalLink} />}
+                    disabled={!selectedDimension}
+                    onClick={() => setTimeout(onClose, 500)}
+                >
+                    Open in new tab
+                </Button>
+            }
         >
-            <Stack>
-                <FieldSelect
-                    withinPortal
-                    disabled={dimensionsAvailable.length === 0}
-                    item={selectedDimension}
-                    items={dimensionsAvailable}
-                    onChange={setSelectedDimension}
-                    hasGrouping
-                />
-                <Group position="right">
-                    <Button variant="outline" onClick={onClose}>
-                        Cancel
-                    </Button>
-
-                    <Button
-                        component="a"
-                        target="_blank"
-                        href={url}
-                        leftIcon={<MantineIcon icon={IconExternalLink} />}
-                        disabled={!selectedDimension}
-                        onClick={() => setTimeout(onClose, 500)}
-                    >
-                        Open in new tab
-                    </Button>
-                </Group>
-            </Stack>
-        </Modal>
+            <FieldSelect
+                withinPortal
+                disabled={dimensionsAvailable.length === 0}
+                item={selectedDimension}
+                items={dimensionsAvailable}
+                onChange={setSelectedDimension}
+                hasGrouping
+            />
+        </MantineModal>
     );
 };

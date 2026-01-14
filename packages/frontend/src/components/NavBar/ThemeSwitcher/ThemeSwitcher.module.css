@@ -1,0 +1,46 @@
+.themeToggle svg {
+    font-size: 16px;
+    stroke-width: 2;
+}
+
+.themeToggleIcon {
+    --theme-toggle__classic--duration: 750ms;
+}
+
+.themeToggleIcon path {
+    transition-timing-function: cubic-bezier(0, 0, 0.15, 1.25);
+    transform-origin: center;
+    transition-duration: calc(var(--theme-toggle__classic--duration) * 0.8);
+}
+
+.themeToggleIcon g path {
+    transition-property: opacity, transform;
+    transition-delay: calc(var(--theme-toggle__classic--duration) * 0.2);
+}
+
+.themeToggleIcon :first-child path {
+    transition-property: transform, d;
+}
+
+.toggled.themeToggleIcon g path {
+    transform: scale(0.5) rotate(45deg);
+    opacity: 0;
+    transition-delay: 0s;
+}
+
+.toggled.themeToggleIcon :first-child path {
+    d: path('M-12 5h30a1 1 0 0 0 9 13v24h-39Z');
+    transition-delay: calc(var(--theme-toggle__classic--duration) * 0.2);
+}
+
+@supports not (d: path('')) {
+    .toggled.themeToggleIcon :first-child path {
+        transform: translate3d(-12px, 10px, 0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .themeToggleIcon * {
+        transition: none !important;
+    }
+}

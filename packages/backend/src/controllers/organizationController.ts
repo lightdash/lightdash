@@ -10,7 +10,10 @@ import {
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
     ApiOrganizationProjects,
+    ApiReassignUserSchedulersResponse,
     ApiSuccessEmpty,
+    ApiUserSchedulersSummaryResponse,
+    AuthorizationError,
     CreateColorPalette,
     CreateGroup,
     CreateOrganization,
@@ -18,6 +21,7 @@ import {
     KnexPaginateArgs,
     LightdashRequestMethodHeader,
     OrganizationMemberProfileUpdate,
+    ReassignUserSchedulersRequest,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
     UpdateOrganization,
@@ -191,6 +195,7 @@ export class OrganizationController extends BaseController {
         @Query() page?: number,
         @Query() searchQuery?: string,
         @Query() projectUuid?: string,
+        @Query() googleOidcOnly?: boolean,
     ): Promise<ApiOrganizationMemberProfiles> {
         this.setStatus(200);
         let paginateArgs: KnexPaginateArgs | undefined;
@@ -212,6 +217,7 @@ export class OrganizationController extends BaseController {
                     paginateArgs,
                     searchQuery,
                     projectUuid,
+                    googleOidcOnly,
                 ),
         };
     }
@@ -309,6 +315,68 @@ export class OrganizationController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Gets a summary of scheduled deliveries owned by a user across all projects
+     * @summary Get user schedulers
+     * @param req express request
+     * @param userUuid the uuid of the user
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/user/{userUuid}/schedulers-summary')
+    @OperationId('GetUserSchedulersSummary')
+    async getUserSchedulersSummary(
+        @Request() req: express.Request,
+        @Path() userUuid: string,
+    ): Promise<ApiUserSchedulersSummaryResponse> {
+        if (!req.user) {
+            throw new AuthorizationError('User session not found');
+        }
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSchedulerService()
+                .getUserSchedulersSummary(req.user, userUuid),
+        };
+    }
+
+    /**
+     * Reassigns all scheduled deliveries from one user to another
+     * @summary Reassign schedulers
+     * @param req express request
+     * @param userUuid the uuid of the user whose schedulers will be reassigned
+     * @param body the new owner details
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Patch('/user/{userUuid}/reassign-schedulers')
+    @OperationId('ReassignUserSchedulers')
+    async reassignUserSchedulers(
+        @Request() req: express.Request,
+        @Path() userUuid: string,
+        @Body() body: ReassignUserSchedulersRequest,
+    ): Promise<ApiReassignUserSchedulersResponse> {
+        if (!req.user) {
+            throw new AuthorizationError('User session not found');
+        }
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSchedulerService()
+                .reassignUserSchedulers(
+                    req.user,
+                    userUuid,
+                    body.newOwnerUserUuid,
+                ),
         };
     }
 

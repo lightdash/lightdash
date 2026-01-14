@@ -6,8 +6,14 @@ import {
     findReplaceableCustomMetrics,
     getMetrics,
 } from '@lightdash/common';
-import { ActionIcon, Group, Menu, Stack, Text } from '@mantine/core';
-import { IconCode, IconDots, IconPencil, IconTrash } from '@tabler/icons-react';
+import { ActionIcon, Group, HoverCard, Menu, Stack, Text } from '@mantine/core';
+import {
+    IconAlertTriangle,
+    IconCode,
+    IconDots,
+    IconPencil,
+    IconTrash,
+} from '@tabler/icons-react';
 import {
     memo,
     useCallback,
@@ -17,7 +23,6 @@ import {
     useTransition,
     type FC,
 } from 'react';
-import { useParams } from 'react-router';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -33,6 +38,7 @@ import {
 } from '../../../features/virtualView';
 import { useExplore } from '../../../hooks/useExplore';
 import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -43,6 +49,7 @@ import ExploreTree from '../ExploreTree';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
 import ExploreYamlModal from '../ExploreYamlModal';
+import WarningsHoverCardContent from '../WarningsHoverCard';
 import { useIsGitProject } from '../WriteBackModal/hooks';
 import { VisualizationConfigPortalId } from './constants';
 
@@ -59,7 +66,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
     const [isViewSourceOpen, setIsViewSourceOpen] = useState(false);
     const [, startTransition] = useTransition();
 
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const isGitProject = useIsGitProject(projectUuid ?? '');
     const { data: editYamlInUiFlag } = useFeatureFlag(
         FeatureFlags.EditYamlInUi,
@@ -195,7 +202,37 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                 }}
             >
                 <Group position="apart">
-                    <PageBreadcrumbs size="md" items={breadcrumbs} />
+                    <Group spacing="xs">
+                        <PageBreadcrumbs size="md" items={breadcrumbs} />
+                        {explore.warnings && explore.warnings.length > 0 && (
+                            <HoverCard
+                                withinPortal
+                                position="right"
+                                withArrow
+                                radius="md"
+                                shadow="subtle"
+                            >
+                                <HoverCard.Target>
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="yellow"
+                                        size="sm"
+                                    >
+                                        <MantineIcon
+                                            icon={IconAlertTriangle}
+                                            color="yellow.9"
+                                        />
+                                    </ActionIcon>
+                                </HoverCard.Target>
+                                <HoverCard.Dropdown maw={400} p="xs">
+                                    <WarningsHoverCardContent
+                                        type="warnings"
+                                        warnings={explore.warnings}
+                                    />
+                                </HoverCard.Dropdown>
+                            </HoverCard>
+                        )}
+                    </Group>
                     {explore.type === ExploreType.VIRTUAL && (
                         <Can
                             I="create"

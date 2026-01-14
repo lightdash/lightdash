@@ -58,7 +58,6 @@ export const ChartDataTable = ({
             {...flexProps}
             sx={{
                 overflow: 'auto',
-                fontFamily: "'Inter', sans-serif",
                 fontFeatureSettings: "'tnum'",
                 flexGrow: 1,
                 ...flexProps?.sx,

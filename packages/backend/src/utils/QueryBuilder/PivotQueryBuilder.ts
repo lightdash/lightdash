@@ -8,7 +8,6 @@ import {
     TimeFrames,
     VizSortBy,
     WarehouseSqlBuilder,
-    type CompiledDimension,
     type ItemsMap,
     type PivotConfiguration,
 } from '@lightdash/common';
@@ -63,31 +62,54 @@ export class PivotQueryBuilder {
     }
 
     /**
+     * Returns the SQL NULLS FIRST/LAST clause based on the nullsFirst flag.
+     * @param nullsFirst Whether to sort nulls first (undefined means no clause)
+     * @returns SQL clause string (' NULLS FIRST', ' NULLS LAST', or '')
+     */
+    static getNullsFirstLast(nullsFirst: boolean | undefined): string {
+        if (nullsFirst === undefined) return '';
+        return nullsFirst ? ' NULLS FIRST' : ' NULLS LAST';
+    }
+
+    /**
      * Resolves sort field reference to SQL expression.
      * For name-based time intervals, returns CASE statement for chronological order.
      * @param reference Field reference from sortBy
      * @param descending Sort direction
+     * @param nullsFirst Whether to sort nulls first (undefined means no NULLS clause)
      * @returns SQL sort expression
      */
-    private resolveSortField(reference: string, descending: boolean): string {
+    private resolveSortField(
+        reference: string,
+        descending: boolean,
+        nullsFirst?: boolean,
+    ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const field = this.itemsMap[reference];
+        const nullsClause = PivotQueryBuilder.getNullsFirstLast(nullsFirst);
 
         if (!field || !isDimension(field)) {
-            return `${q}${reference}${q}${descending ? ' DESC' : ' ASC'}`;
+            return `${q}${reference}${q}${
+                descending ? ' DESC' : ' ASC'
+            }${nullsClause}`;
         }
 
         const startOfWeek = this.warehouseSqlBuilder.getStartOfWeek();
 
         switch (field.timeInterval) {
             case TimeFrames.MONTH_NAME:
-                return sortMonthName(field, q, descending);
+                return sortMonthName(field, q, descending) + nullsClause;
             case TimeFrames.DAY_OF_WEEK_NAME:
-                return sortDayOfWeekName(field, startOfWeek, q, descending);
+                return (
+                    sortDayOfWeekName(field, startOfWeek, q, descending) +
+                    nullsClause
+                );
             case TimeFrames.QUARTER_NAME:
-                return sortQuarterName(field, q, descending);
+                return sortQuarterName(field, q, descending) + nullsClause;
             default:
-                return `${q}${reference}${q}${descending ? ' DESC' : ' ASC'}`;
+                return `${q}${reference}${q}${
+                    descending ? ' DESC' : ' ASC'
+                }${nullsClause}`;
         }
     }
 
@@ -136,6 +158,7 @@ export class PivotQueryBuilder {
                 this.resolveSortField(
                     s.reference,
                     s.direction === SortByDirection.DESC,
+                    s.nullsFirst,
                 ),
             )
             .join(', ')}`;
@@ -261,6 +284,9 @@ export class PivotQueryBuilder {
                         sort.direction === SortByDirection.DESC
                             ? ' DESC'
                             : ' ASC';
+                    const nullsClause = PivotQueryBuilder.getNullsFirstLast(
+                        sort.nullsFirst,
+                    );
                     // Use column anchor value for value columns
                     const colAnchorCteName = `${sort.reference}_column_anchor`;
 
@@ -270,7 +296,7 @@ export class PivotQueryBuilder {
                         metricFirstValueQueries[colAnchorCteName]
                     ) {
                         acc.push(
-                            `${colAnchorCteName}.${q}${colAnchorCteName}_value${q}${sortDirection}`,
+                            `${colAnchorCteName}.${q}${colAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
                         );
                     }
                     return acc;
@@ -282,6 +308,7 @@ export class PivotQueryBuilder {
                 const sortExpr = this.resolveSortField(
                     col.reference,
                     sort?.direction === SortByDirection.DESC,
+                    sort?.nullsFirst,
                 );
                 // Prefix with g. table alias
                 return sortExpr.replaceAll(
@@ -359,8 +386,11 @@ export class PivotQueryBuilder {
                 // Use the anchor value from the row anchor CTE
                 const rowAnchorCteName = `${sort.reference}_row_anchor`;
                 if (metricFirstValueQueries[rowAnchorCteName]) {
+                    const nullsClause = PivotQueryBuilder.getNullsFirstLast(
+                        sort.nullsFirst,
+                    );
                     orderByParts.push(
-                        `${rowAnchorCteName}.${q}${rowAnchorCteName}_value${q}${sortDirection}`,
+                        `${rowAnchorCteName}.${q}${rowAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
                     );
                 }
             } else if (isIndexColumn) {
@@ -368,6 +398,7 @@ export class PivotQueryBuilder {
                 const sortExpr = this.resolveSortField(
                     sort.reference,
                     sort.direction === SortByDirection.DESC,
+                    sort.nullsFirst,
                 );
                 // Prefix with g. table alias
                 const prefixedExpr = sortExpr.replaceAll(
@@ -437,6 +468,9 @@ export class PivotQueryBuilder {
             );
             const sortDirection =
                 sortConfig.direction === SortByDirection.DESC ? 'DESC' : 'ASC';
+            const nullsClause = PivotQueryBuilder.getNullsFirstLast(
+                sortConfig.nullsFirst,
+            );
 
             // Create row anchor CTE (partitioned by index columns)
             const rowAnchorCteName = `${valCol.reference}_row_anchor`;
@@ -444,7 +478,7 @@ export class PivotQueryBuilder {
                 .map((col) => `${q}${col.reference}${q}`)
                 .join(', ');
 
-            const rowAnchorSql = `SELECT DISTINCT ${indexColumnReferences}, FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${indexColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${q}${rowAnchorCteName}_value${q} FROM group_by_query`;
+            const rowAnchorSql = `SELECT DISTINCT ${indexColumnReferences}, FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${indexColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${q}${rowAnchorCteName}_value${q} FROM group_by_query`;
 
             result[rowAnchorCteName] = {
                 cteName: rowAnchorCteName,
@@ -457,7 +491,7 @@ export class PivotQueryBuilder {
                 .map((col) => `${q}${col.reference}${q}`)
                 .join(', ');
 
-            const colAnchorSql = `SELECT DISTINCT ${groupColumnReferences}, FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${q}${colAnchorCteName}_value${q} FROM group_by_query`;
+            const colAnchorSql = `SELECT DISTINCT ${groupColumnReferences}, FIRST_VALUE(${q}${fieldName}${q}) OVER (PARTITION BY ${groupColumnReferences} ORDER BY ${q}${fieldName}${q} ${sortDirection}${nullsClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ${q}${colAnchorCteName}_value${q} FROM group_by_query`;
 
             result[colAnchorCteName] = {
                 cteName: colAnchorCteName,
@@ -495,6 +529,7 @@ export class PivotQueryBuilder {
         const joins: string[] = [];
 
         // Add joins for metric first value CTEs
+        // Use LEFT JOIN to preserve all rows even when anchor values are NULL
         Object.values(metricFirstValueQueries).forEach(({ cteName }) => {
             if (cteName.endsWith('_row_anchor')) {
                 // Join on index columns for row anchor CTEs
@@ -504,7 +539,7 @@ export class PivotQueryBuilder {
                             `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
                     )
                     .join(' AND ');
-                joins.push(`JOIN ${cteName} ON ${joinConditions}`);
+                joins.push(`LEFT JOIN ${cteName} ON ${joinConditions}`);
             } else if (cteName.endsWith('_column_anchor')) {
                 // Join on group columns for column anchor CTEs
                 const joinConditions = groupByColumns
@@ -513,7 +548,7 @@ export class PivotQueryBuilder {
                             `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
                     )
                     .join(' AND ');
-                joins.push(`JOIN ${cteName} ON ${joinConditions}`);
+                joins.push(`LEFT JOIN ${cteName} ON ${joinConditions}`);
             }
         });
 

@@ -12,17 +12,17 @@ export const ConfigTabs: FC = memo(() => {
     );
     return (
         <MantineProvider inherit theme={themeOverride}>
-            <Tabs defaultValue="layout" keepMounted={false}>
+            <Tabs defaultValue="general" keepMounted={false}>
                 <Tabs.List mb="sm">
-                    <Tabs.Tab px="sm" value="layout">
-                        Layout
+                    <Tabs.Tab px="sm" value="general">
+                        General
                     </Tabs.Tab>
                     <Tabs.Tab px="sm" value="display">
-                        Display
+                        Map display
                     </Tabs.Tab>
                 </Tabs.List>
 
-                <Tabs.Panel value="layout">
+                <Tabs.Panel value="general">
                     <Layout />
                 </Tabs.Panel>
 

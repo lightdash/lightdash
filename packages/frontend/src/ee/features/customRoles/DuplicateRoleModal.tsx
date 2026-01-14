@@ -1,17 +1,10 @@
-import {
-    Button,
-    Group,
-    Modal,
-    Select,
-    Stack,
-    TextInput,
-    Textarea,
-} from '@mantine/core';
-import { useForm } from '@mantine/form';
-import { type FC, useMemo } from 'react';
-
 import { type Role, type RoleWithScopes } from '@lightdash/common';
+import { Button, Select, Stack, TextInput, Textarea } from '@mantine-8/core';
+import { useForm } from '@mantine/form';
+import { IconCopy } from '@tabler/icons-react';
 import startCase from 'lodash/startCase';
+import { type FC, useMemo } from 'react';
+import MantineModal from '../../../components/common/MantineModal';
 import { validateRoleName } from './utils/roleValidation';
 
 type Props = {
@@ -57,12 +50,13 @@ export const DuplicateRoleModal: FC<Props> = ({
     });
 
     const rolesSelectData = useMemo(() => {
+        if (!roles) return [];
+
         const systemRoles = roles
             .filter((role) => role.ownerType === 'system')
             .map((role) => ({
                 value: role.roleUuid,
                 label: startCase(role.name),
-                group: 'System roles',
             }));
 
         const customRoles = roles
@@ -70,13 +64,22 @@ export const DuplicateRoleModal: FC<Props> = ({
             .map((role) => ({
                 value: role.roleUuid,
                 label: role.name,
-                group: 'Custom roles',
             }));
 
-        return [...systemRoles, ...customRoles];
+        return [
+            {
+                group: 'System roles',
+                items: systemRoles,
+            },
+            {
+                group: 'Custom roles',
+                items: customRoles,
+            },
+        ];
     }, [roles]);
 
-    const handleRoleChange = (value: string) => {
+    const handleRoleChange = (value: string | null) => {
+        if (!value || !roles) return;
         const selectedRole = roles.find((role) => role.roleUuid === value);
         if (selectedRole) {
             form.setFieldValue('name', `Copy of: ${selectedRole.name}`);
@@ -97,27 +100,43 @@ export const DuplicateRoleModal: FC<Props> = ({
     const getTitle = () => {
         if (!form.values.roleId) return 'Duplicate role';
 
-        const roleName = rolesSelectData.find(
-            (role) => role.value === form.values.roleId,
-        )?.label;
+        const roleName = rolesSelectData
+            .find((role) =>
+                role.items.some((item) => item.value === form.values.roleId),
+            )
+            ?.items.find((item) => item.value === form.values.roleId)?.label;
 
         return `Duplicate ${roleName} role`;
     };
 
     return (
-        <Modal
+        <MantineModal
             opened={isOpen}
             onClose={handleClose}
             title={getTitle()}
+            icon={IconCopy}
             size="md"
+            cancelDisabled={isSubmitting}
+            actions={
+                <Button
+                    type="submit"
+                    form="duplicate-role-form"
+                    loading={isSubmitting}
+                >
+                    Duplicate role
+                </Button>
+            }
         >
-            <form onSubmit={form.onSubmit(handleSubmit)}>
+            <form
+                id="duplicate-role-form"
+                onSubmit={form.onSubmit(handleSubmit)}
+            >
                 <Stack>
                     <Select
                         label="Select role to duplicate"
                         placeholder="Choose a role"
                         searchable
-                        nothingFound="No roles found"
+                        nothingFoundMessage="No roles found"
                         data={rolesSelectData}
                         required
                         disabled={isSubmitting}
@@ -125,6 +144,7 @@ export const DuplicateRoleModal: FC<Props> = ({
                         onChange={handleRoleChange}
                         error={form.errors.roleId}
                     />
+
                     <TextInput
                         label="New role name"
                         placeholder="e.g., Finance Analyst"
@@ -138,20 +158,8 @@ export const DuplicateRoleModal: FC<Props> = ({
                         disabled={isSubmitting}
                         {...form.getInputProps('description')}
                     />
-                    <Group position="right" mt="md">
-                        <Button
-                            variant="outline"
-                            onClick={handleClose}
-                            disabled={isSubmitting}
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit" loading={isSubmitting}>
-                            Duplicate role
-                        </Button>
-                    </Group>
                 </Stack>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };

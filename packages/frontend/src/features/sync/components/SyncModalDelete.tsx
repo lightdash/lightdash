@@ -1,6 +1,8 @@
-import { Button, Group, Stack, Text } from '@mantine/core';
+import { Button } from '@mantine-8/core';
+import { IconTrash } from '@tabler/icons-react';
 import { useCallback, useEffect } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
+import MantineModal from '../../../components/common/MantineModal';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useScheduler } from '../../../features/scheduler/hooks/useScheduler';
 import { useSchedulersDeleteMutation } from '../../../features/scheduler/hooks/useSchedulersDeleteMutation';
@@ -36,30 +38,18 @@ export const SyncModalDelete = () => {
     }
 
     return (
-        <Stack spacing="lg">
-            <Text>
-                Are you sure you want to delete <b>"{scheduler.data?.name}"</b>?
-            </Text>
-
-            <Group position="apart">
-                <Button
-                    variant="outline"
-                    color="dark"
-                    onClick={() => setAction(SyncModalAction.VIEW)}
-                >
-                    Cancel
+        <MantineModal
+            opened
+            onClose={() => setAction(SyncModalAction.VIEW)}
+            title="Delete"
+            icon={IconTrash}
+            size="lg"
+            actions={
+                <Button color="red" loading={isLoading} onClick={handleConfirm}>
+                    Delete
                 </Button>
-
-                {scheduler.isSuccess && (
-                    <Button
-                        color="red"
-                        loading={isLoading}
-                        onClick={handleConfirm}
-                    >
-                        Delete
-                    </Button>
-                )}
-            </Group>
-        </Stack>
+            }
+            description={`Are you sure you want to delete "${scheduler.data?.name}"?`}
+        />
     );
 };

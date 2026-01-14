@@ -391,8 +391,21 @@ export default class PrometheusMetrics {
                 help: 'Number of jobs in the queue',
                 ...rest,
                 async collect() {
-                    const queueSize = await schedulerClient.getQueueSize();
-                    this.set(queueSize);
+                    try {
+                        const queueSize = await schedulerClient.getQueueSize();
+                        this.set(queueSize);
+                    } catch (error) {
+                        Logger.error(
+                            'Failed to collect queue size metric, setting to 0',
+                            {
+                                error:
+                                    error instanceof Error
+                                        ? error.message
+                                        : error,
+                            },
+                        );
+                        this.set(0);
+                    }
                 },
             });
         }

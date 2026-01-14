@@ -1,26 +1,22 @@
 import { type DashboardTab } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Modal,
-    Stack,
-    TextInput,
-    Title,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, TextInput } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
+import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineModal from '../../components/common/MantineModal';
 
-type AddProps = ModalProps & {
+type EditProps = {
+    opened: boolean;
+    onClose: () => void;
     tab: DashboardTab;
     onConfirm: (tabName: string, tabUuid: string) => void;
 };
 
-export const TabEditModal: FC<AddProps> = ({
-    tab,
+export const TabEditModal: FC<EditProps> = ({
+    opened,
     onClose,
+    tab,
     onConfirm,
-    ...modalProps
 }) => {
     const form = useForm<{ newTabName: string }>({
         initialValues: {
@@ -28,47 +24,42 @@ export const TabEditModal: FC<AddProps> = ({
         },
     });
 
-    const handleConfirm = form.onSubmit(({ ...tabProps }) => {
-        onConfirm(tabProps.newTabName, tab.uuid);
+    const handleConfirm = form.onSubmit(({ newTabName }) => {
+        onConfirm(newTabName, tab.uuid);
         form.reset();
     });
 
     const handleClose = () => {
         form.reset();
-        onClose?.();
+        onClose();
     };
 
     return (
-        <Modal
-            title={
-                <Group spacing="xs">
-                    <Title order={4}>Edit your tab</Title>
-                </Group>
-            }
-            {...modalProps}
-            size="sm"
+        <MantineModal
+            opened={opened}
             onClose={handleClose}
+            title="Edit your tab"
+            icon={IconPencil}
+            size="sm"
+            actions={
+                <Button
+                    type="submit"
+                    form="edit-tab-form"
+                    disabled={!form.isValid()}
+                >
+                    Update
+                </Button>
+            }
         >
-            <form onSubmit={handleConfirm}>
-                <Stack spacing="lg" pt="sm">
-                    <TextInput
-                        label="Tab name"
-                        placeholder="Name your tab"
-                        data-autofocus
-                        required
-                        {...form.getInputProps('newTabName')}
-                    ></TextInput>
-                    <Group position="right" mt="sm">
-                        <Button variant="outline" onClick={handleClose}>
-                            Cancel
-                        </Button>
-
-                        <Button type="submit" disabled={!form.isValid()}>
-                            Update
-                        </Button>
-                    </Group>
-                </Stack>
+            <form id="edit-tab-form" onSubmit={handleConfirm}>
+                <TextInput
+                    label="Tab name"
+                    placeholder="Name your tab"
+                    data-autofocus
+                    required
+                    {...form.getInputProps('newTabName')}
+                />
             </form>
-        </Modal>
+        </MantineModal>
     );
 };

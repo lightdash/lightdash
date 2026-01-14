@@ -13,6 +13,7 @@ import {
     type CompiledTableCalculation,
     type CustomDimension,
     type CustomFormat,
+    type Dimension,
     type FieldId,
     type Format,
     type Metric,
@@ -58,6 +59,10 @@ export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
 
 export type MetricOverrides = { [key: string]: Pick<Metric, 'formatOptions'> }; // Don't use Record to avoid issues in TSOA
 
+export type DimensionOverrides = {
+    [key: string]: Pick<Dimension, 'formatOptions'>;
+};
+
 // Object used to query an explore. Queries only happen within a single explore
 export type MetricQuery = {
     exploreName: string;
@@ -70,6 +75,7 @@ export type MetricQuery = {
     additionalMetrics?: AdditionalMetric[]; // existing metric type
     customDimensions?: CustomDimension[];
     metricOverrides?: MetricOverrides; // Override format options for fields in "metrics"
+    dimensionOverrides?: DimensionOverrides; // Override format options for fields in "dimensions"
     timezone?: string; // Local timezone to use for the query
     metadata?: {
         hasADateDimension: Pick<CompiledDimension, 'label' | 'name' | 'table'>;
@@ -173,6 +179,7 @@ export type MetricQueryRequest = {
     metadata?: MetricQuery['metadata'];
     timezone?: string;
     metricOverrides?: MetricOverrides;
+    dimensionOverrides?: DimensionOverrides;
     periodOverPeriod?: PeriodOverPeriodComparison;
 };
 

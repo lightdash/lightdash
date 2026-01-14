@@ -713,17 +713,19 @@ export const getAiConfig = () => ({
                   ),
               }
             : undefined,
-        anthropic: process.env.ANTHROPIC_API_KEY
-            ? {
-                  apiKey: process.env.ANTHROPIC_API_KEY,
-                  modelName:
-                      process.env.ANTHROPIC_MODEL_NAME ||
-                      DEFAULT_ANTHROPIC_MODEL_NAME,
-                  availableModels: getArrayFromCommaSeparatedList(
-                      'ANTHROPIC_AVAILABLE_MODELS',
-                  ),
-              }
-            : undefined,
+        anthropic:
+            process.env.ANTHROPIC_API_KEY &&
+            process.env.ANTHROPIC_API_KEY !== 'undefined'
+                ? {
+                      apiKey: process.env.ANTHROPIC_API_KEY,
+                      modelName:
+                          process.env.ANTHROPIC_MODEL_NAME ||
+                          DEFAULT_ANTHROPIC_MODEL_NAME,
+                      availableModels: getArrayFromCommaSeparatedList(
+                          'ANTHROPIC_AVAILABLE_MODELS',
+                      ),
+                  }
+                : undefined,
         openrouter: process.env.OPENROUTER_API_KEY
             ? {
                   apiKey: process.env.OPENROUTER_API_KEY,
@@ -818,7 +820,7 @@ export type LightdashConfig = {
         csvCellsLimit: number;
         timezone: string | undefined;
         maxPageSize: number;
-        useSqlPivotResults: boolean;
+        useSqlPivotResults: boolean | undefined;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -848,7 +850,7 @@ export type LightdashConfig = {
         concurrency: number;
         jobTimeout: number;
         screenshotTimeout?: number;
-        useScreenshotReadyIndicator: boolean;
+        useScreenshotReadyIndicator: boolean | undefined;
         tasks: Array<SchedulerTaskName>;
         queryHistory: {
             cleanup: {
@@ -862,7 +864,7 @@ export type LightdashConfig = {
         };
     };
     groups: {
-        enabled: boolean;
+        enabled: boolean | undefined;
     };
     extendedUsageAnalytics: {
         enabled: boolean;
@@ -987,6 +989,17 @@ export type LightdashConfig = {
     editYamlInUi: {
         enabled: boolean;
     };
+    /**
+     * When enabled, fields that fail to compile will be marked with a
+     * compilationError instead of causing the entire explore to fail.
+     * This allows users to still access other fields in the explore.
+     */
+    partialCompilation: {
+        enabled: boolean;
+    };
+    funnelBuilder: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1000,6 +1013,11 @@ export type SlackConfig = {
     channelsCachedTime: number;
     supportUrl: string;
     multiAgentChannelEnabled: boolean;
+    /*
+     This is the setting that controls whether we generate image previews for link shares in Slack
+     @default true
+    */
+    linkShareImagePreviewEnabled: boolean;
 };
 export type HeadlessBrowserConfig = {
     host?: string;
@@ -1523,7 +1541,9 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_PAGE_SIZE',
                 ) || 2500, // Defaults to default limit * 5
-            useSqlPivotResults: process.env.USE_SQL_PIVOT_RESULTS === 'true',
+            useSqlPivotResults: process.env.USE_SQL_PIVOT_RESULTS
+                ? process.env.USE_SQL_PIVOT_RESULTS === 'true'
+                : undefined,
         },
         chart: {
             versionHistory: {
@@ -1580,6 +1600,8 @@ export const parseConfig = (): LightdashConfig => {
             supportUrl: process.env.SLACK_SUPPORT_URL || '',
             multiAgentChannelEnabled:
                 process.env.SLACK_MULTI_AGENT_CHANNEL_ENABLED === 'true',
+            linkShareImagePreviewEnabled:
+                process.env.SLACK_LINK_SHARE_IMAGE_PREVIEW_ENABLED !== 'false',
         },
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',
@@ -1590,8 +1612,11 @@ export const parseConfig = (): LightdashConfig => {
             screenshotTimeout: process.env.SCHEDULER_SCREENSHOT_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
-            useScreenshotReadyIndicator:
-                process.env.SCHEDULER_USE_SCREENSHOT_READY_INDICATOR === 'true',
+            useScreenshotReadyIndicator: process.env
+                .SCHEDULER_USE_SCREENSHOT_READY_INDICATOR
+                ? process.env.SCHEDULER_USE_SCREENSHOT_READY_INDICATOR ===
+                  'true'
+                : undefined,
             tasks: parseAndSanitizeSchedulerTasks(),
             queryHistory: {
                 cleanup: {
@@ -1620,7 +1645,9 @@ export const parseConfig = (): LightdashConfig => {
             },
         },
         groups: {
-            enabled: process.env.GROUPS_ENABLED === 'true',
+            enabled: process.env.GROUPS_ENABLED
+                ? process.env.GROUPS_ENABLED === 'true'
+                : undefined,
         },
         extendedUsageAnalytics: {
             enabled: process.env.EXTENDED_USAGE_ANALYTICS === 'true',
@@ -1752,6 +1779,12 @@ export const parseConfig = (): LightdashConfig => {
         },
         editYamlInUi: {
             enabled: process.env.EDIT_YAML_IN_UI_ENABLED === 'true',
+        },
+        partialCompilation: {
+            enabled: process.env.PARTIAL_COMPILATION_ENABLED === 'true',
+        },
+        funnelBuilder: {
+            enabled: process.env.FUNNEL_BUILDER_ENABLED === 'true',
         },
     };
 };

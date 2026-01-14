@@ -9,6 +9,7 @@ import { createHmac } from 'crypto';
 import express, { type Router } from 'express';
 import playwright from 'playwright';
 import { lightdashConfig } from '../config/lightdashConfig';
+import Logger from '../logging/logger';
 
 export const headlessBrowserRouter: Router = express.Router({
     mergeParams: true,
@@ -22,6 +23,7 @@ export const getAuthenticationToken = (value: string) =>
 headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
     try {
         const userUuid = getObjectValue(req.params, 'userUuid');
+        Logger.debug(`Headless browser login request for user ${userUuid}`);
         const hash = getAuthenticationToken(userUuid);
 
         if (hash !== req.body.token) {
@@ -34,6 +36,9 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
 
         req.login(sessionUser, (err) => {
             if (err) {
+                Logger.error(
+                    `Headless browser login failed: Error during req.login for user ${userUuid}`,
+                );
                 next(err);
             }
 
@@ -55,6 +60,9 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
                     lightdashConfig.headlessBrowser.internalLightdashHost;
 
             if (shouldSetSecureCookie) {
+                Logger.info(
+                    `Setting secure cookie for user ${userUuid} and ${internalHost}.`,
+                );
                 const value = `s:${sign(
                     req.session.id,
                     lightdashConfig.lightdashSecret,
@@ -64,6 +72,9 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
                     `connect.sid=${value}; Path=/; HttpOnly; SameSite=Lax; Domain=${internalHost.host}; Secure`,
                 ]);
             }
+            Logger.info(
+                `Headless browser login successful for user ${userUuid}`,
+            );
             res.json({
                 status: 'ok',
                 results: {
@@ -72,6 +83,7 @@ headlessBrowserRouter.post('/login/:userUuid', async (req, res, next) => {
             });
         });
     } catch (e) {
+        Logger.error(`Headless browser login failed: ${getErrorMessage(e)}`);
         next(e);
     }
 });

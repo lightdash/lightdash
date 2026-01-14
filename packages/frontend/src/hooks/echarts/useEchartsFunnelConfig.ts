@@ -54,8 +54,13 @@ const useEchartsFunnelConfig = (
     selectedLegends?: Record<string, boolean>,
     isInDashboard?: boolean,
 ) => {
-    const { visualizationConfig, itemsMap, colorPalette, parameters } =
-        useVisualizationContext();
+    const {
+        visualizationConfig,
+        itemsMap,
+        colorPalette,
+        parameters,
+        isTouchDevice,
+    } = useVisualizationContext();
 
     const theme = useMantineTheme();
 
@@ -232,7 +237,7 @@ const useEchartsFunnelConfig = (
                 fontFamily: theme?.other.chartFont as string | undefined,
             },
             tooltip: {
-                ...getTooltipStyle(),
+                ...getTooltipStyle({ appendToBody: !isTouchDevice }),
                 trigger: 'item' as const,
             },
             series: [funnelSeriesOptions],
@@ -250,6 +255,7 @@ const useEchartsFunnelConfig = (
         isInDashboard,
         theme,
         legendConfigWithTooltip,
+        isTouchDevice,
     ]);
 
     if (!itemsMap) return;

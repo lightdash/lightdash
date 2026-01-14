@@ -384,6 +384,12 @@ program
         'Compile without any warehouse credentials. Skips dbt compile + warehouse catalog',
     )
     .option(
+        '--use-dbt-list [true|false]',
+        'Use `dbt list` instead of `dbt compile` to generate dbt manifest.json',
+        parseUseDbtListOption,
+        true,
+    )
+    .option(
         '--disable-timestamp-conversion [true|false]',
         'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
         parseDisableTimestampConversionOption,

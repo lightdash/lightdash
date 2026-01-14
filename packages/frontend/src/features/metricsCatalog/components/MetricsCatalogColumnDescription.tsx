@@ -35,7 +35,6 @@ export const MetricsCatalogColumnDescription: FC<Props> = ({ row, table }) => {
         style: {
             fontSize: theme.fontSizes.sm,
             color: theme.colors.ldGray[6],
-            fontFamily: 'Inter',
             backgroundColor: 'inherit',
         },
         components: {

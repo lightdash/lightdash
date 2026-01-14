@@ -17,6 +17,7 @@ import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
+import { FunnelService } from './FunnelService/FunnelService';
 import { GdriveService } from './GdriveService/GdriveService';
 import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
@@ -95,6 +96,7 @@ interface ServiceManifest {
     contentService: ContentService;
     coderService: CoderService;
     featureFlagService: FeatureFlagService;
+    funnelService: FunnelService;
     spotlightService: SpotlightService;
     lightdashAnalyticsService: LightdashAnalyticsService;
     asyncQueryService: AsyncQueryService;
@@ -630,6 +632,8 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     catalogModel: this.models.getCatalogModel(),
                     permissionsService: this.getPermissionsService(),
+                    googleDriveClient: this.clients.getGoogleDriveClient(),
+                    userService: this.getUserService(),
                 }),
         );
     }
@@ -648,6 +652,10 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     slackClient: this.clients.getSlackClient(),
+                    userModel: this.models.getUserModel(),
+                    googleDriveClient: this.clients.getGoogleDriveClient(),
+                    userService: this.getUserService(),
+                    jobModel: this.models.getJobModel(),
                 }),
         );
     }
@@ -731,6 +739,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     slackAuthenticationModel:
                         this.models.getSlackAuthenticationModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -926,6 +935,18 @@ export class ServiceRepository
                 new FeatureFlagService({
                     lightdashConfig: this.context.lightdashConfig,
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                }),
+        );
+    }
+
+    public getFunnelService(): FunnelService {
+        return this.getService(
+            'funnelService',
+            () =>
+                new FunnelService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    projectModel: this.models.getProjectModel(),
+                    projectService: this.getProjectService(),
                 }),
         );
     }

@@ -3,15 +3,7 @@ import {
     getEmailSchema,
     type CreateInviteLink,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Modal,
-    Paper,
-    Select,
-    TextInput,
-    Title,
-} from '@mantine-8/core';
+import { Button, Group, Select, TextInput } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconUser } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -26,7 +18,7 @@ import {
     PageName,
     PageType,
 } from '../../../types/Events';
-import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 import InviteSuccess from './InviteSuccess';
 
 type SendInviteFormProps = Omit<CreateInviteLink, 'expiresAt'>;
@@ -62,18 +54,20 @@ const InvitesModal: FC<{
     };
 
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            title={
-                <Group gap="xs">
-                    <Paper p="xxs" withBorder>
-                        <MantineIcon icon={IconUser} />
-                    </Paper>
-                    <Title order={4}>Add user</Title>
-                </Group>
-            }
+            title="Add user"
+            icon={IconUser}
             size="lg"
+            cancelLabel={false}
+            actions={
+                <Button disabled={isLoading} type="submit" form="invite_user">
+                    {health.data?.hasEmailClient
+                        ? 'Send invite'
+                        : 'Generate invite'}
+                </Button>
+            }
         >
             <TrackPage
                 name={PageName.INVITE_MANAGEMENT_SETTINGS}
@@ -81,6 +75,7 @@ const InvitesModal: FC<{
                 category={CategoryName.SETTINGS}
             >
                 <form
+                    id="invite_user"
                     name="invite_user"
                     onSubmit={form.onSubmit((values: SendInviteFormProps) =>
                         handleSubmit(values),
@@ -115,22 +110,13 @@ const InvitesModal: FC<{
                                 {...form.getInputProps('role')}
                             />
                         )}
-                        <Button
-                            disabled={isLoading}
-                            type="submit"
-                            style={{ marginTop: 20 }}
-                        >
-                            {health.data?.hasEmailClient
-                                ? 'Send invite'
-                                : 'Generate invite'}
-                        </Button>
                     </Group>
                 </form>
                 {inviteLink && (
                     <InviteSuccess invite={inviteLink} hasMarginTop />
                 )}
             </TrackPage>
-        </Modal>
+        </MantineModal>
     );
 };
 

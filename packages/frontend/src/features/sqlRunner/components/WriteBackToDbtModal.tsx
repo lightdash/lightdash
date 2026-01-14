@@ -5,22 +5,22 @@ import {
 import {
     Badge,
     Button,
-    Group,
     List,
     Loader,
-    Modal,
     Stack,
     Text,
     TextInput,
     Tooltip,
-    type ModalProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
 import { useGithubDbtWriteBack } from '../hooks/useGithubDbtWriteBack';
@@ -33,7 +33,7 @@ const validationSchema = z.object({
 
 type FormValues = z.infer<typeof validationSchema>;
 
-type Props = ModalProps;
+type Props = Pick<MantineModalProps, 'opened' | 'onClose'>;
 
 export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
     const projectUuid = useAppSelector((state) => state.sqlRunner.projectUuid);
@@ -101,50 +101,50 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
     );
 
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            keepMounted={false}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        icon={IconBrandGithub}
-                        size="lg"
-                        color="ldGray.7"
-                    />
-                    <Text fw={500}>Write back to dbt</Text>
-                    <Tooltip
-                        variant="xs"
-                        withinPortal
-                        multiline
-                        maw={300}
-                        label="Create a new model in your dbt project from this SQL query. This will create a new branch and start a pull request."
-                    >
-                        <MantineIcon
-                            color="ldGray.7"
-                            icon={IconInfoCircle}
-                            size={16}
-                        />
-                    </Tooltip>
-                </Group>
+            title="Write back to dbt"
+            icon={IconBrandGithub}
+            cancelDisabled={isLoadingPullRequest}
+            actions={
+                <Button
+                    type="submit"
+                    form="write-back-to-dbt-form"
+                    disabled={
+                        !form.values.name || !sql || !canWriteToDbtProject
+                    }
+                    loading={isLoadingPullRequest}
+                >
+                    Open Pull Request
+                </Button>
             }
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
-                body: { padding: 0 },
-            })}
+            headerActions={
+                <Tooltip
+                    label="Create a new model in your dbt project from this SQL query. This will create a new branch and start a pull request."
+                    multiline
+                    maw={300}
+                >
+                    <MantineIcon
+                        color="ldGray.7"
+                        icon={IconInfoCircle}
+                        size={16}
+                    />
+                </Tooltip>
+            }
         >
-            <form onSubmit={form.onSubmit(handleSubmit)}>
-                <Stack p="md">
-                    <Stack spacing="xs">
-                        <TextInput
-                            radius="md"
-                            label="Name"
-                            required
-                            {...form.getInputProps('name')}
-                        />
-                    </Stack>
+            <form
+                id="write-back-to-dbt-form"
+                onSubmit={form.onSubmit(handleSubmit)}
+            >
+                <Stack>
+                    <TextInput
+                        label="Name"
+                        required
+                        {...form.getInputProps('name')}
+                    />
 
-                    <Stack spacing="xs" pl="xs">
+                    <Stack gap="xs" pl="xs">
                         <Text fw={500}>
                             Files to be created in{' '}
                             <Badge
@@ -168,15 +168,13 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                             </Badge>
                             {isPreviewLoading && <Loader size="xs" />}:
                         </Text>
-                        <List spacing="xs" pl="xs">
+                        <List pl="xs">
                             {writePreviewData?.files.map((file) => (
                                 <Tooltip
                                     key={file}
-                                    variant="xs"
                                     position="top-start"
                                     label={file}
                                     multiline
-                                    withinPortal
                                     maw={300}
                                 >
                                     <List.Item fz="xs" ff="monospace">
@@ -187,30 +185,7 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                         </List>
                     </Stack>
                 </Stack>
-
-                <Group position="right" w="100%" p="md">
-                    <Button
-                        color="ldGray.7"
-                        onClick={onClose}
-                        variant="outline"
-                        disabled={isLoadingPullRequest}
-                        size="xs"
-                    >
-                        Cancel
-                    </Button>
-
-                    <Button
-                        type="submit"
-                        disabled={
-                            !form.values.name || !sql || !canWriteToDbtProject
-                        }
-                        loading={isLoadingPullRequest}
-                        size="xs"
-                    >
-                        Open Pull Request
-                    </Button>
-                </Group>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };

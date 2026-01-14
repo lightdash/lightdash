@@ -5,7 +5,6 @@ import {
     GroupMember,
     GroupMembership,
     GroupWithMembers,
-    NotExistsError,
     NotFoundError,
     ParameterError,
     ProjectGroupAccess,
@@ -657,7 +656,7 @@ export class GroupsModel {
             .where('organization_uuid', organizationUuid)
             .first('organization_id');
         if (!organization) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotFoundError('Cannot find organization');
         }
 
         const existingGroups = await this.database('groups')
@@ -675,7 +674,7 @@ export class GroupsModel {
                 .first('user_id')
         )?.user_id;
         if (!userIdToInsert) {
-            throw new NotExistsError('Cannot find user');
+            throw new NotFoundError('Cannot find user');
         }
 
         const insertData = existingGroups.map((group) => ({

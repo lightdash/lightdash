@@ -7,7 +7,7 @@ import {
     ExploreError,
     ExploreType,
     FieldSearchResult,
-    NotExistsError,
+    NotFoundError,
     SavedChartSearchResult,
     SearchFilters,
     SearchItemType,
@@ -219,24 +219,27 @@ export class SearchModel {
                 'direct_charts.dashboard_uuid',
             )
             // Join with charts that are in dashboard through tiles
-            .leftJoin('dashboard_tiles', function () {
+            .leftJoin('dashboard_tiles', function joinDashboardTiles() {
                 this.on(
                     'dashboard_tiles.dashboard_version_id',
                     '=',
                     `last_version.dashboard_version_id`,
                 );
             })
-            .leftJoin('dashboard_tile_charts', function () {
-                this.on(
-                    'dashboard_tile_charts.dashboard_version_id',
-                    '=',
-                    'dashboard_tiles.dashboard_version_id',
-                ).andOn(
-                    'dashboard_tile_charts.dashboard_tile_uuid',
-                    '=',
-                    'dashboard_tiles.dashboard_tile_uuid',
-                );
-            })
+            .leftJoin(
+                'dashboard_tile_charts',
+                function joinDashboardTileCharts() {
+                    this.on(
+                        'dashboard_tile_charts.dashboard_version_id',
+                        '=',
+                        'dashboard_tiles.dashboard_version_id',
+                    ).andOn(
+                        'dashboard_tile_charts.dashboard_tile_uuid',
+                        '=',
+                        'dashboard_tiles.dashboard_tile_uuid',
+                    );
+                },
+            )
             .leftJoin(
                 `${SavedChartsTableName} as tile_charts`,
                 'tile_charts.saved_query_id',
@@ -296,14 +299,8 @@ export class SearchModel {
         subquery = filterByCreatedByUuid(
             subquery,
             {
-                join: {
-                    isVersioned: true,
-                    joinTableName: 'first_version',
-                    joinTableIdColumnName: 'dashboard_id',
-                    joinTableUserUuidColumnName: 'updated_by_user_uuid',
-                    tableIdColumnName: 'dashboard_id',
-                },
-                tableName: DashboardsTableName,
+                tableName: 'first_version',
+                tableUserUuidColumnName: 'updated_by_user_uuid',
             },
             filters,
         );
@@ -1066,7 +1063,7 @@ export class SearchModel {
             .where('project_uuid', projectUuid)
             .limit(1);
         if (projects.length === 0) {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 `Cannot find project with id: ${projectUuid}`,
             );
         }

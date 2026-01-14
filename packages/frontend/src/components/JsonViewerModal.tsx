@@ -1,19 +1,19 @@
 import {
-    ActionIcon,
-    Box,
+    Button,
     CopyButton,
-    Modal,
+    Group,
+    ScrollArea,
     Stack,
-    Title,
     Tooltip,
-} from '@mantine/core';
-import { type ModalRootProps } from '@mantine/core/lib/Modal/ModalRoot/ModalRoot';
-import { IconCheck, IconCopy } from '@tabler/icons-react';
+    type ModalProps,
+} from '@mantine-8/core';
+import { IconCheck, IconCode, IconCopy } from '@tabler/icons-react';
 import ReactJson from 'react-json-view';
 import { useRjvTheme } from '../hooks/useRjvTheme';
 import MantineIcon from './common/MantineIcon';
+import MantineModal from './common/MantineModal';
 
-type Props = ModalRootProps & {
+type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     heading: string;
     jsonObject: Record<string, unknown>;
 };
@@ -26,44 +26,49 @@ export const JsonViewerModal = ({
 }: Props) => {
     const theme = useRjvTheme();
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            title={<Title order={4}>{heading}</Title>}
+            title={heading}
+            icon={IconCode}
+            cancelLabel={false}
         >
             <Stack>
-                <Box
-                    sx={{
-                        overflow: 'auto',
-                    }}
-                >
+                <ScrollArea.Autosize mah={500}>
                     <ReactJson
                         theme={theme}
                         enableClipboard={false}
                         src={jsonObject}
                     />
-                </Box>
+                </ScrollArea.Autosize>
 
-                <CopyButton value={JSON.stringify(jsonObject)} timeout={2000}>
-                    {({ copied, copy }) => (
-                        <Tooltip
-                            label={copied ? 'Copied' : 'Copy'}
-                            withArrow
-                            position="right"
-                        >
-                            <ActionIcon
-                                sx={{ alignSelf: 'end' }}
-                                color={copied ? 'teal' : 'gray'}
-                                onClick={copy}
+                <Group justify="end">
+                    <CopyButton
+                        value={JSON.stringify(jsonObject)}
+                        timeout={2000}
+                    >
+                        {({ copied, copy }) => (
+                            <Tooltip
+                                label={copied ? 'Copied' : 'Copy'}
+                                withArrow
+                                position="right"
                             >
-                                <MantineIcon
-                                    icon={copied ? IconCheck : IconCopy}
-                                />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </CopyButton>
+                                <Button
+                                    color={copied ? 'teal' : 'gray'}
+                                    onClick={copy}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={copied ? IconCheck : IconCopy}
+                                        />
+                                    }
+                                >
+                                    Copy
+                                </Button>
+                            </Tooltip>
+                        )}
+                    </CopyButton>
+                </Group>
             </Stack>
-        </Modal>
+        </MantineModal>
     );
 };

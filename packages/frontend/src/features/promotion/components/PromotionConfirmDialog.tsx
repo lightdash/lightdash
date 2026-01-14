@@ -3,27 +3,22 @@ import {
     type PromotedChart,
     type PromotionChanges,
 } from '@lightdash/common';
-import {
-    Accordion,
-    Button,
-    Flex,
-    Group,
-    Loader,
-    Modal,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Accordion, Button, Flex, Loader, Stack, Text } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
 
 import {
     IconChartAreaLine,
     IconFolder,
     IconLayoutDashboard,
+    IconRocket,
 } from '@tabler/icons-react';
+import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 
-type Props = {
+type Props = Pick<MantineModalProps, 'onClose'> & {
     type: 'chart' | 'dashboard';
     resourceName: string;
     promotionChanges: PromotionChanges | undefined;
@@ -35,6 +30,7 @@ type PromotionChange = {
     action: PromotionAction;
     data: Pick<PromotedChart, 'name' | 'uuid'>;
 };
+
 const PromotionChangesAccordion: FC<{
     type: 'spaces' | 'charts' | 'dashboards';
     items: {
@@ -106,6 +102,7 @@ const PromotionChangesAccordion: FC<{
         </Accordion>
     );
 };
+
 export const PromotionConfirmDialog: FC<Props> = ({
     type,
     resourceName,
@@ -183,30 +180,39 @@ export const PromotionConfirmDialog: FC<Props> = ({
     }, [promotionChanges]);
 
     return (
-        <Modal
-            size="lg"
-            title={<Title order={4}>Promoting {type}</Title>}
-            opened={true}
+        <MantineModal
+            opened
             onClose={onClose}
+            title={`Promoting ${type}`}
+            icon={IconRocket}
+            size="lg"
+            actions={
+                <Button
+                    color="green"
+                    disabled={totalChanges === 0}
+                    onClick={() => {
+                        onConfirm();
+                        onClose();
+                    }}
+                >
+                    Promote
+                </Button>
+            }
+            description={`You are about to promote ${type}: "${resourceName}"`}
         >
-            <Stack spacing="lg" pt="sm">
-                <Text>
-                    Are you sure you want to promote this {type}{' '}
-                    <Text span fw={600}>
-                        {resourceName}
-                    </Text>
-                    ?
-                </Text>
-                These changes will be applied:
+            <Stack>
                 {groupedChanges === undefined ? (
                     <Flex gap="sm" align="center">
-                        <Loader color="gray" size={'sm'} speed={1} />
+                        <Loader color="gray" size={'sm'} />
                         <Text>Loading differences...</Text>
                     </Flex>
                 ) : (
                     <Stack>
                         {groupedChanges.spaces.total > 0 && (
                             <>
+                                <Text fz="sm">
+                                    These changes will be applied:
+                                </Text>
                                 <Flex gap="sm">
                                     <MantineIcon
                                         icon={IconFolder}
@@ -223,6 +229,9 @@ export const PromotionConfirmDialog: FC<Props> = ({
 
                         {groupedChanges.dashboards.total > 0 && (
                             <>
+                                <Text fz="sm">
+                                    These changes will be applied:
+                                </Text>
                                 <Flex>
                                     <MantineIcon
                                         icon={IconLayoutDashboard}
@@ -240,6 +249,9 @@ export const PromotionConfirmDialog: FC<Props> = ({
                         )}
                         {groupedChanges.charts.total > 0 && (
                             <>
+                                <Text fz="sm">
+                                    These changes will be applied:
+                                </Text>
                                 <Flex>
                                     <MantineIcon
                                         icon={IconChartAreaLine}
@@ -257,35 +269,20 @@ export const PromotionConfirmDialog: FC<Props> = ({
                         )}
 
                         {totalChanges === 0 && (
-                            <Text color="yellow.9" fw={600}>
-                                No changes to promote
-                            </Text>
+                            <Callout
+                                variant="info"
+                                title="No changes to promote"
+                            />
                         )}
                         {totalChanges !== 0 && withoutChanges > 0 && (
-                            <Text color="yellow.9" fw={600}>
+                            <Callout variant="info">
                                 We only promote content that is more recent in
                                 this project.
-                            </Text>
+                            </Callout>
                         )}
                     </Stack>
                 )}
-                <Group position="right" mt="sm">
-                    <Button color="dark" variant="outline" onClick={onClose}>
-                        Cancel
-                    </Button>
-
-                    <Button
-                        color="green"
-                        disabled={totalChanges === 0}
-                        onClick={() => {
-                            onConfirm();
-                            onClose();
-                        }}
-                    >
-                        Promote
-                    </Button>
-                </Group>
             </Stack>
-        </Modal>
+        </MantineModal>
     );
 };

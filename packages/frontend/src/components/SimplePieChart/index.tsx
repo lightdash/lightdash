@@ -10,6 +10,7 @@ import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoub
 import useApp from '../../providers/App/useApp';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import PieChartContextMenu, {
     type PieChartContextMenuProps,
@@ -21,16 +22,6 @@ const EmptyChart = () => (
             title="No data available"
             description="Query metrics and dimensions with results."
             icon={IconChartPieOff}
-        />
-    </div>
-);
-
-const LoadingChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="Loading chart"
-            loading
-            className="loading_chart"
         />
     </div>
 );
@@ -93,11 +84,12 @@ const SimplePieChart: FC<SimplePieChartProps> = memo(
                 const event = e.event?.event as unknown as PointerEvent;
                 const data = e.data as PieSeriesDataPoint;
 
+                // Use pageX/pageY (document coordinates) to account for scroll
                 setMenuProps({
                     value: data.meta.value,
                     position: {
-                        left: event.clientX,
-                        top: event.clientY,
+                        left: event.pageX,
+                        top: event.pageY,
                     },
                     rows: data.meta.rows,
                 });

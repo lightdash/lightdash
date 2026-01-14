@@ -132,12 +132,8 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
 
     // Scroll to top when search changes
     useEffect(() => {
-        if (rowVirtualizerInstanceRef.current) {
-            try {
-                rowVirtualizerInstanceRef.current.scrollToIndex(0);
-            } catch (e) {
-                console.error(e);
-            }
+        if (tableContainerRef.current) {
+            tableContainerRef.current.scrollTop = 0;
         }
     }, [debouncedSearchValue]);
 
@@ -188,15 +184,13 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                                             : user.email}
                                     </Text>
                                     <Badge
-                                        variant="filled"
-                                        color="red.4"
+                                        variant="light"
+                                        color="red"
                                         radius="xs"
                                         style={{ textTransform: 'none' }}
                                         px="xxs"
                                     >
-                                        <Text fz="xs" fw={400} c="ldGray.8">
-                                            Inactive
-                                        </Text>
+                                        Inactive
                                     </Badge>
                                 </Stack>
                             ) : user.isPending ? (

@@ -2,7 +2,7 @@
 import {
     AnyType,
     DbtProjectType,
-    NotExistsError,
+    NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     ServiceAccountScope,
@@ -245,7 +245,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
             });
         });
 
-        test('should throw NotExistsError when admin user is not found', async () => {
+        test('should throw NotFoundError when admin user is not found', async () => {
             service = createMockService({
                 organizationModel: {
                     getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
@@ -274,7 +274,7 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
             });
 
             await expect(service.updateInstanceConfiguration()).rejects.toThrow(
-                NotExistsError,
+                NotFoundError,
             );
             await expect(service.updateInstanceConfiguration()).rejects.toThrow(
                 `User ${mockAdminEmail} not found`,

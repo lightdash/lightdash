@@ -24,6 +24,8 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
                 this.getAiCopilotFlag.bind(this),
             [CommercialFeatureFlags.AgentReasoning]:
                 CommercialFeatureFlagModel.getAgentReasoningFlag.bind(this),
+            [CommercialFeatureFlags.MultiAgentChannel]:
+                this.getMultiAgentChannelFlag.bind(this),
         };
     }
 
@@ -124,6 +126,35 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
                   },
               )
             : false;
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getMultiAgentChannelFlag({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        let enabled = false;
+        if (this.lightdashConfig.slack?.multiAgentChannelEnabled) {
+            enabled = true;
+        } else {
+            enabled = user
+                ? await isFeatureFlagEnabled(
+                      CommercialFeatureFlags.MultiAgentChannel as AnyType as FeatureFlags,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                          organizationName: user.organizationName,
+                      },
+                      {
+                          throwOnTimeout: false,
+                      },
+                  )
+                : false;
+        }
+
         return {
             id: featureFlagId,
             enabled,

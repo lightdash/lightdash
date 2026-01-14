@@ -1,8 +1,8 @@
-import { Button, Group, Modal, Text } from '@mantine/core';
+import { Button, Group } from '@mantine-8/core';
 import { IconTableExport } from '@tabler/icons-react';
 import { type FC } from 'react';
 import ExportResults, { type ExportResultsProps } from '../ExportResults';
-import MantineIcon from '../common/MantineIcon';
+import MantineModal from '../common/MantineModal';
 
 interface ExportDataModalProps extends ExportResultsProps {
     isOpen: boolean;
@@ -17,38 +17,18 @@ const ExportDataModal: FC<ExportDataModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <Modal
+        <MantineModal
             opened
             onClose={onClose}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        icon={IconTableExport}
-                        size="lg"
-                        color="ldGray.7"
-                    />
-                    <Text fw={600}>Export Data</Text>
-                </Group>
-            }
-            styles={(theme) => ({
-                header: {
-                    borderBottom: `1px solid ${theme.colors.ldGray[4]}`,
-                },
-                body: { padding: 0 },
-            })}
+            title="Export Data"
+            icon={IconTableExport}
+            cancelLabel={false}
         >
             <ExportResults
                 {...exportResultsProps}
                 renderDialogActions={({ onExport, isExporting }) => (
-                    <Group
-                        position="right"
-                        sx={(theme) => ({
-                            borderTop: `1px solid ${theme.colors.ldGray[4]}`,
-                            bottom: 0,
-                            padding: theme.spacing.md,
-                        })}
-                    >
-                        <Button variant="outline" onClick={onClose}>
+                    <Group justify="flex-end" mt="md">
+                        <Button variant="default" onClick={onClose}>
                             Cancel
                         </Button>
 
@@ -64,7 +44,7 @@ const ExportDataModal: FC<ExportDataModalProps> = ({
                     </Group>
                 )}
             />
-        </Modal>
+        </MantineModal>
     );
 };
 

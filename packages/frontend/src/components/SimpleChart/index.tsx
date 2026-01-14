@@ -8,6 +8,7 @@ import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
+import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
@@ -61,16 +62,6 @@ export const EmptyChart = () => (
             title="No data available"
             description="Query metrics and dimensions with results."
             icon={IconChartBarOff}
-        />
-    </div>
-);
-
-export const LoadingChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="Loading chart"
-            loading
-            className="loading_chart"
         />
     </div>
 );
@@ -143,14 +134,27 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         }, [resultsData]);
 
         useEffect(() => {
-            const listener = () => {
-                const eCharts = chartRef.current?.getEchartsInstance();
-                eCharts?.resize();
+            const eCharts = chartRef.current?.getEchartsInstance();
+            const dom = eCharts?.getDom();
+
+            const resizeChart = () => eCharts?.resize();
+
+            // Observe container size changes (e.g., collapsible card expand/collapse)
+            const observer = new ResizeObserver(() => {
+                resizeChart();
+            });
+
+            if (dom) {
+                observer.observe(dom);
+            }
+
+            // Also listen for window resize events
+            window.addEventListener('resize', resizeChart);
+
+            return () => {
+                window.removeEventListener('resize', resizeChart);
+                observer.disconnect();
             };
-
-            window.addEventListener('resize', listener);
-
-            return () => window.removeEventListener('resize', listener);
         });
 
         const onChartContextMenu = useCallback(

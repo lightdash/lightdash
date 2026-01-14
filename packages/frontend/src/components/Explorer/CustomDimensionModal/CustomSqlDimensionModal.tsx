@@ -10,19 +10,14 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Box,
     Button,
-    getDefaultZIndex,
     Group,
-    Modal,
-    Paper,
     Select,
     Stack,
-    Text,
     TextInput,
     Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { useMantineColorScheme } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { IconMaximize, IconMinimize, IconSql } from '@tabler/icons-react';
 import { useEffect, useRef, type FC } from 'react';
@@ -38,6 +33,7 @@ import { SqlEditor } from '../../../features/tableCalculation/components/SqlForm
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 
 type FormValues = {
     customDimensionLabel: string;
@@ -51,8 +47,8 @@ export const CustomSqlDimensionModal: FC<{
     table: string;
     item?: CustomSqlDimension;
 }> = ({ isEditing, table, item }) => {
-    const theme = useMantineTheme();
-    const { colors, colorScheme } = theme;
+    const { colorScheme } = useMantineColorScheme();
+
     const { showToastSuccess, showToastError } = useToaster();
     const { setAceEditor } = useCustomDimensionsAceEditorCompleter();
 
@@ -106,6 +102,11 @@ export const CustomSqlDimensionModal: FC<{
             setFieldValue('dimensionType', item.dimensionType);
         }
     }, [setFieldValue, item, isEditing]);
+
+    const handleClose = () => {
+        toggleModal();
+        form.reset();
+    };
 
     const handleOnSubmit = form.onSubmit((values) => {
         const sanitizedId = generateCustomSqlDimensionId(
@@ -172,178 +173,95 @@ export const CustomSqlDimensionModal: FC<{
         }
     });
 
+    const title = item
+        ? `${isEditing ? 'Edit' : 'Create'} Custom Dimension - ${item.name}`
+        : `${isEditing ? 'Edit' : 'Create'} Custom Dimension`;
+
     return (
-        <Modal.Root
+        <MantineModal
             opened={true}
-            onClose={() => {
-                toggleModal();
-                form.reset();
-            }}
+            onClose={handleClose}
+            title={title}
+            icon={IconSql}
             size="xl"
-            centered
-            styles={{
-                content: {
-                    minWidth: isExpanded ? '90vw' : 'auto',
-                    height: isExpanded ? '70vh' : 'auto',
+            modalRootProps={{
+                styles: {
+                    content: {
+                        minWidth: isExpanded ? '90vw' : 'auto',
+                        height: isExpanded ? '70vh' : 'auto',
+                    },
                 },
             }}
+            modalBodyProps={{
+                px: 'md',
+                py: 'sm',
+            }}
+            leftActions={
+                <Tooltip label="Expand/Collapse">
+                    <ActionIcon variant="outline" onClick={toggleExpanded}>
+                        <MantineIcon
+                            icon={isExpanded ? IconMinimize : IconMaximize}
+                        />
+                    </ActionIcon>
+                </Tooltip>
+            }
+            actions={
+                <Button
+                    type="submit"
+                    form="custom-sql-dimension-form"
+                    ref={submitButtonRef}
+                >
+                    {isEditing ? 'Save changes' : 'Create'}
+                </Button>
+            }
         >
-            <Modal.Overlay />
-            <Modal.Content
-                sx={{
-                    margin: '0 auto',
-                    display: 'flex',
-                    flexDirection: 'column',
-                }}
-            >
-                <Modal.Header
-                    sx={(themeProps) => ({
-                        borderBottom: `1px solid ${themeProps.colors.ldGray[2]}`,
-                        padding: themeProps.spacing.sm,
-                    })}
-                >
-                    <Group spacing="xs">
-                        <Paper p="xs" withBorder radius="sm">
-                            <MantineIcon icon={IconSql} size="sm" />
-                        </Paper>
-                        <Text fw={700} fz="md">
-                            {isEditing ? 'Edit' : 'Create'} Custom Dimension
-                            {item ? (
-                                <Text span fw={400}>
-                                    {' '}
-                                    - {item.name}
-                                </Text>
-                            ) : null}
-                        </Text>
+            <form id="custom-sql-dimension-form" onSubmit={handleOnSubmit}>
+                <Stack gap="xs">
+                    <Group justify="space-between">
+                        <TextInput
+                            label="Label"
+                            required
+                            placeholder="Enter custom dimension label"
+                            style={{ flex: 1 }}
+                            {...form.getInputProps('customDimensionLabel')}
+                            data-testid="CustomSqlDimensionModal/LabelInput"
+                        />
+                        <Select
+                            style={{
+                                alignSelf: 'flex-start',
+                            }}
+                            label="Dimension Type"
+                            data={Object.values(DimensionType).map((type) => ({
+                                value: type,
+                                label: capitalize(type),
+                            }))}
+                            {...form.getInputProps('dimensionType')}
+                        />
                     </Group>
-                    <Modal.CloseButton />
-                </Modal.Header>
 
-                <form
-                    onSubmit={handleOnSubmit}
-                    style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        flex: 1,
-                    }}
-                >
-                    <Modal.Body
-                        p={0}
-                        sx={{
-                            flex: 1,
-                            overflow: 'auto',
-                            height: isExpanded ? '100%' : 'auto',
+                    <SqlEditor
+                        mode="sql"
+                        placeholder="Enter SQL"
+                        theme={
+                            colorScheme === 'dark' ? 'tomorrow_night' : 'github'
+                        }
+                        width="100%"
+                        maxLines={Infinity}
+                        minLines={isExpanded ? 25 : 8}
+                        setOptions={{
+                            autoScrollEditorIntoView: true,
                         }}
-                    >
-                        <Stack p="sm" spacing="xs">
-                            <Group position="apart">
-                                <TextInput
-                                    label="Label"
-                                    required
-                                    placeholder="Enter custom dimension label"
-                                    style={{ flex: 1 }}
-                                    {...form.getInputProps(
-                                        'customDimensionLabel',
-                                    )}
-                                    data-testid="CustomSqlDimensionModal/LabelInput"
-                                />
-                                <Select
-                                    sx={{
-                                        alignSelf: 'flex-start',
-                                    }}
-                                    withinPortal={true}
-                                    label="Dimension Type"
-                                    data={Object.values(DimensionType).map(
-                                        (type) => ({
-                                            value: type,
-                                            label: capitalize(type),
-                                        }),
-                                    )}
-                                    {...form.getInputProps('dimensionType')}
-                                />
-                            </Group>
-                            <Box
-                                sx={{
-                                    border: `1px solid ${colors.ldGray[2]}`,
-                                    borderRadius: theme.radius.sm,
-                                }}
-                            >
-                                <SqlEditor
-                                    mode="sql"
-                                    placeholder="Enter SQL"
-                                    theme={
-                                        colorScheme === 'dark'
-                                            ? 'tomorrow_night'
-                                            : 'github'
-                                    }
-                                    width="100%"
-                                    maxLines={Infinity}
-                                    minLines={isExpanded ? 25 : 8}
-                                    setOptions={{
-                                        autoScrollEditorIntoView: true,
-                                    }}
-                                    onLoad={setAceEditor}
-                                    isFullScreen={isExpanded}
-                                    enableLiveAutocompletion
-                                    enableBasicAutocompletion
-                                    showPrintMargin={false}
-                                    wrapEnabled={true}
-                                    gutterBackgroundColor={colors.ldGray[0]}
-                                    {...form.getInputProps('sql')}
-                                />
-                            </Box>
-                        </Stack>
-                    </Modal.Body>
-
-                    <Box
-                        sx={(themeProps) => ({
-                            borderTop: `1px solid ${themeProps.colors.ldGray[2]}`,
-                            padding: themeProps.spacing.sm,
-                            backgroundColor: themeProps.colors.background,
-                            position: 'sticky',
-                            bottom: 0,
-                            width: '100%',
-                            zIndex: getDefaultZIndex('modal'),
-                        })}
-                    >
-                        <Group position="apart">
-                            <Tooltip label="Expand/Collapse" variant="xs">
-                                <ActionIcon
-                                    variant="outline"
-                                    onClick={toggleExpanded}
-                                >
-                                    <MantineIcon
-                                        icon={
-                                            isExpanded
-                                                ? IconMinimize
-                                                : IconMaximize
-                                        }
-                                    />
-                                </ActionIcon>
-                            </Tooltip>
-                            <Group spacing="xs">
-                                <Button
-                                    variant="default"
-                                    h={32}
-                                    onClick={() => {
-                                        toggleModal();
-                                        form.reset();
-                                    }}
-                                >
-                                    Cancel
-                                </Button>
-                                <Button
-                                    h={32}
-                                    type="submit"
-                                    ref={submitButtonRef}
-                                >
-                                    {isEditing ? 'Save changes' : 'Create'}
-                                </Button>
-                            </Group>
-                        </Group>
-                    </Box>
-                </form>
-            </Modal.Content>
-        </Modal.Root>
+                        onLoad={setAceEditor}
+                        isFullScreen={isExpanded}
+                        enableLiveAutocompletion
+                        enableBasicAutocompletion
+                        showPrintMargin={false}
+                        wrapEnabled={true}
+                        gutterBackgroundColor={'var(--mantine-color-ldGray-1)'}
+                        {...form.getInputProps('sql')}
+                    />
+                </Stack>
+            </form>
+        </MantineModal>
     );
 };

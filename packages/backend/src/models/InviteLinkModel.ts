@@ -1,4 +1,4 @@
-import { InviteLink, NotExistsError } from '@lightdash/common';
+import { InviteLink, NotFoundError } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
 import { URL } from 'url';
@@ -79,7 +79,7 @@ export class InviteLinkModel {
                 '*',
             );
         if (inviteLinks.length === 0) {
-            throw new NotExistsError('No invite link found');
+            throw new NotFoundError('No invite link found');
         }
         return this.mapDbObjectToInviteLink(inviteCode, inviteLinks[0]);
     }
@@ -95,7 +95,7 @@ export class InviteLinkModel {
             .where('organization_uuid', organizationUuid)
             .select('*');
         if (orgs.length === 0) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotFoundError('Cannot find organization');
         }
         const org = orgs[0];
         await this.database('invite_links')
@@ -115,7 +115,7 @@ export class InviteLinkModel {
             .where('organization_uuid', organizationUuid)
             .select('*');
         if (orgs.length === 0) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotFoundError('Cannot find organization');
         }
         const org = orgs[0];
         await this.database('invite_links')

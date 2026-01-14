@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     BigqueryAuthenticationType,
     CreateWarehouseCredentials,
+    ParameterError,
     SnowflakeAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -48,6 +49,15 @@ const credentialsTarget = (
                 case BigqueryAuthenticationType.SSO:
                 case undefined:
                     bqResult.target.method = 'service-account-json';
+                    // Ensure keyfileContents exists and is not null/undefined
+                    if (
+                        !credentials.keyfileContents ||
+                        typeof credentials.keyfileContents !== 'object'
+                    ) {
+                        throw new ParameterError(
+                            'BigQuery private key/SSO authentication requires keyfileContents to be provided',
+                        );
+                    }
                     bqResult.target.keyfile_json = Object.fromEntries(
                         Object.keys(credentials.keyfileContents).map((key) => [
                             key,

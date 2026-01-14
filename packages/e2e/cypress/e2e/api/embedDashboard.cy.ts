@@ -41,6 +41,17 @@ describe('Embed Dashboard JWT API', () => {
                     allowAllCharts: originalEmbedConfig.allowAllCharts || false,
                 }).then((updateResp) => {
                     expect(updateResp.status).to.eq(200);
+                    // Wait a moment for database commit/replication, especially important
+                    // in preview environments where there might be replication lag
+                    cy.wait(500);
+                    // Verify the config was updated before proceeding
+                    getEmbedConfig().then((verifyResp) => {
+                        expect(verifyResp.status).to.eq(200);
+                        const updatedConfig = verifyResp.body.results;
+                        expect(updatedConfig.dashboardUuids).to.include(
+                            testDashboardUuid,
+                        );
+                    });
                 });
             });
         });
@@ -87,25 +98,36 @@ describe('Embed Dashboard JWT API', () => {
         before(() => {
             // Login to create the JWT token, then clear the session
             cy.login();
-            getEmbedUrl({
-                user: {
-                    externalId: 'dashboard-user@example.com',
-                    email: 'dashboard-user@example.com',
-                },
-                content: {
-                    type: 'dashboard',
-                    dashboardUuid: testDashboardUuid,
-                    canExportCsv: true,
-                    canExportImages: false,
-                    canViewUnderlyingData: true,
-                    canDateZoom: true,
-                    projectUuid: SEED_PROJECT.project_uuid,
-                },
-                expiresIn: '24h',
-            }).then((resp) => {
-                expect(resp.status).to.eq(200);
-                const { url } = resp.body.results;
-                [, dashboardJwtToken] = url.split('#');
+            // Verify embed config is ready before creating token
+            // This ensures the same embed secret is used for signing and verification
+            // Critical in preview environments where replication lag can cause
+            // token creation and validation to read different database states
+            getEmbedConfig().then((configResp) => {
+                expect(configResp.status).to.eq(200);
+                const config = configResp.body.results;
+                expect(config.dashboardUuids).to.include(testDashboardUuid);
+
+                // Config verified, create the token
+                getEmbedUrl({
+                    user: {
+                        externalId: 'dashboard-user@example.com',
+                        email: 'dashboard-user@example.com',
+                    },
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid: testDashboardUuid,
+                        canExportCsv: true,
+                        canExportImages: false,
+                        canViewUnderlyingData: true,
+                        canDateZoom: true,
+                        projectUuid: SEED_PROJECT.project_uuid,
+                    },
+                    expiresIn: '24h',
+                }).then((resp) => {
+                    expect(resp.status).to.eq(200);
+                    const { url } = resp.body.results;
+                    [, dashboardJwtToken] = url.split('#');
+                });
             });
         });
 
@@ -214,6 +236,112 @@ describe('Embed Dashboard JWT API', () => {
                     // Should fail with 403 Forbidden because dashboard JWT doesn't grant SQL query permission
                     expect(resp.status).to.be.oneOf([403, 500]);
                     expect(resp.body).to.have.property('error');
+                });
+            });
+        });
+
+        describe('Calculate Total/Subtotals from Raw Query (Explore Mode)', () => {
+            // These endpoints support embed Explore mode where users build
+            // queries ad-hoc without a saved chart. The metricQuery is sent
+            // directly from the frontend.
+
+            const testMetricQuery = {
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_total_order_amount'],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+            };
+
+            it('should calculate totals from raw metricQuery with embed JWT', () => {
+                cy.get<string>('@dashboardJwtToken').then((token) => {
+                    cy.request({
+                        url: `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-total`,
+                        headers: {
+                            'Lightdash-Embed-Token': token as string,
+                            'Content-type': 'application/json',
+                        },
+                        method: 'POST',
+                        body: {
+                            explore: 'orders',
+                            metricQuery: testMetricQuery,
+                        },
+                        failOnStatusCode: false,
+                    }).then((resp) => {
+                        // Should succeed - embed JWT can calculate totals from raw query
+                        expect(resp.status).to.eq(200);
+                        expect(resp.body.status).to.eq('ok');
+                        expect(resp.body.results).to.be.an('object');
+                    });
+                });
+            });
+
+            it('should calculate subtotals from raw metricQuery with embed JWT', () => {
+                cy.get<string>('@dashboardJwtToken').then((token) => {
+                    cy.request({
+                        url: `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-subtotals`,
+                        headers: {
+                            'Lightdash-Embed-Token': token as string,
+                            'Content-type': 'application/json',
+                        },
+                        method: 'POST',
+                        body: {
+                            explore: 'orders',
+                            metricQuery: testMetricQuery,
+                            columnOrder: [
+                                'orders_status',
+                                'orders_total_order_amount',
+                            ],
+                        },
+                        failOnStatusCode: false,
+                    }).then((resp) => {
+                        // Should succeed - embed JWT can calculate subtotals from raw query
+                        expect(resp.status).to.eq(200);
+                        expect(resp.body.status).to.eq('ok');
+                        expect(resp.body.results).to.be.an('object');
+                    });
+                });
+            });
+
+            it('should fail to calculate totals without embed JWT', () => {
+                cy.request({
+                    url: `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-total`,
+                    headers: {
+                        'Content-type': 'application/json',
+                    },
+                    method: 'POST',
+                    body: {
+                        explore: 'orders',
+                        metricQuery: testMetricQuery,
+                    },
+                    failOnStatusCode: false,
+                }).then((resp) => {
+                    // Should fail - no JWT token provided
+                    expect(resp.status).to.eq(403);
+                });
+            });
+
+            it('should fail to calculate subtotals without embed JWT', () => {
+                cy.request({
+                    url: `/api/v1/embed/${SEED_PROJECT.project_uuid}/calculate-subtotals`,
+                    headers: {
+                        'Content-type': 'application/json',
+                    },
+                    method: 'POST',
+                    body: {
+                        explore: 'orders',
+                        metricQuery: testMetricQuery,
+                        columnOrder: [
+                            'orders_status',
+                            'orders_total_order_amount',
+                        ],
+                    },
+                    failOnStatusCode: false,
+                }).then((resp) => {
+                    // Should fail - no JWT token provided
+                    expect(resp.status).to.eq(403);
                 });
             });
         });

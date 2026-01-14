@@ -1,30 +1,34 @@
+import { ServiceAccountScope } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Button,
     CopyButton,
-    Modal,
     MultiSelect,
     Select,
     Stack,
     TextInput,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
-import { IconAlertCircle, IconCheck, IconCopy } from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconKey } from '@tabler/icons-react';
 import { addDays } from 'date-fns';
 import { type FC } from 'react';
+import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
-
-import { ServiceAccountScope } from '@lightdash/common';
+import MantineModal from '../../../components/common/MantineModal';
 
 const AVAILABLE_SCOPES = Object.values(ServiceAccountScope)
-    .map((scope) => ({
-        label: scope,
-        value: scope,
-        group: scope.split(':')[0],
-    }))
-    .filter((scope) => scope.group !== 'scim');
+    .filter((scope) => !scope.startsWith('scim:'))
+    .reduce<{ group: string; items: string[] }[]>((acc, scope) => {
+        const group = scope.split(':')[0];
+        const existingGroup = acc.find((g) => g.group === group);
+        if (existingGroup) {
+            existingGroup.items.push(scope);
+        } else {
+            acc.push({ group, items: [scope] });
+        }
+        return acc;
+    }, []);
 
 const expireOptions = [
     {
@@ -108,17 +112,33 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
     });
 
     return (
-        <Modal
+        <MantineModal
             opened={isOpen}
             onClose={closeModal}
             title="New Service Account"
-            styles={(theme) => ({
-                title: { fontWeight: 'bold', fontSize: theme.fontSizes.lg },
-            })}
+            icon={IconKey}
+            cancelLabel={token ? false : 'Cancel'}
+            cancelDisabled={isWorking}
+            actions={
+                !token ? (
+                    <Button
+                        type="submit"
+                        form="create-service-account-form"
+                        loading={isWorking}
+                    >
+                        Create service account
+                    </Button>
+                ) : (
+                    <Button onClick={closeModal}>Done</Button>
+                )
+            }
         >
             {!token ? (
-                <form onSubmit={handleOnSubmit}>
-                    <Stack spacing="md">
+                <form
+                    id="create-service-account-form"
+                    onSubmit={handleOnSubmit}
+                >
+                    <Stack gap="md">
                         <TextInput
                             label="Description"
                             placeholder="What's this service account for?"
@@ -127,13 +147,12 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
                             {...form.getInputProps('description')}
                         />
                         <Select
-                            withinPortal
                             defaultValue={expireOptions[0].value}
                             label="Expiration"
                             data={expireOptions}
                             disabled={isWorking}
                             {...form.getInputProps('expiresAt')}
-                        ></Select>
+                        />
                         <MultiSelect
                             label="Scopes"
                             placeholder="Select scopes"
@@ -144,14 +163,10 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
                             disabled={isWorking}
                             {...form.getInputProps('scopes')}
                         />
-
-                        <Button type="submit" ml="auto" loading={isWorking}>
-                            Create service account
-                        </Button>
                     </Stack>
                 </form>
             ) : (
-                <Stack spacing="md">
+                <Stack>
                     <TextInput
                         label="Token"
                         readOnly
@@ -182,15 +197,12 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
                             </CopyButton>
                         }
                     />
-                    <Alert icon={<MantineIcon icon={IconAlertCircle} />}>
-                        Make sure to copy your access token now. You won't be
-                        able to see it again!
-                    </Alert>
-                    <Button onClick={closeModal} ml="auto">
-                        Done
-                    </Button>
+                    <Callout
+                        variant="info"
+                        title="Make sure to copy your access token now. You won't be able to see it again!"
+                    />
                 </Stack>
             )}
-        </Modal>
+        </MantineModal>
     );
 };

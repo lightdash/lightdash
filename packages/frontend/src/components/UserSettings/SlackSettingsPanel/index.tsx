@@ -31,7 +31,6 @@ import {
 import { useEffect, type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
-import useHealth from '../../../hooks/health/useHealth';
 import {
     useDeleteSlack,
     useGetSlack,
@@ -74,12 +73,13 @@ const SlackSettingsPanel: FC = () => {
     const { data: aiCopilotFlag } = useFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
     );
-    const { data: health } = useHealth();
+    const { data: multiAgentChannelFlag } = useFeatureFlag(
+        CommercialFeatureFlags.MultiAgentChannel,
+    );
     const { data: slackInstallation, isInitialLoading } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
-    const isSlackMultiAgentChannelEnabled =
-        health?.slack?.multiAgentChannelEnabled ?? false;
+    const isSlackMultiAgentChannelEnabled = !!multiAgentChannelFlag?.enabled;
 
     const { mutate: deleteSlack } = useDeleteSlack();
     const { mutate: updateCustomSettings } =

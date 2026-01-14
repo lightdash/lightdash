@@ -39,6 +39,8 @@ export class FeatureFlagModel {
             [FeatureFlags.DashboardComments]:
                 this.getDashboardComments.bind(this),
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
+            [FeatureFlags.ScreenshotReadyIndicator]:
+                this.getScreenshotReadyIndicator.bind(this),
         };
     }
 
@@ -79,7 +81,7 @@ export class FeatureFlagModel {
         featureFlagId,
     }: FeatureFlagLogicArgs) {
         const enabled =
-            this.lightdashConfig.groups.enabled ||
+            this.lightdashConfig.groups.enabled ??
             (user
                 ? await isFeatureFlagEnabled(
                       FeatureFlags.UserGroupsEnabled,
@@ -106,7 +108,7 @@ export class FeatureFlagModel {
         featureFlagId,
     }: FeatureFlagLogicArgs) {
         const enabled =
-            this.lightdashConfig.query.useSqlPivotResults ||
+            this.lightdashConfig.query.useSqlPivotResults ??
             (user
                 ? await isFeatureFlagEnabled(
                       FeatureFlags.UseSqlPivotResults,
@@ -164,6 +166,31 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled: this.lightdashConfig.editYamlInUi.enabled,
+        };
+    }
+
+    private async getScreenshotReadyIndicator({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.scheduler.useScreenshotReadyIndicator ??
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.ScreenshotReadyIndicator,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
         };
     }
 }

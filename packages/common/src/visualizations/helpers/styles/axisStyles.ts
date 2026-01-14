@@ -1,21 +1,24 @@
 import { AXIS_TITLE_COLOR, GRAY_4, GRAY_5, GRAY_7, WHITE } from './themeColors';
 
+export const DEFAULT_AXIS_LABEL_FONT_SIZE = 11.5;
+export const DEFAULT_AXIS_TITLE_FONT_SIZE = 12;
+
 /**
  * Get axis label styling (for values like "Jan", "Feb", "Mar")
  */
-export const getAxisLabelStyle = () => ({
+export const getAxisLabelStyle = (fontSize?: number) => ({
     color: GRAY_7,
     fontWeight: '500',
-    fontSize: 11.5,
+    fontSize: fontSize ?? DEFAULT_AXIS_LABEL_FONT_SIZE,
 });
 
 /**
  * Get axis title styling (for titles like "Month", "Amount")
  */
-export const getAxisTitleStyle = () => ({
+export const getAxisTitleStyle = (fontSize?: number) => ({
     color: AXIS_TITLE_COLOR,
     fontWeight: '500',
-    fontSize: 12,
+    fontSize: fontSize ?? DEFAULT_AXIS_TITLE_FONT_SIZE,
 });
 
 /**

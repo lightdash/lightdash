@@ -4,7 +4,7 @@ import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
     isGitProjectType,
-    NotExistsError,
+    NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     ProjectType,
@@ -299,7 +299,7 @@ export class InstanceConfigurationService extends BaseService {
             const sessionUser =
                 await this.userModel.findSessionUserByPrimaryEmail(adminEmail);
             if (!sessionUser) {
-                throw new NotExistsError(`User ${adminEmail} not found`);
+                throw new NotFoundError(`User ${adminEmail} not found`);
             }
             // Revoke other existing PATs for the admin.
             await this.personalAccessTokenModel.deleteAllTokensForUser(

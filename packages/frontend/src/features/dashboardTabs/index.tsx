@@ -18,13 +18,14 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import '../../styles/droppable.css';
 import { SectionName } from '../../types/Events';
-import { TabAddModal } from './AddTabModal';
+import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
 import DraggableTab from './Tab';
 import {
+    convertLayoutToBaseCoordinates,
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
 } from './gridUtils';
@@ -61,6 +62,16 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     setAddingTab,
 }) => {
     const gridProps = getResponsiveGridLayoutProps();
+
+    const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
+    const handleUpdateTilesWithScaling = async (layout: Layout[]) => {
+        const unscaledLayout = convertLayoutToBaseCoordinates(
+            layout,
+            currentCols,
+        );
+        await handleUpdateTiles(unscaledLayout);
+    };
+
     const layouts = useMemo(
         () => ({
             lg:
@@ -443,8 +454,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                 ? 'locked'
                                                 : ''
                                         }`}
-                                        onDragStop={handleUpdateTiles}
-                                        onResizeStop={handleUpdateTiles}
+                                        onDragStop={
+                                            handleUpdateTilesWithScaling
+                                        }
+                                        onResizeStop={
+                                            handleUpdateTilesWithScaling
+                                        }
+                                        onBreakpointChange={(_, cols) => {
+                                            setCurrentCols(cols);
+                                        }}
                                         onWidthChange={(cw) => setGridWidth(cw)}
                                         layouts={layouts}
                                         key={
@@ -513,7 +531,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         dashboardTabs={dashboardTabs}
                                     />
                                 )}
-                                <TabAddModal
+                                <AddTabModal
                                     onClose={() => setAddingTab(false)}
                                     opened={addingTab}
                                     onConfirm={(name) => {

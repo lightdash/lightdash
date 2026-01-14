@@ -1,0 +1,9 @@
+.colorPanel {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
+    overflow: scroll;
+}
+
+.colorInputs {
+    border-right: 1px solid var(--mantine-color-ldGray-2);
+}

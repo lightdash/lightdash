@@ -5,7 +5,7 @@ import {
     Switch,
     TextInput,
     Textarea,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -39,7 +39,7 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
     const [isOpen, toggleOpen] = useToggle(false);
 
     return (
-        <Stack spacing="xs">
+        <Stack gap="xs">
             {showName && (
                 <TextInput
                     required
@@ -69,6 +69,7 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
             />
 
             <Select
+                size="xs"
                 name="warehouse.authenticationType"
                 {...form.getInputProps('warehouse.authenticationType')}
                 // TODO: default value is not being recognized. private key is always being selected
@@ -113,7 +114,7 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
             />
 
             <FormSection isOpen={isOpen} name="advanced">
-                <Stack spacing="xs" style={{ marginTop: '8px' }}>
+                <Stack gap="xs" mt="xs">
                     <Switch
                         size="xs"
                         label="Always use this warehouse"
@@ -140,7 +141,7 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
                         size="xs"
                         label="Keep client session alive"
                         description={
-                            <p>
+                            <>
                                 This is intended to keep Snowflake sessions
                                 alive beyond the typical 4 hour timeout limit.
                                 You can see more details in{' '}
@@ -148,11 +149,12 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
                                     target="_blank"
                                     href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
                                     rel="noreferrer"
+                                    fz="9"
                                 >
                                     dbt documentation
                                 </Anchor>
                                 .
-                            </p>
+                            </>
                         }
                         disabled={disabled}
                         {...form.getInputProps(
@@ -167,18 +169,19 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
                         size="xs"
                         label="Query tag"
                         description={
-                            <p>
+                            <>
                                 This is Snowflake query tags parameter. You can
                                 see more details in{' '}
                                 <Anchor
                                     target="_blank"
                                     href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
                                     rel="noreferrer"
+                                    fz="9"
                                 >
                                     dbt documentation
                                 </Anchor>
                                 .
-                            </p>
+                            </>
                         }
                         disabled={disabled}
                         {...form.getInputProps('credentials.queryTag')}
@@ -187,14 +190,7 @@ export const SnowflakeCredentialsForm: FC<Props> = ({
                     <TextInput
                         size="xs"
                         label="Snowflake URL override"
-                        description={
-                            <p>
-                                Usually Lightdash would connect to a default
-                                url: account.snowflakecomputing.com. If you'd
-                                like to override this (e.g. for the dbt server)
-                                you can specify a full custom URL here.
-                            </p>
-                        }
+                        description="Usually Lightdash would connect to a default url: account.snowflakecomputing.com. If you'd like to override this (e.g. for the dbt server) you can specify a full custom URL here."
                         disabled={disabled}
                         {...form.getInputProps('credentials.accessUrl')}
                     />

@@ -1,4 +1,4 @@
-import { NotExistsError, OnbordingRecord } from '@lightdash/common';
+import { NotFoundError, OnbordingRecord } from '@lightdash/common';
 import { Knex } from 'knex';
 import { OnboardingTableName } from '../../database/entities/onboarding';
 import { OrganizationTableName } from '../../database/entities/organizations';
@@ -21,7 +21,7 @@ export class OnboardingModel {
             .where('organization_uuid', organizationUuid)
             .select('organization_id');
         if (orgs.length === 0) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotFoundError('Cannot find organization');
         }
         const onboardings = await this.database(OnboardingTableName)
             .select('shownSuccess_at', 'ranQuery_at')
@@ -52,7 +52,7 @@ export class OnboardingModel {
             .where('organization_uuid', organizationUuid)
             .select('organization_id');
         if (orgs.length === 0) {
-            throw new NotExistsError('Cannot find organization');
+            throw new NotFoundError('Cannot find organization');
         }
 
         await this.database(OnboardingTableName)

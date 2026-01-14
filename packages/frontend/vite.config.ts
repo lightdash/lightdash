@@ -26,7 +26,10 @@ export default defineConfig({
         }),
         monacoEditorPlugin({
             forceBuildCDN: true,
-            languageWorkers: ['json'],
+            languageWorkers: ['editorWorkerService', 'json', 'html'],
+            customWorkers: [
+                { label: 'yaml', entry: 'monaco-yaml/yaml.worker.js' },
+            ],
         }),
         sentryVitePlugin({
             telemetry: false,
@@ -45,6 +48,7 @@ export default defineConfig({
     ],
     optimizeDeps: {
         exclude: ['@lightdash/common'],
+        include: ['react-vega'],
     },
     resolve: {
         alias:
@@ -125,6 +129,11 @@ export default defineConfig({
         env: {
             VITE_REACT_SCAN_ENABLED: 'false',
             VITE_REACT_QUERY_DEVTOOLS_ENABLED: 'false',
+        },
+        poolOptions: {
+            forks: {
+                maxForks: '50%',
+            },
         },
     },
     server: {

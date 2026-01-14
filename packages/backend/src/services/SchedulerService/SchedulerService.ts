@@ -8,17 +8,21 @@ import {
     ForbiddenError,
     getTimezoneLabel,
     getTzMinutesOffset,
+    GoogleSheetsTransientError,
+    InvalidUser,
     isChartCreateScheduler,
     isChartScheduler,
     isCreateSchedulerSlackTarget,
     isDashboardCreateScheduler,
     isDashboardScheduler,
+    isSchedulerGsheetsOptions,
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
+    JobStatusType,
     KnexPaginateArgs,
     KnexPaginatedData,
-    NotExistsError,
+    MissingConfigError,
     NotFoundError,
     ParameterError,
     ScheduledJobs,
@@ -30,9 +34,12 @@ import {
     SchedulerRun,
     SchedulerRunLogsResponse,
     SchedulerRunStatus,
+    SchedulerTaskName,
     SchedulerWithLogs,
     SessionUser,
+    UnexpectedGoogleSheetsError,
     UpdateSchedulerAndTargetsWithoutId,
+    UserSchedulersSummary,
     type Account,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
@@ -41,6 +48,7 @@ import {
     SchedulerDashboardUpsertEvent,
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
+import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -50,13 +58,17 @@ import {
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { JobModel } from '../../models/JobModel/JobModel';
+import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAdjustedCronByOffset } from '../../utils/cronUtils';
 import { BaseService } from '../BaseService';
+import { UserService } from '../UserService';
 
 type SchedulerServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -68,6 +80,10 @@ type SchedulerServiceArguments = {
     spaceModel: SpaceModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
+    userModel: UserModel;
+    googleDriveClient: GoogleDriveClient;
+    userService: UserService;
+    jobModel: JobModel;
 };
 
 export class SchedulerService extends BaseService {
@@ -89,6 +105,14 @@ export class SchedulerService extends BaseService {
 
     projectModel: ProjectModel;
 
+    userModel: UserModel;
+
+    googleDriveClient: GoogleDriveClient;
+
+    userService: UserService;
+
+    jobModel: JobModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -99,6 +123,10 @@ export class SchedulerService extends BaseService {
         schedulerClient,
         slackClient,
         projectModel,
+        userModel,
+        googleDriveClient,
+        userService,
+        jobModel,
     }: SchedulerServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -110,6 +138,10 @@ export class SchedulerService extends BaseService {
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
         this.projectModel = projectModel;
+        this.userModel = userModel;
+        this.googleDriveClient = googleDriveClient;
+        this.userService = userService;
+        this.jobModel = jobModel;
     }
 
     private async getSchedulerResource(
@@ -139,10 +171,8 @@ export class SchedulerService extends BaseService {
         scheduler: Scheduler;
         resource: ChartSummary | DashboardDAO;
     }> {
-        // editors can "manage" scheduled deliveries,
-        // which means they can edit scheduled deliveries created from other users, even admins
-        // however, interactive users can only "create" scheduled deliveries,
-        // which means they can only edit their own scheduled deliveries
+        // admins can manage all scheduled deliveries,
+        // everyone below can only manage their own scheduled deliveries
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
         const resource = await this.getSchedulerResource(scheduler);
         const { organizationUuid, projectUuid } = resource;
@@ -152,15 +182,13 @@ export class SchedulerService extends BaseService {
             subject('ScheduledDeliveries', {
                 organizationUuid,
                 projectUuid,
+                userUuid: scheduler.createdBy,
             }),
         );
-        const canCreateDeliveries = user.ability.can(
-            'create',
-            subject('ScheduledDeliveries', {
-                organizationUuid,
-                projectUuid,
-            }),
-        );
+
+        if (!canManageDeliveries) {
+            throw new ForbiddenError();
+        }
 
         const canManageGoogleSheets = user.ability.can(
             'manage',
@@ -177,13 +205,7 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const isDeliveryOwner = scheduler.createdBy === user.userUuid;
-
-        if (canManageDeliveries || (canCreateDeliveries && isDeliveryOwner)) {
-            return { scheduler, resource };
-        }
-
-        throw new ForbiddenError();
+        return { scheduler, resource };
     }
 
     private async checkViewResource(
@@ -359,11 +381,53 @@ export class SchedulerService extends BaseService {
             throw new ParameterError('Timezone string is not valid');
         }
 
+        if (
+            !updatedScheduler.targets ||
+            !Array.isArray(updatedScheduler.targets)
+        ) {
+            throw new ParameterError(
+                'Targets is required and must be an array',
+            );
+        }
+
+        // Validate Google Sheets file if format is GSHEETS
+        if (updatedScheduler.format === SchedulerFormat.GSHEETS) {
+            if (!isSchedulerGsheetsOptions(updatedScheduler.options)) {
+                throw new ParameterError(
+                    'Google Sheets format requires valid gsheets options',
+                );
+            }
+
+            try {
+                const refreshToken = await this.userService.getRefreshToken(
+                    user.userUuid,
+                );
+                await this.googleDriveClient.assertFileIsGoogleSheet(
+                    refreshToken,
+                    updatedScheduler.options.gdriveId,
+                );
+            } catch (error) {
+                if (error instanceof UnexpectedGoogleSheetsError) {
+                    throw error; // Already has clear user-facing message
+                }
+                if (error instanceof GoogleSheetsTransientError) {
+                    throw error; // Allow transient errors to propagate for retry
+                }
+                throw new MissingConfigError(
+                    'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
+                );
+            }
+        }
+
         const {
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
 
-        await this.schedulerClient.deleteScheduledJobs(schedulerUuid);
+        await this.schedulerClient.deleteScheduledJobs(schedulerUuid, {
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+        });
         await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
         const scheduler = await this.schedulerModel.updateScheduler({
@@ -437,10 +501,16 @@ export class SchedulerService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+        const {
+            resource: { organizationUuid, projectUuid },
+        } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
 
         // Remove scheduled jobs, even if the scheduler is not enabled
-        await this.schedulerClient.deleteScheduledJobs(schedulerUuid);
+        await this.schedulerClient.deleteScheduledJobs(schedulerUuid, {
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+        });
         await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
         const scheduler = await this.schedulerModel.setSchedulerEnabled(
@@ -452,8 +522,6 @@ export class SchedulerService extends BaseService {
             const defaultTimezone = await this.getSchedulerDefaultTimezone(
                 schedulerUuid,
             );
-            const { organizationUuid, projectUuid } =
-                await this.getCreateSchedulerResource(scheduler);
 
             // If the scheduler is enabled, we need to generate the daily jobs
             await this.schedulerClient.generateDailyJobsForScheduler(
@@ -470,6 +538,139 @@ export class SchedulerService extends BaseService {
         return scheduler;
     }
 
+    async reassignSchedulerOwner(
+        user: SessionUser,
+        projectUuid: string,
+        schedulerUuids: string[],
+        newOwnerUserUuid: string,
+    ): Promise<SchedulerAndTargets[]> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        if (schedulerUuids.length === 0) {
+            throw new ParameterError('At least one scheduler UUID is required');
+        }
+
+        // Get project to validate it exists and get organizationUuid
+        const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = projectSummary;
+
+        // Validate all schedulers belong to the project
+        const schedulers = await this.schedulerModel.getSchedulersByUuid(
+            projectUuid,
+            schedulerUuids,
+        );
+
+        if (schedulers.length !== schedulerUuids.length) {
+            const foundUuids = new Set(schedulers.map((s) => s.schedulerUuid));
+            const missingUuids = schedulerUuids.filter(
+                (uuid) => !foundUuids.has(uuid),
+            );
+            throw new NotFoundError(
+                `Schedulers not found or not in project: ${missingUuids.join(
+                    ', ',
+                )}`,
+            );
+        }
+
+        // Check user has manage:ScheduledDeliveries permission for each scheduler
+        // Admins can manage all schedulers, editors can only manage their own
+        for (const scheduler of schedulers) {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid,
+                        projectUuid,
+                        userUuid: scheduler.createdBy,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        }
+
+        // Validate new owner exists, is a member of the organization, and can create scheduled deliveries
+        let newOwner: SessionUser | undefined;
+
+        try {
+            newOwner = await this.userModel.findSessionUserAndOrgByUuid(
+                newOwnerUserUuid,
+                organizationUuid,
+            );
+        } catch (error) {
+            // `findSessionUserAndOrgByUuid` throws invalid user, we convert it here to NotFoundError - related issue: https://github.com/lightdash/lightdash/issues/11603
+            if (error instanceof InvalidUser) {
+                throw new NotFoundError(
+                    'New owner not found or not a member of the organization',
+                );
+            }
+
+            throw error;
+        }
+
+        if (!newOwner) {
+            throw new NotFoundError(
+                'New owner not found or not a member of the organization',
+            );
+        }
+
+        if (
+            newOwner.ability.cannot(
+                'create',
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'New owner does not have permission to create scheduled deliveries',
+            );
+        }
+
+        // Check if any schedulers are GSHEETS format - new owner must have Google refresh token
+        const hasGsheetsSchedulers = schedulers.some(
+            (s) => s.format === SchedulerFormat.GSHEETS,
+        );
+        if (hasGsheetsSchedulers) {
+            try {
+                await this.userModel.getRefreshToken(newOwnerUserUuid);
+            } catch (error) {
+                if (error instanceof NotFoundError) {
+                    throw new ForbiddenError(
+                        'New owner must have an active Google connection to take ownership of Google Sheets scheduled deliveries',
+                    );
+                }
+                throw error;
+            }
+        }
+
+        // Update ownership
+        await this.schedulerModel.updateOwner(schedulerUuids, newOwnerUserUuid);
+
+        // Fetch and return updated schedulers with targets
+        const updatedSchedulers = await this.schedulerModel.getSchedulersByUuid(
+            projectUuid,
+            schedulerUuids,
+        );
+
+        // Track analytics event
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'scheduler.ownership_reassigned',
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                schedulerUuids,
+                newOwnerUserUuid,
+            },
+        });
+
+        return updatedSchedulers;
+    }
+
     async deleteScheduler(
         user: SessionUser,
         schedulerUuid: string,
@@ -478,7 +679,11 @@ export class SchedulerService extends BaseService {
             scheduler,
             resource: { organizationUuid, projectUuid },
         } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
-        await this.schedulerClient.deleteScheduledJobs(schedulerUuid);
+        await this.schedulerClient.deleteScheduledJobs(schedulerUuid, {
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+        });
         await this.schedulerModel.deleteScheduler(schedulerUuid);
         await this.schedulerModel.deleteScheduledLogs(schedulerUuid);
 
@@ -526,7 +731,7 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
         if (job.status === 'error') {
-            throw new NotExistsError(
+            throw new NotFoundError(
                 job.details?.error ?? 'Unable to download CSV',
             );
         }
@@ -861,5 +1066,321 @@ export class SchedulerService extends BaseService {
         });
 
         return runLogs;
+    }
+
+    /**
+     * Get a summary of schedulers owned by a user.
+     * Used to show scheduler count when deleting a user.
+     * Only returns projects where the calling user can view scheduled deliveries.
+     */
+    async getUserSchedulersSummary(
+        user: SessionUser,
+        targetUserUuid: string,
+    ): Promise<UserSchedulersSummary> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const { organizationUuid } = user;
+
+        // Validate target user exists and is in the same organization
+        try {
+            await this.userModel.findSessionUserAndOrgByUuid(
+                targetUserUuid,
+                organizationUuid,
+            );
+        } catch (error) {
+            if (error instanceof InvalidUser) {
+                throw new NotFoundError(
+                    'User not found or not a member of the organization',
+                );
+            }
+            throw error;
+        }
+
+        const summary = await this.schedulerModel.getSchedulersSummaryByOwner(
+            targetUserUuid,
+        );
+
+        // Check user can manage scheduled deliveries in all projects
+        const projectsWithoutPermission = summary.byProject
+            .filter((project) =>
+                user.ability.cannot(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                ),
+            )
+            .map((project) => project.projectName);
+
+        if (projectsWithoutPermission.length > 0) {
+            throw new ForbiddenError(
+                `You do not have permission to view scheduled deliveries in: ${projectsWithoutPermission.join(
+                    ', ',
+                )}`,
+            );
+        }
+
+        return summary;
+    }
+
+    /**
+     * Reassign all schedulers from one user to another.
+     * Used when deleting a user to transfer their schedulers.
+     */
+    async reassignUserSchedulers(
+        user: SessionUser,
+        fromUserUuid: string,
+        newOwnerUserUuid: string,
+    ): Promise<{ reassignedCount: number }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        const { organizationUuid } = user;
+
+        // Validate fromUser exists and is in the same organization
+        try {
+            await this.userModel.findSessionUserAndOrgByUuid(
+                fromUserUuid,
+                organizationUuid,
+            );
+        } catch (error) {
+            if (error instanceof InvalidUser) {
+                throw new NotFoundError(
+                    'User not found or not a member of the organization',
+                );
+            }
+            throw error;
+        }
+
+        // Get scheduler summary to find which projects have schedulers
+        const summary = await this.schedulerModel.getSchedulersSummaryByOwner(
+            fromUserUuid,
+        );
+
+        if (summary.totalCount === 0) {
+            return { reassignedCount: 0 };
+        }
+
+        // Check calling user has manage:ScheduledDeliveries permission on ALL projects
+        const projectsUserCannotManage: string[] = [];
+        for (const project of summary.byProject) {
+            if (
+                user.ability.cannot(
+                    'manage',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectsUserCannotManage.push(project.projectName);
+            }
+        }
+
+        if (projectsUserCannotManage.length > 0) {
+            throw new ForbiddenError(
+                `You do not have permission to manage scheduled deliveries in: ${projectsUserCannotManage.join(
+                    ', ',
+                )}`,
+            );
+        }
+
+        // Validate new owner exists and is a member of the organization
+        let newOwner: SessionUser | undefined;
+        try {
+            newOwner = await this.userModel.findSessionUserAndOrgByUuid(
+                newOwnerUserUuid,
+                organizationUuid,
+            );
+        } catch (error) {
+            if (error instanceof InvalidUser) {
+                // `findSessionUserAndOrgByUuid` throws invalid user, we convert it here to NotFoundError - related issue: https://github.com/lightdash/lightdash/issues/11603
+                throw new NotFoundError(
+                    'New owner not found or not a member of the organization',
+                );
+            }
+            throw error;
+        }
+
+        if (!newOwner) {
+            throw new NotFoundError(
+                'New owner not found or not a member of the organization',
+            );
+        }
+
+        // Validate new owner has create:ScheduledDeliveries permission in ALL projects
+        const projectsWithoutPermission: string[] = [];
+        for (const project of summary.byProject) {
+            if (
+                newOwner.ability.cannot(
+                    'create',
+                    subject('ScheduledDeliveries', {
+                        organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+            ) {
+                projectsWithoutPermission.push(project.projectName);
+            }
+        }
+
+        if (projectsWithoutPermission.length > 0) {
+            throw new ForbiddenError(
+                `New owner does not have permission to create scheduled deliveries in: ${projectsWithoutPermission.join(
+                    ', ',
+                )}`,
+            );
+        }
+
+        // Check if user has any GSHEETS schedulers - new owner must have Google refresh token
+        if (summary.hasGsheetsSchedulers) {
+            try {
+                await this.userModel.getRefreshToken(newOwnerUserUuid);
+            } catch (error) {
+                if (error instanceof NotFoundError) {
+                    throw new ForbiddenError(
+                        'New owner must have an active Google connection to take ownership of Google Sheets scheduled deliveries',
+                    );
+                }
+                throw error;
+            }
+        }
+
+        // Update ownership - only for projects where permissions were validated
+        const validatedProjectUuids = summary.byProject.map(
+            (p) => p.projectUuid,
+        );
+
+        // Update ownership
+        const reassignedCount = await this.schedulerModel.updateOwnerByUser(
+            fromUserUuid,
+            newOwnerUserUuid,
+            validatedProjectUuids,
+        );
+
+        // Track analytics event
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'scheduler.user_ownership_reassigned',
+            properties: {
+                organizationId: organizationUuid,
+                fromUserUuid,
+                newOwnerUserUuid,
+                reassignedCount,
+                projectCount: summary.byProject.length,
+            },
+        });
+
+        return { reassignedCount };
+    }
+
+    async checkForStuckJobs(): Promise<{
+        runningCount: number;
+        warningCount: number;
+        errorCount: number;
+    }> {
+        this.logger.info('Starting check for stuck jobs');
+
+        const runningJobs = await this.schedulerClient.getRecentRunningJobs();
+
+        const now = new Date();
+        const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+        const ONE_HOUR_MS = 60 * 60 * 1000;
+        const ONE_MINUTE_MS = 60 * 1000;
+
+        // Categorize jobs by duration
+        const jobsToLog: Array<{
+            job: typeof runningJobs[number];
+            durationMinutes: number;
+        }> = [];
+        let warningCount = 0;
+
+        runningJobs.forEach((job) => {
+            const durationMs = now.getTime() - job.lockedAt.getTime();
+            const durationMinutes = Math.round(durationMs / ONE_MINUTE_MS);
+
+            const logContext = {
+                jobId: job.id,
+                taskIdentifier: job.taskIdentifier,
+                lockedAt: job.lockedAt.toISOString(),
+                durationMinutes,
+            };
+
+            if (durationMs >= ONE_HOUR_MS) {
+                // Over 1 hour: log error and schedule for DB logging
+                this.logger.error(
+                    `Stuck job detected (over 1 hour): ${job.taskIdentifier} (job ${job.id}) running for ${durationMinutes} min`,
+                    logContext,
+                );
+                jobsToLog.push({ job, durationMinutes });
+            } else if (durationMs >= THIRTY_MINUTES_MS) {
+                // Over 30 minutes: log warning only
+                warningCount += 1;
+                this.logger.warn(
+                    `Potentially stuck job (over 30 min): ${job.taskIdentifier} (job ${job.id}) running for ${durationMinutes} min`,
+                    logContext,
+                );
+            }
+        });
+
+        // Log all error jobs to DB in parallel
+        await Promise.all(
+            jobsToLog.map(({ job, durationMinutes }) =>
+                this.schedulerModel.logSchedulerJob({
+                    task: job.taskIdentifier as SchedulerTaskName,
+                    schedulerUuid: job.payload.schedulerUuid as
+                        | string
+                        | undefined,
+                    jobId: job.id,
+                    scheduledTime: job.runAt,
+                    status: SchedulerJobStatus.ERROR,
+                    details: {
+                        error: 'This job took longer than expected and was stopped after 1 hour—please try again. If the issue persists, contact support.',
+                        lockedAt: job.lockedAt.toISOString(),
+                        lockedBy: job.lockedBy,
+                        projectUuid: job.payload.projectUuid as
+                            | string
+                            | undefined,
+                        organizationUuid: job.payload.organizationUuid as
+                            | string
+                            | undefined,
+                        createdByUserUuid: job.payload.userUuid as
+                            | string
+                            | undefined,
+                    },
+                }),
+            ),
+        );
+
+        // Update Lightdash job status to ERROR for compile project jobs
+        await Promise.all(
+            jobsToLog.map(({ job }) =>
+                this.jobModel.update(job.payload.jobUuid as string, {
+                    jobStatus: JobStatusType.ERROR,
+                }),
+            ),
+        );
+
+        // Remove stuck jobs from graphile queue to prevent indefinite running
+        if (jobsToLog.length > 0) {
+            const jobIdsToFail = jobsToLog.map(({ job }) => job.id);
+            await this.schedulerClient.failJobs(jobIdsToFail);
+            this.logger.info(
+                `Removed ${jobIdsToFail.length} stuck jobs from queue`,
+                { jobIds: jobIdsToFail },
+            );
+        }
+
+        const errorCount = jobsToLog.length;
+
+        this.logger.info(
+            `Completed stuck job check: ${runningJobs.length} running, ${warningCount} warnings (30-60 min), ${errorCount} errors (>1 hour)`,
+        );
+
+        return { runningCount: runningJobs.length, warningCount, errorCount };
     }
 }

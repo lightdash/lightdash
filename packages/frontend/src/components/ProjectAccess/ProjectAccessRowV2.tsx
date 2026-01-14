@@ -298,7 +298,11 @@ const ProjectAccessRowV2: FC<Props> = ({
 
             {isDeleteDialogOpen && (
                 <RemoveProjectAccessModal
-                    user={{ email: user.email }}
+                    user={{
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        email: user.email,
+                    }}
                     onDelete={handleDelete}
                     onClose={() => setIsDeleteDialogOpen(false)}
                 />

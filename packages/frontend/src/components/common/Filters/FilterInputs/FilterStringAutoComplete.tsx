@@ -71,7 +71,8 @@ const FilterStringAutoComplete: FC<Props> = ({
     ...rest
 }) => {
     const multiSelectRef = useRef<HTMLInputElement>(null);
-    const { projectUuid, getAutocompleteFilterGroup } = useFiltersContext();
+    const { projectUuid, getAutocompleteFilterGroup, parameterValues } =
+        useFiltersContext();
     if (!projectUuid) {
         throw new Error('projectUuid is required in FiltersProvider');
     }
@@ -110,6 +111,7 @@ const FilterStringAutoComplete: FC<Props> = ({
         {
             refetchOnMount: 'always',
         },
+        parameterValues,
     );
 
     useEffect(() => {
@@ -300,15 +302,28 @@ const FilterStringAutoComplete: FC<Props> = ({
                         <Text c="blue.6">Add "{query}"</Text>
                     </Group>
                 )}
-                styles={{
+                styles={(theme) => ({
+                    input: {
+                        maxHeight: '350px',
+                        overflowY: 'auto',
+                    },
                     item: {
                         // makes add new item button sticky to bottom
                         '&:last-child:not([value])': {
                             position: 'sticky',
                             bottom: 4,
+                            zIndex: 10,
+                            backgroundColor:
+                                theme.colorScheme === 'dark'
+                                    ? theme.colors.dark[6]
+                                    : theme.white,
+                            boxShadow: `0 -1px 0 0 ${theme.colors.ldGray[2]}`,
+                            paddingTop: theme.spacing.xs,
+                            borderRadius: 0,
+                            marginTop: theme.spacing.xs,
                         },
                     },
-                }}
+                })}
                 disableSelectedItemFiltering
                 searchable
                 clearable={singleValue}

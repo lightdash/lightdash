@@ -9,13 +9,17 @@ import {
 } from '@lightdash/common';
 import { Button, Group, Tabs } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
+import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
 import { useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
+import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
 import MantineIcon from '../../components/common/MantineIcon';
+import { ScrollToTop } from '../../components/common/ScrollToTop';
+import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
@@ -24,13 +28,14 @@ import { SectionName } from '../../types/Events';
 import { DashboardFiltersBar } from '../dashboardFiltersV2/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFiltersV2/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFiltersV2/FilterConfiguration/utils';
-import { TabAddModal } from './AddTabModal';
+import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
 import DraggableTab from './Tab';
 import {
+    convertLayoutToBaseCoordinates,
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
 } from './gridUtils';
@@ -89,6 +94,16 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
     onParameterPin,
 }) => {
     const gridProps = getResponsiveGridLayoutProps();
+    const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
+
+    const handleUpdateTilesWithScaling = async (layout: Layout[]) => {
+        const unscaledLayout = convertLayoutToBaseCoordinates(
+            layout,
+            currentCols,
+        );
+        await handleUpdateTiles(unscaledLayout);
+    };
+
     const layouts = useMemo(
         () => ({
             lg:
@@ -132,6 +147,12 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
         (c) => c.setHaveTilesChanged,
     );
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const setDashboardFilters = useDashboardContext(
+        (c) => c.setDashboardFilters,
+    );
+    const setHaveFiltersChanged = useDashboardContext(
+        (c) => c.setHaveFiltersChanged,
+    );
     const requiredDashboardFilters = useDashboardContext(
         (c) => c.requiredDashboardFilters,
     );
@@ -149,6 +170,8 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
     // filters bar state
     const [isFiltersCollapsed, setIsFiltersCollapsed] =
         useState<boolean>(false);
+
+    const [isHeaderStuck, setIsHeaderStuck] = useState<boolean>(false);
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
@@ -394,11 +417,17 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
             );
 
             if (tilesToDuplicate && tilesToDuplicate.length > 0) {
-                const duplicatedTiles = tilesToDuplicate.map((tile) => ({
-                    ...tile,
-                    uuid: uuid4(),
-                    tabUuid: newTab.uuid,
-                }));
+                // Step 1: Create mapping while duplicating tiles
+                const tileUuidMapping = new Map<string, string>();
+                const duplicatedTiles = tilesToDuplicate.map((tile) => {
+                    const newUuid = uuid4();
+                    tileUuidMapping.set(tile.uuid, newUuid);
+                    return {
+                        ...tile,
+                        uuid: newUuid,
+                        tabUuid: newTab.uuid,
+                    };
+                });
 
                 // Directly add tiles to the dashboard without using handleAddTiles
                 // to avoid automatic assignment to current active tab
@@ -407,12 +436,35 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                     ...duplicatedTiles,
                 ]);
                 setHaveTilesChanged(true);
+
+                // Step 2: Update filters to include new tile mappings
+                const updatedFilters = produce(
+                    dashboardFilters.dimensions,
+                    (draft) => {
+                        for (const filter of draft) {
+                            if (!filter.tileTargets) continue;
+
+                            for (const [oldUuid, newUuid] of tileUuidMapping) {
+                                if (oldUuid in filter.tileTargets) {
+                                    filter.tileTargets[newUuid] =
+                                        filter.tileTargets[oldUuid];
+                                }
+                            }
+                        }
+                    },
+                );
+
+                // Step 3: Update dashboard filters
+                setDashboardFilters({
+                    ...dashboardFilters,
+                    dimensions: updatedFilters,
+                });
+                setHaveFiltersChanged(true);
             }
         }
         setDuplicatingTab(false);
         setTabToDuplicate(null);
     };
-    const MAGIC_SCROLL_AREA_HEIGHT = 100;
 
     return (
         <DragDropContext
@@ -448,102 +500,157 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                     }
                                 }}
                                 classNames={{
+                                    root: styles.tabsRoot,
                                     list: styles.list,
                                     tab: styles.tab,
                                 }}
-                                h={MAGIC_SCROLL_AREA_HEIGHT}
-                                mt={tabsEnabled ? undefined : 'xs'}
                             >
-                                {sortedTabs && sortedTabs?.length > 0 && (
-                                    <Tabs.List px="lg" mb="xs">
-                                        {sortedTabs.map((tab, idx) => (
-                                            <DraggableTab
-                                                key={tab.uuid}
-                                                idx={idx}
-                                                tab={tab}
-                                                isEditMode={isEditMode}
-                                                sortedTabs={sortedTabs}
-                                                currentTabHasTiles={
-                                                    currentTabHasTiles
-                                                }
-                                                setEditingTab={setEditingTab}
-                                                handleDeleteTab={
-                                                    handleDeleteTab
-                                                }
-                                                handleDuplicateTab={
-                                                    handleDuplicateTab
-                                                }
-                                                setDeletingTab={setDeletingTab}
-                                            />
-                                        ))}
+                                <StickyWithDetection
+                                    // Header that includes dashboard title is sticky during editing
+                                    offset={
+                                        isEditMode ? DASHBOARD_HEADER_HEIGHT : 0
+                                    }
+                                    onStuckChange={setIsHeaderStuck}
+                                >
+                                    <div
+                                        className={styles.stickyTabsAndFilters}
+                                        data-has-header-above={isEditMode}
+                                        data-is-stuck={isHeaderStuck}
+                                    >
+                                        {sortedTabs &&
+                                            sortedTabs?.length > 0 && (
+                                                <Tabs.List px="lg">
+                                                    {sortedTabs.map(
+                                                        (tab, idx) => (
+                                                            <DraggableTab
+                                                                key={tab.uuid}
+                                                                idx={idx}
+                                                                tab={tab}
+                                                                isEditMode={
+                                                                    isEditMode
+                                                                }
+                                                                sortedTabs={
+                                                                    sortedTabs
+                                                                }
+                                                                currentTabHasTiles={
+                                                                    currentTabHasTiles
+                                                                }
+                                                                setEditingTab={
+                                                                    setEditingTab
+                                                                }
+                                                                handleDeleteTab={
+                                                                    handleDeleteTab
+                                                                }
+                                                                handleDuplicateTab={
+                                                                    handleDuplicateTab
+                                                                }
+                                                                setDeletingTab={
+                                                                    setDeletingTab
+                                                                }
+                                                            />
+                                                        ),
+                                                    )}
 
-                                        {provided.placeholder}
+                                                    {provided.placeholder}
 
-                                        {isEditMode && (
-                                            <Button
-                                                ml="sm"
-                                                size="sm"
-                                                fz={13}
-                                                variant="subtle"
-                                                flex="0 0 auto"
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconPlus}
-                                                    />
-                                                }
-                                                onClick={() =>
-                                                    setAddingTab(true)
-                                                }
-                                            >
-                                                New tab
-                                            </Button>
-                                        )}
-                                    </Tabs.List>
-                                )}
+                                                    {isEditMode && (
+                                                        <Button
+                                                            ml="sm"
+                                                            size="sm"
+                                                            fz={13}
+                                                            variant="subtle"
+                                                            flex="0 0 auto"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconPlus
+                                                                    }
+                                                                />
+                                                            }
+                                                            onClick={() =>
+                                                                setAddingTab(
+                                                                    true,
+                                                                )
+                                                            }
+                                                        >
+                                                            New tab
+                                                        </Button>
+                                                    )}
+                                                </Tabs.List>
+                                            )}
 
-                                {/* Filters bar - collapsed or expanded view */}
-                                {isFiltersCollapsed && !isEditMode ? (
-                                    <DashboardFiltersBarSummary
-                                        filtersCount={totalFiltersCount}
-                                        parametersCount={totalParametersCount}
-                                        dateZoomLabel={
-                                            isDateZoomDisabled
-                                                ? null
-                                                : dateZoomGranularity ||
-                                                  'Default'
-                                        }
-                                        onExpand={() =>
-                                            setIsFiltersCollapsed(false)
-                                        }
-                                    />
-                                ) : (
-                                    <DashboardFiltersBar
-                                        isEditMode={isEditMode}
-                                        activeTabUuid={activeTab?.uuid}
-                                        hasTilesThatSupportFilters={
-                                            hasTilesThatSupportFilters
-                                        }
-                                        hasDashboardTiles={!!hasDashboardTiles}
-                                        parameters={parameters}
-                                        parameterValues={parameterValues}
-                                        onParameterChange={onParameterChange}
-                                        onParameterClearAll={
-                                            onParameterClearAll
-                                        }
-                                        isParameterLoading={isParameterLoading}
-                                        missingRequiredParameters={
-                                            missingRequiredParameters
-                                        }
-                                        pinnedParameters={pinnedParameters}
-                                        onParameterPin={onParameterPin}
-                                        isDateZoomDisabled={isDateZoomDisabled}
-                                        onCollapse={() =>
-                                            setIsFiltersCollapsed(true)
-                                        }
-                                    />
-                                )}
+                                        {/* Filters bar - collapsed or expanded view */}
+                                        <div className={styles.filtersBar}>
+                                            {isFiltersCollapsed &&
+                                            !isEditMode ? (
+                                                <DashboardFiltersBarSummary
+                                                    filtersCount={
+                                                        totalFiltersCount
+                                                    }
+                                                    parametersCount={
+                                                        totalParametersCount
+                                                    }
+                                                    dateZoomLabel={
+                                                        isDateZoomDisabled
+                                                            ? null
+                                                            : dateZoomGranularity ||
+                                                              'Default'
+                                                    }
+                                                    onExpand={() =>
+                                                        setIsFiltersCollapsed(
+                                                            false,
+                                                        )
+                                                    }
+                                                />
+                                            ) : (
+                                                <DashboardFiltersBar
+                                                    isEditMode={isEditMode}
+                                                    activeTabUuid={
+                                                        activeTab?.uuid
+                                                    }
+                                                    hasTilesThatSupportFilters={
+                                                        hasTilesThatSupportFilters
+                                                    }
+                                                    hasDashboardTiles={
+                                                        !!hasDashboardTiles
+                                                    }
+                                                    parameters={parameters}
+                                                    parameterValues={
+                                                        parameterValues
+                                                    }
+                                                    onParameterChange={
+                                                        onParameterChange
+                                                    }
+                                                    onParameterClearAll={
+                                                        onParameterClearAll
+                                                    }
+                                                    isParameterLoading={
+                                                        isParameterLoading
+                                                    }
+                                                    missingRequiredParameters={
+                                                        missingRequiredParameters
+                                                    }
+                                                    pinnedParameters={
+                                                        pinnedParameters
+                                                    }
+                                                    onParameterPin={
+                                                        onParameterPin
+                                                    }
+                                                    isDateZoomDisabled={
+                                                        isDateZoomDisabled
+                                                    }
+                                                    onCollapse={() =>
+                                                        setIsFiltersCollapsed(
+                                                            true,
+                                                        )
+                                                    }
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                </StickyWithDetection>
 
-                                <Group grow pb="lg" px="xs">
+                                <Group grow pb={60} px="xs">
                                     <ResponsiveGridLayout
                                         {...gridProps}
                                         className={`${
@@ -551,8 +658,16 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                                 ? 'locked'
                                                 : ''
                                         }`}
-                                        onDragStop={handleUpdateTiles}
-                                        onResizeStop={handleUpdateTiles}
+                                        containerPadding={[10, 0]}
+                                        onDragStop={
+                                            handleUpdateTilesWithScaling
+                                        }
+                                        onResizeStop={
+                                            handleUpdateTilesWithScaling
+                                        }
+                                        onBreakpointChange={(_, cols) => {
+                                            setCurrentCols(cols);
+                                        }}
                                         onWidthChange={(cw) => setGridWidth(cw)}
                                         layouts={layouts}
                                         key={
@@ -621,7 +736,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                         dashboardTabs={dashboardTabs}
                                     />
                                 )}
-                                <TabAddModal
+                                <AddTabModal
                                     onClose={() => setAddingTab(false)}
                                     opened={addingTab}
                                     onConfirm={(name) => {
@@ -674,6 +789,8 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                     </>
                 )}
             </Droppable>
+
+            <ScrollToTop show={isHeaderStuck} />
         </DragDropContext>
     );
 };

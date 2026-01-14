@@ -14,6 +14,31 @@
     :global(.leaflet-container) {
         background: var(--map-background-color, #ddd) !important;
     }
+
+    /* Custom focus styles for Leaflet interactive elements */
+    /* Use a subtle glow instead of the default browser outline */
+    :global(.leaflet-container:focus) {
+        outline: none !important;
+    }
+
+    :global(.leaflet-interactive:focus) {
+        outline: none !important;
+    }
+
+    /* SVG paths (area maps, markers) - use drop-shadow filter for glow effect */
+    :global(path.leaflet-interactive:focus) {
+        outline: none !important;
+        filter: drop-shadow(0 0 3px rgba(59, 130, 246, 0.8))
+            drop-shadow(0 0 6px rgba(59, 130, 246, 0.5)) !important;
+    }
+
+    /* Circle markers (scatter maps) - more prominent glow */
+    :global(circle.leaflet-interactive:focus) {
+        outline: none !important;
+        filter: drop-shadow(0 0 2px rgba(59, 130, 246, 1))
+            drop-shadow(0 0 4px rgba(59, 130, 246, 0.9))
+            drop-shadow(0 0 8px rgba(59, 130, 246, 0.6)) !important;
+    }
 }
 
 /* Legend styles */
@@ -133,5 +158,36 @@
 
     @mixin dark {
         color: var(--mantine-color-ldGray-5);
+    }
+}
+
+/* Match popup border-radius to tooltip (3px) and reduce horizontal padding */
+:global(.leaflet-popup-content-wrapper) {
+    border-radius: 3px !important;
+}
+
+:global(.leaflet-popup-content) {
+    margin: 13px 10px !important;
+}
+
+:global(.leaflet-popup-tip) {
+    /* Slightly reduce the popup tip to match the smaller radius */
+    width: 14px !important;
+    height: 14px !important;
+}
+
+/* Popup action button styles */
+/* Force light mode colors since Leaflet popups are always white background */
+.popupActionButton {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-xxs) var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+    width: 100%;
+    color: var(--mantine-color-ldGray-7);
+
+    &:hover {
+        background-color: var(--mantine-color-gray-1);
     }
 }

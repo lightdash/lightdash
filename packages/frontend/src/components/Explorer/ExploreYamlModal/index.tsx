@@ -45,23 +45,9 @@ import {
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import styles from './ExploreYamlModal.module.css';
-// eslint-disable-next-line import/no-unresolved, import/extensions
-import EditorWorker from './editor.worker.ts?worker';
-// eslint-disable-next-line import/no-unresolved, import/extensions
-import YamlWorker from './yaml.worker.ts?worker';
 
-// Configure Monaco environment to use the YAML worker
-// This must be done before Monaco loads
-// eslint-disable-next-line no-restricted-globals
-self.MonacoEnvironment = {
-    getWorker(_moduleId, label) {
-        if (label === 'yaml') {
-            return new YamlWorker();
-        }
-        // For other languages (like editorWorkerService), use the default editor worker
-        return new EditorWorker();
-    },
-};
+// Note: Monaco worker configuration is handled by vite-plugin-monaco-editor
+// in vite.config.ts with customWorkers for YAML support.
 
 // Configure monaco-yaml with schema once at module level
 let yamlConfigured = false;

@@ -1,9 +1,11 @@
-import { InlineErrorType, type SummaryExplore } from '@lightdash/common';
 import {
-    ActionIcon,
+    InlineErrorType,
+    isSummaryExploreError,
+    type SummaryExplore,
+} from '@lightdash/common';
+import {
     Anchor,
     Box,
-    CopyButton,
     Highlight,
     HoverCard,
     NavLink,
@@ -12,13 +14,13 @@ import {
 import { useToggle } from '@mantine/hooks';
 import {
     IconAlertTriangle,
-    IconCopy,
     IconInfoCircle,
     IconTable,
 } from '@tabler/icons-react';
-import React, { useState } from 'react';
+import React from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ExploreTree/TableTree/ItemDetailPreview';
+import WarningsHoverCardContent from '../WarningsHoverCard';
 
 type ExploreNavLinkProps = {
     explore: SummaryExplore;
@@ -32,133 +34,51 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
     onClick,
 }: ExploreNavLinkProps) => {
     const [isHover, toggleHover] = useToggle();
-    const [showCopyButton, setShowCopyButton] = useState(false);
 
-    if ('errors' in explore) {
-        const showNoDimensionsIcon = explore.errors.every(
+    const isError = isSummaryExploreError(explore);
+    const warnings =
+        !isError && 'warnings' in explore ? explore.warnings ?? [] : [];
+    const hasWarnings = warnings.length > 0;
+    const needsHoverCard = isError || hasWarnings;
+
+    // Error-specific values
+    const showNoDimensionsIcon =
+        isError &&
+        explore.errors.every(
             (error) => error.type === InlineErrorType.NO_DIMENSIONS_FOUND,
         );
-        const errorMessage = explore.errors
-            .map((error) => error.message)
-            .join('\n');
 
-        return (
-            <HoverCard
-                withinPortal
-                position="right"
-                withArrow
-                radius="md"
-                shadow="subtle"
-                variant="xs"
+    // Determine rightSection
+    let rightSection;
+    if (isError) {
+        rightSection = showNoDimensionsIcon ? (
+            <Anchor
+                role="button"
+                href="https://docs.lightdash.com/guides/how-to-create-dimensions"
+                target="_blank"
+                rel="noreferrer"
             >
-                <HoverCard.Target>
-                    <Box>
-                        <NavLink
-                            role="listitem"
-                            disabled
-                            icon={
-                                <MantineIcon
-                                    icon={IconTable}
-                                    size="lg"
-                                    color="ldGray.7"
-                                />
-                            }
-                            label={
-                                <Highlight
-                                    component={Text}
-                                    highlight={query ?? ''}
-                                    truncate
-                                >
-                                    {explore.label}
-                                </Highlight>
-                            }
-                            rightSection={
-                                showNoDimensionsIcon ? (
-                                    <Anchor
-                                        role="button"
-                                        href="https://docs.lightdash.com/guides/how-to-create-dimensions"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                    >
-                                        <MantineIcon
-                                            icon={IconInfoCircle}
-                                            color="ldGray.7"
-                                            size="lg"
-                                        />
-                                    </Anchor>
-                                ) : (
-                                    <MantineIcon
-                                        icon={IconAlertTriangle}
-                                        size="lg"
-                                        color="yellow.9"
-                                    />
-                                )
-                            }
-                        />
-                    </Box>
-                </HoverCard.Target>
-                <HoverCard.Dropdown maw={300} p="xs">
-                    <Box
-                        position="relative"
-                        p="md"
-                        sx={(theme) => ({
-                            backgroundColor: theme.colors.ldGray[0],
-                            maxHeight: 200,
-                            overflow: 'auto',
-                        })}
-                        onMouseEnter={() => {
-                            setShowCopyButton(true);
-                        }}
-                        onMouseLeave={() => {
-                            setShowCopyButton(false);
-                        }}
-                    >
-                        <CopyButton value={errorMessage}>
-                            {({ copy, copied }) => (
-                                <ActionIcon
-                                    onClick={copy}
-                                    size="xs"
-                                    variant="light"
-                                    sx={() => ({
-                                        position: 'absolute',
-                                        display: showCopyButton
-                                            ? 'block'
-                                            : 'none',
-                                        right: 12,
-                                        top: 12,
-                                    })}
-                                >
-                                    <MantineIcon
-                                        color={copied ? 'green' : 'gray'}
-                                        icon={IconCopy}
-                                    />
-                                </ActionIcon>
-                            )}
-                        </CopyButton>
-                        <Text fz="xs" sx={{ wordBreak: 'break-word' }}>
-                            {errorMessage}
-                        </Text>
-                    </Box>
-                </HoverCard.Dropdown>
-            </HoverCard>
+                <MantineIcon icon={IconInfoCircle} color="ldGray.7" size="lg" />
+            </Anchor>
+        ) : (
+            <MantineIcon icon={IconAlertTriangle} size="lg" color="yellow.9" />
+        );
+    } else if (hasWarnings) {
+        rightSection = (
+            <MantineIcon icon={IconAlertTriangle} size="lg" color="yellow.9" />
         );
     }
 
-    return (
+    const navLink = (
         <NavLink
             role="listitem"
+            disabled={isError}
             icon={<MantineIcon icon={IconTable} size="lg" color="ldGray.7" />}
-            onClick={onClick}
-            onMouseEnter={() => toggleHover(true)}
-            onMouseLeave={() => toggleHover(false)}
+            onClick={isError ? undefined : onClick}
+            onMouseEnter={needsHoverCard ? undefined : () => toggleHover(true)}
+            onMouseLeave={needsHoverCard ? undefined : () => toggleHover(false)}
             label={
-                <TableItemDetailPreview
-                    label={explore.label}
-                    description={explore.description}
-                    showPreview={isHover}
-                    closePreview={() => toggleHover(false)}
-                    offset={0}
-                >
+                isError ? (
                     <Highlight
                         component={Text}
                         highlight={query ?? ''}
@@ -166,9 +86,58 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                     >
                         {explore.label}
                     </Highlight>
-                </TableItemDetailPreview>
+                ) : (
+                    <TableItemDetailPreview
+                        label={explore.label}
+                        description={explore.description}
+                        showPreview={needsHoverCard ? false : isHover}
+                        closePreview={() => toggleHover(false)}
+                        offset={0}
+                    >
+                        <Highlight
+                            component={Text}
+                            highlight={query ?? ''}
+                            truncate
+                        >
+                            {explore.label}
+                        </Highlight>
+                    </TableItemDetailPreview>
+                )
             }
+            rightSection={rightSection}
         />
+    );
+
+    if (!needsHoverCard) {
+        return navLink;
+    }
+
+    return (
+        <HoverCard
+            withinPortal
+            position="right"
+            withArrow
+            radius="md"
+            shadow="subtle"
+            variant="xs"
+        >
+            <HoverCard.Target>
+                <Box>{navLink}</Box>
+            </HoverCard.Target>
+            <HoverCard.Dropdown maw={400} p="xs">
+                {isError ? (
+                    <WarningsHoverCardContent
+                        type="errors"
+                        warnings={explore.errors}
+                    />
+                ) : (
+                    <WarningsHoverCardContent
+                        type="warnings"
+                        warnings={warnings}
+                    />
+                )}
+            </HoverCard.Dropdown>
+        </HoverCard>
     );
 };
 

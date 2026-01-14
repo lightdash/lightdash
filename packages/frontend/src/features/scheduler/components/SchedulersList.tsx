@@ -92,7 +92,7 @@ const SchedulersList: FC<Props> = ({
 
             {schedulerUuid && (
                 <SchedulerDeleteModal
-                    opened={true}
+                    opened
                     schedulerUuid={schedulerUuid}
                     onConfirm={() => setSchedulerUuid(undefined)}
                     onClose={() => setSchedulerUuid(undefined)}

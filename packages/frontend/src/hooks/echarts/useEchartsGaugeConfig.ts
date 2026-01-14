@@ -288,11 +288,61 @@ const useEchartsGaugeConfig = ({
             },
             detail: {
                 valueAnimation: true,
-                fontSize: detailsFontSize,
-                offsetCenter: [0, '-5%'],
-                color: valueColor.text,
+                offsetCenter: [
+                    0,
+                    chartConfig.validConfig.showPercentage ? '0' : '-5%',
+                ],
                 formatter: (value): string => {
-                    return formatItemValue(fieldItem, value, false, parameters);
+                    const showPercentage =
+                        chartConfig.validConfig.showPercentage;
+
+                    const formattedValue = formatItemValue(
+                        fieldItem,
+                        value,
+                        false,
+                        parameters,
+                    );
+
+                    if (showPercentage) {
+                        const percentageValue = `${(
+                            ((toNumber(value) - min) / (effectiveMax - min)) *
+                            100
+                        ).toFixed(0)}%`;
+                        const percentageLabel = chartConfig.validConfig
+                            .customPercentageLabel
+                            ? ` ${chartConfig.validConfig.customPercentageLabel}`
+                            : '';
+                        return `{value|${formattedValue}}\n{percentage|${percentageValue}}{percentageLabel|${percentageLabel}}`;
+                    }
+                    return `{value|${formattedValue}}`;
+                },
+                rich: {
+                    value: {
+                        fontSize: detailsFontSize,
+                        lineHeight: detailsFontSize * 1.2,
+                        fontWeight: 600,
+                        color: valueColor.text,
+                    },
+                    percentageLabel: {
+                        fontSize: tileFontSize * 0.8,
+                        lineHeight: tileFontSize * 1.5,
+                        color: theme.colors.ldGray[7],
+                        fontWeight: 500,
+                    },
+                    percentage: {
+                        fontSize: tileFontSize * 0.8,
+                        lineHeight: tileFontSize * 1.5,
+                        color: theme.colors.ldGray[7],
+                        fontWeight: 500,
+                        backgroundColor: theme.fn.lighten(
+                            theme.colors.ldGray[0],
+                            0.5,
+                        ),
+                        borderColor: theme.colors.ldGray[2],
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        padding: [4, 8],
+                    },
                 },
             },
             data: [

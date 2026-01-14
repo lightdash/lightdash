@@ -815,25 +815,11 @@ export const AiAgentFormSetup = ({
                 opened={deleteModalOpen}
                 onClose={handleCancelDelete}
                 title="Delete Agent"
-                icon={IconTrash}
-                actions={
-                    <Group>
-                        <Button variant="subtle" onClick={handleCancelDelete}>
-                            Cancel
-                        </Button>
-                        <Button color="red" onClick={handleDelete}>
-                            Delete
-                        </Button>
-                    </Group>
-                }
-            >
-                <Stack gap="md">
-                    <Text>
-                        Are you sure you want to delete this agent? This action
-                        cannot be undone.
-                    </Text>
-                </Stack>
-            </MantineModal>
+                variant="delete"
+                resourceType="agent"
+                description="This action cannot be undone."
+                onConfirm={handleDelete}
+            />
         </>
     );
 };

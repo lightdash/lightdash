@@ -6,6 +6,7 @@ import {
     type DropResult,
 } from '@hello-pangea/dnd';
 import {
+    CartesianSeriesType,
     getItemId,
     getSeriesId,
     type CustomDimension,
@@ -13,7 +14,7 @@ import {
     type Series as SeriesType,
     type TableCalculation,
 } from '@lightdash/common';
-import { Divider } from '@mantine/core';
+import { Checkbox, Divider, Stack } from '@mantine/core';
 import { produce } from 'immer';
 import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
@@ -101,123 +102,162 @@ export const Series: FC<Props> = ({ items }) => {
         updateAllGroupedSeries,
     } = visualizationConfig.chartConfig;
 
+    const allSeries = dirtyEchartsConfig?.series ?? [];
+
+    const stackedBarSeries = allSeries.filter(
+        (s) => s.stack && s.type === CartesianSeriesType.BAR,
+    );
+    const hasStackedBars = stackedBarSeries.length > 0;
+    const showOverlappingLabelsEnabled =
+        hasStackedBars &&
+        stackedBarSeries.every((s) => s.label?.showOverlappingLabels);
+
+    const handleOverlappingLabelsToggle = () => {
+        const updatedSeries = allSeries.map((s) => {
+            if (s.stack && s.type === CartesianSeriesType.BAR) {
+                return {
+                    ...s,
+                    label: {
+                        ...s.label,
+                        showOverlappingLabels: !showOverlappingLabelsEnabled,
+                    },
+                };
+            }
+            return s;
+        });
+        updateSeries(updatedSeries);
+    };
+
     return (
-        <DragDropContext onDragEnd={onDragEnd}>
-            <Droppable droppableId="results-table-sort-fields">
-                {(dropProps) => (
-                    <div {...dropProps.droppableProps} ref={dropProps.innerRef}>
-                        {seriesGroupedByField?.map((seriesGroup, i) => {
-                            const isGroup = seriesGroup.value.length > 1;
-                            const seriesEntry = seriesGroup.value[0];
-                            const field = items.find(
-                                (item) =>
-                                    getItemId(item) ===
-                                    seriesEntry.encode.yRef.field,
-                            );
-
-                            const hasDivider =
-                                seriesGroupedByField.length !== i + 1;
-
-                            if (!field) {
-                                return (
-                                    <Fragment key={i}>
-                                        <InvalidSeriesConfiguration
-                                            itemId={
-                                                seriesEntry.encode.yRef.field
-                                            }
-                                        />
-                                        {hasDivider && (
-                                            <Divider mt="md" mb="lg" />
-                                        )}
-                                    </Fragment>
+        <Stack spacing="md">
+            <DragDropContext onDragEnd={onDragEnd}>
+                <Droppable droppableId="results-table-sort-fields">
+                    {(dropProps) => (
+                        <div
+                            {...dropProps.droppableProps}
+                            ref={dropProps.innerRef}
+                        >
+                            {seriesGroupedByField?.map((seriesGroup, i) => {
+                                const isGroup = seriesGroup.value.length > 1;
+                                const seriesEntry = seriesGroup.value[0];
+                                const field = items.find(
+                                    (item) =>
+                                        getItemId(item) ===
+                                        seriesEntry.encode.yRef.field,
                                 );
-                            }
 
-                            return (
-                                <Draggable
-                                    key={getSeriesId(seriesEntry)}
-                                    draggableId={getSeriesId(seriesEntry)}
-                                    index={i}
-                                >
-                                    {(
-                                        {
-                                            draggableProps,
-                                            dragHandleProps,
-                                            innerRef,
-                                        },
-                                        snapshot,
-                                    ) => (
-                                        <DraggablePortalHandler
-                                            snapshot={snapshot}
-                                        >
-                                            <div
-                                                ref={innerRef}
-                                                {...draggableProps}
+                                const hasDivider =
+                                    seriesGroupedByField.length !== i + 1;
+
+                                if (!field) {
+                                    return (
+                                        <Fragment key={i}>
+                                            <InvalidSeriesConfiguration
+                                                itemId={
+                                                    seriesEntry.encode.yRef
+                                                        .field
+                                                }
+                                            />
+                                            {hasDivider && (
+                                                <Divider mt="md" mb="lg" />
+                                            )}
+                                        </Fragment>
+                                    );
+                                }
+
+                                return (
+                                    <Draggable
+                                        key={getSeriesId(seriesEntry)}
+                                        draggableId={getSeriesId(seriesEntry)}
+                                        index={i}
+                                    >
+                                        {(
+                                            {
+                                                draggableProps,
+                                                dragHandleProps,
+                                                innerRef,
+                                            },
+                                            snapshot,
+                                        ) => (
+                                            <DraggablePortalHandler
+                                                snapshot={snapshot}
                                             >
-                                                {isGroup ? (
-                                                    <GroupedSeriesConfiguration
-                                                        item={field}
-                                                        items={items}
-                                                        layout={dirtyLayout}
-                                                        seriesGroup={seriesGroup.value?.filter(
-                                                            (s) =>
-                                                                !s.isFilteredOut,
-                                                        )}
-                                                        updateSingleSeries={
-                                                            updateSingleSeries
-                                                        }
-                                                        updateAllGroupedSeries={
-                                                            updateAllGroupedSeries
-                                                        }
-                                                        dragHandleProps={
-                                                            dragHandleProps
-                                                        }
-                                                        updateSeries={
-                                                            updateSeries
-                                                        }
-                                                        getSingleSeries={
-                                                            getSingleSeries
-                                                        }
-                                                        series={
-                                                            dirtyEchartsConfig?.series?.filter(
+                                                <div
+                                                    ref={innerRef}
+                                                    {...draggableProps}
+                                                >
+                                                    {isGroup ? (
+                                                        <GroupedSeriesConfiguration
+                                                            item={field}
+                                                            items={items}
+                                                            layout={dirtyLayout}
+                                                            seriesGroup={seriesGroup.value?.filter(
                                                                 (s) =>
                                                                     !s.isFilteredOut,
-                                                            ) || []
-                                                        }
-                                                    />
-                                                ) : (
-                                                    <BasicSeriesConfiguration
-                                                        item={field}
-                                                        layout={dirtyLayout}
-                                                        isSingle={
-                                                            seriesGroupedByField.length <=
-                                                            1
-                                                        }
-                                                        series={seriesEntry}
-                                                        getSingleSeries={
-                                                            getSingleSeries
-                                                        }
-                                                        updateSingleSeries={
-                                                            updateSingleSeries
-                                                        }
-                                                        dragHandleProps={
-                                                            dragHandleProps
-                                                        }
-                                                    />
-                                                )}
-                                                {hasDivider && (
-                                                    <Divider my="md" />
-                                                )}
-                                            </div>
-                                        </DraggablePortalHandler>
-                                    )}
-                                </Draggable>
-                            );
-                        })}
-                        {dropProps.placeholder}
-                    </div>
-                )}
-            </Droppable>
-        </DragDropContext>
+                                                            )}
+                                                            updateSingleSeries={
+                                                                updateSingleSeries
+                                                            }
+                                                            updateAllGroupedSeries={
+                                                                updateAllGroupedSeries
+                                                            }
+                                                            dragHandleProps={
+                                                                dragHandleProps
+                                                            }
+                                                            updateSeries={
+                                                                updateSeries
+                                                            }
+                                                            getSingleSeries={
+                                                                getSingleSeries
+                                                            }
+                                                            series={
+                                                                dirtyEchartsConfig?.series?.filter(
+                                                                    (s) =>
+                                                                        !s.isFilteredOut,
+                                                                ) || []
+                                                            }
+                                                        />
+                                                    ) : (
+                                                        <BasicSeriesConfiguration
+                                                            item={field}
+                                                            layout={dirtyLayout}
+                                                            isSingle={
+                                                                seriesGroupedByField.length <=
+                                                                1
+                                                            }
+                                                            series={seriesEntry}
+                                                            getSingleSeries={
+                                                                getSingleSeries
+                                                            }
+                                                            updateSingleSeries={
+                                                                updateSingleSeries
+                                                            }
+                                                            dragHandleProps={
+                                                                dragHandleProps
+                                                            }
+                                                        />
+                                                    )}
+                                                    {hasDivider && (
+                                                        <Divider my="md" />
+                                                    )}
+                                                </div>
+                                            </DraggablePortalHandler>
+                                        )}
+                                    </Draggable>
+                                );
+                            })}
+                            {dropProps.placeholder}
+                        </div>
+                    )}
+                </Droppable>
+            </DragDropContext>
+            {hasStackedBars && (
+                <Checkbox
+                    checked={showOverlappingLabelsEnabled}
+                    label="Show overlapping labels"
+                    onChange={handleOverlappingLabelsToggle}
+                />
+            )}
+        </Stack>
     );
 };

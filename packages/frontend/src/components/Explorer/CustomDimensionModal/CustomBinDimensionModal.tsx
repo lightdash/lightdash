@@ -14,16 +14,14 @@ import {
     Button,
     Flex,
     Group,
-    Modal,
     NumberInput,
     Radio,
     Stack,
     Text,
     TextInput,
-    Title,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
-import { IconX } from '@tabler/icons-react';
+import { IconLayoutDashboard, IconX } from '@tabler/icons-react';
 import cloneDeep from 'lodash/cloneDeep';
 import { useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
@@ -35,6 +33,7 @@ import {
 } from '../../../features/explorer/store';
 import useToaster from '../../../hooks/toaster/useToaster';
 import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 
 // TODO: preview custom dimension results
 
@@ -223,29 +222,28 @@ export const CustomBinDimensionModal: FC<{
         }
     }, [isEditing, item]);
 
+    const handleClose = () => {
+        toggleModal();
+        form.reset();
+    };
+
     return (
-        <Modal
+        <MantineModal
             size="lg"
-            onClick={(e) => e.stopPropagation()}
             opened={true}
-            onClose={() => {
-                toggleModal();
-                form.reset();
-            }}
-            title={
-                <>
-                    <Title order={4}>
-                        {isEditing ? 'Edit' : 'Create'} Custom Dimension
-                        <Text span fw={400}>
-                            {' '}
-                            - {baseDimensionLabel}{' '}
-                        </Text>
-                    </Title>
-                </>
+            onClose={handleClose}
+            title={`${
+                isEditing ? 'Edit' : 'Create'
+            } Custom Dimension - ${baseDimensionLabel}`}
+            icon={IconLayoutDashboard}
+            actions={
+                <Button type="submit" form="custom-bin-dimension-form">
+                    {isEditing ? 'Save changes' : 'Create'}
+                </Button>
             }
         >
-            <form onSubmit={handleOnSubmit}>
-                <Stack>
+            <form id="custom-bin-dimension-form" onSubmit={handleOnSubmit}>
+                <Stack gap="md">
                     <TextInput
                         label="Label"
                         required
@@ -281,7 +279,6 @@ export const CustomBinDimensionModal: FC<{
                             label="Bin number"
                             required
                             min={MIN_OF_FIXED_NUMBER_BINS}
-                            type="number"
                             {...form.getInputProps(
                                 'binConfig.fixedNumber.binNumber',
                             )}
@@ -294,7 +291,6 @@ export const CustomBinDimensionModal: FC<{
                             label="Bin width"
                             required
                             min={MIN_OF_FIXED_NUMBER_BINS}
-                            type="number"
                             {...form.getInputProps(
                                 'binConfig.fixedWidth.binWidth',
                             )}
@@ -317,13 +313,14 @@ export const CustomBinDimensionModal: FC<{
                                         return (
                                             <Flex
                                                 key={`custom-range.${index}`}
-                                                gap="md"
+                                                gap="sm"
                                                 align="center"
                                             >
                                                 <Text
                                                     w={100}
-                                                    color="ldGray.6"
+                                                    c="ldDark.9"
                                                     fw="400"
+                                                    size="xs"
                                                 >
                                                     &lt;{toProps.value}{' '}
                                                 </Text>
@@ -332,6 +329,7 @@ export const CustomBinDimensionModal: FC<{
                                                     w={100}
                                                     required
                                                     type="number"
+                                                    size="xs"
                                                     {...toProps}
                                                 />
                                             </Flex>
@@ -344,14 +342,15 @@ export const CustomBinDimensionModal: FC<{
                                     ) {
                                         return (
                                             <Flex
-                                                gap="md"
+                                                gap="sm"
                                                 align="center"
                                                 key={`custom-range.${index}`}
                                             >
                                                 <Text
                                                     w={100}
-                                                    color="ldGray.6"
+                                                    c="ldDark.9"
                                                     fw="400"
+                                                    size="xs"
                                                 >
                                                     ≥{fromProps.value}{' '}
                                                 </Text>
@@ -360,9 +359,14 @@ export const CustomBinDimensionModal: FC<{
                                                     w={100}
                                                     required
                                                     type="number"
+                                                    size="xs"
                                                     {...fromProps}
                                                 />
-                                                <Text color="ldGray.6" fw="400">
+                                                <Text
+                                                    c="ldDark.9"
+                                                    fw="400"
+                                                    size="xs"
+                                                >
                                                     and above{' '}
                                                 </Text>
                                             </Flex>
@@ -370,14 +374,15 @@ export const CustomBinDimensionModal: FC<{
                                     } else {
                                         return (
                                             <Flex
-                                                gap="md"
+                                                gap="sm"
                                                 align="center"
                                                 key={`custom-range.${index}`}
                                             >
                                                 <Text
                                                     w={100}
-                                                    color="ldGray.6"
+                                                    c="ldDark.9"
                                                     fw="400"
+                                                    size="xs"
                                                 >
                                                     ≥{fromProps.value} and &lt;
                                                     {toProps.value}
@@ -385,22 +390,30 @@ export const CustomBinDimensionModal: FC<{
 
                                                 <TextInput
                                                     w={100}
+                                                    size="xs"
                                                     required
                                                     type="number"
                                                     {...fromProps}
                                                 />
-                                                <Text color="ldGray.6" fw="400">
+                                                <Text
+                                                    c="ldDark.6"
+                                                    fw="400"
+                                                    size="xs"
+                                                >
                                                     to{' '}
                                                 </Text>
 
                                                 <TextInput
                                                     w={100}
+                                                    size="xs"
                                                     required
                                                     type="number"
                                                     {...toProps}
                                                 />
 
                                                 <ActionIcon
+                                                    variant="subtle"
+                                                    color="ldDark.6"
                                                     onClick={() => {
                                                         const newRange = [
                                                             ...form.values
@@ -425,11 +438,12 @@ export const CustomBinDimensionModal: FC<{
                                 },
                             )}
 
-                            <Text
-                                color="blue.6"
+                            <Button
+                                c="blue"
+                                variant="light"
+                                size="compact-xs"
                                 fw="400"
-                                maw={100}
-                                sx={{ cursor: 'pointer' }}
+                                style={{ alignSelf: 'flex-start' }}
                                 onClick={() => {
                                     // Insert new custom range item before the last one
                                     const newRange = [
@@ -446,19 +460,12 @@ export const CustomBinDimensionModal: FC<{
                                     );
                                 }}
                             >
-                                {' '}
-                                + Add a range{' '}
-                            </Text>
+                                + Add a range
+                            </Button>
                         </>
                     )}
-
-                    {/* Add results preview */}
-
-                    <Button ml="auto" type="submit">
-                        {isEditing ? 'Save changes' : 'Create'}
-                    </Button>
                 </Stack>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };

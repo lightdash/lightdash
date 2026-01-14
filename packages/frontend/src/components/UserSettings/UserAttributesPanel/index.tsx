@@ -5,16 +5,14 @@ import {
     Box,
     Button,
     Group,
-    Modal,
     Stack,
     Table,
     Text,
     Title,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconAlertCircle,
     IconEdit,
     IconInfoCircle,
     IconPlus,
@@ -32,6 +30,7 @@ import useApp from '../../../providers/App/useApp';
 import ForbiddenPanel from '../../ForbiddenPanel';
 import LoadingState from '../../common/LoadingState';
 import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import UserAttributeModal from './UserAttributeModal';
 
@@ -46,8 +45,8 @@ const UserListItem: FC<{
     return (
         <tr>
             <td>
-                <Stack spacing="xs">
-                    <Group spacing="two">
+                <Stack gap="xs">
+                    <Group gap="two">
                         <Text>{orgUserAttribute.name}</Text>
                         {orgUserAttribute.description && (
                             <Tooltip
@@ -63,13 +62,13 @@ const UserListItem: FC<{
                             </Tooltip>
                         )}
                     </Group>
-                    <Group spacing="sm">
-                        <Text fz="xs" color="ldGray.6">
+                    <Group gap="sm">
+                        <Text fz="xs" c="ldGray.6">
                             {orgUserAttribute.users.length} user
                             {orgUserAttribute.users.length !== 1 ? 's' : ''}
                         </Text>
                         {isGroupManagementEnabled && (
-                            <Text fz="xs" color="ldGray.6">
+                            <Text fz="xs" c="ldGray.6">
                                 {orgUserAttribute.groups.length} group
                                 {orgUserAttribute.groups.length !== 1
                                     ? 's'
@@ -80,7 +79,7 @@ const UserListItem: FC<{
                 </Stack>
             </td>
             <td width="1%">
-                <Group noWrap spacing="xs">
+                <Group wrap="nowrap" gap="xs">
                     <ActionIcon
                         color="blue.4"
                         variant="outline"
@@ -97,42 +96,17 @@ const UserListItem: FC<{
                         <MantineIcon icon={IconTrash} />
                     </ActionIcon>
 
-                    <Modal
+                    <MantineModal
                         opened={isDeleteDialogOpen}
                         onClose={deleteDialog.close}
-                        title={
-                            <Group spacing="xs">
-                                <MantineIcon
-                                    size="lg"
-                                    icon={IconAlertCircle}
-                                    color="red"
-                                />
-                                <Title order={4}>Delete</Title>
-                            </Group>
+                        title="Delete user attribute"
+                        variant="delete"
+                        resourceType="user attribute"
+                        resourceLabel={orgUserAttribute.name}
+                        onConfirm={() =>
+                            deleteUserAttribute(orgUserAttribute.uuid)
                         }
-                    >
-                        <Text pb="md">
-                            Are you sure you want to delete this user attribute
-                            ?
-                        </Text>
-                        <Group spacing="xs" position="right">
-                            <Button
-                                onClick={deleteDialog.close}
-                                variant="outline"
-                                color="dark"
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                onClick={() => {
-                                    deleteUserAttribute(orgUserAttribute.uuid);
-                                }}
-                                color="red"
-                            >
-                                Delete
-                            </Button>
-                        </Group>
-                    </Modal>
+                    />
                 </Group>
             </td>
         </tr>
@@ -181,8 +155,8 @@ const UserAttributesPanel: FC = () => {
 
     return (
         <Stack>
-            <Group position="apart">
-                <Group spacing="two">
+            <Group justify="space-between">
+                <Group gap="two">
                     <Title order={5}>
                         {isGroupManagementEnabled
                             ? 'User and group attributes'
@@ -215,7 +189,7 @@ const UserAttributesPanel: FC = () => {
                 <>
                     <Button
                         size="xs"
-                        leftIcon={<MantineIcon icon={IconPlus} />}
+                        leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={addAttributeModal.open}
                     >
                         Add new attribute

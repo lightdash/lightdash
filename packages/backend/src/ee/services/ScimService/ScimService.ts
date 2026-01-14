@@ -566,6 +566,7 @@ export class ScimService extends BaseService {
                     email: emailToUpdate,
                     isActive: user.active ?? dbUser.isActive,
                 },
+                true, // automatically verify email
             );
 
             // Update user's organization role if provided in the extension schema

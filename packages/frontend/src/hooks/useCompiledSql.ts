@@ -5,7 +5,6 @@ import {
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { useParams } from 'react-router';
 import { lightdashApi } from '../api';
 import {
     selectAdditionalMetrics,
@@ -23,6 +22,7 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import { convertDateFilters } from '../utils/dateFilter';
+import { useProjectUuid } from './useProjectUuid';
 import useQueryError from './useQueryError';
 
 const getCompiledQuery = async (
@@ -47,7 +47,7 @@ const getCompiledQuery = async (
 export const useCompiledSql = (
     queryOptions?: UseQueryOptions<ApiCompiledQueryResults, ApiError>,
 ) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
 
     const tableId = useExplorerSelector(selectTableName);
     const dimensions = useExplorerSelector(selectDimensions);

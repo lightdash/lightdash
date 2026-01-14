@@ -20,7 +20,8 @@ function groupBy<TData extends RowData>(rows: Row<TData>[], columnId: string) {
     return rows.reduce<typeof groupMap>((map, row) => {
         // This line changed from original since getGroupingValue does not exist here as it should.
         // const resKey = `${row.getGroupingValue(columnId)}`
-        const resKey = (row.original as ResultRow)[columnId].value.raw;
+        const cellData = (row.original as ResultRow)[columnId];
+        const resKey = cellData?.value?.raw ?? null;
 
         const previous = map.get(resKey);
         if (!previous) {

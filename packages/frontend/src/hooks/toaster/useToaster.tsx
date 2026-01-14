@@ -1,7 +1,14 @@
 import type { ApiErrorDetail } from '@lightdash/common';
-import { Button, Stack } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Stack,
+    useMantineColorScheme,
+    useMantineTheme,
+} from '@mantine/core';
 import { notifications, type NotificationProps } from '@mantine/notifications';
 import {
+    IconAlertCircleFilled,
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
     IconInfoCircleFilled,
@@ -16,6 +23,9 @@ import MultipleToastBody from './MultipleToastBody';
 import { type NotificationData } from './types';
 
 const useToaster = () => {
+    const theme = useMantineTheme();
+    const { colorScheme } = useMantineColorScheme();
+    const isDark = colorScheme === 'dark';
     const openedKeys = useRef(new Set<string>());
     const currentErrors = useRef<Record<string, NotificationData[]>>({});
 
@@ -24,30 +34,59 @@ const useToaster = () => {
             key = uuid(),
             subtitle,
             action,
-            color: toastColor,
+            color = 'blue',
             autoClose = 5000,
             // isError = false,
             ...rest
         }: NotificationData) => {
             const commonProps = {
                 autoClose,
-                color: toastColor,
-                styles: toastColor
-                    ? {
-                          title: {
-                              color: 'white',
-                              fontWeight: 700,
-                              marginBottom:
-                                  !subtitle && !action ? 0 : undefined,
-                          },
-                          closeButton: {
-                              ':hover': {
-                                  background: 'rgba(255, 255, 255, 0.2)',
-                              },
-                              color: 'white',
-                          },
-                      }
-                    : undefined,
+                color,
+                styles: {
+                    root: {
+                        background: isDark
+                            ? theme.fn.darken(theme.colors[color][9], 0.6)
+                            : theme.fn.lighten(theme.colors[color][0], 0.5),
+                        border: `1px solid ${
+                            isDark
+                                ? theme.colors[color][9]
+                                : theme.colors[color][2]
+                        }`,
+                        borderRadius: theme.radius.md,
+                        boxShadow: theme.shadows.subtle,
+                    },
+                    title: {
+                        color: isDark
+                            ? theme.colors[color][1]
+                            : theme.fn.darken(theme.colors[color][9], 0.1),
+                        fontWeight: 700,
+                        marginBottom: !subtitle && !action ? 0 : undefined,
+                    },
+                    description: {
+                        color: isDark
+                            ? theme.colors[color][3]
+                            : theme.fn.darken(theme.colors[color][9], 0.4),
+                    },
+                    closeButton: {
+                        ':hover': {
+                            background: isDark
+                                ? theme.fn.darken(theme.colors[color][9], 0.4)
+                                : theme.colors[color][1],
+                        },
+                        padding: '4px',
+                        color: isDark
+                            ? theme.colors[color][2]
+                            : theme.colors[color][9],
+                    },
+                    icon: {
+                        backgroundColor: 'transparent',
+                        color: isDark
+                            ? theme.colors[color][4]
+                            : theme.colors[color][7],
+                        size: '12px',
+                        padding: '4px',
+                    },
+                },
                 message:
                     subtitle || action ? (
                         <Stack spacing="xs" align="flex-start">
@@ -62,28 +101,33 @@ const useToaster = () => {
                                     ]}
                                     style={{
                                         backgroundColor: 'transparent',
-                                        color: toastColor ? 'white' : undefined,
+                                        color: isDark
+                                            ? theme.colors[color][2]
+                                            : theme.colors[color][9],
                                         fontSize: '12px',
                                     }}
                                 />
                             ) : (
-                                <div
-                                    style={{
-                                        color: toastColor ? 'white' : undefined,
-                                        fontSize: '12px',
-                                        width: '100%',
-                                    }}
+                                <Box
+                                    c={
+                                        isDark
+                                            ? theme.colors[color][2]
+                                            : theme.colors[color][9]
+                                    }
+                                    fz="xs"
+                                    w="100%"
                                 >
                                     {subtitle}
-                                </div>
+                                </Box>
                             )}
 
                             {action && (
                                 <Button
                                     {...action}
                                     size="xs"
+                                    radius="md"
                                     variant="light"
-                                    color={toastColor}
+                                    color={color}
                                     leftIcon={
                                         action.icon ? (
                                             <MantineIcon icon={action.icon} />
@@ -143,14 +187,13 @@ const useToaster = () => {
                 ...rest,
             });
         },
-        [],
+        [isDark, theme],
     );
 
     const showToastSuccess = useCallback(
         (props: NotificationData) => {
             showToast({
                 color: 'green',
-                bg: 'green',
                 icon: <MantineIcon icon={IconCircleCheckFilled} size="xl" />,
                 ...props,
             });
@@ -162,8 +205,7 @@ const useToaster = () => {
         (props: NotificationData) => {
             showToast({
                 color: 'red',
-                bg: 'red',
-                icon: <MantineIcon icon={IconAlertTriangleFilled} size="xl" />,
+                icon: <MantineIcon icon={IconAlertCircleFilled} size="xl" />,
                 autoClose: 60000,
                 isError: true,
                 ...props,
@@ -188,7 +230,6 @@ const useToaster = () => {
 
             showToast({
                 color: 'red',
-                bg: 'red',
                 icon: <MantineIcon icon={IconAlertTriangleFilled} size="xl" />,
                 autoClose: 60000,
                 title,
@@ -202,6 +243,7 @@ const useToaster = () => {
     const showToastInfo = useCallback(
         (props: NotificationData) => {
             showToast({
+                color: 'indigo',
                 icon: <MantineIcon icon={IconInfoCircleFilled} size="xl" />,
                 ...props,
             });
@@ -213,7 +255,6 @@ const useToaster = () => {
         (props: NotificationData) => {
             showToast({
                 color: 'blue',
-                bg: 'blue',
                 icon: <MantineIcon icon={IconInfoCircleFilled} size="xl" />,
                 ...props,
             });
@@ -225,8 +266,7 @@ const useToaster = () => {
         (props: NotificationData) => {
             showToast({
                 color: 'yellow',
-                bg: 'yellow',
-                icon: <MantineIcon icon={IconAlertTriangleFilled} size="xl" />,
+                icon: <MantineIcon icon={IconAlertCircleFilled} size="xl" />,
                 ...props,
             });
         },

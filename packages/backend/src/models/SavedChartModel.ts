@@ -25,6 +25,7 @@ import {
     LightdashUser,
     MetricFilterRule,
     MetricOverrides,
+    DimensionOverrides,
     NotFoundError,
     Organization,
     PeriodOverPeriodComparison,
@@ -88,6 +89,7 @@ type DbSavedChartDetails = {
     filters: AnyType;
     row_limit: number;
     metric_overrides: MetricOverrides | null;
+    dimension_overrides: DimensionOverrides | null;
     chart_type: ChartConfig['type'];
     chart_config: ChartConfig['config'] | undefined;
     pivot_dimensions: string[] | undefined;
@@ -183,6 +185,7 @@ const createSavedChartVersion = async (
         metricQuery: {
             limit,
             metricOverrides,
+            dimensionOverrides,
             filters,
             dimensions,
             metrics,
@@ -207,10 +210,17 @@ const createSavedChartVersion = async (
                 metrics.includes(key),
             ),
         );
+        // Only save overrides for existing dimensions
+        const validDimensionOverrides = Object.fromEntries(
+            Object.entries(dimensionOverrides || {}).filter(([key]) =>
+                dimensions.includes(key),
+            ),
+        );
         const [version] = await trx('saved_queries_versions')
             .insert({
                 row_limit: limit,
                 metric_overrides: validMetricOverrides || null,
+                dimension_overrides: validDimensionOverrides || null,
                 filters: JSON.stringify(filters),
                 explore_name: tableName,
                 saved_query_id: savedChartId,
@@ -869,6 +879,7 @@ export class SavedChartModel {
                         'saved_queries_versions.filters',
                         'saved_queries_versions.row_limit',
                         'saved_queries_versions.metric_overrides',
+                        'saved_queries_versions.dimension_overrides',
                         'saved_queries_versions.chart_type',
                         'saved_queries_versions.created_at',
                         'saved_queries_versions.chart_config',
@@ -1074,6 +1085,8 @@ export class SavedChartModel {
                         limit: savedQuery.row_limit,
                         metricOverrides:
                             savedQuery.metric_overrides || undefined,
+                        dimensionOverrides:
+                            savedQuery.dimension_overrides || undefined,
                         tableCalculations: tableCalculations.map(
                             (tableCalculation) =>
                                 ({
@@ -1170,7 +1183,6 @@ export class SavedChartModel {
         savedCharts: Pick<SavedChartDAO, 'uuid' | 'dashboardUuid'>[],
     ): Promise<string[]> {
         const dashboardUuids = savedCharts.map((chart) => chart.dashboardUuid);
-
         const getChartsInTilesQuery = this.database(DashboardTileChartTableName)
             .distinct('saved_chart_id')
             .leftJoin(
@@ -1192,7 +1204,9 @@ export class SavedChartModel {
                     where dv.dashboard_id = ${DashboardsTableName}.dashboard_id
                     order by dv.created_at desc
                     limit 1)`),
-            );
+            )
+            // Exclude NULL saved_chart_id to prevent NOT IN issues
+            .whereNotNull(`${DashboardTileChartTableName}.saved_chart_id`);
 
         const chartsNotInTilesUuids = await this.database(SavedChartsTableName)
             .pluck(`saved_query_uuid`)

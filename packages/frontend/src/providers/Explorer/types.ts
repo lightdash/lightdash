@@ -65,6 +65,7 @@ export enum ActionType {
     TOGGLE_CUSTOM_DIMENSION_MODAL,
     TOGGLE_FORMAT_MODAL,
     UPDATE_METRIC_FORMAT,
+    UPDATE_DIMENSION_FORMAT,
     REPLACE_FIELDS,
     SET_PARAMETER_REFERENCES,
 }
@@ -187,11 +188,18 @@ export type Action =
       }
     | {
           type: ActionType.TOGGLE_FORMAT_MODAL;
-          payload?: { metric: Metric };
+          payload?: { item: Metric | Dimension };
       }
     | {
           type: ActionType.UPDATE_METRIC_FORMAT;
           payload: { metric: Metric; formatOptions: CustomFormat | undefined };
+      }
+    | {
+          type: ActionType.UPDATE_DIMENSION_FORMAT;
+          payload: {
+              dimension: Dimension;
+              formatOptions: CustomFormat | undefined;
+          };
       }
     | {
           type: ActionType.REPLACE_FIELDS;
@@ -227,7 +235,7 @@ export interface ExplorerReduceState {
     modals: {
         format: {
             isOpen: boolean;
-            metric?: Metric;
+            item?: Metric | Dimension;
         };
         additionalMetric: {
             isOpen: boolean;

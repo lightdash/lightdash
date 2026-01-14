@@ -260,6 +260,7 @@ Notes:
 -   If you rename files the container might not recognise the changes. To fix this, stop the containers and start again.
 -   If you need to change any of the environment variables, you can do so by editing `.env.development.local` and re-run
     the `docker compose up` command mentioned above
+-   On MacOS, you may need to add an entry to your `/etc/hosts` file, mapping `minio` to `127.0.0.1` to be able to access the container via its name.
 
 When you want to stop:
 

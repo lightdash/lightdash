@@ -1,5 +1,5 @@
 import { ECHARTS_DEFAULT_COLORS } from '@lightdash/common';
-import { type ModalProps } from '@mantine/core';
+import { type ModalProps } from '@mantine-8/core';
 import { type FC } from 'react';
 import {
     useColorPalettes,

@@ -4,14 +4,20 @@ import {
     type OrganizationWarehouseCredentials,
     type UpdateOrganizationWarehouseCredentials,
 } from '@lightdash/common';
-import { Button, Group, Modal, Title, type ModalProps } from '@mantine/core';
+import { Button, Stack } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
+import { IconPencil } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { useUpdateOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../common/MantineModal';
 import { SnowflakeCredentialsForm } from './SnowflakeCredentialsForm';
 
+const FORM_ID = 'edit-org-credentials-form';
+
 export const EditCredentialsModal: FC<
-    Pick<ModalProps, 'opened' | 'onClose'> & {
+    Pick<MantineModalProps, 'opened' | 'onClose'> & {
         organizationCredentials: OrganizationWarehouseCredentials;
     }
 > = ({ opened, onClose, organizationCredentials }) => {
@@ -48,13 +54,26 @@ export const EditCredentialsModal: FC<
     });
 
     return (
-        <Modal
-            size="lg"
-            title={<Title order={4}>Edit credentials</Title>}
+        <MantineModal
             opened={opened}
             onClose={onClose}
+            title="Edit credentials"
+            icon={IconPencil}
+            size="lg"
+            cancelDisabled={isSaving}
+            actions={
+                <Button
+                    type="submit"
+                    form={FORM_ID}
+                    disabled={isSaving || !isAuthenticated}
+                    loading={isSaving}
+                >
+                    Save
+                </Button>
+            }
         >
             <form
+                id={FORM_ID}
                 onSubmit={form.onSubmit(async (formData) => {
                     await mutateAsync({
                         uuid: organizationCredentials.organizationWarehouseCredentialsUuid,
@@ -67,33 +86,14 @@ export const EditCredentialsModal: FC<
                     onClose();
                 })}
             >
-                <SnowflakeCredentialsForm
-                    form={form}
-                    disabled={isSaving}
-                    onAuthenticated={setIsAuthenticated}
-                />
-
-                <Group position="right" spacing="xs" mt="sm">
-                    <Button
-                        size="xs"
-                        variant="outline"
-                        color="dark"
-                        onClick={onClose}
+                <Stack gap="xs">
+                    <SnowflakeCredentialsForm
+                        form={form}
                         disabled={isSaving}
-                    >
-                        Cancel
-                    </Button>
-
-                    <Button
-                        size="xs"
-                        type="submit"
-                        disabled={isSaving || !isAuthenticated}
-                        loading={isSaving}
-                    >
-                        Save
-                    </Button>
-                </Group>
+                        onAuthenticated={setIsAuthenticated}
+                    />
+                </Stack>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };

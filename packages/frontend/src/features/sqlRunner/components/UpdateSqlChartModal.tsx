@@ -1,19 +1,13 @@
 import type { Space, SpaceSummary, SqlChart } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Modal,
-    Stack,
-    Text,
-    TextInput,
-    Textarea,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, Stack, TextInput, Textarea } from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 import SaveToSpaceForm from '../../../components/common/modal/ChartCreateModal/SaveToSpaceForm';
 import { saveToSpaceSchema } from '../../../components/common/modal/ChartCreateModal/types';
 import { useModalSteps } from '../../../hooks/useModalSteps';
@@ -40,21 +34,23 @@ const updateSqlChartSchema = z
 
 type FormValues = z.infer<typeof updateSqlChartSchema>;
 
-type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
+type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     projectUuid: string;
     savedSqlUuid: string;
     slug: string;
     onSuccess: () => void;
 };
 
-export const UpdateSqlChartModal = ({
+const UPDATE_CHART_FORM_ID = 'update-sql-chart-form';
+
+export const UpdateSqlChartModal: FC<Props> = ({
     projectUuid,
     savedSqlUuid,
     slug,
     opened,
     onClose,
     onSuccess,
-}: Props) => {
+}) => {
     const dispatch = useAppDispatch();
     const savedSqlChart = useAppSelector(
         (state) => state.sqlRunner.savedSqlChart,
@@ -193,106 +189,88 @@ export const UpdateSqlChartModal = ({
         isSpacesLoading ||
         spaceManagement.createSpaceMutation.isLoading;
 
+    const renderActions = () => {
+        if (modalSteps.currentStep === ModalStep.InitialInfo) {
+            return (
+                <Button onClick={handleNextStep} disabled={!form.values.name}>
+                    Next
+                </Button>
+            );
+        }
+
+        return (
+            <>
+                <Button onClick={handleBack} variant="outline">
+                    Back
+                </Button>
+                <Button
+                    type="submit"
+                    form={UPDATE_CHART_FORM_ID}
+                    disabled={!isFormReadyToSave}
+                    loading={isLoading}
+                >
+                    Save
+                </Button>
+            </>
+        );
+    };
+
+    const renderLeftActions = () => {
+        if (shouldShowNewSpaceButton) {
+            return (
+                <Button
+                    variant="subtle"
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconPlus} />}
+                    onClick={openCreateSpaceForm}
+                >
+                    New Space
+                </Button>
+            );
+        }
+        return null;
+    };
+
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            keepMounted={false}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        icon={IconChartBar}
-                        size="lg"
-                        color="ldGray.7"
-                    />
-                    <Text fw={500}>Update chart</Text>
-                </Group>
-            }
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
-                body: { padding: 0 },
-            })}
+            title="Update chart"
+            icon={IconChartBar}
+            leftActions={renderLeftActions()}
+            actions={renderActions()}
         >
-            <form onSubmit={handleOnSubmit}>
+            <form id={UPDATE_CHART_FORM_ID} onSubmit={handleOnSubmit}>
                 {modalSteps.currentStep === ModalStep.InitialInfo && (
-                    <Stack p="md">
-                        <Stack spacing="xs">
-                            <TextInput
-                                label="Chart name"
-                                placeholder="eg. How many weekly active users do we have?"
-                                required
-                                {...form.getInputProps('name')}
-                            />
-                            <Textarea
-                                label="Description"
-                                {...form.getInputProps('description')}
-                            />
-                        </Stack>
-                    </Stack>
-                )}
-
-                {modalSteps.currentStep === ModalStep.SelectDestination && (
-                    <Stack p="md">
-                        <SaveToSpaceForm
-                            form={form}
-                            spaces={spaces}
-                            projectUuid={projectUuid}
-                            isLoading={isLoading}
-                            spaceManagement={spaceManagement}
-                            selectedSpaceName={
-                                spaces.find(
-                                    (space) =>
-                                        space.uuid === form.values.spaceUuid,
-                                )?.name
-                            }
+                    <Stack gap="xs">
+                        <TextInput
+                            label="Chart name"
+                            placeholder="eg. How many weekly active users do we have?"
+                            required
+                            {...form.getInputProps('name')}
+                        />
+                        <Textarea
+                            label="Description"
+                            {...form.getInputProps('description')}
                         />
                     </Stack>
                 )}
 
-                <Group
-                    position="right"
-                    w="100%"
-                    sx={(theme) => ({
-                        borderTop: `1px solid ${theme.colors.ldGray[4]}`,
-                        bottom: 0,
-                        padding: theme.spacing.md,
-                    })}
-                >
-                    {shouldShowNewSpaceButton && (
-                        <Button
-                            variant="subtle"
-                            size="xs"
-                            leftIcon={<MantineIcon icon={IconPlus} />}
-                            onClick={openCreateSpaceForm}
-                            mr="auto"
-                        >
-                            New Space
-                        </Button>
-                    )}
-
-                    {modalSteps.currentStep === ModalStep.InitialInfo ? (
-                        <Button
-                            onClick={handleNextStep}
-                            disabled={!form.values.name}
-                        >
-                            Next
-                        </Button>
-                    ) : (
-                        <>
-                            <Button onClick={handleBack} variant="outline">
-                                Back
-                            </Button>
-                            <Button
-                                type="submit"
-                                disabled={!isFormReadyToSave}
-                                loading={isLoading}
-                            >
-                                Save
-                            </Button>
-                        </>
-                    )}
-                </Group>
+                {modalSteps.currentStep === ModalStep.SelectDestination && (
+                    <SaveToSpaceForm
+                        form={form}
+                        spaces={spaces}
+                        projectUuid={projectUuid}
+                        isLoading={isLoading}
+                        spaceManagement={spaceManagement}
+                        selectedSpaceName={
+                            spaces.find(
+                                (space) => space.uuid === form.values.spaceUuid,
+                            )?.name
+                        }
+                    />
+                )}
             </form>
-        </Modal>
+        </MantineModal>
     );
 };

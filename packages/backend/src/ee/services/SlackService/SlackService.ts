@@ -2,7 +2,7 @@ import {
     SlackService,
     SlackServiceArguments,
 } from '../../../services/SlackService/SlackService';
-import { AiAgentService } from '../AiAgentService';
+import { AiAgentService } from '../AiAgentService/AiAgentService';
 
 type CommercialSlackServiceArguments = SlackServiceArguments & {
     aiAgentService: AiAgentService;

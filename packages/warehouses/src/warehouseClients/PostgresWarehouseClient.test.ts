@@ -133,12 +133,6 @@ describe('PostgresSqlBuilder escaping', () => {
         );
     });
 
-    test('Should escape unicode characters in postgres', () => {
-        expect(postgresSqlBuilder.escapeString('single\u2019quote')).toBe(
-            "single''quote",
-        );
-    });
-
     test('Should escape backslashes and quotes in postgres', () => {
         expect(postgresSqlBuilder.escapeString("\\') OR (1=1) --")).toBe(
             "\\\\'') OR (1=1) ",

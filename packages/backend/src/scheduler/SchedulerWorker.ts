@@ -99,6 +99,14 @@ export class SchedulerWorker extends SchedulerTask {
                         maxAttempts: 3,
                     },
                 },
+                {
+                    task: SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS,
+                    pattern: '*/30 * * * *', // Every 30 minutes
+                    options: {
+                        backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                        maxAttempts: 3,
+                    },
+                },
             ]),
             taskList: traceTasks(this.getTaskList()),
             events: schedulerWorkerEventEmitter,
@@ -982,6 +990,9 @@ export class SchedulerWorker extends SchedulerTask {
                 Logger.info(
                     `Completed generating Slack channel sync jobs: ${successful} successful, ${failed} failed out of ${organizationUuids.length} total`,
                 );
+            },
+            [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: async () => {
+                await this.schedulerService.checkForStuckJobs();
             },
         };
     }

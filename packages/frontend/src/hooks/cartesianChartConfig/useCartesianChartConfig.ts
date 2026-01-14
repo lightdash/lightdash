@@ -398,6 +398,20 @@ const useCartesianChartConfig = ({
         }));
     }, []);
 
+    const setAxisLabelFontSize = useCallback((fontSize: number | undefined) => {
+        setDirtyEchartsConfig((prev) => ({
+            ...prev,
+            axisLabelFontSize: fontSize,
+        }));
+    }, []);
+
+    const setAxisTitleFontSize = useCallback((fontSize: number | undefined) => {
+        setDirtyEchartsConfig((prev) => ({
+            ...prev,
+            axisTitleFontSize: fontSize,
+        }));
+    }, []);
+
     const setXAxisSort = useCallback((sort: XAxisSort) => {
         setDirtyEchartsConfig((prevState) => {
             const [firstAxis, ...axes] = prevState?.xAxis || [];
@@ -1084,6 +1098,8 @@ const useCartesianChartConfig = ({
         setShowXAxis,
         setShowYAxis,
         setShowAxisTicks,
+        setAxisLabelFontSize,
+        setAxisTitleFontSize,
         setXAxisSort,
         setXAxisLabelRotation,
         setScrollableChart,

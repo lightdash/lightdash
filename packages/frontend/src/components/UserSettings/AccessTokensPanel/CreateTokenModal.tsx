@@ -1,22 +1,21 @@
 import { formatTimestamp } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Button,
     CopyButton,
-    Modal,
     Select,
     Stack,
     TextInput,
-    Title,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm } from '@mantine/form';
-import { IconAlertCircle, IconCheck, IconCopy } from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconKey } from '@tabler/icons-react';
 import { type FC } from 'react';
 import useHealth from '../../../hooks/health/useHealth';
 import { useCreateAccessToken } from '../../../hooks/useAccessToken';
+import Callout from '../../common/Callout';
 import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 import { useExpireOptions } from './useExpireOptions';
 
 export const CreateTokenModal: FC<{
@@ -58,23 +57,29 @@ export const CreateTokenModal: FC<{
     });
 
     return (
-        <Modal
-            size="lg"
+        <MantineModal
             opened
-            onClose={() => {
-                onBackClick();
-            }}
-            title={
-                <Title order={4}>
-                    {data ? 'Your token has been generated' : 'New token'}
-                </Title>
+            onClose={onBackClick}
+            title={data ? 'Your token has been generated' : 'New token'}
+            cancelLabel={isSuccess ? 'Close' : 'Cancel'}
+            icon={IconKey}
+            actions={
+                !isSuccess ? (
+                    <Button
+                        type="submit"
+                        form="create-token-form"
+                        loading={isLoading}
+                    >
+                        Generate token
+                    </Button>
+                ) : undefined
             }
         >
             {!isSuccess ? (
-                <form onSubmit={handleOnSubmit}>
-                    <Stack spacing="md">
+                <form id="create-token-form" onSubmit={handleOnSubmit}>
+                    <Stack>
                         <TextInput
-                            label="What’s this token for?"
+                            label="What's this token for?"
                             disabled={isLoading}
                             placeholder="Description"
                             required
@@ -82,22 +87,17 @@ export const CreateTokenModal: FC<{
                         />
 
                         <Select
-                            withinPortal
                             defaultValue={expireOptions[0].value}
                             label="Expiration"
                             data={expireOptions}
                             required
                             disabled={isLoading}
                             {...form.getInputProps('expiresAt')}
-                        ></Select>
-
-                        <Button type="submit" ml="auto" loading={isLoading}>
-                            Generate token
-                        </Button>
+                        />
                     </Stack>
                 </form>
             ) : (
-                <Stack spacing="md">
+                <Stack gap="md">
                     <TextInput
                         id="invite-link-input"
                         label="Token"
@@ -162,15 +162,16 @@ export const CreateTokenModal: FC<{
                             </CopyButton>
                         }
                     />
-                    <Alert icon={<MantineIcon icon={IconAlertCircle} />}>
+                    <Callout variant="info">
                         {data.expiresAt &&
-                            `This token will expire on
-                        ${formatTimestamp(data.expiresAt)} `}
+                            `This token will expire on ${formatTimestamp(
+                                data.expiresAt,
+                            )}. `}
                         Make sure to copy your personal access token now. You
-                        won’t be able to see it again!
-                    </Alert>
+                        won't be able to see it again!
+                    </Callout>
                 </Stack>
             )}
-        </Modal>
+        </MantineModal>
     );
 };

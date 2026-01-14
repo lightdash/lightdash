@@ -8,6 +8,7 @@ import {
     getFilterInteractivityValue,
     getItemId,
     isDashboardChartTileType,
+    isDashboardSqlChartTile,
     type CacheMetadata,
     type Dashboard,
     type DashboardFilterRule,
@@ -419,7 +420,11 @@ const DashboardProvider: React.FC<
         if (dashboardTabs && dashboardTabs.length > 0 && !activeTab) return [];
 
         return dashboardTiles
-            .filter(isDashboardChartTileType)
+            .filter(
+                (tile) =>
+                    isDashboardChartTileType(tile) ||
+                    isDashboardSqlChartTile(tile),
+            )
             .filter((tile) => {
                 if (!activeTab) return true;
                 return !tile.tabUuid || tile.tabUuid === activeTab.uuid;

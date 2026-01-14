@@ -6,14 +6,13 @@ import {
 } from '@lightdash/common';
 import {
     Button,
-    Group,
     LoadingOverlay,
     Stack,
     TextInput,
     Textarea,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
-import { IconPlus } from '@tabler/icons-react';
+import { IconLayoutDashboard, IconPlus } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -312,10 +311,15 @@ export const AiDashboardSaveModal: FC<Props> = ({
 
     if (isLoadingSpaces || !spaces) return null;
 
-    const modalActions = (
-        <>
-            <div>
-                {shouldShowNewSpaceButton && (
+    return (
+        <MantineModal
+            {...modalProps}
+            title="Save Dashboard"
+            onClose={handleClose}
+            size="lg"
+            icon={IconLayoutDashboard}
+            leftActions={
+                shouldShowNewSpaceButton ? (
                     <Button
                         variant="subtle"
                         size="xs"
@@ -324,41 +328,30 @@ export const AiDashboardSaveModal: FC<Props> = ({
                     >
                         New Space
                     </Button>
-                )}
-            </div>
-
-            <Group>
-                {currentStep === ModalStep.SelectDestination && (
-                    <Button onClick={handleBack} variant="outline">
-                        Back
+                ) : null
+            }
+            actions={
+                <>
+                    {currentStep === ModalStep.SelectDestination && (
+                        <Button onClick={handleBack} variant="default">
+                            Back
+                        </Button>
+                    )}
+                    <Button
+                        type="submit"
+                        disabled={
+                            currentStep === ModalStep.SelectDestination
+                                ? !isFormReadyToSave
+                                : !form.values.dashboardName
+                        }
+                        form="dashboard-save-form"
+                    >
+                        {currentStep === ModalStep.InitialInfo
+                            ? 'Next'
+                            : 'Save'}
                     </Button>
-                )}
-                <Button onClick={handleClose} variant="outline">
-                    Cancel
-                </Button>
-                <Button
-                    type="submit"
-                    disabled={
-                        currentStep === ModalStep.SelectDestination
-                            ? !isFormReadyToSave
-                            : !form.values.dashboardName
-                    }
-                    form="dashboard-save-form"
-                >
-                    {currentStep === ModalStep.InitialInfo ? 'Next' : 'Save'}
-                </Button>
-            </Group>
-        </>
-    );
-
-    return (
-        <MantineModal
-            {...modalProps}
-            title="Save Dashboard"
-            onClose={handleClose}
-            size="lg"
-            actions={modalActions}
-            modalActionsProps={{ justify: 'space-between' }}
+                </>
+            }
         >
             <LoadingOverlay
                 visible={isLoading || currentStep === ModalStep.Saving}

@@ -1,4 +1,5 @@
 import {
+    ConditionalFormattingColorApplyTo,
     formatItemValue,
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
@@ -32,6 +33,7 @@ import {
     getExpandedRowModel,
     useReactTable,
     type GroupingState,
+    type Row,
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import isEqual from 'lodash/isEqual';
@@ -93,6 +95,18 @@ const VirtualizedArea: FC<{
         </Table.Row>
     );
 };
+
+type IndexDimension = { fieldId: string; value: unknown };
+
+const extractIndexDimensions = (
+    indexValueRow: PivotData['indexValues'][number],
+): IndexDimension[] =>
+    indexValueRow
+        .filter((v) => v.type === 'value')
+        .map((v) => ({
+            fieldId: v.fieldId,
+            value: 'value' in v ? v.value?.raw : undefined,
+        }));
 
 type PivotTableProps = BoxProps & // TODO: remove this
     React.RefAttributes<HTMLTableElement> & {
@@ -374,6 +388,107 @@ const PivotTable: FC<PivotTableProps> = ({
         [rows, data.indexValues],
     );
 
+    // Find the data column index from headerInfo by matching against headerValues
+    // Used for metricsAsRows mode to look up values from dataValues
+    const findDataColumnIndex = useCallback(
+        (
+            headerInfo: Record<string, ResultValue> | undefined,
+        ): number | undefined => {
+            if (!headerInfo || data.headerValues.length === 0) return undefined;
+
+            const numColumns = data.headerValues[0]?.length ?? 0;
+
+            // Find column where ALL header dimension values match
+            for (let colIdx = 0; colIdx < numColumns; colIdx++) {
+                const allMatch = data.headerValues.every((headerRow) => {
+                    const headerCell = headerRow[colIdx];
+                    if (headerCell?.type !== 'value') return true;
+                    const expectedValue = headerInfo[headerCell.fieldId]?.raw;
+                    return headerCell.value?.raw === expectedValue;
+                });
+                if (allMatch) return colIdx;
+            }
+            return undefined;
+        },
+        [data.headerValues],
+    );
+
+    // Build rowFields for metricsAsRows mode by looking up metric values across rows
+    // that share the same index dimension values (same "row group" in the original data)
+    const buildRowFieldsForMetricsAsRows = useCallback(
+        (
+            rowIndex: number,
+            headerInfo: Record<string, ResultValue> | undefined,
+        ): ConditionalFormattingRowFields => {
+            const dataColIndex = findDataColumnIndex(headerInfo);
+            if (dataColIndex === undefined) return {};
+
+            const currentIndexDims = extractIndexDimensions(
+                data.indexValues[rowIndex] ?? [],
+            );
+
+            return data.indexValues.reduce<ConditionalFormattingRowFields>(
+                (acc, indexValueRow, metricRowIdx) => {
+                    const rowIndexDims = extractIndexDimensions(indexValueRow);
+
+                    // Only include metrics from same index dimension group
+                    const sameIndexGroup =
+                        currentIndexDims.length === rowIndexDims.length &&
+                        currentIndexDims.every(
+                            (dim, i) =>
+                                rowIndexDims[i]?.fieldId === dim.fieldId &&
+                                rowIndexDims[i]?.value === dim.value,
+                        );
+                    if (!sameIndexGroup) return acc;
+
+                    const labelEntry = indexValueRow.find(
+                        (v) => v.type === 'label',
+                    );
+                    if (!labelEntry) return acc;
+
+                    const metricId = labelEntry.fieldId;
+                    const field = getField(metricId);
+                    const metricValue =
+                        data.dataValues[metricRowIdx]?.[dataColIndex];
+
+                    if (field && !isDimension(field)) {
+                        acc[metricId] = { field, value: metricValue?.raw };
+                    }
+                    return acc;
+                },
+                {},
+            );
+        },
+        [data.indexValues, data.dataValues, findDataColumnIndex, getField],
+    );
+
+    // Build rowFields for normal pivot mode from visible cells with matching header context
+    const buildRowFieldsFromVisibleCells = useCallback(
+        (
+            row: Row<ResultRow>,
+            headerInfo: Record<string, ResultValue> | undefined,
+        ): ConditionalFormattingRowFields =>
+            row
+                .getVisibleCells()
+                .reduce<ConditionalFormattingRowFields>((acc, c) => {
+                    const cellMeta = c.column.columnDef.meta;
+                    if (
+                        cellMeta?.item &&
+                        isEqual(cellMeta?.headerInfo, headerInfo)
+                    ) {
+                        const cellValue = c.getValue() as
+                            | ResultRow[0]
+                            | undefined;
+                        acc[getItemId(cellMeta.item)] = {
+                            field: cellMeta.item,
+                            value: cellValue?.value?.raw,
+                        };
+                    }
+                    return acc;
+                }, {}),
+        [],
+    );
+
     const paddingTop = useMemo(() => {
         return virtualRows.length > 0 ? virtualRows?.[0]?.start || 0 : 0;
     }, [virtualRows]);
@@ -556,23 +671,6 @@ const PivotTable: FC<PivotTableProps> = ({
                     const row = rows[rowIndex];
                     if (!row) return null;
 
-                    const rowFields = row
-                        .getVisibleCells()
-                        .reduce<ConditionalFormattingRowFields>((acc, cell) => {
-                            const meta = cell.column.columnDef.meta;
-                            if (meta?.item) {
-                                const cellValue = cell.getValue() as
-                                    | ResultRow[0]
-                                    | undefined;
-
-                                acc[getItemId(meta.item)] = {
-                                    field: meta.item,
-                                    value: cellValue?.value?.raw,
-                                };
-                            }
-                            return acc;
-                        }, {});
-
                     const toggleExpander = row.getToggleExpandedHandler();
 
                     return (
@@ -583,9 +681,28 @@ const PivotTable: FC<PivotTableProps> = ({
                             {row.getVisibleCells().map((cell, colIndex) => {
                                 const meta = cell.column.columnDef.meta;
                                 const isRowTotal = meta?.type === 'rowTotal';
+                                const isDataColumn =
+                                    meta?.type !== 'indexValue' &&
+                                    meta?.type !== 'label' &&
+                                    !isRowTotal;
                                 let item = meta?.item;
 
-                                if (item && isDimension(item)) {
+                                if (
+                                    data.pivotConfig.metricsAsRows &&
+                                    isDataColumn
+                                ) {
+                                    const metricLabelInfo = data.indexValues[
+                                        rowIndex
+                                    ]?.find(
+                                        (indexValue) =>
+                                            indexValue.type === 'label',
+                                    );
+                                    if (metricLabelInfo) {
+                                        item = getField(
+                                            metricLabelInfo.fieldId,
+                                        );
+                                    }
+                                } else if (item && isDimension(item)) {
                                     const underlyingId = data.indexValues[
                                         rowIndex
                                     ]?.find(
@@ -601,16 +718,32 @@ const PivotTable: FC<PivotTableProps> = ({
                                     cell.getValue() as ResultRow[0];
                                 const value = fullValue?.value;
 
+                                // Build rowFields for this cell's pivot context only
+                                // This ensures field comparisons use values from the same pivot column
+                                const currentHeaderInfo =
+                                    cell.column.columnDef.meta?.headerInfo;
+
+                                const rowFieldsForCell = data.pivotConfig
+                                    .metricsAsRows
+                                    ? buildRowFieldsForMetricsAsRows(
+                                          rowIndex,
+                                          currentHeaderInfo,
+                                      )
+                                    : buildRowFieldsFromVisibleCells(
+                                          row,
+                                          currentHeaderInfo,
+                                      );
+
                                 const conditionalFormattingConfig =
                                     getConditionalFormattingConfig({
                                         field: item,
                                         value: value?.raw,
                                         minMaxMap,
                                         conditionalFormattings,
-                                        rowFields,
+                                        rowFields: rowFieldsForCell,
                                     });
 
-                                const conditionalFormattingColor =
+                                const conditionalFormattingResult =
                                     getConditionalFormattingColor({
                                         field: item,
                                         value: value?.raw,
@@ -635,39 +768,66 @@ const PivotTable: FC<PivotTableProps> = ({
                                         },
                                     });
 
+                                const applyToText =
+                                    conditionalFormattingResult?.applyTo ===
+                                    ConditionalFormattingColorApplyTo.TEXT;
+
                                 const conditionalFormatting = (() => {
                                     const tooltipContent =
                                         getConditionalFormattingDescription(
                                             item,
                                             conditionalFormattingConfig,
-                                            rowFields,
+                                            rowFieldsForCell,
                                             getConditionalRuleLabelFromItem,
                                         );
 
                                     if (
-                                        !conditionalFormattingColor ||
+                                        !conditionalFormattingResult ||
                                         !isHexCodeColor(
-                                            conditionalFormattingColor,
+                                            conditionalFormattingResult.color,
                                         )
                                     ) {
                                         return undefined;
                                     }
 
-                                    return {
-                                        tooltipContent,
-                                        color: readableColor(
-                                            conditionalFormattingColor,
-                                        ),
-                                        backgroundColor:
-                                            conditionalFormattingColor,
-                                    };
+                                    // When applying to text, set color directly without background
+                                    // When applying to cell, set background and calculate readable text color
+                                    return applyToText
+                                        ? {
+                                              tooltipContent,
+                                              color: conditionalFormattingResult.color,
+                                          }
+                                        : {
+                                              tooltipContent,
+                                              color: readableColor(
+                                                  conditionalFormattingResult.color,
+                                              ),
+                                              backgroundColor:
+                                                  conditionalFormattingResult.color,
+                                          };
                                 })();
 
-                                // When conditional formatting is applied, always use calculated contrast color
-                                // to ensure text remains readable regardless of light/dark mode
-                                const fontColor = conditionalFormattingColor
-                                    ? readableColor(conditionalFormattingColor)
-                                    : undefined;
+                                // Font color is set by conditionalFormatting above
+                                const fontColor = conditionalFormatting?.color;
+
+                                // Get field description for label cells (metric labels when metricsAsRows is enabled)
+                                const labelFieldDescription = (() => {
+                                    if (meta?.type !== 'label')
+                                        return undefined;
+                                    const labelInfo = data.indexValues[
+                                        rowIndex
+                                    ]?.find(
+                                        (indexValue) =>
+                                            indexValue.type === 'label',
+                                    );
+                                    if (!labelInfo) return undefined;
+                                    const labelField = getField(
+                                        labelInfo.fieldId,
+                                    );
+                                    return isField(labelField)
+                                        ? labelField.description
+                                        : undefined;
+                                })();
 
                                 const suppressContextMenu =
                                     (value === undefined ||
@@ -692,6 +852,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             conditionalFormatting?.backgroundColor
                                         }
                                         withTooltip={
+                                            labelFieldDescription ||
                                             conditionalFormatting?.tooltipContent
                                         }
                                         withInteractions={allowInteractions}
@@ -737,8 +898,6 @@ const PivotTable: FC<PivotTableProps> = ({
                                                             paddingRight:
                                                                 theme.spacing
                                                                     .xxs,
-                                                            fontFamily:
-                                                                "'Inter', sans-serif",
                                                             fontFeatureSettings:
                                                                 "'tnum'",
                                                         },
@@ -806,93 +965,99 @@ const PivotTable: FC<PivotTableProps> = ({
 
             {hasColumnTotals ? (
                 <Table.Footer withSticky>
-                    {data.columnTotals?.map((row, totalRowIndex) => (
-                        <Table.Row
-                            key={`column-total-${totalRowIndex}`}
-                            index={totalRowIndex}
-                        >
-                            {/* shows empty cell if row numbers are visible */}
-                            {hideRowNumbers ? null : <Table.Cell />}
+                    {data.columnTotals?.map((row, totalRowIndex) => {
+                        const totalRowCount = data.columnTotals?.length ?? 1;
+                        const stickyIndex = totalRowCount - 1 - totalRowIndex;
+                        return (
+                            <Table.Row
+                                key={`column-total-${totalRowIndex}`}
+                                index={stickyIndex}
+                            >
+                                {/* shows empty cell if row numbers are visible */}
+                                {hideRowNumbers ? null : <Table.Cell />}
 
-                            {/* render the total label */}
-                            {data.columnTotalFields?.[totalRowIndex].map(
-                                (totalLabel, totalColIndex) =>
-                                    totalLabel ? (
+                                {/* render the total label */}
+                                {data.columnTotalFields?.[totalRowIndex].map(
+                                    (totalLabel, totalColIndex) =>
+                                        totalLabel ? (
+                                            <Table.CellHead
+                                                key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                isMinimal={isMinimal}
+                                                withAlignRight
+                                                withBoldFont
+                                            >
+                                                {totalLabel.fieldId
+                                                    ? `Total ${getFieldLabel(
+                                                          totalLabel.fieldId,
+                                                      )}`
+                                                    : `Total`}
+                                            </Table.CellHead>
+                                        ) : (
+                                            <Table.Cell
+                                                key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                isMinimal={isMinimal}
+                                            />
+                                        ),
+                                )}
+
+                                {row.map((total, totalColIndex) => {
+                                    const value = data.pivotConfig.metricsAsRows
+                                        ? getMetricAsRowColumnTotalValueFromAxis(
+                                              total,
+                                              totalRowIndex,
+                                          )
+                                        : getColumnTotalValueFromAxis(
+                                              total,
+                                              totalColIndex,
+                                          );
+                                    return value ? (
                                         <Table.CellHead
-                                            key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                            isMinimal={isMinimal}
+                                            key={`column-total-${totalRowIndex}-${totalColIndex}`}
                                             withAlignRight
+                                            isMinimal={isMinimal}
                                             withBoldFont
+                                            withInteractions
+                                            withValue={value.formatted}
+                                            withMenu={(
+                                                {
+                                                    isOpen,
+                                                    onClose,
+                                                    onCopy,
+                                                }: MenuCallbackProps,
+                                                render: RenderCallback,
+                                            ) => (
+                                                <TotalCellMenu
+                                                    opened={isOpen}
+                                                    onClose={onClose}
+                                                    onCopy={onCopy}
+                                                >
+                                                    {render()}
+                                                </TotalCellMenu>
+                                            )}
                                         >
-                                            {totalLabel.fieldId
-                                                ? `Total ${getFieldLabel(
-                                                      totalLabel.fieldId,
-                                                  )}`
-                                                : `Total`}
+                                            {value.formatted}
                                         </Table.CellHead>
                                     ) : (
                                         <Table.Cell
                                             key={`footer-total-${totalRowIndex}-${totalColIndex}`}
                                             isMinimal={isMinimal}
                                         />
-                                    ),
-                            )}
+                                    );
+                                })}
 
-                            {row.map((total, totalColIndex) => {
-                                const value = data.pivotConfig.metricsAsRows
-                                    ? getMetricAsRowColumnTotalValueFromAxis(
-                                          total,
-                                          totalRowIndex,
+                                {hasRowTotals
+                                    ? data.rowTotalFields?.[0].map(
+                                          (_, index) => (
+                                              <Table.Cell
+                                                  key={`footer-empty-${totalRowIndex}-${index}`}
+                                                  isMinimal={isMinimal}
+                                              />
+                                          ),
                                       )
-                                    : getColumnTotalValueFromAxis(
-                                          total,
-                                          totalColIndex,
-                                      );
-                                return value ? (
-                                    <Table.CellHead
-                                        key={`column-total-${totalRowIndex}-${totalColIndex}`}
-                                        withAlignRight
-                                        isMinimal={isMinimal}
-                                        withBoldFont
-                                        withInteractions
-                                        withValue={value.formatted}
-                                        withMenu={(
-                                            {
-                                                isOpen,
-                                                onClose,
-                                                onCopy,
-                                            }: MenuCallbackProps,
-                                            render: RenderCallback,
-                                        ) => (
-                                            <TotalCellMenu
-                                                opened={isOpen}
-                                                onClose={onClose}
-                                                onCopy={onCopy}
-                                            >
-                                                {render()}
-                                            </TotalCellMenu>
-                                        )}
-                                    >
-                                        {value.formatted}
-                                    </Table.CellHead>
-                                ) : (
-                                    <Table.Cell
-                                        key={`footer-total-${totalRowIndex}-${totalColIndex}`}
-                                        isMinimal={isMinimal}
-                                    />
-                                );
-                            })}
-
-                            {hasRowTotals
-                                ? data.rowTotalFields?.[0].map((_, index) => (
-                                      <Table.Cell
-                                          key={`footer-empty-${totalRowIndex}-${index}`}
-                                          isMinimal={isMinimal}
-                                      />
-                                  ))
-                                : null}
-                        </Table.Row>
-                    ))}
+                                    : null}
+                            </Table.Row>
+                        );
+                    })}
                 </Table.Footer>
             ) : null}
         </Table>

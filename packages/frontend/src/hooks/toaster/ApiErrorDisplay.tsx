@@ -7,6 +7,7 @@ import {
     Stack,
     Text,
     Tooltip,
+    useMantineTheme,
 } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -19,10 +20,14 @@ const ApiErrorDisplay = ({
     apiError: ApiErrorDetail;
     onClose?: () => void;
 }) => {
+    const theme = useMantineTheme();
+    const isDark = theme.colorScheme === 'dark';
+
     switch (apiError.name) {
         case 'SnowflakeTokenError':
             return (
                 <>
+                    {/* FIXME: Replace with MantineModal when we migrate fully to Mantine 8 */}
                     <Modal
                         opened={true}
                         onClose={() => onClose?.()}
@@ -81,7 +86,7 @@ const ApiErrorDisplay = ({
                                 variant={'transparent'}
                             >
                                 <MantineIcon
-                                    color={'white'}
+                                    color={isDark ? 'white' : 'gray.7'}
                                     icon={copied ? IconCheck : IconCopy}
                                 />
                             </ActionIcon>
@@ -91,7 +96,7 @@ const ApiErrorDisplay = ({
             </Group>
         </Stack>
     ) : (
-        <>{apiError.message}</>
+        <span>{apiError.message}</span>
     );
 };
 

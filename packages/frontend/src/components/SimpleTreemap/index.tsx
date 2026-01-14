@@ -4,6 +4,7 @@ import { memo, useEffect, useRef, type FC } from 'react';
 import useEchartsTreemapConfig from '../../hooks/echarts/useEchartsTreemapConfig';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 
 const EmptyChart = () => (
@@ -12,16 +13,6 @@ const EmptyChart = () => (
             title="No data available"
             description="Query metrics and dimensions with results."
             icon={IconChartTreemap}
-        />
-    </div>
-);
-
-const LoadingChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="Loading chart"
-            loading
-            className="loading_chart"
         />
     </div>
 );

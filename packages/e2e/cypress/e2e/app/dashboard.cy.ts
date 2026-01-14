@@ -104,7 +104,7 @@ describe('Dashboard', () => {
 
         cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
 
-        cy.contains('855').click();
+        cy.contains('1,682').click();
         cy.contains('View underlying data').click();
 
         cy.get('section[role="dialog"]').within(() => {
@@ -132,9 +132,18 @@ describe('Dashboard', () => {
         cy.findAllByText('Add tile').click({ multiple: true });
         cy.findByText('Saved chart').click();
         cy.findByRole('dialog').findByPlaceholderText('Search...').click();
-        cy.contains('How much revenue').click();
+        // search
+        cy.findByRole('dialog')
+            .findByPlaceholderText('Search...')
+            .type('How much revenue');
+        cy.findByRole('option', {
+            name: 'How much revenue do we have per payment method?',
+        }).click();
         cy.findByRole('dialog').get('.mantine-MultiSelect-input').click(); // Close dropdown
         cy.findByText('Add').click();
+        cy.findByText('How much revenue do we have per payment method?').should(
+            'exist',
+        );
 
         // Create chart within dashboard
         cy.findAllByText('Add tile').click({ multiple: true });
@@ -284,7 +293,7 @@ describe('Dashboard', () => {
         cy.findAllByText('Add tile').click();
         cy.findByText('Markdown').click();
         cy.findByLabelText('Title').type('Title');
-        cy.get('.mantine-Modal-body').find('textarea').type('Content');
+        cy.findByTestId('add-tile-form').find('textarea').type('Content');
         cy.findByText('Add').click();
 
         cy.findByText('Save changes').click();

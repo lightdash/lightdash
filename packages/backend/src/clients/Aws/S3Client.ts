@@ -116,14 +116,32 @@ export class S3Client extends S3BaseClient {
         return { fileName, url };
     }
 
-    async uploadTxt(txt: Buffer, id: string): Promise<string> {
-        return this.uploadFile(`${id}.txt`, txt, { contentType: 'text/plain' });
+    async uploadTxt(
+        txt: Buffer,
+        id: string,
+        expiresIn?: number,
+    ): Promise<string> {
+        return this.uploadFile(
+            `${id}.txt`,
+            txt,
+            { contentType: 'text/plain' },
+            expiresIn ? { expiresIn } : undefined,
+        );
     }
 
-    async uploadImage(image: Buffer, imageId: string): Promise<string> {
-        return this.uploadFile(`${imageId}.png`, image, {
-            contentType: 'image/png',
-        });
+    async uploadImage(
+        image: Buffer,
+        imageId: string,
+        expiresIn?: number,
+    ): Promise<string> {
+        return this.uploadFile(
+            `${imageId}.png`,
+            image,
+            {
+                contentType: 'image/png',
+            },
+            expiresIn ? { expiresIn } : undefined,
+        );
     }
 
     async uploadCsv(

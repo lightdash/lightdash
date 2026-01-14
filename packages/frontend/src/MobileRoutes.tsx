@@ -19,7 +19,7 @@ import {
     IconRobot,
 } from '@tabler/icons-react';
 import posthog from 'posthog-js';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import {
     Link,
     Navigate,
@@ -33,11 +33,13 @@ import RouterNavLink from './components/common/RouterNavLink';
 import ForbiddenPanel from './components/ForbiddenPanel';
 import MobileView from './components/Mobile';
 import ProjectSwitcher from './components/NavBar/ProjectSwitcher';
+import { ThemeSwitcher } from './components/NavBar/ThemeSwitcher';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
 import { useAiAgentButtonVisibility } from './ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
+import { getMantineThemeOverride } from './mantineTheme';
 import AuthPopupResult, {
     SuccessAuthPopupResult,
 } from './pages/AuthPopupResult';
@@ -94,8 +96,15 @@ export const MobileNavBar: FC = () => {
 
     const isAiAgentButtonVisible = useAiAgentButtonVisibility();
 
+    // Force dark theme for navbar (excluding global styles)
+    const darkTheme = useMemo(() => {
+        const fullDarkTheme = getMantineThemeOverride('dark');
+        const { globalStyles, ...themeWithoutGlobalStyles } = fullDarkTheme;
+        return themeWithoutGlobalStyles;
+    }, []);
+
     return (
-        <MantineProvider inherit theme={{ colorScheme: 'dark' }}>
+        <MantineProvider theme={darkTheme}>
             <Header
                 height={50}
                 display="flex"
@@ -119,7 +128,12 @@ export const MobileNavBar: FC = () => {
                 </Group>
             </Header>
 
-            <Drawer opened={isMenuOpen} onClose={toggleMenu} size="75%">
+            <Drawer
+                title={<ThemeSwitcher />}
+                opened={isMenuOpen}
+                onClose={toggleMenu}
+                size="75%"
+            >
                 <Title order={6} fw={600} mb="xs">
                     Project
                 </Title>
@@ -163,6 +177,7 @@ export const MobileNavBar: FC = () => {
                     />
                 )}
                 <Divider my="lg" />
+
                 <RouterNavLink
                     exact
                     label="Logout"

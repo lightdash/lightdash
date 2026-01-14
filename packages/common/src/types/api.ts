@@ -5,7 +5,9 @@ import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import {
     type ApiJobScheduledResponse,
     type ApiJobStatusResponse,
+    type ApiReassignUserSchedulersResponse,
     type ApiSchedulersResponse,
+    type ApiUserSchedulersSummaryResponse,
     type SchedulerAndTargets,
     type SchedulerJobStatus,
 } from './scheduler';
@@ -214,6 +216,7 @@ export type UpdateMetadata = {
 export type ApiCompiledQueryResults = {
     query: string;
     parameterReferences: string[];
+    compilationErrors?: string[];
 };
 
 export type ApiExploresResults = SummaryExplore[];
@@ -389,9 +392,6 @@ export type HealthState = {
         maxColumnLimit: number;
     };
     hasSlack: boolean;
-    slack: {
-        multiAgentChannelEnabled: boolean;
-    };
     hasGithub: boolean;
     hasGitlab: boolean;
     hasHeadlessBrowser: boolean;
@@ -422,6 +422,9 @@ export type HealthState = {
         isAmbientAiEnabled: boolean;
     };
     echarts6: {
+        enabled: boolean;
+    };
+    funnelBuilder: {
         enabled: boolean;
     };
 };
@@ -793,6 +796,8 @@ type ApiResults =
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
     | ApiSchedulersResponse['results']
+    | ApiUserSchedulersSummaryResponse['results']
+    | ApiReassignUserSchedulersResponse['results']
     | ApiUserActivityDownloadCsv['results']
     | ApiRenameFieldsResponse['results']
     | ApiDownloadAsyncQueryResults

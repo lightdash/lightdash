@@ -1,0 +1,4 @@
+.content {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    box-shadow: none;
+}

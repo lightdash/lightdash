@@ -1,12 +1,17 @@
 import {
+    DimensionType,
     getItemId,
     getItemLabelWithoutTableName,
+    getItemMap,
     isCustomDimension,
+    isDimension,
     isField,
     isFilterableField,
     isMetric,
+    isMetricWithDateValue,
     isNumericItem,
     isTableCalculation,
+    isTimeBasedDimension,
     type TableCalculation,
 } from '@lightdash/common';
 import { ActionIcon, Menu, Text } from '@mantine/core';
@@ -20,6 +25,8 @@ import { useMemo, useState, type FC } from 'react';
 import {
     explorerActions,
     selectAdditionalMetrics,
+    selectTableCalculations,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -27,6 +34,7 @@ import {
     DeleteTableCalculationModal,
     UpdateTableCalculationModal,
 } from '../../../features/tableCalculation';
+import { useExplore } from '../../../hooks/useExplore';
 import { useFilters } from '../../../hooks/useFilters';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -54,7 +62,25 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const sort = meta?.sort?.sort;
 
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const tableName = useExplorerSelector(selectTableName);
     const dispatch = useExplorerDispatch();
+
+    // Get explore data to check if metrics return date values
+    const { data: exploreData } = useExplore(tableName, {
+        refetchOnMount: false,
+    });
+
+    const itemsMap = useMemo(() => {
+        if (exploreData) {
+            return getItemMap(
+                exploreData,
+                additionalMetrics,
+                tableCalculations,
+            );
+        }
+        return undefined;
+    }, [exploreData, additionalMetrics, tableCalculations]);
 
     const additionalMetric = useMemo(
         () =>
@@ -92,14 +118,25 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
                 <Menu.Divider />
+
+                {isTimeBasedDimension(item) ||
+                (isDimension(item) && item.type === DimensionType.NUMBER) ? (
+                    <>
+                        <FormatMenuOptions item={item} />
+                        <Menu.Divider />
+                    </>
+                ) : null}
+
                 {isMetric(item) && (
                     <>
-                        {!isItemAdditionalMetric && isNumericItem(item) && (
-                            <>
-                                <FormatMenuOptions item={item} />
-                                <Menu.Divider />
-                            </>
-                        )}
+                        {!isItemAdditionalMetric &&
+                            (isNumericItem(item) ||
+                                isMetricWithDateValue(item, itemsMap)) && (
+                                <>
+                                    <FormatMenuOptions item={item} />
+                                    <Menu.Divider />
+                                </>
+                            )}
 
                         <QuickCalculationMenuOptions item={item} />
                         <Menu.Divider />

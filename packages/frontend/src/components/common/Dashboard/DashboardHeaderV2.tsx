@@ -36,6 +36,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import AIDashboardSummary from '../../../ee/features/ambientAi/components/aiDashboardSummary';
+import { SwitchToClassicMenuItem } from '../../../features/dashboardTabsV2/DashboardUIToggle';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteDashboardDiffMutation,
@@ -60,6 +61,10 @@ import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import { type DashboardHeaderProps } from './DashboardHeaderV1';
 import { DashboardRefreshButtonV2 } from './DashboardRefreshButtonV2';
 import { ShareLinkButtonV2 } from './ShareLinkButtonV2';
+import {
+    DASHBOARD_HEADER_HEIGHT,
+    DASHBOARD_HEADER_ZINDEX,
+} from './dashboard.constants';
 
 const DashboardHeaderV2 = ({
     dashboard,
@@ -83,6 +88,7 @@ const DashboardHeaderV2 = ({
     onToggleFullscreen,
     setAddingTab,
     onEditClicked,
+    className,
 }: DashboardHeaderProps) => {
     const isDashboardSummariesEnabled = useFeatureFlagEnabled(
         'ai-dashboard-summary' as FeatureFlags,
@@ -191,7 +197,16 @@ const DashboardHeaderV2 = ({
     );
 
     return (
-        <PageHeader cardProps={{ px: 'xl', py: 0, h: 50, bg: 'background' }}>
+        <PageHeader
+            cardProps={{
+                px: 'xl',
+                py: 0,
+                h: DASHBOARD_HEADER_HEIGHT,
+                bg: 'background',
+                sx: { zIndex: DASHBOARD_HEADER_ZINDEX },
+                className,
+            }}
+        >
             <Group gap="xs" flex={1}>
                 <Title order={6}>{dashboard.name}</Title>
 
@@ -566,6 +581,8 @@ const DashboardHeaderV2 = ({
                                         Export dashboard
                                     </Menu.Item>
                                 )}
+
+                                <SwitchToClassicMenuItem />
 
                                 {userCanManageDashboard && (
                                     <>

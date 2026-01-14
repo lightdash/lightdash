@@ -16,16 +16,14 @@ import {
     Center,
     Collapse,
     Group,
-    List,
     Loader,
     LoadingOverlay,
-    Modal,
+    Paper,
     Stack,
     Text,
     TextInput,
     Tooltip,
-    type ModalProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import {
     IconAlertCircle,
     IconAlertHexagon,
@@ -37,6 +35,9 @@ import groupBy from 'lodash/groupBy';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../components/common/MantineModal';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useValidationWithResults } from '../../../hooks/validation/useValidation';
 import { useSqlQueryRun } from '../../sqlRunner/hooks/useSqlQueryRun';
@@ -54,40 +55,35 @@ export type VirtualViewState = {
 
 const DiffListItem: FC<{ diff: ColumnDiff }> = memo(({ diff }) => {
     return (
-        <List.Item
-            fz="xs"
-            icon={
-                <MantineIcon
-                    icon={
-                        diff.type === 'deleted' ? IconTrash : IconAlertHexagon
-                    }
-                    color={diff.type === 'deleted' ? 'red' : 'yellow'}
-                />
-            }
-        >
+        <Group gap="xs" wrap="nowrap">
+            <MantineIcon
+                icon={diff.type === 'deleted' ? IconTrash : IconAlertHexagon}
+                color={diff.type === 'deleted' ? 'red' : 'yellow'}
+                size={16}
+            />
             {diff.type === 'deleted' ? (
-                <Text>
-                    <Text span fw={500}>
+                <Text fz="sm" c="gray.7">
+                    <Text span fw={600} c="gray.8" fz="sm">
                         {diff.reference}
                     </Text>{' '}
                     has been deleted
                 </Text>
             ) : (
-                <Text>
-                    <Text span fw={500}>
+                <Text fz="sm" c="gray.7">
+                    <Text span fw={600} c="gray.8">
                         {diff.reference}
                     </Text>{' '}
-                    type changed from{' '}
-                    <Text span fw={500}>
+                    type changed:{' '}
+                    <Text span fw={500} c="gray.6">
                         {diff.oldType}
                     </Text>{' '}
                     →{' '}
-                    <Text span fw={500}>
+                    <Text span fw={500} c="gray.8">
                         {diff.newType}
                     </Text>
                 </Text>
             )}
-        </List.Item>
+        </Group>
     );
 });
 
@@ -99,50 +95,41 @@ const ChartErrorListItem: FC<{
     const errorMessages = chartErrors.map((error) => error.error);
 
     return (
-        <List.Item
-            icon={<MantineIcon icon={IconAlertHexagon} color="orange" />}
-            styles={{
-                itemWrapper: {
-                    alignItems: 'center',
-                },
-            }}
-        >
-            {/* Necessary for correct alignment between the icon and the text */}
-            <Text lh={0}>
-                <Tooltip
-                    variant="xs"
-                    withinPortal
-                    label={
-                        <Stack spacing={0}>
-                            {errorMessages.map((message, index) => (
-                                <Text fz={11} key={index}>
-                                    {message}
-                                </Text>
-                            ))}
-                        </Stack>
-                    }
-                    withArrow
-                    position="right"
-                    multiline
-                    width={300}
+        <Group gap="xs" wrap="nowrap">
+            <MantineIcon icon={IconAlertHexagon} color="orange" size={16} />
+            <Tooltip
+                variant="xs"
+                withinPortal
+                label={
+                    <Stack gap={2}>
+                        {errorMessages.map((message, index) => (
+                            <Text fz={11} key={index}>
+                                {message}
+                            </Text>
+                        ))}
+                    </Stack>
+                }
+                withArrow
+                position="right"
+                multiline
+                maw={300}
+            >
+                <Anchor
+                    href={`/projects/${projectUuid}/saved/${firstError.chartUuid}`}
+                    target="_blank"
+                    fz="sm"
+                    fw={500}
                 >
-                    <Anchor
-                        href={`/projects/${projectUuid}/saved/${firstError.chartUuid}`}
-                        target="_blank"
-                        fz="xs"
-                        fw={500}
-                    >
-                        {firstError.name}
-                    </Anchor>
-                </Tooltip>
-            </Text>
-        </List.Item>
+                    {firstError.name}
+                </Anchor>
+            </Tooltip>
+        </Group>
     );
 };
 
 // TODO: Move to separate component
 const ChangesReviewModal: FC<
-    Pick<ModalProps, 'opened' | 'onClose'> & {
+    Pick<MantineModalProps, 'opened' | 'onClose'> & {
         columnDiffs: ColumnDiff[];
         chartValidationErrors: ValidationResponse[] | undefined;
         onSave: () => void;
@@ -175,88 +162,74 @@ const ChangesReviewModal: FC<
     const visibleChartErrors = chartErrorEntries.slice(0, 3);
 
     return (
-        <Modal
+        <MantineModal
             opened={opened}
             onClose={onClose}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon icon={IconAlertCircle} color="orange" />
-                    <Text fw={500}>Schema changes detected</Text>
-                </Group>
+            title="Schema changes detected"
+            icon={IconAlertCircle}
+            actions={
+                <Button color="orange" onClick={onSave}>
+                    Save Anyway
+                </Button>
             }
         >
-            <Stack spacing="xs">
-                <Text fz="xs">Your changes rename or delete a field.</Text>
-
-                <Stack
-                    spacing={0}
-                    sx={(theme) => ({
-                        border: `1px solid ${theme.colors.ldGray[3]}`,
-                        borderRadius: theme.radius.md,
-                        padding: theme.spacing.xs,
-                        backgroundColor: theme.colors.ldGray[0],
-                    })}
-                >
-                    <List>
-                        {newColumnsAddedNr > 0 && (
-                            <List.Item
-                                icon={
+            <Stack gap="md">
+                {/* Column Changes Section */}
+                <Stack gap="xs">
+                    <Text fz="sm" fw={500} c="ldGray.7">
+                        Column changes
+                    </Text>
+                    <Paper p="sm" radius="md" withBorder bg="ldGray.0">
+                        <Stack gap="xs">
+                            {newColumnsAddedNr > 0 && (
+                                <Group gap="xs">
                                     <MantineIcon
                                         icon={IconPlus}
                                         color="green"
+                                        size={16}
                                     />
-                                }
-                            >
-                                <Text fz="xs">
-                                    {newColumnsAddedNr} new column(s) added
-                                </Text>
-                            </List.Item>
-                        )}
-                        {visibleDiffs.map((diff, index) => (
-                            <DiffListItem key={index} diff={diff} />
-                        ))}
-                    </List>
-                    {isDiffListTruncated && (
-                        <>
+                                    <Text fz="sm" c="ldGray.7">
+                                        {newColumnsAddedNr} new column
+                                        {newColumnsAddedNr > 1 ? 's' : ''} added
+                                    </Text>
+                                </Group>
+                            )}
+                            {visibleDiffs.map((diff, index) => (
+                                <DiffListItem key={index} diff={diff} />
+                            ))}
                             <Collapse in={showAllDiffs}>
-                                <List>
-                                    {affectedColumns
-                                        .slice(3)
-                                        .map((diff, index) => (
-                                            <DiffListItem
-                                                key={index + 3}
-                                                diff={diff}
-                                            />
-                                        ))}
-                                </List>
+                                {affectedColumns.slice(3).map((diff, index) => (
+                                    <DiffListItem key={index + 3} diff={diff} />
+                                ))}
                             </Collapse>
-                            <Button
-                                compact
-                                ml="auto"
-                                variant="default"
-                                size="xs"
-                                onClick={() => setShowAllDiffs(!showAllDiffs)}
-                            >
-                                {showAllDiffs ? 'Show Less' : 'Show More'}
-                            </Button>
-                        </>
-                    )}
+                            {isDiffListTruncated && (
+                                <Button
+                                    size="compact-xs"
+                                    variant="subtle"
+                                    color="ldGray.6"
+                                    onClick={() =>
+                                        setShowAllDiffs(!showAllDiffs)
+                                    }
+                                >
+                                    {showAllDiffs
+                                        ? 'Show less'
+                                        : `Show ${
+                                              affectedColumns.length - 3
+                                          } more`}
+                                </Button>
+                            )}
+                        </Stack>
+                    </Paper>
                 </Stack>
+
+                {/* Affected Charts Section */}
                 {chartErrorEntries.length > 0 && (
-                    <>
-                        <Text fz="xs">
-                            The following charts will be affected:
+                    <Stack gap="xs">
+                        <Text fz="sm" fw={500} c="ldGray.7">
+                            Affected charts ({chartErrorEntries.length})
                         </Text>
-                        <Stack
-                            spacing={0}
-                            sx={(theme) => ({
-                                border: `1px solid ${theme.colors.ldGray[3]}`,
-                                borderRadius: theme.radius.md,
-                                padding: theme.spacing.xs,
-                                backgroundColor: theme.colors.ldGray[0],
-                            })}
-                        >
-                            <List>
+                        <Paper p="sm" radius="md" withBorder bg="ldGray.0">
+                            <Stack gap="xs">
                                 {visibleChartErrors.map(
                                     ([chartUuid, errors]) => (
                                         <ChartErrorListItem
@@ -266,29 +239,22 @@ const ChangesReviewModal: FC<
                                         />
                                     ),
                                 )}
-                            </List>
-                            {isChartErrorsListTruncated && (
-                                <>
-                                    <Collapse in={showAllChartErrors}>
-                                        <List>
-                                            {chartErrorEntries
-                                                .slice(3)
-                                                .map(([chartUuid, errors]) => (
-                                                    <ChartErrorListItem
-                                                        key={chartUuid}
-                                                        chartErrors={errors}
-                                                        projectUuid={
-                                                            projectUuid
-                                                        }
-                                                    />
-                                                ))}
-                                        </List>
-                                    </Collapse>
+                                <Collapse in={showAllChartErrors}>
+                                    {chartErrorEntries
+                                        .slice(3)
+                                        .map(([chartUuid, errors]) => (
+                                            <ChartErrorListItem
+                                                key={chartUuid}
+                                                chartErrors={errors}
+                                                projectUuid={projectUuid}
+                                            />
+                                        ))}
+                                </Collapse>
+                                {isChartErrorsListTruncated && (
                                     <Button
-                                        compact
-                                        ml="auto"
-                                        variant="default"
-                                        size="xs"
+                                        size="compact-xs"
+                                        variant="subtle"
+                                        color="gray"
                                         onClick={() =>
                                             setShowAllChartErrors(
                                                 !showAllChartErrors,
@@ -296,27 +262,24 @@ const ChangesReviewModal: FC<
                                         }
                                     >
                                         {showAllChartErrors
-                                            ? 'Show Less'
-                                            : 'Show More'}
+                                            ? 'Show less'
+                                            : `Show ${
+                                                  chartErrorEntries.length - 3
+                                              } more`}
                                     </Button>
-                                </>
-                            )}
-                        </Stack>
-                    </>
+                                )}
+                            </Stack>
+                        </Paper>
+                    </Stack>
                 )}
-                <Text fz="xs" fw={500} mt="md">
+
+                {/* Warning Footer */}
+                <Text fz="sm" c="ldGray.6">
                     These changes could break existing content using this
-                    virtual view. <br />
-                    Are you sure you want to save these changes?
+                    virtual view.
                 </Text>
             </Stack>
-            <Group position="right" spacing="xs" mt="md">
-                <Button variant="outline" onClick={onClose}>
-                    Cancel
-                </Button>
-                <Button onClick={onSave}>Save Anyway</Button>
-            </Group>
-        </Modal>
+        </MantineModal>
     );
 };
 
@@ -376,6 +339,12 @@ export const HeaderVirtualView: FC<{
     }: {
         handleDiff: boolean;
     }) => {
+        console.log('[VirtualView Debug] handleUpdateVirtualView called', {
+            handleDiff,
+            virtualViewName: virtualViewState.name,
+            sql: sql.substring(0, 100) + '...',
+        });
+
         let columnsFromQuery: VizColumn[];
         // Get columns from query regardless of whether the query has run or not
         try {
@@ -408,6 +377,11 @@ export const HeaderVirtualView: FC<{
             });
         }
 
+        console.log('[VirtualView Debug] Columns from query:', {
+            columnsFromQuery,
+            initialColumns,
+        });
+
         // If the user has accepted the diff, we update the virtual view and refresh the page
         if (!handleDiff) {
             await updateVirtualView({
@@ -427,13 +401,35 @@ export const HeaderVirtualView: FC<{
             columnsFromQuery,
         );
 
+        console.log('[VirtualView Debug] Created temporary virtual view:', {
+            exploreName: virtualExplore.name,
+            baseTable: virtualExplore.baseTable,
+            tables: Object.keys(virtualExplore.tables || {}),
+            dimensions: Object.keys(
+                virtualExplore.tables?.[virtualExplore.baseTable]?.dimensions ||
+                    {},
+            ),
+        });
+
         // Validate the virtual view
+        console.log('[VirtualView Debug] Calling getValidation...');
         await getValidation({
             explores: [virtualExplore],
             validationTargets: [ValidationTarget.CHARTS],
             onlyValidateExploresInArgs: true,
             onComplete: async (response: ValidationResponse[]) => {
+                console.log('[VirtualView Debug] Validation response:', {
+                    responseLength: response.length,
+                    response,
+                    chartErrors: response.filter((r) =>
+                        isChartValidationError(r),
+                    ),
+                });
+
                 if (response.length === 0) {
+                    console.log(
+                        '[VirtualView Debug] No validation errors, saving directly',
+                    );
                     // No errors , we don't need to show warning
                     await updateVirtualView({
                         exploreName: virtualViewState.name,
@@ -444,6 +440,11 @@ export const HeaderVirtualView: FC<{
                     });
                     void navigate(0);
                 } else {
+                    console.log(
+                        '[VirtualView Debug] Has validation errors, checking diffs',
+                        { handleDiff, hasInitialColumns: !!initialColumns },
+                    );
+
                     if (handleDiff && initialColumns) {
                         setChartValidationErrors(response);
                         const diffs = compareColumns(
@@ -451,8 +452,16 @@ export const HeaderVirtualView: FC<{
                             columnsFromQuery,
                         );
 
+                        console.log('[VirtualView Debug] Column diffs:', {
+                            diffs,
+                            diffsLength: diffs?.length ?? 0,
+                        });
+
                         // If there are no diffs, we update the virtual view and refresh the page
                         if (!diffs || diffs.length === 0) {
+                            console.log(
+                                '[VirtualView Debug] No column diffs, saving directly (despite validation errors!)',
+                            );
                             await updateVirtualView({
                                 exploreName: virtualViewState.name,
                                 projectUuid,
@@ -463,6 +472,13 @@ export const HeaderVirtualView: FC<{
                             void navigate(0);
                         } else {
                             // If there are diffs, we show the warning modal
+                            console.log(
+                                '[VirtualView Debug] Showing warning modal with:',
+                                {
+                                    columnDiffs: diffs,
+                                    chartValidationErrors: response,
+                                },
+                            );
                             setColumnDiffs(diffs);
                             setShowWarningModal(true);
                         }
@@ -480,10 +496,8 @@ export const HeaderVirtualView: FC<{
         <Group
             p="md"
             py="xs"
-            position="apart"
-            sx={(theme) => ({
-                borderBottom: `1px solid ${theme.colors.ldGray[3]}`,
-            })}
+            justify="space-between"
+            className="border-b border-ldGray-3"
         >
             <LoadingOverlay
                 visible={
@@ -491,19 +505,23 @@ export const HeaderVirtualView: FC<{
                     isRunningQuery ||
                     isUpdatingVirtualView
                 }
-                loader={
-                    <Center h="95vh" w="95vw">
-                        <Stack align="center" justify="center">
-                            <Loader />
-                            <Text fw={500}>Validating your changes...</Text>
-                        </Stack>
-                    </Center>
-                }
+                loaderProps={{
+                    children: (
+                        <Center h="95vh" w="95vw">
+                            <Stack align="center" justify="center">
+                                <Loader />
+                                <Text fw={500}>Validating your changes...</Text>
+                            </Stack>
+                        </Center>
+                    ),
+                }}
             />
 
-            <Group spacing="xs">
-                <Group spacing="xs">
-                    <MantineIcon icon={IconTableAlias} />
+            <Group gap="xs">
+                <Group gap="xs">
+                    <Paper p="xxs" withBorder radius="sm">
+                        <MantineIcon icon={IconTableAlias} />
+                    </Paper>
                     Editing
                     <TextInput
                         fz="sm"
@@ -514,7 +532,7 @@ export const HeaderVirtualView: FC<{
                 </Group>
             </Group>
 
-            <Group spacing="sm">
+            <Group gap="sm">
                 <Tooltip
                     variant="xs"
                     label="No changes to save"

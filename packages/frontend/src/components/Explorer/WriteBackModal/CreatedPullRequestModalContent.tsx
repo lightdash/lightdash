@@ -1,6 +1,6 @@
-import { Anchor, Button, Group, Modal, Stack, Text } from '@mantine/core';
+import { Anchor, Button, Stack, Text } from '@mantine-8/core';
 import { IconGitBranch } from '@tabler/icons-react';
-import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 
 export const CreatedPullRequestModalContent = ({
     onClose,
@@ -10,49 +10,30 @@ export const CreatedPullRequestModalContent = ({
     data: { prUrl: string };
 }) => {
     return (
-        <Modal
-            size="xl"
-            onClick={(e) => e.stopPropagation()}
-            opened={true}
+        <MantineModal
+            size="auto"
+            opened
             onClose={onClose}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon
-                        icon={IconGitBranch}
-                        size="lg"
-                        color="ldGray.7"
-                    />
-                    <Text fw={500}>Write back to dbt</Text>
-                </Group>
-            }
-            styles={(theme) => ({
-                header: { borderBottom: `1px solid ${theme.colors.ldGray[4]}` },
-                body: { padding: 0 },
-            })}
+            title="Write back to dbt"
+            icon={IconGitBranch}
+            actions={<Button onClick={onClose}>Close</Button>}
+            modalRootProps={{
+                onClick: (e) => e.stopPropagation(),
+            }}
         >
-            <Stack p="md">
+            <Stack gap="md">
                 <Text>
                     Your pull request{' '}
-                    <Anchor href={data.prUrl} target="_blank" span fw={700}>
+                    <Anchor href={data.prUrl} target="_blank" fw={700}>
                         #{data.prUrl.split('/').pop()}
                     </Anchor>{' '}
                     was successfully created on git.
-                    <Text pt="md">
-                        Once it is merged, refresh your dbt connection to see
-                        your updated metrics and dimensions.
-                    </Text>
+                </Text>
+                <Text>
+                    Once it is merged, refresh your dbt connection to see your
+                    updated metrics and dimensions.
                 </Text>
             </Stack>
-            <Group position="right" w="100%" p="md">
-                <Button
-                    color="ldGray.7"
-                    onClick={onClose}
-                    variant="outline"
-                    size="xs"
-                >
-                    Close
-                </Button>
-            </Group>
-        </Modal>
+        </MantineModal>
     );
 };

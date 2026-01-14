@@ -283,6 +283,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             ...(credentials.accessUrl?.length
                 ? { accessUrl: credentials.accessUrl }
                 : {}),
+            ...(credentials.clientSessionKeepAlive !== undefined
+                ? { clientSessionKeepAlive: credentials.clientSessionKeepAlive }
+                : {}),
             sfRetryMaxLoginRetries: 3, // Number of retries for the login request.
             retryTimeout: 15000, // according to docs: The max login timeout value. This value is either 0 or over 300.
         };

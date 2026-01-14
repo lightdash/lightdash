@@ -1,0 +1,10 @@
+.stickyHeader {
+    position: sticky;
+    top: 0;
+    z-index: var(--dashboard-header-zindex);
+    background-color: var(--mantine-color-body);
+
+    :global(body:has(#preview-banner)) & {
+        top: var(--banner-height);
+    }
+}

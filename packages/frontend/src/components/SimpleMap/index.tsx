@@ -1,5 +1,7 @@
 import { MapChartType } from '@lightdash/common';
-import { IconMap } from '@tabler/icons-react';
+import { Box, Divider, Stack, Text, UnstyledButton } from '@mantine/core';
+import { useClipboard } from '@mantine/hooks';
+import { IconCopy, IconMap } from '@tabler/icons-react';
 import { scaleSqrt } from 'd3-scale';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -13,24 +15,260 @@ import {
     type FC,
     type RefObject,
 } from 'react';
+import { renderToString } from 'react-dom/server';
 import {
     CircleMarker,
     GeoJSON,
     MapContainer,
     Popup,
     TileLayer,
+    Tooltip,
     useMap,
 } from 'react-leaflet';
 import * as topojson from 'topojson-client';
 import type { Topology } from 'topojson-specification';
-import useLeafletMapConfig from '../../hooks/leaflet/useLeafletMapConfig';
+import useLeafletMapConfig, {
+    type ScatterPoint,
+    type TooltipFieldInfo,
+} from '../../hooks/leaflet/useLeafletMapConfig';
+import useToaster from '../../hooks/toaster/useToaster';
 import { isMapVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import LoadingChart from '../common/LoadingChart';
+import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import HeatmapLayer from './HeatmapLayer';
 import MapLegend from './MapLegend';
 // eslint-disable-next-line css-modules/no-unused-class
 import classes from './SimpleMap.module.css';
+
+// Helper to get formatted value from row data
+const getFormattedValue = (
+    rowData: Record<string, any>,
+    fieldId: string,
+): string => {
+    const field = rowData[fieldId];
+    if (!field) return '';
+    return field.value?.formatted ?? field.value?.raw ?? '';
+};
+
+// Shared props for tooltip and popup content
+type MapContentBaseProps = {
+    tooltipFields: TooltipFieldInfo[];
+    rowData: Record<string, any>;
+    lat?: number;
+    lon?: number;
+    // For "no data" regions
+    noData?: {
+        locationLabel: string;
+        locationValue: string;
+    };
+};
+
+type MapTooltipContentProps = MapContentBaseProps;
+
+// NOTE: Using inline styles because this is rendered via renderToString
+// and Mantine styles won't be applied
+const MapTooltipContent: FC<MapTooltipContentProps> = ({
+    tooltipFields,
+    rowData,
+    lat,
+    lon,
+    noData,
+}) => {
+    const visibleFields = tooltipFields.filter((f) => f.visible);
+
+    if (noData) {
+        return (
+            <div style={{ padding: '4px 6px' }}>
+                <div style={{ fontSize: 14 }}>
+                    <strong>{noData.locationLabel}:</strong>{' '}
+                    {noData.locationValue}
+                </div>
+                <div
+                    style={{
+                        fontSize: 14,
+                        color: '#868e96',
+                        fontStyle: 'italic',
+                    }}
+                >
+                    No data
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div style={{ padding: '4px 6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {visibleFields.map((field) => (
+                    <div key={field.fieldId} style={{ fontSize: 14 }}>
+                        <strong>{field.label}:</strong>{' '}
+                        {getFormattedValue(rowData, field.fieldId)}
+                    </div>
+                ))}
+            </div>
+            {lat !== undefined && lon !== undefined && (
+                <div
+                    style={{
+                        fontSize: 12,
+                        color: '#868e96',
+                        marginTop: 8,
+                    }}
+                >
+                    Lat: {lat.toFixed(4)}, Lon: {lon.toFixed(4)}
+                </div>
+            )}
+        </div>
+    );
+};
+
+type MapPopupContentProps = MapContentBaseProps & {
+    onCopy?: () => void;
+};
+
+const MapPopupContent: FC<MapPopupContentProps> = ({
+    tooltipFields,
+    rowData,
+    lat,
+    lon,
+    onCopy,
+    noData,
+}) => {
+    const visibleFields = tooltipFields.filter((f) => f.visible);
+    const hasMultipleFields = visibleFields.length > 1;
+
+    // Show "no data" popup for regions without matching data
+    if (noData) {
+        return (
+            <Box mt="xl" c="dark.9">
+                <Text size="sm">
+                    <strong>{noData.locationLabel}:</strong>{' '}
+                    {noData.locationValue}
+                </Text>
+                <Text size="sm" c="gray.6" fs="italic">
+                    No data
+                </Text>
+            </Box>
+        );
+    }
+
+    // Build copy value - CSV format for multiple fields, single value otherwise
+    const copyValue =
+        visibleFields.length > 0
+            ? hasMultipleFields
+                ? visibleFields
+                      .map((field) => getFormattedValue(rowData, field.fieldId))
+                      .join(', ')
+                : getFormattedValue(rowData, visibleFields[0].fieldId)
+            : '';
+
+    return (
+        // Force light mode colors since Leaflet popups always have white background
+        <Box mt="xl" c="dark.9">
+            <Stack spacing={2}>
+                {visibleFields.map((field) => (
+                    <Text key={field.fieldId} size="sm">
+                        <strong>{field.label}:</strong>{' '}
+                        {getFormattedValue(rowData, field.fieldId)}
+                    </Text>
+                ))}
+            </Stack>
+            {lat !== undefined && lon !== undefined && (
+                <Text size="xs" c="gray.6" mt="sm" mb="md">
+                    Lat: {lat.toFixed(4)}, Lon: {lon.toFixed(4)}
+                </Text>
+            )}
+            {copyValue && (
+                <>
+                    <Divider my="xs" c="gray.3" />
+                    <UnstyledButton
+                        onClick={onCopy}
+                        data-copy-value={copyValue}
+                        className={classes.popupActionButton}
+                    >
+                        <MantineIcon icon={IconCopy} />
+                        <Text size="sm">
+                            {hasMultipleFields ? 'Copy values' : 'Copy value'}
+                        </Text>
+                    </UnstyledButton>
+                </>
+            )}
+        </Box>
+    );
+};
+
+// MapMarker component for scatter points with tooltip/popup behavior
+type MapMarkerProps = {
+    point: ScatterPoint;
+    radius: number;
+    color: string;
+    tooltipFields: TooltipFieldInfo[];
+};
+
+const MapMarker: FC<MapMarkerProps> = ({
+    point,
+    radius,
+    color,
+    tooltipFields,
+}) => {
+    const [isPopupOpen, setIsPopupOpen] = useState(false);
+    const clipboard = useClipboard({ timeout: 200 });
+    const { showToastSuccess } = useToaster();
+
+    const handleCopy = useCallback(() => {
+        const visibleFields = tooltipFields.filter((f) => f.visible);
+        const copyValue =
+            visibleFields.length > 0
+                ? visibleFields.length > 1
+                    ? visibleFields
+                          .map((field) =>
+                              getFormattedValue(point.rowData, field.fieldId),
+                          )
+                          .join(', ')
+                    : getFormattedValue(point.rowData, visibleFields[0].fieldId)
+                : '';
+        clipboard.copy(copyValue);
+        showToastSuccess({ title: 'Copied to clipboard!' });
+    }, [clipboard, tooltipFields, point.rowData, showToastSuccess]);
+
+    return (
+        <CircleMarker
+            center={[point.lat, point.lon]}
+            radius={radius}
+            pathOptions={{
+                fillColor: color,
+                color: '#fff',
+                fillOpacity: 0.7,
+                weight: 1,
+            }}
+            eventHandlers={{
+                popupopen: () => setIsPopupOpen(true),
+                popupclose: () => setIsPopupOpen(false),
+            }}
+        >
+            {!isPopupOpen && (
+                <Tooltip>
+                    <MapTooltipContent
+                        tooltipFields={tooltipFields}
+                        rowData={point.rowData}
+                        lat={point.lat}
+                        lon={point.lon}
+                    />
+                </Tooltip>
+            )}
+            <Popup>
+                <MapPopupContent
+                    tooltipFields={tooltipFields}
+                    rowData={point.rowData}
+                    lat={point.lat}
+                    lon={point.lon}
+                    onCopy={handleCopy}
+                />
+            </Popup>
+        </CircleMarker>
+    );
+};
 
 // Component to capture the Leaflet map instance and store it in the ref
 const MapRefUpdater: FC<{ mapRef: RefObject<L.Map | null> }> = ({ mapRef }) => {
@@ -93,16 +331,6 @@ const EmptyChart: FC<{ locationType?: MapChartType }> = ({ locationType }) => {
     );
 };
 
-const LoadingChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
-        <SuboptimalState
-            title="Loading chart"
-            loading
-            className="loading_chart"
-        />
-    </div>
-);
-
 type SimpleMapProps = {
     isInDashboard: boolean;
     $shouldExpand?: boolean;
@@ -138,6 +366,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         const [geoJsonData, setGeoJsonData] =
             useState<GeoJSON.FeatureCollection | null>(null);
+        const [geoJsonLayerKey, setGeoJsonLayerKey] = useState(0);
 
         const hasSignaledScreenshotReady = useRef(false);
 
@@ -273,6 +502,28 @@ const SimpleMap: FC<SimpleMapProps> = memo(
             void loadGeoJson();
         }, [mapConfig?.geoJsonUrl, mapConfig?.isLatLong]);
 
+        // Force re-creating the GeoJSON layer when join key, tooltip fields, or
+        // region data change so bound tooltips/popup content stays in sync.
+        useEffect(() => {
+            if (
+                !geoJsonData ||
+                !mapConfig ||
+                mapConfig.isLatLong ||
+                !geoJsonData.features?.length
+            ) {
+                return;
+            }
+            setGeoJsonLayerKey((key) => key + 1);
+        }, [
+            geoJsonData,
+            mapConfig?.geoJsonUrl,
+            mapConfig?.geoJsonPropertyKey,
+            mapConfig?.regionData,
+            mapConfig?.tooltipFields,
+            mapConfig?.isLatLong,
+            mapConfig,
+        ]);
+
         // Get location type from visualization config
         const locationType = useMemo(
             () =>
@@ -290,8 +541,8 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         const scatterValueRange = useMemo(() => {
             const values = scatterData
-            .map((d) => d.value)
-            .filter((v): v is number => v !== null);
+                .map((d) => d.value)
+                .filter((v): v is number => v !== null);
             return {
                 min: values.length > 0 ? Math.min(...values, 0) : 0,
                 max: values.length > 0 ? Math.max(...values, 1) : 1,
@@ -311,10 +562,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
             const { min, max } = scatterValueRange;
             return scatterData.map((point) => {
                 // Use 0.5 scale for non-numeric values
-            const scale =
-                point.value === null
-                    ? 0.5
-                    :max === min ? 0.5 : (point.value - min) / (max - min);
+                const scale =
+                    point.value === null
+                        ? 0.5
+                        : max === min
+                        ? 0.5
+                        : (point.value - min) / (max - min);
                 return [point.lat, point.lon, scale];
             });
         }, [scatterData, scatterValueRange]);
@@ -331,6 +584,27 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         const isHeatmap = mapConfig?.locationType === MapChartType.HEATMAP;
 
+        // Shared copy handler for popup buttons
+        const clipboard = useClipboard({ timeout: 200 });
+        const { showToastSuccess } = useToaster();
+
+        const handlePopupCopyClick = useCallback(
+            (e: MouseEvent) => {
+                const target = e.target as HTMLElement;
+                const button = target.closest(
+                    '[data-copy-value]',
+                ) as HTMLElement | null;
+                if (button) {
+                    const value = button.dataset.copyValue;
+                    if (value) {
+                        clipboard.copy(value);
+                        showToastSuccess({ title: 'Copied to clipboard!' });
+                    }
+                }
+            },
+            [clipboard, showToastSuccess],
+        );
+
         // Memoize choropleth/area mode calculations
         const regionData = useMemo(
             () => mapConfig?.regionData || [],
@@ -338,9 +612,15 @@ const SimpleMap: FC<SimpleMapProps> = memo(
         );
 
         const regionDataMap = useMemo(() => {
-            const dataMap = new Map<string, number>();
+            const dataMap = new Map<
+                string,
+                { value: number; rowData?: Record<string, any> }
+            >();
             regionData.forEach((d) => {
-                dataMap.set(d.name.toLowerCase(), d.value);
+                dataMap.set(d.name.toLowerCase(), {
+                    value: d.value,
+                    rowData: d.rowData,
+                });
             });
             return dataMap;
         }, [regionData]);
@@ -365,15 +645,21 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     };
                 }
 
-                const name =
-                    feature.properties.name?.toLowerCase() ||
-                    feature.properties.NAME?.toLowerCase() ||
-                    '';
-                const value = regionDataMap.get(name);
+                // Use configured property key to match GeoJSON features to data
+                const propertyKey = mapConfig.geoJsonPropertyKey;
+                const propertyValue = (
+                    feature.properties[propertyKey] ||
+                    feature.properties.name ||
+                    feature.properties.NAME ||
+                    ''
+                )
+                    .toString()
+                    .toLowerCase();
+                const regionEntry = regionDataMap.get(propertyValue);
 
-                if (value !== undefined) {
+                if (regionEntry !== undefined) {
                     const color = getColorForValue(
-                        value,
+                        regionEntry.value,
                         regionValueRange.min,
                         regionValueRange.max,
                         mapConfig.colors.scale,
@@ -400,13 +686,51 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         const onEachFeature = useCallback(
             (feature: GeoJSON.Feature, layer: L.Layer) => {
-                const name =
+                // Use configured property key to match GeoJSON features to data
+                const propertyKey = mapConfig?.geoJsonPropertyKey || 'name';
+                const rawPropertyValue =
+                    feature.properties?.[propertyKey] ||
                     feature.properties?.name ||
                     feature.properties?.NAME ||
-                    'Unknown';
-                const value = regionDataMap.get(name.toLowerCase());
+                    '';
+                const propertyValue = rawPropertyValue.toString().toLowerCase();
+                const regionEntry = regionDataMap.get(propertyValue);
+                const rowData = regionEntry?.rowData || {};
+
+                // For "no data" regions, derive location label from tooltipFields
+                const locationFieldLabel =
+                    mapConfig?.tooltipFields.find(
+                        (f) => f.fieldId === mapConfig?.locationFieldId,
+                    )?.label || 'Location';
+                const noData = regionEntry
+                    ? undefined
+                    : {
+                          locationLabel: locationFieldLabel,
+                          locationValue: rawPropertyValue.toString(),
+                      };
+
+                // eslint-disable-next-line testing-library/render-result-naming-convention
+                const tooltipHtml = renderToString(
+                    <MapTooltipContent
+                        tooltipFields={mapConfig?.tooltipFields || []}
+                        rowData={rowData}
+                        noData={noData}
+                    />,
+                );
+                // eslint-disable-next-line testing-library/render-result-naming-convention
+                const popupHtml = renderToString(
+                    <MapPopupContent
+                        tooltipFields={mapConfig?.tooltipFields || []}
+                        rowData={rowData}
+                        noData={noData}
+                    />,
+                );
 
                 if (layer instanceof L.Path) {
+                    // Bind both tooltip (hover) and popup (click)
+                    layer.bindTooltip(tooltipHtml);
+                    layer.bindPopup(popupHtml);
+
                     layer.on({
                         mouseover: () => {
                             layer.setStyle({
@@ -420,20 +744,37 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                 fillOpacity: 0.7,
                             });
                         },
+                        popupopen: (e) => {
+                            // Hide tooltip when popup is open
+                            layer.closeTooltip();
+                            layer.unbindTooltip();
+                            // Add click handler for copy button
+                            const popupElement = e.popup.getElement();
+                            popupElement?.addEventListener(
+                                'click',
+                                handlePopupCopyClick,
+                            );
+                        },
+                        popupclose: (e) => {
+                            // Remove click handler to prevent memory leak
+                            const popupElement = e.popup.getElement();
+                            popupElement?.removeEventListener(
+                                'click',
+                                handlePopupCopyClick,
+                            );
+                            // Re-bind tooltip when popup is closed
+                            layer.bindTooltip(tooltipHtml);
+                        },
                     });
                 }
-
-                const valueLabel = mapConfig?.valueFieldLabel || 'Value';
-                const popupContent = `
-                <div>
-                    <strong>${name}</strong><br/>
-                    ${valueLabel}: ${value !== undefined ? value : 'No data'}
-                </div>
-            `;
-
-                (layer as L.Path).bindPopup(popupContent);
             },
-            [regionDataMap, mapConfig?.valueFieldLabel],
+            [
+                regionDataMap,
+                mapConfig?.geoJsonPropertyKey,
+                mapConfig?.tooltipFields,
+                mapConfig?.locationFieldId,
+                handlePopupCopyClick,
+            ],
         );
 
         if (isLoading) {
@@ -465,12 +806,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         zoom={mapConfig.zoom}
                         style={{ height: '100%', width: '100%' }}
                         scrollWheelZoom
-                    minZoom={2}
-                    maxBounds={[
-                        [-90, -180],
-                        [90, 180],
-                    ]}
-                    maxBoundsViscosity={1.0}>
+                        minZoom={2}
+                        maxBounds={[
+                            [-90, -180],
+                            [90, 180],
+                        ]}
+                        maxBoundsViscosity={1.0}
+                    >
                         <MapRefUpdater mapRef={leafletMapRef} />
                         <MapExtentTracker
                             saveMapExtent={
@@ -489,59 +831,38 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                 points={heatmapPoints}
                                 options={{
                                     gradient: heatmapGradient,
-                                    radius: 25,
-                                    blur: 15,
-                                    minOpacity: 0.6,
+                                    radius: mapConfig.heatmapConfig.radius,
+                                    blur: mapConfig.heatmapConfig.blur,
+                                    minOpacity: mapConfig.heatmapConfig.opacity,
                                 }}
                             />
                         ) : (
                             sizeScale &&
                             scatterData.map((point, idx) => {
-                                const radius = sizeScale(point.sizeValue);// Use default color (middle of scale) for non-numeric values
-                                const color =point.value !== null
-                                    ? getColorForValue(
-                                    point.value,
-                                    scatterValueRange.min,
-                                    scatterValueRange.max,
-                                    mapConfig.colors.scale,
-                                )
-                                : mapConfig.colors.scale[
-                                          Math.floor(
-                                              mapConfig.colors.scale.length / 2,
+                                const radius = sizeScale(point.sizeValue); // Use default color (middle of scale) for non-numeric values
+                                const color =
+                                    point.value !== null
+                                        ? getColorForValue(
+                                              point.value,
+                                              scatterValueRange.min,
+                                              scatterValueRange.max,
+                                              mapConfig.colors.scale,
                                           )
-                                      ];return (
-                                    <CircleMarker
+                                        : mapConfig.colors.scale[
+                                              Math.floor(
+                                                  mapConfig.colors.scale
+                                                      .length / 2,
+                                              )
+                                          ];
+
+                                return (
+                                    <MapMarker
                                         key={idx}
-                                        center={[point.lat, point.lon]}
+                                        point={point}
                                         radius={radius}
-                                        pathOptions={{
-                                            fillColor: color,
-                                            fillOpacity: 0.7,
-                                            color: '#fff',
-                                            weight: 1,
-                                        }}
-                                    >
-                                        <Popup>
-                                            <div>
-                                                <strong>
-                                                    {mapConfig.valueFieldLabel ||
-                                                        'Value'}
-                                                    :
-                                                </strong>{' '}
-                                                {point.displayValue}
-                                                <br />
-                                                <span
-                                                    style={{
-                                                        fontSize: '0.85em',
-                                                        opacity: 0.7,
-                                                    }}
-                                                >
-                                                    Lat: {point.lat.toFixed(4)},
-                                                    Lon: {point.lon.toFixed(4)}
-                                                </span>
-                                            </div>
-                                        </Popup>
-                                    </CircleMarker>
+                                        color={color}
+                                        tooltipFields={mapConfig.tooltipFields}
+                                    />
                                 );
                             })
                         )}
@@ -578,12 +899,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         zoom={mapConfig.zoom}
                         style={{ height: '100%', width: '100%' }}
                         scrollWheelZoom
-                    minZoom={2}
-                    maxBounds={[
-                        [-90, -180],
-                        [90, 180],
-                    ]}
-                    maxBoundsViscosity={1.0}>
+                        minZoom={2}
+                        maxBounds={[
+                            [-90, -180],
+                            [90, 180],
+                        ]}
+                        maxBoundsViscosity={1.0}
+                    >
                         <MapRefUpdater mapRef={leafletMapRef} />
                         <MapExtentTracker
                             saveMapExtent={
@@ -600,7 +922,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         {geoJsonData?.features &&
                             geoJsonData.features.length > 0 && (
                                 <GeoJSON
-                                    key={`geojson-${mapConfig.geoJsonUrl}-${geoJsonData.features.length}`}
+                                    key={`geojson-${mapConfig.geoJsonUrl}-${geoJsonLayerKey}-${geoJsonData.features.length}`}
                                     data={geoJsonData}
                                     style={choroplethStyle}
                                     onEachFeature={onEachFeature}

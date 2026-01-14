@@ -1,6 +1,10 @@
 import '@mantine-8/core/styles.css';
 
-import { type LanguageMap, type SavedChart } from '@lightdash/common';
+import {
+    FilterOperator,
+    type LanguageMap,
+    type SavedChart,
+} from '@lightdash/common';
 import { type FC, type PropsWithChildren, useEffect, useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
@@ -327,9 +331,9 @@ const Chart: FC<Omit<Props, 'filters' | 'onExplore'> & { id: string }> = ({
     );
 };
 
-const Lightdash = { Dashboard, Explore, Chart };
+const Lightdash = { Dashboard, Explore, Chart, FilterOperator };
 
 // ts-unused-exports:disable-next-line
-export { Chart, Dashboard, Explore };
+export { Chart, Dashboard, Explore, FilterOperator };
 // ts-unused-exports:disable-next-line
 export default Lightdash;

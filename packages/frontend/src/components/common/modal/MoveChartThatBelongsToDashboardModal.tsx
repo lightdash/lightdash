@@ -1,18 +1,10 @@
 import { ChartSourceType, ContentType } from '@lightdash/common';
-import {
-    Button,
-    Flex,
-    Group,
-    Modal,
-    Stack,
-    Text,
-    Title,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, type ModalProps } from '@mantine-8/core';
 import { IconFolders } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useContentAction } from '../../../hooks/useContent';
-import MantineIcon from '../MantineIcon';
+import Callout from '../Callout';
+import MantineModal from '../MantineModal';
 
 interface Props extends ModalProps {
     uuid: string;
@@ -24,82 +16,56 @@ interface Props extends ModalProps {
 }
 
 const MoveChartThatBelongsToDashboardModal: FC<Props> = ({
+    opened,
+    onClose,
     uuid,
     name,
     spaceUuid,
     spaceName,
     onConfirm,
     projectUuid,
-    ...modalProps
 }) => {
     const { mutate: contentAction } = useContentAction(projectUuid, {
         onSuccess: async () => {
             onConfirm();
-            modalProps.onClose();
+            onClose();
         },
     });
 
     return (
-        <Modal
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title={`Move "${name}"`}
+            icon={IconFolders}
             size="lg"
-            title={
-                <Flex align="center" gap="xs">
-                    <MantineIcon icon={IconFolders} size="lg" />
-                    <Title order={5}>
-                        <Text span fw={400}>
-                            Move{' '}
-                        </Text>
-                        {name}
-                    </Title>
-                </Flex>
+            actions={
+                <Button
+                    onClick={() => {
+                        contentAction({
+                            action: {
+                                type: 'move',
+                                targetSpaceUuid: spaceUuid,
+                            },
+                            item: {
+                                uuid,
+                                contentType: ContentType.CHART,
+                                source: ChartSourceType.DBT_EXPLORE,
+                            },
+                        });
+                    }}
+                >
+                    Move
+                </Button>
             }
-            {...modalProps}
+            description={`Are you sure you want to move the chart "${name}" to the space "${spaceName}"?`}
         >
-            <Stack mt="sm">
-                <Text>
-                    Are you sure you want to move the chart{' '}
-                    <Text fw={600} span>
-                        {name}
-                    </Text>{' '}
-                    to the space{' '}
-                    <Text fw={600} span>
-                        {spaceName}
-                    </Text>
-                    ?
-                </Text>
-                <Text>
-                    This chart was created from within the dashboard, moving the
-                    chart to the space will make it available in chart lists
-                    across the app.
-                </Text>
-                <Text fw={600}>This change cannot be undone.</Text>
-
-                <Group position="right" spacing="xs">
-                    <Button variant="outline" onClick={modalProps.onClose}>
-                        Cancel
-                    </Button>
-
-                    <Button
-                        onClick={() => {
-                            contentAction({
-                                action: {
-                                    type: 'move',
-                                    targetSpaceUuid: spaceUuid,
-                                },
-                                item: {
-                                    uuid,
-                                    contentType: ContentType.CHART,
-                                    source: ChartSourceType.DBT_EXPLORE,
-                                },
-                            });
-                        }}
-                        type="submit"
-                    >
-                        Move
-                    </Button>
-                </Group>
-            </Stack>
-        </Modal>
+            <Callout variant="warning" title="This change cannot be undone.">
+                This chart was created from within the dashboard, moving the
+                chart to the space will make it available in chart lists across
+                the app.
+            </Callout>
+        </MantineModal>
     );
 };
 

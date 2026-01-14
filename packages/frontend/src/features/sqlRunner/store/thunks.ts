@@ -53,7 +53,13 @@ export const runSqlQuery = createAsyncThunk<
             if (isApiError(error)) {
                 return rejectWithValue(error.error);
             }
-            throw error;
+            return rejectWithValue({
+                statusCode: 500,
+                name: 'QueryError',
+                message:
+                    error instanceof Error ? error.message : 'Unknown error',
+                data: {},
+            });
         }
     },
 );

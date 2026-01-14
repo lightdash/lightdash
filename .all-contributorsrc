@@ -1716,6 +1716,16 @@
       "contributions": [
         "code"
       ]
+    },
+    {
+      "login": "Spissable",
+      "name": "Lukas Spiss",
+      "avatar_url": "https://avatars.githubusercontent.com/u/35728419?v=4",
+      "profile": "http://spiss.dev",
+      "contributions": [
+        "doc",
+        "code"
+      ]
     }
   ],
   "contributorsPerLine": 7,

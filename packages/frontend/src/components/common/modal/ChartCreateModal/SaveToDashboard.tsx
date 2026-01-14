@@ -5,7 +5,14 @@ import {
     type CreateDashboardChartTile,
     type CreateSavedChartVersion,
 } from '@lightdash/common';
-import { Button, Group, Stack, Text, TextInput, Textarea } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Stack,
+    Text,
+    TextInput,
+    Textarea,
+} from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -18,6 +25,7 @@ import {
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
+import classes from './ChartCreateModal.module.css';
 import { DEFAULT_CHART_METADATA, type ChartMetadata } from './types';
 
 type Props = {
@@ -159,8 +167,8 @@ export const SaveToDashboard: FC<Props> = ({
                 handleSaveChartInDashboard(values),
             )}
         >
-            <Stack p="md">
-                <Stack spacing="xs">
+            <Stack gap="md" p="md">
+                <Stack gap="xs">
                     <TextInput
                         label="Chart name"
                         placeholder="eg. How many weekly active users do we have?"
@@ -176,25 +184,17 @@ export const SaveToDashboard: FC<Props> = ({
                         {...form.getInputProps('description')}
                     />
                 </Stack>
-                <Stack spacing="xxs">
+                <Stack gap={4}>
                     <Text fw={500}>Saving to "{dashboardName}" dashboard</Text>
-                    <Text fw={400} color="ldGray.6" fz="xs">
+                    <Text fw={400} c="ldGray.6" fz="xs">
                         This chart will be saved exclusively to the dashboard "
                         {dashboardName}", keeping your space clutter-free.
                     </Text>
                 </Stack>
             </Stack>
 
-            <Group
-                position="right"
-                w="100%"
-                sx={(theme) => ({
-                    borderTop: `1px solid ${theme.colors.ldGray[4]}`,
-                    bottom: 0,
-                    padding: theme.spacing.md,
-                })}
-            >
-                <Button onClick={onClose} variant="outline">
+            <Group justify="flex-end" gap="sm" className={classes.footer}>
+                <Button onClick={onClose} variant="default">
                     Cancel
                 </Button>
 

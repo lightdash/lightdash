@@ -1,19 +1,9 @@
-import {
-    Button,
-    Group,
-    Modal,
-    Stack,
-    Text,
-    TextInput,
-    Title,
-    type ModalProps,
-} from '@mantine/core';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { Text, TextInput, type ModalProps } from '@mantine-8/core';
 import { useState, type FC } from 'react';
 import { useDeleteActiveProjectMutation } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
 import { useDeleteProjectMutation } from '../../../hooks/useProjects';
-import MantineIcon from '../../common/MantineIcon';
+import MantineModal from '../../common/MantineModal';
 
 export const ProjectDeleteModal: FC<
     Pick<ModalProps, 'opened' | 'onClose'> & {
@@ -44,53 +34,31 @@ export const ProjectDeleteModal: FC<
     };
 
     return (
-        <Modal
-            size="md"
+        <MantineModal
             opened={opened}
-            title={
-                <Group spacing="xs">
-                    <MantineIcon size="lg" icon={IconAlertCircle} color="red" />
-                    <Title order={4}>Delete Project</Title>
-                </Group>
-            }
             onClose={handleOnClose}
+            title="Delete Project"
+            variant="delete"
+            resourceType="project"
+            resourceLabel={project.name}
+            size="md"
+            onConfirm={handleConfirm}
+            confirmDisabled={
+                confirmOrgName?.toLowerCase() !== project.name.toLowerCase()
+            }
+            confirmLoading={isDeleting}
         >
-            <Stack>
-                <Text>
-                    Type the name of this project{' '}
-                    <Text span fw={600}>
-                        {project.name}
-                    </Text>{' '}
-                    to confirm you want to delete this project and its users.
-                    This action is not reversible.
-                </Text>
+            <Text fz="sm" c="dimmed">
+                Type the name of this project to confirm. This action is not
+                reversible.
+            </Text>
 
-                <TextInput
-                    name="confirmOrgName"
-                    placeholder={project.name}
-                    value={confirmOrgName}
-                    onChange={(e) => setConfirmOrgName(e.target.value)}
-                />
-
-                <Group position="right" spacing="xs">
-                    <Button variant="outline" onClick={handleOnClose}>
-                        Cancel
-                    </Button>
-
-                    <Button
-                        color="red"
-                        disabled={
-                            confirmOrgName?.toLowerCase() !==
-                            project.name.toLowerCase()
-                        }
-                        loading={isDeleting}
-                        onClick={() => handleConfirm()}
-                        type="submit"
-                    >
-                        Delete
-                    </Button>
-                </Group>
-            </Stack>
-        </Modal>
+            <TextInput
+                name="confirmOrgName"
+                placeholder={project.name}
+                value={confirmOrgName}
+                onChange={(e) => setConfirmOrgName(e.target.value)}
+            />
+        </MantineModal>
     );
 };

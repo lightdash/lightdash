@@ -18,6 +18,7 @@ import {
     ApiSqlChartAsCodeUpsertResponse,
     ApiSqlQueryResults,
     ApiSuccessEmpty,
+    AuthorizationError,
     CalculateTotalFromQuery,
     ChartAsCode,
     CreateProjectMember,
@@ -166,12 +167,15 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSpaceSummaryListResponse> {
+        if (!req.user) {
+            throw new AuthorizationError('User session not found');
+        }
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getSpaces(req.user!, projectUuid),
+                .getSpaces(req.user, projectUuid),
         };
     }
 

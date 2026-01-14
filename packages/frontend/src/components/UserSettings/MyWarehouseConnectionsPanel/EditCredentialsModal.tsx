@@ -3,18 +3,14 @@ import {
     type UpsertUserWarehouseCredentials,
     type UserWarehouseCredentials,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Modal,
-    Stack,
-    TextInput,
-    Title,
-    type ModalProps,
-} from '@mantine/core';
+import { Button, Stack, TextInput } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
+import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useUserWarehouseCredentialsUpdateMutation } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../common/MantineModal';
 import { WarehouseFormInputs } from './WarehouseFormInputs';
 
 const getCredentialsWithPlaceholders = (
@@ -44,8 +40,10 @@ const getCredentialsWithPlaceholders = (
     }
 };
 
+const FORM_ID = 'edit-credentials-form';
+
 export const EditCredentialsModal: FC<
-    Pick<ModalProps, 'opened' | 'onClose'> & {
+    Pick<MantineModalProps, 'opened' | 'onClose'> & {
         userCredentials: UserWarehouseCredentials;
     }
 > = ({ opened, onClose, userCredentials }) => {
@@ -61,18 +59,31 @@ export const EditCredentialsModal: FC<
     });
 
     return (
-        <Modal
-            title={<Title order={4}>Edit credentials</Title>}
+        <MantineModal
             opened={opened}
             onClose={onClose}
+            title="Edit credentials"
+            icon={IconPencil}
+            cancelDisabled={isSaving}
+            actions={
+                <Button
+                    type="submit"
+                    form={FORM_ID}
+                    disabled={isSaving}
+                    loading={isSaving}
+                >
+                    Save
+                </Button>
+            }
         >
             <form
+                id={FORM_ID}
                 onSubmit={form.onSubmit(async (formData) => {
                     await mutateAsync(formData);
                     onClose();
                 })}
             >
-                <Stack spacing="xs">
+                <Stack gap="xs">
                     <TextInput
                         required
                         size="xs"
@@ -86,24 +97,8 @@ export const EditCredentialsModal: FC<
                         form={form}
                         disabled={isSaving}
                     />
-
-                    <Group position="right" spacing="xs" mt="sm">
-                        <Button
-                            size="xs"
-                            variant="outline"
-                            color="dark"
-                            onClick={onClose}
-                            disabled={isSaving}
-                        >
-                            Cancel
-                        </Button>
-
-                        <Button size="xs" type="submit" disabled={isSaving}>
-                            Save
-                        </Button>
-                    </Group>
                 </Stack>
             </form>
-        </Modal>
+        </MantineModal>
     );
 };

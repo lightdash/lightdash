@@ -1,7 +1,5 @@
 import {
     type Account as AccountType,
-    AllMSTeamsDeliveriesFailedError,
-    AllSlackDeliveriesFailedError,
     AnyType,
     type BatchDeliveryResult,
     CompileProjectPayload,
@@ -854,6 +852,9 @@ export default class SchedulerTask {
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: notification.organizationUuid,
+            projectId: notification.projectUuid,
+            userId: notification.userUuid,
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
@@ -1077,6 +1078,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -1111,6 +1115,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     error: `${e}`,
                     jobId,
@@ -1172,6 +1179,9 @@ export default class SchedulerTask {
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: notification.organizationUuid,
+            projectId: notification.projectUuid,
+            userId: notification.userUuid,
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
@@ -1307,6 +1317,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -1341,6 +1354,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     error: `${e}`,
                     jobId,
@@ -2006,6 +2022,9 @@ export default class SchedulerTask {
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: notification.organizationUuid,
+            projectId: notification.projectUuid,
+            userId: notification.userUuid,
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
@@ -2191,6 +2210,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -2225,6 +2247,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     error: `${e}`,
                     jobId,
@@ -2335,6 +2360,9 @@ export default class SchedulerTask {
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: notification.organizationUuid,
+            projectId: notification.projectUuid,
+            userId: notification.userUuid,
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
@@ -2660,6 +2688,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -2689,6 +2720,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     error: `${e}`,
                     jobId,
@@ -2862,13 +2896,29 @@ export default class SchedulerTask {
                   );
 
         if (!scheduler.enabled) {
-            // This should not happen, if schedulers are not enabled, we should remove the scheduled jobs from the queue
-            throw new Error('Scheduler is disabled');
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
+                schedulerUuid,
+                jobId,
+                jobGroup: jobId,
+                scheduledTime,
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    error: `Scheduler is disabled, skipping scheduled delivery.`,
+                    projectUuid: schedulerPayload.projectUuid,
+                    organizationUuid: schedulerPayload.organizationUuid,
+                    createdByUserUuid: schedulerPayload.userUuid,
+                },
+            });
+            return;
         }
 
         this.analytics.track({
             event: 'scheduler_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: schedulerPayload.organizationUuid,
+            projectId: schedulerPayload.projectUuid,
+            userId: schedulerPayload.userUuid,
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
@@ -2968,8 +3018,12 @@ export default class SchedulerTask {
 
             // Create scheduled jobs for targets
             await Promise.all(
-                scheduledJobs.map(({ target, jobId: targetJobId }) =>
-                    this.logScheduledTarget(
+                scheduledJobs.map(({ target, jobId: targetJobId }) => {
+                    if (!target) {
+                        return Promise.resolve();
+                    }
+
+                    return this.logScheduledTarget(
                         scheduler.format,
                         target,
                         targetJobId,
@@ -2981,8 +3035,8 @@ export default class SchedulerTask {
                             organizationUuid: schedulerPayload.organizationUuid,
                             createdByUserUuid: schedulerPayload.userUuid,
                         },
-                    ),
-                ),
+                    );
+                }),
             );
 
             // Use page failures directly as partialFailures for logging
@@ -3007,6 +3061,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_job.completed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: schedulerPayload.organizationUuid,
+                projectId: schedulerPayload.projectUuid,
+                userId: schedulerPayload.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -3020,6 +3077,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: schedulerPayload.organizationUuid,
+                projectId: schedulerPayload.projectUuid,
+                userId: schedulerPayload.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -3088,9 +3148,7 @@ export default class SchedulerTask {
             if (
                 e instanceof FieldReferenceError ||
                 e instanceof WarehouseConnectionError ||
-                e instanceof ParameterError ||
-                e instanceof AllMSTeamsDeliveriesFailedError ||
-                e instanceof AllSlackDeliveriesFailedError
+                e instanceof ParameterError
             ) {
                 // This captures both the error from thresholdAlert and metricQuery
                 // WarehouseConnectionError indicates misconfigured credentials (wrong password, unreachable host, etc.)
@@ -3360,6 +3418,9 @@ export default class SchedulerTask {
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: notification.organizationUuid,
+            projectId: notification.projectUuid,
+            userId: notification.userUuid,
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
@@ -3435,6 +3496,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -3466,6 +3530,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -3499,16 +3566,14 @@ export default class SchedulerTask {
                 batchResult,
                 notification.projectUuid,
             );
-            throw new AllSlackDeliveriesFailedError(
-                `All Slack deliveries failed: ${results
-                    .map((r) => r.error)
-                    .join(', ')}`,
-            );
         } else {
             // Partial failure - some succeeded, some failed
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -3559,6 +3624,9 @@ export default class SchedulerTask {
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: notification.organizationUuid,
+            projectId: notification.projectUuid,
+            userId: notification.userUuid,
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
@@ -3634,6 +3702,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -3665,6 +3736,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -3708,6 +3782,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -3758,6 +3835,9 @@ export default class SchedulerTask {
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
+            organizationId: notification.organizationUuid,
+            projectId: notification.projectUuid,
+            userId: notification.userUuid,
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
@@ -3834,6 +3914,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -3865,6 +3948,9 @@ export default class SchedulerTask {
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
@@ -3898,16 +3984,14 @@ export default class SchedulerTask {
                 batchResult,
                 notification.projectUuid,
             );
-            throw new AllMSTeamsDeliveriesFailedError(
-                `All MS Teams deliveries failed: ${results
-                    .map((r) => r.error)
-                    .join(', ')}`,
-            );
         } else {
             // Partial failure - some succeeded, some failed
             this.analytics.track({
                 event: 'scheduler_notification_job.completed',
                 anonymousId: LightdashAnalytics.anonymousId,
+                organizationId: notification.organizationUuid,
+                projectId: notification.projectUuid,
+                userId: notification.userUuid,
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,

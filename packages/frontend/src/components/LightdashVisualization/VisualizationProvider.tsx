@@ -320,6 +320,19 @@ const VisualizationProvider: FC<
         ],
     );
 
+    // Detect if the device supports touch events
+    // This helps us avoid appendTo: 'body' on touch devices where drag-to-scroll
+    // causes tooltip positioning issues.
+    // Related: https://github.com/apache/echarts/issues/12776
+    const isTouchDevice = useMemo(() => {
+        return (
+            'ontouchstart' in window ||
+            navigator.maxTouchPoints > 0 ||
+            // @ts-ignore - msMaxTouchPoints is for older IE
+            navigator.msMaxTouchPoints > 0
+        );
+    }, []);
+
     const value: Omit<
         ReturnType<typeof useVisualizationContext>,
         'visualizationConfig'
@@ -346,6 +359,7 @@ const VisualizationProvider: FC<
         containerWidth,
         containerHeight,
         isDashboard,
+        isTouchDevice,
     };
 
     switch (chartConfig.type) {

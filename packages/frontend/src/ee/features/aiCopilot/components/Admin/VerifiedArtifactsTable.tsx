@@ -394,22 +394,13 @@ export const VerifiedArtifactsTable: FC<Props> = ({
                 opened={unverifyModalOpened}
                 onClose={closeUnverifyModal}
                 title="Remove from verified answers?"
-            >
-                <Stack>
-                    <Text>
-                        This answer will no longer be used as a reference in
-                        future conversations. You can verify it again later.
-                    </Text>
-                    <Group justify="flex-end" mt="md">
-                        <Button variant="default" onClick={closeUnverifyModal}>
-                            Cancel
-                        </Button>
-                        <Button color="red" onClick={handleConfirmUnverify}>
-                            Remove
-                        </Button>
-                    </Group>
-                </Stack>
-            </MantineModal>
+                description="This answer will no longer be used as a reference in future conversations. You can verify it again later."
+                actions={
+                    <Button color="red" onClick={handleConfirmUnverify}>
+                        Remove
+                    </Button>
+                }
+            />
         </>
     );
 };

@@ -25,7 +25,6 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import { useParams } from 'react-router';
 import { v4 as uuidv4 } from 'uuid';
 import {
     explorerActions,
@@ -34,6 +33,7 @@ import {
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFeatureFlagEnabled } from '../../../../../hooks/useFeatureFlagEnabled';
 import { useFilteredFields } from '../../../../../hooks/useFilters';
+import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -58,7 +58,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     hasDescription,
     onViewDescription,
 }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const projectUuid = useProjectUuid();
     const { user } = useApp();
     const { showToastSuccess } = useToaster();
     const { addFilter } = useFilteredFields();

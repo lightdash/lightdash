@@ -7,6 +7,7 @@ import {
     CompactOrAlias,
     CustomFormat,
     DBFieldTypes,
+    DimensionOverrides,
     DimensionType,
     MetricFilterRule,
     MetricOverrides,
@@ -90,6 +91,7 @@ export type DbSavedChartVersion = {
     filters: AnyType;
     row_limit: number;
     metric_overrides: MetricOverrides | null; // JSONB
+    dimension_overrides: DimensionOverrides | null; // JSONB
     chart_type: ChartType;
     saved_query_id: number;
     chart_config: ChartConfig['config'] | null;
@@ -112,6 +114,7 @@ export type CreateDbSavedChartVersion = Pick<
     | 'filters'
     | 'row_limit'
     | 'metric_overrides'
+    | 'dimension_overrides'
     | 'chart_type'
     | 'pivot_dimensions'
     | 'chart_config'

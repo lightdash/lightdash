@@ -2,33 +2,26 @@ import {
     hasChartsInDashboard,
     isDashboardChartTileType,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    List,
-    Modal,
-    Stack,
-    Text,
-    Title,
-    type ModalProps,
-} from '@mantine/core';
-import { IconTrash } from '@tabler/icons-react';
+import { List, ScrollArea, type ModalProps } from '@mantine-8/core';
 import { type FC } from 'react';
 import {
     useDashboardDeleteMutation,
     useDashboardQuery,
 } from '../../../hooks/dashboard/useDashboard';
-import MantineIcon from '../MantineIcon';
+import Callout from '../Callout';
+import MantineModal from '../MantineModal';
 
-interface DashboardDeleteModalProps extends ModalProps {
+interface DashboardDeleteModalProps
+    extends Pick<ModalProps, 'opened' | 'onClose'> {
     uuid: string;
     onConfirm?: () => void;
 }
 
 const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
+    opened,
+    onClose,
     uuid,
     onConfirm,
-    ...modalProps
 }) => {
     const { data: dashboard, isInitialLoading } = useDashboardQuery(uuid);
     const { mutateAsync: deleteDashboard, isLoading: isDeleting } =
@@ -50,66 +43,36 @@ const DashboardDeleteModal: FC<DashboardDeleteModalProps> = ({
     );
 
     return (
-        <Modal
-            title={
-                <Group spacing="xs">
-                    <MantineIcon icon={IconTrash} color="red" size="lg" />
-                    <Title order={4}>Delete dashboard</Title>
-                </Group>
-            }
-            {...modalProps}
+        <MantineModal
+            opened={opened}
+            onClose={onClose}
+            title="Delete dashboard"
+            variant="delete"
+            resourceType="dashboard"
+            resourceLabel={dashboard.name}
+            onConfirm={handleConfirm}
+            confirmLoading={isDeleting}
         >
-            <Stack>
-                {hasChartsInDashboard(dashboard) ? (
-                    <Stack>
-                        <Text>
-                            Are you sure you want to delete the dashboard{' '}
-                            <b>"{dashboard.name}"</b>?
-                        </Text>
-                        <Text>
-                            This action will also permanently delete the
-                            following charts that were created from within it:
-                        </Text>
-                        <List size="sm">
+            {hasChartsInDashboard(dashboard) && (
+                <Callout
+                    variant="danger"
+                    title="This action will also permanently delete the following charts that were created from within it:"
+                >
+                    <ScrollArea.Autosize mah="300px" scrollbars="y">
+                        <List pr={'md'}>
                             {chartsInDashboardTiles.map(
                                 (tile) =>
                                     isDashboardChartTileType(tile) && (
-                                        <List.Item key={tile.uuid}>
-                                            <Text>
-                                                {tile.properties.chartName}
-                                            </Text>
+                                        <List.Item key={tile.uuid} fz="xs">
+                                            {tile.properties.chartName}
                                         </List.Item>
                                     ),
                             )}
                         </List>
-                    </Stack>
-                ) : (
-                    <Text>
-                        Are you sure you want to delete the dashboard{' '}
-                        <b>"{dashboard.name}"</b>?
-                    </Text>
-                )}
-
-                <Group position="right" spacing="xs">
-                    <Button
-                        color="dark"
-                        variant="outline"
-                        onClick={modalProps.onClose}
-                    >
-                        Cancel
-                    </Button>
-
-                    <Button
-                        color="red"
-                        loading={isDeleting}
-                        onClick={handleConfirm}
-                        type="submit"
-                    >
-                        Delete
-                    </Button>
-                </Group>
-            </Stack>
-        </Modal>
+                    </ScrollArea.Autosize>
+                </Callout>
+            )}
+        </MantineModal>
     );
 };
 

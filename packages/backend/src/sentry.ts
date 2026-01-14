@@ -9,7 +9,6 @@ export const IGNORE_ERRORS = [
     'FieldReferenceError',
     'NotEnoughResults',
     'CompileError',
-    'NotExistsError',
     'NotFoundError',
     'ForbiddenError',
     'TokenError',
@@ -17,6 +16,7 @@ export const IGNORE_ERRORS = [
     'SshTunnelError',
     'ReadFileError',
     'AiAgentValidatorError',
+    'UserInfoError', // Google oauth2 error when using invalid credentials
 ];
 
 Sentry.init({

@@ -1,6 +1,8 @@
 import {
     type ApiError,
     type ApiOrganizationMemberProfiles,
+    type ApiReassignUserSchedulersResponse,
+    type ApiUserSchedulersSummaryResponse,
     type KnexPaginateArgs,
 } from '@lightdash/common';
 import {
@@ -20,6 +22,7 @@ const getOrganizationUsersQuery = async (params?: {
     paginateArgs?: KnexPaginateArgs;
     searchQuery?: string;
     projectUuid?: string;
+    googleOidcOnly?: boolean;
 }) => {
     const urlParams = new URLSearchParams({
         ...(params?.paginateArgs
@@ -33,6 +36,9 @@ const getOrganizationUsersQuery = async (params?: {
             : {}),
         ...(params?.searchQuery ? { searchQuery: params.searchQuery } : {}),
         ...(params?.projectUuid ? { projectUuid: params.projectUuid } : {}),
+        ...(params?.googleOidcOnly
+            ? { googleOidcOnly: String(params.googleOidcOnly) }
+            : {}),
     }).toString();
 
     return lightdashApi<ApiOrganizationMemberProfiles['results']>({
@@ -98,11 +104,13 @@ export const useInfiniteOrganizationUsers = (
         includeGroups,
         pageSize,
         projectUuid,
+        googleOidcOnly,
     }: {
         searchInput?: string;
         includeGroups?: number;
         projectUuid?: string;
         pageSize: number;
+        googleOidcOnly?: boolean;
     },
     infinityQueryOpts: UseInfiniteQueryOptions<
         ApiOrganizationMemberProfiles['results'],
@@ -118,6 +126,7 @@ export const useInfiniteOrganizationUsers = (
                 pageSize,
                 searchInput,
                 projectUuid,
+                googleOidcOnly,
             ],
             queryFn: ({ pageParam }) => {
                 return getOrganizationUsersQuery({
@@ -128,6 +137,7 @@ export const useInfiniteOrganizationUsers = (
                     },
                     searchQuery: searchInput,
                     projectUuid,
+                    googleOidcOnly,
                 });
             },
             onError: (result) => setErrorResponse(result),
@@ -158,6 +168,63 @@ export const useDeleteOrganizationUserMutation = () => {
         onError: ({ error }) => {
             showToastApiError({
                 title: `Failed to delete user`,
+                apiError: error,
+            });
+        },
+    });
+};
+
+const getUserSchedulersSummaryQuery = async (userUuid: string) =>
+    lightdashApi<ApiUserSchedulersSummaryResponse['results']>({
+        url: `/org/user/${userUuid}/schedulers-summary`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useUserSchedulersSummary = (
+    userUuid: string,
+    enabled: boolean = true,
+) => {
+    const setErrorResponse = useQueryError();
+    return useQuery<ApiUserSchedulersSummaryResponse['results'], ApiError>({
+        queryKey: ['user_schedulers_summary', userUuid],
+        queryFn: () => getUserSchedulersSummaryQuery(userUuid),
+        onError: (result) => setErrorResponse(result),
+        enabled,
+    });
+};
+
+const reassignUserSchedulersQuery = async ({
+    userUuid,
+    newOwnerUserUuid,
+}: {
+    userUuid: string;
+    newOwnerUserUuid: string;
+}) =>
+    lightdashApi<ApiReassignUserSchedulersResponse['results']>({
+        url: `/org/user/${userUuid}/reassign-schedulers`,
+        method: 'PATCH',
+        body: JSON.stringify({ newOwnerUserUuid }),
+    });
+
+export const useReassignUserSchedulersMutation = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<
+        ApiReassignUserSchedulersResponse['results'],
+        ApiError,
+        { userUuid: string; newOwnerUserUuid: string }
+    >(reassignUserSchedulersQuery, {
+        mutationKey: ['reassign_user_schedulers'],
+        onSuccess: async (data) => {
+            showToastSuccess({
+                title: `Success! ${data.reassignedCount} scheduled ${
+                    data.reassignedCount === 1 ? 'delivery' : 'deliveries'
+                } reassigned.`,
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: `Failed to reassign scheduled deliveries`,
                 apiError: error,
             });
         },
