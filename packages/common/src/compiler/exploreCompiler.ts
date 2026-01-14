@@ -21,6 +21,7 @@ import {
     type CustomDimension,
     type CustomSqlDimension,
     type Dimension,
+    type FieldCompilationError,
     type Metric,
 } from '../types/field';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';

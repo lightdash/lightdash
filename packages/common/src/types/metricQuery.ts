@@ -13,6 +13,7 @@ import {
     type CompiledTableCalculation,
     type CustomDimension,
     type CustomFormat,
+    type Dimension,
     type FieldId,
     type Format,
     type Metric,
@@ -59,7 +60,7 @@ export const getCustomMetricDimensionId = (metric: AdditionalMetric) =>
 export type MetricOverrides = { [key: string]: Pick<Metric, 'formatOptions'> }; // Don't use Record to avoid issues in TSOA
 
 export type DimensionOverrides = {
-    [key: string]: Record<string, never>;
+    [key: string]: Pick<Dimension, 'formatOptions'>;
 };
 
 // Object used to query an explore. Queries only happen within a single explore

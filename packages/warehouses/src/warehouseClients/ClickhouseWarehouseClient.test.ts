@@ -1,3 +1,4 @@
+/* eslint-disable no-template-curly-in-string */
 import type { Metric } from '@lightdash/common';
 import { FieldType, MetricType } from '@lightdash/common';
 import { ClickhouseSqlBuilder } from './ClickhouseWarehouseClient';
