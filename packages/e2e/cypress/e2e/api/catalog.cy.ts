@@ -1,4 +1,4 @@
-import { AnyType, SEED_PROJECT, type CatalogField } from '@lightdash/common';
+import { SEED_PROJECT, type CatalogField } from '@lightdash/common';
 import { chartMock } from '../../support/mocks';
 import { createChartAndUpdateDashboard, createDashboard } from './dashboard.cy';
 

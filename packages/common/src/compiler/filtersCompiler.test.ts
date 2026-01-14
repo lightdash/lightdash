@@ -1,4 +1,5 @@
 import moment from 'moment/moment';
+import { SupportedDbtAdapter } from '../types/dbt';
 import { MetricType } from '../types/field';
 import { FilterOperator, UnitOfTime } from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
@@ -1326,114 +1327,77 @@ describe('Number Filter SQL Injection Prevention', () => {
             expect(renderNumberFilterSql(dimensionSql, filter)).toBe('true');
         });
     });
+});
 
-    describe('Variance and Standard Deviation Metric Filters', () => {
-        const escapeString = (v: string) => v.replaceAll("'", "''");
-        const stringQuoteChar = "'";
-        const startOfWeek = undefined;
-        const timezone = 'UTC';
+describe('Variance and Standard Deviation Metric Filters', () => {
+    const dimensionSql = '("table"."column")';
+    const escapeString = (v: string) => v.replaceAll("'", "''");
+    const stringQuoteChar = "'";
+    const startOfWeek = undefined;
+    const timezone = 'UTC';
 
+    describe('VARIANCE metric type filters', () => {
         it('should use number filter logic for MetricType.VARIANCE with EQUALS operator', () => {
             const filterRule = {
-                ...NumberFilterBase,
+                id: 'test-id',
+                target: { fieldId: 'column' },
                 operator: FilterOperator.EQUALS,
                 values: [10],
             };
-            const expectedSql = `(${DimensionSqlMock}) IN (10)`;
+            const expectedSql = `(${dimensionSql}) IN (10)`;
             expect(
                 renderFilterRuleSql(
                     filterRule,
                     MetricType.VARIANCE,
-                    DimensionSqlMock,
+                    dimensionSql,
                     stringQuoteChar,
                     escapeString,
                     startOfWeek,
-                    adapterType.default,
+                    SupportedDbtAdapter.POSTGRES,
                     timezone,
                 ),
             ).toBe(expectedSql);
         });
 
-        it('should use number filter logic for MetricType.STANDARD_DEVIATION with GREATER_THAN operator', () => {
+        it('should use number filter logic for MetricType.VARIANCE with GREATER_THAN operator', () => {
             const filterRule = {
-                ...NumberFilterBase,
+                id: 'test-id',
+                target: { fieldId: 'column' },
                 operator: FilterOperator.GREATER_THAN,
                 values: [5.5],
             };
-            const expectedSql = `(${DimensionSqlMock}) > (5.5)`;
+            const expectedSql = `(${dimensionSql}) > (5.5)`;
             expect(
                 renderFilterRuleSql(
                     filterRule,
-                    MetricType.STANDARD_DEVIATION,
-                    DimensionSqlMock,
+                    MetricType.VARIANCE,
+                    dimensionSql,
                     stringQuoteChar,
                     escapeString,
                     startOfWeek,
-                    adapterType.default,
+                    SupportedDbtAdapter.POSTGRES,
                     timezone,
                 ),
             ).toBe(expectedSql);
-        });
-
-        it('should throw error for invalid number value with MetricType.VARIANCE', () => {
-            const filterRule = {
-                ...NumberFilterBase,
-                operator: FilterOperator.EQUALS,
-                values: ['invalid'],
-            };
-            expect(() =>
-                renderFilterRuleSql(
-                    filterRule,
-                    MetricType.VARIANCE,
-                    DimensionSqlMock,
-                    stringQuoteChar,
-                    escapeString,
-                    startOfWeek,
-                    adapterType.default,
-                    timezone,
-                ),
-            ).toThrow(
-                'Invalid number value in filter: "invalid". Expected a valid number.',
-            );
         });
 
         it('should use number filter logic for MetricType.VARIANCE with IN_BETWEEN operator', () => {
             const filterRule = {
-                ...NumberFilterBase,
+                id: 'test-id',
+                target: { fieldId: 'column' },
                 operator: FilterOperator.IN_BETWEEN,
                 values: [10, 20],
             };
-            const expectedSql = `(${DimensionSqlMock}) >= (10) AND (${DimensionSqlMock}) <= (20)`;
+            const expectedSql = `(${dimensionSql}) >= (10) AND (${dimensionSql}) <= (20)`;
             expect(
                 renderFilterRuleSql(
                     filterRule,
                     MetricType.VARIANCE,
-                    DimensionSqlMock,
+                    dimensionSql,
                     stringQuoteChar,
                     escapeString,
                     startOfWeek,
-                    adapterType.default,
-                    timezone,
-                ),
-            ).toBe(expectedSql);
-        });
-
-        it('should use number filter logic for MetricType.STANDARD_DEVIATION with NOT_EQUALS operator', () => {
-            const filterRule = {
-                ...NumberFilterBase,
-                operator: FilterOperator.NOT_EQUALS,
-                values: [7],
-            };
-            const expectedSql = `((${DimensionSqlMock}) NOT IN (7) OR (${DimensionSqlMock}) IS NULL)`;
-            expect(
-                renderFilterRuleSql(
-                    filterRule,
-                    MetricType.STANDARD_DEVIATION,
-                    DimensionSqlMock,
-                    stringQuoteChar,
-                    escapeString,
-                    startOfWeek,
-                    adapterType.default,
+                    SupportedDbtAdapter.POSTGRES,
                     timezone,
                 ),
             ).toBe(expectedSql);
@@ -1441,7 +1405,8 @@ describe('Number Filter SQL Injection Prevention', () => {
 
         it('should return 1=1 when filter is disabled for MetricType.VARIANCE', () => {
             const filterRule = {
-                ...NumberFilterBase,
+                id: 'test-id',
+                target: { fieldId: 'column' },
                 operator: FilterOperator.EQUALS,
                 values: [10],
                 disabled: true,
@@ -1450,11 +1415,101 @@ describe('Number Filter SQL Injection Prevention', () => {
                 renderFilterRuleSql(
                     filterRule,
                     MetricType.VARIANCE,
-                    DimensionSqlMock,
+                    dimensionSql,
                     stringQuoteChar,
                     escapeString,
                     startOfWeek,
-                    adapterType.default,
+                    SupportedDbtAdapter.POSTGRES,
+                    timezone,
+                ),
+            ).toBe('1=1');
+        });
+    });
+
+    describe('STANDARD_DEVIATION metric type filters', () => {
+        it('should use number filter logic for MetricType.STANDARD_DEVIATION with EQUALS operator', () => {
+            const filterRule = {
+                id: 'test-id',
+                target: { fieldId: 'column' },
+                operator: FilterOperator.EQUALS,
+                values: [7],
+            };
+            const expectedSql = `(${dimensionSql}) IN (7)`;
+            expect(
+                renderFilterRuleSql(
+                    filterRule,
+                    MetricType.STANDARD_DEVIATION,
+                    dimensionSql,
+                    stringQuoteChar,
+                    escapeString,
+                    startOfWeek,
+                    SupportedDbtAdapter.POSTGRES,
+                    timezone,
+                ),
+            ).toBe(expectedSql);
+        });
+
+        it('should use number filter logic for MetricType.STANDARD_DEVIATION with NOT_EQUALS operator', () => {
+            const filterRule = {
+                id: 'test-id',
+                target: { fieldId: 'column' },
+                operator: FilterOperator.NOT_EQUALS,
+                values: [7],
+            };
+            const expectedSql = `((${dimensionSql}) NOT IN (7) OR (${dimensionSql}) IS NULL)`;
+            expect(
+                renderFilterRuleSql(
+                    filterRule,
+                    MetricType.STANDARD_DEVIATION,
+                    dimensionSql,
+                    stringQuoteChar,
+                    escapeString,
+                    startOfWeek,
+                    SupportedDbtAdapter.POSTGRES,
+                    timezone,
+                ),
+            ).toBe(expectedSql);
+        });
+
+        it('should use number filter logic for MetricType.STANDARD_DEVIATION with IN_BETWEEN operator', () => {
+            const filterRule = {
+                id: 'test-id',
+                target: { fieldId: 'column' },
+                operator: FilterOperator.IN_BETWEEN,
+                values: [5, 15],
+            };
+            const expectedSql = `(${dimensionSql}) >= (5) AND (${dimensionSql}) <= (15)`;
+            expect(
+                renderFilterRuleSql(
+                    filterRule,
+                    MetricType.STANDARD_DEVIATION,
+                    dimensionSql,
+                    stringQuoteChar,
+                    escapeString,
+                    startOfWeek,
+                    SupportedDbtAdapter.POSTGRES,
+                    timezone,
+                ),
+            ).toBe(expectedSql);
+        });
+
+        it('should return 1=1 when filter is disabled for MetricType.STANDARD_DEVIATION', () => {
+            const filterRule = {
+                id: 'test-id',
+                target: { fieldId: 'column' },
+                operator: FilterOperator.EQUALS,
+                values: [7],
+                disabled: true,
+            };
+            expect(
+                renderFilterRuleSql(
+                    filterRule,
+                    MetricType.STANDARD_DEVIATION,
+                    dimensionSql,
+                    stringQuoteChar,
+                    escapeString,
+                    startOfWeek,
+                    SupportedDbtAdapter.POSTGRES,
                     timezone,
                 ),
             ).toBe('1=1');

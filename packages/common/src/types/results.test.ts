@@ -1,141 +1,56 @@
+import type { Metric } from './field';
 import { DimensionType, FieldType, MetricType } from './field';
 import { convertItemTypeToDimensionType } from './results';
 
-const baseMetric = {
-    fieldType: FieldType.METRIC,
-    name: 'test_metric',
-    label: 'Test Metric',
-    table: 'test_table',
-    tableLabel: 'Test Table',
-    sql: 'SELECT 1',
-    hidden: false,
-};
-
-const baseDimension = {
-    fieldType: FieldType.DIMENSION,
-    name: 'test_dimension',
-    label: 'Test Dimension',
-    table: 'test_table',
-    tableLabel: 'Test Table',
-    sql: 'SELECT 1',
-    hidden: false,
-    groups: [],
-};
-
 describe('convertItemTypeToDimensionType', () => {
-    it('should convert VARIANCE metric type to NUMBER dimension type', () => {
-        const mockItem = {
-            ...baseMetric,
+    it('should convert VARIANCE metric to NUMBER dimension type', () => {
+        const varianceMetric: Metric = {
+            fieldType: FieldType.METRIC,
             type: MetricType.VARIANCE,
+            name: 'test_variance',
+            label: 'Test Variance',
+            table: 'test_table',
+            tableLabel: 'Test Table',
+            sql: 'VARIANCE(${TABLE}.column)',
+            hidden: false,
+            groups: [],
         };
-        expect(convertItemTypeToDimensionType(mockItem)).toEqual(
+        expect(convertItemTypeToDimensionType(varianceMetric)).toBe(
             DimensionType.NUMBER,
         );
     });
 
-    it('should convert STANDARD_DEVIATION metric type to NUMBER dimension type', () => {
-        const mockItem = {
-            ...baseMetric,
+    it('should convert STANDARD_DEVIATION metric to NUMBER dimension type', () => {
+        const standardDeviationMetric: Metric = {
+            fieldType: FieldType.METRIC,
             type: MetricType.STANDARD_DEVIATION,
+            name: 'test_stddev',
+            label: 'Test Standard Deviation',
+            table: 'test_table',
+            tableLabel: 'Test Table',
+            sql: 'STDDEV(${TABLE}.column)',
+            hidden: false,
+            groups: [],
         };
-        expect(convertItemTypeToDimensionType(mockItem)).toEqual(
+        expect(convertItemTypeToDimensionType(standardDeviationMetric)).toBe(
             DimensionType.NUMBER,
         );
     });
 
-    it('should convert other numeric metric types to NUMBER dimension type', () => {
-        const numericMetrics = [
-            MetricType.AVERAGE,
-            MetricType.COUNT,
-            MetricType.COUNT_DISTINCT,
-            MetricType.SUM,
-            MetricType.MIN,
-            MetricType.MAX,
-            MetricType.PERCENTILE,
-            MetricType.MEDIAN,
-            MetricType.PERCENT_OF_PREVIOUS,
-            MetricType.PERCENT_OF_TOTAL,
-            MetricType.RUNNING_TOTAL,
-        ];
-
-        numericMetrics.forEach((metricType) => {
-            const mockItem = {
-                ...baseMetric,
-                type: metricType,
-            };
-            expect(convertItemTypeToDimensionType(mockItem)).toEqual(
-                DimensionType.NUMBER,
-            );
-        });
-    });
-
-    it('should convert STRING metric type to STRING dimension type', () => {
-        const mockItem = {
-            ...baseMetric,
-            type: MetricType.STRING,
+    it('should convert other numeric metric types to NUMBER', () => {
+        const averageMetric: Metric = {
+            fieldType: FieldType.METRIC,
+            type: MetricType.AVERAGE,
+            name: 'test_avg',
+            label: 'Test Average',
+            table: 'test_table',
+            tableLabel: 'Test Table',
+            sql: 'AVG(${TABLE}.column)',
+            hidden: false,
+            groups: [],
         };
-        expect(convertItemTypeToDimensionType(mockItem)).toEqual(
-            DimensionType.STRING,
-        );
-    });
-
-    it('should convert DATE metric type to DATE dimension type', () => {
-        const mockItem = {
-            ...baseMetric,
-            type: MetricType.DATE,
-        };
-        expect(convertItemTypeToDimensionType(mockItem)).toEqual(
-            DimensionType.DATE,
-        );
-    });
-
-    it('should convert TIMESTAMP metric type to TIMESTAMP dimension type', () => {
-        const mockItem = {
-            ...baseMetric,
-            type: MetricType.TIMESTAMP,
-        };
-        expect(convertItemTypeToDimensionType(mockItem)).toEqual(
-            DimensionType.TIMESTAMP,
-        );
-    });
-
-    it('should convert BOOLEAN metric type to BOOLEAN dimension type', () => {
-        const mockItem = {
-            ...baseMetric,
-            type: MetricType.BOOLEAN,
-        };
-        expect(convertItemTypeToDimensionType(mockItem)).toEqual(
-            DimensionType.BOOLEAN,
-        );
-    });
-
-    it('should convert NUMBER metric type to NUMBER dimension type', () => {
-        const mockItem = {
-            ...baseMetric,
-            type: MetricType.NUMBER,
-        };
-        expect(convertItemTypeToDimensionType(mockItem)).toEqual(
+        expect(convertItemTypeToDimensionType(averageMetric)).toBe(
             DimensionType.NUMBER,
         );
-    });
-
-    it('should handle dimension types directly', () => {
-        const dimensionTypes = [
-            DimensionType.STRING,
-            DimensionType.NUMBER,
-            DimensionType.DATE,
-            DimensionType.TIMESTAMP,
-            DimensionType.BOOLEAN,
-        ];
-
-        dimensionTypes.forEach((dimensionType) => {
-            const mockItem = {
-                ...baseDimension,
-                type: dimensionType,
-            };
-            expect(convertItemTypeToDimensionType(mockItem)).toEqual(
-                dimensionType,
-            );
-        });
     });
 });

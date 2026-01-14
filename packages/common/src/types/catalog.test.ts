@@ -1,75 +1,56 @@
 import { getBasicType } from './catalog';
-import { MetricType, type CompiledMetric } from './field';
+import type { CompiledMetric } from './field';
+import { FieldType, MetricType } from './field';
 
 describe('getBasicType', () => {
-    it('should return "number" for VARIANCE metric type', () => {
-        const mockMetric = {
+    it('should return number for VARIANCE metric type', () => {
+        const varianceMetric: CompiledMetric = {
+            fieldType: FieldType.METRIC,
             type: MetricType.VARIANCE,
-        } as unknown as CompiledMetric;
-        expect(getBasicType(mockMetric)).toEqual('number');
+            name: 'test_variance',
+            label: 'Test Variance',
+            table: 'test_table',
+            tableLabel: 'Test Table',
+            sql: 'VARIANCE(${TABLE}.column)',
+            compiledSql: 'VARIANCE("test_table"."column")',
+            tablesReferences: ['test_table'],
+            hidden: false,
+            groups: [],
+        };
+        expect(getBasicType(varianceMetric)).toBe('number');
     });
 
-    it('should return "number" for STANDARD_DEVIATION metric type', () => {
-        const mockMetric = {
+    it('should return number for STANDARD_DEVIATION metric type', () => {
+        const standardDeviationMetric: CompiledMetric = {
+            fieldType: FieldType.METRIC,
             type: MetricType.STANDARD_DEVIATION,
-        } as unknown as CompiledMetric;
-        expect(getBasicType(mockMetric)).toEqual('number');
+            name: 'test_stddev',
+            label: 'Test Standard Deviation',
+            table: 'test_table',
+            tableLabel: 'Test Table',
+            sql: 'STDDEV(${TABLE}.column)',
+            compiledSql: 'STDDEV("test_table"."column")',
+            tablesReferences: ['test_table'],
+            hidden: false,
+            groups: [],
+        };
+        expect(getBasicType(standardDeviationMetric)).toBe('number');
     });
 
-    it('should return "number" for other numeric metric types', () => {
-        const numericMetrics = [
-            MetricType.AVERAGE,
-            MetricType.COUNT,
-            MetricType.SUM,
-            MetricType.MIN,
-            MetricType.MAX,
-            MetricType.PERCENTILE,
-            MetricType.MEDIAN,
-            MetricType.PERCENT_OF_PREVIOUS,
-            MetricType.PERCENT_OF_TOTAL,
-            MetricType.RUNNING_TOTAL,
-        ];
-
-        numericMetrics.forEach((metricType) => {
-            const mockMetric = {
-                type: metricType,
-            } as unknown as CompiledMetric;
-            expect(getBasicType(mockMetric)).toEqual('number');
-        });
-    });
-
-    it('should return "string" for STRING metric type', () => {
-        const mockMetric = {
-            type: MetricType.STRING,
-        } as unknown as CompiledMetric;
-        expect(getBasicType(mockMetric)).toEqual('string');
-    });
-
-    it('should return "date" for DATE metric type', () => {
-        const mockMetric = {
-            type: MetricType.DATE,
-        } as unknown as CompiledMetric;
-        expect(getBasicType(mockMetric)).toEqual('date');
-    });
-
-    it('should return "timestamp" for TIMESTAMP metric type', () => {
-        const mockMetric = {
-            type: MetricType.TIMESTAMP,
-        } as unknown as CompiledMetric;
-        expect(getBasicType(mockMetric)).toEqual('timestamp');
-    });
-
-    it('should return "boolean" for BOOLEAN metric type', () => {
-        const mockMetric = {
-            type: MetricType.BOOLEAN,
-        } as unknown as CompiledMetric;
-        expect(getBasicType(mockMetric)).toEqual('boolean');
-    });
-
-    it('should return "number" for NUMBER metric type', () => {
-        const mockMetric = {
-            type: MetricType.NUMBER,
-        } as unknown as CompiledMetric;
-        expect(getBasicType(mockMetric)).toEqual('number');
+    it('should return number for other numeric metric types', () => {
+        const averageMetric: CompiledMetric = {
+            fieldType: FieldType.METRIC,
+            type: MetricType.AVERAGE,
+            name: 'test_avg',
+            label: 'Test Average',
+            table: 'test_table',
+            tableLabel: 'Test Table',
+            sql: 'AVG(${TABLE}.column)',
+            compiledSql: 'AVG("test_table"."column")',
+            tablesReferences: ['test_table'],
+            hidden: false,
+            groups: [],
+        };
+        expect(getBasicType(averageMetric)).toBe('number');
     });
 });

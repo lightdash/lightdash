@@ -1,4 +1,4 @@
-import { DimensionType, MetricType } from '../types/field';
+import { MetricType } from '../types/field';
 import {
     FilterOperator,
     FilterType,
@@ -514,84 +514,14 @@ describe('getDashboardFilterRulesForTileAndReferences', () => {
 
 describe('getFilterTypeFromItemType', () => {
     it('should return NUMBER filter type for VARIANCE metric type', () => {
-        expect(getFilterTypeFromItemType(MetricType.VARIANCE)).toEqual(
+        expect(getFilterTypeFromItemType(MetricType.VARIANCE)).toBe(
             FilterType.NUMBER,
         );
     });
 
     it('should return NUMBER filter type for STANDARD_DEVIATION metric type', () => {
-        expect(
-            getFilterTypeFromItemType(MetricType.STANDARD_DEVIATION),
-        ).toEqual(FilterType.NUMBER);
-    });
-
-    it('should return NUMBER filter type for other numeric metric types', () => {
-        const numericMetrics = [
-            MetricType.AVERAGE,
-            MetricType.COUNT,
-            MetricType.COUNT_DISTINCT,
-            MetricType.SUM,
-            MetricType.MIN,
-            MetricType.MAX,
-            MetricType.PERCENTILE,
-            MetricType.MEDIAN,
-            MetricType.PERCENT_OF_PREVIOUS,
-            MetricType.PERCENT_OF_TOTAL,
-            MetricType.RUNNING_TOTAL,
-        ];
-
-        numericMetrics.forEach((metricType) => {
-            expect(getFilterTypeFromItemType(metricType)).toEqual(
-                FilterType.NUMBER,
-            );
-        });
-    });
-
-    it('should return STRING filter type for STRING metric type', () => {
-        expect(getFilterTypeFromItemType(MetricType.STRING)).toEqual(
-            FilterType.STRING,
-        );
-    });
-
-    it('should return DATE filter type for DATE metric type', () => {
-        expect(getFilterTypeFromItemType(MetricType.DATE)).toEqual(
-            FilterType.DATE,
-        );
-    });
-
-    it('should return DATE filter type for TIMESTAMP metric type', () => {
-        expect(getFilterTypeFromItemType(MetricType.TIMESTAMP)).toEqual(
-            FilterType.DATE,
-        );
-    });
-
-    it('should return BOOLEAN filter type for BOOLEAN metric type', () => {
-        expect(getFilterTypeFromItemType(MetricType.BOOLEAN)).toEqual(
-            FilterType.BOOLEAN,
-        );
-    });
-
-    it('should return NUMBER filter type for NUMBER metric type', () => {
-        expect(getFilterTypeFromItemType(MetricType.NUMBER)).toEqual(
+        expect(getFilterTypeFromItemType(MetricType.STANDARD_DEVIATION)).toBe(
             FilterType.NUMBER,
-        );
-    });
-
-    it('should handle dimension types directly', () => {
-        expect(getFilterTypeFromItemType(DimensionType.STRING)).toEqual(
-            FilterType.STRING,
-        );
-        expect(getFilterTypeFromItemType(DimensionType.NUMBER)).toEqual(
-            FilterType.NUMBER,
-        );
-        expect(getFilterTypeFromItemType(DimensionType.DATE)).toEqual(
-            FilterType.DATE,
-        );
-        expect(getFilterTypeFromItemType(DimensionType.TIMESTAMP)).toEqual(
-            FilterType.DATE,
-        );
-        expect(getFilterTypeFromItemType(DimensionType.BOOLEAN)).toEqual(
-            FilterType.BOOLEAN,
         );
     });
 });

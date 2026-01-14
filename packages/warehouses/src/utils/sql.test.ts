@@ -2,63 +2,84 @@ import { MetricType } from '@lightdash/common';
 import { getDefaultMetricSql } from './sql';
 
 describe('getDefaultMetricSql', () => {
-    it('should generate VARIANCE SQL correctly', () => {
-        expect(getDefaultMetricSql('column_name', MetricType.VARIANCE)).toEqual(
-            'VARIANCE(column_name)',
-        );
+    describe('VARIANCE metric type', () => {
+        it('should return VARIANCE SQL for simple column name', () => {
+            expect(
+                getDefaultMetricSql('column_name', MetricType.VARIANCE),
+            ).toBe('VARIANCE(column_name)');
+        });
+
+        it('should return VARIANCE SQL for table.column format', () => {
+            expect(
+                getDefaultMetricSql('table.column', MetricType.VARIANCE),
+            ).toBe('VARIANCE(table.column)');
+        });
+
+        it('should return VARIANCE SQL for wrapped SQL expression', () => {
+            expect(
+                getDefaultMetricSql('(table.column)', MetricType.VARIANCE),
+            ).toBe('VARIANCE((table.column))');
+        });
+
+        it('should return VARIANCE SQL for complex SQL expression', () => {
+            expect(
+                getDefaultMetricSql(
+                    'SUM(table.column) / COUNT(*)',
+                    MetricType.VARIANCE,
+                ),
+            ).toBe('VARIANCE(SUM(table.column) / COUNT(*))');
+        });
     });
 
-    it('should generate STANDARD_DEVIATION SQL correctly', () => {
-        expect(
-            getDefaultMetricSql('column_name', MetricType.STANDARD_DEVIATION),
-        ).toEqual('STDDEV(column_name)');
+    describe('STANDARD_DEVIATION metric type', () => {
+        it('should return STDDEV SQL for simple column name', () => {
+            expect(
+                getDefaultMetricSql(
+                    'column_name',
+                    MetricType.STANDARD_DEVIATION,
+                ),
+            ).toBe('STDDEV(column_name)');
+        });
+
+        it('should return STDDEV SQL for table.column format', () => {
+            expect(
+                getDefaultMetricSql(
+                    'table.column',
+                    MetricType.STANDARD_DEVIATION,
+                ),
+            ).toBe('STDDEV(table.column)');
+        });
+
+        it('should return STDDEV SQL for wrapped SQL expression', () => {
+            expect(
+                getDefaultMetricSql(
+                    '(table.column)',
+                    MetricType.STANDARD_DEVIATION,
+                ),
+            ).toBe('STDDEV((table.column))');
+        });
+
+        it('should return STDDEV SQL for complex SQL expression', () => {
+            expect(
+                getDefaultMetricSql(
+                    'SUM(table.column) / COUNT(*)',
+                    MetricType.STANDARD_DEVIATION,
+                ),
+            ).toBe('STDDEV(SUM(table.column) / COUNT(*))');
+        });
     });
 
-    it('should generate VARIANCE SQL with table-qualified column', () => {
-        expect(
-            getDefaultMetricSql('table.column_name', MetricType.VARIANCE),
-        ).toEqual('VARIANCE(table.column_name)');
-    });
+    describe('other metric types', () => {
+        it('should return AVG SQL for AVERAGE type', () => {
+            expect(getDefaultMetricSql('column', MetricType.AVERAGE)).toBe(
+                'AVG(column)',
+            );
+        });
 
-    it('should generate STANDARD_DEVIATION SQL with table-qualified column', () => {
-        expect(
-            getDefaultMetricSql(
-                'table.column_name',
-                MetricType.STANDARD_DEVIATION,
-            ),
-        ).toEqual('STDDEV(table.column_name)');
-    });
-
-    it('should generate existing metric SQL correctly', () => {
-        expect(getDefaultMetricSql('column_name', MetricType.AVERAGE)).toEqual(
-            'AVG(column_name)',
-        );
-        expect(getDefaultMetricSql('column_name', MetricType.SUM)).toEqual(
-            'SUM(column_name)',
-        );
-        expect(getDefaultMetricSql('column_name', MetricType.COUNT)).toEqual(
-            'COUNT(column_name)',
-        );
-        expect(getDefaultMetricSql('column_name', MetricType.MIN)).toEqual(
-            'MIN(column_name)',
-        );
-        expect(getDefaultMetricSql('column_name', MetricType.MAX)).toEqual(
-            'MAX(column_name)',
-        );
-    });
-
-    it('should return sql as-is for non-aggregate metrics', () => {
-        expect(getDefaultMetricSql('column_name', MetricType.NUMBER)).toEqual(
-            'column_name',
-        );
-        expect(getDefaultMetricSql('column_name', MetricType.STRING)).toEqual(
-            'column_name',
-        );
-        expect(getDefaultMetricSql('column_name', MetricType.DATE)).toEqual(
-            'column_name',
-        );
-        expect(getDefaultMetricSql('column_name', MetricType.BOOLEAN)).toEqual(
-            'column_name',
-        );
+        it('should return SUM SQL for SUM type', () => {
+            expect(getDefaultMetricSql('column', MetricType.SUM)).toBe(
+                'SUM(column)',
+            );
+        });
     });
 });

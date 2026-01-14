@@ -45,4 +45,5 @@ export function getDefaultMetricSql(sql: string, type: MetricType): string {
 export const normalizeUnicode = (value: string): string =>
     value
         .normalize('NFC') // Normalize composition
+        .replace(/[\u2019\u2018]/g, "'") // Smart quotes to ASCII
         .replace(/[\uFEFF\u200B]/g, ''); // Remove zero-width chars

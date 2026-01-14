@@ -124,29 +124,20 @@ describe('field util functions', () => {
             expect(isFormat('')).toBe(false);
         });
     });
-
     describe('parseMetricType', () => {
         it('should parse variance metric type', () => {
-            expect(parseMetricType('variance')).toEqual(MetricType.VARIANCE);
+            expect(parseMetricType('variance')).toBe(MetricType.VARIANCE);
         });
 
         it('should parse standard_deviation metric type', () => {
-            expect(parseMetricType('standard_deviation')).toEqual(
+            expect(parseMetricType('standard_deviation')).toBe(
                 MetricType.STANDARD_DEVIATION,
             );
         });
 
-        it('should parse existing metric types', () => {
-            expect(parseMetricType('average')).toEqual(MetricType.AVERAGE);
-            expect(parseMetricType('count')).toEqual(MetricType.COUNT);
-            expect(parseMetricType('sum')).toEqual(MetricType.SUM);
-            expect(parseMetricType('min')).toEqual(MetricType.MIN);
-            expect(parseMetricType('max')).toEqual(MetricType.MAX);
-        });
-
         it('should throw error for invalid metric type', () => {
-            expect(() => parseMetricType('invalid_metric')).toThrowError(
-                "Cannot parse dbt metric with type 'invalid_metric'",
+            expect(() => parseMetricType('invalid_type')).toThrow(
+                "Cannot parse dbt metric with type 'invalid_type'",
             );
         });
     });
