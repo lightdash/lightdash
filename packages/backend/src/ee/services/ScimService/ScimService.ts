@@ -44,6 +44,7 @@ import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { EmailModel } from '../../../models/EmailModel';
 import { GroupsModel } from '../../../models/GroupsModel';
+import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../../models/RolesModel';
@@ -64,6 +65,7 @@ type ScimServiceArguments = {
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
     rolesModel: RolesModel;
     projectModel: ProjectModel;
+    openIdIdentityModel: OpenIdIdentityModel;
 };
 
 const NO_ROLE_KEYWORD = 'no-role';
@@ -89,6 +91,8 @@ export class ScimService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly openIdIdentityModel: OpenIdIdentityModel;
+
     constructor({
         lightdashConfig,
         organizationMemberProfileModel,
@@ -100,6 +104,7 @@ export class ScimService extends BaseService {
         commercialFeatureFlagModel,
         rolesModel,
         projectModel,
+        openIdIdentityModel,
     }: ScimServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -112,6 +117,7 @@ export class ScimService extends BaseService {
         this.commercialFeatureFlagModel = commercialFeatureFlagModel;
         this.rolesModel = rolesModel;
         this.projectModel = projectModel;
+        this.openIdIdentityModel = openIdIdentityModel;
     }
 
     private static throwForbiddenErrorOnNoPermission(user: SessionUser) {
@@ -417,6 +423,13 @@ export class ScimService extends BaseService {
                 ScimService.validateRolesArray(user.roles, validRoleValues);
             }
             const email = ScimService.getScimUserEmail(user);
+            // Delete any existing openid identities for this email to prevent login conflicts
+            // This handles the case where a user's email changed via SCIM and an old
+            // openid identity record exists pointing to a deactivated account
+            this.logger.debug(
+                `SCIM: deleting openid identities for email ${email}`,
+            );
+            await this.openIdIdentityModel.deleteIdentitiesByEmail(email);
             const dbUser = await this.userModel.createUser(
                 {
                     email,
@@ -568,6 +581,18 @@ export class ScimService extends BaseService {
                 },
                 true, // automatically verify email
             );
+
+            if (user.active && user.active !== dbUser.isActive) {
+                this.logger.debug(
+                    `SCIM: Updating active user ${emailToUpdate} to ${user.active}`,
+                );
+                this.logger.debug(
+                    `SCIM: deleting openid identities for email ${emailToUpdate}`,
+                );
+                await this.openIdIdentityModel.deleteIdentitiesByEmail(
+                    emailToUpdate,
+                );
+            }
 
             // Update user's organization role if provided in the extension schema
             const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];

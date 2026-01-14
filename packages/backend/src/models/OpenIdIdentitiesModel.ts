@@ -215,4 +215,11 @@ export class OpenIdIdentityModel {
         }
         return row.refresh_token;
     }
+
+    async deleteIdentitiesByEmail(email: string): Promise<number> {
+        const deletedCount = await this.database(OpenIdIdentitiesTableName)
+            .where('email', email)
+            .delete();
+        return deletedCount;
+    }
 }

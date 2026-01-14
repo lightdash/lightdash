@@ -152,6 +152,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                     rolesModel: models.getRolesModel(),
                     projectModel: models.getProjectModel(),
+                    openIdIdentityModel: models.getOpenIdIdentityModel(),
                 }),
             serviceAccountService: ({ models, context }) =>
                 new ServiceAccountService({
