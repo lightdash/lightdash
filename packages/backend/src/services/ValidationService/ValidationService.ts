@@ -483,7 +483,7 @@ export class ValidationService extends BaseService {
                         unusedDimensionErrors = unusedDimensions.map(
                             (dimension) => ({
                                 ...commonValidation,
-                                error: `Chart configuration error: dimension '${dimension}' is not used in the chart configuration (x-axis, y-axis, or group by). This can cause incorrect rendering.`,
+                                error: `Chart configuration warning: dimension '${dimension}' is not used in the chart configuration (x-axis, y-axis, or group by). This can cause incorrect rendering.`,
                                 errorType:
                                     ValidationErrorType.ChartConfiguration,
                                 fieldName: dimension,
