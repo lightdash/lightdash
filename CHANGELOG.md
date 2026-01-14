@@ -1,3 +1,15 @@
+# [0.2339.0](https://github.com/lightdash/lightdash/compare/0.2338.1...0.2339.0) (2026-01-14)
+
+
+### Bug Fixes
+
+* handle additional foreign key constraints in validation error handling ([#19433](https://github.com/lightdash/lightdash/issues/19433)) ([684f0ef](https://github.com/lightdash/lightdash/commit/684f0eff27d7666dc8177c703540e1362628412a))
+
+
+### Features
+
+* add config warning to chart save ([#19370](https://github.com/lightdash/lightdash/issues/19370)) ([a413bce](https://github.com/lightdash/lightdash/commit/a413bce9eafb6da78f7b8ceabe33d1530169000c))
+
 ## [0.2338.1](https://github.com/lightdash/lightdash/compare/0.2338.0...0.2338.1) (2026-01-14)
 
 
