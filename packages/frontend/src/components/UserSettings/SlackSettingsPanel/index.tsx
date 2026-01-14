@@ -340,6 +340,7 @@ const SlackSettingsPanel: FC = () => {
                                         </Text>
 
                                         <SlackChannelSelect
+                                            includeGroups
                                             value={
                                                 form.values
                                                     .aiMultiAgentChannelId ??
