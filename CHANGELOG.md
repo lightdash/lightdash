@@ -1,3 +1,10 @@
+## [0.2341.2](https://github.com/lightdash/lightdash/compare/0.2341.1...0.2341.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* chart warnings shouldnt cause dashboard errors ([#19462](https://github.com/lightdash/lightdash/issues/19462)) ([bc0ceb1](https://github.com/lightdash/lightdash/commit/bc0ceb1a83a9ffd5402e12bcf2eb1ae2eafe4945))
+
 ## [0.2341.1](https://github.com/lightdash/lightdash/compare/0.2341.0...0.2341.1) (2026-01-15)
 
 
