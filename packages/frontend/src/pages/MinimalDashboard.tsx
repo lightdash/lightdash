@@ -284,35 +284,28 @@ const MinimalDashboard: FC = () => {
         stackVerticallyOnSmallestBreakpoint: true,
     });
 
-    const layouts = useMemo(() => {
-        const tiles =
-            dashboard?.tiles.filter((tile) =>
-                // If there are selected tabs when sending now/scheduling, aggregate ALL tiles into one view.
-                schedulerTabsSelected
-                    ? schedulerTabsSelected.includes(tile.tabUuid)
-                    : // This is when viewed a dashboard with tabs in mobile mode - you can navigate between tabs.
-                      !activeTab || activeTab.uuid === tile.tabUuid,
-            ) ?? [];
-
-        return {
-            lg: tiles.map<Layout>((tile) =>
-                getReactGridLayoutConfig(tile, false, gridProps.cols.lg),
-            ),
-            md: tiles.map<Layout>((tile) =>
-                getReactGridLayoutConfig(tile, false, gridProps.cols.md),
-            ),
-        };
-    }, [dashboard?.tiles, schedulerTabsSelected, activeTab, gridProps.cols]);
-
     const filteredAndSortedDashboardTiles = useMemo(() => {
         const filteredTiles =
-            dashboard?.tiles.filter((tile) =>
+            dashboard?.tiles.filter((tile) => {
                 // If there are selected tabs when sending now/scheduling, aggregate ALL tiles into one view.
-                schedulerTabsSelected
-                    ? schedulerTabsSelected.includes(tile.tabUuid)
-                    : // This is when viewed a dashboard with tabs in mobile mode - you can navigate between tabs.
-                      !activeTab || activeTab.uuid === tile.tabUuid,
-            ) ?? [];
+                if (schedulerTabsSelected) {
+                    return schedulerTabsSelected.includes(tile.tabUuid);
+                }
+
+                // This is when viewed a dashboard with tabs in mobile mode - you can navigate between tabs.
+                if (!activeTab) {
+                    return true;
+                }
+
+                // Tile belongs to tab
+                if (tile.tabUuid === activeTab.uuid) return true;
+
+                // Show legacy tiles (without tabUuid) on the first tab for backwards compatibility
+                const tileHasNoTab = !tile.tabUuid;
+                const isFirstTab = activeTab.uuid === sortedTabs[0]?.uuid;
+
+                return tileHasNoTab && isFirstTab;
+            }) ?? [];
 
         // Sort tiles by their tab order
         return filteredTiles.sort((a, b) => {
@@ -325,6 +318,17 @@ const MinimalDashboard: FC = () => {
             return tabAIndex - tabBIndex;
         });
     }, [dashboard?.tiles, schedulerTabsSelected, activeTab, sortedTabs]);
+
+    const layouts = useMemo(() => {
+        return {
+            lg: filteredAndSortedDashboardTiles.map<Layout>((tile) =>
+                getReactGridLayoutConfig(tile, false, gridProps.cols.lg),
+            ),
+            md: filteredAndSortedDashboardTiles.map<Layout>((tile) =>
+                getReactGridLayoutConfig(tile, false, gridProps.cols.md),
+            ),
+        };
+    }, [filteredAndSortedDashboardTiles, gridProps.cols]);
 
     if (isDashboardError || isSchedulerError) {
         if (dashboardError) return <span>{dashboardError.error.message}</span>;
@@ -344,8 +348,7 @@ const MinimalDashboard: FC = () => {
     }
 
     const isTabEmpty =
-        activeTab &&
-        !dashboard.tiles.find((tile) => tile.tabUuid === activeTab.uuid);
+        activeTab && filteredAndSortedDashboardTiles.length === 0;
 
     const canNavigateBetweenTabs =
         !schedulerTabsSelected && tabsWithUrls.length > 0;
