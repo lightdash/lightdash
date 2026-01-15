@@ -112,3 +112,6 @@ http-client.private.env.json
 
 # turbo
 .turbo
+
+# git worktrees
+.worktrees/
