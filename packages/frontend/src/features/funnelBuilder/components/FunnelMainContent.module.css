@@ -1,0 +1,21 @@
+.mainContent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-lg);
+    height: 100%;
+}
+
+.dateFilters {
+    flex-shrink: 0;
+}
+
+.chartContainer {
+    flex: 1;
+    min-height: 300px;
+}
+
+.tableContainer {
+    flex-shrink: 0;
+    max-height: 400px;
+    overflow: auto;
+}

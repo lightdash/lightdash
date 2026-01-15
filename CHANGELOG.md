@@ -1,3 +1,59 @@
+# [0.2343.0](https://github.com/lightdash/lightdash/compare/0.2342.2...0.2343.0) (2026-01-15)
+
+
+### Features
+
+* improve notification loading icon size ([#19459](https://github.com/lightdash/lightdash/issues/19459)) ([097695a](https://github.com/lightdash/lightdash/commit/097695acc5882b1bb3ef59ed1b69b9c85b5bcc81))
+
+## [0.2342.2](https://github.com/lightdash/lightdash/compare/0.2342.1...0.2342.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* preserve column order in SQL chart exports ([#19383](https://github.com/lightdash/lightdash/issues/19383)) ([02533b3](https://github.com/lightdash/lightdash/commit/02533b34434e6fc4ac497c5685dfe374ab600e74))
+
+## [0.2342.1](https://github.com/lightdash/lightdash/compare/0.2342.0...0.2342.1) (2026-01-15)
+
+
+### Bug Fixes
+
+* apply correct conditional formatting for pivoted columns ([#19466](https://github.com/lightdash/lightdash/issues/19466)) ([683bfae](https://github.com/lightdash/lightdash/commit/683bfae47793f7bd4bf5dba78db73e91b2cef81d))
+
+# [0.2342.0](https://github.com/lightdash/lightdash/compare/0.2341.2...0.2342.0) (2026-01-15)
+
+
+### Features
+
+* **prototype:** demo ui for funnel builder api ([#19345](https://github.com/lightdash/lightdash/issues/19345)) ([9f3f5e2](https://github.com/lightdash/lightdash/commit/9f3f5e2bd6f2105f8729b97d75dbca0330ca8673))
+
+## [0.2341.2](https://github.com/lightdash/lightdash/compare/0.2341.1...0.2341.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* chart warnings shouldnt cause dashboard errors ([#19462](https://github.com/lightdash/lightdash/issues/19462)) ([bc0ceb1](https://github.com/lightdash/lightdash/commit/bc0ceb1a83a9ffd5402e12bcf2eb1ae2eafe4945))
+
+## [0.2341.1](https://github.com/lightdash/lightdash/compare/0.2341.0...0.2341.1) (2026-01-15)
+
+
+### Bug Fixes
+
+* add field context to dimension reference error messages ([#19447](https://github.com/lightdash/lightdash/issues/19447)) ([d805ffb](https://github.com/lightdash/lightdash/commit/d805ffb5ca0d1755ebaf8e6b87ba3edad80fb3b0))
+
+# [0.2341.0](https://github.com/lightdash/lightdash/compare/0.2340.2...0.2341.0) (2026-01-15)
+
+
+### Features
+
+* enable Claude Opus 4.5 model and update model descriptions ([#19452](https://github.com/lightdash/lightdash/issues/19452)) ([84d6502](https://github.com/lightdash/lightdash/commit/84d6502bdac89f528058cbaa5692671d8cd66aea))
+
+## [0.2340.2](https://github.com/lightdash/lightdash/compare/0.2340.1...0.2340.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* overflow-hidden appended to body when MDEditor is used ([#19454](https://github.com/lightdash/lightdash/issues/19454)) ([7a16ad8](https://github.com/lightdash/lightdash/commit/7a16ad8aac74e61208c11c7efeddb309472e9879)), closes [#19372](https://github.com/lightdash/lightdash/issues/19372)
+
 ## [0.2340.1](https://github.com/lightdash/lightdash/compare/0.2340.0...0.2340.1) (2026-01-14)
 
 

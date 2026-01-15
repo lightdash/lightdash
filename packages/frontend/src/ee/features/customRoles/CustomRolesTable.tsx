@@ -1,24 +1,21 @@
-import { Button, createStyles, Group, Paper, Table } from '@mantine/core';
-import { useDisclosure } from '@mantine/hooks';
-import { IconEdit, IconTrash } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
-
 import { formatDate, type RoleWithScopes } from '@lightdash/common';
+import {
+    ActionIcon,
+    Box,
+    Menu,
+    Paper,
+    Table,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
+import { useDisclosure } from '@mantine/hooks';
+import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
+import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { CustomRolesDeleteModal } from './CustomRolesDeleteModal';
-
-const useStyles = createStyles((theme) => ({
-    scopeDescription: {
-        color: theme.colors.ldDark[2],
-    },
-    row: {
-        '& td': {
-            maxWidth: 400,
-        },
-    },
-}));
 
 const TableRow: FC<{
     role: RoleWithScopes;
@@ -26,37 +23,72 @@ const TableRow: FC<{
     onClickDelete: (role: RoleWithScopes) => void;
 }> = ({ role, onClickDelete }) => {
     const { name, description, createdAt } = role;
-    const { classes } = useStyles();
+    console.log('description', description);
+    const { ref: nameRef, isTruncated: isNameTruncated } =
+        useIsTruncated<HTMLDivElement>();
+    const { ref: descriptionRef, isTruncated: isDescriptionTruncated } =
+        useIsTruncated<HTMLDivElement>();
 
     return (
-        <tr className={classes.row}>
-            <td>{name}</td>
-            <td className={classes.scopeDescription}>{description || ''}</td>
-            <td>{createdAt ? formatDate(createdAt) : '-'}</td>
-            <td>
-                <Group spacing="xs" position="right">
-                    <Button
-                        component={Link}
-                        to={`/generalSettings/customRoles/${role.roleUuid}`}
-                        px="xs"
-                        variant="outline"
-                        size="xs"
-                        color="blue"
-                    >
-                        <MantineIcon icon={IconEdit} />
-                    </Button>
-                    <Button
-                        px="xs"
-                        variant="outline"
-                        size="xs"
-                        color="red"
-                        onClick={() => onClickDelete(role)}
-                    >
-                        <MantineIcon icon={IconTrash} />
-                    </Button>
-                </Group>
-            </td>
-        </tr>
+        <Table.Tr>
+            <Table.Td>
+                <Tooltip label={name} disabled={!isNameTruncated}>
+                    <Box>
+                        <Text fw={500} maw={300} fz="sm" truncate ref={nameRef}>
+                            {name}
+                        </Text>
+                    </Box>
+                </Tooltip>
+            </Table.Td>
+            <Table.Td>
+                <Tooltip
+                    label={description || ''}
+                    disabled={!isDescriptionTruncated}
+                >
+                    <Box>
+                        <Text
+                            fw={500}
+                            maw={400}
+                            fz="sm"
+                            truncate
+                            ref={descriptionRef}
+                        >
+                            {description || ''}
+                        </Text>
+                    </Box>
+                </Tooltip>
+            </Table.Td>
+            <Table.Td>{createdAt ? formatDate(createdAt) : '-'}</Table.Td>
+            <Table.Td w="1%">
+                <Menu withinPortal position="bottom-end">
+                    <Menu.Target>
+                        <ActionIcon
+                            variant="transparent"
+                            size="sm"
+                            color="ldGray.6"
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconEdit} />}
+                            component={Link}
+                            to={`/generalSettings/customRoles/${role.roleUuid}`}
+                        >
+                            Edit
+                        </Menu.Item>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => onClickDelete(role)}
+                        >
+                            Delete
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
+            </Table.Td>
+        </Table.Tr>
     );
 };
 
@@ -73,7 +105,7 @@ export const CustomRolesTable: FC<TableProps> = ({
     onEdit,
     isDeleting,
 }) => {
-    const { classes } = useTableStyles();
+    const { cx, classes } = useTableStyles();
     const [deleteOpened, { open: openDelete, close: closeDelete }] =
         useDisclosure(false);
     const [roleToDelete, setRoleToDelete] = useState<
@@ -100,17 +132,17 @@ export const CustomRolesTable: FC<TableProps> = ({
 
     return (
         <>
-            <Paper withBorder>
-                <Table className={classes.root}>
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Description</th>
-                            <th>Created</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            <Paper withBorder style={{ overflow: 'hidden' }}>
+                <Table className={cx(classes.root, classes.alignLastTdRight)}>
+                    <Table.Thead>
+                        <Table.Tr>
+                            <Table.Th>Name</Table.Th>
+                            <Table.Th>Description</Table.Th>
+                            <Table.Th>Created</Table.Th>
+                            <Table.Th></Table.Th>
+                        </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
                         {roles.map((role) => (
                             <TableRow
                                 key={role.roleUuid}
@@ -119,7 +151,7 @@ export const CustomRolesTable: FC<TableProps> = ({
                                 onClickDelete={handleOpenDeleteModal}
                             />
                         ))}
-                    </tbody>
+                    </Table.Tbody>
                 </Table>
             </Paper>
 

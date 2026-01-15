@@ -1,0 +1,19 @@
+.funnelTable {
+    white-space: nowrap;
+}
+
+.stepHeader {
+    border-bottom: 1px solid var(--mantine-color-gray-3);
+    background-color: var(--mantine-color-gray-0);
+}
+
+.metricHeader {
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-gray-6);
+}
+
+.breakdownHeader {
+    vertical-align: middle;
+    background-color: var(--mantine-color-gray-0);
+}

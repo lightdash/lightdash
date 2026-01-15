@@ -1,6 +1,6 @@
 import { type UserWarehouseCredentials } from '@lightdash/common';
-import { ActionIcon, Group, Paper, Table, Text } from '@mantine/core';
-import { IconEdit, IconTrash } from '@tabler/icons-react';
+import { ActionIcon, Menu, Paper, Table, Text } from '@mantine-8/core';
+import { IconDots, IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { getWarehouseLabel } from '../../ProjectConnection/ProjectConnectFlow/utils';
@@ -29,37 +29,44 @@ const CredentialsItem: FC<
     setWarehouseCredentialsToBeDeleted,
     setWarehouseCredentialsToBeEdited,
 }) => (
-    <tr>
-        <Text component="td" fw={500}>
-            {credentials.name}
-        </Text>
-        <td>{getWarehouseLabel(credentials.credentials.type)}</td>
-        <td
-            style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-            }}
-        >
-            <Group>
-                <ActionIcon
-                    onClick={() =>
-                        setWarehouseCredentialsToBeEdited(credentials)
-                    }
-                >
-                    <MantineIcon icon={IconEdit} />
-                </ActionIcon>
-
-                <ActionIcon
-                    onClick={() =>
-                        setWarehouseCredentialsToBeDeleted(credentials)
-                    }
-                >
-                    <MantineIcon icon={IconTrash} />
-                </ActionIcon>
-            </Group>
-        </td>
-    </tr>
+    <Table.Tr>
+        <Table.Td>
+            <Text fw={500}>{credentials.name}</Text>
+        </Table.Td>
+        <Table.Td>{getWarehouseLabel(credentials.credentials.type)}</Table.Td>
+        <Table.Td w="1%">
+            <Menu withinPortal position="bottom-end">
+                <Menu.Target>
+                    <ActionIcon
+                        variant="transparent"
+                        size="sm"
+                        color="ldGray.6"
+                    >
+                        <MantineIcon icon={IconDots} />
+                    </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconEdit} />}
+                        onClick={() =>
+                            setWarehouseCredentialsToBeEdited(credentials)
+                        }
+                    >
+                        Edit
+                    </Menu.Item>
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconTrash} />}
+                        color="red"
+                        onClick={() =>
+                            setWarehouseCredentialsToBeDeleted(credentials)
+                        }
+                    >
+                        Delete
+                    </Menu.Item>
+                </Menu.Dropdown>
+            </Menu>
+        </Table.Td>
+    </Table.Tr>
 );
 
 export const CredentialsTable: FC<CredentialsTableProps> = ({
@@ -67,22 +74,21 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
     setWarehouseCredentialsToBeEdited,
     setWarehouseCredentialsToBeDeleted,
 }) => {
-    const { cx, classes } = useTableStyles();
+    const { cx, classes: tableClasses } = useTableStyles();
 
     return (
-        <Paper withBorder sx={{ overflow: 'hidden' }}>
+        <Paper withBorder style={{ overflow: 'hidden' }}>
             <Table
-                className={cx(classes.root, classes.alignLastTdRight)}
-                ta="left"
+                className={cx(tableClasses.root, tableClasses.alignLastTdRight)}
             >
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Warehouse</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
+                <Table.Thead>
+                    <Table.Tr>
+                        <Table.Th>Name</Table.Th>
+                        <Table.Th>Warehouse</Table.Th>
+                        <Table.Th></Table.Th>
+                    </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
                     {credentials?.map((c) => (
                         <CredentialsItem
                             key={c.uuid}
@@ -95,7 +101,7 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
                             }
                         />
                     ))}
-                </tbody>
+                </Table.Tbody>
             </Table>
         </Paper>
     );

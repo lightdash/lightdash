@@ -14,6 +14,7 @@ import { type FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { getModelKey } from '../../../components/common/ModelSelector/utils';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
@@ -36,14 +37,18 @@ const AiAgentNewThreadPage: FC = () => {
     );
     const { data: modelOptions } = useModelOptions({ projectUuid, agentUuid });
 
-    const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+    const [selectedModelKey, setSelectedModelKey] = useState<string | null>(
+        null,
+    );
     const [extendedThinking, setExtendedThinking] = useState(false);
 
-    const handleSelectedModelIdChange = useCallback(
-        (modelId: string) => {
-            setSelectedModelId(modelId);
-            const selectedModel = modelOptions?.find((m) => m.name === modelId);
-            if (selectedModel && !selectedModel.supportsReasoning) {
+    const handleSelectedModelKeyChange = useCallback(
+        (modelKey: string) => {
+            setSelectedModelKey(modelKey);
+            const model = modelOptions?.find(
+                (m) => getModelKey(m) === modelKey,
+            );
+            if (model && !model.supportsReasoning) {
                 setExtendedThinking(false);
             }
         },
@@ -52,18 +57,18 @@ const AiAgentNewThreadPage: FC = () => {
 
     // Initialize to default model when data loads
     useEffect(() => {
-        if (modelOptions && !selectedModelId) {
+        if (modelOptions && !selectedModelKey) {
             const defaultModel = modelOptions.find((m) => m.default);
             if (defaultModel) {
-                handleSelectedModelIdChange(defaultModel.name);
+                handleSelectedModelKeyChange(getModelKey(defaultModel));
             }
         }
-    }, [modelOptions, selectedModelId, handleSelectedModelIdChange]);
+    }, [modelOptions, selectedModelKey, handleSelectedModelKeyChange]);
 
     // Only enable extended thinking toggle when selected model supports reasoning
     const selectedModel = useMemo(
-        () => modelOptions?.find((m) => m.name === selectedModelId),
-        [modelOptions, selectedModelId],
+        () => modelOptions?.find((m) => getModelKey(m) === selectedModelKey),
+        [modelOptions, selectedModelKey],
     );
     const showExtendedThinking = selectedModel?.supportsReasoning ?? false;
 
@@ -181,8 +186,8 @@ const AiAgentNewThreadPage: FC = () => {
                         loading={isCreatingThread}
                         placeholder={`Ask ${agent.name} anything about your data...`}
                         models={modelOptions}
-                        selectedModelId={selectedModelId}
-                        onModelChange={handleSelectedModelIdChange}
+                        selectedModelId={selectedModelKey}
+                        onModelChange={handleSelectedModelKeyChange}
                         extendedThinking={
                             showExtendedThinking ? extendedThinking : undefined
                         }

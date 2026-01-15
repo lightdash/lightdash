@@ -43,6 +43,9 @@ const useToaster = () => {
                 autoClose,
                 color,
                 styles: {
+                    loader: {
+                        padding: theme.spacing.xxs,
+                    },
                     root: {
                         background: isDark
                             ? theme.fn.darken(theme.colors[color][9], 0.6)
@@ -141,29 +144,6 @@ const useToaster = () => {
                                     }}
                                 />
                             )}
-                            {/*isError && (
-                                <Button
-                                    size="xs"
-                                    variant="light"
-                                    color={toastColor}
-                                    leftIcon={<IconSos />}
-                                    style={{
-                                        alignSelf: 'flex-end',
-                                    }}
-                                    onClick={() => {
-                                        modals.open({
-                                            id: 'support-drawer',
-                                            title: 'Share with Lightdash Support',
-                                            size: 'lg',
-                                            children: <SupportDrawerContent />,
-                                            yOffset: 100,
-                                            zIndex: 1000,
-                                        });
-                                    }}
-                                >
-                                    Share with Lightdash
-                                </Button>
-                            )*/}
                         </Stack>
                     ) : undefined,
                 onClose: (props: NotificationProps) => {

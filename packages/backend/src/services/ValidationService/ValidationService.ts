@@ -791,13 +791,20 @@ export class ValidationService extends BaseService {
                   )
                 : [];
 
+        // Only treat blocking chart errors as dashboard-breaking; warnings like
+        // chart configuration issues should not surface as dashboard errors.
+        const blockingChartErrors = chartErrors.filter(
+            (error) =>
+                error.errorType !== ValidationErrorType.ChartConfiguration,
+        );
+
         const dashboardErrors =
             !hasValidationTargets ||
             validationTargets.has(ValidationTarget.DASHBOARDS)
                 ? await this.validateDashboards(
                       projectUuid,
                       existingFields,
-                      chartErrors,
+                      blockingChartErrors,
                   )
                 : [];
 

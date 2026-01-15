@@ -1,8 +1,8 @@
-import { Button, Group, Stack, TextInput, Textarea } from '@mantine/core';
+import { Box, Button, Flex, Stack, TextInput, Textarea } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
-
 import { Link } from 'react-router';
+import { SettingsCard } from '../../../../../components/common/Settings/SettingsCard';
 import { validateRoleName, validateScopes } from '../../utils/roleValidation';
 import { ScopeSelector } from '../ScopeSelector';
 import { type RoleFormValues } from '../types';
@@ -50,63 +50,71 @@ export const RoleBuilder: FC<Props> = ({
         },
     });
 
-    const handleSubmit = () => {
-        form.validate();
+    const handleSubmit = form.onSubmit((values) => {
+        const scopeNames = Object.entries(values.scopes)
+            .filter(([_, isSelected]) => isSelected)
+            .map(([scope]) => scope);
 
-        if (form.isValid()) {
-            const scopeNames = Object.entries(form.values.scopes)
-                .filter(([_, isSelected]) => isSelected)
-                .map(([scope]) => scope);
-
-            onSubmit({
-                name: form.values.name,
-                description: form.values.description,
-                scopes: scopeNames,
-            });
-        }
-    };
+        onSubmit({
+            name: values.name,
+            description: values.description,
+            scopes: scopeNames,
+        });
+    });
 
     return (
-        <Stack h="80vh" pt="md">
-            <div className={styles.scrollableContent}>
-                <Stack spacing="lg">
-                    <Stack spacing="md">
-                        <TextInput
-                            label="Role name"
-                            placeholder="e.g., Finance Analyst"
-                            required
-                            disabled={isWorking}
-                            {...form.getInputProps('name')}
-                        />
-                        <Textarea
-                            label="Description"
-                            placeholder="Describe the purpose of this role"
-                            rows={3}
-                            disabled={isWorking}
-                            {...form.getInputProps('description')}
-                        />
-                    </Stack>
-                    <ScopeSelector form={form} />
-                </Stack>
-            </div>
+        <form onSubmit={handleSubmit} className={styles.container}>
+            <Box className={styles.content}>
+                <Stack gap="xs" className={styles.contentStack}>
+                    <SettingsCard>
+                        <Stack gap="md">
+                            <TextInput
+                                label="Role name"
+                                placeholder="e.g., Finance Analyst"
+                                required
+                                disabled={isWorking}
+                                {...form.getInputProps('name')}
+                            />
+                            <Textarea
+                                label="Description"
+                                placeholder="Describe the purpose of this role"
+                                rows={3}
+                                disabled={isWorking}
+                                {...form.getInputProps('description')}
+                            />
+                        </Stack>
+                    </SettingsCard>
 
-            <Group pt="xl" position="right">
-                <Button
-                    variant="outline"
-                    component={Link}
-                    to="/generalSettings/customRoles"
-                    disabled={isWorking}
-                >
-                    Cancel
-                </Button>
-                <Button
-                    onClick={handleSubmit}
-                    loading={isWorking}
-                    disabled={mode === 'edit' && !form.isDirty()}
-                >
-                    {mode === 'create' ? 'Create role' : 'Save changes'}
-                </Button>
-            </Group>
-        </Stack>
+                    <SettingsCard className={styles.permissionsCard}>
+                        <Box className={styles.permissionsContent}>
+                            <ScopeSelector form={form} />
+                        </Box>
+                        <Flex
+                            justify="flex-end"
+                            gap="sm"
+                            className={styles.footer}
+                        >
+                            <Button
+                                variant="default"
+                                component={Link}
+                                to="/generalSettings/customRoles"
+                                disabled={isWorking}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                type="submit"
+                                loading={isWorking}
+                                disabled={mode === 'edit' && !form.isDirty()}
+                            >
+                                {mode === 'create'
+                                    ? 'Create role'
+                                    : 'Save changes'}
+                            </Button>
+                        </Flex>
+                    </SettingsCard>
+                </Stack>
+            </Box>
+        </form>
     );
 };

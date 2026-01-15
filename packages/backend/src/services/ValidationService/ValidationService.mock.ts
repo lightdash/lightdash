@@ -331,7 +331,7 @@ export const exploreError: ExploreError = {
     errors: [
         {
             message:
-                'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
+                'Model "valid_explore" in metric "some_metric" has a dimension reference: ${is_completed} which matches no dimension',
             type: InlineErrorType.METADATA_PARSE_ERROR,
         },
     ],

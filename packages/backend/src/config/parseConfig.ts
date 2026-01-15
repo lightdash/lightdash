@@ -1784,7 +1784,9 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.PARTIAL_COMPILATION_ENABLED === 'true',
         },
         funnelBuilder: {
-            enabled: process.env.FUNNEL_BUILDER_ENABLED === 'true',
+            enabled:
+                process.env.FUNNEL_BUILDER_ENABLED === 'true' ||
+                lightdashMode === LightdashMode.PR,
         },
     };
 };
