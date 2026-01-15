@@ -108,7 +108,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
             return;
         }
 
-        if (loadResultsStatus === 'success') {
+        // Signal ready for both success and idle (idle = no data to fetch)
+        if (loadResultsStatus === 'success' || loadResultsStatus === 'idle') {
             onScreenshotReady?.();
             hasSignaledScreenshotReady.current = true;
         }
