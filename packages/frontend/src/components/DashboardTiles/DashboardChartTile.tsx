@@ -1827,6 +1827,16 @@ export const GenericDashboardChartTile: FC<
         dashboardUuid: string;
     }>();
     const { user } = useApp();
+    const markTileScreenshotErrored = useDashboardContext(
+        (c) => c.markTileScreenshotErrored,
+    );
+
+    // Mark tile as errored for screenshot system when chart is deleted/orphaned
+    useEffect(() => {
+        if (error !== null) {
+            markTileScreenshotErrored(tile.uuid);
+        }
+    }, [error, tile.uuid, markTileScreenshotErrored]);
 
     const userCanManageChart =
         dashboardChartReadyQuery?.chart &&
