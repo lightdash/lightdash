@@ -458,6 +458,19 @@ const PivotTable: FC<PivotTableProps> = ({
                 data.indexValues[rowIndex] ?? [],
             );
 
+            // Include row dimension values from indexValues
+            const rowDimensionFields =
+                currentIndexDims.reduce<ConditionalFormattingRowFields>(
+                    (acc, dim) => {
+                        const field = getField(dim.fieldId);
+                        if (field && isDimension(field)) {
+                            acc[dim.fieldId] = { field, value: dim.value };
+                        }
+                        return acc;
+                    },
+                    {},
+                );
+
             const metricFields =
                 data.indexValues.reduce<ConditionalFormattingRowFields>(
                     (acc, indexValueRow, metricRowIdx) => {
@@ -492,8 +505,12 @@ const PivotTable: FC<PivotTableProps> = ({
                     {},
                 );
 
-            // Merge pivoted dimensions with metrics
-            return { ...pivotedDimensionFields, ...metricFields };
+            // Merge pivoted dimensions, row dimensions, and metrics
+            return {
+                ...pivotedDimensionFields,
+                ...rowDimensionFields,
+                ...metricFields,
+            };
         },
         [
             data.indexValues,
