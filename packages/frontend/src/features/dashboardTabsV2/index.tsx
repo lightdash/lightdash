@@ -185,12 +185,6 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
     );
 
     const defaultTab = dashboardTabs?.[0];
-    // Context: We don't want to show the "tabs mode" if there is only one tab in state
-    // This is because the tabs mode is only useful when there are multiple tabs
-    const sortedTabs =
-        dashboardTabs.length > 1
-            ? dashboardTabs?.sort((a, b) => a.order - b.order)
-            : [];
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
     const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
 
@@ -256,7 +250,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
         }
     });
 
-    const firstSortedTabUuid = sortedTabs?.[0]?.uuid;
+    const firstSortedTabUuid = dashboardTabs?.[0]?.uuid;
     const isActiveTile = useCallback(
         (tile: DashboardTile) => {
             const tileBelongsToActiveTab = tile.tabUuid === activeTab?.uuid; // tiles belongs to current tab
@@ -501,7 +495,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                 if (!result.destination) {
                     return;
                 }
-                const newTabs = cloneDeep(sortedTabs); // avoid mutating tab objects
+                const newTabs = cloneDeep(dashboardTabs); // avoid mutating tab objects
                 const [reorderedTab] = newTabs.splice(result.source.index, 1);
                 newTabs.splice(result.destination.index, 0, reorderedTab);
                 newTabs.forEach((tab, idx) => {
@@ -521,7 +515,7 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                             <Tabs
                                 value={activeTab?.uuid}
                                 onChange={(e) => {
-                                    const tab = sortedTabs?.find(
+                                    const tab = dashboardTabs?.find(
                                         (t) => t.uuid === e,
                                     );
                                     if (tab) {
@@ -546,67 +540,62 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
                                         data-has-header-above={isEditMode}
                                         data-is-stuck={isHeaderStuck}
                                     >
-                                        {sortedTabs &&
-                                            sortedTabs?.length > 0 && (
-                                                <Tabs.List px="lg">
-                                                    {sortedTabs.map(
-                                                        (tab, idx) => (
-                                                            <DraggableTab
-                                                                key={tab.uuid}
-                                                                idx={idx}
-                                                                tab={tab}
-                                                                isEditMode={
-                                                                    isEditMode
-                                                                }
-                                                                sortedTabs={
-                                                                    sortedTabs
-                                                                }
-                                                                currentTabHasTiles={
-                                                                    currentTabHasTiles
-                                                                }
-                                                                setEditingTab={
-                                                                    setEditingTab
-                                                                }
-                                                                handleDeleteTab={
-                                                                    handleDeleteTab
-                                                                }
-                                                                handleDuplicateTab={
-                                                                    handleDuplicateTab
-                                                                }
-                                                                setDeletingTab={
-                                                                    setDeletingTab
-                                                                }
+                                        {dashboardTabs?.length > 1 && (
+                                            <Tabs.List px="lg">
+                                                {dashboardTabs.map(
+                                                    (tab, idx) => (
+                                                        <DraggableTab
+                                                            key={tab.uuid}
+                                                            idx={idx}
+                                                            tab={tab}
+                                                            isEditMode={
+                                                                isEditMode
+                                                            }
+                                                            sortedTabs={
+                                                                dashboardTabs
+                                                            }
+                                                            currentTabHasTiles={
+                                                                currentTabHasTiles
+                                                            }
+                                                            setEditingTab={
+                                                                setEditingTab
+                                                            }
+                                                            handleDeleteTab={
+                                                                handleDeleteTab
+                                                            }
+                                                            handleDuplicateTab={
+                                                                handleDuplicateTab
+                                                            }
+                                                            setDeletingTab={
+                                                                setDeletingTab
+                                                            }
+                                                        />
+                                                    ),
+                                                )}
+
+                                                {provided.placeholder}
+
+                                                {isEditMode && (
+                                                    <Button
+                                                        ml="sm"
+                                                        size="sm"
+                                                        fz={13}
+                                                        variant="subtle"
+                                                        flex="0 0 auto"
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={IconPlus}
                                                             />
-                                                        ),
-                                                    )}
-
-                                                    {provided.placeholder}
-
-                                                    {isEditMode && (
-                                                        <Button
-                                                            ml="sm"
-                                                            size="sm"
-                                                            fz={13}
-                                                            variant="subtle"
-                                                            flex="0 0 auto"
-                                                            leftSection={
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconPlus
-                                                                    }
-                                                                />
-                                                            }
-                                                            onClick={() =>
-                                                                setAddingTab(
-                                                                    true,
-                                                                )
-                                                            }
-                                                        >
-                                                            New tab
-                                                        </Button>
-                                                    )}
-                                                </Tabs.List>
-                                            )}
+                                                        }
+                                                        onClick={() =>
+                                                            setAddingTab(true)
+                                                        }
+                                                    >
+                                                        New tab
+                                                    </Button>
+                                                )}
+                                            </Tabs.List>
+                                        )}
 
                                         {/* Filters bar - collapsed or expanded view */}
                                         <div className={styles.filtersBar}>

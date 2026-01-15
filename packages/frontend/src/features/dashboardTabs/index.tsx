@@ -124,12 +124,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
 
     const defaultTab = dashboardTabs?.[0];
-    // Context: We don't want to show the "tabs mode" if there is only one tab in state
-    // This is because the tabs mode is only useful when there are multiple tabs
-    const sortedTabs =
-        dashboardTabs.length > 1
-            ? dashboardTabs?.sort((a, b) => a.order - b.order)
-            : [];
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
     const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
 
@@ -147,7 +141,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         const tileBelongsToActiveTab = tile.tabUuid === activeTab?.uuid; // tiles belongs to current tab
         const defaultTabOrFirstTabActived =
             activeTab?.uuid === defaultTab?.uuid ||
-            activeTab?.uuid === sortedTabs?.[0]?.uuid;
+            activeTab?.uuid === dashboardTabs?.[0]?.uuid;
         const tileHasStaleTabReference =
             !dashboardTabs?.some((tab) => tab.uuid === tile.tabUuid) &&
             defaultTabOrFirstTabActived; // tile des not belong to any tab and display it on default tab
@@ -327,7 +321,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 if (!result.destination) {
                     return;
                 }
-                const newTabs = cloneDeep(sortedTabs); // avoid mutating tab objects
+                const newTabs = cloneDeep(dashboardTabs); // avoid mutating tab objects
                 const [reorderedTab] = newTabs.splice(result.source.index, 1);
                 newTabs.splice(result.destination.index, 0, reorderedTab);
                 newTabs.forEach((tab, idx) => {
@@ -347,7 +341,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             <Tabs
                                 value={activeTab?.uuid}
                                 onTabChange={(e) => {
-                                    const tab = sortedTabs?.find(
+                                    const tab = dashboardTabs?.find(
                                         (t) => t.uuid === e,
                                     );
                                     if (tab) {
@@ -363,7 +357,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 }}
                                 variant="outline"
                             >
-                                {sortedTabs && sortedTabs?.length > 0 && (
+                                {dashboardTabs?.length > 1 && (
                                     <Tabs.List bg="ldGray.0" px="lg">
                                         <ScrollArea
                                             type="hover"
@@ -386,40 +380,42 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     },
                                                 })}
                                             >
-                                                {sortedTabs?.map((tab, idx) => {
-                                                    return (
-                                                        <DraggableTab
-                                                            key={tab.uuid}
-                                                            idx={idx}
-                                                            tab={tab}
-                                                            isEditMode={
-                                                                isEditMode
-                                                            }
-                                                            sortedTabs={
-                                                                sortedTabs
-                                                            }
-                                                            currentTabHasTiles={
-                                                                currentTabHasTiles
-                                                            }
-                                                            isActive={
-                                                                activeTab?.uuid ===
-                                                                tab.uuid
-                                                            }
-                                                            setEditingTab={
-                                                                setEditingTab
-                                                            }
-                                                            handleDeleteTab={
-                                                                handleDeleteTab
-                                                            }
-                                                            handleDuplicateTab={
-                                                                handleDuplicateTab
-                                                            }
-                                                            setDeletingTab={
-                                                                setDeletingTab
-                                                            }
-                                                        />
-                                                    );
-                                                })}
+                                                {dashboardTabs?.map(
+                                                    (tab, idx) => {
+                                                        return (
+                                                            <DraggableTab
+                                                                key={tab.uuid}
+                                                                idx={idx}
+                                                                tab={tab}
+                                                                isEditMode={
+                                                                    isEditMode
+                                                                }
+                                                                sortedTabs={
+                                                                    dashboardTabs
+                                                                }
+                                                                currentTabHasTiles={
+                                                                    currentTabHasTiles
+                                                                }
+                                                                isActive={
+                                                                    activeTab?.uuid ===
+                                                                    tab.uuid
+                                                                }
+                                                                setEditingTab={
+                                                                    setEditingTab
+                                                                }
+                                                                handleDeleteTab={
+                                                                    handleDeleteTab
+                                                                }
+                                                                handleDuplicateTab={
+                                                                    handleDuplicateTab
+                                                                }
+                                                                setDeletingTab={
+                                                                    setDeletingTab
+                                                                }
+                                                            />
+                                                        );
+                                                    },
+                                                )}
                                             </Group>
                                         </ScrollArea>
                                         {provided.placeholder}
