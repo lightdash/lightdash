@@ -131,34 +131,54 @@ const getTileConfig = (
 ): TileConfig => {
     switch (background) {
         case MapTileBackground.NONE:
+            // No base map tiles. Useful for overlays-only views or custom rendering.
             return {
                 url: null,
                 attribution: '',
             };
+
         case MapTileBackground.OPENSTREETMAP:
+            // OpenStreetMap standard tiles.
+            // Community-run, attribution-only, fair-use. Suitable for low–moderate traffic.
+            // Not intended for heavy commercial usage or guaranteed SLA.
             return {
                 url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                 attribution:
                     '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             };
+
         case MapTileBackground.DARK:
+            // Stamen Toner Lite (hosted by Stadia Maps).
+            // Open Stamen style with fair-use hosted tiles.
+            // No API key required for low usage; switch to keyed or self-hosted tiles if usage grows.
             return {
-                url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                url: 'https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.png',
                 attribution:
-                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> ' +
+                    '&copy; <a href="https://stamen.com/">Stamen Design</a> ' +
+                    '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> ' +
+                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             };
+
+        // NOTE: Esri World Imagery is used under fair-use terms.
+        // If usage increases, switch to a licensed or self-hosted provider.
         case MapTileBackground.SATELLITE:
             return {
                 url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                 attribution:
                     'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
             };
+
         case MapTileBackground.LIGHT:
         default:
+            // Wikimedia OSM tiles.
+            // Neutral, clean cartography with OSM data.
+            // Fair-use, attribution-only; suitable as a safe default base map.
             return {
-                url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                url: 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png',
                 attribution:
-                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &mdash; ' +
+                    'Map data © <a href="https://wikimediafoundation.org/">Wikimedia Foundation</a>',
             };
     }
 };
