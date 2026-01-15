@@ -58,7 +58,6 @@ export type DashboardChartTileProperties = {
         chartName?: string | null;
         lastVersionChartKind?: ChartKind | null;
         chartSlug?: string;
-        shouldDuplicateChart?: boolean; // Set when duplicating a tab - signals backend to create a copy of the chart
     };
 };
 

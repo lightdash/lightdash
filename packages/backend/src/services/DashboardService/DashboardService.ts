@@ -679,43 +679,91 @@ export class DashboardService
                 new Set(dashboard.tiles.map((t) => t.type)),
             );
 
-            // Handle chart duplication for tiles marked with shouldDuplicateChart
+            // Handle chart duplication for dashboard charts that appear multiple times
             // This happens when duplicating a dashboard tab with charts saved directly to the dashboard
-            const tilesToSave = await Promise.all(
-                dashboard.tiles.map(async (tile) => {
-                    // Check if this is a chart tile that needs duplication
-                    if (
-                        tile.type === DashboardTileTypes.SAVED_CHART &&
-                        tile.properties.shouldDuplicateChart &&
-                        tile.properties.savedChartUuid
-                    ) {
-                        const newChartUuid =
-                            await this.duplicateChartForDashboard({
-                                chartUuid: tile.properties.savedChartUuid,
+            // We detect duplicates by finding chart UUIDs that appear more than once
+            // Step 1: Count occurrences of each chart UUID for dashboard charts
+            const chartUuidOccurrences = new Map<string, number>();
+            dashboard.tiles.forEach((tile) => {
+                if (
+                    tile.type === DashboardTileTypes.SAVED_CHART &&
+                    tile.properties.belongsToDashboard &&
+                    tile.properties.savedChartUuid
+                ) {
+                    const chartUuid = tile.properties.savedChartUuid;
+                    chartUuidOccurrences.set(
+                        chartUuid,
+                        (chartUuidOccurrences.get(chartUuid) ?? 0) + 1,
+                    );
+                }
+            });
+
+            // Step 2: Find chart UUIDs that need duplication (appear more than once)
+            const chartUuidsToDuplicate = new Set(
+                [...chartUuidOccurrences.entries()]
+                    .filter(([, count]) => count > 1)
+                    .map(([uuid]) => uuid),
+            );
+
+            // Step 3: Create duplicated charts for all tiles that need them (except the first occurrence)
+            const seenChartUuids = new Set<string>();
+            const chartDuplicationPromises: Promise<{
+                tileIndex: number;
+                newChartUuid: string;
+            }>[] = [];
+
+            dashboard.tiles.forEach((tile, index) => {
+                if (
+                    tile.type === DashboardTileTypes.SAVED_CHART &&
+                    tile.properties.belongsToDashboard &&
+                    tile.properties.savedChartUuid &&
+                    chartUuidsToDuplicate.has(tile.properties.savedChartUuid)
+                ) {
+                    const chartUuid = tile.properties.savedChartUuid;
+                    if (seenChartUuids.has(chartUuid)) {
+                        // This is a subsequent occurrence - needs duplication
+                        chartDuplicationPromises.push(
+                            this.duplicateChartForDashboard({
+                                chartUuid,
                                 projectUuid: existingDashboardDao.projectUuid,
                                 dashboardUuid: existingDashboardDao.uuid,
                                 user,
-                            });
-
-                        // Return tile with new chart UUID and remove the shouldDuplicateChart flag
-                        return {
-                            ...tile,
-                            properties: {
-                                title: tile.properties.title,
-                                hideTitle: tile.properties.hideTitle,
-                                savedChartUuid: newChartUuid,
-                                belongsToDashboard:
-                                    tile.properties.belongsToDashboard,
-                                chartName: tile.properties.chartName,
-                                lastVersionChartKind:
-                                    tile.properties.lastVersionChartKind,
-                                chartSlug: tile.properties.chartSlug,
-                            },
-                        };
+                            }).then((newChartUuid) => ({
+                                tileIndex: index,
+                                newChartUuid,
+                            })),
+                        );
+                    } else {
+                        // First occurrence - keep the original
+                        seenChartUuids.add(chartUuid);
                     }
-                    return tile;
-                }),
+                }
+            });
+
+            // Step 4: Wait for all duplications and build the final tiles array
+            const duplicatedCharts = await Promise.all(
+                chartDuplicationPromises,
             );
+            const duplicatedChartsByTileIndex = new Map(
+                duplicatedCharts.map((d) => [d.tileIndex, d.newChartUuid]),
+            );
+
+            const tilesToSave = dashboard.tiles.map((tile, index) => {
+                const newChartUuid = duplicatedChartsByTileIndex.get(index);
+                if (
+                    newChartUuid &&
+                    tile.type === DashboardTileTypes.SAVED_CHART
+                ) {
+                    return {
+                        ...tile,
+                        properties: {
+                            ...tile.properties,
+                            savedChartUuid: newChartUuid,
+                        },
+                    };
+                }
+                return tile;
+            });
 
             const updatedDashboard = await this.dashboardModel.addVersion(
                 existingDashboardDao.uuid,

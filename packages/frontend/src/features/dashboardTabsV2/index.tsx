@@ -1,6 +1,5 @@
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import {
-    isDashboardChartTileType,
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
@@ -448,28 +447,12 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
 
             if (tilesToDuplicate && tilesToDuplicate.length > 0) {
                 // Step 1: Create mapping while duplicating tiles
+                // The backend will detect duplicate chart UUIDs for dashboard charts
+                // and create copies automatically
                 const tileUuidMapping = new Map<string, string>();
                 const duplicatedTiles = tilesToDuplicate.map((tile) => {
                     const newUuid = uuid4();
                     tileUuidMapping.set(tile.uuid, newUuid);
-
-                    // For chart tiles that belong to the dashboard, mark them for duplication
-                    // so the backend creates a copy of the chart when saving
-                    if (
-                        isDashboardChartTileType(tile) &&
-                        tile.properties.belongsToDashboard &&
-                        tile.properties.savedChartUuid
-                    ) {
-                        return {
-                            ...tile,
-                            uuid: newUuid,
-                            tabUuid: newTab.uuid,
-                            properties: {
-                                ...tile.properties,
-                                shouldDuplicateChart: true,
-                            },
-                        };
-                    }
 
                     return {
                         ...tile,
