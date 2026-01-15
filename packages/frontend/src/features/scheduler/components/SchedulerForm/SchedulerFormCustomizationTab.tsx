@@ -42,8 +42,12 @@ export const SchedulerFormCustomizationTab = () => {
                     commands.divider,
                     commands.link,
                 ]}
+                maxHeight={300}
+                minHeight={100}
+                visibleDragbar
                 value={form.values.message}
                 onChange={(value) => form.setFieldValue('message', value || '')}
+                overflow={false}
             />
         </Stack>
     );
