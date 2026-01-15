@@ -151,5 +151,6 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
     } as unknown as ProjectModel,
     openIdIdentityModel: {
         deleteIdentitiesByEmail: jest.fn().mockResolvedValue(0),
+        deleteIdentitiesByUserUuid: jest.fn().mockResolvedValue(0),
     } as unknown as OpenIdIdentityModel,
 };

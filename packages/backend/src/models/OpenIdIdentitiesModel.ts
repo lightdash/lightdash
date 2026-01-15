@@ -217,9 +217,22 @@ export class OpenIdIdentityModel {
     }
 
     async deleteIdentitiesByEmail(email: string): Promise<number> {
-        const deletedCount = await this.database(OpenIdIdentitiesTableName)
+        return this.database(OpenIdIdentitiesTableName)
             .where('email', email)
             .delete();
-        return deletedCount;
+    }
+
+    async deleteIdentitiesByUserUuid(userUuid: string): Promise<number> {
+        const [user] = await this.database('users')
+            .select('user_id')
+            .where('user_uuid', userUuid);
+
+        if (!user) {
+            return 0;
+        }
+
+        return this.database(OpenIdIdentitiesTableName)
+            .where('user_id', user.user_id)
+            .delete();
     }
 }

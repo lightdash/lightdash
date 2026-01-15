@@ -397,6 +397,38 @@ export class ScimService extends BaseService {
         }
     }
 
+    /* To avoid conflicts during SSO login, after user is created or updated
+    we delete all openid identities for the user's email and user uuid 
+    userUuid is optional since users and logins can't exist during user creation
+    */
+    private async deleteOpenIdIdentitiesForUser({
+        email,
+        userUuid,
+    }: {
+        email: string;
+        userUuid?: string;
+    }): Promise<void> {
+        if (userUuid) {
+            const deletedIdentitiesByUserUuid =
+                await this.openIdIdentityModel.deleteIdentitiesByUserUuid(
+                    userUuid,
+                );
+            if (deletedIdentitiesByUserUuid > 0) {
+                this.logger.debug(
+                    `SCIM: deleted ${deletedIdentitiesByUserUuid} openid identities for user ${userUuid}`,
+                );
+            }
+        }
+
+        const deletedIdentitiesByEmail =
+            await this.openIdIdentityModel.deleteIdentitiesByEmail(email);
+        if (deletedIdentitiesByEmail > 0) {
+            this.logger.debug(
+                `SCIM: deleted ${deletedIdentitiesByEmail} openid identities for email ${email}`,
+            );
+        }
+    }
+
     // Create a SCIM user
     async createUser({
         user,
@@ -426,10 +458,8 @@ export class ScimService extends BaseService {
             // Delete any existing openid identities for this email to prevent login conflicts
             // This handles the case where a user's email changed via SCIM and an old
             // openid identity record exists pointing to a deactivated account
-            this.logger.debug(
-                `SCIM: deleting openid identities for email ${email}`,
-            );
-            await this.openIdIdentityModel.deleteIdentitiesByEmail(email);
+            await this.deleteOpenIdIdentitiesForUser({ email });
+
             const dbUser = await this.userModel.createUser(
                 {
                     email,
@@ -582,18 +612,6 @@ export class ScimService extends BaseService {
                 true, // automatically verify email
             );
 
-            if (user.active && user.active !== dbUser.isActive) {
-                this.logger.debug(
-                    `SCIM: Updating active user ${emailToUpdate} to ${user.active}`,
-                );
-                this.logger.debug(
-                    `SCIM: deleting openid identities for email ${emailToUpdate}`,
-                );
-                await this.openIdIdentityModel.deleteIdentitiesByEmail(
-                    emailToUpdate,
-                );
-            }
-
             // Update user's organization role if provided in the extension schema
             const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
             if (extensionData?.role && extensionData.role !== dbUser.role) {
@@ -623,6 +641,19 @@ export class ScimService extends BaseService {
                 userUuid,
                 roles: user.roles,
             });
+
+            // If active status changes, either true or false
+            // We delete all openid identities for the user's email and user uuid
+            // to prevent login conflicts
+            if (user.active !== undefined) {
+                this.logger.debug(
+                    `SCIM: Updating active user ${emailToUpdate} to ${user.active}`,
+                );
+                await this.deleteOpenIdIdentitiesForUser({
+                    email: emailToUpdate,
+                    userUuid: dbUser.userUuid,
+                });
+            }
 
             // If setting user to inactive, drop org role to MEMBER and remove project roles
             if (user.active === false) {
