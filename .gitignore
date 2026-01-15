@@ -114,4 +114,4 @@ http-client.private.env.json
 .turbo
 
 # git worktrees
-.worktrees/
+.worktrees
