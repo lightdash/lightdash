@@ -1,4 +1,4 @@
-import { SEED_PROJECT } from '@lightdash/common';
+import { SCREENSHOT_READY_INDICATOR_ID, SEED_PROJECT } from '@lightdash/common';
 
 const apiUrl = '/api/v1';
 
@@ -90,5 +90,41 @@ describe('Minimal pages', () => {
             cy.contains('Which customers have not recently ordered an item?'); // table chart
             cy.contains('Days between created and first order'); // table chart
         });
+    });
+
+    it('Screenshot ready indicator works with edge cases (orphan tiles, empty results, errors)', () => {
+        // Uses hardcoded dashboard from seed: 08_scheduled_delivery_edge_cases_dashboard.ts
+        // Contains: 1 bar chart, 1 orphan tile, 1 empty results table, 1 table with invalid metric
+        const edgeCasesDashboardUuid = '4f34f5a2-93df-4e5b-a6f1-b6167b19a8ba';
+
+        cy.visit(
+            `/minimal/projects/${SEED_PROJECT.project_uuid}/dashboards/${edgeCasesDashboardUuid}`,
+        );
+
+        // Wait for screenshot ready indicator to appear (max 30s for slow queries)
+        cy.get(`#${SCREENSHOT_READY_INDICATOR_ID}`, { timeout: 30000 }).should(
+            'exist',
+        );
+
+        // Verify the indicator has expected data attributes
+        cy.get(`#${SCREENSHOT_READY_INDICATOR_ID}`).should(
+            'have.attr',
+            'data-tiles-total',
+            '4',
+        );
+
+        // Should have some errored tiles (orphan + invalid metric)
+        cy.get(`#${SCREENSHOT_READY_INDICATOR_ID}`)
+            .invoke('attr', 'data-tiles-errored')
+            .then((errored) => {
+                expect(Number(errored)).to.be.greaterThan(0);
+            });
+
+        // Verify status is completed-with-errors (due to orphan/error tiles)
+        cy.get(`#${SCREENSHOT_READY_INDICATOR_ID}`).should(
+            'have.attr',
+            'data-status',
+            'completed-with-errors',
+        );
     });
 });
