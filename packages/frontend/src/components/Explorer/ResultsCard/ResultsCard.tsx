@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import { FeatureFlags, getItemMap } from '@lightdash/common';
 import { ActionIcon, Group, Popover } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -36,9 +36,16 @@ import {
 } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
 import { ExplorerResults } from './ExplorerResults';
+import { ResultsViewMode } from './types';
 
 const ResultsCard: FC = memo(() => {
     const projectUuid = useProjectUuid();
+
+    // Track view mode from ExplorerResults to control header visibility
+    const [resultsViewMode, setResultsViewMode] = useState<ResultsViewMode>(
+        ResultsViewMode.RESULTS,
+    );
+    const isGroupedView = resultsViewMode === ResultsViewMode.GROUPED;
 
     const isEditMode = useExplorerSelector(selectIsEditMode);
     const resultsIsOpen = useExplorerSelector(selectIsResultsExpanded);
@@ -120,32 +127,39 @@ const ResultsCard: FC = memo(() => {
             onToggle={toggleCard}
             disabled={!tableName}
             headerElement={
-                <Group noWrap spacing="xs">
-                    {tableName && sorts.length > 0 && (
-                        <SortButton isEditMode={isEditMode} sorts={sorts} />
-                    )}
-                    {showPeriodOverPeriod && (
-                        <PeriodOverPeriodButton
-                            itemsMap={itemsMap}
-                            disabled={!isEditMode}
-                        />
-                    )}
-                </Group>
+                // Hide header controls when in grouped view
+                isGroupedView ? null : (
+                    <Group noWrap spacing="xs">
+                        {tableName && sorts.length > 0 && (
+                            <SortButton isEditMode={isEditMode} sorts={sorts} />
+                        )}
+                        {showPeriodOverPeriod && (
+                            <PeriodOverPeriodButton
+                                itemsMap={itemsMap}
+                                disabled={!isEditMode}
+                            />
+                        )}
+                    </Group>
+                )
             }
             rightHeaderElement={
                 projectUuid &&
                 resultsIsOpen &&
                 tableName && (
                     <>
-                        <Can
-                            I="manage"
-                            this={subject('Explore', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
-                            {isEditMode && <AddColumnButton />}
-                        </Can>
+                        {/* Hide AddColumnButton when in grouped view */}
+                        {!isGroupedView && (
+                            <Can
+                                I="manage"
+                                this={subject('Explore', {
+                                    organizationUuid:
+                                        user.data?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                {isEditMode && <AddColumnButton />}
+                            </Can>
+                        )}
 
                         <Can
                             I="manage"
@@ -190,7 +204,7 @@ const ResultsCard: FC = memo(() => {
                 )
             }
         >
-            <ExplorerResults />
+            <ExplorerResults onViewModeChange={setResultsViewMode} />
         </CollapsableCard>
     );
 });
