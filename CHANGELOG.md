@@ -1,3 +1,10 @@
+# [0.2341.0](https://github.com/lightdash/lightdash/compare/0.2340.2...0.2341.0) (2026-01-15)
+
+
+### Features
+
+* enable Claude Opus 4.5 model and update model descriptions ([#19452](https://github.com/lightdash/lightdash/issues/19452)) ([84d6502](https://github.com/lightdash/lightdash/commit/84d6502bdac89f528058cbaa5692671d8cd66aea))
+
 ## [0.2340.2](https://github.com/lightdash/lightdash/compare/0.2340.1...0.2340.2) (2026-01-15)
 
 
