@@ -8,7 +8,6 @@ import {
     CustomFormatType,
     DimensionType,
     evaluateConditionalFormatExpression,
-    FeatureFlags,
     formatItemValue,
     formatNumberValue,
     formatValueWithExpression,
@@ -92,12 +91,12 @@ import {
     legendTopSpacing,
 } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
+import { useDashboardUIPreference } from '../dashboard/useDashboardUIPreference';
 import {
     getPivotedDataFromPivotDetails,
     getPlottedData,
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
-import { useFeatureFlagEnabled } from '../useFeatureFlagEnabled';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import {
     computeSeriesColorsWithPop,
@@ -2129,12 +2128,11 @@ const useEchartsCartesianConfig = (
         getSeriesColor,
         minimal,
         parameters,
+        isTouchDevice,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
-    const isDashboardRedesignEnabled = useFeatureFlagEnabled(
-        FeatureFlags.DashboardRedesign,
-    );
+    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
 
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
@@ -2681,10 +2679,10 @@ const useEchartsCartesianConfig = (
             show: true,
             trigger: 'axis',
             enterable: true,
-            ...getTooltipStyle(),
+            ...getTooltipStyle({ appendToBody: !isTouchDevice }),
             confine: true,
             extraCssText: `overflow-y: auto; max-height:280px; ${
-                getTooltipStyle().extraCssText
+                getTooltipStyle({ appendToBody: !isTouchDevice }).extraCssText
             }`,
             axisPointer: getAxisPointerStyle(hasLineAreaScatterSeries),
             formatter: buildCartesianTooltipFormatter({
@@ -2711,6 +2709,7 @@ const useEchartsCartesianConfig = (
         parameters,
         series,
         dataToRender,
+        isTouchDevice,
     ]);
 
     // Calculate max stack label padding for 100% stacking grid
