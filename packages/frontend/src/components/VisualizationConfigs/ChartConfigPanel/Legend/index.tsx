@@ -25,6 +25,7 @@ import { useVisualizationContext } from '../../../LightdashVisualization/useVisu
 import { Config } from '../../common/Config';
 import { UnitInputsGrid } from '../common/UnitInputsGrid';
 import { ReferenceLines } from './ReferenceLines';
+import { TooltipSortConfig } from './TooltipSortConfig';
 
 // Lazy load because it imports heavy module "@monaco-editor/react"
 const TooltipConfig = lazy(() =>
@@ -223,11 +224,17 @@ export const Legend: FC<Props> = ({ items }) => {
             {projectUuid && (
                 <ReferenceLines items={items} projectUuid={projectUuid} />
             )}
-            {projectUuid && (
-                <Suspense fallback={<Loader size="sm" />}>
-                    <TooltipConfig fields={autocompleteFieldsTooltip} />
-                </Suspense>
-            )}
+            <Config>
+                <Config.Section>
+                    <Config.Heading>Tooltips</Config.Heading>
+                    <TooltipSortConfig />
+                    {projectUuid && (
+                        <Suspense fallback={<Loader size="sm" />}>
+                            <TooltipConfig fields={autocompleteFieldsTooltip} />
+                        </Suspense>
+                    )}
+                </Config.Section>
+            </Config>
         </Stack>
     );
 };
