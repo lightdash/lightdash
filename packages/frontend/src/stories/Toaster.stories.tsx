@@ -80,6 +80,18 @@ const ToasterDemo = () => {
                     >
                         Warning
                     </Button>
+                    <Button
+                        color="gray"
+                        onClick={() =>
+                            showToastInfo({
+                                title: 'Loading',
+                                subtitle: 'Processing your request...',
+                                loading: true,
+                            })
+                        }
+                    >
+                        Loading
+                    </Button>
                 </Group>
             </section>
 
