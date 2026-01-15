@@ -1,3 +1,10 @@
+## [0.2342.1](https://github.com/lightdash/lightdash/compare/0.2342.0...0.2342.1) (2026-01-15)
+
+
+### Bug Fixes
+
+* apply correct conditional formatting for pivoted columns ([#19466](https://github.com/lightdash/lightdash/issues/19466)) ([683bfae](https://github.com/lightdash/lightdash/commit/683bfae47793f7bd4bf5dba78db73e91b2cef81d))
+
 # [0.2342.0](https://github.com/lightdash/lightdash/compare/0.2341.2...0.2342.0) (2026-01-15)
 
 
