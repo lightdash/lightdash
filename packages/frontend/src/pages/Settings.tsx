@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
-import { Box, ScrollArea, Stack, Text, Title } from '@mantine/core';
+import { Box, ScrollArea, Stack, Text, Title } from '@mantine-8/core';
 import {
     IconBrain,
     IconBrowser,
@@ -77,6 +77,7 @@ import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName, PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
+import classes from './Settings.module.css';
 
 const Settings: FC = () => {
     const { data: embeddingEnabled } = useFeatureFlag(
@@ -183,7 +184,7 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/password',
                 element: (
-                    <Stack spacing="xl">
+                    <Stack gap="xl">
                         <SettingsGridCard>
                             <Title order={4}>Password settings</Title>
                             <PasswordPanel />
@@ -202,7 +203,7 @@ const Settings: FC = () => {
         allowedRoutes.push({
             path: '/myWarehouseConnections',
             element: (
-                <Stack spacing="xl">
+                <Stack gap="xl">
                     <MyWarehouseConnectionsPanel />
                 </Stack>
             ),
@@ -211,7 +212,7 @@ const Settings: FC = () => {
             allowedRoutes.push({
                 path: '/organization',
                 element: (
-                    <Stack spacing="xl">
+                    <Stack gap="xl">
                         <SettingsGridCard>
                             <Title order={4}>General</Title>
                             <OrganizationPanel />
@@ -477,7 +478,7 @@ const Settings: FC = () => {
             withPaddedContent
             title="Settings"
             sidebar={
-                <Stack sx={{ flexGrow: 1, overflow: 'hidden' }}>
+                <Stack className={classes.sidebarStack}>
                     <PageBreadcrumbs
                         items={[{ title: 'Settings', active: true }]}
                     />
@@ -486,7 +487,7 @@ const Settings: FC = () => {
                         offsetScrollbars
                         scrollbarSize={8}
                     >
-                        <Stack spacing="lg">
+                        <Stack gap="lg">
                             <Box>
                                 <Title order={6} fw={600} mb="xs">
                                     Your settings
