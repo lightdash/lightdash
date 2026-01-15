@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags, getItemMap } from '@lightdash/common';
-import { ActionIcon, Group, Popover } from '@mantine/core';
+import { ActionIcon, Group, Popover } from '@mantine-8/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import {
@@ -29,11 +29,11 @@ import AddColumnButton from '../../AddColumnButton';
 import ExportSelector from '../../ExportSelector';
 import PeriodOverPeriodButton from '../../PeriodOverPeriodButton';
 import SortButton from '../../SortButton';
-import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
+import CollapsibleCard from '../../common/CollapsibleCard/CollapsibleCard';
 import {
-    COLLAPSABLE_CARD_ACTION_ICON_PROPS,
-    COLLAPSABLE_CARD_POPOVER_PROPS,
-} from '../../common/CollapsableCard/constants';
+    COLLAPSIBLE_CARD_ACTION_ICON_PROPS,
+    COLLAPSIBLE_CARD_POPOVER_PROPS,
+} from '../../common/CollapsibleCard/constants';
 import MantineIcon from '../../common/MantineIcon';
 import { ExplorerResults } from './ExplorerResults';
 
@@ -114,13 +114,13 @@ const ResultsCard: FC = memo(() => {
     );
 
     return (
-        <CollapsableCard
+        <CollapsibleCard
             title="Results"
             isOpen={resultsIsOpen}
             onToggle={toggleCard}
             disabled={!tableName}
             headerElement={
-                <Group noWrap spacing="xs">
+                <Group wrap="nowrap" gap="xs">
                     {tableName && sorts.length > 0 && (
                         <SortButton isEditMode={isEditMode} sorts={sorts} />
                     )}
@@ -155,14 +155,14 @@ const ResultsCard: FC = memo(() => {
                             })}
                         >
                             <Popover
-                                {...COLLAPSABLE_CARD_POPOVER_PROPS}
+                                {...COLLAPSIBLE_CARD_POPOVER_PROPS}
                                 disabled={disabled}
                                 position="bottom-end"
                             >
                                 <Popover.Target>
                                     <ActionIcon
                                         data-testid="export-csv-button"
-                                        {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
+                                        {...COLLAPSIBLE_CARD_ACTION_ICON_PROPS}
                                         disabled={disabled}
                                     >
                                         <MantineIcon icon={IconShare2} />
@@ -191,7 +191,7 @@ const ResultsCard: FC = memo(() => {
             }
         >
             <ExplorerResults />
-        </CollapsableCard>
+        </CollapsibleCard>
     );
 });
 

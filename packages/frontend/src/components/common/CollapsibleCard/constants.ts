@@ -2,24 +2,24 @@ import {
     type ActionIconProps,
     type ButtonProps,
     type PopoverProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 
-export const COLLAPSABLE_CARD_BUTTON_PROPS: Omit<ButtonProps, 'children'> = {
+export const COLLAPSIBLE_CARD_BUTTON_PROPS: Omit<ButtonProps, 'children'> = {
     variant: 'default',
     size: 'xs',
 };
 
-export const COLLAPSABLE_CARD_ACTION_ICON_PROPS: Pick<
+export const COLLAPSIBLE_CARD_ACTION_ICON_PROPS: Pick<
     ActionIconProps,
     'variant' | 'size'
 > = {
-    ...COLLAPSABLE_CARD_BUTTON_PROPS,
+    ...COLLAPSIBLE_CARD_BUTTON_PROPS,
     size: 'md',
 };
 
 export const COLLAPSIBLE_CARD_GAP_SIZE = 8;
 
-export const COLLAPSABLE_CARD_POPOVER_PROPS: Omit<PopoverProps, 'children'> = {
+export const COLLAPSIBLE_CARD_POPOVER_PROPS: Omit<PopoverProps, 'children'> = {
     shadow: 'md',
     position: 'bottom',
     withArrow: true,

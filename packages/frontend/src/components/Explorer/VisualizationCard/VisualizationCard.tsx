@@ -12,7 +12,7 @@ import {
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Button, useMantineColorScheme } from '@mantine/core';
+import { Button, useMantineColorScheme } from '@mantine-8/core';
 import { useElementSize } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
@@ -47,8 +47,8 @@ import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
-import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
-import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
+import CollapsibleCard from '../../common/CollapsibleCard/CollapsibleCard';
+import { COLLAPSIBLE_CARD_BUTTON_PROPS } from '../../common/CollapsibleCard/constants';
 import MantineIcon from '../../common/MantineIcon';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
@@ -235,7 +235,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
     }, [unsavedChartVersion, explore]);
 
     if (!unsavedChartVersion.tableName) {
-        return <CollapsableCard title="Charts" disabled />;
+        return <CollapsibleCard title="Charts" disabled />;
     }
 
     const getGsheetLink = async (
@@ -291,7 +291,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 containerHeight={containerHeight}
                 isDashboard={false}
             >
-                <CollapsableCard
+                <CollapsibleCard
                     title="Chart"
                     isOpen={isOpen}
                     isVisualizationCard
@@ -316,13 +316,13 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                             <>
                                 {isEditMode ? (
                                     <Button
-                                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                                        {...COLLAPSIBLE_CARD_BUTTON_PROPS}
                                         onClick={
                                             isVisualizationConfigOpen
                                                 ? closeVisualizationConfig
                                                 : openVisualizationConfig
                                         }
-                                        rightIcon={
+                                        rightSection={
                                             <MantineIcon
                                                 icon={
                                                     isVisualizationConfigOpen
@@ -387,7 +387,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                         series={echartsClickEvent?.series}
                         explore={explore}
                     />
-                </CollapsableCard>
+                </CollapsibleCard>
             </VisualizationProvider>
         </ErrorBoundary>
     );

@@ -1,0 +1,50 @@
+.inactiveCardHeading {
+    cursor: not-allowed;
+}
+
+.activeCardHeading {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.activeCardHeading:hover {
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.disabledButton {
+    cursor: not-allowed;
+    opacity: 0.5;
+    background-color: transparent;
+}
+
+.disabledButton:hover {
+    background-color: transparent;
+}
+
+.flexGrow {
+    flex-grow: 1;
+}
+
+.card {
+    overflow: visible;
+    transition:
+        box-shadow 0.1s ease,
+        transform 0.1s ease;
+}
+
+.card:hover {
+    box-shadow: var(--mantine-shadow-xs);
+}
+
+.card.flexGrow {
+    flex-grow: 1;
+}
+
+.chevronIcon {
+    transition: transform 0.2s ease-out;
+    transform-origin: center;
+}
+
+.chevronIconOpen {
+    transform: rotate(90deg);
+}

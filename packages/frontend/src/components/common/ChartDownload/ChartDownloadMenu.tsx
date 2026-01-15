@@ -6,7 +6,7 @@ import {
     getPivotConfig,
     type ApiScheduledDownloadCsv,
 } from '@lightdash/common';
-import { ActionIcon, Popover } from '@mantine/core';
+import { ActionIcon, Popover } from '@mantine-8/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback } from 'react';
 import useEchartsCartesianConfig from '../../../hooks/echarts/useEchartsCartesianConfig';
@@ -16,9 +16,9 @@ import ExportSelector from '../../ExportSelector';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import {
-    COLLAPSABLE_CARD_ACTION_ICON_PROPS,
-    COLLAPSABLE_CARD_POPOVER_PROPS,
-} from '../CollapsableCard/constants';
+    COLLAPSIBLE_CARD_ACTION_ICON_PROPS,
+    COLLAPSIBLE_CARD_POPOVER_PROPS,
+} from '../CollapsibleCard/constants';
 import MantineIcon from '../MantineIcon';
 import ChartDownloadOptions from './ChartDownloadOptions';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from './chartDownloadUtils';
@@ -101,15 +101,16 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 })}
             >
                 <Popover
-                    {...COLLAPSABLE_CARD_POPOVER_PROPS}
+                    {...COLLAPSIBLE_CARD_POPOVER_PROPS}
                     disabled={disabled}
                     position="bottom-end"
                 >
                     <Popover.Target>
                         <ActionIcon
                             data-testid="export-csv-button"
-                            {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
+                            {...COLLAPSIBLE_CARD_ACTION_ICON_PROPS}
                             disabled={disabled}
+                            radius="md"
                         >
                             <MantineIcon icon={IconShare2} />
                         </ActionIcon>
@@ -160,15 +161,16 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
         ) : isTableVisualizationConfig(visualizationConfig) &&
           !getDownloadQueryUuid ? null : (
             <Popover
-                {...COLLAPSABLE_CARD_POPOVER_PROPS}
+                {...COLLAPSIBLE_CARD_POPOVER_PROPS}
                 disabled={disabled}
                 position="bottom-end"
             >
                 <Popover.Target>
                     <ActionIcon
                         data-testid="export-csv-button"
-                        {...COLLAPSABLE_CARD_ACTION_ICON_PROPS}
+                        {...COLLAPSIBLE_CARD_ACTION_ICON_PROPS}
                         disabled={disabled}
+                        radius="md"
                     >
                         <MantineIcon icon={IconShare2} />
                     </ActionIcon>

@@ -14,7 +14,7 @@ import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
-import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
+import CollapsibleCard from '../../common/CollapsibleCard/CollapsibleCard';
 import MantineIcon from '../../common/MantineIcon';
 import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
 
@@ -49,7 +49,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
         enabled: !!unsavedChartVersionTableName,
     });
     return (
-        <CollapsableCard
+        <CollapsibleCard
             isVisualizationCard
             headingRef={headingRef}
             title="SQL"
@@ -106,7 +106,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             <Suspense fallback={<Skeleton height={60} radius="sm" />}>
                 <LazyRenderedSql />
             </Suspense>
-        </CollapsableCard>
+        </CollapsibleCard>
     );
 });
 

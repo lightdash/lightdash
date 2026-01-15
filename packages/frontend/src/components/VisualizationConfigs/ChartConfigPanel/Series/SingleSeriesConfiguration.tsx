@@ -32,7 +32,7 @@ import { GrabIcon } from '../../common/GrabIcon';
 import { ChartTypeSelect } from './ChartTypeSelect';
 
 type Props = {
-    isCollapsable?: boolean;
+    isCollapsible?: boolean;
     seriesLabel: string;
     layout?: CartesianChartLayout;
     series: Series;
@@ -48,7 +48,7 @@ type Props = {
 
 const SingleSeriesConfiguration: FC<Props> = ({
     layout,
-    isCollapsable,
+    isCollapsible,
     seriesLabel,
     series,
     getSingleSeries,
@@ -156,7 +156,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             />
                         </ActionIcon>
                     )}
-                    {isCollapsable && (
+                    {isCollapsible && (
                         <ActionIcon onClick={toggleIsOpen}>
                             <MantineIcon
                                 color="ldGray.7"
@@ -166,7 +166,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     )}
                 </Group>
             </Group>
-            <Collapse in={!isCollapsable || isOpen || false}>
+            <Collapse in={!isCollapsible || isOpen || false}>
                 <Stack ml="lg" spacing="xs">
                     <Group spacing="xs" noWrap>
                         <ChartTypeSelect

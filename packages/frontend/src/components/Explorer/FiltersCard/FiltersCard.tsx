@@ -39,7 +39,7 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
-import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
+import CollapsibleCard from '../../common/CollapsibleCard/CollapsibleCard';
 import FiltersForm from '../../common/Filters';
 import { getConditionalRuleLabelFromItem } from '../../common/Filters/FilterInputs/utils';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
@@ -257,7 +257,7 @@ const FiltersCard: FC = memo(() => {
     }, [processedFilters, visibleFields]);
 
     return (
-        <CollapsableCard
+        <CollapsibleCard
             isOpen={filterIsOpen}
             title="Filters"
             disabled={!tableName || (totalActiveFilters === 0 && !isEditMode)}
@@ -330,7 +330,7 @@ const FiltersCard: FC = memo(() => {
                     />
                 </FiltersProvider>
             )}
-        </CollapsableCard>
+        </CollapsibleCard>
     );
 });
 

@@ -25,7 +25,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
-import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
+import CollapsibleCard from '../../common/CollapsibleCard/CollapsibleCard';
 import MantineModal from '../../common/MantineModal';
 import { PolymorphicGroupButton } from '../../common/PolymorphicGroupButton';
 import { CreatedPullRequestModalContent } from './CreatedPullRequestModalContent';
@@ -187,7 +187,7 @@ export const SingleItemModalContent = ({
                         {itemLabel}
                     </List.Item>
                 </List>
-                <CollapsableCard
+                <CollapsibleCard
                     isOpen={showDiff}
                     title={`Show ${texts[type].baseName} code`}
                     onToggle={() => setShowDiff(!showDiff)}
@@ -197,7 +197,7 @@ export const SingleItemModalContent = ({
                             {error || previewCode}
                         </Prism>
                     </Stack>
-                </CollapsableCard>
+                </CollapsibleCard>
             </Stack>
         </MantineModal>
     );
@@ -286,8 +286,8 @@ const MultipleItemsModalContent = ({
     const errorTooltipLabel = error
         ? `Unsupported ${texts[type].baseName} definition`
         : !isGitProject
-        ? prDisabledMessage
-        : `Select ${texts[type].baseName}s to open a pull request`;
+          ? prDisabledMessage
+          : `Select ${texts[type].baseName}s to open a pull request`;
 
     const buttonDisabled =
         isLoading || !disableErrorTooltip || selectedItemIds.length === 0;

@@ -5,7 +5,7 @@ import {
     FeatureFlags,
     isSeriesWithMixedChartTypes,
 } from '@lightdash/common';
-import { Button, Group, Menu } from '@mantine/core';
+import { Button, Group, Menu } from '@mantine-8/core';
 import {
     IconChartArea,
     IconChartAreaLine,
@@ -25,10 +25,7 @@ import {
 import { memo, useMemo, type FC, type ReactNode } from 'react';
 import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { BetaBadge } from '../../common/BetaBadge';
-import {
-    COLLAPSABLE_CARD_BUTTON_PROPS,
-    COLLAPSABLE_CARD_POPOVER_PROPS,
-} from '../../common/CollapsableCard/constants';
+import { COLLAPSIBLE_CARD_BUTTON_PROPS } from '../../common/CollapsibleCard/constants';
 import MantineIcon from '../../common/MantineIcon';
 import {
     isBigNumberVisualizationConfig,
@@ -211,17 +208,13 @@ const VisualizationCardOptions: FC = memo(() => {
     ]);
 
     return (
-        <Menu
-            {...COLLAPSABLE_CARD_POPOVER_PROPS}
-            closeOnItemClick
-            disabled={disabled}
-        >
+        <Menu closeOnItemClick disabled={disabled}>
             <Menu.Target>
                 <Button
-                    {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                    {...COLLAPSIBLE_CARD_BUTTON_PROPS}
                     disabled={disabled}
-                    leftIcon={selectedChartType.icon}
-                    rightIcon={
+                    leftSection={selectedChartType.icon}
+                    rightSection={
                         <MantineIcon icon={IconChevronDown} color="ldGray" />
                     }
                     data-testid="VisualizationCardOptions"
@@ -241,7 +234,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             ? 'blue'
                             : undefined
                     }
-                    icon={<MantineIcon icon={IconChartBar} />}
+                    leftSection={<MantineIcon icon={IconChartBar} />}
                     onClick={() => {
                         setCartesianType({
                             type: CartesianSeriesType.BAR,
@@ -263,7 +256,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             ? 'blue'
                             : undefined
                     }
-                    icon={
+                    leftSection={
                         <MantineIcon
                             icon={IconChartBar}
                             style={{ rotate: '90deg' }}
@@ -290,7 +283,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             ? 'blue'
                             : undefined
                     }
-                    icon={<MantineIcon icon={IconChartLine} />}
+                    leftSection={<MantineIcon icon={IconChartLine} />}
                     onClick={() => {
                         setCartesianType({
                             type: CartesianSeriesType.LINE,
@@ -312,7 +305,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             ? 'blue'
                             : undefined
                     }
-                    icon={<MantineIcon icon={IconChartArea} />}
+                    leftSection={<MantineIcon icon={IconChartArea} />}
                     onClick={() => {
                         setCartesianType({
                             type: CartesianSeriesType.LINE,
@@ -334,7 +327,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             ? 'blue'
                             : undefined
                     }
-                    icon={<MantineIcon icon={IconChartDots} />}
+                    leftSection={<MantineIcon icon={IconChartDots} />}
                     onClick={() => {
                         setCartesianType({
                             type: CartesianSeriesType.SCATTER,
@@ -355,7 +348,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             ? 'blue'
                             : undefined
                     }
-                    icon={<MantineIcon icon={IconChartPie} />}
+                    leftSection={<MantineIcon icon={IconChartPie} />}
                     onClick={() => {
                         setStacking(undefined);
                         setCartesianType(undefined);
@@ -372,7 +365,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             ? 'blue'
                             : undefined
                     }
-                    icon={<MantineIcon icon={IconFilter} />}
+                    leftSection={<MantineIcon icon={IconFilter} />}
                     onClick={() => {
                         setStacking(undefined);
                         setCartesianType(undefined);
@@ -389,7 +382,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             ? 'blue'
                             : undefined
                     }
-                    icon={<MantineIcon icon={IconChartTreemap} />}
+                    leftSection={<MantineIcon icon={IconChartTreemap} />}
                     onClick={() => {
                         setStacking(undefined);
                         setCartesianType(undefined);
@@ -406,7 +399,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             ? 'blue'
                             : undefined
                     }
-                    icon={<MantineIcon icon={IconGauge} />}
+                    leftSection={<MantineIcon icon={IconGauge} />}
                     onClick={() => {
                         setStacking(undefined);
                         setCartesianType(undefined);
@@ -424,14 +417,14 @@ const VisualizationCardOptions: FC = memo(() => {
                                 ? 'blue'
                                 : undefined
                         }
-                        icon={<MantineIcon icon={IconMap} />}
+                        leftSection={<MantineIcon icon={IconMap} />}
                         onClick={() => {
                             setStacking(undefined);
                             setCartesianType(undefined);
                             setChartType(ChartType.MAP);
                         }}
                     >
-                        <Group spacing="xs">
+                        <Group wrap="nowrap" gap="xs">
                             Map
                             <BetaBadge />
                         </Group>
@@ -445,7 +438,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             ? 'blue'
                             : undefined
                     }
-                    icon={<MantineIcon icon={IconTable} />}
+                    leftSection={<MantineIcon icon={IconTable} />}
                     onClick={() => {
                         setStacking(undefined);
                         setCartesianType(undefined);
@@ -461,7 +454,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             ? 'blue'
                             : undefined
                     }
-                    icon={<MantineIcon icon={IconSquareNumber1} />}
+                    leftSection={<MantineIcon icon={IconSquareNumber1} />}
                     onClick={() => {
                         setStacking(undefined);
                         setCartesianType(undefined);
@@ -478,7 +471,7 @@ const VisualizationCardOptions: FC = memo(() => {
                             ? 'blue'
                             : undefined
                     }
-                    icon={<MantineIcon icon={IconCode} />}
+                    leftSection={<MantineIcon icon={IconCode} />}
                     onClick={() => {
                         setStacking(undefined);
                         setCartesianType(undefined);

@@ -5,7 +5,7 @@ import ReactJson from 'react-json-view';
 import { useProjectCompileLogByJob } from '../../hooks/useProjectCompileLogs';
 import { useRjvTheme } from '../../hooks/useRjvTheme';
 import MantineIcon from '../common/MantineIcon';
-import { CollapsablePaper } from './../common/CollapsablePaper';
+import { CollapsiblePaper } from './../common/CollapsiblePaper';
 
 type ProjectCompileLogProps = {
     projectUuid: string;
@@ -27,7 +27,7 @@ const ProjectCompileLog: FC<ProjectCompileLogProps> = ({
     }
 
     return (
-        <CollapsablePaper
+        <CollapsiblePaper
             title="Compilation log"
             rightAction={
                 <Button
@@ -53,7 +53,7 @@ const ProjectCompileLog: FC<ProjectCompileLogProps> = ({
                     collapsed={2}
                 />
             </Box>
-        </CollapsablePaper>
+        </CollapsiblePaper>
     );
 };
 

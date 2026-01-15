@@ -18,7 +18,7 @@ import {
     Stack,
     Text,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconCalendarClock } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import {
@@ -29,7 +29,7 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import { BetaBadge } from './common/BetaBadge';
-import { COLLAPSABLE_CARD_BUTTON_PROPS } from './common/CollapsableCard/constants';
+import { COLLAPSIBLE_CARD_BUTTON_PROPS } from './common/CollapsibleCard/constants';
 import MantineIcon from './common/MantineIcon';
 
 type Props = {
@@ -222,11 +222,10 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                     position="top"
                 >
                     <Button
-                        {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                        size="xs"
-                        compact
+                        {...COLLAPSIBLE_CARD_BUTTON_PROPS}
+                        size="compact-xs"
                         radius="lg"
-                        leftIcon={
+                        leftSection={
                             <MantineIcon size="sm" icon={IconCalendarClock} />
                         }
                         display={hasTimeDimensions ? 'block' : 'none'}
@@ -236,7 +235,7 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                         }}
                         variant={periodOverPeriod ? 'light' : 'subtle'}
                         color={periodOverPeriod ? 'blue' : 'ldDark.9'}
-                        rightIcon={<BetaBadge />}
+                        rightSection={<BetaBadge />}
                         styles={(theme) => ({
                             root: periodOverPeriod
                                 ? {}
@@ -251,7 +250,7 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
             </Popover.Target>
 
             <Popover.Dropdown>
-                <Stack spacing="md" w={280}>
+                <Stack gap="md" w={280}>
                     <Select
                         label="Time dimension"
                         placeholder="Select time dimension"
@@ -264,11 +263,11 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                     {selectedDimensionObj && (
                         <>
                             <Radio.Group value="previousPeriod">
-                                <Stack spacing="xs">
+                                <Stack gap="xs">
                                     <Radio
                                         value="previousPeriod"
                                         label={
-                                            <Stack spacing={2}>
+                                            <Stack gap={2}>
                                                 <Text
                                                     size="sm"
                                                     fw={500}
@@ -300,7 +299,7 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                                             },
                                         }}
                                     />
-                                    <Group noWrap spacing="xs" pl="28px">
+                                    <Group wrap="nowrap" gap="xs" pl="28px">
                                         <NumberInput
                                             label="Period offset"
                                             placeholder="Enter offset"
@@ -309,9 +308,11 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                                                 if (
                                                     value !== null &&
                                                     value &&
-                                                    value >= 1
+                                                    Number(value) >= 1
                                                 ) {
-                                                    setPeriodOffset(value ?? 1);
+                                                    setPeriodOffset(
+                                                        Number(value) ?? 1,
+                                                    );
                                                 }
                                             }}
                                             min={1}
@@ -327,7 +328,7 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                                         value="rolling"
                                         disabled
                                         label={
-                                            <Group spacing={2}>
+                                            <Group gap={2}>
                                                 <Text
                                                     size="sm"
                                                     fw={500}
@@ -346,13 +347,13 @@ const PeriodOverPeriodButton: FC<Props> = memo(({ itemsMap, disabled }) => {
                         </>
                     )}
 
-                    <Group position="apart">
+                    <Group justify="space-between">
                         <Button
                             size="xs"
                             variant="light"
                             color="gray"
                             onClick={handleClear}
-                            sx={{
+                            style={{
                                 visibility: periodOverPeriod
                                     ? 'visible'
                                     : 'hidden',

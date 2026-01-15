@@ -4,20 +4,20 @@ import { IconSelector } from '@tabler/icons-react';
 import { type PropsWithChildren } from 'react';
 import MantineIcon, { type MantineIconProps } from './MantineIcon';
 
-type CollapsablePaperProps = PropsWithChildren<{
+type CollapsiblePaperProps = PropsWithChildren<{
     title: string;
     defaultOpened?: boolean;
     icon?: MantineIconProps['icon'];
     rightAction?: React.ReactNode;
 }>;
 
-export const CollapsablePaper = ({
+export const CollapsiblePaper = ({
     title,
     children,
     defaultOpened = true,
     icon,
     rightAction,
-}: CollapsablePaperProps) => {
+}: CollapsiblePaperProps) => {
     const [opened, { toggle }] = useDisclosure(defaultOpened);
 
     return (

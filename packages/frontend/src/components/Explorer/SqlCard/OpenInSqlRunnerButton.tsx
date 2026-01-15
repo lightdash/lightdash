@@ -1,9 +1,9 @@
-import { Button } from '@mantine/core';
+import { Button } from '@mantine-8/core';
 import { IconTerminal2 } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
 import { Link } from 'react-router';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
-import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
+import { COLLAPSIBLE_CARD_BUTTON_PROPS } from '../../common/CollapsibleCard/constants';
 import MantineIcon from '../../common/MantineIcon';
 
 interface OpenInSqlRunnerButtonProps {
@@ -16,13 +16,15 @@ const OpenInSqlRunnerButton: FC<OpenInSqlRunnerButtonProps> = memo(
 
         return (
             <Button
-                {...COLLAPSABLE_CARD_BUTTON_PROPS}
+                {...COLLAPSIBLE_CARD_BUTTON_PROPS}
                 component={Link}
                 to={{
                     pathname: `/projects/${projectUuid}/sql-runner`,
                 }}
                 state={{ sql: data?.query }} // pass SQL as location state
-                leftIcon={<MantineIcon icon={IconTerminal2} color="ldGray.7" />}
+                leftSection={
+                    <MantineIcon icon={IconTerminal2} color="ldGray.7" />
+                }
                 disabled={isInitialLoading || !!error}
             >
                 Open in SQL Runner

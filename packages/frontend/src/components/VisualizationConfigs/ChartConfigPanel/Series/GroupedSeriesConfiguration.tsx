@@ -343,7 +343,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                                                     dragHandleProps={
                                                                         groupedDragHandleProps
                                                                     }
-                                                                    isCollapsable
+                                                                    isCollapsible
                                                                     layout={
                                                                         layout
                                                                     }

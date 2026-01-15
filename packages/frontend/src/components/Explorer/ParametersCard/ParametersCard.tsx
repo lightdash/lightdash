@@ -14,7 +14,7 @@ import { ParameterSelection } from '../../../features/parameters';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { ExplorerSection } from '../../../providers/Explorer/types';
-import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
+import CollapsibleCard from '../../common/CollapsibleCard/CollapsibleCard';
 
 const ParametersCard = memo(
     ({ parameterReferences }: { parameterReferences?: string[] }) => {
@@ -68,7 +68,7 @@ const ParametersCard = memo(
         };
 
         return (
-            <CollapsableCard
+            <CollapsibleCard
                 isOpen={paramsIsOpen}
                 title="Parameters"
                 disabled={!tableName}
@@ -90,7 +90,7 @@ const ParametersCard = memo(
                         disabled={!isEditMode}
                     />
                 </Box>
-            </CollapsableCard>
+            </CollapsibleCard>
         );
     },
 );

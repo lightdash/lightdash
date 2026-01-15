@@ -1,10 +1,10 @@
-import { Button } from '@mantine/core';
+import { Button } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { memo, useState } from 'react';
 import { CreateTableCalculationModal } from '../features/tableCalculation';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
-import { COLLAPSABLE_CARD_BUTTON_PROPS } from './common/CollapsableCard/constants';
+import { COLLAPSIBLE_CARD_BUTTON_PROPS } from './common/CollapsibleCard/constants';
 import MantineIcon from './common/MantineIcon';
 
 const AddColumnButton = memo(() => {
@@ -13,9 +13,8 @@ const AddColumnButton = memo(() => {
     return (
         <>
             <Button
-                {...COLLAPSABLE_CARD_BUTTON_PROPS}
-                leftIcon={<MantineIcon icon={IconPlus} />}
-                component="button"
+                {...COLLAPSIBLE_CARD_BUTTON_PROPS}
+                leftSection={<MantineIcon icon={IconPlus} />}
                 onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                     e.stopPropagation();
                     setOpened(true);
