@@ -1,3 +1,10 @@
+## [0.2342.2](https://github.com/lightdash/lightdash/compare/0.2342.1...0.2342.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* preserve column order in SQL chart exports ([#19383](https://github.com/lightdash/lightdash/issues/19383)) ([02533b3](https://github.com/lightdash/lightdash/commit/02533b34434e6fc4ac497c5685dfe374ab600e74))
+
 ## [0.2342.1](https://github.com/lightdash/lightdash/compare/0.2342.0...0.2342.1) (2026-01-15)
 
 
