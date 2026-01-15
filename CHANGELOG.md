@@ -1,3 +1,10 @@
+## [0.2343.1](https://github.com/lightdash/lightdash/compare/0.2343.0...0.2343.1) (2026-01-15)
+
+
+### Bug Fixes
+
+* dont include chart warnings in error count ([#19488](https://github.com/lightdash/lightdash/issues/19488)) ([2043e2f](https://github.com/lightdash/lightdash/commit/2043e2fb6121df909281b61260aaa7b8888a29f0))
+
 # [0.2343.0](https://github.com/lightdash/lightdash/compare/0.2342.2...0.2343.0) (2026-01-15)
 
 
