@@ -1,23 +1,24 @@
 import {
-    Accordion,
     Badge,
     Box,
     Button,
     Checkbox,
+    Divider,
+    Flex,
     Group,
     Paper,
-    SimpleGrid,
+    ScrollArea,
     Stack,
     Text,
     TextInput,
     Title,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { type UseFormReturnType } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
-
-import { type UseFormReturnType } from '@mantine/form';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { PolymorphicGroupButton } from '../../../../../components/common/PolymorphicGroupButton';
 import {
     filterScopes,
     formatScopeName,
@@ -36,17 +37,42 @@ type ScopeSelectorProps = {
 
 const ALL_GROUPED_SCOPES = getScopesByGroup(true);
 
-const ScopeGroup: FC<{
+const GroupListItem: FC<{
+    group: GroupedScopes;
+    isActive: boolean;
+    onClick: () => void;
+    selectedCount: number;
+    totalCount: number;
+}> = ({ group, isActive, onClick, selectedCount, totalCount }) => {
+    return (
+        <PolymorphicGroupButton
+            onClick={onClick}
+            className={styles.groupListItem}
+            data-active={isActive}
+            justify="space-between"
+        >
+            <Text fw={isActive ? 600 : 500} fz="sm">
+                {group.groupName}
+            </Text>
+            <Badge
+                variant="light"
+                size="sm"
+                radius="sm"
+                color={selectedCount === 0 ? 'gray' : 'blue'}
+            >
+                {selectedCount} / {totalCount}
+            </Badge>
+        </PolymorphicGroupButton>
+    );
+};
+
+const ScopePanel: FC<{
     group: GroupedScopes;
     form: UseFormReturnType<RoleFormValues>;
 }> = ({ group, form }) => {
     const selectedScopes = Object.entries(form.values.scopes || {})
         .filter(([_, isSelected]) => isSelected)
         .map(([scope]) => scope);
-
-    const numSelectedInGroup = group.scopes.filter((scope) =>
-        selectedScopes.includes(scope.name),
-    ).length;
 
     const isFullySelected = isGroupFullySelected(group.scopes, selectedScopes);
     const isPartiallySelected = isGroupPartiallySelected(
@@ -75,82 +101,84 @@ const ScopeGroup: FC<{
     };
 
     return (
-        <Accordion.Item p="sm" value={group.groupName}>
-            <Accordion.Control className={styles.stickyGroupHeader}>
-                <Group position="apart">
-                    <Group spacing="xs">
-                        <Title order={6}>{group.groupName}</Title>
-                        <Badge
-                            variant="light"
-                            size="sm"
-                            color={
-                                numSelectedInGroup === 0 ? 'gray' : undefined
-                            }
-                        >
-                            {numSelectedInGroup} / {group.scopes.length}
-                        </Badge>
-                    </Group>
-                    <Group spacing="xs">
-                        <Text size="sm">
-                            {isFullySelected ? 'Deselect all' : 'Select all'}
-                        </Text>
-                        <Checkbox
-                            checked={isFullySelected}
-                            indeterminate={isPartiallySelected}
-                            onChange={handleGroupToggle}
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                    </Group>
+        <Stack gap="md" h="100%" w="100%">
+            <Group justify="space-between" style={{ flexShrink: 0 }}>
+                <Title order={5}>{group.groupName}</Title>
+                <Group gap="xs">
+                    <Text size="xs" fw={500}>
+                        {isFullySelected ? 'Deselect all' : 'Select all'}
+                    </Text>
+                    <Checkbox
+                        checked={isFullySelected}
+                        indeterminate={isPartiallySelected}
+                        onChange={handleGroupToggle}
+                    />
                 </Group>
-            </Accordion.Control>
-            <Accordion.Panel>
-                <Paper withBorder>
-                    <Stack spacing={0}>
-                        {group.scopes.map((scope) => (
-                            <Box
-                                key={scope.name}
-                                p="sm"
-                                className={styles.scopeItem}
-                            >
-                                <Group spacing="xs" align="flex-start">
-                                    <Checkbox
-                                        mt={2}
-                                        {...form.getInputProps(
-                                            `scopes.${scope.name}`,
-                                            { type: 'checkbox' },
-                                        )}
-                                    />
-                                    <Box className={styles.scopeContent}>
-                                        <Text weight={500} size="sm">
-                                            {formatScopeName(scope.name)}
-                                        </Text>
-                                        <Text
-                                            size="xs"
-                                            color="dimmed"
-                                            mt={4}
-                                            className={styles.scopeDescription}
-                                        >
-                                            {scope.description}
-                                        </Text>
-                                    </Box>
-                                </Group>
-                            </Box>
-                        ))}
-                    </Stack>
-                </Paper>
-            </Accordion.Panel>
-        </Accordion.Item>
+            </Group>
+
+            <ScrollArea.Autosize mah="100%" flex={1}>
+                <Stack gap="0">
+                    {group.scopes.map((scope) => (
+                        <Box
+                            key={scope.name}
+                            p="xs"
+                            className={styles.scopeItem}
+                        >
+                            <Group gap="xs" align="flex-start">
+                                <Checkbox
+                                    mt={2}
+                                    {...form.getInputProps(
+                                        `scopes.${scope.name}`,
+                                        { type: 'checkbox' },
+                                    )}
+                                />
+                                <Stack
+                                    className={styles.scopeContent}
+                                    gap="two"
+                                >
+                                    <Text fw={500} fz={13}>
+                                        {formatScopeName(scope.name)}
+                                    </Text>
+                                    <Text
+                                        fz="xs"
+                                        c="dimmed"
+                                        className={styles.scopeDescription}
+                                    >
+                                        {scope.description}
+                                    </Text>
+                                </Stack>
+                            </Group>
+                        </Box>
+                    ))}
+                </Stack>
+            </ScrollArea.Autosize>
+        </Stack>
     );
 };
 
 export const ScopeSelector: FC<ScopeSelectorProps> = ({ form }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm] = useDebouncedValue(searchTerm, 300);
+    const [selectedGroup, setSelectedGroup] = useState<GroupedScopes | null>(
+        null,
+    );
 
     const filteredScopes = useMemo(
         () => filterScopes(ALL_GROUPED_SCOPES, debouncedSearchTerm),
         [debouncedSearchTerm],
     );
+
+    const effectiveSelectedGroup = useMemo(() => {
+        // If user has selected a group and it's still in filtered results, use it
+        if (
+            selectedGroup &&
+            filteredScopes.find((g) => g.group === selectedGroup.group)
+        ) {
+            return selectedGroup;
+        }
+        // Otherwise, use the first available group (or null if none)
+        return filteredScopes[0] || null;
+    }, [selectedGroup, filteredScopes]);
 
     const totalScopes = ALL_GROUPED_SCOPES.reduce(
         (acc, group) => acc + group.scopes.length,
@@ -185,33 +213,44 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({ form }) => {
         form.setFieldValue('scopes', allScopesObject);
     };
 
+    const getGroupSelectedCount = (group: GroupedScopes) => {
+        const selectedScopes = Object.entries(form.values.scopes || {})
+            .filter(([_, isSelected]) => isSelected)
+            .map(([scope]) => scope);
+        return group.scopes.filter((scope) =>
+            selectedScopes.includes(scope.name),
+        ).length;
+    };
+
     return (
-        <Stack spacing="0">
-            <div className={styles.stickyHeader}>
-                <SimpleGrid cols={2}>
-                    <Stack spacing="0">
+        <Stack gap="sm" h="100%">
+            <Stack gap="sm" style={{ flexShrink: 0 }}>
+                <Group justify="space-between">
+                    <Stack gap="two">
                         <Title order={5}>Permissions</Title>
                         <Text
-                            mb="md"
-                            color={form.errors.scopes ? 'red' : 'default'}
+                            c={form.errors.scopes ? 'red' : 'default'}
+                            fz="sm"
                         >
                             Select at least one scope for this role
                         </Text>
                     </Stack>
+
                     <TextInput
-                        my="lg"
-                        pr="md"
                         placeholder="Search scopes by name or group..."
-                        icon={<MantineIcon icon={IconSearch} size="sm" />}
+                        w={300}
+                        leftSection={
+                            <MantineIcon icon={IconSearch} size="sm" />
+                        }
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                </SimpleGrid>
-                <Group position="apart">
-                    <Text size="sm" color="dimmed">
+                </Group>
+                <Group justify="space-between">
+                    <Text fz="sm" c="dimmed">
                         {selectedCount} of {totalScopes} scopes selected
                     </Text>
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <Button
                             variant="subtle"
                             size="xs"
@@ -230,28 +269,74 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({ form }) => {
                         </Button>
                     </Group>
                 </Group>
-            </div>
+            </Stack>
 
             {filteredScopes.length === 0 ? (
-                <Paper p="xl">
-                    <Text align="center">
+                <Paper p="xl" style={{ flexShrink: 0 }}>
+                    <Text ta="center" fz="sm">
                         No scopes found matching your search.
                     </Text>
                 </Paper>
             ) : (
-                <Accordion
-                    chevronPosition="left"
-                    multiple
-                    defaultValue={[filteredScopes[0].groupName]}
-                >
-                    {filteredScopes.map((group) => (
-                        <ScopeGroup
-                            key={group.group}
-                            group={group}
-                            form={form}
-                        />
-                    ))}
-                </Accordion>
+                <Paper flex={1} display="flex" dir="column" mih={0}>
+                    <Flex gap="xs" flex={1} mih={0}>
+                        {/* Left Sidebar - Group List */}
+                        <Flex
+                            p="xs"
+                            className={styles.sidebar}
+                            flex={1}
+                            mih={0}
+                            maw={300}
+                            direction="column"
+                        >
+                            <ScrollArea.Autosize mah="100%" flex={1}>
+                                <Stack gap="xs">
+                                    {filteredScopes.map((group) => {
+                                        const groupSelectedCount =
+                                            getGroupSelectedCount(group);
+                                        return (
+                                            <GroupListItem
+                                                key={group.group}
+                                                group={group}
+                                                isActive={
+                                                    effectiveSelectedGroup?.group ===
+                                                    group.group
+                                                }
+                                                onClick={() =>
+                                                    setSelectedGroup(group)
+                                                }
+                                                selectedCount={
+                                                    groupSelectedCount
+                                                }
+                                                totalCount={group.scopes.length}
+                                            />
+                                        );
+                                    })}
+                                </Stack>
+                            </ScrollArea.Autosize>
+                        </Flex>
+                        <Divider orientation="vertical" />
+
+                        {/* Right Panel - Selected Group Scopes */}
+                        <Flex
+                            p="xs"
+                            className={styles.scopePanel}
+                            flex={1}
+                            mih={0}
+                        >
+                            {effectiveSelectedGroup ? (
+                                <ScopePanel
+                                    group={effectiveSelectedGroup}
+                                    form={form}
+                                />
+                            ) : (
+                                <Text ta="center" c="dimmed" fz="sm">
+                                    Select a group to view its scopes
+                                </Text>
+                            )}
+                        </Flex>
+                    </Flex>
+                </Paper>
             )}
         </Stack>
     );

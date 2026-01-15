@@ -428,6 +428,18 @@ const Settings: FC = () => {
                     path: '/generalSettings/projectManagement/:projectUuid/compilationHistory',
                 },
                 location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/customRoles',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/customRoles/:roleId',
+                },
+                location.pathname,
             )
         );
     }, [location.pathname]);
