@@ -122,7 +122,7 @@ const useMapChartConfig = (
     >(initialConfig?.heatmapConfig);
     const [tileBackground, setTileBackgroundState] = useState<
         MapTileBackground | undefined
-    >(initialConfig?.tileBackground ?? MapTileBackground.LIGHT);
+    >(initialConfig?.tileBackground ?? MapTileBackground.OPENSTREETMAP);
     const [backgroundColor, setBackgroundColorState] = useState<
         string | undefined
     >(initialConfig?.backgroundColor);

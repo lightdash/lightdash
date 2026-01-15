@@ -390,12 +390,10 @@ export const Display: FC = memo(() => {
                     <Select
                         data={[
                             { value: MapTileBackground.NONE, label: 'None' },
-                            { value: MapTileBackground.LIGHT, label: 'Light' },
                             {
                                 value: MapTileBackground.OPENSTREETMAP,
                                 label: 'OpenStreetMap',
                             },
-                            { value: MapTileBackground.DARK, label: 'Dark' },
                             {
                                 value: MapTileBackground.SATELLITE,
                                 label: 'Satellite',
@@ -403,7 +401,7 @@ export const Display: FC = memo(() => {
                         ]}
                         value={
                             validConfig.tileBackground ??
-                            MapTileBackground.LIGHT
+                            MapTileBackground.OPENSTREETMAP
                         }
                         onChange={(value) =>
                             setTileBackground(

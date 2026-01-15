@@ -137,29 +137,6 @@ const getTileConfig = (
                 attribution: '',
             };
 
-        case MapTileBackground.OPENSTREETMAP:
-            // OpenStreetMap standard tiles.
-            // Community-run, attribution-only, fair-use. Suitable for low–moderate traffic.
-            // Not intended for heavy commercial usage or guaranteed SLA.
-            return {
-                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                attribution:
-                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            };
-
-        case MapTileBackground.DARK:
-            // Stamen Toner Lite (hosted by Stadia Maps).
-            // Open Stamen style with fair-use hosted tiles.
-            // No API key required for low usage; switch to keyed or self-hosted tiles if usage grows.
-            return {
-                url: 'https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}{r}.png',
-                attribution:
-                    '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> ' +
-                    '&copy; <a href="https://stamen.com/">Stamen Design</a> ' +
-                    '&copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> ' +
-                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            };
-
         // NOTE: Esri World Imagery is used under fair-use terms.
         // If usage increases, switch to a licensed or self-hosted provider.
         case MapTileBackground.SATELLITE:
@@ -171,14 +148,14 @@ const getTileConfig = (
 
         case MapTileBackground.LIGHT:
         default:
-            // Wikimedia OSM tiles.
-            // Neutral, clean cartography with OSM data.
-            // Fair-use, attribution-only; suitable as a safe default base map.
+        case MapTileBackground.OPENSTREETMAP:
+            // OpenStreetMap standard tiles.
+            // Community-run, attribution-only, fair-use. Suitable for low–moderate traffic.
+            // Not intended for heavy commercial usage or guaranteed SLA.
             return {
-                url: 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png',
+                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                 attribution:
-                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &mdash; ' +
-                    'Map data © <a href="https://wikimediafoundation.org/">Wikimedia Foundation</a>',
+                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             };
     }
 };
