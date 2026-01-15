@@ -1,3 +1,10 @@
+## [0.2341.1](https://github.com/lightdash/lightdash/compare/0.2341.0...0.2341.1) (2026-01-15)
+
+
+### Bug Fixes
+
+* add field context to dimension reference error messages ([#19447](https://github.com/lightdash/lightdash/issues/19447)) ([d805ffb](https://github.com/lightdash/lightdash/commit/d805ffb5ca0d1755ebaf8e6b87ba3edad80fb3b0))
+
 # [0.2341.0](https://github.com/lightdash/lightdash/compare/0.2340.2...0.2341.0) (2026-01-15)
 
 
