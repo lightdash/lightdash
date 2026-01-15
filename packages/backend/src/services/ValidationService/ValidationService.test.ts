@@ -150,14 +150,14 @@ describe('validation', () => {
             createdAt: undefined,
             name: 'valid_explore',
             modelName: 'valid_explore',
-            error: 'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
+            error: 'Model "valid_explore" in metric "some_metric" has a dimension reference: ${is_completed} which matches no dimension',
             errorType: 'model',
             projectUuid: 'projectUuid',
             source: 'table',
         });
 
         expect(errors[0]!.error).toEqual(
-            'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
+            'Model "valid_explore" in metric "some_metric" has a dimension reference: ${is_completed} which matches no dimension',
         );
     });
 
@@ -212,14 +212,14 @@ describe('validation', () => {
             createdAt: undefined,
             name: 'valid_explore',
             modelName: 'valid_explore',
-            error: 'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
+            error: 'Model "valid_explore" in metric "some_metric" has a dimension reference: ${is_completed} which matches no dimension',
             errorType: 'model',
             projectUuid: 'projectUuid',
             source: 'table',
         });
 
         expect(errors[0]!.error).toEqual(
-            'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
+            'Model "valid_explore" in metric "some_metric" has a dimension reference: ${is_completed} which matches no dimension',
         );
     });
 
@@ -238,7 +238,7 @@ describe('validation', () => {
         );
 
         const expectedErrors: string[] = [
-            'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
+            'Model "valid_explore" in metric "some_metric" has a dimension reference: ${is_completed} which matches no dimension',
         ];
 
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
@@ -310,7 +310,7 @@ describe('validation', () => {
         );
 
         const expectedErrors: string[] = [
-            'Model "valid_explore" has a dimension reference: ${is_completed} which matches no dimension',
+            'Model "valid_explore" in metric "some_metric" has a dimension reference: ${is_completed} which matches no dimension',
             "Dimension error: the field 'table_dimension' no longer exists",
             "Filter error: the field 'table_dimension' no longer exists",
             "Sorting error: the field 'table_dimension' no longer exists",
