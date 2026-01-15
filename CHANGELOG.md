@@ -1,3 +1,10 @@
+# [0.2343.0](https://github.com/lightdash/lightdash/compare/0.2342.2...0.2343.0) (2026-01-15)
+
+
+### Features
+
+* improve notification loading icon size ([#19459](https://github.com/lightdash/lightdash/issues/19459)) ([097695a](https://github.com/lightdash/lightdash/commit/097695acc5882b1bb3ef59ed1b69b9c85b5bcc81))
+
 ## [0.2342.2](https://github.com/lightdash/lightdash/compare/0.2342.1...0.2342.2) (2026-01-15)
 
 
