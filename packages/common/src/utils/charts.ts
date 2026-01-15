@@ -106,6 +106,15 @@ export function getColumnOrderFromVizTableConfig(
     config: VizTableConfig | undefined,
 ): string[] {
     if (!config?.columns) return [];
+    // If none of the columns have an empty property, return an empty list
+    // for sql queries, we will order the columns based on the results
+    if (
+        Object.values(config.columns).every(
+            (column) => column.order === undefined,
+        )
+    ) {
+        return [];
+    }
 
     return Object.entries(config.columns)
         .sort(([_, a], [__, b]) => (a.order ?? 0) - (b.order ?? 0))
