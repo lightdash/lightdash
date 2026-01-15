@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="TaskPaneApp">
+    <Id>c5b8f2a1-3f5f-4a0a-9a42-9d2c2dbe0fcd</Id>
+    <Version>1.0.0.0</Version>
+    <ProviderName>Lightdash</ProviderName>
+    <DefaultLocale>en-US</DefaultLocale>
+    <DisplayName DefaultValue="Lightdash MetricFlow Excel" />
+    <Description DefaultValue="Lightdash MetricFlow task pane add-in" />
+    <!-- 使用 ngrok 域名以便 Office Online 访问；如需本地 http 可再改回 localhost -->
+    <IconUrl DefaultValue="https://peripteral-toothiest-bibi.ngrok-free.dev/logo-icon.svg" />
+    <HighResolutionIconUrl DefaultValue="https://peripteral-toothiest-bibi.ngrok-free.dev/logo-icon.svg" />
+    <SupportUrl DefaultValue="https://peripteral-toothiest-bibi.ngrok-free.dev" />
+    <AppDomains>
+        <AppDomain>peripteral-toothiest-bibi.ngrok-free.dev</AppDomain>
+    </AppDomains>
+    <Hosts>
+        <Host Name="Workbook" />
+    </Hosts>
+    <DefaultSettings>
+        <SourceLocation DefaultValue="https://peripteral-toothiest-bibi.ngrok-free.dev/index.html" />
+    </DefaultSettings>
+    <Permissions>ReadWriteDocument</Permissions>
+</OfficeApp>
