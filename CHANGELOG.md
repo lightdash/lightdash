@@ -1,3 +1,10 @@
+## [0.2340.2](https://github.com/lightdash/lightdash/compare/0.2340.1...0.2340.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* overflow-hidden appended to body when MDEditor is used ([#19454](https://github.com/lightdash/lightdash/issues/19454)) ([7a16ad8](https://github.com/lightdash/lightdash/commit/7a16ad8aac74e61208c11c7efeddb309472e9879)), closes [#19372](https://github.com/lightdash/lightdash/issues/19372)
+
 ## [0.2340.1](https://github.com/lightdash/lightdash/compare/0.2340.0...0.2340.1) (2026-01-14)
 
 
