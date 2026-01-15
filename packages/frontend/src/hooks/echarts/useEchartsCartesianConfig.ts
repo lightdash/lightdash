@@ -1266,6 +1266,7 @@ export const getCategoryDateAxisConfig = (
     axisField?: Field | TableCalculation | CustomDimension,
     rows?: ResultRow[],
     axisType?: string,
+    series?: Series[],
 ) => {
     if (!axisId || !rows || !axisField || axisType !== 'category') return {};
     if (!('timeInterval' in axisField)) return {};
@@ -1278,6 +1279,13 @@ export const getCategoryDateAxisConfig = (
     const maxDateValue = dayjs.utc(maxX);
     if (!minDateValue.isValid() || !maxDateValue.isValid()) return {};
 
+    // Bar charts need boundary gap for proper bar spacing, but line/area charts
+    // look better extending to the edges
+    const hasBarSeries = series?.some(
+        (s) => s.type === CartesianSeriesType.BAR,
+    );
+    const boundaryGap = hasBarSeries;
+
     if (timeInterval === TimeFrames.WEEK) {
         const continuousRange: string[] = [];
         let nextDate = dayjs.utc(minX);
@@ -1289,6 +1297,7 @@ export const getCategoryDateAxisConfig = (
         return {
             data: continuousRange,
             axisTick: { alignWithLabel: true, interval: 0 },
+            boundaryGap,
         };
     }
 
@@ -1303,6 +1312,7 @@ export const getCategoryDateAxisConfig = (
         return {
             data: continuousRange,
             axisTick: { alignWithLabel: true, interval: 0 },
+            boundaryGap,
         };
     }
 
@@ -1318,6 +1328,7 @@ export const getCategoryDateAxisConfig = (
         return {
             data: continuousRange,
             axisTick: { alignWithLabel: true, interval: 0 },
+            boundaryGap,
         };
     }
 
@@ -1332,6 +1343,7 @@ export const getCategoryDateAxisConfig = (
         return {
             data: continuousRange,
             axisTick: { alignWithLabel: true, interval: 0 },
+            boundaryGap,
         };
     }
 
@@ -1506,29 +1518,34 @@ const getEchartAxes = ({
         itemsMap,
         resultsData?.pivotDetails,
     );
+    const eChartsSeries = validCartesianConfig.eChartsConfig.series;
     const bottomAxisExtraConfig = getCategoryDateAxisConfig(
         bottomAxisXId,
         bottomAxisXField,
         resultsData?.rows,
         bottomAxisType,
+        eChartsSeries,
     );
     const topAxisExtraConfig = getCategoryDateAxisConfig(
         topAxisXId,
         topAxisXField,
         resultsData?.rows,
         topAxisType,
+        eChartsSeries,
     );
     const rightAxisExtraConfig = getCategoryDateAxisConfig(
         rightAxisYId,
         rightAxisYField,
         resultsData?.rows,
         rightAxisType,
+        eChartsSeries,
     );
     const leftAxisExtraConfig = getCategoryDateAxisConfig(
         leftAxisYId,
         leftAxisYField,
         resultsData?.rows,
         leftAxisType,
+        eChartsSeries,
     );
 
     const axisLabelFontSize =
