@@ -1,3 +1,10 @@
+# [0.2342.0](https://github.com/lightdash/lightdash/compare/0.2341.2...0.2342.0) (2026-01-15)
+
+
+### Features
+
+* **prototype:** demo ui for funnel builder api ([#19345](https://github.com/lightdash/lightdash/issues/19345)) ([9f3f5e2](https://github.com/lightdash/lightdash/commit/9f3f5e2bd6f2105f8729b97d75dbca0330ca8673))
+
 ## [0.2341.2](https://github.com/lightdash/lightdash/compare/0.2341.1...0.2341.2) (2026-01-15)
 
 
