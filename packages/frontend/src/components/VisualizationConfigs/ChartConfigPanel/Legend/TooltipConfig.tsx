@@ -122,15 +122,45 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
     );
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     const disposableRef = useRef<IDisposable | null>(null);
+    const prevShowRef = useRef<boolean>(
+        isCartesianChart ? !!visualizationConfig.chartConfig.tooltip : false,
+    );
+    const tooltipValueRef = useRef<string>(
+        (isCartesianChart && visualizationConfig.chartConfig.tooltip) || '',
+    );
 
+    const [show, setShow] = useState<boolean>(
+        isCartesianChart ? !!visualizationConfig.chartConfig.tooltip : false,
+    );
+
+    // Keep ref in sync with tooltipValue for immediate toggle restore
+    useEffect(() => {
+        tooltipValueRef.current = tooltipValue;
+    }, [tooltipValue]);
+
+    // Handle tooltip updates: toggle changes are immediate, typing uses debounced value
     useEffect(() => {
         if (!isCartesianChart) return;
 
         const { setTooltip } = visualizationConfig.chartConfig;
 
-        setTooltip(debouncedTooltipValue);
+        // If show state changed, handle toggle immediately
+        if (prevShowRef.current !== show) {
+            if (show) {
+                // When toggled on, immediately restore the current tooltip value
+                setTooltip(tooltipValueRef.current);
+            } else {
+                // When toggled off, immediately clear the tooltip
+                setTooltip('');
+            }
+            prevShowRef.current = show;
+        } else if (show) {
+            // When show is true and debounced value changes (user typing), update with debounced value
+            setTooltip(debouncedTooltipValue);
+        }
     }, [
         isCartesianChart,
+        show,
         debouncedTooltipValue,
         visualizationConfig.chartConfig,
     ]);
@@ -141,10 +171,6 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
         const lineCount = (value ?? '').split('\n').length;
         setEditorHeight(calculateEditorHeight(lineCount));
     };
-
-    const [show, setShow] = useState<boolean>(
-        isCartesianChart ? !!visualizationConfig.chartConfig.tooltip : false,
-    );
     const [monacoOptions, setMonacoOptions] = useState<
         EditorProps['options'] | undefined
     >();
