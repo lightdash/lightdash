@@ -88,6 +88,15 @@ export type GenerateTableCalculationGenerated = BaseTrack & {
     };
 };
 
+export type GenerateTooltipGenerated = BaseTrack & {
+    event: 'ai.tooltip.generated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        userId: string;
+    };
+};
+
 // SCIM events
 
 export type ScimAccessTokenAuthenticationEvent = BaseTrack & {
