@@ -1001,6 +1001,9 @@ export type LightdashConfig = {
     funnelBuilder: {
         enabled: boolean;
     };
+    metricsCatalog: {
+        echartsVisualizationEnabled: boolean | undefined;
+    };
 };
 
 export type SlackConfig = {
@@ -1795,6 +1798,15 @@ export const parseConfig = (): LightdashConfig => {
             enabled:
                 process.env.FUNNEL_BUILDER_ENABLED === 'true' ||
                 lightdashMode === LightdashMode.PR,
+        },
+        metricsCatalog: {
+            echartsVisualizationEnabled:
+                process.env.METRICS_CATALOG_ECHARTS_VISUALIZATION_ENABLED !==
+                undefined
+                    ? process.env
+                          .METRICS_CATALOG_ECHARTS_VISUALIZATION_ENABLED ===
+                      'true'
+                    : undefined,
         },
     };
 };
