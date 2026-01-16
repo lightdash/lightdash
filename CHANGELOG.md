@@ -1,3 +1,10 @@
+## [0.2348.2](https://github.com/lightdash/lightdash/compare/0.2348.1...0.2348.2) (2026-01-16)
+
+
+### Bug Fixes
+
+* handle query errors in screenshot ready indicator ([#19436](https://github.com/lightdash/lightdash/issues/19436)) ([6705b9c](https://github.com/lightdash/lightdash/commit/6705b9c788f8981d740a3d268671fc2c5d76cf41))
+
 ## [0.2348.1](https://github.com/lightdash/lightdash/compare/0.2348.0...0.2348.1) (2026-01-16)
 
 
