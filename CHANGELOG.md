@@ -1,3 +1,16 @@
+# [0.2348.0](https://github.com/lightdash/lightdash/compare/0.2347.1...0.2348.0) (2026-01-16)
+
+
+### Bug Fixes
+
+* allow only dimensions` for filtering ([#19496](https://github.com/lightdash/lightdash/issues/19496)) ([2fc1cee](https://github.com/lightdash/lightdash/commit/2fc1ceee5a90e9b2fe64163c8d2024750243d0a6))
+* improve screenshot readiness detection for empty charts and tables ([#19471](https://github.com/lightdash/lightdash/issues/19471)) ([04629be](https://github.com/lightdash/lightdash/commit/04629befdf8a7a66c0a73bcf0a29134ca669e320))
+
+
+### Features
+
+* add new sql methods to warehouse builders ([#19468](https://github.com/lightdash/lightdash/issues/19468)) ([f92b5bc](https://github.com/lightdash/lightdash/commit/f92b5bc45dd53bb726e0f50f3394ff6977234e82))
+
 ## [0.2347.1](https://github.com/lightdash/lightdash/compare/0.2347.0...0.2347.1) (2026-01-16)
 
 
