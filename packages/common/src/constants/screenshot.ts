@@ -66,6 +66,17 @@ export const DASHBOARD_GRID_CLASS = 'react-grid-layout';
 export const ERROR_BOUNDARY_ID = 'lightdash-error-boundary';
 
 /**
+ * ID of the element rendered on the login page.
+ * The UnfurlService checks for this element to detect when authentication failed
+ * and the user was redirected to the login page instead of the requested content.
+ *
+ * Usage:
+ * - Frontend: Rendered by LoginLanding Card component
+ * - Backend: Checked by UnfurlService.saveScreenshot() to detect auth redirects
+ */
+export const LOGIN_PAGE_ID = 'lightdash-login-page';
+
+/**
  * CSS Selectors (with prefix for direct use in querySelector/CSS)
  */
 export const SCREENSHOT_SELECTORS = {
@@ -81,4 +92,6 @@ export const SCREENSHOT_SELECTORS = {
     DASHBOARD_GRID: `.${DASHBOARD_GRID_CLASS}`,
     /** ID selector: #lightdash-error-boundary */
     ERROR_BOUNDARY: `#${ERROR_BOUNDARY_ID}`,
+    /** ID selector: #lightdash-login-page */
+    LOGIN_PAGE: `#${LOGIN_PAGE_ID}`,
 } as const;

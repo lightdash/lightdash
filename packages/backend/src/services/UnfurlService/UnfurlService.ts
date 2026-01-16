@@ -1270,39 +1270,65 @@ export class UnfurlService extends BaseService {
                             timeout: 150000,
                         });
 
-                        const errorBoundaryElement = await page
-                            .locator(SCREENSHOT_SELECTORS.ERROR_BOUNDARY)
-                            .first()
-                            .elementHandle({ timeout: 1000 })
-                            .catch(() => null);
-
-                        if (errorBoundaryElement) {
-                            const errorMessage =
-                                await errorBoundaryElement.getAttribute(
-                                    'data-error-message',
-                                );
-                            const sentryEventId =
-                                await errorBoundaryElement.getAttribute(
-                                    'data-sentry-event-id',
-                                );
-
-                            const errorDetails = `message: ${errorMessage}, sentryEventId: ${sentryEventId}, url: ${url}`;
-
-                            this.logger.error(
-                                `Error boundary detected on page - ${errorDetails}`,
-                            );
-
-                            throw new ScreenshotError(
-                                `Frontend error boundary detected: ${
-                                    errorMessage || 'Unknown error'
-                                }`,
-                                {
-                                    url,
-                                    lightdashPage,
-                                    context,
-                                    originalError: `ErrorBoundary rendered - ${errorDetails}`,
+                        const blockingElementChecks = [
+                            {
+                                selector: SCREENSHOT_SELECTORS.ERROR_BOUNDARY,
+                                getError: async (
+                                    el: playwright.ElementHandle,
+                                ) => {
+                                    const errorMessage = await el.getAttribute(
+                                        'data-error-message',
+                                    );
+                                    const sentryEventId = await el.getAttribute(
+                                        'data-sentry-event-id',
+                                    );
+                                    const details = `message: ${errorMessage}, sentryEventId: ${sentryEventId}, url: ${url}`;
+                                    return {
+                                        logMessage: `Error boundary detected on page - ${details}`,
+                                        message: `Frontend error boundary detected: ${
+                                            errorMessage || 'Unknown error'
+                                        }`,
+                                        originalError: `ErrorBoundary rendered - ${details}`,
+                                    };
                                 },
+                            },
+                            {
+                                selector: SCREENSHOT_SELECTORS.LOGIN_PAGE,
+                                getError: async () => ({
+                                    logMessage: `Login page detected - authentication failed for screenshot request, url: ${url}`,
+                                    message:
+                                        'Authentication failed: redirected to login page instead of requested content',
+                                    originalError:
+                                        'PrivateRoute redirected to login page - session may be invalid or expired',
+                                }),
+                            },
+                        ];
+
+                        const blockingResults = await Promise.all(
+                            blockingElementChecks.map(async (check) => ({
+                                check,
+                                element: await page!
+                                    .locator(check.selector)
+                                    .first()
+                                    .elementHandle({ timeout: 1000 })
+                                    .catch(() => null),
+                            })),
+                        );
+
+                        const blocking = blockingResults.find(
+                            (r) => r.element !== null,
+                        );
+                        if (blocking && blocking.element) {
+                            const errorInfo = await blocking.check.getError(
+                                blocking.element,
                             );
+                            this.logger.error(errorInfo.logMessage);
+                            throw new ScreenshotError(errorInfo.message, {
+                                url,
+                                lightdashPage,
+                                context,
+                                originalError: errorInfo.originalError,
+                            });
                         }
 
                         if (
