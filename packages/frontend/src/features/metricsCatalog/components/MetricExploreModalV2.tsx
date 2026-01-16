@@ -1,4 +1,8 @@
-import { ECHARTS_DEFAULT_COLORS, type CatalogField } from '@lightdash/common';
+import {
+    ECHARTS_DEFAULT_COLORS,
+    type CatalogField,
+    type TimeDimensionConfig,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -6,6 +10,7 @@ import {
     Kbd,
     LoadingOverlay,
     Modal,
+    Stack,
     Text,
     Tooltip,
     type ModalProps,
@@ -16,7 +21,7 @@ import {
     IconChevronUp,
     IconInfoCircle,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import LightdashVisualization from '../../../components/LightdashVisualization';
@@ -25,6 +30,7 @@ import MetricQueryDataProvider from '../../../components/MetricQueryData/MetricQ
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useMetricVisualization } from '../hooks/useMetricVisualization';
+import { TimeDimensionIntervalPicker } from './visualization/TimeDimensionIntervalPicker';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     metrics: CatalogField[];
@@ -83,13 +89,33 @@ export const MetricExploreModalV2: FC<Props> = ({
         [navigate, projectUuid, location.search],
     );
 
+    // State for time dimension override (granularity changes)
+    const [timeDimensionOverride, setTimeDimensionOverride] = useState<
+        TimeDimensionConfig | undefined
+    >();
+
+    // Reset override when navigating to a different metric
+    const resetQueryState = useCallback(() => {
+        setTimeDimensionOverride(undefined);
+    }, []);
+
+    // Update navigateToMetric to reset state
+    const navigateToMetricWithReset = useCallback(
+        (metric: CatalogField) => {
+            resetQueryState();
+            navigateToMetric(metric);
+        },
+        [navigateToMetric, resetQueryState],
+    );
+
     const handleGoToNextMetric = useCallback(() => {
-        if (nextMetricInList) navigateToMetric(nextMetricInList);
-    }, [navigateToMetric, nextMetricInList]);
+        if (nextMetricInList) navigateToMetricWithReset(nextMetricInList);
+    }, [navigateToMetricWithReset, nextMetricInList]);
 
     const handleGoToPreviousMetric = useCallback(() => {
-        if (previousMetricInList) navigateToMetric(previousMetricInList);
-    }, [navigateToMetric, previousMetricInList]);
+        if (previousMetricInList)
+            navigateToMetricWithReset(previousMetricInList);
+    }, [navigateToMetricWithReset, previousMetricInList]);
 
     const handleClose = useCallback(() => {
         void navigate({
@@ -104,6 +130,7 @@ export const MetricExploreModalV2: FC<Props> = ({
         metricField,
         explore,
         metricQuery,
+        timeDimensionConfig,
         chartConfig,
         resultsData,
         columnOrder,
@@ -113,6 +140,7 @@ export const MetricExploreModalV2: FC<Props> = ({
         projectUuid,
         tableName,
         metricName,
+        timeDimensionOverride,
     });
 
     // Keyboard navigation
@@ -228,30 +256,58 @@ export const MetricExploreModalV2: FC<Props> = ({
                     miw={800}
                     mih={600}
                 >
-                    <Box w="100%" py="xl" px="xxl" pos="relative">
+                    <Stack
+                        w="100%"
+                        py="xl"
+                        px="xxl"
+                        pos="relative"
+                        spacing="md"
+                    >
                         <LoadingOverlay visible={isLoading} />
-                        {hasData && metricQuery && tableName && explore && (
-                            <MetricQueryDataProvider
-                                metricQuery={metricQuery}
-                                tableName={tableName}
-                                explore={explore}
-                            >
-                                <VisualizationProvider
-                                    resultsData={resultsData}
-                                    chartConfig={chartConfig}
-                                    columnOrder={columnOrder}
-                                    initialPivotDimensions={undefined}
-                                    colorPalette={colorPalette}
-                                    isLoading={isLoading}
-                                    onSeriesContextMenu={undefined}
-                                    onChartConfigChange={undefined}
-                                    pivotTableMaxColumnLimit={60}
+
+                        {/* Granularity picker */}
+                        {timeDimensionConfig && (
+                            <Group spacing="sm">
+                                <Tooltip
+                                    label="Change granularity"
+                                    position="top"
+                                    withinPortal
                                 >
-                                    <LightdashVisualization />
-                                </VisualizationProvider>
-                            </MetricQueryDataProvider>
+                                    <Box>
+                                        <TimeDimensionIntervalPicker
+                                            dimension={timeDimensionConfig}
+                                            onChange={setTimeDimensionOverride}
+                                        />
+                                    </Box>
+                                </Tooltip>
+                            </Group>
                         )}
-                    </Box>
+
+                        {/* ECharts visualization */}
+                        <Box sx={{ flex: 1 }}>
+                            {hasData && metricQuery && tableName && explore && (
+                                <MetricQueryDataProvider
+                                    metricQuery={metricQuery}
+                                    tableName={tableName}
+                                    explore={explore}
+                                >
+                                    <VisualizationProvider
+                                        resultsData={resultsData}
+                                        chartConfig={chartConfig}
+                                        columnOrder={columnOrder}
+                                        initialPivotDimensions={undefined}
+                                        colorPalette={colorPalette}
+                                        isLoading={isLoading}
+                                        onSeriesContextMenu={undefined}
+                                        onChartConfigChange={undefined}
+                                        pivotTableMaxColumnLimit={60}
+                                    >
+                                        <LightdashVisualization />
+                                    </VisualizationProvider>
+                                </MetricQueryDataProvider>
+                            )}
+                        </Box>
+                    </Stack>
                 </Modal.Body>
             </Modal.Content>
         </Modal.Root>
