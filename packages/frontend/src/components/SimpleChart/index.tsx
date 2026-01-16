@@ -102,12 +102,16 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             if (hasSignaledScreenshotReady.current || !onScreenshotReady)
                 return;
 
-            const isReady =
+            const isReadyWithData =
                 !isLoading &&
                 eChartsOptions &&
                 resultsData?.hasFetchedAllRows !== false;
 
-            if (isReady) {
+            // Also signal ready when chart is empty (no options but not loading/error)
+            const isReadyEmpty =
+                !isLoading && !eChartsOptions && !resultsData?.error;
+
+            if (isReadyWithData || isReadyEmpty) {
                 onScreenshotReady();
                 hasSignaledScreenshotReady.current = true;
             }
@@ -115,6 +119,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             isLoading,
             eChartsOptions,
             resultsData?.hasFetchedAllRows,
+            resultsData?.error,
             onScreenshotReady,
         ]);
 
