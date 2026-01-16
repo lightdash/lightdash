@@ -301,8 +301,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             );
 
             if (tilesToDuplicate && tilesToDuplicate.length > 0) {
-                // Duplicate tiles - the backend will detect duplicate chart UUIDs
-                // for dashboard charts and create copies automatically
                 const duplicatedTiles = tilesToDuplicate.map((tile) => ({
                     ...tile,
                     uuid: uuid4(),
