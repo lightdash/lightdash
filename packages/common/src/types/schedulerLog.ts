@@ -12,6 +12,7 @@ export type SchedulerTargetType = 'email' | 'slack' | 'gsheets' | 'msteams';
 
 // Partial failure types for different scenarios
 export enum PartialFailureType {
+    MISSING_TARGETS = 'missing_targets',
     DASHBOARD_CHART = 'dashboard_chart',
     DASHBOARD_SQL_CHART = 'dashboard_sql_chart',
 }
@@ -32,10 +33,15 @@ export type DashboardSqlChartPartialFailure = {
     error: string;
 };
 
+export type MissingTargetsPartialFailure = {
+    type: PartialFailureType.MISSING_TARGETS;
+};
+
 // Union of all partial failure types
 export type PartialFailure =
     | DashboardChartPartialFailure
-    | DashboardSqlChartPartialFailure;
+    | DashboardSqlChartPartialFailure
+    | MissingTargetsPartialFailure;
 
 export type SchedulerDetails = {
     projectUuid?: string;

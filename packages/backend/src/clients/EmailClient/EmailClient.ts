@@ -8,6 +8,7 @@ import {
     SchedulerFormat,
     SessionUser,
     SmptError,
+    type PartialFailure,
 } from '@lightdash/common';
 import { marked } from 'marked';
 import * as nodemailer from 'nodemailer';
@@ -54,7 +55,7 @@ type EmailTemplate = {
         | boolean
         | number
         | AttachmentUrl[]
-        | { chartName: string; error: string }[]
+        | PartialFailure[]
         | undefined
     >;
     attachments?: (Mail.Attachment | AttachmentUrl)[] | undefined;
@@ -632,7 +633,7 @@ export default class EmailClient {
         expirationDays?: number,
         asAttachment?: boolean,
         format?: SchedulerFormat,
-        failures?: { chartName: string; error: string }[],
+        failures?: PartialFailure[],
     ) {
         const csvUrls = attachments.filter(
             (attachment) => !attachment.truncated,

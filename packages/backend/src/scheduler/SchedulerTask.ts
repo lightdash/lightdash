@@ -2913,6 +2913,59 @@ export default class SchedulerTask {
             return;
         }
 
+        const {
+            createdBy: userUuid,
+            savedChartUuid,
+            dashboardUuid,
+            thresholds,
+            notificationFrequency,
+            targets,
+        } = scheduler;
+
+        const sessionUser = await this.userService.getSessionByUserUuid(
+            userUuid,
+        );
+        const account = Account.fromSession(sessionUser);
+
+        // If the scheduler is not a gsheets and has no targets, we skip the delivery
+        if (
+            scheduler.format !== SchedulerFormat.GSHEETS &&
+            targets.length === 0
+        ) {
+            Logger.warn(
+                `Scheduler ${schedulerUuid} has no targets, disabling scheduler and skipping scheduled delivery. Formats: ${scheduler.format}`,
+            );
+
+            // Disable scheduler if it has no targets
+            if (schedulerUuid) {
+                await this.schedulerService.setSchedulerEnabled(
+                    sessionUser,
+                    schedulerUuid,
+                    false,
+                );
+            }
+
+            await this.schedulerService.logSchedulerJob({
+                task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
+                schedulerUuid,
+                jobId,
+                jobGroup: jobId,
+                scheduledTime,
+                status: SchedulerJobStatus.COMPLETED,
+                details: {
+                    partialFailures: [
+                        {
+                            type: PartialFailureType.MISSING_TARGETS,
+                        },
+                    ],
+                    projectUuid: schedulerPayload.projectUuid,
+                    organizationUuid: schedulerPayload.organizationUuid,
+                    createdByUserUuid: schedulerPayload.userUuid,
+                },
+            });
+            return;
+        }
+
         this.analytics.track({
             event: 'scheduler_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -2946,21 +2999,11 @@ export default class SchedulerTask {
             userUuid: schedulerPayload.userUuid,
         };
 
-        const {
-            createdBy: userUuid,
-            savedChartUuid,
-            dashboardUuid,
-            thresholds,
-            notificationFrequency,
-        } = scheduler;
         try {
             if (thresholds !== undefined && thresholds.length > 0) {
                 // TODO add multiple AND conditions
                 if (savedChartUuid) {
                     // We are fetching here the results before getting image or CSV
-                    const sessionUser =
-                        await this.userService.getSessionByUserUuid(userUuid);
-                    const account = Account.fromSession(sessionUser);
                     const { rows } =
                         await this.projectService.getResultsForChart(
                             account,
