@@ -244,9 +244,6 @@ const ValidDashboardChartTile: FC<{
     const markTileScreenshotReady = useDashboardContext(
         (c) => c.markTileScreenshotReady,
     );
-    const markTileScreenshotErrored = useDashboardContext(
-        (c) => c.markTileScreenshotErrored,
-    );
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const invalidateCache = useDashboardContext((c) => c.invalidateCache);
@@ -317,10 +314,6 @@ const ValidDashboardChartTile: FC<{
         markTileScreenshotReady(tileUuid);
     }, [markTileScreenshotReady, tileUuid]);
 
-    const handleScreenshotError = useCallback(() => {
-        markTileScreenshotErrored(tileUuid);
-    }, [markTileScreenshotErrored, tileUuid]);
-
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -355,7 +348,6 @@ const ValidDashboardChartTile: FC<{
                 tileUuid={tileUuid}
                 isTitleHidden={isTitleHidden}
                 onScreenshotReady={handleScreenshotReady}
-                onScreenshotError={handleScreenshotError}
             />
         </VisualizationProvider>
     );
@@ -392,9 +384,6 @@ const ValidDashboardChartTileMinimal: FC<{
     );
     const markTileScreenshotReady = useDashboardContext(
         (c) => c.markTileScreenshotReady,
-    );
-    const markTileScreenshotErrored = useDashboardContext(
-        (c) => c.markTileScreenshotErrored,
     );
 
     const {
@@ -452,10 +441,6 @@ const ValidDashboardChartTileMinimal: FC<{
         markTileScreenshotReady(tileUuid);
     }, [markTileScreenshotReady, tileUuid]);
 
-    const handleScreenshotError = useCallback(() => {
-        markTileScreenshotErrored(tileUuid);
-    }, [markTileScreenshotErrored, tileUuid]);
-
     if (health.isInitialLoading || !health.data) {
         return null;
     }
@@ -490,7 +475,6 @@ const ValidDashboardChartTileMinimal: FC<{
                 tileUuid={tileUuid}
                 isTitleHidden={isTitleHidden}
                 onScreenshotReady={handleScreenshotReady}
-                onScreenshotError={handleScreenshotError}
             />
         </VisualizationProvider>
     );
@@ -1816,6 +1800,15 @@ export const GenericDashboardChartTile: FC<
         dashboardUuid: string;
     }>();
     const { user } = useApp();
+
+    const markTileScreenshotErrored = useDashboardContext(
+        (c) => c.markTileScreenshotErrored,
+    );
+    useEffect(() => {
+        if (error !== null) {
+            markTileScreenshotErrored(tile.uuid);
+        }
+    }, [error, markTileScreenshotErrored, tile.uuid]);
 
     const userCanManageChart =
         dashboardChartReadyQuery?.chart &&
