@@ -1270,6 +1270,41 @@ export class UnfurlService extends BaseService {
                             timeout: 150000,
                         });
 
+                        const errorBoundaryElement = await page
+                            .locator(SCREENSHOT_SELECTORS.ERROR_BOUNDARY)
+                            .first()
+                            .elementHandle({ timeout: 1000 })
+                            .catch(() => null);
+
+                        if (errorBoundaryElement) {
+                            const errorMessage =
+                                await errorBoundaryElement.getAttribute(
+                                    'data-error-message',
+                                );
+                            const sentryEventId =
+                                await errorBoundaryElement.getAttribute(
+                                    'data-sentry-event-id',
+                                );
+
+                            const errorDetails = `message: ${errorMessage}, sentryEventId: ${sentryEventId}, url: ${url}`;
+
+                            this.logger.error(
+                                `Error boundary detected on page - ${errorDetails}`,
+                            );
+
+                            throw new ScreenshotError(
+                                `Frontend error boundary detected: ${
+                                    errorMessage || 'Unknown error'
+                                }`,
+                                {
+                                    url,
+                                    lightdashPage,
+                                    context,
+                                    originalError: `ErrorBoundary rendered - ${errorDetails}`,
+                                },
+                            );
+                        }
+
                         if (
                             chartResultsPromises &&
                             !useScreenshotReadyIndicator
@@ -1278,48 +1313,12 @@ export class UnfurlService extends BaseService {
                             await Promise.allSettled(chartResultsPromises);
                         }
                     } catch (e) {
+                        // Re-throw ScreenshotError (e.g., from error boundary detection)
+                        if (e instanceof ScreenshotError) {
+                            throw e;
+                        }
                         this.logger.warn(
                             `Got a timeout when waiting for the page to load, returning current content`,
-                        );
-                    }
-
-                    // Check if the error boundary is present before proceeding
-                    const errorBoundaryElement = await page
-                        .locator(SCREENSHOT_SELECTORS.ERROR_BOUNDARY)
-                        .first()
-                        .elementHandle({ timeout: 0 })
-                        .catch(() => null);
-
-                    if (errorBoundaryElement) {
-                        const errorType =
-                            await errorBoundaryElement.getAttribute(
-                                'data-error-type',
-                            );
-                        const errorMessage =
-                            await errorBoundaryElement.getAttribute(
-                                'data-error-message',
-                            );
-                        const sentryEventId =
-                            await errorBoundaryElement.getAttribute(
-                                'data-sentry-event-id',
-                            );
-
-                        this.logger.error(
-                            `Error boundary detected on page - type: ${errorType}, message: ${errorMessage}, sentryEventId: ${sentryEventId}, url: ${url}`,
-                        );
-
-                        throw new ScreenshotError(
-                            `Frontend error boundary detected: ${
-                                errorType === 'chunk'
-                                    ? 'Application update required (chunk load error)'
-                                    : errorMessage || 'Unknown error'
-                            }`,
-                            {
-                                url,
-                                lightdashPage,
-                                context,
-                                originalError: `ErrorBoundary rendered - type: ${errorType}, message: ${errorMessage}, sentryEventId: ${sentryEventId}`,
-                            },
                         );
                     }
 

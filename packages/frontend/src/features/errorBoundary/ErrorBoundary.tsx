@@ -90,6 +90,12 @@ const ErrorFallback: FC<{
     error: unknown;
     wrapper?: FlexProps;
 }> = ({ eventId, error, wrapper }) => {
+    const errorMessage = isChunkLoadErrorObject(error)
+        ? 'Application update required (chunk load error)'
+        : error instanceof Error
+          ? error.message
+          : String(error);
+
     // Check if this is a chunk load error
     if (isChunkLoadErrorObject(error)) {
         // If we haven't recently reloaded, auto-reload now
@@ -102,7 +108,8 @@ const ErrorFallback: FC<{
         return (
             <Flex
                 id={ERROR_BOUNDARY_ID}
-                data-error-type="chunk"
+                data-error-message={errorMessage}
+                data-sentry-event-id={eventId}
                 justify="flex-start"
                 align="center"
                 direction="column"
@@ -117,10 +124,7 @@ const ErrorFallback: FC<{
     return (
         <Flex
             id={ERROR_BOUNDARY_ID}
-            data-error-type="general"
-            data-error-message={
-                error instanceof Error ? error.message : String(error)
-            }
+            data-error-message={errorMessage}
             data-sentry-event-id={eventId}
             justify="flex-start"
             align="center"
