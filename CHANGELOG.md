@@ -1,3 +1,10 @@
+# [0.2346.0](https://github.com/lightdash/lightdash/compare/0.2345.0...0.2346.0) (2026-01-16)
+
+
+### Features
+
+* configuration to disable Headway app ([#19299](https://github.com/lightdash/lightdash/issues/19299)) ([2ac16e2](https://github.com/lightdash/lightdash/commit/2ac16e2d94014e7ce0869dd168e956e32ed0e5e4))
+
 # [0.2345.0](https://github.com/lightdash/lightdash/compare/0.2344.0...0.2345.0) (2026-01-16)
 
 
