@@ -14,6 +14,7 @@ import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { type CreateWarehouseCredentials } from '../types/projects';
 import { TimeFrames } from '../types/timeFrames';
 import {
+    type TimeIntervalUnit,
     type WarehouseCatalog,
     type WarehouseClient,
     type WarehouseTables,
@@ -91,6 +92,13 @@ export const warehouseClientMock: WarehouseClient = {
         throw new Error('Function not implemented.');
     },
     escapeString: (value) => value,
+    castToTimestamp: (date) => `CAST('${date.toISOString()}' AS TIMESTAMP)`,
+    getIntervalSql: (value: number, unit: TimeIntervalUnit) =>
+        `INTERVAL '${value} ${unit}'`,
+    getTimestampDiffSeconds: (startTimestampSql, endTimestampSql) =>
+        `EXTRACT(EPOCH FROM (${endTimestampSql} - ${startTimestampSql}))`,
+    getMedianSql: (valueSql) =>
+        `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${valueSql})`,
 };
 
 const sourceMock: Source = {

@@ -7,6 +7,7 @@ import {
     Metric,
     MetricType,
     SupportedDbtAdapter,
+    TimeIntervalUnit,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
@@ -171,6 +172,30 @@ export class ClickhouseSqlBuilder extends WarehouseBaseSqlBuilder {
                 // Remove null bytes
                 .replaceAll('\0', '')
         );
+    }
+
+    castToTimestamp(date: Date): string {
+        // ClickHouse uses toDateTime function with ISO 8601 format
+        return `toDateTime('${date.toISOString()}')`;
+    }
+
+    getIntervalSql(value: number, unit: TimeIntervalUnit): string {
+        // ClickHouse uses INTERVAL with value and keyword unit (no quotes)
+        const unitStr = ClickhouseSqlBuilder.intervalUnitsSingular[unit];
+        return `INTERVAL ${value} ${unitStr}`;
+    }
+
+    getTimestampDiffSeconds(
+        startTimestampSql: string,
+        endTimestampSql: string,
+    ): string {
+        // ClickHouse uses dateDiff function
+        return `dateDiff('second', ${startTimestampSql}, ${endTimestampSql})`;
+    }
+
+    getMedianSql(valueSql: string): string {
+        // ClickHouse has a native median function
+        return `median(${valueSql})`;
     }
 }
 

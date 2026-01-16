@@ -1,6 +1,7 @@
 import {
     Metric,
     SupportedDbtAdapter,
+    TimeIntervalUnit,
     WarehouseSqlBuilder,
     WarehouseTypes,
     WeekDay,
@@ -63,5 +64,43 @@ export default abstract class WarehouseBaseSqlBuilder
                 // Remove null bytes
                 .replaceAll('\0', '')
         );
+    }
+
+    castToTimestamp(date: Date): string {
+        // Default: ANSI SQL CAST syntax (works for most warehouses)
+        // Format as ISO 8601 string
+        return `CAST('${date.toISOString()}' AS TIMESTAMP)`;
+    }
+
+    protected static readonly intervalUnitsSingular: Record<
+        TimeIntervalUnit,
+        string
+    > = {
+        [TimeIntervalUnit.SECOND]: 'SECOND',
+        [TimeIntervalUnit.MINUTE]: 'MINUTE',
+        [TimeIntervalUnit.HOUR]: 'HOUR',
+        [TimeIntervalUnit.DAY]: 'DAY',
+        [TimeIntervalUnit.WEEK]: 'WEEK',
+        [TimeIntervalUnit.MONTH]: 'MONTH',
+        [TimeIntervalUnit.YEAR]: 'YEAR',
+    };
+
+    getIntervalSql(value: number, unit: TimeIntervalUnit): string {
+        // Default: PostgreSQL/Redshift style - accepts singular uppercase
+        const unitStr = WarehouseBaseSqlBuilder.intervalUnitsSingular[unit];
+        return `INTERVAL '${value} ${unitStr}'`;
+    }
+
+    getTimestampDiffSeconds(
+        startTimestampSql: string,
+        endTimestampSql: string,
+    ): string {
+        // Default: PostgreSQL/Redshift style
+        return `EXTRACT(EPOCH FROM (${endTimestampSql} - ${startTimestampSql}))`;
+    }
+
+    getMedianSql(valueSql: string): string {
+        // Default: PostgreSQL/Redshift/Snowflake style
+        return `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${valueSql})`;
     }
 }

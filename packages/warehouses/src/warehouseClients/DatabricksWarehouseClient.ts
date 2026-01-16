@@ -15,6 +15,7 @@ import {
     MetricType,
     ParseError,
     SupportedDbtAdapter,
+    TimeIntervalUnit,
     UnexpectedServerError,
     WarehouseConnectionError,
     WarehouseQueryError,
@@ -221,6 +222,25 @@ export class DatabricksSqlBuilder extends WarehouseBaseSqlBuilder {
                 // Remove null bytes
                 .replaceAll('\0', '')
         );
+    }
+
+    getIntervalSql(value: number, unit: TimeIntervalUnit): string {
+        // Databricks/Spark uses INTERVAL with value and keyword unit (no quotes)
+        const unitStr = DatabricksSqlBuilder.intervalUnitsSingular[unit];
+        return `INTERVAL ${value} ${unitStr}`;
+    }
+
+    getTimestampDiffSeconds(
+        startTimestampSql: string,
+        endTimestampSql: string,
+    ): string {
+        // Databricks uses unix_timestamp for conversion to seconds
+        return `(UNIX_TIMESTAMP(${endTimestampSql}) - UNIX_TIMESTAMP(${startTimestampSql}))`;
+    }
+
+    getMedianSql(valueSql: string): string {
+        // Databricks uses PERCENTILE function
+        return `PERCENTILE(${valueSql}, 0.5)`;
     }
 }
 
