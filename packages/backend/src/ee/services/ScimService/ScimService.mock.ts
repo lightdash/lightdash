@@ -8,6 +8,7 @@ import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { EmailModel } from '../../../models/EmailModel';
 import { GroupsModel } from '../../../models/GroupsModel';
+import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { OrganizationMemberProfileModel } from '../../../models/OrganizationMemberProfileModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../../models/RolesModel';
@@ -148,4 +149,8 @@ export const ScimServiceArgumentsMock: ConstructorParameters<
     projectModel: {
         getAllByOrganizationUuid: jest.fn().mockResolvedValue(mockProjects),
     } as unknown as ProjectModel,
+    openIdIdentityModel: {
+        deleteIdentitiesByEmail: jest.fn().mockResolvedValue(0),
+        deleteIdentitiesByUserUuid: jest.fn().mockResolvedValue(0),
+    } as unknown as OpenIdIdentityModel,
 };
