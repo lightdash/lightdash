@@ -209,6 +209,11 @@ export class DashboardService
         user: SessionUser;
     }): Promise<string> {
         const chartToDuplicate = await this.savedChartModel.get(chartUuid);
+        if (!chartToDuplicate.dashboardUuid) {
+            throw new ParameterError(
+                'We cannot duplicate a chart that is not part of a dashboard',
+            );
+        }
         const duplicatedChart = await this.savedChartModel.create(
             projectUuid,
             user.userUuid,
