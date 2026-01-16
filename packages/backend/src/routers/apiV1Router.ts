@@ -185,7 +185,11 @@ apiV1Router.get(
         if (req.user?.userUuid) {
             return next();
         }
-        return res.redirect('/login?redirect=/api/v1/auth/slack');
+        // Preserve query params (team, channel, message, thread_ts) in redirect
+        const redirectPath = req.originalUrl;
+        return res.redirect(
+            `/login?redirect=${encodeURIComponent(redirectPath)}`,
+        );
     },
     storeSlackContext,
     passport.authenticate('slack'),
