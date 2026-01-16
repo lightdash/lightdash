@@ -11208,7 +11208,8 @@
                     "metric",
                     "model",
                     "dimension",
-                    "custom metric"
+                    "custom metric",
+                    "chart configuration"
                 ],
                 "type": "string"
             },
@@ -18348,7 +18349,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig-or-description__": {
+            "Pick_ChartAsCode.Exclude_keyofChartAsCode.chartConfig-or-description__": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -18366,6 +18367,9 @@
                     },
                     "tableName": {
                         "type": "string"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery"
                     },
                     "pivotConfig": {
                         "properties": {
@@ -18408,14 +18412,15 @@
                     "version",
                     "slug",
                     "tableName",
+                    "metricQuery",
                     "tableConfig",
                     "spaceSlug"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_ChartAsCode.metricQuery-or-chartConfig-or-description_": {
-                "$ref": "#/components/schemas/Pick_ChartAsCode.Exclude_keyofChartAsCode.metricQuery-or-chartConfig-or-description__",
+            "Omit_ChartAsCode.chartConfig-or-description_": {
+                "$ref": "#/components/schemas/Pick_ChartAsCode.Exclude_keyofChartAsCode.chartConfig-or-description__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "Pick_SqlChart.name-or-description-or-slug-or-sql-or-limit-or-config-or-chartKind_": {
@@ -18622,7 +18627,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_DashboardAsCode.Exclude_keyofDashboardAsCode.filters-or-tiles-or-description__": {
+            "Pick_DashboardAsCode.Exclude_keyofDashboardAsCode.tiles-or-description__": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -18637,6 +18642,25 @@
                     },
                     "slug": {
                         "type": "string"
+                    },
+                    "filters": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Omit_DashboardFilters.dimensions_"
+                            },
+                            {
+                                "properties": {
+                                    "dimensions": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/Omit_DashboardFilterRule.id_"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "required": ["dimensions"],
+                                "type": "object"
+                            }
+                        ]
                     },
                     "tabs": {
                         "items": {
@@ -18657,14 +18681,15 @@
                     "updatedAt",
                     "version",
                     "slug",
+                    "filters",
                     "tabs",
                     "spaceSlug"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
-            "Omit_DashboardAsCode.filters-or-tiles-or-description_": {
-                "$ref": "#/components/schemas/Pick_DashboardAsCode.Exclude_keyofDashboardAsCode.filters-or-tiles-or-description__",
+            "Omit_DashboardAsCode.tiles-or-description_": {
+                "$ref": "#/components/schemas/Pick_DashboardAsCode.Exclude_keyofDashboardAsCode.tiles-or-description__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
             "ApiRefreshResults": {
@@ -24126,7 +24151,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2332.0",
+        "version": "0.2346.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -32731,16 +32756,13 @@
                             "schema": {
                                 "allOf": [
                                     {
-                                        "$ref": "#/components/schemas/Omit_ChartAsCode.metricQuery-or-chartConfig-or-description_"
+                                        "$ref": "#/components/schemas/Omit_ChartAsCode.chartConfig-or-description_"
                                     },
                                     {
                                         "properties": {
                                             "description": {
                                                 "type": "string",
                                                 "nullable": true
-                                            },
-                                            "metricQuery": {
-                                                "$ref": "#/components/schemas/AnyType"
                                             },
                                             "chartConfig": {
                                                 "$ref": "#/components/schemas/AnyType"
@@ -32752,10 +32774,7 @@
                                                 "type": "boolean"
                                             }
                                         },
-                                        "required": [
-                                            "metricQuery",
-                                            "chartConfig"
-                                        ],
+                                        "required": ["chartConfig"],
                                         "type": "object"
                                     }
                                 ]
@@ -32960,7 +32979,7 @@
                             "schema": {
                                 "allOf": [
                                     {
-                                        "$ref": "#/components/schemas/Omit_DashboardAsCode.filters-or-tiles-or-description_"
+                                        "$ref": "#/components/schemas/Omit_DashboardAsCode.tiles-or-description_"
                                     },
                                     {
                                         "properties": {
@@ -32971,9 +32990,6 @@
                                             "tiles": {
                                                 "$ref": "#/components/schemas/AnyType"
                                             },
-                                            "filters": {
-                                                "$ref": "#/components/schemas/AnyType"
-                                            },
                                             "publicSpaceCreate": {
                                                 "type": "boolean"
                                             },
@@ -32981,7 +32997,7 @@
                                                 "type": "boolean"
                                             }
                                         },
-                                        "required": ["tiles", "filters"],
+                                        "required": ["tiles"],
                                         "type": "object"
                                     }
                                 ]

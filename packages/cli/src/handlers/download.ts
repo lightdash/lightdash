@@ -786,7 +786,9 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
                     (changes[`${type} with errors`] ?? 0) + 1;
                 console.error(
                     styles.error(
-                        `Error upserting ${type}: ${getErrorMessage(error)}`,
+                        `Error upserting ${type}:\n\t"${item.name}" (slug: "${
+                            item.slug
+                        }")\n\t${getErrorMessage(error)}`,
                     ),
                 );
 

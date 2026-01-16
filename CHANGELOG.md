@@ -1,3 +1,71 @@
+## [0.2348.2](https://github.com/lightdash/lightdash/compare/0.2348.1...0.2348.2) (2026-01-16)
+
+
+### Bug Fixes
+
+* handle query errors in screenshot ready indicator ([#19436](https://github.com/lightdash/lightdash/issues/19436)) ([6705b9c](https://github.com/lightdash/lightdash/commit/6705b9c788f8981d740a3d268671fc2c5d76cf41))
+
+## [0.2348.1](https://github.com/lightdash/lightdash/compare/0.2348.0...0.2348.1) (2026-01-16)
+
+
+### Bug Fixes
+
+* properly mark errored non-sql dashboard tiles ([#19359](https://github.com/lightdash/lightdash/issues/19359)) ([1c598cc](https://github.com/lightdash/lightdash/commit/1c598cced2f859aee8eb6f89e9121ea9f0cc4838))
+
+# [0.2348.0](https://github.com/lightdash/lightdash/compare/0.2347.1...0.2348.0) (2026-01-16)
+
+
+### Bug Fixes
+
+* allow only dimensions` for filtering ([#19496](https://github.com/lightdash/lightdash/issues/19496)) ([2fc1cee](https://github.com/lightdash/lightdash/commit/2fc1ceee5a90e9b2fe64163c8d2024750243d0a6))
+* improve screenshot readiness detection for empty charts and tables ([#19471](https://github.com/lightdash/lightdash/issues/19471)) ([04629be](https://github.com/lightdash/lightdash/commit/04629befdf8a7a66c0a73bcf0a29134ca669e320))
+
+
+### Features
+
+* add new sql methods to warehouse builders ([#19468](https://github.com/lightdash/lightdash/issues/19468)) ([f92b5bc](https://github.com/lightdash/lightdash/commit/f92b5bc45dd53bb726e0f50f3394ff6977234e82))
+
+## [0.2347.1](https://github.com/lightdash/lightdash/compare/0.2347.0...0.2347.1) (2026-01-16)
+
+
+### Bug Fixes
+
+* allow toggling/untoggling custom tooltip ([#19484](https://github.com/lightdash/lightdash/issues/19484)) ([6cbbf9e](https://github.com/lightdash/lightdash/commit/6cbbf9e9f72e3373e9b81ebb682f485290da1d0f))
+* improve content-as-code validation ([#19375](https://github.com/lightdash/lightdash/issues/19375)) ([257b22d](https://github.com/lightdash/lightdash/commit/257b22d03296a8d9ee10f9ad3e8d15fa7101baa6))
+
+# [0.2347.0](https://github.com/lightdash/lightdash/compare/0.2346.0...0.2347.0) (2026-01-16)
+
+
+### Features
+
+* add chart debug data copy button in dev mode ([#19467](https://github.com/lightdash/lightdash/issues/19467)) ([f43e086](https://github.com/lightdash/lightdash/commit/f43e086ca361daea07e6247b9828636624418fe4))
+
+# [0.2346.0](https://github.com/lightdash/lightdash/compare/0.2345.0...0.2346.0) (2026-01-16)
+
+
+### Features
+
+* configuration to disable Headway app ([#19299](https://github.com/lightdash/lightdash/issues/19299)) ([2ac16e2](https://github.com/lightdash/lightdash/commit/2ac16e2d94014e7ce0869dd168e956e32ed0e5e4))
+
+# [0.2345.0](https://github.com/lightdash/lightdash/compare/0.2344.0...0.2345.0) (2026-01-16)
+
+
+### Features
+
+* support wide site logo ([#19297](https://github.com/lightdash/lightdash/issues/19297)) ([62f7935](https://github.com/lightdash/lightdash/commit/62f79358788f3e43cef29750613c56043648c9c7))
+
+# [0.2344.0](https://github.com/lightdash/lightdash/compare/0.2343.1...0.2344.0) (2026-01-16)
+
+
+### Bug Fixes
+
+* gauge chart percentage badge visibility in dark mode ([#19481](https://github.com/lightdash/lightdash/issues/19481)) ([c5be334](https://github.com/lightdash/lightdash/commit/c5be33416290830846bcb27bbf433c923d205f20))
+
+
+### Features
+
+* delete OpenID identities by email in SCIM service to prevent login conflicts ([#19449](https://github.com/lightdash/lightdash/issues/19449)) ([b19312b](https://github.com/lightdash/lightdash/commit/b19312bae30be7e807342b6fe801d54794efc56d))
+
 ## [0.2343.1](https://github.com/lightdash/lightdash/compare/0.2343.0...0.2343.1) (2026-01-15)
 
 

@@ -24,33 +24,62 @@
 }
 
 #tooltip-editor-wrapper .view-lines.monaco-mouse-cursor-text {
-    border: 1px solid #e6e6e6;
+    @mixin light {
+        border: 1px solid var(--mantine-color-ldGray-3);
+    }
+    @mixin dark {
+        border: 1px solid var(--mantine-color-ldDark-4);
+    }
     border-radius: 4px;
 }
 
 #monaco-overflow-container .suggest-widget {
     border-radius: 4px;
-    background-color: white;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    border: 1px solid #e5e7eb;
     width: 700px !important;
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+        border: 1px solid var(--mantine-color-ldGray-3);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-9);
+        border: 1px solid var(--mantine-color-ldDark-4);
+    }
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 #monaco-overflow-container .suggest-widget .monaco-list .monaco-list-row {
     transition: background-color 0.15s ease;
     border-radius: 4px;
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-2);
+    }
 }
 
 #monaco-overflow-container .suggest-widget .monaco-list .monaco-list-row:hover {
-    background-color: #f3f4f6;
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-2);
+    }
 }
 
 #monaco-overflow-container
     .suggest-widget
     .monaco-list
     .monaco-list-row.focused {
-    background-color: #f3f4f6;
-    color: #111827;
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-1);
+        color: var(--mantine-color-ldGray-9);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-ldDark-9);
+        background-color: var(--mantine-color-ldDark-3);
+    }
 }
 
 #monaco-overflow-container
@@ -73,7 +102,18 @@
 }
 
 #monaco-overflow-container .suggest-widget .details {
-    border-top: 1px solid #e5e7eb;
-    background-color: #f9fafb;
+    border-top: 1px solid var(--mantine-color-ldGray-3);
     border-radius: 0 0 8px 8px;
+
+    @mixin light {
+        border-top: 1px solid var(--mantine-color-ldGray-3);
+        background-color: var(--mantine-color-ldGray-0);
+        border-radius: 0 0 8px 8px;
+    }
+
+    @mixin dark {
+        border-top: 1px solid var(--mantine-color-ldDark-4);
+        background-color: var(--mantine-color-ldDark-6);
+        border-radius: 0 0 8px 8px;
+    }
 }

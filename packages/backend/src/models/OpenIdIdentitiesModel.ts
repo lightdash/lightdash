@@ -215,4 +215,24 @@ export class OpenIdIdentityModel {
         }
         return row.refresh_token;
     }
+
+    async deleteIdentitiesByEmail(email: string): Promise<number> {
+        return this.database(OpenIdIdentitiesTableName)
+            .where('email', email)
+            .delete();
+    }
+
+    async deleteIdentitiesByUserUuid(userUuid: string): Promise<number> {
+        const [user] = await this.database('users')
+            .select('user_id')
+            .where('user_uuid', userUuid);
+
+        if (!user) {
+            return 0;
+        }
+
+        return this.database(OpenIdIdentitiesTableName)
+            .where('user_id', user.user_id)
+            .delete();
+    }
 }

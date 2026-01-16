@@ -3,6 +3,7 @@ import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useHasMetricsInCatalog } from '../../features/metricsCatalog/hooks/useMetricsCatalog';
 import Omnibar from '../../features/omnibar';
+import useApp from '../../providers/App/useApp';
 import Logo from '../../svgs/logo-icon.svg?react';
 import { AiAgentsButton } from './AiAgentsButton';
 import BrowseMenu from './BrowseMenu';
@@ -32,6 +33,8 @@ export const MainNavBarContent: FC<Props> = ({
     const { data: hasMetrics } = useHasMetricsInCatalog({
         projectUuid: activeProjectUuid,
     });
+    const { health } = useApp();
+    const headwayEnabled = health.data?.headway?.enabled;
 
     return (
         <>
@@ -40,7 +43,14 @@ export const MainNavBarContent: FC<Props> = ({
                     component={Link}
                     to={homeUrl}
                     title="Home"
-                    size="lg"
+                    sx={{
+                        width: 'auto',
+                        height: 34,
+                        '& svg': {
+                            height: 32,
+                            width: 'auto',
+                        },
+                    }}
                 >
                     <Logo />
                 </ActionIcon>
@@ -74,9 +84,11 @@ export const MainNavBarContent: FC<Props> = ({
 
                     <HelpMenu />
 
-                    {!isLoadingActiveProject && activeProjectUuid && (
-                        <HeadwayMenuItem projectUuid={activeProjectUuid} />
-                    )}
+                    {headwayEnabled &&
+                        !isLoadingActiveProject &&
+                        activeProjectUuid && (
+                            <HeadwayMenuItem projectUuid={activeProjectUuid} />
+                        )}
 
                     <ProjectSwitcher />
                 </Button.Group>

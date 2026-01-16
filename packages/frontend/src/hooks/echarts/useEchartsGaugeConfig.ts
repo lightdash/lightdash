@@ -332,12 +332,18 @@ const useEchartsGaugeConfig = ({
                     percentage: {
                         fontSize: tileFontSize * 0.8,
                         lineHeight: tileFontSize * 1.5,
-                        color: theme.colors.ldGray[7],
+                        color:
+                            theme.colorScheme === 'dark'
+                                ? theme.colors.ldGray[9]
+                                : theme.colors.ldGray[7],
                         fontWeight: 500,
-                        backgroundColor: theme.fn.lighten(
-                            theme.colors.ldGray[0],
-                            0.5,
-                        ),
+                        backgroundColor:
+                            theme.colorScheme === 'dark'
+                                ? theme.colors.ldDark[4]
+                                : theme.fn.lighten(
+                                      theme.colors.ldGray[0],
+                                      0.5,
+                                  ),
                         borderColor: theme.colors.ldGray[2],
                         borderWidth: 1,
                         borderRadius: 8,

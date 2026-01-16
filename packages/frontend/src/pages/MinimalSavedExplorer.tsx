@@ -66,24 +66,26 @@ const MinimalExplorerContent = memo(() => {
         !query.data?.queryUuid ||
         queryResults.queryUuid !== query.data.queryUuid;
 
+    const hasQueryError = !!query.error || !!queryResults.error;
+
     const [isScreenshotReady, setIsScreenshotReady] = useState(false);
     const hasSignaledReady = useRef(false);
 
     useEffect(() => {
         if (hasSignaledReady.current) return;
-        if (
-            !savedChart ||
-            isLoadingQueryResults ||
-            health.isInitialLoading ||
-            !health.data
-        ) {
+        if (health.isInitialLoading || !health.data) return;
+
+        const isSuccessfullyLoaded = savedChart && !isLoadingQueryResults;
+        if (!isSuccessfullyLoaded && !hasQueryError) {
             return;
         }
+
         setIsScreenshotReady(true);
         hasSignaledReady.current = true;
     }, [
         savedChart,
         isLoadingQueryResults,
+        hasQueryError,
         health.isInitialLoading,
         health.data,
     ]);
@@ -128,8 +130,8 @@ const MinimalExplorerContent = memo(() => {
                 {isScreenshotReady && (
                     <ScreenshotReadyIndicator
                         tilesTotal={1}
-                        tilesReady={1}
-                        tilesErrored={0}
+                        tilesReady={hasQueryError ? 0 : 1}
+                        tilesErrored={hasQueryError ? 1 : 0}
                     />
                 )}
             </VisualizationProvider>
@@ -172,7 +174,16 @@ const MinimalSavedExplorer: FC<Props> = ({
     }
 
     if (isError) {
-        return <span>{error.error.message}</span>;
+        return (
+            <>
+                <span>{error.error.message}</span>
+                <ScreenshotReadyIndicator
+                    tilesTotal={1}
+                    tilesReady={0}
+                    tilesErrored={1}
+                />
+            </>
+        );
     }
 
     return (
