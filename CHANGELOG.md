@@ -1,3 +1,10 @@
+## [0.2348.1](https://github.com/lightdash/lightdash/compare/0.2348.0...0.2348.1) (2026-01-16)
+
+
+### Bug Fixes
+
+* properly mark errored non-sql dashboard tiles ([#19359](https://github.com/lightdash/lightdash/issues/19359)) ([1c598cc](https://github.com/lightdash/lightdash/commit/1c598cced2f859aee8eb6f89e9121ea9f0cc4838))
+
 # [0.2348.0](https://github.com/lightdash/lightdash/compare/0.2347.1...0.2348.0) (2026-01-16)
 
 
