@@ -71,6 +71,9 @@ export const BaseResponse: HealthState = {
         appId: '',
         verificationHash: undefined,
     },
+    headway: {
+        enabled: false,
+    },
     query: {
         csvCellsLimit: 100000,
         maxLimit: 5000,

@@ -108,6 +108,9 @@ export class HealthService extends BaseService {
                 appId: this.lightdashConfig.pylon.appId,
                 verificationHash: this.getPylonVerificationHash(user?.email),
             },
+            headway: {
+                enabled: this.lightdashConfig.headway.enabled,
+            },
             siteUrl: this.lightdashConfig.siteUrl,
             staticIp: this.lightdashConfig.staticIp,
             posthog: this.lightdashConfig.posthog,
