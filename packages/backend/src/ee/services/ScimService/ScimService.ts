@@ -645,7 +645,7 @@ export class ScimService extends BaseService {
             // If active status changes, either true or false
             // We delete all openid identities for the user's email and user uuid
             // to prevent login conflicts
-            if (user.active !== undefined) {
+            if (user.active && user.active !== dbUser.isActive) {
                 this.logger.debug(
                     `SCIM: Updating active user ${emailToUpdate} to ${user.active}`,
                 );
