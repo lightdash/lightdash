@@ -18,7 +18,6 @@ import {
     isCompleteLayout,
     isDashboardChartTileType,
     isFilterableField,
-    isMetric,
     isTableChartConfig,
     type ApiChartAndResults,
     type ApiError,
@@ -29,7 +28,6 @@ import {
     type FilterDashboardToRule,
     type DashboardChartTile as IDashboardChartTile,
     type ItemsMap,
-    type Metric,
     type PivotReference,
     type ResultValue,
     type SavedChart,
@@ -154,7 +152,7 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
             metricQuery: savedChart.metricQuery,
             columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
-                ? savedChart.chartConfig.config.showTableNames ?? false
+                ? (savedChart.chartConfig.config.showTableNames ?? false)
                 : true,
             customLabels: getCustomLabelsFromTableConfig(
                 savedChart.chartConfig.config,
@@ -810,19 +808,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             );
 
             // Filter dimensions from explore that match dimensionNames
+            // Only dimensions should be available for dashboard filtering - metrics are not supported
             const exploreDimensions = allDimensions.filter((dimension) =>
                 e.dimensionNames.includes(getItemId(dimension)),
             );
-
-            // Also check for metrics in the items map that match dimensionNames
-            const itemsMapMetrics = Object.values(allItemsMap).filter(
-                (item): item is Metric =>
-                    isMetric(item) &&
-                    e.dimensionNames.includes(getItemId(item)),
-            );
-
-            // Fields available for filtering from the click event
-            const availableFields = [...exploreDimensions, ...itemsMapMetrics];
 
             // Helper to extract value from click event data
             // For stacked bars: e.value is an array, e.dimensionNames maps indices to field names
@@ -835,7 +824,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 return (e.data as Record<string, unknown>)[fieldId];
             };
 
-            const dimensionOptions = availableFields.map((field) =>
+            const dimensionOptions = exploreDimensions.map((field) =>
                 createDashboardFilterRuleFromField({
                     field,
                     availableTileFilters: {},
@@ -1494,7 +1483,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 getDownloadQueryUuid={getDownloadQueryUuid}
                 showTableNames={
                     isTableChartConfig(chart.chartConfig.config)
-                        ? chart.chartConfig.config.showTableNames ?? false
+                        ? (chart.chartConfig.config.showTableNames ?? false)
                         : true
                 }
                 chartName={title || chart.name}
@@ -1774,7 +1763,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     getDownloadQueryUuid={getDownloadQueryUuid}
                     showTableNames={
                         isTableChartConfig(chart.chartConfig.config)
-                            ? chart.chartConfig.config.showTableNames ?? false
+                            ? (chart.chartConfig.config.showTableNames ?? false)
                             : true
                     }
                     chartName={title || chart.name}
