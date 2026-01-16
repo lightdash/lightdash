@@ -1,3 +1,16 @@
+# [0.2350.0](https://github.com/lightdash/lightdash/compare/0.2349.1...0.2350.0) (2026-01-16)
+
+
+### Bug Fixes
+
+* avoid intermediate axis ticks for all series types ([#19487](https://github.com/lightdash/lightdash/issues/19487)) ([dd4efb2](https://github.com/lightdash/lightdash/commit/dd4efb2e5ade4c7657524e7c8c99f9537263686a))
+
+
+### Features
+
+* add tooltip sorting options for pivot charts ([#19478](https://github.com/lightdash/lightdash/issues/19478)) ([e0d2e13](https://github.com/lightdash/lightdash/commit/e0d2e1311cf4e884632db8bafe0f6132a25c8fa1))
+* detect error boundaries in screenshot service ([#19445](https://github.com/lightdash/lightdash/issues/19445)) ([7c196e4](https://github.com/lightdash/lightdash/commit/7c196e429b768ba3324c3a1d6279066ac5f1460d))
+
 ## [0.2349.1](https://github.com/lightdash/lightdash/compare/0.2349.0...0.2349.1) (2026-01-16)
 
 
