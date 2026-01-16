@@ -1,3 +1,11 @@
+## [0.2349.1](https://github.com/lightdash/lightdash/compare/0.2349.0...0.2349.1) (2026-01-16)
+
+
+### Bug Fixes
+
+* hide tabs selection in export modal when dashboard has only one tab ([#19470](https://github.com/lightdash/lightdash/issues/19470)) ([2bef353](https://github.com/lightdash/lightdash/commit/2bef353e4a3eb161d1b102e2fb550c64c6a9577e))
+* remove dashboard redesign check for markdown tile hideFrame property ([#19497](https://github.com/lightdash/lightdash/issues/19497)) ([ddc9b94](https://github.com/lightdash/lightdash/commit/ddc9b9412c7e60853118e3abf448ad577811307f))
+
 # [0.2349.0](https://github.com/lightdash/lightdash/compare/0.2348.2...0.2349.0) (2026-01-16)
 
 
