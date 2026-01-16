@@ -370,6 +370,16 @@ export type EchartsGrid = {
     height?: string;
 };
 
+export const TooltipSortByOptions = {
+    DEFAULT: 'default',
+    ALPHABETICAL: 'alphabetical',
+    VALUE_ASCENDING: 'value_ascending',
+    VALUE_DESCENDING: 'value_descending',
+} as const;
+
+export type TooltipSortBy =
+    typeof TooltipSortByOptions[keyof typeof TooltipSortByOptions];
+
 export type CompleteEChartsConfig = {
     legend?: EchartsLegend;
     grid?: EchartsGrid;
@@ -377,6 +387,7 @@ export type CompleteEChartsConfig = {
     xAxis: XAxis[];
     yAxis: Axis[];
     tooltip?: string;
+    tooltipSort?: TooltipSortBy;
     showAxisTicks?: boolean;
     axisLabelFontSize?: number;
     axisTitleFontSize?: number;

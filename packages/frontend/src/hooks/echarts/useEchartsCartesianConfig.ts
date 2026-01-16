@@ -2152,6 +2152,11 @@ const useEchartsCartesianConfig = (
         return visualizationConfig.chartConfig.tooltip;
     }, [visualizationConfig]);
 
+    const tooltipSortConfig = useMemo(() => {
+        if (!isCartesianVisualizationConfig(visualizationConfig)) return;
+        return visualizationConfig.chartConfig.tooltipSort;
+    }, [visualizationConfig]);
+
     const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
         if (
             itemsMap &&
@@ -2700,6 +2705,7 @@ const useEchartsCartesianConfig = (
                 originalValues,
                 series,
                 tooltipHtmlTemplate: tooltipConfig,
+                tooltipSort: tooltipSortConfig,
                 pivotValuesColumnsMap,
                 parameters,
                 rows: dataToRender,
@@ -2711,6 +2717,7 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.xField,
         tooltipConfig,
+        tooltipSortConfig,
         pivotValuesColumnsMap,
         originalValues,
         parameters,

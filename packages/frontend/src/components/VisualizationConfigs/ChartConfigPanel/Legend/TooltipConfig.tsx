@@ -3,6 +3,7 @@ import {
     getDefaultZIndex,
     Group,
     Paper,
+    Stack,
     Text,
     Tooltip,
     useMantineColorScheme,
@@ -248,78 +249,73 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
 
     if (!monacoOptions) return null; // we should not load monaco before options are set with the overflowWidgetsDomNode
     return (
-        <Config>
-            <Config.Section>
-                <Group gap="xs" align="center">
-                    <Config.Heading>Custom Tooltip</Config.Heading>
-                    <Tooltip
-                        withinPortal={true}
-                        maw={350}
-                        variant="xs"
-                        multiline
-                        label="Use this input to enhance chart tooltips with additional content. You can incorporate HTML code and include dynamic values using the format ${variable_name}.
-                                    Click here to read more about this on our docs."
-                    >
-                        <MantineIcon
-                            onClick={() => {
-                                window.open(
-                                    'https://docs.lightdash.com/references/custom-tooltip',
-                                    '_blank',
-                                );
-                            }}
-                            icon={IconHelpCircle}
-                            size="md"
-                            display="inline"
-                            color="ldGray.5"
-                        />
-                    </Tooltip>
-                    <Switch checked={show} onChange={() => setShow(!show)} />
-                </Group>
+        <Stack gap="xs">
+            <Group gap="xs" align="center">
+                <Config.Label>Custom</Config.Label>
+                <Tooltip
+                    withinPortal={true}
+                    maw={350}
+                    variant="xs"
+                    multiline
+                    label="Use this input to enhance chart tooltips with additional content. You can incorporate HTML code and include dynamic values using the format ${variable_name}.
+                                Click here to read more about this on our docs."
+                >
+                    <MantineIcon
+                        onClick={() => {
+                            window.open(
+                                'https://docs.lightdash.com/references/custom-tooltip',
+                                '_blank',
+                            );
+                        }}
+                        icon={IconHelpCircle}
+                        size="md"
+                        display="inline"
+                        color="ldGray.5"
+                        style={{ cursor: 'pointer' }}
+                    />
+                </Tooltip>
+                <Switch checked={show} onChange={() => setShow(!show)} />
+            </Group>
 
-                <Collapse in={show}>
-                    {/* Monaco does not support placeholders, so this is a workaround to show the example tooltip
-                    we show some text, by giving position absolute, it is placed on top of the editor*/}
-                    <Paper
-                        className={styles.editorWrapper}
-                        p="xs"
-                        pos="relative"
-                    >
-                        {tooltipValue?.length === 0 ? (
-                            <Text
-                                ml="sm"
-                                pos="absolute"
-                                w="400px"
-                                c="ldGray.5"
-                                fz="xs"
-                                className={styles.placeholderText}
-                                style={{
-                                    zIndex: getDefaultZIndex('overlay'),
-                                }}
-                            >
-                                {`- Total orders: \${orders_total_amount}`}
-                            </Text>
-                        ) : null}
-                        <Editor
-                            beforeMount={beforeMount}
-                            onMount={onMount}
-                            value={tooltipValue}
-                            options={monacoOptions}
-                            onChange={handleEditorOnChange}
-                            language={'html'}
-                            height={`${editorHeight}px`}
-                            width="100%"
-                            theme={
-                                colorScheme === 'dark'
-                                    ? 'lightdash-dark'
-                                    : 'lightdash-light'
-                            }
-                            wrapperProps={{
-                                id: 'tooltip-editor-wrapper',
+            <Collapse in={show}>
+                {/* Monaco does not support placeholders, so this is a workaround to show the example tooltip
+                we show some text, by giving position absolute, it is placed on top of the editor*/}
+                <Paper className={styles.editorWrapper} p="xs" pos="relative">
+                    {tooltipValue?.length === 0 ? (
+                        <Text
+                            ml="sm"
+                            pos="absolute"
+                            w="400px"
+                            c="ldGray.5"
+                            fz="xs"
+                            className={styles.placeholderText}
+                            style={{
+                                zIndex: getDefaultZIndex('overlay'),
                             }}
-                        />
-                    </Paper>
-                </Collapse>
-            </Config.Section>
-        </Config>
+                        >
+                            {`- Total orders: \${orders_total_amount}`}
+                        </Text>
+                    ) : null}
+                    <Editor
+                        beforeMount={beforeMount}
+                        onMount={onMount}
+                        value={tooltipValue}
+                        options={monacoOptions}
+                        onChange={handleEditorOnChange}
+                        language={'html'}
+                        height={`${editorHeight}px`}
+                        width="100%"
+                        theme={
+                            colorScheme === 'dark'
+                                ? 'lightdash-dark'
+                                : 'lightdash-light'
+                        }
+                        wrapperProps={{
+                            id: 'tooltip-editor-wrapper',
+                        }}
+                    />
+                </Paper>
+            </Collapse>
+        </Stack>
     );
 };
