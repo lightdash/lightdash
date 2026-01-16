@@ -1,3 +1,15 @@
+# [0.2344.0](https://github.com/lightdash/lightdash/compare/0.2343.1...0.2344.0) (2026-01-16)
+
+
+### Bug Fixes
+
+* gauge chart percentage badge visibility in dark mode ([#19481](https://github.com/lightdash/lightdash/issues/19481)) ([c5be334](https://github.com/lightdash/lightdash/commit/c5be33416290830846bcb27bbf433c923d205f20))
+
+
+### Features
+
+* delete OpenID identities by email in SCIM service to prevent login conflicts ([#19449](https://github.com/lightdash/lightdash/issues/19449)) ([b19312b](https://github.com/lightdash/lightdash/commit/b19312bae30be7e807342b6fe801d54794efc56d))
+
 ## [0.2343.1](https://github.com/lightdash/lightdash/compare/0.2343.0...0.2343.1) (2026-01-15)
 
 
