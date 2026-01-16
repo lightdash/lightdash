@@ -99,6 +99,7 @@ export class SlackIntegrationService<
                 installation.scopes,
             ),
         };
+
         return response;
     }
 

@@ -14,4 +14,5 @@ export type SlackSettings = {
     hasRequiredScopes: boolean;
     aiRequireOAuth?: boolean;
     aiMultiAgentChannelId?: string;
+    aiMultiAgentProjectUuids?: string[] | null;
 };
