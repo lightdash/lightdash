@@ -40,7 +40,14 @@ export const MainNavBarContent: FC<Props> = ({
                     component={Link}
                     to={homeUrl}
                     title="Home"
-                    size="lg"
+                    sx={{
+                        width: 'auto',
+                        height: 34,
+                        '& svg': {
+                            height: 32,
+                            width: 'auto',
+                        },
+                    }}
                 >
                     <Logo />
                 </ActionIcon>
