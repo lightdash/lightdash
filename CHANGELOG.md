@@ -1,3 +1,15 @@
+# [0.2349.0](https://github.com/lightdash/lightdash/compare/0.2348.2...0.2349.0) (2026-01-16)
+
+
+### Bug Fixes
+
+* remove duplicate users from user options select list ([#19499](https://github.com/lightdash/lightdash/issues/19499)) ([9273080](https://github.com/lightdash/lightdash/commit/9273080ef310a3c87cdb0b8aef005931bf9190e8))
+
+
+### Features
+
+* add project filtering for Slack multi-agent channel ([#19456](https://github.com/lightdash/lightdash/issues/19456)) ([6156faf](https://github.com/lightdash/lightdash/commit/6156faf114d4988552b7057bc7888995992f012a))
+
 ## [0.2348.2](https://github.com/lightdash/lightdash/compare/0.2348.1...0.2348.2) (2026-01-16)
 
 
