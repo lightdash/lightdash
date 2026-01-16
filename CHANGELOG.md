@@ -1,3 +1,10 @@
+# [0.2345.0](https://github.com/lightdash/lightdash/compare/0.2344.0...0.2345.0) (2026-01-16)
+
+
+### Features
+
+* support wide site logo ([#19297](https://github.com/lightdash/lightdash/issues/19297)) ([62f7935](https://github.com/lightdash/lightdash/commit/62f79358788f3e43cef29750613c56043648c9c7))
+
 # [0.2344.0](https://github.com/lightdash/lightdash/compare/0.2343.1...0.2344.0) (2026-01-16)
 
 
