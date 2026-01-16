@@ -1,3 +1,11 @@
+## [0.2347.1](https://github.com/lightdash/lightdash/compare/0.2347.0...0.2347.1) (2026-01-16)
+
+
+### Bug Fixes
+
+* allow toggling/untoggling custom tooltip ([#19484](https://github.com/lightdash/lightdash/issues/19484)) ([6cbbf9e](https://github.com/lightdash/lightdash/commit/6cbbf9e9f72e3373e9b81ebb682f485290da1d0f))
+* improve content-as-code validation ([#19375](https://github.com/lightdash/lightdash/issues/19375)) ([257b22d](https://github.com/lightdash/lightdash/commit/257b22d03296a8d9ee10f9ad3e8d15fa7101baa6))
+
 # [0.2347.0](https://github.com/lightdash/lightdash/compare/0.2346.0...0.2347.0) (2026-01-16)
 
 
