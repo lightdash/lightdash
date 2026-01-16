@@ -1,3 +1,10 @@
+# [0.2347.0](https://github.com/lightdash/lightdash/compare/0.2346.0...0.2347.0) (2026-01-16)
+
+
+### Features
+
+* add chart debug data copy button in dev mode ([#19467](https://github.com/lightdash/lightdash/issues/19467)) ([f43e086](https://github.com/lightdash/lightdash/commit/f43e086ca361daea07e6247b9828636624418fe4))
+
 # [0.2346.0](https://github.com/lightdash/lightdash/compare/0.2345.0...0.2346.0) (2026-01-16)
 
 
