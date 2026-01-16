@@ -1,0 +1,31 @@
+.editorWrapper {
+    overflow: hidden;
+
+    @mixin light {
+        background-color: white;
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+}
+
+/* Override Monaco editor styles for consistent rounded corners */
+.editorWrapper :global(.monaco-editor) {
+    overflow: hidden;
+}
+
+/* Override the existing border from monaco.css */
+.editorWrapper
+    :global(#tooltip-editor-wrapper .view-lines.monaco-mouse-cursor-text) {
+    border: none !important;
+}
+
+/* Thin scrollbar styling - width controlled via Monaco theme colors */
+.editorWrapper :global(.monaco-scrollable-element > .scrollbar) {
+    width: 6px !important;
+}
+
+.placeholderText {
+    pointer-events: none;
+    font-family: monospace;
+}
