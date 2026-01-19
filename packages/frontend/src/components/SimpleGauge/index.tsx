@@ -2,7 +2,7 @@ import { IconGauge } from '@tabler/icons-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import clamp from 'lodash/clamp';
 import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
-import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabs/gridUtils';
+import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabsV2/gridUtils';
 import useEchartsGaugeConfig from '../../hooks/echarts/useEchartsGaugeConfig';
 import EChartsReact from '../EChartsReactWrapper';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
