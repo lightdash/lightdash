@@ -39,7 +39,7 @@ export type QueryResultsProps = {
     chartUuid?: string;
     chartVersionUuid?: string;
     dateZoomGranularity?: DateGranularity;
-    context?: string;
+    context?: QueryExecutionContext;
     invalidateCache?: boolean;
     parameters?: ParametersValuesMap;
     pivotConfiguration?: PivotConfiguration;
@@ -150,7 +150,7 @@ const executeAsyncQuery = (
         return executeAsyncMetricQuery(
             data.projectUuid,
             {
-                context: QueryExecutionContext.EXPLORE,
+                context: data.context ?? QueryExecutionContext.EXPLORE,
                 query: {
                     ...data.query,
                     limit: queryLimit,

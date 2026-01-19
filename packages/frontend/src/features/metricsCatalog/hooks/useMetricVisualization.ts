@@ -3,6 +3,7 @@ import {
     ChartType,
     getFieldIdForDateDimension,
     getItemId,
+    QueryExecutionContext,
     type ApiError,
     type ChartConfig,
     type MetricQuery,
@@ -165,6 +166,7 @@ export function useMetricVisualization({
             projectUuid,
             tableId: tableName,
             query: metricQuery,
+            context: QueryExecutionContext.METRICS_EXPLORER,
         };
     }, [projectUuid, tableName, metricQuery]);
 
