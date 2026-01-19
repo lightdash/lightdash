@@ -253,6 +253,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                         openDelay={300}
                         maw={250}
                         fz="xs"
+                        withinPortal
                     >
                         <Highlight
                             highlight={table.getState().globalFilter || ''}
