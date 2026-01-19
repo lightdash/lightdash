@@ -1,8 +1,50 @@
-/* RoleBuilder styles */
-.scrollableContent {
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+.content {
     flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.contentStack {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.permissionsCard {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: min(calc(100vh - 280px), 650px);
+    height: min(calc(100vh - 280px), 650px);
+    overflow: hidden;
+}
+
+.permissionsContent {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     padding-bottom: var(--mantine-spacing-md);
-    margin-right: -17px;
-    padding-right: 17px;
+}
+
+.footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    background-color: var(--mantine-color-body);
+    border-bottom-left-radius: var(--mantine-radius-md);
+    border-bottom-right-radius: var(--mantine-radius-md);
+    padding-top: var(--mantine-spacing-xs);
 }

@@ -9,7 +9,11 @@ import { toNumber } from 'lodash';
 import { type ItemsMap, isField, isTableCalculation } from '../../types/field';
 import { type ParametersValuesMap } from '../../types/parameters';
 import { type ResultRow } from '../../types/results';
-import { hashFieldReference } from '../../types/savedCharts';
+import {
+    type TooltipSortBy,
+    hashFieldReference,
+    TooltipSortByOptions,
+} from '../../types/savedCharts';
 import { TimeFrames } from '../../types/timeFrames';
 import { formatItemValue } from '../../utils/formatting';
 import { sanitizeHtml } from '../../utils/sanitizeHtml';
@@ -542,6 +546,95 @@ export const buildSqlRunnerCartesianTooltipFormatter =
         return `${formatTooltipHeader(header)}${divider}${rowsHtml}`;
     };
 
+/**
+ * Sort tooltip params based on the tooltipSort configuration
+ */
+const sortTooltipParams = (
+    params: TooltipFormatterParams[],
+    tooltipSort: TooltipSortBy | undefined,
+    series: EChartsSeries[] | undefined,
+    flipAxes: boolean | undefined,
+    ctx: TooltipCtx,
+): TooltipFormatterParams[] => {
+    if (!tooltipSort || tooltipSort === TooltipSortByOptions.DEFAULT) {
+        return params;
+    }
+
+    // Helper to extract numeric value from param for sorting
+    const getNumericValue = (param: TooltipFormatterParams): number => {
+        const { value, seriesIndex, encode, dimensionNames } = param;
+        const seriesOption =
+            typeof seriesIndex === 'number' ? series?.[seriesIndex] : undefined;
+        const effectiveEncode = encode ?? seriesOption?.encode ?? undefined;
+
+        // Try to get the value from the encode y-axis
+        const metricAxis: AxisKey = flipAxes ? 'x' : 'y';
+        const valueIdx = getValueIdxFromEncode(
+            effectiveEncode,
+            ctx,
+            !!flipAxes,
+        );
+
+        // For array values (tuple mode)
+        if (Array.isArray(value)) {
+            // Use the valueIdx if available, otherwise try index 1 (typical y-value position)
+            let idx: number;
+            if (valueIdx !== undefined) {
+                idx = valueIdx;
+            } else {
+                idx = flipAxes ? 0 : 1;
+            }
+            const numVal = toNumber(value[idx]);
+            if (!Number.isNaN(numVal)) return numVal;
+        }
+
+        // For object values (dataset mode)
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            // Try to find the metric dimension
+            const dim =
+                getDimFromEncodeAxis(
+                    effectiveEncode,
+                    dimensionNames,
+                    metricAxis,
+                ) ?? (dimensionNames?.[1] as string | undefined);
+
+            if (dim) {
+                const val = (value as Record<string, unknown>)[dim];
+                const numVal = toNumber(val);
+                if (!Number.isNaN(numVal)) return numVal;
+            }
+
+            // Fallback: find any numeric value
+            for (const v of Object.values(value as Record<string, unknown>)) {
+                const numVal = toNumber(v);
+                if (!Number.isNaN(numVal)) return numVal;
+            }
+        }
+
+        return 0;
+    };
+
+    const sorted = [...params];
+
+    switch (tooltipSort) {
+        case TooltipSortByOptions.ALPHABETICAL:
+            sorted.sort((a, b) =>
+                (a.seriesName || '').localeCompare(b.seriesName || ''),
+            );
+            break;
+        case TooltipSortByOptions.VALUE_ASCENDING:
+            sorted.sort((a, b) => getNumericValue(a) - getNumericValue(b));
+            break;
+        case TooltipSortByOptions.VALUE_DESCENDING:
+            sorted.sort((a, b) => getNumericValue(b) - getNumericValue(a));
+            break;
+        default:
+            break;
+    }
+
+    return sorted;
+};
+
 export const buildCartesianTooltipFormatter =
     ({
         itemsMap,
@@ -551,6 +644,7 @@ export const buildCartesianTooltipFormatter =
         originalValues,
         series,
         tooltipHtmlTemplate,
+        tooltipSort,
         pivotValuesColumnsMap,
         parameters,
         rows,
@@ -562,6 +656,7 @@ export const buildCartesianTooltipFormatter =
         originalValues?: Map<string, Map<string, number>> | undefined;
         series?: EChartsSeries[];
         tooltipHtmlTemplate?: string;
+        tooltipSort?: TooltipSortBy;
         pivotValuesColumnsMap?: Record<string, PivotValuesColumn>;
         parameters?: ParametersValuesMap;
         rows?: (ResultRow | Record<string, unknown>)[];
@@ -595,8 +690,16 @@ export const buildCartesianTooltipFormatter =
 
         const header = getHeader(params, itemsMap, xFieldId);
 
+        const sortedParams = sortTooltipParams(
+            params,
+            tooltipSort,
+            series,
+            flipAxes,
+            ctx,
+        );
+
         // rows
-        const rowsHtml = params
+        const rowsHtml = sortedParams
             .map((param) => {
                 const {
                     marker,

@@ -131,34 +131,31 @@ const getTileConfig = (
 ): TileConfig => {
     switch (background) {
         case MapTileBackground.NONE:
+            // No base map tiles. Useful for overlays-only views or custom rendering.
             return {
                 url: null,
                 attribution: '',
             };
-        case MapTileBackground.OPENSTREETMAP:
-            return {
-                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                attribution:
-                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            };
-        case MapTileBackground.DARK:
-            return {
-                url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-                attribution:
-                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            };
+
+        // NOTE: Esri World Imagery is used under fair-use terms.
+        // If usage increases, switch to a licensed or self-hosted provider.
         case MapTileBackground.SATELLITE:
             return {
                 url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                 attribution:
                     'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
             };
+
         case MapTileBackground.LIGHT:
         default:
+        case MapTileBackground.OPENSTREETMAP:
+            // OpenStreetMap standard tiles.
+            // Community-run, attribution-only, fair-use. Suitable for low–moderate traffic.
+            // Not intended for heavy commercial usage or guaranteed SLA.
             return {
-                url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                 attribution:
-                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
             };
     }
 };

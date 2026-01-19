@@ -18,6 +18,7 @@ import {
     MetricType,
     SupportedDbtAdapter,
     TimeFrames,
+    TimeIntervalUnit,
     WarehouseCatalog,
     WarehouseClient,
     WarehouseTables,
@@ -123,6 +124,13 @@ export const warehouseClientMock: WarehouseClient = {
             .replace(/--.*$/gm, '')
             .replace(/\/\*[\s\S]*?\*\//g, '');
     },
+    castToTimestamp: (date) => `CAST('${date.toISOString()}' AS TIMESTAMP)`,
+    getIntervalSql: (value, unit: TimeIntervalUnit) =>
+        `INTERVAL '${value} ${unit}'`,
+    getTimestampDiffSeconds: (startTimestampSql, endTimestampSql) =>
+        `EXTRACT(EPOCH FROM (${endTimestampSql} - ${startTimestampSql}))`,
+    getMedianSql: (valueSql) =>
+        `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${valueSql})`,
 };
 
 export const bigqueryClientMock: WarehouseClient = {
@@ -198,6 +206,13 @@ export const bigqueryClientMock: WarehouseClient = {
         throw error;
     },
     escapeString: (value) => value,
+    castToTimestamp: (date) => `TIMESTAMP('${date.toISOString()}')`,
+    getIntervalSql: (value, unit: TimeIntervalUnit) =>
+        `INTERVAL ${value} ${unit}`,
+    getTimestampDiffSeconds: (startTimestampSql, endTimestampSql) =>
+        `TIMESTAMP_DIFF(${endTimestampSql}, ${startTimestampSql}, SECOND)`,
+    getMedianSql: (valueSql) =>
+        `APPROX_QUANTILES(${valueSql}, 100)[OFFSET(50)]`,
 };
 
 export const emptyTable = (name: string): CompiledTable => ({

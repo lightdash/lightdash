@@ -11,7 +11,6 @@ import { v4 as uuid4 } from 'uuid';
 import { DashboardTileComments } from '../../features/comments';
 import { appendNewTilesToBottom } from '../../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import { useDashboardUIPreference } from '../../hooks/dashboard/useDashboardUIPreference';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 import TileBase from './TileBase/index';
@@ -28,14 +27,11 @@ const MarkdownTile: FC<Props> = (props) => {
 
     const {
         tile: {
-            properties: { title, content, hideFrame: rawHideFrame },
+            properties: { title, content, hideFrame },
             uuid,
         },
         isEditMode,
     } = props;
-
-    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
-    const hideFrame = isDashboardRedesignEnabled ? rawHideFrame : false;
 
     const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
     const showComments = useDashboardContext(

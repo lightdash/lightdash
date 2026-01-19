@@ -128,6 +128,44 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         return results.Body as Readable;
     }
 
+    /**
+     * Get the first line of a JSONL file from S3
+     * Useful for extracting column order from query results
+     */
+    async getFirstLine(
+        cacheKey: string,
+        fileExtension = 'jsonl',
+    ): Promise<string | null> {
+        try {
+            const stream = await this.getDownloadStream(
+                cacheKey,
+                fileExtension,
+            );
+            // eslint-disable-next-line @typescript-eslint/return-await
+            return await new Promise((resolve, reject) => {
+                let buffer = '';
+                const onData = (chunk: Buffer) => {
+                    buffer += chunk.toString();
+                    const newlineIndex = buffer.indexOf('\n');
+                    if (newlineIndex !== -1) {
+                        stream.destroy(); // Stop reading after first line
+                        resolve(buffer.slice(0, newlineIndex));
+                    }
+                };
+                stream.on('data', onData);
+                stream.on('end', () => resolve(buffer || null));
+                stream.on('error', reject);
+            });
+        } catch (error) {
+            Logger.warn(
+                `Failed to get first line from ${cacheKey}: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return null;
+        }
+    }
+
     async getFileUrl(cacheKey: string, fileExtension = 'jsonl') {
         if (!this.configuration || !this.s3) {
             throw new MissingConfigError('S3 configuration is not set');

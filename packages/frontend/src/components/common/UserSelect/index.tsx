@@ -55,10 +55,19 @@ export const UserSelect: FC<UserSelectProps> = ({
         { keepPreviousData: true },
     );
 
-    const organizationUsers = useMemo(
-        () => infiniteUsers?.pages.flatMap((page) => page.data) ?? [],
-        [infiniteUsers],
-    );
+    const organizationUsers = useMemo(() => {
+        const allUsers =
+            infiniteUsers?.pages.flatMap((page) => page.data) ?? [];
+        // Deduplicate by userUuid to handle edge cases where offset-based
+        // pagination returns the same user in multiple pages due to data
+        // changes between page fetches
+        const seen = new Set<string>();
+        return allUsers.filter((user) => {
+            if (seen.has(user.userUuid)) return false;
+            seen.add(user.userUuid);
+            return true;
+        });
+    }, [infiniteUsers]);
 
     const eligibleUsers = useMemo(() => {
         if (!organizationUsers) return [];

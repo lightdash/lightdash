@@ -4,7 +4,7 @@ import {
     type HealthState,
     type OpenIdIdentitySummary,
 } from '@lightdash/common';
-import { ActionIcon, Card, Group, Stack, Text } from '@mantine/core';
+import { ActionIcon, Card, Group, Stack, Text } from '@mantine-8/core';
 import { IconTrash } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { type Entries } from 'type-fest';
@@ -66,7 +66,7 @@ const SocialLoginsPanel: FC = () => {
     if (!health) return null;
 
     return (
-        <Stack spacing="md">
+        <Stack gap="md">
             {(
                 Object.entries(userSocialLogins ?? {}) as Entries<
                     typeof userSocialLogins
@@ -74,7 +74,7 @@ const SocialLoginsPanel: FC = () => {
             ).map(
                 ([issuerType, logins]) =>
                     isIssuerTypeAvailable(health, issuerType) && (
-                        <Stack key={issuerType} spacing="xs">
+                        <Stack key={issuerType} gap="xs">
                             <Text tt="capitalize" fw={600}>
                                 {issuerType}
                             </Text>
@@ -85,7 +85,7 @@ const SocialLoginsPanel: FC = () => {
                                           withBorder
                                           padding="xs"
                                       >
-                                          <Group position="apart">
+                                          <Group justify="space-between">
                                               {login.email}
                                               <ActionIcon
                                                   size="xs"
@@ -107,7 +107,7 @@ const SocialLoginsPanel: FC = () => {
                                       </Card>
                                   ))
                                 : null}
-                            <Group position="left" spacing="xs">
+                            <Group justify="flex-start" gap="xs">
                                 <ThirdPartySignInButton
                                     size="xs"
                                     providerName={issuerType}

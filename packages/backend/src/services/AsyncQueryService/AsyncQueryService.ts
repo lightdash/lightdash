@@ -67,6 +67,7 @@ import {
     NotFoundError,
     type Organization,
     type ParametersValuesMap,
+    ParseError,
     PivotConfig,
     PivotConfiguration,
     type PivotValuesColumn,
@@ -891,6 +892,30 @@ export class AsyncQueryService extends ProjectService {
             throw new UnexpectedServerError('No columns found for query');
         }
 
+        // If no column order is provided, we will use the first line of the results file to get the column order
+        // This is useful for SQL queries, where the column order is not set in the config
+        let validColumnOrder: string[] = columnOrder;
+        if (columnOrder.length === 0) {
+            try {
+                const firstLine = await this.resultsStorageClient.getFirstLine(
+                    resultsFileName,
+                );
+                if (firstLine) {
+                    const firstRow = JSON.parse(firstLine);
+                    validColumnOrder = Object.keys(firstRow);
+                }
+            } catch (error) {
+                this.logger.error('Failed to get first line of results file', {
+                    queryUuid,
+                    error: getErrorMessage(error),
+                });
+                throw new ParseError(
+                    `Failed to parse JSON from first line: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+            }
+        }
         try {
             await this.downloadAuditModel.logDownload({
                 queryUuid,
@@ -950,7 +975,7 @@ export class AsyncQueryService extends ProjectService {
                             onlyRaw,
                             showTableNames,
                             customLabels,
-                            columnOrder,
+                            columnOrder: validColumnOrder,
                             hiddenFields,
                             pivotConfig,
                             attachmentDownloadName,
@@ -968,7 +993,7 @@ export class AsyncQueryService extends ProjectService {
                         onlyRaw,
                         showTableNames,
                         customLabels,
-                        columnOrder,
+                        columnOrder: validColumnOrder,
                         hiddenFields,
                         pivotConfig,
                     },
@@ -992,7 +1017,7 @@ export class AsyncQueryService extends ProjectService {
                             onlyRaw,
                             showTableNames,
                             customLabels,
-                            columnOrder,
+                            columnOrder: validColumnOrder,
                             hiddenFields,
                             pivotConfig,
                             attachmentDownloadName,
@@ -1011,7 +1036,7 @@ export class AsyncQueryService extends ProjectService {
                         onlyRaw,
                         showTableNames,
                         customLabels,
-                        columnOrder,
+                        columnOrder: validColumnOrder,
                         hiddenFields,
                         attachmentDownloadName,
                     },

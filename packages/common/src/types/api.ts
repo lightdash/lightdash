@@ -381,6 +381,9 @@ export type HealthState = {
         appId: string;
         verificationHash?: string;
     };
+    headway: {
+        enabled: boolean;
+    };
     staticIp: string;
     query: {
         maxLimit: number;

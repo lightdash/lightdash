@@ -1,16 +1,35 @@
-/* ScopeSelector styles */
-.stickyHeader {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background-color: var(--mantine-color-body);
+.sidebar {
+    border-radius: var(--mantine-radius-md);
 }
 
-.stickyGroupHeader {
-    position: sticky;
-    top: 100px;
-    z-index: 10;
-    background-color: var(--mantine-color-body);
+.scopePanel {
+    border-radius: var(--mantine-radius-md);
+}
+
+.groupListItem {
+    width: 100%;
+    min-width: 270px;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+    transition: background-color 150ms ease;
+
+    &:hover {
+        @mixin light {
+            background-color: var(--mantine-color-gray-0);
+        }
+        @mixin dark {
+            background-color: var(--mantine-color-dark-6);
+        }
+    }
+
+    &[data-active='true'] {
+        @mixin light {
+            background-color: var(--mantine-color-blue-0);
+        }
+        @mixin dark {
+            background-color: var(--mantine-color-blue-9);
+        }
+    }
 }
 
 .scopeItem {

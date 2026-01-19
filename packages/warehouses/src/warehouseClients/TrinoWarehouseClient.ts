@@ -6,6 +6,7 @@ import {
     MetricType,
     getErrorMessage as originalGetErrorMessage,
     SupportedDbtAdapter,
+    TimeIntervalUnit,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
@@ -211,6 +212,25 @@ export class TrinoSqlBuilder extends WarehouseBaseSqlBuilder {
                 // Remove null bytes
                 .replaceAll('\0', '')
         );
+    }
+
+    getIntervalSql(value: number, unit: TimeIntervalUnit): string {
+        // Trino uses INTERVAL with quoted value and separate unit keyword
+        const unitStr = TrinoSqlBuilder.intervalUnitsSingular[unit];
+        return `INTERVAL '${value}' ${unitStr}`;
+    }
+
+    getTimestampDiffSeconds(
+        startTimestampSql: string,
+        endTimestampSql: string,
+    ): string {
+        // Trino uses date_diff function
+        return `DATE_DIFF('second', ${startTimestampSql}, ${endTimestampSql})`;
+    }
+
+    getMedianSql(valueSql: string): string {
+        // Trino uses APPROX_PERCENTILE for median
+        return `APPROX_PERCENTILE(${valueSql}, 0.5)`;
     }
 }
 

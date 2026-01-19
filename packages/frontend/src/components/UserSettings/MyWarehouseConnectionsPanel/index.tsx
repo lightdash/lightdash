@@ -1,5 +1,5 @@
 import { type UserWarehouseCredentials } from '@lightdash/common';
-import { Anchor, Button, Group, Stack, Text, Title } from '@mantine/core';
+import { Anchor, Button, Group, Stack, Text, Title } from '@mantine-8/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useUserWarehouseCredentials } from '../../../hooks/userWarehouseCredentials/useUserWarehouseCredentials';
@@ -21,7 +21,7 @@ export const MyWarehouseConnectionsPanel = () => {
     ] = useState<UserWarehouseCredentials | undefined>(undefined);
 
     const personalConnectionsCallout = (
-        <Text c="dimmed">
+        <Text c="dimmed" fz="xs">
             These credentials are only used for projects that require user
             credentials -{' '}
             <Anchor
@@ -29,6 +29,7 @@ export const MyWarehouseConnectionsPanel = () => {
                 href="https://docs.lightdash.com/references/personal-warehouse-connections"
                 target="_blank"
                 rel="noreferrer"
+                fz="xs"
             >
                 learn more
             </Anchor>
@@ -41,8 +42,8 @@ export const MyWarehouseConnectionsPanel = () => {
             <Stack mb="lg">
                 {credentials && credentials.length > 0 ? (
                     <>
-                        <Group position="apart">
-                            <Stack spacing="one">
+                        <Group justify="space-between">
+                            <Stack gap="one">
                                 <Title order={5}>
                                     My Warehouse connections
                                 </Title>
@@ -53,7 +54,7 @@ export const MyWarehouseConnectionsPanel = () => {
                             </Stack>
                             <Button
                                 size="xs"
-                                leftIcon={<MantineIcon icon={IconPlus} />}
+                                leftSection={<MantineIcon icon={IconPlus} />}
                                 onClick={() => setIsCreatingCredentials(true)}
                             >
                                 Add new credentials

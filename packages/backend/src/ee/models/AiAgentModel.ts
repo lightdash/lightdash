@@ -140,6 +140,15 @@ export class AiAgentModel {
         return db.transaction(callback);
     }
 
+    async filterExistingProjectUuids(
+        projectUuids: string[],
+    ): Promise<string[]> {
+        const rows = await this.database(ProjectTableName)
+            .select('project_uuid')
+            .whereIn('project_uuid', projectUuids);
+        return rows.map((row) => row.project_uuid);
+    }
+
     async getAgent({
         organizationUuid,
         agentUuid,
@@ -275,7 +284,12 @@ export class AiAgentModel {
         filter,
     }: {
         organizationUuid: string;
-        filter?: { projectType?: ProjectType; projectUuid?: string };
+        filter?: {
+            projectType?: ProjectType;
+            projectFilter?:
+                | { projectUuid: string }
+                | { projectUuids: string[] };
+        };
     }): Promise<AiAgentSummary[]> {
         const integrations = this.database
             .from(AiAgentIntegrationTableName)
@@ -383,18 +397,25 @@ export class AiAgentModel {
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
             .groupBy(`${AiAgentTableName}.ai_agent_uuid`);
 
-        if (filter?.projectUuid) {
-            void query.where(
-                `${ProjectTableName}.project_uuid`,
-                filter.projectUuid,
-            );
-        }
-
         if (filter?.projectType) {
             void query.where(
                 `${ProjectTableName}.project_type`,
                 filter.projectType,
             );
+        }
+
+        if (filter?.projectFilter) {
+            if ('projectUuid' in filter.projectFilter) {
+                void query.where(
+                    `${ProjectTableName}.project_uuid`,
+                    filter.projectFilter.projectUuid,
+                );
+            } else if (filter.projectFilter.projectUuids.length > 0) {
+                void query.whereIn(
+                    `${ProjectTableName}.project_uuid`,
+                    filter.projectFilter.projectUuids,
+                );
+            }
         }
 
         const rows = await query;

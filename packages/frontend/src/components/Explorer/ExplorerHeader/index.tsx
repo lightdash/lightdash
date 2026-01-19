@@ -29,6 +29,7 @@ import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import TimeZonePicker from '../../common/TimeZonePicker';
 import SaveChartButton from '../SaveChartButton';
+import { DevCopyChartDebugData } from './DevCopyChartDebugData';
 import QueryWarnings from './QueryWarnings';
 
 const ExplorerHeader: FC = memo(() => {
@@ -217,6 +218,7 @@ const ExplorerHeader: FC = memo(() => {
                         url={urlToShare}
                     />
                 </Can>
+                {import.meta.env.DEV && <DevCopyChartDebugData />}
             </Group>
         </Group>
     );

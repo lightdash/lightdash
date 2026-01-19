@@ -1,4 +1,7 @@
-import { NotificationResourceType } from '@lightdash/common';
+import {
+    NotificationResourceType,
+    ValidationErrorType,
+} from '@lightdash/common';
 import { Button, Indicator, Menu } from '@mantine/core';
 import { IconBell } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -23,11 +26,15 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
 
     // Validator notifications
     const { data: validationData } = useValidation(projectUuid, user, false);
+    // Ignore non-blocking chart configuration warnings in the header count
+    const validationErrors = validationData?.filter(
+        (v) => v.errorType !== ValidationErrorType.ChartConfiguration,
+    );
     const canUserManageValidations = useValidationUserAbility(projectUuid);
     const [hasReadValidationNotification, setHasReadValidationNotification] =
         useValidationNotificationChecker();
     const hasValidationNotifications =
-        validationData && validationData.length > 0;
+        validationErrors && validationErrors.length > 0;
 
     // Dashboard comments notifications
     const { canViewDashboardComments } = useDashboardCommentsCheck(user?.data);
@@ -96,7 +103,7 @@ export const NotificationsMenu: FC<{ projectUuid: string }> = ({
                 {hasValidationNotifications && (
                     <ValidationErrorNotification
                         projectUuid={projectUuid}
-                        validationData={validationData}
+                        validationData={validationErrors}
                     />
                 )}
                 {hasDashboardCommentsNotifications && (

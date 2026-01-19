@@ -19,7 +19,7 @@ import {
     TextInput,
     Title,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import {
     IconAlertCircle,
@@ -44,6 +44,7 @@ import { ComingSoonBadge } from '../../common/ComingSoonBadge';
 import { default as MantineIcon } from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 import { SlackChannelSelect } from '../../common/SlackChannelSelect';
+import { ProjectSelect } from './ProjectSelect';
 
 const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
 
@@ -66,6 +67,7 @@ const formSchema = z.object({
     aiThreadAccessConsent: z.boolean().optional(),
     aiRequireOAuth: z.boolean().optional(),
     aiMultiAgentChannelId: z.string().min(1).optional(),
+    aiMultiAgentProjectUuids: z.array(z.string().uuid()).nullable().optional(),
 });
 
 const SlackSettingsPanel: FC = () => {
@@ -93,6 +95,7 @@ const SlackSettingsPanel: FC = () => {
             aiThreadAccessConsent: false,
             aiRequireOAuth: false,
             aiMultiAgentChannelId: undefined,
+            aiMultiAgentProjectUuids: null,
         },
         validate: zodResolver(formSchema),
     });
@@ -112,6 +115,8 @@ const SlackSettingsPanel: FC = () => {
             aiRequireOAuth: slackInstallation.aiRequireOAuth ?? false,
             aiMultiAgentChannelId:
                 slackInstallation.aiMultiAgentChannelId ?? undefined,
+            aiMultiAgentProjectUuids:
+                slackInstallation.aiMultiAgentProjectUuids ?? null,
         };
 
         if (form.initialized) {
@@ -135,9 +140,9 @@ const SlackSettingsPanel: FC = () => {
 
     return (
         <SettingsGridCard>
-            <Stack spacing="sm">
+            <Stack gap="sm">
                 <Box>
-                    <Group spacing="sm">
+                    <Group gap="sm">
                         <Avatar src={slackSvg} size="md" />
                         <Title order={4}>Slack</Title>
                     </Group>
@@ -145,9 +150,9 @@ const SlackSettingsPanel: FC = () => {
             </Stack>
 
             <Stack>
-                <Stack spacing="sm">
+                <Stack gap="sm">
                     {organizationHasSlack && (
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <Text fw={500}>Added to the Slack workspace: </Text>{' '}
                             <Badge
                                 radius="xs"
@@ -155,18 +160,21 @@ const SlackSettingsPanel: FC = () => {
                                 color="green"
                                 w="fit-content"
                             >
-                                <Text span fw={500}>
+                                <Text span fw={500} fz="inherit">
                                     {slackInstallation.slackTeamName}
                                 </Text>
                             </Badge>
                         </Group>
                     )}
 
-                    <Text color="dimmed" fz="xs">
+                    <Text c="dimmed" fz="xs">
                         Sharing in Slack allows you to unfurl Lightdash URLs and
                         schedule deliveries to specific people or channels
                         within your Slack workspace.{' '}
-                        <Anchor href="https://docs.lightdash.com/references/slack-integration">
+                        <Anchor
+                            fz="inherit"
+                            href="https://docs.lightdash.com/references/slack-integration"
+                        >
                             View docs
                         </Anchor>
                     </Text>
@@ -174,16 +182,15 @@ const SlackSettingsPanel: FC = () => {
 
                 {organizationHasSlack ? (
                     <form onSubmit={handleSubmit}>
-                        <Stack spacing="sm">
+                        <Stack gap="sm">
                             <SlackChannelSelect
                                 label={
-                                    <Group spacing="two" mb="two">
-                                        <Text>
+                                    <Group gap="two" mb={2}>
+                                        <Text fz="inherit">
                                             Select a notification channel
                                         </Text>
                                         <Tooltip
                                             multiline
-                                            variant="xs"
                                             maw={250}
                                             label="Choose a channel where to send notifications to every time a scheduled delivery fails. You have to add this Slack App to this channel to enable notifications"
                                         >
@@ -205,7 +212,7 @@ const SlackSettingsPanel: FC = () => {
                             <Title order={6} fw={500}>
                                 Slack bot avatar
                             </Title>
-                            <Group spacing="xl">
+                            <Group gap="sm">
                                 <Avatar
                                     size="lg"
                                     src={form.values?.appProfilePhotoUrl}
@@ -213,7 +220,7 @@ const SlackSettingsPanel: FC = () => {
                                     bg="ldGray.1"
                                 />
                                 <TextInput
-                                    sx={{ flexGrow: 1 }}
+                                    flex={1}
                                     label="Profile photo URL"
                                     size="xs"
                                     placeholder="https://lightdash.cloud/photo.jpg"
@@ -229,15 +236,14 @@ const SlackSettingsPanel: FC = () => {
                                 />
                             </Group>
                             {aiCopilotFlag?.enabled && (
-                                <Stack spacing="sm">
-                                    <Group spacing="two">
+                                <Stack gap="sm">
+                                    <Group gap="two">
                                         <Title order={6} fw={500}>
                                             AI Agents thread access consent
                                         </Title>
 
                                         <Tooltip
                                             multiline
-                                            variant="xs"
                                             maw={250}
                                             label="The longer the thread, the more context the AI Agents will have to work with."
                                         >
@@ -272,21 +278,21 @@ const SlackSettingsPanel: FC = () => {
                                         <Anchor
                                             component={Link}
                                             to={`/projects/${activeProjectUuid}/ai-agents`}
+                                            fz="inherit"
                                         >
                                             here
                                         </Anchor>
                                         .
                                     </Text>
 
-                                    <Stack spacing="sm">
-                                        <Group spacing="two">
+                                    <Stack gap="sm">
+                                        <Group gap="two">
                                             <Title order={6} fw={500}>
                                                 AI Agents OAuth requirement
                                             </Title>
 
                                             <Tooltip
                                                 multiline
-                                                variant="xs"
                                                 maw={250}
                                                 label="When enabled, users must authenticate with OAuth to use AI Agent features."
                                             >
@@ -308,8 +314,8 @@ const SlackSettingsPanel: FC = () => {
                                         />
                                     </Stack>
 
-                                    <Stack spacing="xs">
-                                        <Group spacing="xs">
+                                    <Stack gap="xs">
+                                        <Group gap="xs">
                                             <Title order={6} fw={500}>
                                                 Multi-agent channel
                                             </Title>
@@ -317,7 +323,6 @@ const SlackSettingsPanel: FC = () => {
                                             {isSlackMultiAgentChannelEnabled && (
                                                 <Tooltip
                                                     multiline
-                                                    variant="xs"
                                                     maw={250}
                                                     label="Select a channel where users can interact with any AI agent (excluding from preview projects). When users start a thread in this channel, they'll see a dropdown to select which agent to use."
                                                 >
@@ -361,13 +366,61 @@ const SlackSettingsPanel: FC = () => {
                                                     : 'Feature not available'
                                             }
                                         />
+
+                                        {form.values.aiMultiAgentChannelId && (
+                                            <Stack gap="xs">
+                                                <Switch
+                                                    label="Allow all project agents to appear"
+                                                    checked={
+                                                        form.values
+                                                            .aiMultiAgentProjectUuids ===
+                                                        null
+                                                    }
+                                                    disabled={
+                                                        !isSlackMultiAgentChannelEnabled
+                                                    }
+                                                    onChange={(event) => {
+                                                        setFieldValue(
+                                                            'aiMultiAgentProjectUuids',
+                                                            event.currentTarget
+                                                                .checked
+                                                                ? null
+                                                                : [],
+                                                        );
+                                                    }}
+                                                />
+
+                                                {form.values
+                                                    .aiMultiAgentProjectUuids !==
+                                                    null && (
+                                                    <ProjectSelect
+                                                        value={
+                                                            form.values
+                                                                .aiMultiAgentProjectUuids ??
+                                                            []
+                                                        }
+                                                        onChange={(value) => {
+                                                            setFieldValue(
+                                                                'aiMultiAgentProjectUuids',
+                                                                value.length > 0
+                                                                    ? value
+                                                                    : [],
+                                                            );
+                                                        }}
+                                                        disabled={
+                                                            !isSlackMultiAgentChannelEnabled
+                                                        }
+                                                    />
+                                                )}
+                                            </Stack>
+                                        )}
                                     </Stack>
                                 </Stack>
                             )}
                         </Stack>
                         <Stack align="end" mt="xl">
-                            <Group spacing="sm">
-                                <Group spacing="xs">
+                            <Group gap="sm">
+                                <Group gap="xs">
                                     <ActionIcon
                                         variant="default"
                                         size="md"
@@ -384,7 +437,7 @@ const SlackSettingsPanel: FC = () => {
                                         target="_blank"
                                         variant="default"
                                         href={SLACK_INSTALL_URL}
-                                        leftIcon={
+                                        leftSection={
                                             <MantineIcon icon={IconRefresh} />
                                         }
                                     >
@@ -394,7 +447,7 @@ const SlackSettingsPanel: FC = () => {
                                 <Button
                                     size="xs"
                                     type="submit"
-                                    leftIcon={
+                                    leftSection={
                                         <MantineIcon icon={IconDeviceFloppy} />
                                     }
                                 >

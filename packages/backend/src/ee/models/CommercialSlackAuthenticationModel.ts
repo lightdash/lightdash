@@ -51,6 +51,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
             aiThreadAccessConsent: row.ai_thread_access_consent ?? false,
             aiRequireOAuth: row.ai_require_oauth,
             aiMultiAgentChannelId: row.ai_multi_agent_channel_id ?? undefined,
+            aiMultiAgentProjectUuids: row.ai_multi_agent_project_uuids ?? null,
         };
 
         const slackChannelProjectMappingRows = await this.database(
@@ -107,9 +108,16 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
             aiThreadAccessConsent,
             aiRequireOAuth,
             aiMultiAgentChannelId,
+            aiMultiAgentProjectUuids,
         }: SlackAppCustomSettings,
     ) {
         const organizationId = await this.getOrganizationId(organizationUuid);
+
+        // Convert empty array to null for text[] column
+        const projectUuidsToSave =
+            aiMultiAgentProjectUuids && aiMultiAgentProjectUuids.length > 0
+                ? aiMultiAgentProjectUuids
+                : null;
 
         await this.database.transaction(async (trx) => {
             await trx(SlackAuthTokensTableName)
@@ -119,6 +127,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
                     ai_thread_access_consent: aiThreadAccessConsent ?? false,
                     ai_require_oauth: aiRequireOAuth ?? false,
                     ai_multi_agent_channel_id: aiMultiAgentChannelId ?? null,
+                    ai_multi_agent_project_uuids: projectUuidsToSave,
                 })
                 .where('organization_id', organizationId);
 

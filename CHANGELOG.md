@@ -1,3 +1,139 @@
+# [0.2350.0](https://github.com/lightdash/lightdash/compare/0.2349.1...0.2350.0) (2026-01-16)
+
+
+### Bug Fixes
+
+* avoid intermediate axis ticks for all series types ([#19487](https://github.com/lightdash/lightdash/issues/19487)) ([dd4efb2](https://github.com/lightdash/lightdash/commit/dd4efb2e5ade4c7657524e7c8c99f9537263686a))
+
+
+### Features
+
+* add tooltip sorting options for pivot charts ([#19478](https://github.com/lightdash/lightdash/issues/19478)) ([e0d2e13](https://github.com/lightdash/lightdash/commit/e0d2e1311cf4e884632db8bafe0f6132a25c8fa1))
+* detect error boundaries in screenshot service ([#19445](https://github.com/lightdash/lightdash/issues/19445)) ([7c196e4](https://github.com/lightdash/lightdash/commit/7c196e429b768ba3324c3a1d6279066ac5f1460d))
+
+## [0.2349.1](https://github.com/lightdash/lightdash/compare/0.2349.0...0.2349.1) (2026-01-16)
+
+
+### Bug Fixes
+
+* hide tabs selection in export modal when dashboard has only one tab ([#19470](https://github.com/lightdash/lightdash/issues/19470)) ([2bef353](https://github.com/lightdash/lightdash/commit/2bef353e4a3eb161d1b102e2fb550c64c6a9577e))
+* remove dashboard redesign check for markdown tile hideFrame property ([#19497](https://github.com/lightdash/lightdash/issues/19497)) ([ddc9b94](https://github.com/lightdash/lightdash/commit/ddc9b9412c7e60853118e3abf448ad577811307f))
+
+# [0.2349.0](https://github.com/lightdash/lightdash/compare/0.2348.2...0.2349.0) (2026-01-16)
+
+
+### Bug Fixes
+
+* remove duplicate users from user options select list ([#19499](https://github.com/lightdash/lightdash/issues/19499)) ([9273080](https://github.com/lightdash/lightdash/commit/9273080ef310a3c87cdb0b8aef005931bf9190e8))
+
+
+### Features
+
+* add project filtering for Slack multi-agent channel ([#19456](https://github.com/lightdash/lightdash/issues/19456)) ([6156faf](https://github.com/lightdash/lightdash/commit/6156faf114d4988552b7057bc7888995992f012a))
+
+## [0.2348.2](https://github.com/lightdash/lightdash/compare/0.2348.1...0.2348.2) (2026-01-16)
+
+
+### Bug Fixes
+
+* handle query errors in screenshot ready indicator ([#19436](https://github.com/lightdash/lightdash/issues/19436)) ([6705b9c](https://github.com/lightdash/lightdash/commit/6705b9c788f8981d740a3d268671fc2c5d76cf41))
+
+## [0.2348.1](https://github.com/lightdash/lightdash/compare/0.2348.0...0.2348.1) (2026-01-16)
+
+
+### Bug Fixes
+
+* properly mark errored non-sql dashboard tiles ([#19359](https://github.com/lightdash/lightdash/issues/19359)) ([1c598cc](https://github.com/lightdash/lightdash/commit/1c598cced2f859aee8eb6f89e9121ea9f0cc4838))
+
+# [0.2348.0](https://github.com/lightdash/lightdash/compare/0.2347.1...0.2348.0) (2026-01-16)
+
+
+### Bug Fixes
+
+* allow only dimensions` for filtering ([#19496](https://github.com/lightdash/lightdash/issues/19496)) ([2fc1cee](https://github.com/lightdash/lightdash/commit/2fc1ceee5a90e9b2fe64163c8d2024750243d0a6))
+* improve screenshot readiness detection for empty charts and tables ([#19471](https://github.com/lightdash/lightdash/issues/19471)) ([04629be](https://github.com/lightdash/lightdash/commit/04629befdf8a7a66c0a73bcf0a29134ca669e320))
+
+
+### Features
+
+* add new sql methods to warehouse builders ([#19468](https://github.com/lightdash/lightdash/issues/19468)) ([f92b5bc](https://github.com/lightdash/lightdash/commit/f92b5bc45dd53bb726e0f50f3394ff6977234e82))
+
+## [0.2347.1](https://github.com/lightdash/lightdash/compare/0.2347.0...0.2347.1) (2026-01-16)
+
+
+### Bug Fixes
+
+* allow toggling/untoggling custom tooltip ([#19484](https://github.com/lightdash/lightdash/issues/19484)) ([6cbbf9e](https://github.com/lightdash/lightdash/commit/6cbbf9e9f72e3373e9b81ebb682f485290da1d0f))
+* improve content-as-code validation ([#19375](https://github.com/lightdash/lightdash/issues/19375)) ([257b22d](https://github.com/lightdash/lightdash/commit/257b22d03296a8d9ee10f9ad3e8d15fa7101baa6))
+
+# [0.2347.0](https://github.com/lightdash/lightdash/compare/0.2346.0...0.2347.0) (2026-01-16)
+
+
+### Features
+
+* add chart debug data copy button in dev mode ([#19467](https://github.com/lightdash/lightdash/issues/19467)) ([f43e086](https://github.com/lightdash/lightdash/commit/f43e086ca361daea07e6247b9828636624418fe4))
+
+# [0.2346.0](https://github.com/lightdash/lightdash/compare/0.2345.0...0.2346.0) (2026-01-16)
+
+
+### Features
+
+* configuration to disable Headway app ([#19299](https://github.com/lightdash/lightdash/issues/19299)) ([2ac16e2](https://github.com/lightdash/lightdash/commit/2ac16e2d94014e7ce0869dd168e956e32ed0e5e4))
+
+# [0.2345.0](https://github.com/lightdash/lightdash/compare/0.2344.0...0.2345.0) (2026-01-16)
+
+
+### Features
+
+* support wide site logo ([#19297](https://github.com/lightdash/lightdash/issues/19297)) ([62f7935](https://github.com/lightdash/lightdash/commit/62f79358788f3e43cef29750613c56043648c9c7))
+
+# [0.2344.0](https://github.com/lightdash/lightdash/compare/0.2343.1...0.2344.0) (2026-01-16)
+
+
+### Bug Fixes
+
+* gauge chart percentage badge visibility in dark mode ([#19481](https://github.com/lightdash/lightdash/issues/19481)) ([c5be334](https://github.com/lightdash/lightdash/commit/c5be33416290830846bcb27bbf433c923d205f20))
+
+
+### Features
+
+* delete OpenID identities by email in SCIM service to prevent login conflicts ([#19449](https://github.com/lightdash/lightdash/issues/19449)) ([b19312b](https://github.com/lightdash/lightdash/commit/b19312bae30be7e807342b6fe801d54794efc56d))
+
+## [0.2343.1](https://github.com/lightdash/lightdash/compare/0.2343.0...0.2343.1) (2026-01-15)
+
+
+### Bug Fixes
+
+* dont include chart warnings in error count ([#19488](https://github.com/lightdash/lightdash/issues/19488)) ([2043e2f](https://github.com/lightdash/lightdash/commit/2043e2fb6121df909281b61260aaa7b8888a29f0))
+
+# [0.2343.0](https://github.com/lightdash/lightdash/compare/0.2342.2...0.2343.0) (2026-01-15)
+
+
+### Features
+
+* improve notification loading icon size ([#19459](https://github.com/lightdash/lightdash/issues/19459)) ([097695a](https://github.com/lightdash/lightdash/commit/097695acc5882b1bb3ef59ed1b69b9c85b5bcc81))
+
+## [0.2342.2](https://github.com/lightdash/lightdash/compare/0.2342.1...0.2342.2) (2026-01-15)
+
+
+### Bug Fixes
+
+* preserve column order in SQL chart exports ([#19383](https://github.com/lightdash/lightdash/issues/19383)) ([02533b3](https://github.com/lightdash/lightdash/commit/02533b34434e6fc4ac497c5685dfe374ab600e74))
+
+## [0.2342.1](https://github.com/lightdash/lightdash/compare/0.2342.0...0.2342.1) (2026-01-15)
+
+
+### Bug Fixes
+
+* apply correct conditional formatting for pivoted columns ([#19466](https://github.com/lightdash/lightdash/issues/19466)) ([683bfae](https://github.com/lightdash/lightdash/commit/683bfae47793f7bd4bf5dba78db73e91b2cef81d))
+
+# [0.2342.0](https://github.com/lightdash/lightdash/compare/0.2341.2...0.2342.0) (2026-01-15)
+
+
+### Features
+
+* **prototype:** demo ui for funnel builder api ([#19345](https://github.com/lightdash/lightdash/issues/19345)) ([9f3f5e2](https://github.com/lightdash/lightdash/commit/9f3f5e2bd6f2105f8729b97d75dbca0330ca8673))
+
 ## [0.2341.2](https://github.com/lightdash/lightdash/compare/0.2341.1...0.2341.2) (2026-01-15)
 
 

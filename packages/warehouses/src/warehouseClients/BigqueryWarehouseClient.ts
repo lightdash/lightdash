@@ -22,6 +22,7 @@ import {
     PartitionColumn,
     PartitionType,
     SupportedDbtAdapter,
+    TimeIntervalUnit,
     WarehouseConnectionError,
     WarehouseQueryError,
     WarehouseResults,
@@ -177,6 +178,30 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
                 // Remove null bytes
                 .replaceAll('\0', '')
         );
+    }
+
+    castToTimestamp(date: Date): string {
+        // BigQuery uses TIMESTAMP function with ISO 8601 format
+        return `TIMESTAMP('${date.toISOString()}')`;
+    }
+
+    getIntervalSql(value: number, unit: TimeIntervalUnit): string {
+        // BigQuery uses INTERVAL with value and keyword unit (no quotes)
+        const unitStr = BigquerySqlBuilder.intervalUnitsSingular[unit];
+        return `INTERVAL ${value} ${unitStr}`;
+    }
+
+    getTimestampDiffSeconds(
+        startTimestampSql: string,
+        endTimestampSql: string,
+    ): string {
+        // BigQuery uses TIMESTAMP_DIFF function
+        return `TIMESTAMP_DIFF(${endTimestampSql}, ${startTimestampSql}, SECOND)`;
+    }
+
+    getMedianSql(valueSql: string): string {
+        // BigQuery uses APPROX_QUANTILES for median
+        return `APPROX_QUANTILES(${valueSql}, 100)[OFFSET(50)]`;
     }
 }
 

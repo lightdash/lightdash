@@ -6,6 +6,7 @@ import {
     NotImplementedError,
     PartitionColumn,
     SupportedDbtAdapter,
+    TimeIntervalUnit,
     WarehouseCatalog,
     WarehouseResults,
     WarehouseSqlBuilder,
@@ -210,5 +211,27 @@ export default abstract class WarehouseBaseClient<
 
     escapeString(value: string): string {
         return this.sqlBuilder.escapeString(value);
+    }
+
+    castToTimestamp(date: Date): string {
+        return this.sqlBuilder.castToTimestamp(date);
+    }
+
+    getIntervalSql(value: number, unit: TimeIntervalUnit): string {
+        return this.sqlBuilder.getIntervalSql(value, unit);
+    }
+
+    getTimestampDiffSeconds(
+        startTimestampSql: string,
+        endTimestampSql: string,
+    ): string {
+        return this.sqlBuilder.getTimestampDiffSeconds(
+            startTimestampSql,
+            endTimestampSql,
+        );
+    }
+
+    getMedianSql(valueSql: string): string {
+        return this.sqlBuilder.getMedianSql(valueSql);
     }
 }

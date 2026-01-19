@@ -790,6 +790,7 @@ export type LightdashConfig = {
     auth: AuthConfig;
     intercom: IntercomConfig;
     pylon: PylonConfig;
+    headway: HeadwayConfig;
     siteUrl: string;
     staticIp: string;
     lightdashCloudInstance: string | undefined;
@@ -1049,6 +1050,10 @@ export type IntercomConfig = {
 type PylonConfig = {
     appId: string;
     identityVerificationSecret?: string;
+};
+
+type HeadwayConfig = {
+    enabled: boolean;
 };
 
 export type RudderConfig = {
@@ -1495,6 +1500,9 @@ export const parseConfig = (): LightdashConfig => {
             identityVerificationSecret:
                 process.env.PYLON_IDENTITY_VERIFICATION_SECRET,
         },
+        headway: {
+            enabled: process.env.HEADWAY_ENABLED !== 'false',
+        },
         siteUrl,
         staticIp: process.env.STATIC_IP || '',
         lightdashCloudInstance: process.env.LIGHTDASH_CLOUD_INSTANCE,
@@ -1784,7 +1792,9 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.PARTIAL_COMPILATION_ENABLED === 'true',
         },
         funnelBuilder: {
-            enabled: process.env.FUNNEL_BUILDER_ENABLED === 'true',
+            enabled:
+                process.env.FUNNEL_BUILDER_ENABLED === 'true' ||
+                lightdashMode === LightdashMode.PR,
         },
     };
 };

@@ -52,6 +52,7 @@ export enum PageName {
     EMBED_EXPLORE = 'embed_explore',
     CATALOG = 'catalog',
     METRICS_CATALOG = 'metrics_catalog',
+    FUNNEL_BUILDER = 'funnel_builder',
 }
 
 export enum CategoryName {
