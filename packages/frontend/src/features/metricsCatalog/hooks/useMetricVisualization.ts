@@ -7,6 +7,7 @@ import {
     type ChartConfig,
     type MetricQuery,
     type MetricWithAssociatedTimeDimension,
+    type TimeDimensionConfig,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { type VisualizationProviderProps } from '../../../components/LightdashVisualization/VisualizationProvider';
@@ -19,8 +20,9 @@ import { useMetric } from './useMetricsCatalog';
 
 const buildMetricQueryFromField = (
     field: MetricWithAssociatedTimeDimension,
+    timeDimensionOverride?: TimeDimensionConfig,
 ): MetricQuery => {
-    const timeDimensionConfig = field.timeDimension;
+    const timeDimensionConfig = timeDimensionOverride ?? field.timeDimension;
     const timeDimensionName =
         timeDimensionConfig?.field && timeDimensionConfig.interval
         ? getFieldIdForDateDimension(
@@ -99,6 +101,9 @@ export type MetricVisualizationResult = {
 
     metricQuery: MetricQueryDataContext['metricQuery'];
 
+    // Time dimension config (for granularity picker)
+    timeDimensionConfig: TimeDimensionConfig | undefined;
+
     chartConfig: VisualizationProviderProps['chartConfig'];
     resultsData: VisualizationProviderProps['resultsData'];
     columnOrder: VisualizationProviderProps['columnOrder'];
@@ -112,6 +117,7 @@ type UseMetricVisualizationProps = {
     projectUuid: string | undefined;
     tableName: string | undefined;
     metricName: string | undefined;
+    timeDimensionOverride?: TimeDimensionConfig;
 };
 
 /**
@@ -127,6 +133,7 @@ export function useMetricVisualization({
     projectUuid,
     tableName,
     metricName,
+    timeDimensionOverride,
 }: UseMetricVisualizationProps): MetricVisualizationResult {
     // 1. Fetch metric field metadata
     const metricFieldQuery = useMetric({
@@ -138,11 +145,19 @@ export function useMetricVisualization({
     // 2. Fetch explore schema (needed for ItemsMap with proper field types)
     const exploreQuery = useExplore(tableName);
 
-    // 3. Build MetricQuery & Start executing
+    // 3. Compute current time dimension config (override or default)
+    const timeDimensionConfig = useMemo(() => {
+        return timeDimensionOverride ?? metricFieldQuery.data?.timeDimension;
+    }, [timeDimensionOverride, metricFieldQuery.data?.timeDimension]);
+
+    // 4. Build MetricQuery & Start executing
     const metricQuery = useMemo(() => {
         if (!metricFieldQuery.data) return undefined;
-        return buildMetricQueryFromField(metricFieldQuery.data);
-    }, [metricFieldQuery.data]);
+        return buildMetricQueryFromField(
+            metricFieldQuery.data,
+            timeDimensionConfig,
+        );
+    }, [metricFieldQuery.data, timeDimensionConfig]);
 
     const queryArgs = useMemo<QueryResultsProps | null>(() => {
         if (!projectUuid || !tableName || !metricQuery) return null;
@@ -206,6 +221,7 @@ export function useMetricVisualization({
         metricField: metricFieldQuery.data,
         explore: exploreQuery.data,
         metricQuery,
+        timeDimensionConfig,
         chartConfig,
         resultsData,
         columnOrder,
