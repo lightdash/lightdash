@@ -1,15 +1,41 @@
+import { Group, Paper, Text, Tooltip } from '@mantine-8/core';
+import { IconCalendar } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useDashboardUIPreference } from '../../../hooks/dashboard/useDashboardUIPreference';
-import { DateZoomInfoOnTileV1 } from './DateZoomInfoOnTileV1';
-import { DateZoomInfoOnTileV2 } from './DateZoomInfoOnTileV2';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { type DateZoomInfoOnTileProps } from './types';
 
-export const DateZoomInfoOnTile: FC<DateZoomInfoOnTileProps> = (props) => {
-    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
-
-    return isDashboardRedesignEnabled ? (
-        <DateZoomInfoOnTileV2 {...props} />
-    ) : (
-        <DateZoomInfoOnTileV1 {...props} />
+export const DateZoomInfoOnTile: FC<DateZoomInfoOnTileProps> = ({
+    dateZoomGranularity,
+    dateDimension,
+}) => {
+    return (
+        <Tooltip
+            label={
+                <>
+                    <Text fz="xs">
+                        Date zoom:{' '}
+                        <Text span fw={500} fz="inherit">
+                            {dateZoomGranularity}
+                        </Text>
+                    </Text>
+                    <Text fz="xs">
+                        On:{' '}
+                        <Text span fw={500} fz="inherit">
+                            {dateDimension?.label}
+                        </Text>
+                    </Text>
+                </>
+            }
+            disabled={!dateDimension}
+            multiline
+            withinPortal
+        >
+            <Paper radius="sm" py="xxs" px="xs" shadow="0">
+                <Group wrap="nowrap" gap="xxs">
+                    <MantineIcon icon={IconCalendar} size="sm" />
+                    <Text fz={11}>{dateZoomGranularity}</Text>
+                </Group>
+            </Paper>
+        </Tooltip>
     );
 };
