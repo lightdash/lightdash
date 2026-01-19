@@ -8,6 +8,7 @@ import { useProject } from '../../../hooks/useProject';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
+import { DocumentTitle } from '../DocumentTitle';
 import Sidebar from './Sidebar';
 import {
     BANNER_HEIGHT,
@@ -66,15 +67,15 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                       minHeight: '100%',
                   }
                 : params.withFullHeight
-                ? {
-                      height: containerHeight,
-                      maxHeight: containerHeight,
-                  }
-                : {
-                      height: containerHeight,
+                  ? {
+                        height: containerHeight,
+                        maxHeight: containerHeight,
+                    }
+                  : {
+                        height: containerHeight,
 
-                      overflowY: 'auto',
-                  }),
+                        overflowY: 'auto',
+                    }),
 
             ...(params.withSidebar || params.withRightSidebar
                 ? {
@@ -274,7 +275,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <>
-            {title ? <title>{`${title} - Lightdash`}</title> : null}
+            <DocumentTitle title={title} />
 
             {header}
 

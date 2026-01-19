@@ -1,6 +1,7 @@
 import { ModalsProvider } from '@mantine/modals';
 import { wrapCreateBrowserRouterV7 } from '@sentry/react';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
+import { DocumentTitle } from './components/common/DocumentTitle';
 import VersionAutoUpdater from './components/VersionAutoUpdater/VersionAutoUpdater';
 import {
     CommercialMobileRoutes,
@@ -65,7 +66,7 @@ const router = sentryCreateBrowserRouter([
 ]);
 const App = () => (
     <>
-        <title>Lightdash</title>
+        <DocumentTitle />
 
         <ReactQueryProvider>
             <MantineProvider withGlobalStyles withNormalizeCSS withCSSVariables>

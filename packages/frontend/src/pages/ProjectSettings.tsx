@@ -10,6 +10,7 @@ import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration
 import SettingsScheduler from '../components/SettingsScheduler';
 import SettingsUsageAnalytics from '../components/SettingsUsageAnalytics';
 import { SettingsValidator } from '../components/SettingsValidator';
+import { DocumentTitle } from '../components/common/DocumentTitle';
 import ErrorState from '../components/common/ErrorState';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -97,7 +98,7 @@ const ProjectSettings: FC = () => {
 
     return (
         <>
-            <title>Project Settings - Lightdash</title>
+            <DocumentTitle title="Project Settings" />
 
             <Stack spacing="xl">
                 <PageBreadcrumbs
