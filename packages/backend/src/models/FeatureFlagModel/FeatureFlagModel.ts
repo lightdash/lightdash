@@ -41,6 +41,8 @@ export class FeatureFlagModel {
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
             [FeatureFlags.ScreenshotReadyIndicator]:
                 this.getScreenshotReadyIndicator.bind(this),
+            [FeatureFlags.MetricsCatalogEchartsVisualization]:
+                this.getMetricsCatalogEchartsVisualizationEnabled.bind(this),
         };
     }
 
@@ -188,6 +190,32 @@ export class FeatureFlagModel {
                       },
                   )
                 : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getMetricsCatalogEchartsVisualizationEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.metricsCatalog.echartsVisualizationEnabled ??
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.MetricsCatalogEchartsVisualization,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+
         return {
             id: featureFlagId,
             enabled,

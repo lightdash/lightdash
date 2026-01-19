@@ -298,4 +298,7 @@ export const lightdashConfigMock: LightdashConfig = {
     funnelBuilder: {
         enabled: false,
     },
+    metricsCatalog: {
+        echartsVisualizationEnabled: false,
+    }
 };
