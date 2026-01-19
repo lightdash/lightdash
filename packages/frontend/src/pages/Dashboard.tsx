@@ -21,7 +21,7 @@ import { DashboardExportModal } from '../components/common/modal/DashboardExport
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
-import DashboardTabsV2 from '../features/dashboardTabsV2';
+import DashboardTabs from '../features/dashboardTabs';
 import {
     appendNewTilesToBottom,
     useUpdateDashboard,
@@ -685,7 +685,7 @@ const Dashboard: FC = () => {
                 <div style={dashboardCSSVars as React.CSSProperties}>
                     <DashboardHeader {...dashboardHeaderProps} />
 
-                    <DashboardTabsV2
+                    <DashboardTabs
                         isEditMode={isEditMode}
                         hasTilesThatSupportFilters={hasTilesThatSupportFilters}
                         // parameters

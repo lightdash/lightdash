@@ -26,7 +26,7 @@ import MinimalDashboardTabs from '../components/MinimalDashboardTabs';
 import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
-} from '../features/dashboardTabsV2/gridUtils';
+} from '../features/dashboardTabs/gridUtils';
 import { useScheduler } from '../features/scheduler/hooks/useScheduler';
 import { useDashboardQuery } from '../hooks/dashboard/useDashboard';
 import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';

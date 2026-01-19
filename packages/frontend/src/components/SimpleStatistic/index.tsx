@@ -19,7 +19,7 @@ import {
     type HTMLAttributes,
     type ReactNode,
 } from 'react';
-import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabsV2/gridUtils';
+import { DEFAULT_ROW_HEIGHT } from '../../features/dashboardTabs/gridUtils';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { useAccount } from '../../hooks/user/useAccount';

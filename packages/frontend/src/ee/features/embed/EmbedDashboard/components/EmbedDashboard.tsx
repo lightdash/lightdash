@@ -15,7 +15,7 @@ import {
     getReactGridLayoutConfig,
     getResponsiveGridLayoutProps,
     type ResponsiveGridLayoutProps,
-} from '../../../../../features/dashboardTabsV2/gridUtils';
+} from '../../../../../features/dashboardTabs/gridUtils';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import { useEmbedDashboard } from '../hooks';

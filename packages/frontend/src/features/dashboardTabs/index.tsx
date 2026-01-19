@@ -70,7 +70,7 @@ type DashboardTabsProps = {
     onParameterPin: (parameterKey: string) => void;
 };
 
-const DashboardTabsV2: FC<DashboardTabsProps> = ({
+const DashboardTabs: FC<DashboardTabsProps> = ({
     isEditMode,
     addingTab,
     dashboardTiles,
@@ -826,4 +826,4 @@ const DashboardTabsV2: FC<DashboardTabsProps> = ({
     );
 };
 
-export default DashboardTabsV2;
+export default DashboardTabs;
