@@ -27,16 +27,18 @@ export type TagsTable = Knex.CompositeTableType<DbTag, DbTagIn, DbTagUpdate>;
 
 export const TagsTableName = 'tags';
 
-export const convertTagRow = (tag: DbTag & DbUser): Tag => ({
+export const convertTagRow = (tag: DbTag & Partial<DbUser>): Tag => ({
     tagUuid: tag.tag_uuid,
     projectUuid: tag.project_uuid,
     name: tag.name,
     color: tag.color,
     createdAt: tag.created_at,
     yamlReference: tag.yaml_reference,
-    createdBy: {
-        userUuid: tag.user_uuid,
-        firstName: tag.first_name,
-        lastName: tag.last_name,
-    },
+    createdBy: tag.user_uuid
+        ? {
+              userUuid: tag.user_uuid,
+              firstName: tag.first_name ?? '',
+              lastName: tag.last_name ?? '',
+          }
+        : null,
 });
