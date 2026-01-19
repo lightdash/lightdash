@@ -5,11 +5,11 @@ type Props = {
 };
 
 const APP_NAME = 'Lightdash';
-const SUFFIX = import.meta.env.DEV ? ' (DEV)' : '';
+const PREFIX = import.meta.env.DEV ? '(DEV) ' : '';
 
 export const DocumentTitle: FC<Props> = ({ title }) => {
     const fullTitle = title
-        ? `${title} - ${APP_NAME}${SUFFIX}`
-        : `${APP_NAME}${SUFFIX}`;
+        ? `${PREFIX}${title} - ${APP_NAME}`
+        : `${PREFIX}${APP_NAME}`;
     return <title>{fullTitle}</title>;
 };
