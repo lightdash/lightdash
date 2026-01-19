@@ -6,6 +6,7 @@ import {
     type FieldId,
     type MetricQuery,
     type ParametersValuesMap,
+    type QueryExecutionContext,
     type SavedChartDAO,
 } from '@lightdash/common';
 import type { QueryResultsProps } from '../useQueryResults';
@@ -26,7 +27,7 @@ export function buildQueryArgs(options: {
     parameters: ParametersValuesMap | undefined;
     isEditMode: boolean;
     viewModeQueryArgs?:
-        | { chartUuid: string; context?: string }
+        | { chartUuid: string; context?: QueryExecutionContext }
         | { chartUuid: string; chartVersionUuid: string };
     dateZoomGranularity?: DateGranularity;
     minimal: boolean;
