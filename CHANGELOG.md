@@ -1,3 +1,10 @@
+# [0.2351.0](https://github.com/lightdash/lightdash/compare/0.2350.0...0.2351.0) (2026-01-19)
+
+
+### Features
+
+* add AI-powered custom tooltip generator ([#19501](https://github.com/lightdash/lightdash/issues/19501)) ([3391c5e](https://github.com/lightdash/lightdash/commit/3391c5ec08e52d92f40265a4b937506569be0aa0))
+
 # [0.2350.0](https://github.com/lightdash/lightdash/compare/0.2349.1...0.2350.0) (2026-01-16)
 
 
