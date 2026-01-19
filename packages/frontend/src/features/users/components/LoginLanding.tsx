@@ -5,6 +5,7 @@ import {
     isOpenIdIdentityIssuerType,
     LightdashMode,
     LocalIssuerTypes,
+    LOGIN_PAGE_ID,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
     type OpenIdIdentityIssuerType,
@@ -67,8 +68,8 @@ const Login: FC<{}> = () => {
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
         : redirectParam
-        ? redirectParam
-        : '/';
+          ? redirectParam
+          : '/';
 
     const form = useForm<LoginParams>({
         initialValues: {
@@ -203,7 +204,7 @@ const Login: FC<{}> = () => {
             <Box mx="auto" my="lg">
                 <LightdashLogo />
             </Box>
-            <Card p="xl" radius="xs" withBorder shadow="xs">
+            <Card id={LOGIN_PAGE_ID} p="xl" radius="xs" withBorder shadow="xs">
                 <Title order={3} ta="center" mb="md">
                     Sign in
                 </Title>
