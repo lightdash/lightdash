@@ -93,7 +93,7 @@ type DashboardHeaderProps = {
     className?: string;
 };
 
-const DashboardHeaderV2 = ({
+const DashboardHeader = ({
     dashboard,
     organizationUuid,
     hasDashboardChanged,
@@ -674,4 +674,4 @@ const DashboardHeaderV2 = ({
     );
 };
 
-export default DashboardHeaderV2;
+export default DashboardHeader;

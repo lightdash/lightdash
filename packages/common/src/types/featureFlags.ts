@@ -76,11 +76,6 @@ export enum FeatureFlags {
     EditYamlInUi = 'edit-yaml-in-ui',
 
     /**
-     * Dashboard redesign
-     */
-    DashboardRedesign = 'dashboard-redesign',
-
-    /**
      * Use screenshot ready indicator for scheduler screenshots
      */
     ScreenshotReadyIndicator = 'screenshot-ready-indicator',

@@ -278,12 +278,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }
 
     return (
-        <Box
-            p={isDashboard && isDashboardRedesignEnabled ? 0 : 'xs'}
-            pb="md"
-            miw="100%"
-            h="100%"
-        >
+        <Box p={isDashboard ? 0 : 'xs'} pb="md" miw="100%" h="100%">
             <Table
                 isDashboard={isDashboard}
                 minimal={minimal}
