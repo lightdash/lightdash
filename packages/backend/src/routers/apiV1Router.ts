@@ -10,6 +10,8 @@ import {
     storeSlackContext,
 } from '../controllers/authentication';
 import { databricksPassportStrategy } from '../controllers/authentication/strategies/databricksStrategy';
+import { AiAgentService } from '../ee/services/AiAgentService/AiAgentService';
+import Logger from '../logging/logger';
 import { UserModel } from '../models/UserModel';
 import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
@@ -207,6 +209,37 @@ apiV1Router.get(
             params.set('message', slackContext.messageTs);
         if (slackContext?.threadTs)
             params.set('thread_ts', slackContext.threadTs);
+
+        // Process pending Slack message after OAuth (fire and forget)
+        // NOTE: This runs in the web process (not scheduler) because it needs
+        // access to an in-memory cache for updating the ephemeral OAuth message.
+        // The actual AI processing IS scheduled via Graphile worker inside
+        // processPendingSlackMessage. To move this entirely to the scheduler,
+        // the response_url cache would need to move to the database.
+        if (
+            req.user?.userUuid &&
+            slackContext?.teamId &&
+            slackContext?.channelId &&
+            slackContext?.messageTs
+        ) {
+            const aiAgentService =
+                req.services.getAiAgentService<AiAgentService>();
+            aiAgentService
+                .processPendingSlackMessage({
+                    teamId: slackContext.teamId,
+                    channelId: slackContext.channelId,
+                    messageTs: slackContext.messageTs,
+                    threadTs: slackContext.threadTs,
+                    userUuid: req.user.userUuid,
+                })
+                .catch((err: unknown) => {
+                    // Log but don't fail the redirect
+                    Logger.error(
+                        'Failed to process pending Slack message:',
+                        err,
+                    );
+                });
+        }
 
         const redirectUrl = `/auth/slack/success${
             params.toString() ? `?${params.toString()}` : ''

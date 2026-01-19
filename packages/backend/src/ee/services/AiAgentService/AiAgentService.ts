@@ -189,6 +189,32 @@ type AiAgentServiceDependencies = {
     prometheusMetrics?: PrometheusMetrics;
 };
 
+// Cache for OAuth response URLs, keyed by "teamId-channelId-messageTs"
+// Used to update the ephemeral "Redirected to Lightdash..." message after OAuth completes
+// Entries auto-expire after 10 minutes
+const oauthResponseUrlCache = new Map<
+    string,
+    { responseUrl: string; timestamp: number }
+>();
+const OAUTH_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+function getOAuthCacheKey(
+    teamId: string,
+    channelId: string,
+    messageTs: string,
+): string {
+    return `${teamId}-${channelId}-${messageTs}`;
+}
+
+function cleanupOAuthCache(): void {
+    const now = Date.now();
+    oauthResponseUrlCache.forEach((value, key) => {
+        if (now - value.timestamp > OAUTH_CACHE_TTL_MS) {
+            oauthResponseUrlCache.delete(key);
+        }
+    });
+}
+
 export class AiAgentService {
     private readonly aiAgentModel: AiAgentModel;
 
@@ -3614,12 +3640,38 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
     // eslint-disable-next-line class-methods-use-this
     public handleClickOAuthButton(app: App) {
+        // Match action_id pattern: actions.oauth_button_click:teamId:channelId:messageTs
         app.action(
-            'actions.oauth_button_click',
+            /^actions\.oauth_button_click:/,
             async ({ ack, body, respond }) => {
                 await ack();
 
                 if (body.type === 'block_actions') {
+                    const action = body.actions[0];
+                    // Parse message info from action_id (format: actions.oauth_button_click:teamId:channelId:messageTs)
+                    const actionIdParts = action?.action_id?.split(':');
+                    if (actionIdParts?.length === 4) {
+                        const [, teamId, channelId, messageTs] = actionIdParts;
+
+                        if (
+                            teamId &&
+                            channelId &&
+                            messageTs &&
+                            body.response_url
+                        ) {
+                            cleanupOAuthCache();
+                            const cacheKey = getOAuthCacheKey(
+                                teamId,
+                                channelId,
+                                messageTs,
+                            );
+                            oauthResponseUrlCache.set(cacheKey, {
+                                responseUrl: body.response_url,
+                                timestamp: Date.now(),
+                            });
+                        }
+                    }
+
                     await respond({
                         replace_original: true,
                         blocks: [
@@ -4713,8 +4765,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             await client.chat.postEphemeral({
                 channel: channelId,
                 user: userId,
-                // If threadTs is provided, send the message in the thread, otherwise send it to the channel, ephemeral message is easy to miss
-                ...(threadTs ? { thread_ts: threadTs } : {}),
                 text: `Hi <@${userId}>! OAuth authentication is required to use AI Agent. Please connect your Slack account to Lightdash to continue.`,
                 blocks: [
                     {
@@ -4733,7 +4783,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                                     type: 'plain_text',
                                     text: 'Connect your Slack account',
                                 },
-                                action_id: 'actions.oauth_button_click',
+                                // Encode message info in action_id since URL isn't available in action payload
+                                action_id: `actions.oauth_button_click:${teamId}:${channelId}:${messageId}`,
                                 url: `${
                                     this.lightdashConfig.siteUrl
                                 }/api/v1/auth/slack?team=${teamId}&channel=${channelId}&message=${messageId}${
@@ -4750,6 +4801,224 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         }
 
         return { userUuid: openIdIdentity.userUuid };
+    }
+
+    /**
+     * Process a pending Slack message after OAuth authentication completes.
+     * Called from the OAuth callback to process the original message that triggered auth.
+     */
+    public async processPendingSlackMessage(data: {
+        teamId: string;
+        channelId: string;
+        messageTs: string;
+        threadTs?: string;
+        userUuid: string;
+    }): Promise<void> {
+        const { teamId, channelId, messageTs, threadTs, userUuid } = data;
+
+        Logger.info(
+            `Processing pending Slack message after OAuth: team=${teamId}, channel=${channelId}, message=${messageTs}`,
+        );
+
+        // Get organization and settings
+        const organizationUuid =
+            await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                teamId,
+            );
+
+        const slackSettings =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        if (!slackSettings) {
+            Logger.error(
+                `Slack settings not found for organization ${organizationUuid}`,
+            );
+            return;
+        }
+
+        const client = await this.slackClient.getWebClient(organizationUuid);
+
+        // Get user's Slack ID from openid_identities
+        const openIdIdentity =
+            await this.openIdIdentityModel.findIdentityByUserUuid(
+                userUuid,
+                OpenIdIdentityIssuerType.SLACK,
+            );
+
+        if (!openIdIdentity) {
+            Logger.error(
+                `No Slack OpenID identity found for user ${userUuid} after OAuth`,
+            );
+            return;
+        }
+
+        const slackUserId = openIdIdentity.subject;
+
+        // Try to update the ephemeral message via cached response_url
+        const cacheKey = getOAuthCacheKey(teamId, channelId, messageTs);
+        const cachedResponse = oauthResponseUrlCache.get(cacheKey);
+
+        if (cachedResponse) {
+            // Update the ephemeral message to show success, then delete after 10 seconds
+            try {
+                const successResponse = await fetch(
+                    cachedResponse.responseUrl,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            replace_original: true,
+                            blocks: [
+                                {
+                                    type: 'section',
+                                    text: {
+                                        type: 'mrkdwn',
+                                        text: '✅ Authentication successful! Processing your request...',
+                                    },
+                                },
+                            ],
+                        }),
+                    },
+                );
+
+                if (successResponse.ok) {
+                    // Delete the ephemeral message after 10 seconds
+                    setTimeout(async () => {
+                        try {
+                            await fetch(cachedResponse.responseUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    delete_original: true,
+                                }),
+                            });
+                        } catch (e) {
+                            Logger.error(
+                                'Failed to delete ephemeral OAuth message:',
+                                e,
+                            );
+                        }
+                    }, 10000);
+                }
+
+                oauthResponseUrlCache.delete(cacheKey);
+            } catch (e) {
+                Logger.error(
+                    'Failed to update ephemeral message via response_url:',
+                    e,
+                );
+            }
+        }
+
+        // Fetch the original message
+        let originalMessageText: string | undefined;
+        try {
+            const history = await client.conversations.history({
+                channel: channelId,
+                oldest: messageTs,
+                latest: messageTs,
+                inclusive: true,
+                limit: 1,
+            });
+            originalMessageText = history.messages?.[0]?.text;
+        } catch (e) {
+            Logger.error('Failed to fetch original message from Slack:', e);
+            return;
+        }
+
+        if (!originalMessageText) {
+            Logger.error('Original message text not found');
+            return;
+        }
+
+        // Get agent config
+        const isMultiAgentChannel =
+            slackSettings.aiMultiAgentChannelId === channelId;
+
+        let agentConfig: AiAgent | undefined;
+
+        if (isMultiAgentChannel) {
+            const availableAgents = await this.getAvailableAgents(
+                organizationUuid,
+                userUuid,
+                slackSettings,
+                {
+                    projectType: ProjectType.DEFAULT,
+                    projectFilter: slackSettings.aiMultiAgentProjectUuids
+                        ? {
+                              projectUuids:
+                                  slackSettings.aiMultiAgentProjectUuids,
+                          }
+                        : undefined,
+                },
+            );
+            // Use first available agent for pending message processing
+            [agentConfig] = availableAgents;
+        } else {
+            agentConfig = await this.aiAgentModel.getAgentBySlackChannelId({
+                organizationUuid,
+                slackChannelId: channelId,
+            });
+        }
+
+        if (!agentConfig) {
+            Logger.error('No agent found for channel');
+            return;
+        }
+
+        // Verify access
+        try {
+            await this.verifyAgentAccess(agentConfig, userUuid, slackSettings);
+        } catch (e) {
+            Logger.error('User does not have access to agent:', e);
+            return;
+        }
+
+        // Create prompt
+        let slackPromptUuid: string;
+        let createdThread: boolean;
+
+        try {
+            [slackPromptUuid, createdThread] = await this.createSlackPrompt({
+                userUuid,
+                projectUuid: agentConfig.projectUuid,
+                slackUserId,
+                slackChannelId: channelId,
+                slackThreadTs: threadTs,
+                prompt: originalMessageText,
+                promptSlackTs: messageTs,
+                agentUuid: agentConfig.uuid ?? null,
+            });
+        } catch (e) {
+            if (e instanceof AiDuplicateSlackPromptError) {
+                Logger.debug('Prompt already exists, skipping');
+                return;
+            }
+            throw e;
+        }
+
+        // Create say-like wrapper for postInitialResponseAndSchedule
+        const say = async (args: AnyType) =>
+            client.chat.postMessage({
+                channel: channelId,
+                ...args,
+            });
+
+        await this.postInitialResponseAndSchedule(
+            agentConfig,
+            slackPromptUuid,
+            userUuid,
+            slackUserId,
+            threadTs || messageTs,
+            createdThread,
+            say,
+        );
+
+        Logger.info(
+            `Successfully scheduled AI processing for pending message: ${slackPromptUuid}`,
+        );
     }
 
     // WARNING: Needs - channels:history scope for all slack apps
@@ -4785,7 +5054,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             {
                 userId: event.user,
                 teamId,
-                threadTs: event.thread_ts,
+                threadTs: event.thread_ts || event.ts, // Use event.ts for new messages to create a thread
                 channelId: event.channel,
                 messageId: event.ts,
             },
