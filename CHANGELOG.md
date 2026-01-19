@@ -1,3 +1,12 @@
+## [0.2353.1](https://github.com/lightdash/lightdash/compare/0.2353.0...0.2353.1) (2026-01-19)
+
+
+### Bug Fixes
+
+* custom tooltip values when sql pivoting ([#19504](https://github.com/lightdash/lightdash/issues/19504)) ([26bcf41](https://github.com/lightdash/lightdash/commit/26bcf419e661c00df242a1c0e8624b2c16460fd8))
+* do not run and disable scheduled deliveries when there are no targets ([#19495](https://github.com/lightdash/lightdash/issues/19495)) ([01a8aa1](https://github.com/lightdash/lightdash/commit/01a8aa18044ab058bdf5e4c8396eba94cc78ab37))
+* support referencing a grouped metric ([#19508](https://github.com/lightdash/lightdash/issues/19508)) ([111d553](https://github.com/lightdash/lightdash/commit/111d55334328e9499c150e2c93d877b1a9bbd01a))
+
 # [0.2353.0](https://github.com/lightdash/lightdash/compare/0.2352.0...0.2353.0) (2026-01-19)
 
 
