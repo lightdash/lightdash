@@ -14,7 +14,7 @@ import { type FC, type ReactNode } from 'react';
 import PinnedParameters from '../../components/PinnedParameters';
 import MantineIcon from '../../components/common/MantineIcon';
 import { DateZoom } from '../dateZoom';
-import { ParametersV2 } from '../parametersV2';
+import { Parameters } from '../parameters';
 import FilterGroupSeparator from './FilterGroupSeparator';
 import DashboardFiltersV2 from './index';
 
@@ -106,7 +106,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                 <>
                                     <Divider orientation="vertical" />
 
-                                    <ParametersV2
+                                    <Parameters
                                         isEditMode={isEditMode}
                                         parameterValues={parameterValues}
                                         onParameterChange={onParameterChange}
