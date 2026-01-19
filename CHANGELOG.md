@@ -1,3 +1,10 @@
+## [0.2353.2](https://github.com/lightdash/lightdash/compare/0.2353.1...0.2353.2) (2026-01-19)
+
+
+### Bug Fixes
+
+* change catalog field filtering from whereIn to unnest arrays ([#19540](https://github.com/lightdash/lightdash/issues/19540)) ([8885368](https://github.com/lightdash/lightdash/commit/8885368506e2f9ef61f54e05685f4c399a3e6631))
+
 ## [0.2353.1](https://github.com/lightdash/lightdash/compare/0.2353.0...0.2353.1) (2026-01-19)
 
 
