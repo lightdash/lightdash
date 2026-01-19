@@ -94,7 +94,6 @@ import {
     type DashboardChartReadyQuery,
 } from '../../hooks/dashboard/useDashboardChartReadyQuery';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
-import { useDashboardUIPreference } from '../../hooks/dashboard/useDashboardUIPreference';
 import { uploadGsheet } from '../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -133,7 +132,7 @@ import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatB
 import { DashboardExportImage } from './DashboardExportImage';
 import EditChartMenuItem from './EditChartMenuItem';
 import ExportDataModal from './ExportDataModal';
-import TileBase from './TileBase/index';
+import TileBase from './TileBase';
 import { UnderlyingDataMenuItem } from './UnderlyingDataMenuItem';
 
 interface ExportGoogleSheetProps {
@@ -152,7 +151,7 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
             metricQuery: savedChart.metricQuery,
             columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
-                ? (savedChart.chartConfig.config.showTableNames ?? false)
+                ? savedChart.chartConfig.config.showTableNames ?? false
                 : true,
             customLabels: getCustomLabelsFromTableConfig(
                 savedChart.chartConfig.config,
@@ -507,7 +506,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const showExecutionTime = useFeatureFlagEnabled(
         FeatureFlags.ShowExecutionTime,
     );
-    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
 
     const {
         tile: {
@@ -1347,10 +1345,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         </>
                     )
                 }
-                fullWidth={
-                    chart.chartConfig.type === ChartType.TABLE &&
-                    isDashboardRedesignEnabled
-                }
+                fullWidth={chart.chartConfig.type === ChartType.TABLE}
                 {...props}
             >
                 <>
@@ -1467,7 +1462,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 getDownloadQueryUuid={getDownloadQueryUuid}
                 showTableNames={
                     isTableChartConfig(chart.chartConfig.config)
-                        ? (chart.chartConfig.config.showTableNames ?? false)
+                        ? chart.chartConfig.config.showTableNames ?? false
                         : true
                 }
                 chartName={title || chart.name}
@@ -1489,7 +1484,6 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         top: number;
     }>();
     const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
-    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
 
     const {
         tile: {
@@ -1677,10 +1671,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                         </>
                     ) : undefined
                 }
-                fullWidth={
-                    isDashboardRedesignEnabled &&
-                    chart.chartConfig.type === ChartType.TABLE
-                }
+                fullWidth={chart.chartConfig.type === ChartType.TABLE}
                 {...props}
             >
                 <>
@@ -1747,7 +1738,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     getDownloadQueryUuid={getDownloadQueryUuid}
                     showTableNames={
                         isTableChartConfig(chart.chartConfig.config)
-                            ? (chart.chartConfig.config.showTableNames ?? false)
+                            ? chart.chartConfig.config.showTableNames ?? false
                             : true
                     }
                     chartName={title || chart.name}
