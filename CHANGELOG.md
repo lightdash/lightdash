@@ -1,3 +1,10 @@
+# [0.2352.0](https://github.com/lightdash/lightdash/compare/0.2351.0...0.2352.0) (2026-01-19)
+
+
+### Features
+
+* detect login page redirects in screenshot service ([#19505](https://github.com/lightdash/lightdash/issues/19505)) ([ec7694d](https://github.com/lightdash/lightdash/commit/ec7694deaf38f9ea9bdd0a7785544ee1e754e3c0)), closes [#19506](https://github.com/lightdash/lightdash/issues/19506)
+
 # [0.2351.0](https://github.com/lightdash/lightdash/compare/0.2350.0...0.2351.0) (2026-01-19)
 
 
