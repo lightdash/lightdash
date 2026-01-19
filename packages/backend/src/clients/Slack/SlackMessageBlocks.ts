@@ -1,9 +1,12 @@
 import {
     AnyType,
+    assertUnreachable,
     friendlyName,
     LightdashPage,
     operatorActionValue,
+    PartialFailureType,
     ThresholdOptions,
+    type PartialFailure,
 } from '@lightdash/common';
 import {
     KnownBlock,
@@ -380,7 +383,7 @@ type GetDashboardCsvResultsBlocksArgs = {
     ctaUrl: string;
     csvUrls: AttachmentUrl[];
     footerMarkdown?: string;
-    failures?: { chartName: string; error: string }[];
+    failures?: PartialFailure[];
 };
 export const getDashboardCsvResultsBlocks = ({
     title,
@@ -402,12 +405,22 @@ export const getDashboardCsvResultsBlocks = ({
         const allChartsFailed = csvUrls.length === 0;
         if (allChartsFailed) {
             const errorText = failures
-                .map(
-                    (f) =>
-                        `\t• *${sanitizeText(f.chartName)}:* ${sanitizeText(
-                            f.error,
-                        )}`,
-                )
+                .map((f) => {
+                    switch (f.type) {
+                        case PartialFailureType.DASHBOARD_CHART:
+                        case PartialFailureType.DASHBOARD_SQL_CHART:
+                            return `\t• *${sanitizeText(
+                                f.chartName,
+                            )}:* ${sanitizeText(f.error)}`;
+                        case PartialFailureType.MISSING_TARGETS:
+                            return `\t• No targets found for this scheduled delivery`;
+                        default:
+                            return assertUnreachable(
+                                f,
+                                'Unknown partial failure type',
+                            );
+                    }
+                })
                 .join('\n');
             return {
                 type: 'section',
@@ -422,12 +435,22 @@ export const getDashboardCsvResultsBlocks = ({
         }
 
         const errorText = failures
-            .map(
-                (f) =>
-                    `\t• ${sanitizeText(f.chartName)}: ${sanitizeText(
-                        f.error,
-                    )}`,
-            )
+            .map((f) => {
+                switch (f.type) {
+                    case PartialFailureType.DASHBOARD_CHART:
+                    case PartialFailureType.DASHBOARD_SQL_CHART:
+                        return `\t• ${sanitizeText(
+                            f.chartName,
+                        )}: ${sanitizeText(f.error)}`;
+                    case PartialFailureType.MISSING_TARGETS:
+                        return `\t• No targets found for this scheduled delivery`;
+                    default:
+                        return assertUnreachable(
+                            f,
+                            'Unknown partial failure type',
+                        );
+                }
+            })
             .join('\n');
         return {
             type: 'section',

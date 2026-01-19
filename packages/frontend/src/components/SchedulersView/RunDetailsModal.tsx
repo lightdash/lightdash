@@ -1,4 +1,6 @@
 import {
+    assertUnreachable,
+    PartialFailureType,
     SchedulerFormat,
     SchedulerJobStatus,
     type BatchDeliveryResult,
@@ -63,7 +65,7 @@ const formatTimeOnly = (date: Date): string => {
 
 // Helper to pluralize a word based on count
 const pluralize = (count: number, singular: string, plural?: string): string =>
-    count === 1 ? singular : plural ?? `${singular}s`;
+    count === 1 ? singular : (plural ?? `${singular}s`);
 
 // Helper to build job status summary text
 const buildJobStatusSummary = (
@@ -158,6 +160,57 @@ const JobTimingInfo: FC<{
     );
 };
 
+const PartialFailureText: FC<{
+    failure: PartialFailure;
+    theme: MantineTheme;
+}> = ({ failure, theme }) => {
+    switch (failure.type) {
+        case PartialFailureType.DASHBOARD_CHART:
+        case PartialFailureType.DASHBOARD_SQL_CHART:
+            return (
+                <Stack
+                    gap={4}
+                    p="xs"
+                    style={{
+                        borderRadius: theme.radius.sm,
+                        backgroundColor: theme.colors.orange[0],
+                    }}
+                >
+                    <Text fz="xs" fw={500} c="orange.9">
+                        {failure.chartName}
+                    </Text>
+                    <Code
+                        c="orange.9"
+                        bg="transparent"
+                        style={{
+                            fontSize: '11px',
+                            padding: 0,
+                        }}
+                    >
+                        {failure.error}
+                    </Code>
+                </Stack>
+            );
+        case PartialFailureType.MISSING_TARGETS:
+            return (
+                <Stack
+                    gap={4}
+                    p="xs"
+                    style={{
+                        borderRadius: theme.radius.sm,
+                        backgroundColor: theme.colors.orange[0],
+                    }}
+                >
+                    <Text fz="xs" fw={500} c="orange.9">
+                        No recipients configured for this scheduled delivery
+                    </Text>
+                </Stack>
+            );
+        default:
+            return assertUnreachable(failure, 'Unknown partial failure type');
+    }
+};
+
 // Unified component for job rows (success, failure, partial failure)
 const JobRow: FC<{
     job: JobSummary;
@@ -196,14 +249,37 @@ const JobRow: FC<{
     );
 
     // Determine status message
+    const chartFailures = partialFailures.filter(
+        (f) =>
+            f.type === PartialFailureType.DASHBOARD_CHART ||
+            f.type === PartialFailureType.DASHBOARD_SQL_CHART,
+    );
+    const hasMissingTargets = partialFailures.some(
+        (f) => f.type === PartialFailureType.MISSING_TARGETS,
+    );
+
+    const getPartialFailureMessage = (): string => {
+        const parts: string[] = [];
+        if (chartFailures.length > 0) {
+            parts.push(
+                `${chartFailures.length} failing chart${
+                    chartFailures.length > 1 ? 's' : ''
+                }`,
+            );
+        }
+        if (hasMissingTargets) {
+            parts.push('missing recipients');
+        }
+        return `Completed with ${parts.join(' and ')}`;
+    };
+
     const statusMessage = isError ? (
         <Text fz="xs" c="red.7">
             Job failed
         </Text>
     ) : isPartialFailure ? (
         <Text fz="xs" c="orange.7">
-            Completed with {partialFailures.length} failing chart
-            {partialFailures.length > 1 ? 's' : ''}
+            {getPartialFailureMessage()}
         </Text>
     ) : (
         <Text fz="xs" c="green.7">
@@ -282,28 +358,20 @@ const JobRow: FC<{
             )}
             {isPartialFailure && (
                 <Stack gap="xs">
-                    {partialFailures.map((failure) => (
-                        <Stack
-                            key={failure.tileUuid}
-                            gap={4}
-                            p="xs"
-                            style={{
-                                borderRadius: theme.radius.sm,
-                                backgroundColor: theme.colors.orange[0],
-                            }}
-                        >
-                            <Text fz="xs" fw={500} c="orange.9">
-                                {failure.chartName}
-                            </Text>
-                            <Code
-                                c="orange.9"
-                                bg="transparent"
-                                style={{ fontSize: '11px', padding: 0 }}
-                            >
-                                {failure.error}
-                            </Code>
-                        </Stack>
-                    ))}
+                    {partialFailures.map((failure, index) => {
+                        return (
+                            <PartialFailureText
+                                key={
+                                    // MISSING_TARGETS doesn't have a tileUuid, falling back to index (shouldn't use index, but since it should only be one, it's fine)
+                                    'tileUuid' in failure
+                                        ? failure.tileUuid
+                                        : index
+                                }
+                                failure={failure}
+                                theme={theme}
+                            />
+                        );
+                    })}
                 </Stack>
             )}
         </Stack>
