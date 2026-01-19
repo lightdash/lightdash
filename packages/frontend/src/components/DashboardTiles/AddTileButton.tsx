@@ -19,7 +19,6 @@ import {
 import { useCallback, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
-import { useDashboardUIPreference } from '../../hooks/dashboard/useDashboardUIPreference';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
@@ -40,7 +39,6 @@ const AddTileButton: FC<Props> = ({
     dashboardTabs,
     radius,
 }) => {
-    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
         useState<boolean>(false);
@@ -145,16 +143,14 @@ const AddTileButton: FC<Props> = ({
                         Tab
                     </Menu.Item>
 
-                    {isDashboardRedesignEnabled && (
-                        <Menu.Item
-                            onClick={() =>
-                                setAddTileType(DashboardTileTypes.HEADING)
-                            }
-                            icon={<MantineIcon icon={IconHeading} />}
-                        >
-                            Heading
-                        </Menu.Item>
-                    )}
+                    <Menu.Item
+                        onClick={() =>
+                            setAddTileType(DashboardTileTypes.HEADING)
+                        }
+                        icon={<MantineIcon icon={IconHeading} />}
+                    >
+                        Heading
+                    </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
 
