@@ -337,6 +337,7 @@ export const useExportCsvDashboard = () => {
 export const useUpdateDashboard = (
     id?: string,
     showRedirectButton: boolean = false,
+    onSuccessCallback?: (dashboard: Dashboard) => void,
 ) => {
     const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -353,7 +354,7 @@ export const useUpdateDashboard = (
         },
         {
             mutationKey: ['dashboard_update'],
-            onSuccess: async (_, variables) => {
+            onSuccess: async (updatedDashboard, variables) => {
                 clearDashboardStorage();
                 await queryClient.invalidateQueries(['space', projectUuid]);
                 await queryClient.invalidateQueries([
@@ -385,6 +386,11 @@ export const useUpdateDashboard = (
                         : undefined,
                     autoClose: 10000,
                 });
+
+                // Call the optional callback with the updated dashboard
+                // This allows callers to update local state with server response
+                // (e.g., to sync duplicated chart UUIDs after tab duplication)
+                onSuccessCallback?.(updatedDashboard);
             },
             onError: ({ error }) => {
                 showToastApiError({
