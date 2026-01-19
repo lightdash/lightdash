@@ -7,8 +7,10 @@ import {
     ForbiddenError,
     GenerateChartMetadataRequest,
     GenerateTableCalculationRequest,
+    GenerateTooltipRequest,
     GeneratedChartMetadata,
     GeneratedTableCalculation,
+    GeneratedTooltip,
     ItemsMap,
     QueryExecutionContext,
     SessionUser,
@@ -33,6 +35,7 @@ import {
     DashboardSummaryViewed,
     GenerateChartMetadataGenerated,
     GenerateTableCalculationGenerated,
+    GenerateTooltipGenerated,
 } from '../../analytics';
 import OpenAi from '../../clients/OpenAi';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
@@ -41,6 +44,7 @@ import {
     generateTableCalculation as generateTableCalculationFromContext,
     sanitizeCustomFormat,
 } from '../ai/agents/tableCalculationGenerator';
+import { generateTooltip as generateTooltipFromContext } from '../ai/agents/tooltipGenerator';
 import { getModel } from '../ai/models';
 import { getAnthropicModel } from '../ai/models/anthropic-claude';
 import { getModelPreset } from '../ai/models/presets';
@@ -512,6 +516,34 @@ export class AiService {
             displayName: result.displayName,
             type: result.type as TableCalculationType,
             format: sanitizeCustomFormat(result.format),
+        };
+    }
+
+    async generateTooltip(
+        user: SessionUser,
+        projectUuid: string,
+        payload: GenerateTooltipRequest,
+    ): Promise<GeneratedTooltip> {
+        const model = await this.getAmbientAiModel(user);
+
+        const result = await generateTooltipFromContext(model, {
+            prompt: payload.prompt,
+            fieldsContext: payload.fieldsContext,
+            currentHtml: payload.currentHtml,
+        });
+
+        this.analytics.track<GenerateTooltipGenerated>({
+            userId: user.userUuid,
+            event: 'ai.tooltip.generated',
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                userId: user.userUuid,
+            },
+        });
+
+        return {
+            html: result.html,
         };
     }
 }

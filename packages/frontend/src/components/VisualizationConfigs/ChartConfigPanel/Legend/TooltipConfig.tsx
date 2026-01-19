@@ -21,6 +21,8 @@ import { IconHelpCircle } from '@tabler/icons-react';
 import { type editor, type IDisposable, type languages } from 'monaco-editor';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useDeepCompareEffect } from 'react-use';
+import { AiTooltipInput } from '../../../../ee/features/ambientAi/components/tooltip';
+import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import { getLightdashMonacoTheme } from '../../../../features/sqlRunner/utils/monaco';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
@@ -111,6 +113,7 @@ const calculateEditorHeight = (lineCount: number): number => {
 export const TooltipConfig: FC<Props> = ({ fields }) => {
     const { visualizationConfig } = useVisualizationContext();
     const { colorScheme } = useMantineColorScheme();
+    const isAmbientAiEnabled = useAmbientAiEnabled();
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
 
@@ -172,6 +175,13 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
         const lineCount = (value ?? '').split('\n').length;
         setEditorHeight(calculateEditorHeight(lineCount));
     };
+
+    const handleAiApply = useCallback((html: string) => {
+        setTooltipValue(html);
+        // Update height based on line count
+        const lineCount = html.split('\n').length;
+        setEditorHeight(calculateEditorHeight(lineCount));
+    }, []);
     const [monacoOptions, setMonacoOptions] = useState<
         EditorProps['options'] | undefined
     >();
@@ -280,7 +290,12 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
             <Collapse in={show}>
                 {/* Monaco does not support placeholders, so this is a workaround to show the example tooltip
                 we show some text, by giving position absolute, it is placed on top of the editor*/}
-                <Paper className={styles.editorWrapper} p="xs" pos="relative">
+                <Paper
+                    className={styles.editorWrapper}
+                    radius="md"
+                    withBorder
+                    pos="relative"
+                >
                     {tooltipValue?.length === 0 ? (
                         <Text
                             ml="sm"
@@ -314,6 +329,14 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                             id: 'tooltip-editor-wrapper',
                         }}
                     />
+
+                    {isAmbientAiEnabled && (
+                        <AiTooltipInput
+                            fields={fields}
+                            currentHtml={tooltipValue || undefined}
+                            onApply={handleAiApply}
+                        />
+                    )}
                 </Paper>
             </Collapse>
         </Stack>
