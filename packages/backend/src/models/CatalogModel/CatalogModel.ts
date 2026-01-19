@@ -593,7 +593,7 @@ export class CatalogModel {
     async search({
         projectUuid,
         exploreName,
-        catalogSearch: { catalogTags, filter, searchQuery = '', type },
+        catalogSearch: { catalogTags, filter, searchQuery = '', type, tables },
         excludeUnmatched = true,
         tablesConfiguration,
         userAttributes,
@@ -830,6 +830,15 @@ export class CatalogModel {
                         });
                     }
                 },
+            );
+        }
+
+        // Filter by table names
+        if (tables && tables.length > 0) {
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                `${CatalogTableName}.table_name`,
+                'in',
+                tables,
             );
         }
 

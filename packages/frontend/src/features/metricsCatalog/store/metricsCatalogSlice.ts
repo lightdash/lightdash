@@ -30,6 +30,7 @@ type MetricsCatalogState = {
     projectUuid: string | undefined;
     organizationUuid: string | undefined;
     categoryFilters: CatalogField['categories'][number]['tagUuid'][];
+    tableFilters: string[];
     search: string | undefined;
     tableSorting: MRT_SortingState;
     popovers: {
@@ -71,6 +72,7 @@ const initialState: MetricsCatalogState = {
     projectUuid: undefined,
     organizationUuid: undefined,
     categoryFilters: [],
+    tableFilters: [],
     search: undefined,
     tableSorting: [
         {
@@ -139,6 +141,9 @@ export const metricsCatalogSlice = createSlice({
             >,
         ) => {
             state.categoryFilters = action.payload;
+        },
+        setTableFilters: (state, action: PayloadAction<string[]>) => {
+            state.tableFilters = action.payload;
         },
         setSearch: (state, action: PayloadAction<string | undefined>) => {
             state.search = action.payload;
@@ -214,6 +219,7 @@ export const {
     setActiveMetric,
     setProjectUuid,
     setCategoryFilters,
+    setTableFilters,
     setOrganizationUuid,
     setAbility,
     setUser,
