@@ -100,6 +100,62 @@ function extractCellValue(cell: unknown): unknown {
 }
 
 /**
+ * Find the pivot column name for a simple metric reference by looking through series' pivotReference.
+ * This allows users to write `${metric_name}` instead of the full `${metric_name.pivot_dim.pivot_value}` format.
+ *
+ * Supports two pivot modes:
+ * 1. SQL pivot (pivotValuesColumnsMap exists): Look up column in pivotValuesColumnsMap
+ * 2. Legacy pivot (pivotValuesColumnsMap undefined): Use hashFieldReference(pivotReference) directly
+ *
+ * @param ref - The simple metric field reference (e.g., "orders_amount_running_total")
+ * @param params - The tooltip params array containing series information
+ * @param series - The ECharts series array with pivotReference metadata
+ * @param pivotValuesColumnsMap - Map of pivot column names to their metadata (optional, for SQL pivot)
+ * @returns The pivot column name if found, undefined otherwise
+ */
+const findPivotColumnFromSeriesRef = (
+    ref: string,
+    params: TooltipFormatterParams[],
+    series: EChartsSeries[] | undefined,
+    pivotValuesColumnsMap: Record<string, PivotValuesColumn> | undefined,
+): string | undefined => {
+    if (!series) return undefined;
+
+    for (const { seriesIndex } of params) {
+        const seriesOption =
+            typeof seriesIndex === 'number' ? series[seriesIndex] : undefined;
+
+        if (seriesOption?.pivotReference?.field === ref) {
+            // SQL pivot mode: look up in pivotValuesColumnsMap
+            if (pivotValuesColumnsMap) {
+                const pivotColumn = Object.entries(pivotValuesColumnsMap).find(
+                    ([, col]) =>
+                        col.referenceField === ref &&
+                        col.pivotValues.length ===
+                            (seriesOption.pivotReference?.pivotValues?.length ??
+                                0) &&
+                        col.pivotValues.every(
+                            (pv, i) =>
+                                pv.value ===
+                                seriesOption.pivotReference?.pivotValues?.[i]
+                                    ?.value,
+                        ),
+                );
+
+                if (pivotColumn) {
+                    return pivotColumn[0];
+                }
+            } else {
+                // Legacy pivot mode: use hashFieldReference directly
+                return hashFieldReference(seriesOption.pivotReference);
+            }
+        }
+    }
+
+    return undefined;
+};
+
+/**
  * Compute a previous period date based on the current date, granularity, and offset
  */
 const computePreviousPeriodDate = (
@@ -1051,6 +1107,18 @@ export const buildCartesianTooltipFormatter =
                         const keysToTry = [ref];
                         if (translatedKey) keysToTry.push(translatedKey);
 
+                        // Also check if ref is a simple metric name that has been pivoted
+                        const pivotColumnFromSeries =
+                            findPivotColumnFromSeriesRef(
+                                ref,
+                                params,
+                                series,
+                                pivotValuesColumnsMap,
+                            );
+
+                        if (pivotColumnFromSeries)
+                            keysToTry.push(pivotColumnFromSeries);
+
                         for (const row of matchingRows) {
                             for (const key of keysToTry) {
                                 const cellValue = extractCellValue(row[key]);
@@ -1112,6 +1180,25 @@ export const buildCartesianTooltipFormatter =
                             }
                         }
                     }
+                    // Fallback: check if ref is a simple metric name that has been pivoted
+                    if (val === undefined) {
+                        const pivotColumnFromSeries =
+                            findPivotColumnFromSeriesRef(
+                                ref,
+                                params,
+                                series,
+                                pivotValuesColumnsMap,
+                            );
+
+                        if (pivotColumnFromSeries) {
+                            val = unwrapValue(
+                                firstValue[
+                                    pivotColumnFromSeries as keyof typeof firstValue
+                                ],
+                            );
+                        }
+                    }
+
                     const formatted = getFormattedValue(
                         val,
                         resolveFormatKey(

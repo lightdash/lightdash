@@ -135,6 +135,9 @@ export const Legend: FC<Props> = ({ items }) => {
         const fieldSet = allEncodes.reduce<Set<string>>((acc, encode) => {
             acc.add(encode.xRef.field);
             if (encode.yRef.pivotValues !== undefined) {
+                // Add the simple metric name for convenience
+                acc.add(encode.yRef.field);
+                // Add the full pivot reference format
                 encode.yRef.pivotValues.forEach((pivotValue) => {
                     acc.add(
                         `${encode.yRef.field}.${pivotValue.field}.${pivotValue.value}`,
