@@ -1,3 +1,11 @@
+## [0.2353.3](https://github.com/lightdash/lightdash/compare/0.2353.2...0.2353.3) (2026-01-19)
+
+
+### Bug Fixes
+
+* Metric catalog explore name tooltip cut-off on hover ([#19542](https://github.com/lightdash/lightdash/issues/19542)) ([087fcd8](https://github.com/lightdash/lightdash/commit/087fcd82e431f3179e637f93fabdc671c1a757a4))
+* Metrics Catalog category filter dropdown missing existing categories ([#19538](https://github.com/lightdash/lightdash/issues/19538)) ([d4f1f67](https://github.com/lightdash/lightdash/commit/d4f1f67b2c06d89723befe221cbe87f50630d20f))
+
 ## [0.2353.2](https://github.com/lightdash/lightdash/compare/0.2353.1...0.2353.2) (2026-01-19)
 
 
