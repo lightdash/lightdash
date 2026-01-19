@@ -256,13 +256,6 @@ export class ValidationService extends BaseService {
             projectUuid,
         );
 
-        // Check if SQL pivot results (backend pivoting) is enabled
-        // This determines whether to validate unused dimensions in chart configurations
-        const useSqlPivotResultsFlag = await this.featureFlagModel.get({
-            featureFlagId: FeatureFlags.UseSqlPivotResults,
-        });
-        const useSqlPivotResults = useSqlPivotResultsFlag.enabled;
-
         // Only validate charts that are using selected explores
         const results = charts
             .filter((c) => {
@@ -463,33 +456,27 @@ export class ValidationService extends BaseService {
                     );
 
                     // Check for unused dimensions in chart configuration
-                    // This only applies to cartesian charts with backend pivoting (when USE_SQL_PIVOT_RESULTS is enabled)
                     // Only check dimensions that exist (skip those already flagged as "no longer exists")
-                    let unusedDimensionErrors: CreateChartValidation[] = [];
-                    if (useSqlPivotResults) {
-                        const dimensionsWithErrors = new Set(
-                            dimensionErrors.map((e) => e.fieldName),
-                        );
-                        const existingDimensions = dimensions.filter(
-                            (d) => !dimensionsWithErrors.has(d),
-                        );
-                        const { unusedDimensions } = getUnusedDimensions({
-                            chartType,
-                            chartConfig,
-                            pivotDimensions,
-                            queryDimensions: existingDimensions,
-                        });
+                    const dimensionsWithErrors = new Set(
+                        dimensionErrors.map((e) => e.fieldName),
+                    );
+                    const existingDimensions = dimensions.filter(
+                        (d) => !dimensionsWithErrors.has(d),
+                    );
+                    const { unusedDimensions } = getUnusedDimensions({
+                        chartType,
+                        chartConfig,
+                        pivotDimensions,
+                        queryDimensions: existingDimensions,
+                    });
 
-                        unusedDimensionErrors = unusedDimensions.map(
-                            (dimension) => ({
-                                ...commonValidation,
-                                error: `Chart configuration warning: dimension '${dimension}' is not used in the chart configuration (x-axis, y-axis, or group by). This can cause incorrect rendering.`,
-                                errorType:
-                                    ValidationErrorType.ChartConfiguration,
-                                fieldName: dimension,
-                            }),
-                        );
-                    }
+                    const unusedDimensionErrors: CreateChartValidation[] =
+                        unusedDimensions.map((dimension) => ({
+                            ...commonValidation,
+                            error: `Chart configuration warning: dimension '${dimension}' is not used in the chart configuration (x-axis, y-axis, or group by). This can cause incorrect rendering.`,
+                            errorType: ValidationErrorType.ChartConfiguration,
+                            fieldName: dimension,
+                        }));
 
                     return [
                         ...dimensionErrors,
