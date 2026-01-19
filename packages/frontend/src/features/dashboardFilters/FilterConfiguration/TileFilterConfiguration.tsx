@@ -14,25 +14,28 @@ import {
     type DashboardTile,
     type Field,
 } from '@lightdash/common';
+import { Group } from '@mantine-8/core';
 import {
-    Accordion,
+    ActionIcon,
     Box,
     Checkbox,
+    Collapse,
     Flex,
     Select,
     Stack,
-    Switch,
     Text,
     Tooltip,
     useMantineTheme,
     type PopoverProps,
 } from '@mantine/core';
-import { useCallback, useMemo, type FC } from 'react';
+import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { FilterActions } from './constants';
+import { getFilterTileRelation } from './utils';
 
 type TileWithTargetFields = {
     key: string;
@@ -45,6 +48,7 @@ type TileWithTargetFields = {
     sortedFilters: Field[] | undefined;
     selectedField: Field | undefined;
     tabUuid?: string;
+    hasExactMatch: boolean;
 };
 
 type TileWithTargetColumns = {
@@ -58,12 +62,12 @@ type TileWithTargetColumns = {
     sortedFilters: string[];
     selectedField: string | undefined;
     tabUuid?: string;
+    hasExactMatch: boolean;
 };
 
 type Props = {
     tiles: DashboardTile[];
     tabs: DashboardTab[];
-    activeTabUuid: string | undefined;
     availableTileFilters: Record<string, Field[] | undefined>;
     field?: Field;
     filterRule: DashboardFilterRule;
@@ -79,7 +83,6 @@ type Props = {
 const TileFilterConfiguration: FC<Props> = ({
     tiles,
     tabs,
-    activeTabUuid,
     field,
     filterRule,
     availableTileFilters,
@@ -88,6 +91,9 @@ const TileFilterConfiguration: FC<Props> = ({
     onToggleAll,
 }) => {
     const theme = useMantineTheme();
+    const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>(
+        {},
+    );
     const sqlChartTilesMetadata = useDashboardContext(
         (c) => c.sqlChartTilesMetadata,
     );
@@ -137,16 +143,19 @@ const TileFilterConfiguration: FC<Props> = ({
                     const tile = tiles.find((t) => t.uuid === tileUuid);
                     const tabUuidFromTile = tile?.tabUuid;
 
-                    // tileConfig overrides the default filter state for a tile
-                    // if it is a field, we use that field for the filter.
-                    // If it is the empty string, the filter is disabled.
-                    const tileConfig = filterRule.tileTargets?.[tileUuid];
+                    // Use shared utility to determine filter-tile relationship
+                    const { relation, tileConfig } = getFilterTileRelation(
+                        filterRule,
+                        tileUuid,
+                    );
 
                     let selectedField;
                     let invalidField: string | undefined;
-                    if (tileConfig !== false) {
+                    if (relation !== 'disabled') {
                         selectedField =
-                            tileConfig && isDashboardFieldTarget(tileConfig)
+                            relation === 'mapped' &&
+                            tileConfig &&
+                            isDashboardFieldTarget(tileConfig)
                                 ? filters?.find(
                                       (f) =>
                                           tileConfig?.fieldId === getItemId(f),
@@ -159,6 +168,7 @@ const TileFilterConfiguration: FC<Props> = ({
 
                         // If tileConfig?.fieldId is set, but the field is not found in the filters, we mark it as invalid filter (missing dimension in model)
                         invalidField =
+                            relation === 'mapped' &&
                             tileConfig &&
                             isDashboardFieldTarget(tileConfig) &&
                             tileConfig?.fieldId !== undefined &&
@@ -201,10 +211,16 @@ const TileFilterConfiguration: FC<Props> = ({
                         }
                     }
 
+                    const hasExactMatch = field
+                        ? sortedFilters?.some((f) =>
+                              matchFieldExact(f)(field),
+                          ) ?? false
+                        : false;
+
                     return {
                         key: tileUuid + index,
                         label: tileLabel,
-                        checked: !!selectedField,
+                        checked: !!selectedField || !!invalidField,
                         disabled: !isFilterAvailable,
                         invalidField,
                         tileUuid,
@@ -217,6 +233,7 @@ const TileFilterConfiguration: FC<Props> = ({
                         sortedFilters,
                         selectedField,
                         tabUuid: tabUuidFromTile,
+                        hasExactMatch,
                     };
                 },
             );
@@ -232,21 +249,25 @@ const TileFilterConfiguration: FC<Props> = ({
                     return acc;
                 }
 
-                // tileConfig overrides the default filter state for a tile
-                // if it is a field, we use that field for the filter.
-                // If it is the empty string, the filter is disabled.
-                const tileConfig = filterRule.tileTargets?.[tileUuid];
+                // Use shared utility to determine filter-tile relationship
+                const { relation, tileConfig } = getFilterTileRelation(
+                    filterRule,
+                    tileUuid,
+                );
 
                 let selectedField;
                 let invalidField: string | undefined;
-                if (tileConfig !== false) {
+                if (relation !== 'disabled') {
                     selectedField =
-                        tileConfig && isDashboardFieldTarget(tileConfig)
+                        relation === 'mapped' &&
+                        tileConfig &&
+                        isDashboardFieldTarget(tileConfig)
                             ? columns?.find((f) => tileConfig?.fieldId === f)
                             : undefined;
 
                     // If tileConfig?.fieldId is set, but the field is not found in the filters, we mark it as invalid filter (missing dimension in model)
                     invalidField =
+                        relation === 'mapped' &&
                         tileConfig &&
                         isDashboardFieldTarget(tileConfig) &&
                         tileConfig?.fieldId !== undefined &&
@@ -268,13 +289,14 @@ const TileFilterConfiguration: FC<Props> = ({
                 acc.push({
                     key: tileUuid + index,
                     label: tileLabel,
-                    checked: !!selectedField,
+                    checked: !!selectedField || !!invalidField,
                     disabled: false,
                     invalidField,
                     tileUuid,
                     sortedFilters: columns,
                     selectedField,
                     tabUuid: tile.tabUuid,
+                    hasExactMatch: false, // SQL tiles don't have exact field match concept
                 });
                 return acc;
             },
@@ -286,7 +308,7 @@ const TileFilterConfiguration: FC<Props> = ({
         sortedTileWithFilters,
         sqlChartTilesMetadata,
         tiles,
-        filterRule.tileTargets,
+        filterRule,
         field,
         sortFieldsByMatch,
     ]);
@@ -295,168 +317,191 @@ const TileFilterConfiguration: FC<Props> = ({
         return tileTargetList.filter((v) => v.tabUuid === tabUUid);
     };
 
-    const SwitchToggle = ({
+    const TabToggle = ({
         tileList,
+        tabUuid,
         tabName,
+        label,
+        disabled,
     }: {
-        tileList: any[];
+        tileList: Array<TileWithTargetFields | TileWithTargetColumns>;
+        tabUuid: string;
         tabName: string;
+        label: string;
+        disabled?: boolean;
     }) => {
         const isAllChecked = tileList.every(({ checked }) => checked);
         const isIndeterminate =
             !isAllChecked && tileList.some(({ checked }) => checked);
         const tileUuids = tileList.map((tile) => tile.tileUuid);
         const shouldBeChecked = isAllChecked || isIndeterminate;
-        const tooltipLabel = shouldBeChecked
-            ? `Toggle off to turn filter off for tab '${tabName}'`
-            : `Turn on to turn filter on for tab '${tabName}'`;
+        const hasAnyExactMatch = tileList.some((tile) => tile.hasExactMatch);
+        // Disable if no tiles OR if unchecked and no exact matches available
+        const isDisabled = disabled || (!shouldBeChecked && !hasAnyExactMatch);
+        const isCollapsed = collapsedTabs[tabUuid] ?? true;
+        const selectedCount = tileList.filter((tile) => tile.checked).length;
+
+        const getTooltipLabel = () => {
+            if (disabled) return 'No chart tiles in this tab';
+            if (!hasAnyExactMatch && !shouldBeChecked)
+                return 'No tiles in this tab have an exact field match';
+            if (shouldBeChecked)
+                return `Uncheck to turn filter off for tab '${tabName}'`;
+            return `Check to turn filter on for tab '${tabName}'`;
+        };
+
+        const toggleCollapse = () => {
+            setCollapsedTabs((prev) => ({
+                ...prev,
+                [tabUuid]: !(prev[tabUuid] ?? true),
+            }));
+        };
 
         return (
-            <Tooltip label={tooltipLabel} position="right">
-                <Switch
-                    size="sm"
-                    checked={shouldBeChecked}
-                    styles={{
-                        label: {
-                            paddingRight: theme.spacing.xs,
-                        },
-                    }}
-                    onChange={() => {
-                        if (isIndeterminate) {
-                            onToggleAll(false, tileUuids);
-                        } else {
-                            onToggleAll(!isAllChecked, tileUuids);
-                        }
-                    }}
-                />
-            </Tooltip>
+            <Flex align="center" gap="xxs">
+                <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    onClick={toggleCollapse}
+                    aria-label={isCollapsed ? 'Expand tab' : 'Collapse tab'}
+                >
+                    <MantineIcon
+                        icon={isCollapsed ? IconChevronRight : IconChevronDown}
+                    />
+                </ActionIcon>
+                <Tooltip label={getTooltipLabel()} position="top-start">
+                    <Box>
+                        <Checkbox
+                            size="xs"
+                            checked={isDisabled ? false : shouldBeChecked}
+                            indeterminate={isDisabled ? false : isIndeterminate}
+                            disabled={isDisabled}
+                            label={
+                                <Group gap="xs">
+                                    <Text>{label}</Text>
+
+                                    {isCollapsed && (
+                                        <Text c="dimmed">
+                                            ({selectedCount} of{' '}
+                                            {tileList.length} selected)
+                                        </Text>
+                                    )}
+                                </Group>
+                            }
+                            styles={{
+                                label: {
+                                    paddingLeft: theme.spacing.xs,
+                                },
+                            }}
+                            onChange={() => {
+                                if (isIndeterminate) {
+                                    onToggleAll(false, tileUuids);
+                                } else if (isAllChecked) {
+                                    onToggleAll(false, tileUuids);
+                                } else {
+                                    // When toggling ON, only include tiles with exact field match
+                                    const exactMatchTileUuids = tileList
+                                        .filter((tile) => tile.hasExactMatch)
+                                        .map((tile) => tile.tileUuid);
+                                    onToggleAll(true, exactMatchTileUuids);
+                                }
+                            }}
+                        />
+                    </Box>
+                </Tooltip>
+            </Flex>
         );
     };
 
     const StackSubComponent = ({
         tileList,
+        isNested = false,
     }: {
         tileList: Array<TileWithTargetFields | TileWithTargetColumns>;
+        isNested?: boolean;
     }) => {
-        return (
-            <Stack spacing="md">
-                {tileList.map((value) => (
-                    <Box key={value.key}>
-                        <Tooltip
-                            label={
-                                value.invalidField
-                                    ? `The selected field ${value.invalidField} is not valid`
-                                    : 'No fields matching filter type'
-                            }
-                            position="left"
-                            disabled={
-                                !value.disabled &&
-                                value.invalidField === undefined
-                            }
-                        >
-                            <Box>
-                                <Checkbox
-                                    size="xs"
-                                    fw={500}
-                                    disabled={value.disabled}
-                                    label={
-                                        <Flex align="center" gap="xxs">
-                                            <MantineIcon
-                                                color="blue.6"
-                                                icon={getChartIcon(
-                                                    value.tileChartKind,
-                                                )}
-                                            />
-                                            <Text
-                                                color={
-                                                    value.invalidField
-                                                        ? 'red'
-                                                        : undefined
-                                                }
-                                            >
-                                                {value.label}
-                                            </Text>
-                                        </Flex>
-                                    }
-                                    styles={{
-                                        label: {
-                                            paddingLeft: theme.spacing.xs,
-                                        },
-                                    }}
-                                    checked={value.checked}
-                                    onChange={(event) => {
-                                        onChange(
-                                            event.currentTarget.checked
-                                                ? FilterActions.ADD
-                                                : FilterActions.REMOVE,
-                                            value.tileUuid,
-                                            event.currentTarget.checked &&
-                                                typeof value.selectedField ===
-                                                    'string'
-                                                ? {
-                                                      fieldId:
-                                                          value.selectedField,
-                                                      tableName: 'mock_table',
-                                                      isSqlColumn: true,
-                                                  }
-                                                : undefined,
-                                        );
-                                    }}
-                                />
-                            </Box>
-                        </Tooltip>
+        if (tileList.length === 0) {
+            return (
+                <Text
+                    size="xs"
+                    color="dimmed"
+                    mt={isNested ? 'lg' : undefined}
+                    ml={isNested ? 22 : undefined}
+                >
+                    No chart tiles in this tab
+                </Text>
+            );
+        }
 
-                        {value.sortedFilters && (
-                            <Box
-                                ml="xl"
-                                mt="sm"
-                                display={!value.checked ? 'none' : 'auto'}
+        return (
+            <Stack
+                spacing="md"
+                mt={isNested ? 'lg' : undefined}
+                ml={isNested ? 22 : undefined}
+            >
+                {tileList.map((value) => {
+                    // Only disable if no type-compatible fields AND not already checked
+                    // (allow unchecking even when no compatible fields)
+                    const isCheckboxDisabled = value.disabled && !value.checked;
+                    const hasFiltersToShow =
+                        value.sortedFilters && value.sortedFilters.length > 0;
+
+                    return (
+                        <Box key={value.key} data-testid="tile-filter-item">
+                            <Tooltip
+                                label={
+                                    value.invalidField
+                                        ? `The selected field '${value.invalidField}' is not available in this chart`
+                                        : 'No fields matching filter type'
+                                }
+                                position="top-start"
+                                disabled={
+                                    !isCheckboxDisabled &&
+                                    value.invalidField === undefined
+                                }
                             >
-                                {isField(value.selectedField) ? (
-                                    <FieldSelect
+                                <Box>
+                                    <Checkbox
                                         size="xs"
-                                        disabled={!value.checked}
-                                        item={value.selectedField}
-                                        items={value.sortedFilters as Field[]}
-                                        withinPortal={
-                                            popoverProps?.withinPortal
+                                        fw={500}
+                                        disabled={isCheckboxDisabled}
+                                        label={
+                                            <Flex align="center" gap="xxs">
+                                                <MantineIcon
+                                                    color="blue.6"
+                                                    icon={getChartIcon(
+                                                        value.tileChartKind,
+                                                    )}
+                                                />
+                                                <Text
+                                                    color={
+                                                        value.invalidField
+                                                            ? 'red'
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {value.label}
+                                                </Text>
+                                            </Flex>
                                         }
-                                        onDropdownOpen={popoverProps?.onOpen}
-                                        onDropdownClose={popoverProps?.onClose}
-                                        onChange={(newField) => {
+                                        styles={{
+                                            label: {
+                                                paddingLeft: theme.spacing.xs,
+                                            },
+                                        }}
+                                        checked={value.checked}
+                                        onChange={(event) => {
                                             onChange(
-                                                FilterActions.ADD,
+                                                event.currentTarget.checked
+                                                    ? FilterActions.ADD
+                                                    : FilterActions.REMOVE,
                                                 value.tileUuid,
-                                                newField
+                                                event.currentTarget.checked &&
+                                                    typeof value.selectedField ===
+                                                        'string'
                                                     ? {
                                                           fieldId:
-                                                              getItemId(
-                                                                  newField,
-                                                              ),
-                                                          tableName:
-                                                              newField.table,
-                                                      }
-                                                    : undefined,
-                                            );
-                                        }}
-                                    />
-                                ) : (
-                                    <Select
-                                        w="100%"
-                                        size="xs"
-                                        searchable
-                                        dropdownComponent="div"
-                                        icon={undefined}
-                                        allowDeselect={false}
-                                        value={value.selectedField}
-                                        data={value.sortedFilters as string[]}
-                                        onChange={(newField) => {
-                                            onChange(
-                                                FilterActions.ADD,
-                                                value.tileUuid,
-                                                newField
-                                                    ? {
-                                                          fieldId: newField,
+                                                              value.selectedField,
                                                           tableName:
                                                               'mock_table',
                                                           isSqlColumn: true,
@@ -465,11 +510,82 @@ const TileFilterConfiguration: FC<Props> = ({
                                             );
                                         }}
                                     />
-                                )}
-                            </Box>
-                        )}
-                    </Box>
-                ))}
+                                </Box>
+                            </Tooltip>
+
+                            {hasFiltersToShow && (
+                                <Box
+                                    ml="xl"
+                                    mt="sm"
+                                    display={!value.checked ? 'none' : 'auto'}
+                                >
+                                    {isField(value.selectedField) ? (
+                                        <FieldSelect
+                                            size="xs"
+                                            disabled={!value.checked}
+                                            item={value.selectedField}
+                                            items={
+                                                value.sortedFilters as Field[]
+                                            }
+                                            withinPortal={
+                                                popoverProps?.withinPortal
+                                            }
+                                            onDropdownOpen={
+                                                popoverProps?.onOpen
+                                            }
+                                            onDropdownClose={
+                                                popoverProps?.onClose
+                                            }
+                                            onChange={(newField) => {
+                                                onChange(
+                                                    FilterActions.ADD,
+                                                    value.tileUuid,
+                                                    newField
+                                                        ? {
+                                                              fieldId:
+                                                                  getItemId(
+                                                                      newField,
+                                                                  ),
+                                                              tableName:
+                                                                  newField.table,
+                                                          }
+                                                        : undefined,
+                                                );
+                                            }}
+                                        />
+                                    ) : (
+                                        <Select
+                                            w="100%"
+                                            size="xs"
+                                            searchable
+                                            dropdownComponent="div"
+                                            icon={undefined}
+                                            allowDeselect={false}
+                                            value={value.selectedField}
+                                            data={
+                                                value.sortedFilters as string[]
+                                            }
+                                            onChange={(newField) => {
+                                                onChange(
+                                                    FilterActions.ADD,
+                                                    value.tileUuid,
+                                                    newField
+                                                        ? {
+                                                              fieldId: newField,
+                                                              tableName:
+                                                                  'mock_table',
+                                                              isSqlColumn: true,
+                                                          }
+                                                        : undefined,
+                                                );
+                                            }}
+                                        />
+                                    )}
+                                </Box>
+                            )}
+                        </Box>
+                    );
+                })}
             </Stack>
         );
     };
@@ -484,40 +600,35 @@ const TileFilterConfiguration: FC<Props> = ({
     );
 
     const tileList =
-        tabs.length > 0 ? (
-            <Accordion defaultValue={activeTabUuid} variant="contained">
-                {tabs.map((tab, index) => (
-                    <Flex align="center" gap="sm" key={index}>
-                        <Accordion.Item
-                            key={index}
-                            value={tab.uuid}
-                            style={{ flexGrow: 1 }}
-                        >
-                            <Accordion.Control
-                                fw={500}
-                                style={{ fontSize: '14px', fontWeight: 500 }}
-                            >
-                                {tab.name}
-                            </Accordion.Control>
-                            <Accordion.Panel>
-                                <StackSubComponent
-                                    tileList={filteredTileTargetList(tab.uuid)}
-                                />
-                            </Accordion.Panel>
-                        </Accordion.Item>
-                        <SwitchToggle
-                            tileList={filteredTileTargetList(tab.uuid)}
+        tabs.length > 1 ? (
+            tabs.map((tab) => {
+                const tabTiles = filteredTileTargetList(tab.uuid);
+                const isCollapsed = collapsedTabs[tab.uuid] ?? true;
+                return (
+                    <div key={tab.uuid}>
+                        <TabToggle
+                            tileList={tabTiles}
+                            tabUuid={tab.uuid}
                             tabName={tab.name}
+                            label={tab.name}
+                            disabled={tabTiles.length === 0}
                         />
-                    </Flex>
-                ))}
-            </Accordion>
+
+                        <Collapse in={!isCollapsed}>
+                            <StackSubComponent
+                                tileList={tabTiles}
+                                isNested={true}
+                            />
+                        </Collapse>
+                    </div>
+                );
+            })
         ) : (
-            <StackSubComponent tileList={tileTargetList} />
+            <StackSubComponent tileList={tileTargetList} isNested={false} />
         );
 
     return (
-        <Stack spacing="lg">
+        <Stack spacing="xl" mah={600} style={{ overflow: 'auto' }}>
             <Checkbox
                 size="xs"
                 checked={isAllChecked}
@@ -541,8 +652,14 @@ const TileFilterConfiguration: FC<Props> = ({
                     const tileUuids = tileTargetList.map((v) => v.tileUuid);
                     if (isIndeterminate) {
                         onToggleAll(false, tileUuids);
+                    } else if (isAllChecked) {
+                        onToggleAll(false, tileUuids);
                     } else {
-                        onToggleAll(!isAllChecked, tileUuids);
+                        // When toggling ON, only include tiles with exact field match
+                        const exactMatchTileUuids = tileTargetList
+                            .filter((v) => v.hasExactMatch)
+                            .map((v) => v.tileUuid);
+                        onToggleAll(true, exactMatchTileUuids);
                     }
                 }}
             />

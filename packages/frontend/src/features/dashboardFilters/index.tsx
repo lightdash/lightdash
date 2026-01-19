@@ -18,7 +18,7 @@ interface Props {
     activeTabUuid: string | undefined;
 }
 
-const DashboardFiltersV2: FC<Props> = ({ isEditMode, activeTabUuid }) => {
+const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const { track } = useTracking();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [openPopoverId, setPopoverId] = useState<string>();
@@ -99,4 +99,4 @@ const DashboardFiltersV2: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     );
 };
 
-export default DashboardFiltersV2;
+export default DashboardFilters;

@@ -52,7 +52,6 @@ import {
 interface Props {
     tiles: DashboardTile[];
     tabs: DashboardTab[];
-    activeTabUuid: string | undefined;
     field?: FilterableDimension;
     fields?: FilterableDimension[];
     availableTileFilters: Record<string, FilterableDimension[]>;
@@ -82,7 +81,6 @@ const FilterConfiguration: FC<Props> = ({
     isTemporary = false,
     tiles,
     tabs,
-    activeTabUuid,
     field,
     fields,
     availableTileFilters,
@@ -162,17 +160,20 @@ const FilterConfiguration: FC<Props> = ({
     const handleChangeColumn = useCallback(
         (newColumn: ResultColumn) => {
             const isCreatingTemporary = isCreatingNew && !isEditMode;
+
+            const allTileColumns = Object.fromEntries(
+                Object.entries(sqlChartTilesMetadata).map(
+                    ([tileUuid, tileMetadata]) => [
+                        tileUuid,
+                        tileMetadata.columns,
+                    ],
+                ),
+            );
+
             setDraftFilterRule(
                 createDashboardFilterRuleFromSqlColumn({
                     column: newColumn,
-                    availableTileColumns: Object.fromEntries(
-                        Object.entries(sqlChartTilesMetadata).map(
-                            ([tileUuid, tileMetadata]) => [
-                                tileUuid,
-                                tileMetadata.columns,
-                            ],
-                        ),
-                    ),
+                    availableTileColumns: allTileColumns,
                     isTemporary: isCreatingTemporary,
                 }),
             );
@@ -344,14 +345,20 @@ const FilterConfiguration: FC<Props> = ({
                         </Tooltip>
 
                         <Tooltip
-                            label="Select tiles to apply filter to and which field to filter by"
+                            label={
+                                tabs.length > 1
+                                    ? 'Select which tabs and chart tiles this filter applies to'
+                                    : 'Select tiles to apply filter to and which field to filter by'
+                            }
                             position="top-start"
                         >
                             <Tabs.Tab
                                 value={FilterTabs.TILES}
                                 disabled={!draftFilterRule}
                             >
-                                Chart tiles
+                                {tabs.length > 1
+                                    ? 'Tabs & chart tiles'
+                                    : 'Chart tiles'}
                             </Tabs.Tab>
                         </Tooltip>
                     </Tabs.List>
@@ -468,7 +475,6 @@ const FilterConfiguration: FC<Props> = ({
                         <TileFilterConfiguration
                             field={selectedField}
                             tabs={tabs}
-                            activeTabUuid={activeTabUuid}
                             filterRule={draftFilterRule}
                             popoverProps={popoverProps}
                             tiles={tiles}

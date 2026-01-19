@@ -16,7 +16,7 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import FilterGroupSeparator from './FilterGroupSeparator';
-import DashboardFiltersV2 from './index';
+import DashboardFilters from './index';
 
 type Props = {
     isEditMode: boolean;
@@ -97,7 +97,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                     </div>
                                 }
                             />
-                            <DashboardFiltersV2
+                            <DashboardFilters
                                 isEditMode={isEditMode}
                                 activeTabUuid={activeTabUuid}
                             />

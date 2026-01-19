@@ -7,18 +7,19 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
-    createStyles,
     Indicator,
     Popover,
     Text,
     Tooltip,
-} from '@mantine/core';
-import { useDisclosure, useId } from '@mantine/hooks';
+} from '@mantine-8/core';
+import { useDisclosure, useId } from '@mantine-8/hooks';
 import { IconGripVertical, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import {
+    formatDisplayValue,
     getConditionalRuleLabel,
     getConditionalRuleLabelFromItem,
     getFilterRuleTables,
@@ -27,28 +28,16 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import FilterConfiguration from '../FilterConfiguration';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
-
-const useDashboardFilterStyles = createStyles((theme) => ({
-    unsetRequiredFilter: {
-        borderStyle: 'solid',
-        borderWidth: '3px',
-    },
-    inactiveFilter: {
-        borderStyle: 'dashed',
-        borderWidth: '1px',
-        borderColor: theme.fn.rgba(theme.colors.ldGray[5], 0.7),
-        backgroundColor: theme.fn.rgba(theme.colors.background[0], 0.7),
-    },
-}));
+import classes from './Filter.module.css';
 
 type Props = {
     isEditMode: boolean;
+    isOrphaned: boolean;
+    orphanedTooltip?: string;
     isTemporary?: boolean;
     field: FilterableDimension | undefined;
     filterRule: DashboardFilterRule;
-    appliesToTabs: String[];
     openPopoverId: string | undefined;
-    activeTabUuid: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
     onUpdate: (filter: DashboardFilterRule) => void;
@@ -57,18 +46,17 @@ type Props = {
 
 const Filter: FC<Props> = ({
     isEditMode,
+    isOrphaned,
+    orphanedTooltip = 'This filter is not applied to any tiles',
     isTemporary,
     field,
     filterRule,
-    appliesToTabs,
     openPopoverId,
-    activeTabUuid,
     onPopoverOpen,
     onPopoverClose,
     onUpdate,
     onRemove,
 }) => {
-    const { classes } = useDashboardFilterStyles();
     const popoverId = useId();
 
     const dashboard = useDashboardContext((c) => c.dashboard);
@@ -148,26 +136,53 @@ const Filter: FC<Props> = ({
         return getFilterRuleTables(filterRule, field, allFilterableFields);
     }, [filterRule, field, allFilterableFields]);
 
+    // Determine if this is a date/timestamp filter that shouldn't use truncated display
+    // Date filters have formatted values like "2 months" that shouldn't be truncated
+    const isDateFilter = useMemo(() => {
+        const type =
+            field?.type ??
+            filterRule.target.fallbackType ??
+            DimensionType.STRING;
+        return type === DimensionType.DATE || type === DimensionType.TIMESTAMP;
+    }, [field?.type, filterRule.target.fallbackType]);
+
+    // Truncated values display - show max 2 values with "+N" badge
+    // Skip for date filters since their values include units (e.g., "2 months")
+    const MAX_DISPLAYED_VALUES = 2;
+    const truncatedValuesDisplay = useMemo(() => {
+        // Don't use truncated display for date filters - they have formatted values
+        if (isDateFilter) {
+            return {
+                displayedValues: [],
+                additionalValues: [],
+                hasMore: false,
+            };
+        }
+
+        const values = filterRule.values;
+        if (!values || values.length === 0) {
+            return {
+                displayedValues: [],
+                additionalValues: [],
+                hasMore: false,
+            };
+        }
+
+        const formattedValues = values.map((v) =>
+            formatDisplayValue(String(v)),
+        );
+        const displayedValues = formattedValues.slice(0, MAX_DISPLAYED_VALUES);
+        const additionalValues = formattedValues.slice(MAX_DISPLAYED_VALUES);
+
+        return {
+            displayedValues,
+            additionalValues,
+            hasMore: additionalValues.length > 0,
+        };
+    }, [filterRule.values, isDateFilter]);
+
     const hasUnsetRequiredFilter =
         filterRule.required && !hasFilterValueSet(filterRule);
-
-    const inactiveFilterInfo = useMemo(() => {
-        if (activeTabUuid && !appliesToTabs.includes(activeTabUuid)) {
-            const appliedTabList = appliesToTabs
-                .map((tabId) => {
-                    return `'${
-                        dashboardTabs.find((tab) => tab.uuid === tabId)?.name
-                    }'`;
-                })
-                .join(', ');
-
-            return appliedTabList
-                ? `This filter only applies to tab${
-                      appliesToTabs.length === 1 ? '' : 's'
-                  }: ${appliedTabList}`
-                : 'This filter is not currently applied to any tabs';
-        }
-    }, [activeTabUuid, appliesToTabs, dashboardTabs]);
 
     const handleClose = useCallback(() => {
         if (isPopoverOpen) onPopoverClose();
@@ -191,6 +206,7 @@ const Filter: FC<Props> = ({
                 closeOnEscape={!isSubPopoverOpen}
                 closeOnClickOutside={!isSubPopoverOpen}
                 onClose={handleClose}
+                onDismiss={!isSubPopoverOpen ? handleClose : undefined}
                 disabled={disabled}
                 transitionProps={{ transition: 'pop-top-left' }}
                 withArrow
@@ -202,54 +218,50 @@ const Filter: FC<Props> = ({
                 <Popover.Target>
                     <Indicator
                         inline
-                        position="top-end"
-                        size={16}
+                        classNames={{
+                            indicator: classes.indicator,
+                        }}
+                        position="top-start"
                         disabled={!hasUnsetRequiredFilter}
                         label={
                             <Tooltip
                                 fz="xs"
                                 label="Set a value to run this dashboard"
                             >
-                                <Text fz="9px" fw={500}>
+                                <Text fz="10px" fw={500}>
                                     Required
                                 </Text>
                             </Tooltip>
                         }
-                        styles={(theme) => ({
-                            common: {
-                                top: -5,
-                                right: 24,
-                                borderRadius: theme.radius.xs,
-                                borderBottomRightRadius: 0,
-                                borderBottomLeftRadius: 0,
-                            },
-                        })}
                     >
                         <Tooltip
                             fz="xs"
-                            label={inactiveFilterInfo}
-                            disabled={!inactiveFilterInfo}
+                            label={orphanedTooltip}
+                            disabled={!isOrphaned}
                             withinPortal
                         >
                             <Button
                                 pos="relative"
                                 size="xs"
-                                radius="md"
                                 variant={
                                     isTemporary || hasUnsetRequiredFilter
                                         ? 'outline'
                                         : 'default'
                                 }
-                                className={`${
+                                classNames={{
+                                    label: classes.label,
+                                }}
+                                className={`${classes.button} ${
                                     hasUnsetRequiredFilter
                                         ? classes.unsetRequiredFilter
                                         : ''
-                                } ${
-                                    inactiveFilterInfo
-                                        ? classes.inactiveFilter
-                                        : ''
-                                }`}
-                                leftIcon={
+                                } ${isOrphaned ? classes.inactiveFilter : ''}`}
+                                pr={
+                                    truncatedValuesDisplay.hasMore
+                                        ? 6
+                                        : undefined
+                                }
+                                leftSection={
                                     isDraggable && (
                                         <MantineIcon
                                             icon={IconGripVertical}
@@ -258,11 +270,14 @@ const Filter: FC<Props> = ({
                                         />
                                     )
                                 }
-                                rightIcon={
+                                rightSection={
                                     (isEditMode || isTemporary) && (
                                         <ActionIcon
                                             onClick={onRemove}
                                             size="xs"
+                                            color="dark"
+                                            radius="xl"
+                                            variant="subtle"
                                         >
                                             <MantineIcon
                                                 size="sm"
@@ -271,14 +286,6 @@ const Filter: FC<Props> = ({
                                         </ActionIcon>
                                     )
                                 }
-                                styles={{
-                                    label: {
-                                        maxWidth: '800px',
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                    },
-                                }}
                                 onClick={() =>
                                     isPopoverOpen
                                         ? handleClose()
@@ -286,7 +293,7 @@ const Filter: FC<Props> = ({
                                 }
                             >
                                 <Box
-                                    sx={{
+                                    style={{
                                         maxWidth: '100%',
                                         overflow: 'hidden',
                                     }}
@@ -302,12 +309,16 @@ const Filter: FC<Props> = ({
                                             openDelay={1000}
                                             offset={8}
                                             label={
-                                                <Text fz="xs">
+                                                <Text fz="inherit">
                                                     {filterRuleTables?.length ===
                                                     1
                                                         ? 'Table: '
                                                         : 'Tables: '}
-                                                    <Text span fw={600}>
+                                                    <Text
+                                                        span
+                                                        fw={600}
+                                                        fz="inherit"
+                                                    >
                                                         {filterRuleTables?.join(
                                                             ', ',
                                                         )}
@@ -315,7 +326,12 @@ const Filter: FC<Props> = ({
                                                 </Text>
                                             }
                                         >
-                                            <Text fw={600} span truncate>
+                                            <Text
+                                                fz="inherit"
+                                                fw={600}
+                                                span
+                                                truncate
+                                            >
                                                 {filterRule?.label ||
                                                     filterRuleLabels?.field}{' '}
                                             </Text>
@@ -323,7 +339,8 @@ const Filter: FC<Props> = ({
                                         {filterRule?.disabled ? (
                                             <Text
                                                 span
-                                                color="ldGray.6"
+                                                fz="inherit"
+                                                c="ldGray.6"
                                                 truncate
                                             >
                                                 is any value
@@ -332,14 +349,82 @@ const Filter: FC<Props> = ({
                                             <>
                                                 <Text
                                                     span
-                                                    color="ldGray.7"
+                                                    fz="inherit"
+                                                    c="dimmed"
                                                     truncate
                                                 >
                                                     {filterRuleLabels?.operator}{' '}
                                                 </Text>
-                                                <Text fw={700} span truncate>
-                                                    {filterRuleLabels?.value}
+                                                <Text
+                                                    fw={500}
+                                                    fz="inherit"
+                                                    span
+                                                    truncate
+                                                >
+                                                    {truncatedValuesDisplay
+                                                        .displayedValues
+                                                        .length > 0
+                                                        ? truncatedValuesDisplay.displayedValues.join(
+                                                              ', ',
+                                                          )
+                                                        : filterRuleLabels?.value}
                                                 </Text>
+                                                {truncatedValuesDisplay.hasMore && (
+                                                    <Tooltip
+                                                        withinPortal
+                                                        position="bottom"
+                                                        label={
+                                                            <Box>
+                                                                <Text
+                                                                    fz="xs"
+                                                                    fw={500}
+                                                                    c="dimmed"
+                                                                >
+                                                                    Additional
+                                                                    values (
+                                                                    {
+                                                                        truncatedValuesDisplay
+                                                                            .additionalValues
+                                                                            .length
+                                                                    }
+                                                                    )
+                                                                </Text>
+                                                                {truncatedValuesDisplay.additionalValues.map(
+                                                                    (
+                                                                        val,
+                                                                        idx,
+                                                                    ) => (
+                                                                        <Text
+                                                                            key={
+                                                                                idx
+                                                                            }
+                                                                            fz="xs"
+                                                                        >
+                                                                            •{' '}
+                                                                            {
+                                                                                val
+                                                                            }
+                                                                        </Text>
+                                                                    ),
+                                                                )}
+                                                            </Box>
+                                                        }
+                                                    >
+                                                        <Badge
+                                                            size="sm"
+                                                            variant="light"
+                                                            color="gray"
+                                                            ml={4}
+                                                        >
+                                                            +
+                                                            {
+                                                                truncatedValuesDisplay
+                                                                    .additionalValues
+                                                                    .length
+                                                            }
+                                                        </Badge>
+                                                    </Tooltip>
+                                                )}
                                             </>
                                         )}
                                     </Text>
@@ -359,7 +444,6 @@ const Filter: FC<Props> = ({
                             fields={allFilterableFields || []}
                             tiles={dashboardTiles}
                             tabs={dashboardTabs}
-                            activeTabUuid={activeTabUuid}
                             originalFilterRule={originalFilterRule}
                             availableTileFilters={
                                 filterableFieldsByTileUuid ?? {}
