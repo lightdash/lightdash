@@ -34,6 +34,72 @@ import { getFormattedValue } from './valueFormatter';
 dayjs.extend(utc);
 
 /**
+ * Translates user pivot refs (metric.dimension.value) to SQL pivot column names.
+ * e.g., "orders_unique_order_count.orders_status.completed" -> "orders_unique_order_count_any_completed"
+ *
+ * User ref format: metric.dim1.val1 or metric.dim1.val1.dim2.val2...
+ * Parts length must be odd (metric + pairs of dimension.value)
+ */
+export function translatePivotRef(
+    userRef: string,
+    pivotValuesColumnsMap: Record<string, PivotValuesColumn> | undefined,
+): string | undefined {
+    if (!pivotValuesColumnsMap) return undefined;
+
+    const parts = userRef.split('.');
+    if (parts.length < 3 || parts.length % 2 !== 1) return undefined;
+
+    const metric = parts[0];
+    const pivotPairs: { field: string; value: string }[] = [];
+    for (let i = 1; i < parts.length; i += 2) {
+        pivotPairs.push({ field: parts[i], value: parts[i + 1] });
+    }
+
+    const match = Object.entries(pivotValuesColumnsMap).find(([, column]) => {
+        if (column.referenceField !== metric) return false;
+        if (column.pivotValues.length !== pivotPairs.length) return false;
+        return pivotPairs.every((pair) =>
+            column.pivotValues.some(
+                (pv) =>
+                    pv.referenceField === pair.field &&
+                    String(pv.value) === pair.value,
+            ),
+        );
+    });
+    return match?.[0];
+}
+
+/**
+ * Resolves the format key for pivot refs.
+ * For SQL pivot: key is already correct (SQL column name).
+ * For legacy pivot: extracts base field from ref (e.g., "metric.dim.val" -> "metric").
+ */
+function resolveFormatKey(
+    formatKey: string,
+    itemsMap: ItemsMap,
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn>,
+): string {
+    if (pivotValuesColumnsMap?.[formatKey] || itemsMap[formatKey]) {
+        return formatKey;
+    }
+    const parts = formatKey.split('.');
+    if (parts.length >= 3 && itemsMap[parts[0]]) {
+        return parts[0];
+    }
+    return formatKey;
+}
+
+/**
+ * Extracts raw value from a row cell (handles both ResultRow and flat formats).
+ */
+function extractCellValue(cell: unknown): unknown {
+    if (cell && typeof cell === 'object' && 'value' in cell) {
+        return (cell as { value?: { raw?: unknown } }).value?.raw;
+    }
+    return cell;
+}
+
+/**
  * Compute a previous period date based on the current date, granularity, and offset
  */
 const computePreviousPeriodDate = (
@@ -957,22 +1023,13 @@ export const buildCartesianTooltipFormatter =
                 const xAxisIndex = ctx.flipAxes ? 1 : 0;
                 const xAxisValue = firstValue[xAxisIndex];
                 // Get all rows matching the x-axis value (there may be multiple due to pivoting)
-                // Note: rows can be either ResultRow format ({ field: { value: { raw } } })
-                // or flat format ({ field: value }) depending on the data source
                 const matchingRows =
                     rows && xFieldId
-                        ? rows.filter((row) => {
-                              const cell = row[xFieldId];
-                              // Handle both formats: flat value or ResultRow structure
-                              const cellValue =
-                                  cell &&
-                                  typeof cell === 'object' &&
-                                  'value' in cell
-                                      ? (cell as { value?: { raw?: unknown } })
-                                            .value?.raw
-                                      : cell;
-                              return cellValue === xAxisValue;
-                          })
+                        ? rows.filter(
+                              (row) =>
+                                  extractCellValue(row[xFieldId]) ===
+                                  xAxisValue,
+                          )
                         : [];
 
                 fields?.forEach((field) => {
@@ -981,31 +1038,40 @@ export const buildCartesianTooltipFormatter =
                         firstParam.dimensionNames?.indexOf(ref);
 
                     let val: unknown;
+                    let formatKey = ref;
                     if (dimensionIndex !== undefined && dimensionIndex >= 0) {
                         val = unwrapValue(firstValue[dimensionIndex]);
                     } else {
-                        // Fallback: search through all matching rows to find the field value
+                        // Fallback: search through matching rows
+                        // Try direct lookup first, then translated pivot ref for SQL pivot support
+                        const translatedKey = translatePivotRef(
+                            ref,
+                            pivotValuesColumnsMap,
+                        );
+                        const keysToTry = [ref];
+                        if (translatedKey) keysToTry.push(translatedKey);
+
                         for (const row of matchingRows) {
-                            const cell = row[ref];
-                            // Handle both formats: flat value or ResultRow structure
-                            const cellValue =
-                                cell &&
-                                typeof cell === 'object' &&
-                                'value' in cell
-                                    ? (cell as { value?: { raw?: unknown } })
-                                          .value?.raw
-                                    : cell;
-                            if (cellValue !== undefined) {
-                                val = cellValue;
-                                break;
+                            for (const key of keysToTry) {
+                                const cellValue = extractCellValue(row[key]);
+                                if (cellValue !== undefined) {
+                                    val = cellValue;
+                                    formatKey = key;
+                                    break;
+                                }
                             }
+                            if (val !== undefined) break;
                         }
                     }
 
                     if (val !== undefined) {
                         const formatted = getFormattedValue(
                             val,
-                            ref,
+                            resolveFormatKey(
+                                formatKey,
+                                itemsMap,
+                                pivotValuesColumnsMap,
+                            ),
                             itemsMap,
                             undefined,
                             pivotValuesColumnsMap,
@@ -1024,12 +1090,35 @@ export const buildCartesianTooltipFormatter =
                 // Dataset mode: direct property access
                 fields?.forEach((field) => {
                     const ref = field.slice(2, -1);
-                    const val = unwrapValue(
+                    let val = unwrapValue(
                         firstValue[ref as keyof typeof firstValue],
                     );
+                    let formatKey = ref;
+                    // Fallback: try translated pivot ref for SQL pivot support
+                    // TODO :: remove fallback logic when USE_SQL_PIVOT_RESULTS flag is removed
+                    if (val === undefined) {
+                        const translatedKey = translatePivotRef(
+                            ref,
+                            pivotValuesColumnsMap,
+                        );
+                        if (translatedKey) {
+                            val = unwrapValue(
+                                firstValue[
+                                    translatedKey as keyof typeof firstValue
+                                ],
+                            );
+                            if (val !== undefined) {
+                                formatKey = translatedKey;
+                            }
+                        }
+                    }
                     const formatted = getFormattedValue(
                         val,
-                        ref,
+                        resolveFormatKey(
+                            formatKey,
+                            itemsMap,
+                            pivotValuesColumnsMap,
+                        ),
                         itemsMap,
                         undefined,
                         pivotValuesColumnsMap,
