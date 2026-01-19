@@ -58,15 +58,16 @@ import GSheetsSvg from '../../svgs/google-sheets.svg?react';
 import SlackSvg from '../../svgs/slack.svg?react';
 import MantineIcon from '../common/MantineIcon';
 import ReassignSchedulerOwnerModal from './ReassignSchedulerOwnerModal';
-import { SchedulerTopToolbar } from './SchedulerTopToolbar';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
+import { SchedulersViewTab } from './SchedulersViewConstants';
 import {
     getSchedulerIcon,
     getSchedulerLink,
     type SchedulerItem,
 } from './SchedulersViewUtils';
+import { SchedulerTopToolbar } from './SchedulerTopToolbar';
 
-interface SchedulersTableProps {
+interface ProjectSchedulersTableProps {
     projectUuid: string;
     getSlackChannelName: (channelId: string) => string | null;
     onSlackChannelIdsChange?: (channelIds: string[]) => void;
@@ -95,7 +96,7 @@ const getRunStatusConfig = (status: SchedulerRunStatus) => {
     }
 };
 
-const SchedulersTable: FC<SchedulersTableProps> = ({
+const ProjectSchedulersTable: FC<ProjectSchedulersTableProps> = ({
     projectUuid,
     getSlackChannelName,
     onSlackChannelIdsChange,
@@ -136,7 +137,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         300,
     );
 
-    // Use infinite query for pagination
     const { data, fetchNextPage, isError, isFetching, isLoading } =
         usePaginatedSchedulers({
             projectUuid,
@@ -157,8 +157,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     const totalFetched = flatData.length;
 
     // Temporary workaround to resolve a memoization issue with react-mantine-table.
-    // In certain scenarios, the content fails to render properly even when the data is updated.
-    // This issue may be addressed in a future library update.
     const [tableData, setTableData] = useState<SchedulerItem[]>([]);
     useEffect(() => {
         setTableData(flatData);
@@ -213,7 +211,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
             if (containerRefElement) {
                 const { scrollHeight, scrollTop, clientHeight } =
                     containerRefElement;
-                // Fetch more when within 400px of bottom
                 if (
                     scrollHeight - scrollTop - clientHeight < 400 &&
                     !isFetching &&
@@ -448,6 +445,8 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                             }
                         >
                             <Badge
+                                component="button"
+                                type="button"
                                 variant="light"
                                 size="sm"
                                 radius="sm"
@@ -463,7 +462,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                                 style={{ cursor: 'pointer' }}
                                 onClick={() => {
                                     setSearchParams({
-                                        tab: 'run-history',
+                                        tab: SchedulersViewTab.RUN_HISTORY,
                                         schedulerUuid: item.schedulerUuid,
                                     });
                                 }}
@@ -613,7 +612,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                     );
                 },
             },
-
             {
                 accessorKey: 'createdAt',
                 header: 'Created',
@@ -765,7 +763,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                     '&:hover': canResize
                         ? {
                               borderRight: !isAnyColumnResizing
-                                  ? `2px solid ${theme.colors.blue[3]} !important` // This is needed to override the default inline styles
+                                  ? `2px solid ${theme.colors.blue[3]} !important`
                                   : undefined,
                               transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                           }
@@ -875,4 +873,4 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     );
 };
 
-export default SchedulersTable;
+export default ProjectSchedulersTable;

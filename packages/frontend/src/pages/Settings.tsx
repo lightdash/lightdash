@@ -51,6 +51,7 @@ import ProjectManagementPanel from '../components/UserSettings/ProjectManagement
 import SlackSettingsPanel from '../components/UserSettings/SlackSettingsPanel';
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
+import UserScheduledDeliveriesPanel from '../components/UserSettings/UserScheduledDeliveriesPanel';
 import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -208,6 +209,19 @@ const Settings: FC = () => {
                 </Stack>
             ),
         });
+        if (user?.ability.can('create', 'ScheduledDeliveries')) {
+            allowedRoutes.push({
+                path: '/userScheduledDeliveries',
+                element: (
+                    <Stack gap="xl">
+                        <SettingsGridCard>
+                            <Title order={4}>My scheduled deliveries</Title>
+                        </SettingsGridCard>
+                        <UserScheduledDeliveriesPanel />
+                    </Stack>
+                ),
+            });
+        }
         if (user?.ability.can('manage', 'PersonalAccessToken')) {
             allowedRoutes.push({
                 path: '/organization',
@@ -426,6 +440,12 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 {
+                    path: '/generalSettings/userScheduledDeliveries',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
                     path: '/generalSettings/projectManagement/:projectUuid/compilationHistory',
                 },
                 location.pathname,
@@ -521,6 +541,23 @@ const Settings: FC = () => {
                                         <MantineIcon icon={IconDatabaseCog} />
                                     }
                                 />
+
+                                {user.ability.can(
+                                    'create',
+                                    'ScheduledDeliveries',
+                                ) && (
+                                    <RouterNavLink
+                                        label="My scheduled deliveries"
+                                        exact
+                                        to="/generalSettings/userScheduledDeliveries"
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconCalendarStats}
+                                            />
+                                        }
+                                    />
+                                )}
+
                                 {user.ability.can(
                                     'manage',
                                     'PersonalAccessToken',

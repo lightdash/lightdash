@@ -37,6 +37,7 @@ import {
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
 import { DashboardsTableName } from '../../database/entities/dashboards';
+import { OrganizationTableName } from '../../database/entities/organizations';
 import { ProjectTableName } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import {
@@ -60,6 +61,7 @@ type SelectScheduler = SchedulerDb & {
     created_by_name: string | null;
     saved_chart_name: string | null;
     dashboard_name: string | null;
+    project_uuid?: string | null;
 };
 
 type SchedulerModelArguments = {
@@ -105,6 +107,7 @@ export class SchedulerModel {
             notificationFrequency: scheduler.notification_frequency,
             selectedTabs: scheduler.selected_tabs,
             includeLinks: scheduler.include_links,
+            projectUuid: scheduler.project_uuid ?? undefined,
         } as Scheduler;
     }
 
@@ -184,6 +187,91 @@ export class SchedulerModel {
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${SchedulerTableName}.dashboard_uuid`,
             );
+    }
+
+    /**
+     * Extended base query that includes project_uuid derivation.
+     * Used for user-scoped queries where schedulers span multiple projects.
+     */
+    static getBaseSchedulerQueryWithProject(db: Knex) {
+        // Alias for the space joined via saved_charts (for chart schedulers)
+        const chartSpaceAlias = 'chart_space';
+        // Alias for the space joined via dashboards (for dashboard schedulers)
+        const dashboardSpaceAlias = 'dashboard_space';
+        // Alias for the space joined via saved_charts.dashboard_uuid (for charts in dashboards)
+        const chartDashboardSpaceAlias = 'chart_dashboard_space';
+
+        return (
+            db(SchedulerTableName)
+                .select<SelectScheduler[]>(
+                    `${SchedulerTableName}.*`,
+                    db.raw(
+                        `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_name`,
+                    ),
+                    `${SavedChartsTableName}.name as saved_chart_name`,
+                    `${DashboardsTableName}.name as dashboard_name`,
+                    // Get project_uuid through the appropriate path:
+                    // 1. For chart schedulers with chart in a space: chart -> space -> project
+                    // 2. For chart schedulers with chart in a dashboard: chart -> dashboard -> space -> project
+                    // 3. For dashboard schedulers: dashboard -> space -> project
+                    db.raw(
+                        `COALESCE(chart_project.project_uuid, chart_dashboard_project.project_uuid, dashboard_project.project_uuid) as project_uuid`,
+                    ),
+                )
+                .leftJoin(
+                    UserTableName,
+                    `${UserTableName}.user_uuid`,
+                    `${SchedulerTableName}.created_by`,
+                )
+                .leftJoin(
+                    SavedChartsTableName,
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    `${SchedulerTableName}.saved_chart_uuid`,
+                )
+                .leftJoin(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    `${SchedulerTableName}.dashboard_uuid`,
+                )
+                // Join path for charts in spaces: saved_charts.space_id -> spaces -> projects
+                .leftJoin(
+                    `${SpaceTableName} as ${chartSpaceAlias}`,
+                    `${chartSpaceAlias}.space_id`,
+                    `${SavedChartsTableName}.space_id`,
+                )
+                .leftJoin(
+                    `${ProjectTableName} as chart_project`,
+                    `chart_project.project_id`,
+                    `${chartSpaceAlias}.project_id`,
+                )
+                // Join path for charts in dashboards: saved_charts.dashboard_uuid -> dashboards -> spaces -> projects
+                .leftJoin(
+                    `${DashboardsTableName} as chart_dashboard`,
+                    `chart_dashboard.dashboard_uuid`,
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                )
+                .leftJoin(
+                    `${SpaceTableName} as ${chartDashboardSpaceAlias}`,
+                    `${chartDashboardSpaceAlias}.space_id`,
+                    `chart_dashboard.space_id`,
+                )
+                .leftJoin(
+                    `${ProjectTableName} as chart_dashboard_project`,
+                    `chart_dashboard_project.project_id`,
+                    `${chartDashboardSpaceAlias}.project_id`,
+                )
+                // Join path for dashboard schedulers: dashboards.space_id -> spaces -> projects
+                .leftJoin(
+                    `${SpaceTableName} as ${dashboardSpaceAlias}`,
+                    `${dashboardSpaceAlias}.space_id`,
+                    `${DashboardsTableName}.space_id`,
+                )
+                .leftJoin(
+                    `${ProjectTableName} as dashboard_project`,
+                    `dashboard_project.project_id`,
+                    `${dashboardSpaceAlias}.project_id`,
+                )
+        );
     }
 
     private async getSchedulersWithTargets(
@@ -440,13 +528,235 @@ export class SchedulerModel {
 
         // Paginate the results
         const { pagination, data } = await KnexPaginate.paginate(
-            query,
+            query as unknown as Knex.QueryBuilder,
             paginateArgs,
         );
 
         return {
             pagination,
-            data: await this.getSchedulersWithTargets(data),
+            data: await this.getSchedulersWithTargets(
+                data as SelectScheduler[],
+            ),
+        };
+    }
+
+    async getUserSchedulers({
+        organizationUuid,
+        userUuid,
+        paginateArgs,
+        searchQuery,
+        sort,
+        filters,
+    }: {
+        organizationUuid: string;
+        userUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+        searchQuery?: string;
+        sort?: { column: string; direction: 'asc' | 'desc' };
+        filters?: {
+            createdByUserUuids?: string[];
+            formats?: string[];
+            resourceType?: 'chart' | 'dashboard';
+            resourceUuids?: string[];
+            destinations?: string[];
+        };
+    }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        // Use the extended query with project joins since user schedulers span multiple projects
+        let baseQuery = SchedulerModel.getBaseSchedulerQueryWithProject(
+            this.database,
+        );
+
+        // Apply search query if present
+        if (searchQuery) {
+            baseQuery = getColumnMatchRegexQuery(baseQuery, searchQuery, [
+                `${SchedulerTableName}.name`,
+            ]);
+        }
+
+        // Filter by user's schedulers
+        baseQuery = baseQuery.where(
+            `${SchedulerTableName}.created_by`,
+            userUuid,
+        );
+
+        if (filters?.formats && filters.formats.length > 0) {
+            baseQuery = baseQuery.whereIn(
+                `${SchedulerTableName}.format`,
+                filters.formats,
+            );
+        }
+
+        if (filters?.destinations && filters.destinations.length > 0) {
+            baseQuery = baseQuery.where((builder) => {
+                let isFirst = true;
+                const destinations = filters.destinations!;
+
+                if (destinations.includes('email')) {
+                    if (isFirst) {
+                        void builder.whereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerEmailTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerEmailTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                        isFirst = false;
+                    } else {
+                        void builder.orWhereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerEmailTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerEmailTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                    }
+                }
+
+                if (destinations.includes('slack')) {
+                    if (isFirst) {
+                        void builder.whereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerSlackTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerSlackTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                        isFirst = false;
+                    } else {
+                        void builder.orWhereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerSlackTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerSlackTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                    }
+                }
+
+                if (destinations.includes('msteams')) {
+                    if (isFirst) {
+                        void builder.whereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerMsTeamsTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerMsTeamsTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                        isFirst = false;
+                    } else {
+                        void builder.orWhereExists((subQuery) => {
+                            void subQuery
+                                .select('*')
+                                .from(SchedulerMsTeamsTargetTableName)
+                                .whereRaw(
+                                    `${SchedulerMsTeamsTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
+                                );
+                        });
+                    }
+                }
+            });
+        }
+
+        const dashboardChartsJoinTable = 'dashboard_charts';
+
+        // Create a union of two queries: one for saved charts and one for dashboards
+        let schedulerCharts = baseQuery
+            .clone()
+            .select(`${ProjectTableName}.project_uuid`)
+            .leftJoin(
+                { [dashboardChartsJoinTable]: DashboardsTableName },
+                `${dashboardChartsJoinTable}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${dashboardChartsJoinTable}.space_id`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                );
+            })
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .whereNotNull(`${SchedulerTableName}.saved_chart_uuid`);
+
+        let schedulerDashboards = baseQuery
+            .clone()
+            .select(`${ProjectTableName}.project_uuid`)
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .whereNotNull(`${SchedulerTableName}.dashboard_uuid`);
+
+        // Apply resource type filter
+        if (filters?.resourceType === 'chart') {
+            schedulerDashboards = schedulerDashboards.where(
+                this.database.raw('1 = 0'),
+            );
+        } else if (filters?.resourceType === 'dashboard') {
+            schedulerCharts = schedulerCharts.where(this.database.raw('1 = 0'));
+        }
+
+        // Apply resource UUID filter
+        if (filters?.resourceUuids && filters.resourceUuids.length > 0) {
+            schedulerCharts = schedulerCharts.whereIn(
+                `${SchedulerTableName}.saved_chart_uuid`,
+                filters.resourceUuids,
+            );
+            schedulerDashboards = schedulerDashboards.whereIn(
+                `${SchedulerTableName}.dashboard_uuid`,
+                filters.resourceUuids,
+            );
+        }
+
+        // Use union to combine both queries
+        let query = schedulerCharts.unionAll(schedulerDashboards);
+
+        // Apply sorting if present, default to name asc
+        if (sort && sort.column && sort.direction) {
+            query = query.orderBy(sort.column, sort.direction);
+        } else {
+            query = query.orderBy([
+                {
+                    column: `name`,
+                    order: 'asc',
+                },
+                {
+                    column: `created_at`,
+                    order: 'asc',
+                },
+            ]);
+        }
+
+        // Paginate the results
+        const { pagination, data } = await KnexPaginate.paginate(
+            query as unknown as Knex.QueryBuilder,
+            paginateArgs,
+        );
+
+        return {
+            pagination,
+            data: await this.getSchedulersWithTargets(
+                data as SelectScheduler[],
+            ),
         };
     }
 
@@ -1601,6 +1911,298 @@ export class SchedulerModel {
                     scheduledTime: row.scheduled_time,
                     status: row.status as SchedulerJobStatus,
                     runStatus: row.run_status as SchedulerRunStatus, // Use DB-computed value
+                    createdAt: row.created_at,
+                    details: row.details,
+                    logCounts,
+                    resourceType: row.resource_type,
+                    resourceUuid: row.resource_uuid,
+                    resourceName: row.resource_name,
+                    createdByUserUuid: row.created_by_user_uuid,
+                    createdByUserName: row.created_by_user_name,
+                    format: row.format as SchedulerFormat,
+                };
+            },
+        );
+
+        return {
+            pagination,
+            data: runs,
+        };
+    }
+
+    async getUserSchedulerRuns({
+        organizationUuid,
+        userUuid,
+        paginateArgs,
+        sort,
+        filters,
+    }: {
+        organizationUuid: string;
+        userUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+        sort?: { column: string; direction: 'asc' | 'desc' };
+        filters?: {
+            schedulerUuids?: string[];
+            statuses?: SchedulerRunStatus[];
+        };
+    }): Promise<KnexPaginatedData<SchedulerRun[]>> {
+        const sevenDaysAgo: Date = new Date(
+            Date.now() - 7 * 24 * 60 * 60 * 1000,
+        );
+
+        const db = this.database;
+
+        // Build subquery for child job counts
+        const rankedChildJobsSubquery = this.database(SchedulerLogTableName)
+            .select(
+                'job_id',
+                'job_group',
+                'status',
+                'details',
+                this.database.raw(
+                    'ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY created_at DESC) as rn',
+                ),
+            )
+            .whereRaw('job_id != job_group')
+            .as('ranked_children');
+
+        const childCountsSubquery = this.database
+            .from(rankedChildJobsSubquery)
+            .select(
+                'job_group',
+                this.database.raw('COUNT(*) as total'),
+                this.database.raw(
+                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.SCHEDULED}' THEN 1 END) as scheduled_count`,
+                ),
+                this.database.raw(
+                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.STARTED}' THEN 1 END) as started_count`,
+                ),
+                this.database.raw(
+                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.COMPLETED}' THEN 1 END) as completed_count`,
+                ),
+                this.database.raw(
+                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.ERROR}' THEN 1 END) as error_count`,
+                ),
+                this.database.raw(
+                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.COMPLETED}' AND (
+                        (details::jsonb->>'partialFailure')::boolean = true
+                        OR (
+                            COALESCE((details::jsonb->'batchResult'->>'failed')::int, 0) > 0
+                            AND COALESCE((details::jsonb->'batchResult'->>'succeeded')::int, 0) > 0
+                        )
+                    ) THEN 1 END) as batch_partial_failure_count`,
+                ),
+                this.database.raw(
+                    `COUNT(CASE WHEN status = '${SchedulerJobStatus.COMPLETED}' AND (
+                        COALESCE((details::jsonb->'batchResult'->>'failed')::int, 0) > 0
+                        AND COALESCE((details::jsonb->'batchResult'->>'succeeded')::int, 0) = 0
+                    ) THEN 1 END) as batch_total_failure_count`,
+                ),
+            )
+            .where('rn', 1)
+            .groupBy('job_group')
+            .as('child_counts');
+
+        const rankedRunsSubquery = this.database(SchedulerLogTableName)
+            .select(
+                'job_id',
+                'scheduler_uuid',
+                'scheduled_time',
+                'status',
+                'created_at',
+                'details',
+                this.database.raw(
+                    'ROW_NUMBER() OVER (PARTITION BY job_id ORDER BY created_at DESC) as rn',
+                ),
+            )
+            .whereRaw('job_id = job_group')
+            .where('scheduled_time', '>', sevenDaysAgo)
+            .where('scheduled_time', '<', new Date())
+            .as('ranked_runs');
+
+        const distinctRunsSubquery = this.database
+            .from(rankedRunsSubquery)
+            .where('rn', 1)
+            .as('distinct_runs');
+
+        let runsQuery = this.database(distinctRunsSubquery)
+            .select(
+                'distinct_runs.job_id as run_id',
+                'distinct_runs.scheduler_uuid',
+                'distinct_runs.scheduled_time',
+                'distinct_runs.status',
+                'distinct_runs.created_at',
+                'distinct_runs.details',
+                `${SchedulerTableName}.name as scheduler_name`,
+                `${SchedulerTableName}.format`,
+                this.database.raw(
+                    `CASE WHEN ${SchedulerTableName}.saved_chart_uuid IS NOT NULL THEN 'chart' ELSE 'dashboard' END as resource_type`,
+                ),
+                this.database.raw(
+                    `COALESCE(${SchedulerTableName}.saved_chart_uuid, ${SchedulerTableName}.dashboard_uuid) as resource_uuid`,
+                ),
+                this.database.raw(
+                    `COALESCE(${SavedChartsTableName}.name, ${DashboardsTableName}.name) as resource_name`,
+                ),
+                `${SchedulerTableName}.created_by as created_by_user_uuid`,
+                this.database.raw(
+                    `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_user_name`,
+                ),
+                this.database.raw('COALESCE(child_counts.total, 0) as total'),
+                this.database.raw(
+                    'COALESCE(child_counts.scheduled_count, 0) as scheduled_count',
+                ),
+                this.database.raw(
+                    'COALESCE(child_counts.started_count, 0) as started_count',
+                ),
+                this.database.raw(
+                    'COALESCE(child_counts.completed_count, 0) as completed_count',
+                ),
+                this.database.raw(
+                    'COALESCE(child_counts.error_count, 0) as error_count',
+                ),
+                this.database.raw(`
+                    CASE
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.ERROR}' THEN '${SchedulerRunStatus.FAILED}'
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.SCHEDULED}' THEN '${SchedulerRunStatus.SCHEDULED}'
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}'
+                             AND COALESCE(child_counts.error_count, 0) > 0 THEN '${SchedulerRunStatus.PARTIAL_FAILURE}'
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}'
+                             AND COALESCE(child_counts.batch_total_failure_count, 0) > 0 THEN '${SchedulerRunStatus.FAILED}'
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}'
+                             AND distinct_runs.details IS NOT NULL
+                             AND jsonb_array_length(COALESCE(distinct_runs.details::jsonb->'partialFailures', '[]'::jsonb)) > 0 THEN '${SchedulerRunStatus.PARTIAL_FAILURE}'
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}'
+                             AND COALESCE(child_counts.batch_partial_failure_count, 0) > 0 THEN '${SchedulerRunStatus.PARTIAL_FAILURE}'
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.COMPLETED}' THEN '${SchedulerRunStatus.COMPLETED}'
+                        WHEN distinct_runs.status = '${SchedulerJobStatus.STARTED}'
+                             OR COALESCE(child_counts.started_count, 0) > 0
+                             OR COALESCE(child_counts.scheduled_count, 0) > 0 THEN '${SchedulerRunStatus.RUNNING}'
+                        ELSE '${SchedulerRunStatus.SCHEDULED}'
+                    END as run_status
+                `),
+            )
+            .leftJoin(
+                childCountsSubquery,
+                'distinct_runs.job_id',
+                'child_counts.job_group',
+            )
+            .leftJoin(
+                SchedulerTableName,
+                `${SchedulerTableName}.scheduler_uuid`,
+                'distinct_runs.scheduler_uuid',
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${SchedulerTableName}.created_by`,
+            )
+            .leftJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SchedulerTableName}.saved_chart_uuid`,
+            )
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SchedulerTableName}.dashboard_uuid`,
+            )
+            .leftJoin(ProjectTableName, function joinProjects() {
+                this.on(
+                    `${ProjectTableName}.project_uuid`,
+                    '=',
+                    db.raw(
+                        `(SELECT project_uuid FROM ${ProjectTableName} WHERE project_id IN (SELECT project_id FROM ${SpaceTableName} WHERE space_id IN (SELECT space_id FROM ${SavedChartsTableName} WHERE saved_query_uuid = ${SchedulerTableName}.saved_chart_uuid UNION SELECT space_id FROM ${DashboardsTableName} WHERE dashboard_uuid = ${SchedulerTableName}.dashboard_uuid)))`,
+                    ),
+                );
+            })
+            .leftJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(`${SchedulerTableName}.created_by`, userUuid);
+
+        // Filter by scheduler UUIDs if provided
+        if (filters?.schedulerUuids && filters.schedulerUuids.length > 0) {
+            runsQuery = runsQuery.whereIn(
+                'distinct_runs.scheduler_uuid',
+                filters.schedulerUuids,
+            );
+        }
+
+        const runsWithStatusSubquery = runsQuery.as('runs_with_status');
+
+        let finalQuery = this.database(runsWithStatusSubquery).select('*');
+
+        // Apply runStatus filter
+        if (filters?.statuses && filters.statuses.length > 0) {
+            finalQuery = finalQuery.whereIn('run_status', filters.statuses);
+        }
+
+        // Apply sorting
+        if (sort && sort.column && sort.direction) {
+            let sortColumn: string = sort.column;
+            if (sort.column === 'scheduledTime') {
+                sortColumn = 'scheduled_time';
+            } else if (sort.column === 'createdAt') {
+                sortColumn = 'created_at';
+            } else if (sort.column === 'runStatus') {
+                sortColumn = 'run_status';
+            }
+            finalQuery = finalQuery.orderBy(sortColumn, sort.direction);
+        } else {
+            finalQuery = finalQuery.orderBy('scheduled_time', 'desc');
+        }
+
+        const { pagination, data } = await KnexPaginate.paginate(
+            finalQuery,
+            paginateArgs,
+        );
+
+        interface SchedulerRunRow {
+            run_id: string;
+            scheduler_uuid: string;
+            scheduler_name: string;
+            format: SchedulerFormat;
+            scheduled_time: Date;
+            status: SchedulerJobStatus;
+            run_status: SchedulerRunStatus;
+            created_at: Date;
+            details: Record<string, AnyType> | null;
+            total: string;
+            scheduled_count: string;
+            started_count: string;
+            completed_count: string;
+            error_count: string;
+            resource_type: 'chart' | 'dashboard';
+            resource_uuid: string;
+            resource_name: string;
+            created_by_user_uuid: string;
+            created_by_user_name: string;
+        }
+
+        const runs: SchedulerRun[] = (data as unknown as SchedulerRunRow[]).map(
+            (row) => {
+                const logCounts: LogCounts = {
+                    total: parseInt(row.total, 10),
+                    scheduled: parseInt(row.scheduled_count, 10),
+                    started: parseInt(row.started_count, 10),
+                    completed: parseInt(row.completed_count, 10),
+                    error: parseInt(row.error_count, 10),
+                };
+
+                return {
+                    runId: row.run_id,
+                    schedulerUuid: row.scheduler_uuid,
+                    schedulerName: row.scheduler_name,
+                    scheduledTime: row.scheduled_time,
+                    status: row.status as SchedulerJobStatus,
+                    runStatus: row.run_status as SchedulerRunStatus,
                     createdAt: row.created_at,
                     details: row.details,
                     logCounts,

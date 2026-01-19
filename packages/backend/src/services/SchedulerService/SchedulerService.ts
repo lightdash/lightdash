@@ -351,6 +351,82 @@ export class SchedulerService extends BaseService {
         return this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
     }
 
+    async getUserSchedulers(
+        user: SessionUser,
+        paginateArgs?: KnexPaginateArgs,
+        searchQuery?: string,
+        sort?: { column: string; direction: 'asc' | 'desc' },
+        filters?: {
+            createdByUserUuids?: string[];
+            formats?: string[];
+            resourceType?: 'chart' | 'dashboard';
+            resourceUuids?: string[];
+            destinations?: string[];
+        },
+        includeLatestRun?: boolean,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        if (
+            user.ability.cannot(
+                'create',
+                subject('ScheduledDeliveries', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const schedulers = await this.schedulerModel.getUserSchedulers({
+            organizationUuid: user.organizationUuid,
+            userUuid: user.userUuid,
+            paginateArgs,
+            searchQuery,
+            sort,
+            filters,
+        });
+
+        if (!includeLatestRun) {
+            return schedulers;
+        }
+
+        const schedulerUuids = schedulers.data.map(
+            (scheduler) => scheduler.schedulerUuid,
+        );
+
+        if (schedulerUuids.length === 0) {
+            return schedulers;
+        }
+
+        const runs = await this.schedulerModel.getUserSchedulerRuns({
+            organizationUuid: user.organizationUuid,
+            userUuid: user.userUuid,
+            sort: { column: 'scheduledTime', direction: 'desc' },
+            filters: {
+                schedulerUuids,
+            },
+        });
+
+        const latestRunByScheduler = new Map<string, SchedulerRun>();
+        runs.data.forEach((run) => {
+            if (!latestRunByScheduler.has(run.schedulerUuid)) {
+                latestRunByScheduler.set(run.schedulerUuid, run);
+            }
+        });
+
+        return {
+            ...schedulers,
+            data: schedulers.data.map((scheduler) => ({
+                ...scheduler,
+                latestRun:
+                    latestRunByScheduler.get(scheduler.schedulerUuid) ?? null,
+            })),
+        };
+    }
+
     async getSchedulerDefaultTimezone(schedulerUuid: string | undefined) {
         if (!schedulerUuid) return 'UTC'; // When it is sendNow there is not schedulerUuid
 

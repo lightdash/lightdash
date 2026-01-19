@@ -29,6 +29,7 @@ export const useSchedulerReassignOwnerMutation = (projectUuid: string) => {
         mutationKey: ['reassign_scheduler_owner'],
         onSuccess: async (_, variables) => {
             await queryClient.invalidateQueries(['paginatedSchedulers']);
+            await queryClient.invalidateQueries(['userPaginatedSchedulers']);
             await queryClient.invalidateQueries(['chart_schedulers']);
             await queryClient.invalidateQueries(['dashboard_schedulers']);
 

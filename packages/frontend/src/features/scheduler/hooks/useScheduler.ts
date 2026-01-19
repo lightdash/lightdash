@@ -151,6 +151,45 @@ const getPaginatedSchedulers = async (
     });
 };
 
+const getUserPaginatedSchedulers = async (
+    paginateArgs: KnexPaginateArgs,
+    searchQuery?: string,
+    sortBy?: string,
+    sortDirection?: 'asc' | 'desc',
+    filters?: {
+        formats?: string[];
+        resourceType?: 'chart' | 'dashboard';
+        resourceUuids?: string[];
+        destinations?: DestinationType[];
+    },
+    includeLatestRun?: boolean,
+) => {
+    const urlParams = new URLSearchParams({
+        page: String(paginateArgs.page),
+        pageSize: String(paginateArgs.pageSize),
+        ...(searchQuery ? { searchQuery } : {}),
+        ...(sortBy ? { sortBy } : {}),
+        ...(sortDirection ? { sortDirection } : {}),
+        ...(filters?.formats ? { formats: filters.formats.join(',') } : {}),
+        ...(filters?.resourceType
+            ? { resourceType: filters.resourceType }
+            : {}),
+        ...(filters?.resourceUuids
+            ? { resourceUuids: filters.resourceUuids.join(',') }
+            : {}),
+        ...(filters?.destinations
+            ? { destinations: filters.destinations.join(',') }
+            : {}),
+        ...(includeLatestRun ? { includeLatestRun: 'true' } : {}),
+    }).toString();
+
+    return lightdashApi<ApiSchedulersResponse['results']>({
+        url: `/schedulers/user-schedulers?${urlParams}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
 export const getSchedulerJobStatus = async <
     T = ApiJobStatusResponse['results'],
 >(
@@ -319,6 +358,59 @@ export const usePaginatedSchedulers = ({
         keepPreviousData: true,
         refetchOnWindowFocus: false,
         enabled: !!projectUuid,
+    });
+};
+
+export const useUserPaginatedSchedulers = ({
+    paginateArgs,
+    searchQuery,
+    sortBy,
+    sortDirection,
+    filters,
+    includeLatestRun,
+}: {
+    paginateArgs?: KnexPaginateArgs;
+    searchQuery?: string;
+    sortBy?: string;
+    sortDirection?: 'asc' | 'desc';
+    filters?: {
+        formats?: string[];
+        resourceType?: 'chart' | 'dashboard';
+        resourceUuids?: string[];
+        destinations?: DestinationType[];
+    };
+    includeLatestRun?: boolean;
+}) => {
+    return useInfiniteQuery<ApiSchedulersResponse['results']>({
+        queryKey: [
+            'userPaginatedSchedulers',
+            paginateArgs,
+            searchQuery,
+            sortBy,
+            sortDirection,
+            filters,
+            includeLatestRun,
+        ],
+        queryFn: async ({ pageParam = 0 }) => {
+            return getUserPaginatedSchedulers(
+                {
+                    page: pageParam as number,
+                    pageSize: paginateArgs?.pageSize ?? 10,
+                },
+                searchQuery,
+                sortBy,
+                sortDirection,
+                filters,
+                includeLatestRun,
+            );
+        },
+        getNextPageParam: (_lastGroup, groups) => {
+            const currentPage = groups.length - 1;
+            const totalPages = _lastGroup.pagination?.totalPageCount ?? 0;
+            return currentPage < totalPages - 1 ? currentPage + 1 : undefined;
+        },
+        keepPreviousData: true,
+        refetchOnWindowFocus: false,
     });
 };
 

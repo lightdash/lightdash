@@ -129,8 +129,14 @@ export const getLogStatusIconWithoutTooltip = (
 
 export const getSchedulerLink = (
     item: SchedulerItem | SchedulerRun,
-    projectUuid: string,
+    fallbackProjectUuid?: string | null,
 ) => {
+    // Use item's projectUuid if available (only on SchedulerItem), otherwise fall back to the provided one
+    const projectUuid =
+        ('projectUuid' in item ? item.projectUuid : undefined) ??
+        fallbackProjectUuid ??
+        '';
+
     const paramName =
         'thresholds' in item && item.thresholds && item.thresholds.length > 0
             ? 'threshold_uuid'
@@ -157,7 +163,14 @@ export const getSchedulerLink = (
           }`
         : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view/?${paramName}=${item.schedulerUuid}`;
 };
-export const getItemLink = (item: SchedulerItem, projectUuid: string) => {
+
+export const getItemLink = (
+    item: SchedulerItem,
+    fallbackProjectUuid?: string | null,
+) => {
+    // Use item's projectUuid if available, otherwise fall back to the provided one
+    const projectUuid = item.projectUuid ?? fallbackProjectUuid ?? '';
+
     return item.savedChartUuid
         ? `/projects/${projectUuid}/saved/${item.savedChartUuid}/view`
         : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}/view`;
