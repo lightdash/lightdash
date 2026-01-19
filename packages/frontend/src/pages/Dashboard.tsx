@@ -21,14 +21,12 @@ import { DashboardExportModal } from '../components/common/modal/DashboardExport
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
-import DashboardHeaderV1 from '../features/dashboardHeader/dashboardHeaderV1';
-import DashboardHeaderV2 from '../features/dashboardHeader/dashboardHeaderV2';
+import DashboardTabsV2 from '../features/dashboardTabsV2';
 import {
     appendNewTilesToBottom,
     useUpdateDashboard,
 } from '../hooks/dashboard/useDashboard';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
-import { useDashboardUIPreference } from '../hooks/dashboard/useDashboardUIPreference';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
@@ -56,11 +54,6 @@ const Dashboard: FC = () => {
     const dashboardTemporaryFilters = useDashboardContext(
         (c) => c.dashboardTemporaryFilters,
     );
-    const requiredDashboardFilters = useDashboardContext(
-        (c) => c.requiredDashboardFilters,
-    );
-    const hasRequiredDashboardFiltersToSet =
-        requiredDashboardFilters.length > 0;
     const haveFiltersChanged = useDashboardContext((c) => c.haveFiltersChanged);
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
@@ -148,8 +141,6 @@ const Dashboard: FC = () => {
     } = useFullscreen();
     const { showToastError } = useToaster();
 
-    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
-
     const { data: organization } = useOrganization();
     const hasTemporaryFilters = useMemo(
         () =>
@@ -185,7 +176,6 @@ const Dashboard: FC = () => {
     // tabs state
     const [addingTab, setAddingTab] = useState<boolean>(false);
 
-    const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
     const tabsEnabled = dashboardTabs && dashboardTabs.length > 0;
 
     const defaultTab = dashboardTabs?.[0];
@@ -653,8 +643,7 @@ const Dashboard: FC = () => {
         onExport: exportDashboardModalHandlers.open,
         setAddingTab,
         onEditClicked: handleEnterEditMode,
-        ...(isDashboardRedesignEnabled &&
-            isEditMode && { className: styles.stickyHeader }),
+        ...(isEditMode && { className: styles.stickyHeader }),
     };
 
     return (
@@ -689,51 +678,15 @@ const Dashboard: FC = () => {
 
             <Page
                 title={dashboard.name}
-                noContentPadding={isDashboardRedesignEnabled}
+                noContentPadding
                 withFullHeight
-                fullPageScroll={isDashboardRedesignEnabled}
-                header={
-                    isDashboardRedesignEnabled ? null : (
-                        <DashboardHeader {...dashboardHeaderProps} />
-                    )
-                }
+                fullPageScroll
             >
-                {isDashboardRedesignEnabled ? (
-                    <div style={dashboardCSSVars as React.CSSProperties}>
-                        <DashboardHeader {...dashboardHeaderProps} />
-                        <DashboardHeaderV2
-                            isEditMode={isEditMode}
-                            hasTilesThatSupportFilters={
-                                hasTilesThatSupportFilters
-                            }
-                            // parameters
-                            parameters={referencedParameters}
-                            parameterValues={parameterValues}
-                            onParameterChange={handleParameterChange}
-                            onParameterClearAll={clearAllParameters}
-                            isParameterLoading={!areAllChartsLoaded}
-                            missingRequiredParameters={
-                                missingRequiredParameters
-                            }
-                            pinnedParameters={pinnedParameters}
-                            onParameterPin={toggleParameterPin}
-                            // tabs
-                            activeTab={activeTab}
-                            addingTab={addingTab}
-                            dashboardTiles={dashboardTiles}
-                            onAddTiles={handleAddTiles}
-                            onUpdateTiles={handleUpdateTiles}
-                            onDeleteTile={handleDeleteTile}
-                            onBatchDeleteTiles={handleBatchDeleteTiles}
-                            onEditTile={handleEditTiles}
-                            setGridWidth={setGridWidth}
-                            setAddingTab={setAddingTab}
-                        />
-                    </div>
-                ) : (
-                    <DashboardHeaderV1
+                <div style={dashboardCSSVars as React.CSSProperties}>
+                    <DashboardHeader {...dashboardHeaderProps} />
+
+                    <DashboardTabsV2
                         isEditMode={isEditMode}
-                        hasDashboardTiles={hasDashboardTiles}
                         hasTilesThatSupportFilters={hasTilesThatSupportFilters}
                         // parameters
                         parameters={referencedParameters}
@@ -745,22 +698,18 @@ const Dashboard: FC = () => {
                         pinnedParameters={pinnedParameters}
                         onParameterPin={toggleParameterPin}
                         // tabs
-                        hasRequiredDashboardFiltersToSet={
-                            hasRequiredDashboardFiltersToSet
-                        }
                         activeTab={activeTab}
                         addingTab={addingTab}
                         dashboardTiles={dashboardTiles}
-                        onAddTiles={handleAddTiles}
-                        onUpdateTiles={handleUpdateTiles}
-                        onDeleteTile={handleDeleteTile}
-                        onBatchDeleteTiles={handleBatchDeleteTiles}
-                        onEditTile={handleEditTiles}
+                        handleAddTiles={handleAddTiles}
+                        handleUpdateTiles={handleUpdateTiles}
+                        handleDeleteTile={handleDeleteTile}
+                        handleBatchDeleteTiles={handleBatchDeleteTiles}
+                        handleEditTile={handleEditTiles}
                         setGridWidth={setGridWidth}
                         setAddingTab={setAddingTab}
                     />
-                )}
-
+                </div>
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal
                         opened

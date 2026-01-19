@@ -2,7 +2,7 @@ import { Button, Group, Text, Tooltip } from '@mantine-8/core';
 import { IconChevronDown, IconFilter } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import FilterGroupSeparator from '../dashboardHeader/FilterGroupSeparator';
+import FilterGroupSeparator from './FilterGroupSeparator';
 
 type Props = {
     filtersCount: number;

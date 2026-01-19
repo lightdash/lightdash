@@ -13,9 +13,9 @@ import {
 import { type FC, type ReactNode } from 'react';
 import PinnedParameters from '../../components/PinnedParameters';
 import MantineIcon from '../../components/common/MantineIcon';
-import FilterGroupSeparator from '../dashboardHeader/FilterGroupSeparator';
 import { DateZoomV2 } from '../dateZoomV2';
 import { ParametersV2 } from '../parametersV2';
+import FilterGroupSeparator from './FilterGroupSeparator';
 import DashboardFiltersV2 from './index';
 
 type Props = {
