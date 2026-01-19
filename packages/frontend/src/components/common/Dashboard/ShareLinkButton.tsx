@@ -5,7 +5,7 @@ import { type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import MantineIcon from '../MantineIcon';
 
-export const ShareLinkButtonV2: FC<{ url: string }> = ({ url }) => {
+export const ShareLinkButton: FC<{ url: string }> = ({ url }) => {
     const clipboard = useClipboard({ timeout: 500 });
     const { showToastSuccess } = useToaster();
 

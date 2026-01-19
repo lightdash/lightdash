@@ -56,13 +56,13 @@ import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
 import MantineIcon from '../MantineIcon';
 import PageHeader from '../Page/PageHeader';
-import DashboardInfoOverlayV2 from '../PageHeader/DashboardInfoOverlayV2';
+import DashboardInfoOverlay from '../PageHeader/DashboardInfoOverlay';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
-import { ShareLinkButtonV2 } from './ShareLinkButtonV2';
+import { ShareLinkButton } from './ShareLinkButton';
 import {
     DASHBOARD_HEADER_HEIGHT,
     DASHBOARD_HEADER_ZINDEX,
@@ -257,7 +257,7 @@ const DashboardHeaderV2 = ({
                     </Popover.Target>
 
                     <Popover.Dropdown maw={500} p={0}>
-                        <DashboardInfoOverlayV2
+                        <DashboardInfoOverlay
                             dashboard={dashboard}
                             projectUuid={projectUuid}
                         />
@@ -476,7 +476,7 @@ const DashboardHeaderV2 = ({
                         )}
 
                     {userCanExportData && !isFullscreen && (
-                        <ShareLinkButtonV2 url={`${window.location.href}`} />
+                        <ShareLinkButton url={`${window.location.href}`} />
                     )}
 
                     {!isFullscreen && (

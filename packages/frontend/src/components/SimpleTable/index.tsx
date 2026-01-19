@@ -6,7 +6,6 @@ import {
     isChunkLoadError,
     triggerChunkErrorReload,
 } from '../../features/chunkErrorHandler';
-import { useDashboardUIPreference } from '../../hooks/dashboard/useDashboardUIPreference';
 import { isTableVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import LoadingChart from '../common/LoadingChart';
@@ -43,7 +42,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
     onScreenshotError,
     ...rest
 }) => {
-    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
     const {
         columnOrder,
         itemsMap,
@@ -241,7 +239,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
     } else if (pivotTableData.loading || pivotTableData.data) {
         return (
             <Box
-                p={isDashboard && isDashboardRedesignEnabled ? 0 : 'xs'}
+                p={isDashboard ? 0 : 'xs'}
                 pb={showResultsTotal ? 'xxl' : 'xl'}
                 miw="100%"
                 h="100%"
