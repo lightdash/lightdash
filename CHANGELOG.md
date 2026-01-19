@@ -1,3 +1,16 @@
+# [0.2353.0](https://github.com/lightdash/lightdash/compare/0.2352.0...0.2353.0) (2026-01-19)
+
+
+### Bug Fixes
+
+* preserve query params in Slack auth redirect ([#19526](https://github.com/lightdash/lightdash/issues/19526)) ([348ebd8](https://github.com/lightdash/lightdash/commit/348ebd87e9f15c55285089cc5efdd64c8504c468))
+
+
+### Features
+
+* duplicate charts when duplicating dashboard tabs ([#19438](https://github.com/lightdash/lightdash/issues/19438)) ([8949fbf](https://github.com/lightdash/lightdash/commit/8949fbf681e198f5acac3750bc7f3da52f812a91))
+* process Slack messages after OAuth authentication completes ([#19525](https://github.com/lightdash/lightdash/issues/19525)) ([a680d23](https://github.com/lightdash/lightdash/commit/a680d23f7239134032d4314978b929d1cbd01ae0))
+
 # [0.2352.0](https://github.com/lightdash/lightdash/compare/0.2351.0...0.2352.0) (2026-01-19)
 
 
