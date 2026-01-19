@@ -1,3 +1,10 @@
+## [0.2353.4](https://github.com/lightdash/lightdash/compare/0.2353.3...0.2353.4) (2026-01-19)
+
+
+### Bug Fixes
+
+* show chart configuration warnings on validator when USE_SQL_PIVOT_RESULTS is disabled ([#19556](https://github.com/lightdash/lightdash/issues/19556)) ([710347a](https://github.com/lightdash/lightdash/commit/710347a1da925742963ed32f087a4d11c56d8c82))
+
 ## [0.2353.3](https://github.com/lightdash/lightdash/compare/0.2353.2...0.2353.3) (2026-01-19)
 
 
