@@ -1,11 +1,17 @@
 import {
+    DimensionType,
     ECHARTS_DEFAULT_COLORS,
+    MetricExplorerComparison,
+    getItemId,
     type CatalogField,
+    type MetricExplorerQuery,
     type TimeDimensionConfig,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
+    Button,
+    Divider,
     Group,
     Kbd,
     LoadingOverlay,
@@ -14,7 +20,7 @@ import {
     Text,
     Tooltip,
     type ModalProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useHotkeys } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -29,7 +35,13 @@ import VisualizationProvider from '../../../components/LightdashVisualization/Vi
 import MetricQueryDataProvider from '../../../components/MetricQueryData/MetricQueryDataProvider';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
+import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
 import { useMetricVisualization } from '../hooks/useMetricVisualization';
+import styles from './MetricExploreModalV2.module.css';
+import { MetricExploreComparison as MetricExploreComparisonSection } from './visualization/MetricExploreComparison';
+import { MetricExploreFilter } from './visualization/MetricExploreFilter';
+import { MetricExploreSegmentationPicker } from './visualization/MetricExploreSegmentationPicker';
 import { TimeDimensionIntervalPicker } from './visualization/TimeDimensionIntervalPicker';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
@@ -99,6 +111,11 @@ export const MetricExploreModalV2: FC<Props> = ({
         setTimeDimensionOverride(undefined);
     }, []);
 
+    const [query] = useState<MetricExplorerQuery>({
+        comparison: MetricExplorerComparison.NONE,
+        segmentDimension: null,
+    });
+
     // Update navigateToMetric to reset state
     const navigateToMetricWithReset = useCallback(
         (metric: CatalogField) => {
@@ -143,6 +160,43 @@ export const MetricExploreModalV2: FC<Props> = ({
         timeDimensionOverride,
     });
 
+    const metricsWithTimeDimensionsQuery = useCatalogMetricsWithTimeDimensions({
+        projectUuid,
+        options: {
+            // Sidebar options are disabled in V2 for now, so don't fetch extra data
+            enabled: false,
+        },
+    });
+
+    const segmentDimensionsQuery = useCatalogSegmentDimensions({
+        projectUuid,
+        tableName,
+        options: {
+            enabled: !!projectUuid && !!tableName,
+        },
+    });
+
+    const segmentByData = useMemo(() => {
+        return (
+            segmentDimensionsQuery.data?.map((dimension) => ({
+                value: getItemId(dimension),
+                label: dimension.label,
+                group: dimension.tableLabel,
+            })) ?? []
+        );
+    }, [segmentDimensionsQuery.data]);
+
+    const availableFilters = useMemo(
+        () =>
+            // Keep parity with V1: only allow filtering on string/boolean dimensions for now
+            segmentDimensionsQuery.data?.filter(
+                (dimension) =>
+                    dimension.type === DimensionType.STRING ||
+                    dimension.type === DimensionType.BOOLEAN,
+            ) ?? [],
+        [segmentDimensionsQuery.data],
+    );
+
     // Keyboard navigation
     useHotkeys([
         ['ArrowUp', handleGoToPreviousMetric],
@@ -157,31 +211,16 @@ export const MetricExploreModalV2: FC<Props> = ({
             size="auto"
         >
             <Modal.Overlay />
-            <Modal.Content sx={{ overflow: 'hidden' }} radius={12} w="100%">
-                <Modal.Header
-                    h={52}
-                    sx={(theme) => ({
-                        borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                        padding: `${theme.spacing.md} ${theme.spacing.lg}`,
-                    })}
-                >
-                    <Group spacing="xs">
-                        <Group spacing="xxs">
+            <Modal.Content className={styles.modalContent} radius={12} w="100%">
+                <Modal.Header h={52} className={styles.modalHeader}>
+                    <Group gap="xs">
+                        <Group gap="xxs">
                             <Tooltip
                                 label={
                                     <Text>
                                         Press{' '}
-                                        <Kbd
-                                            sx={{
-                                                background: '#575656',
-                                                color: 'white',
-                                                borderRadius: '5px',
-                                                border: '1px solid #2b2b2a',
-                                            }}
-                                        >
-                                            ↑
-                                        </Kbd>{' '}
-                                        to move to the previous metric.
+                                        <Kbd className={styles.kbd}>↑</Kbd> to
+                                        move to the previous metric.
                                     </Text>
                                 }
                                 position="bottom"
@@ -190,9 +229,7 @@ export const MetricExploreModalV2: FC<Props> = ({
                                     variant="outline"
                                     size="sm"
                                     radius="sm"
-                                    sx={(theme) => ({
-                                        border: `1px solid ${theme.colors.ldGray[2]}`,
-                                    })}
+                                    className={styles.navActionIcon}
                                     onClick={handleGoToPreviousMetric}
                                     disabled={!previousMetricInList}
                                 >
@@ -203,17 +240,8 @@ export const MetricExploreModalV2: FC<Props> = ({
                                 label={
                                     <Text>
                                         Press{' '}
-                                        <Kbd
-                                            sx={{
-                                                background: '#575656',
-                                                color: 'white',
-                                                borderRadius: '5px',
-                                                border: '1px solid #2b2b2a',
-                                            }}
-                                        >
-                                            ↓
-                                        </Kbd>{' '}
-                                        to move to the next metric.
+                                        <Kbd className={styles.kbd}>↓</Kbd> to
+                                        move to the next metric.
                                     </Text>
                                 }
                                 position="bottom"
@@ -222,9 +250,7 @@ export const MetricExploreModalV2: FC<Props> = ({
                                     variant="outline"
                                     size="sm"
                                     radius="sm"
-                                    sx={(theme) => ({
-                                        border: `1px solid ${theme.colors.ldGray[2]}`,
-                                    })}
+                                    className={styles.navActionIcon}
                                     onClick={handleGoToNextMetric}
                                     disabled={!nextMetricInList}
                                 >
@@ -232,7 +258,7 @@ export const MetricExploreModalV2: FC<Props> = ({
                                 </ActionIcon>
                             </Tooltip>
                         </Group>
-                        <Text fw={600} fz="md" color="ldGray.8">
+                        <Text fw={600} fz="md" c="ldGray.8">
                             {metricField?.label}
                         </Text>
                         <Tooltip
@@ -252,22 +278,79 @@ export const MetricExploreModalV2: FC<Props> = ({
                 <Modal.Body
                     p={0}
                     h="80vh"
-                    sx={{ display: 'flex', flex: 1 }}
+                    className={styles.modalBody}
                     miw={800}
                     mih={600}
                 >
-                    <Stack
-                        w="100%"
-                        py="xl"
-                        px="xxl"
-                        pos="relative"
-                        spacing="md"
-                    >
+                    <Stack w={460}>
+                        <Box
+                            px="lg"
+                            py="md"
+                            className={styles.sidebarContainer}
+                        >
+                            <Box className={styles.disabledOverlay}>
+                                <Stack gap="xl" w="100%">
+                                    <MetricExploreFilter
+                                        dimensions={availableFilters}
+                                        onFilterApply={() => {}}
+                                    />
+                                    <MetricExploreSegmentationPicker
+                                        query={query}
+                                        onSegmentDimensionChange={() => {}}
+                                        segmentByData={segmentByData}
+                                        segmentDimensionsQuery={
+                                            segmentDimensionsQuery
+                                        }
+                                        hasFilteredSeries={false}
+                                    />
+                                    <Divider color="ldGray.2" />
+                                    <Stack gap="xs">
+                                        <Group justify="space-between">
+                                            <Text fw={500} c="ldGray.7">
+                                                Comparison
+                                            </Text>
+                                            <Button
+                                                variant="subtle"
+                                                color="dark"
+                                                size="compact-xs"
+                                                radius="md"
+                                                className={styles.clearButton}
+                                            >
+                                                Clear
+                                            </Button>
+                                        </Group>
+                                        <MetricExploreComparisonSection
+                                            baseMetricLabel={metricField?.label}
+                                            query={query}
+                                            onQueryChange={() => {}}
+                                            metricsWithTimeDimensionsQuery={
+                                                metricsWithTimeDimensionsQuery
+                                            }
+                                        />
+                                    </Stack>
+                                </Stack>
+                            </Box>
+
+                            <Box pos="absolute" inset={0}>
+                                <Tooltip
+                                    label="Coming soon"
+                                    position="right"
+                                    withinPortal
+                                >
+                                    <Box w="100%" h="100%" />
+                                </Tooltip>
+                            </Box>
+                        </Box>
+                    </Stack>
+
+                    <Divider orientation="vertical" color="ldGray.2" />
+
+                    <Stack w="100%" py="xl" px="xxl" pos="relative" gap="md">
                         <LoadingOverlay visible={isLoading} />
 
                         {/* Granularity picker */}
                         {timeDimensionConfig && (
-                            <Group spacing="sm">
+                            <Group gap="sm">
                                 <Tooltip
                                     label="Change granularity"
                                     position="top"
@@ -284,7 +367,7 @@ export const MetricExploreModalV2: FC<Props> = ({
                         )}
 
                         {/* ECharts visualization */}
-                        <Box sx={{ flex: 1 }}>
+                        <Box flex={1}>
                             {hasData && metricQuery && tableName && explore && (
                                 <MetricQueryDataProvider
                                     metricQuery={metricQuery}
