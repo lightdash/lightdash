@@ -621,6 +621,23 @@ export const convertTable = (
                                                           hidden: dim.hidden,
                                                       },
                                                   },
+                                                  // In dbt 1.10+, config.meta takes precedence over meta
+                                                  // so we must set config.meta.dimension to prevent
+                                                  // the base dimension's properties from overwriting
+                                                  config: {
+                                                      meta: {
+                                                          dimension: {
+                                                              ...columnMeta.dimension,
+                                                              type: dim.type,
+                                                              label: dim.label,
+                                                              groups: dim.groups,
+                                                              sql: dim.sql,
+                                                              description:
+                                                                  dim.description,
+                                                              hidden: dim.hidden,
+                                                          },
+                                                      },
+                                                  },
                                               }
                                             : {}),
                                     },
