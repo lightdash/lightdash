@@ -193,16 +193,31 @@ export const MetricExploreModalV2: FC<Props> = ({
         );
     }, [segmentDimensionsQuery.data]);
 
-    const availableFilters = useMemo(
-        () =>
-            // Keep parity with V1: only allow filtering on string/boolean dimensions for now
-            segmentDimensionsQuery.data?.filter(
-                (dimension) =>
-                    dimension.type === DimensionType.STRING ||
-                    dimension.type === DimensionType.BOOLEAN,
-            ) ?? [],
-        [segmentDimensionsQuery.data],
-    );
+    const currentMetric = metrics[currentMetricIndex];
+
+    const availableFilters = useMemo(() => {
+        // Keep parity with V1: only allow filtering on string/boolean dimensions for now
+        const dimensions = segmentDimensionsQuery.data ?? [];
+        const metricFilterByAllowlist = currentMetric?.spotlightFilterBy;
+
+        return dimensions.filter((dimension) => {
+            // Only string/boolean dimensions can be used for filtering
+            if (
+                dimension.type !== DimensionType.STRING &&
+                dimension.type !== DimensionType.BOOLEAN
+            ) {
+                return false;
+            }
+
+            // If metric has allowlist, use it (supersedes dimension-level)
+            if (metricFilterByAllowlist) {
+                return metricFilterByAllowlist.includes(dimension.name);
+            }
+
+            // Otherwise use dimension-level setting (default true)
+            return dimension.spotlight?.filterBy !== false;
+        });
+    }, [segmentDimensionsQuery.data, currentMetric?.spotlightFilterBy]);
 
     // Keyboard navigation
     useHotkeys([

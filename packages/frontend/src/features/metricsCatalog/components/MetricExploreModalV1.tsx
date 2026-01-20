@@ -413,16 +413,31 @@ export const MetricExploreModalV1: FC<Props> = ({
         [],
     );
 
-    const availableFilters = useMemo(
-        () =>
-            // TODO: Get filters from the query instead of segmentByData, this should include numeric dimensions as well
-            segmentDimensionsQuery.data?.filter(
-                (dimension) =>
-                    dimension.type === DimensionType.STRING ||
-                    dimension.type === DimensionType.BOOLEAN,
-            ) ?? [],
-        [segmentDimensionsQuery.data],
-    );
+    const currentMetric = metrics[currentMetricIndex];
+
+    const availableFilters = useMemo(() => {
+        // TODO: Get filters from the query instead of segmentByData, this should include numeric dimensions as well
+        const dimensions = segmentDimensionsQuery.data ?? [];
+        const metricFilterByAllowlist = currentMetric?.spotlightFilterBy;
+
+        return dimensions.filter((dimension) => {
+            // Only string/boolean dimensions can be used for filtering
+            if (
+                dimension.type !== DimensionType.STRING &&
+                dimension.type !== DimensionType.BOOLEAN
+            ) {
+                return false;
+            }
+
+            // If metric has allowlist, use it (supersedes dimension-level)
+            if (metricFilterByAllowlist) {
+                return metricFilterByAllowlist.includes(dimension.name);
+            }
+
+            // Otherwise use dimension-level setting (default true)
+            return dimension.spotlight?.filterBy !== false;
+        });
+    }, [segmentDimensionsQuery.data, currentMetric?.spotlightFilterBy]);
 
     return (
         <Modal.Root

@@ -205,6 +205,9 @@ const convertDimension = (
         ...(meta.dimension?.ai_hint
             ? { aiHint: convertToAiHints(meta.dimension.ai_hint) }
             : {}),
+        ...(meta.dimension?.spotlight?.filter_by === false
+            ? { spotlight: { filterBy: false } }
+            : {}),
     };
 };
 

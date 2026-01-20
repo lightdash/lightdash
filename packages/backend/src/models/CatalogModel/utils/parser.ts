@@ -9,6 +9,7 @@ import {
     convertToAiHints,
     Explore,
     getBasicType,
+    isMetric,
     type Tag,
 } from '@lightdash/common';
 import { DbCatalog } from '../../../database/entities/catalog';
@@ -46,6 +47,9 @@ const parseFieldFromMetricOrDimension = (
     catalogSearchUuid: catalogArgs.catalogSearchUuid,
     icon: catalogArgs.icon,
     searchRank: catalogArgs.searchRank,
+    ...(isMetric(field) && field.spotlight?.filterBy
+        ? { spotlightFilterBy: field.spotlight.filterBy }
+        : {}),
 });
 
 export const parseFieldsFromCompiledTable = (

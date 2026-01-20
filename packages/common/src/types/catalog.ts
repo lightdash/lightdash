@@ -77,6 +77,7 @@ export type CatalogField = Pick<
         icon: CatalogItemIcon | null;
         aiHints: string[] | null;
         searchRank?: number;
+        spotlightFilterBy?: string[]; // dimension IDs allowlist (metrics only)
     };
 
 export type CatalogTable = Pick<
