@@ -1,3 +1,10 @@
+## [0.2353.5](https://github.com/lightdash/lightdash/compare/0.2353.4...0.2353.5) (2026-01-20)
+
+
+### Bug Fixes
+
+* check ai copilot flag or env var on useAmbientAiEnabled ([#19554](https://github.com/lightdash/lightdash/issues/19554)) ([8aca1ff](https://github.com/lightdash/lightdash/commit/8aca1ffc1056d305891625a9b53db05fba363ac1))
+
 ## [0.2353.4](https://github.com/lightdash/lightdash/compare/0.2353.3...0.2353.4) (2026-01-19)
 
 
