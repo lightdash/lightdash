@@ -335,6 +335,13 @@
                                                             "type": "string"
                                                         },
                                                         "description": "An array of dimension names that are allowed for filtering this metric in the Metrics Explorer"
+                                                    },
+                                                    "segment_by": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
                                                     }
                                                 },
                                                 "anyOf": [
@@ -351,6 +358,11 @@
                                                     {
                                                         "required": [
                                                             "filter_by"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "required": [
+                                                            "segment_by"
                                                         ]
                                                     }
                                                 ]
@@ -850,6 +862,13 @@
                                                                         "type": "string"
                                                                     },
                                                                     "description": "An array of dimension names that are allowed for filtering this metric in the Metrics Explorer"
+                                                                },
+                                                                "segment_by": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
                                                                 }
                                                             },
                                                             "anyOf": [
@@ -866,6 +885,11 @@
                                                                 {
                                                                     "required": [
                                                                         "filter_by"
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "required": [
+                                                                        "segment_by"
                                                                     ]
                                                                 }
                                                             ]
@@ -1070,9 +1094,12 @@
                                                         "filter_by": {
                                                             "type": "boolean",
                                                             "description": "Whether this dimension can be used for filtering in the Metrics Explorer. Defaults to true."
+                                                        },
+                                                        "segment_by": {
+                                                            "type": "boolean",
+                                                            "description": "Whether this dimension can be used for segmenting in the Metrics Explorer. Defaults to true."
                                                         }
-                                                    },
-                                                    "required": ["filter_by"]
+                                                    }
                                                 }
                                             }
                                         },
@@ -1465,12 +1492,20 @@
                                             "type": "string"
                                         },
                                         "description": "An array of dimension names that are allowed for filtering this metric in the Metrics Explorer"
+                                    },
+                                    "segment_by": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
                                     }
                                 },
                                 "anyOf": [
                                     { "required": ["visibility"] },
                                     { "required": ["categories"] },
-                                    { "required": ["filter_by"] }
+                                    { "required": ["filter_by"] },
+                                    { "required": ["segment_by"] }
                                 ]
                             }
                         }

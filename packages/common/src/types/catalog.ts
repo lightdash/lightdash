@@ -78,6 +78,7 @@ export type CatalogField = Pick<
         aiHints: string[] | null;
         searchRank?: number;
         spotlightFilterBy?: string[]; // dimension IDs allowlist (metrics only)
+        spotlightSegmentBy?: string[]; // dimension IDs allowlist (metrics only)
     };
 
 export type CatalogTable = Pick<

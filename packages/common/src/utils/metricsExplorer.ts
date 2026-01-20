@@ -540,43 +540,82 @@ export const getAvailableTimeDimensionsFromTables = (
         ),
     );
 
-export const getAvailableSegmentDimensions = (
+/**
+ * Returns dimensions that can be used for segmenting based on type constraints only.
+ * Used by backend API to return all potentially segment-able dimensions.
+ * Does NOT apply spotlight settings - frontend handles that with metric allowlist.
+ */
+export const getTypeValidSegmentDimensions = (
     dimensions: Dimension[],
 ): CompiledDimension[] =>
-    dimensions
-        .filter((d): d is CompiledDimension => !!d)
-        .filter(
-            (d) =>
-                d.type !== DimensionType.DATE &&
-                d.type !== DimensionType.TIMESTAMP &&
-                d.type !== DimensionType.NUMBER &&
-                !d.timeIntervalBaseDimensionName,
-        );
+    dimensions.filter((d): d is CompiledDimension => {
+        if (!d) return false;
+        // Exclude date/timestamp/number types
+        if (
+            d.type === DimensionType.DATE ||
+            d.type === DimensionType.TIMESTAMP ||
+            d.type === DimensionType.NUMBER
+        ) {
+            return false;
+        }
+        // Exclude time interval dimensions
+        if (d.timeIntervalBaseDimensionName) return false;
+        return true;
+    });
 
+/**
+ * Returns dimensions that can be used for segmenting, applying spotlight settings.
+ * Used by frontend to filter dimensions with metric's allowlist.
+ */
+export const getAvailableSegmentDimensions = (
+    dimensions: Dimension[],
+    metricSegmentByAllowlist?: string[],
+): CompiledDimension[] =>
+    getTypeValidSegmentDimensions(dimensions).filter((d) => {
+        // If metric has allowlist, use it (supersedes dimension-level)
+        if (metricSegmentByAllowlist) {
+            return metricSegmentByAllowlist.includes(d.name);
+        }
+
+        // Otherwise use dimension-level setting (default true)
+        return d.spotlight?.segmentBy !== false;
+    });
+
+/**
+ * Returns dimensions that can be used for filtering based on type constraints only.
+ * Used by backend API to return all potentially filter-able dimensions.
+ * Does NOT apply spotlight settings - frontend handles that with metric allowlist.
+ */
+export const getTypeValidFilterDimensions = (
+    dimensions: Dimension[],
+): CompiledDimension[] =>
+    dimensions.filter((d): d is CompiledDimension => {
+        if (!d) return false;
+        // Only string/boolean dimensions can be used for filtering
+        if (d.type !== DimensionType.STRING && d.type !== DimensionType.BOOLEAN)
+            return false;
+        // Exclude time interval dimensions
+        if (d.timeIntervalBaseDimensionName) return false;
+        return true;
+    });
+
+/**
+ * Returns dimensions that can be used for filtering, applying spotlight settings.
+ * Used by frontend to filter dimensions with metric's allowlist.
+ */
 export const getAvailableFilterDimensions = (
     dimensions: Dimension[],
     metricFilterByAllowlist?: string[],
 ): CompiledDimension[] =>
-    dimensions
-        .filter((d): d is CompiledDimension => !!d)
-        .filter((d) => {
-            // Only string/boolean dimensions can be used for filtering
-            if (
-                d.type !== DimensionType.STRING &&
-                d.type !== DimensionType.BOOLEAN
-            ) {
-                return false;
-            }
-            if (d.timeIntervalBaseDimensionName) return false;
+    getTypeValidFilterDimensions(dimensions).filter((d) => {
+        // If metric has allowlist, use it (supersedes dimension-level)
+        if (metricFilterByAllowlist) {
+            return metricFilterByAllowlist.includes(d.name);
+        }
 
-            // If metric has allowlist, use it (supersedes dimension-level)
-            if (metricFilterByAllowlist) {
-                return metricFilterByAllowlist.includes(d.name);
-            }
-
-            // Otherwise use dimension-level setting (default true)
-            return d.spotlight?.filterBy !== false;
-        });
+        // Otherwise use dimension-level setting (default true)
+        return d.spotlight?.filterBy !== false;
+    });
 
 export const getAvailableCompareMetrics = (
     metrics: MetricWithAssociatedTimeDimension[],

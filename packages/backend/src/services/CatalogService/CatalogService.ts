@@ -29,9 +29,9 @@ import {
     UserAttributeValueMap,
     convertToAiHints,
     getAvailableCompareMetrics,
-    getAvailableSegmentDimensions,
     getAvailableTimeDimensionsFromTables,
     getDefaultTimeDimension,
+    getTypeValidSegmentDimensions,
     hasIntersection,
     isExploreError,
     type ApiMetricsTreeEdgePayload,
@@ -1400,7 +1400,8 @@ export class CatalogService<
             .map((d) => explore?.tables?.[tableName]?.dimensions?.[d.name])
             .filter((d): d is CompiledDimension => d !== undefined);
 
-        return getAvailableSegmentDimensions(allDimensions);
+        // Return type-valid dimensions only - frontend applies spotlight filtering with metric allowlist
+        return getTypeValidSegmentDimensions(allDimensions);
     }
 
     async deleteMetricsTreeEdge(

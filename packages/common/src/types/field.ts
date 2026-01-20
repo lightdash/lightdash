@@ -574,7 +574,8 @@ export interface Dimension extends Field {
         fit?: string;
     };
     spotlight?: {
-        filterBy: boolean;
+        filterBy?: boolean;
+        segmentBy?: boolean;
     };
 }
 
@@ -761,6 +762,7 @@ export interface Metric extends Field {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];
         categories?: string[]; // yaml_reference
         filterBy?: string[]; // dimension IDs allowlist
+        segmentBy?: string[]; // dimension IDs allowlist
     };
     aiHint?: string | string[];
 }

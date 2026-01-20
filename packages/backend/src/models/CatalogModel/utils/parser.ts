@@ -50,6 +50,9 @@ const parseFieldFromMetricOrDimension = (
     ...(isMetric(field) && field.spotlight?.filterBy
         ? { spotlightFilterBy: field.spotlight.filterBy }
         : {}),
+    ...(isMetric(field) && field.spotlight?.segmentBy
+        ? { spotlightSegmentBy: field.spotlight.segmentBy }
+        : {}),
 });
 
 export const parseFieldsFromCompiledTable = (
