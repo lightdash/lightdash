@@ -1,3 +1,10 @@
+## [0.2355.1](https://github.com/lightdash/lightdash/compare/0.2355.0...0.2355.1) (2026-01-20)
+
+
+### Bug Fixes
+
+* include all tabs doesn't persist in Scheduled deliveries modal ([#19569](https://github.com/lightdash/lightdash/issues/19569)) ([a5fadcc](https://github.com/lightdash/lightdash/commit/a5fadcc4e5622582c2a13eba52bfd83c6f8745e4)), closes [#19369](https://github.com/lightdash/lightdash/issues/19369)
+
 # [0.2355.0](https://github.com/lightdash/lightdash/compare/0.2354.0...0.2355.0) (2026-01-20)
 
 
