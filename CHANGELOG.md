@@ -1,3 +1,10 @@
+## [0.2357.3](https://github.com/lightdash/lightdash/compare/0.2357.2...0.2357.3) (2026-01-20)
+
+
+### Bug Fixes
+
+* deduplicate column order and capture exception ([#19596](https://github.com/lightdash/lightdash/issues/19596)) ([f038acf](https://github.com/lightdash/lightdash/commit/f038acfe66f3430bdd0649fc85a068902b51cfbb))
+
 ## [0.2357.2](https://github.com/lightdash/lightdash/compare/0.2357.1...0.2357.2) (2026-01-20)
 
 
