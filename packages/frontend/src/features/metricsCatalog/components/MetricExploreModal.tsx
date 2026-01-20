@@ -1,7 +1,7 @@
 import { FeatureFlags, type CatalogField } from '@lightdash/common';
 import { type ModalProps } from '@mantine/core';
 import { type FC } from 'react';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { MetricExploreModalV1 } from './MetricExploreModalV1';
 import { MetricExploreModalV2 } from './MetricExploreModalV2';
 
@@ -16,7 +16,7 @@ type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
  * V2: New implementation using VisualizationProvider + echarts
  */
 export const MetricExploreModal: FC<Props> = (props) => {
-    const metricExploreModalV2Flag = useFeatureFlag(
+    const metricExploreModalV2Flag = useServerFeatureFlag(
         FeatureFlags.MetricsCatalogEchartsVisualization,
     );
     const isEchartsEnabled = metricExploreModalV2Flag.data?.enabled === true;

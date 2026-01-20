@@ -10,8 +10,8 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
-import { useFeatureFlagEnabled } from '../../../../../hooks/useFeatureFlagEnabled';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
+import { useClientFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -41,7 +41,7 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     const allCustomDimensions = useExplorerSelector(selectCustomDimensions);
 
     // Feature flag for bin dimensions write-back
-    const isWriteBackCustomBinDimensionsEnabled = useFeatureFlagEnabled(
+    const isWriteBackCustomBinDimensionsEnabled = useClientFeatureFlag(
         FeatureFlags.WriteBackCustomBinDimensions,
     );
 

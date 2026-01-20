@@ -3,7 +3,7 @@ import { Card, Group, Stack, Text } from '@mantine/core';
 import { IconArchive, IconLayoutDashboard } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
-import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
+import { useClientFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../common/MantineIcon';
 
 interface ProjectUserAccessProps {
@@ -13,7 +13,7 @@ interface ProjectUserAccessProps {
 const SettingsUsageAnalytics: FC<ProjectUserAccessProps> = ({
     projectUuid,
 }) => {
-    const isUnusedContentDashboardEnabled = useFeatureFlagEnabled(
+    const isUnusedContentDashboardEnabled = useClientFeatureFlag(
         FeatureFlags.UnusedContentDashboard,
     );
 

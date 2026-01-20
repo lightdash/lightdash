@@ -40,9 +40,9 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
-import { useFeatureFlag } from '../../../../hooks/useFeatureFlagEnabled';
 import { useOrganizationGroups } from '../../../../hooks/useOrganizationGroups';
 import { useProject } from '../../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import { UserAccessMultiSelect } from '../../../components/UserAccessMultiSelect';
 import AiExploreAccessTree from '../../../pages/AiAgents/AiExploreAccessTree';
@@ -128,7 +128,7 @@ export const AiAgentFormSetup = ({
     const { data: slackInstallation, isLoading: isLoadingSlackInstallation } =
         useGetSlack();
 
-    const userGroupsFeatureFlagQuery = useFeatureFlag(
+    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
 
@@ -136,7 +136,7 @@ export const AiAgentFormSetup = ({
         userGroupsFeatureFlagQuery.isSuccess &&
         userGroupsFeatureFlagQuery.data.enabled;
 
-    const agentReasoningFeatureFlagQuery = useFeatureFlag(
+    const agentReasoningFeatureFlagQuery = useServerFeatureFlag(
         CommercialFeatureFlags.AgentReasoning,
     );
 

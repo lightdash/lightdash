@@ -1,6 +1,6 @@
 import { CommercialFeatureFlags } from '@lightdash/common';
 import { useActiveProject } from '../../../../hooks/useActiveProject';
-import { useFeatureFlag } from '../../../../hooks/useFeatureFlagEnabled';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import { useAiAgentPermission } from './useAiAgentPermission';
 import { useAiOrganizationSettings } from './useAiOrganizationSettings';
@@ -35,7 +35,9 @@ export const useAiAgentButtonVisibility = () => {
         projectUuid,
     });
 
-    const aiCopilotFlagQuery = useFeatureFlag(CommercialFeatureFlags.AiCopilot);
+    const aiCopilotFlagQuery = useServerFeatureFlag(
+        CommercialFeatureFlags.AiCopilot,
+    );
 
     if (
         agentsQuery.isLoading ||

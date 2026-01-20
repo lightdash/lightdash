@@ -37,7 +37,7 @@ import {
     useUpdateSlackAppCustomSettingsMutation,
 } from '../../../hooks/slack/useSlack';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import slackSvg from '../../../svgs/slack.svg';
 import { BetaBadge } from '../../common/BetaBadge';
 import { ComingSoonBadge } from '../../common/ComingSoonBadge';
@@ -72,10 +72,10 @@ const formSchema = z.object({
 
 const SlackSettingsPanel: FC = () => {
     const { activeProjectUuid } = useActiveProjectUuid();
-    const { data: aiCopilotFlag } = useFeatureFlag(
+    const { data: aiCopilotFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
     );
-    const { data: multiAgentChannelFlag } = useFeatureFlag(
+    const { data: multiAgentChannelFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.MultiAgentChannel,
     );
     const { data: slackInstallation, isInitialLoading } = useGetSlack();

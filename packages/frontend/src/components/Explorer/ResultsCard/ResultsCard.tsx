@@ -20,8 +20,8 @@ import {
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -109,7 +109,7 @@ const ResultsCard: FC = memo(() => {
         [getDownloadQueryUuid],
     );
 
-    const showPeriodOverPeriod = useFeatureFlagEnabled(
+    const showPeriodOverPeriod = useClientFeatureFlag(
         FeatureFlags.PeriodOverPeriod,
     );
 

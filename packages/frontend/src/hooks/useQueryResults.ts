@@ -28,8 +28,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lightdashApi } from '../api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { convertDateFilters } from '../utils/dateFilter';
-import { useFeatureFlag } from './useFeatureFlagEnabled';
 import useQueryError from './useQueryError';
+import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 export type QueryResultsProps = {
     projectUuid: string;
@@ -211,7 +211,7 @@ export const useGetReadyQueryResults = (
         return missingRequiredParameters.length === 0;
     }, [data, missingRequiredParameters]);
 
-    const { data: useSqlPivotResults } = useFeatureFlag(
+    const { data: useSqlPivotResults } = useServerFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 

@@ -2,9 +2,8 @@ import { CartesianSeriesType, getItemMap } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
-vi.mock('../useFeatureFlagEnabled', () => ({
-    useFeatureFlag: async () => ({ data: { enabled: false } }),
-    useFeatureFlagEnabled: async () => false,
+vi.mock('../useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: async () => ({ data: { enabled: false } }),
 }));
 
 import useCartesianChartConfig from './useCartesianChartConfig';
