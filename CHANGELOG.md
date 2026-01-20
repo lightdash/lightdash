@@ -1,3 +1,11 @@
+## [0.2357.2](https://github.com/lightdash/lightdash/compare/0.2357.1...0.2357.2) (2026-01-20)
+
+
+### Bug Fixes
+
+* schedulers reassign modal missing project UUID when fetching users ([#19590](https://github.com/lightdash/lightdash/issues/19590)) ([6ac75fc](https://github.com/lightdash/lightdash/commit/6ac75fcfb8729156d6b19252f22f6466914d6c7c))
+* support additional dimensions in dbt 1.10+ config.meta structure ([#19558](https://github.com/lightdash/lightdash/issues/19558)) ([b7f00fe](https://github.com/lightdash/lightdash/commit/b7f00fe1357757298d1ff7afccea0015d8a3c0ce))
+
 ## [0.2357.1](https://github.com/lightdash/lightdash/compare/0.2357.0...0.2357.1) (2026-01-20)
 
 
