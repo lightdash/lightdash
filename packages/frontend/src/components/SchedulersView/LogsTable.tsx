@@ -40,17 +40,12 @@ import {
 } from 'react';
 import { Link } from 'react-router';
 import ConfirmSendNowModal from '../../features/scheduler/components/ConfirmSendNowModal';
-import {
-    useLogsFilters,
-    type DestinationType,
-} from '../../features/scheduler/hooks/useLogsFilters';
+import { useLogsFilters } from '../../features/scheduler/hooks/useLogsFilters';
 import {
     useFetchRunLogs,
     useSchedulerRuns,
     useSendNowSchedulerByUuid,
 } from '../../features/scheduler/hooks/useScheduler';
-import useHealth from '../../hooks/health/useHealth';
-import { useGetSlack } from '../../hooks/slack/useSlack';
 import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
 import ResourceEmptyState from '../common/ResourceView/ResourceEmptyState';
@@ -237,25 +232,6 @@ const LogsTable: FC<LogsTableProps> = ({
         },
         [childLogsMap, fetchRunLogsMutation],
     );
-
-    const health = useHealth();
-    const slack = useGetSlack();
-    const organizationHasSlack = !!slack.data?.organizationUuid;
-
-    // Compute available destinations based on integrations
-    const availableDestinations = useMemo<DestinationType[]>(() => {
-        const destinations: DestinationType[] = [];
-        if (health.data?.hasEmailClient) {
-            destinations.push('email');
-        }
-        if (organizationHasSlack) {
-            destinations.push('slack');
-        }
-        if (health.data?.hasMicrosoftTeams) {
-            destinations.push('msteams');
-        }
-        return destinations;
-    }, [health.data, organizationHasSlack]);
 
     // Compute available schedulers from runs (unique schedulers)
     const availableSchedulers = useMemo(() => {
@@ -577,7 +553,6 @@ const LogsTable: FC<LogsTableProps> = ({
                 currentResultsCount={totalFetched}
                 hasActiveFilters={hasActiveFilters}
                 resetFilters={resetFilters}
-                availableDestinations={availableDestinations}
                 availableSchedulers={availableSchedulers}
             />
         ),

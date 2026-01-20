@@ -10,10 +10,7 @@ import {
 } from '@mantine-8/core';
 import { IconTrash, IconUserEdit } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
-import {
-    type DestinationType,
-    type useSchedulerFilters,
-} from '../../features/scheduler/hooks/useSchedulerFilters';
+import { type useSchedulerFilters } from '../../features/scheduler/hooks/useSchedulerFilters';
 import MantineIcon from '../common/MantineIcon';
 import CreatedByFilter from './filters/CreatedByFilter';
 import DestinationFilter from './filters/DestinationFilter';
@@ -39,7 +36,6 @@ type SchedulerTopToolbarProps = GroupProps &
         currentResultsCount: number;
         hasActiveFilters?: boolean;
         onClearFilters?: () => void;
-        availableDestinations: DestinationType[];
         projectUuid: string;
         // Bulk selection props
         selectedCount?: number;
@@ -62,7 +58,6 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
         currentResultsCount,
         hasActiveFilters,
         onClearFilters,
-        availableDestinations,
         selectedCount = 0,
         onBulkReassign,
         projectUuid,
@@ -120,7 +115,6 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     <DestinationFilter
                         selectedDestinations={selectedDestinations}
                         setSelectedDestinations={setSelectedDestinations}
-                        availableDestinations={availableDestinations}
                     />
                 </Group>
 
