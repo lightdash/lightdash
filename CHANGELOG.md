@@ -1,3 +1,10 @@
+# [0.2357.0](https://github.com/lightdash/lightdash/compare/0.2356.0...0.2357.0) (2026-01-20)
+
+
+### Features
+
+* add metric detail popover in metrics catalog ([#19567](https://github.com/lightdash/lightdash/issues/19567)) ([846b4bb](https://github.com/lightdash/lightdash/commit/846b4bbf7b6ff1975604e05affd0b46af14fce50))
+
 # [0.2356.0](https://github.com/lightdash/lightdash/compare/0.2355.2...0.2356.0) (2026-01-20)
 
 
