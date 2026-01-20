@@ -216,6 +216,4 @@ const MyComponent = () => {
 
 ## Mantine Documentation
 
-Component props and APIs: `https://mantine.dev/core/[component-name]/`
-
-**Tip**: In your IDE, hover over a component or use Go to Definition to see all available props.
+List of all components and links to their documentation in LLM-friendly format: `https://mantine.dev/llms.txt`
