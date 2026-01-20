@@ -194,6 +194,7 @@ export class CatalogController extends BaseController {
         @Query() sort?: ApiSort['sort'],
         @Query() order?: ApiSort['order'],
         @Query() categories?: ApiCatalogSearch['catalogTags'],
+        @Query() tables?: ApiCatalogSearch['tables'],
     ): Promise<ApiMetricsCatalog> {
         this.setStatus(200);
 
@@ -222,6 +223,7 @@ export class CatalogController extends BaseController {
                 {
                     searchQuery: search,
                     catalogTags: categories,
+                    tables,
                 },
                 sortArgs,
             );

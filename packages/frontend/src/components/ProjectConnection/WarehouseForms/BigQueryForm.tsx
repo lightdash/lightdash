@@ -27,7 +27,7 @@ import {
     useBigqueryDatasets,
     useIsBigQueryAuthenticated,
 } from '../../../hooks/useBigquerySSO';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import FormCollapseButton from '../FormCollapseButton';
@@ -121,7 +121,7 @@ const BigQueryForm: FC<{
     const health = useHealth();
     const isAdcEnabled = health.data?.auth.google?.enableGCloudADC;
 
-    const isSsoEnabled = useFeatureFlagEnabled(FeatureFlags.BigquerySSO);
+    const isSsoEnabled = useClientFeatureFlag(FeatureFlags.BigquerySSO);
     // Fetching databases can only happen if user is authenticated
     // if user authenticates, and change to private_key
     // We will not make any queries, in case private_key is different

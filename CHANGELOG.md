@@ -1,3 +1,62 @@
+## [0.2355.2](https://github.com/lightdash/lightdash/compare/0.2355.1...0.2355.2) (2026-01-20)
+
+
+### Bug Fixes
+
+* quote base table in funnel query sql ([#19578](https://github.com/lightdash/lightdash/issues/19578)) ([64acb55](https://github.com/lightdash/lightdash/commit/64acb559ceb98a6b800c294c871100ad3719f4c1))
+
+## [0.2355.1](https://github.com/lightdash/lightdash/compare/0.2355.0...0.2355.1) (2026-01-20)
+
+
+### Bug Fixes
+
+* include all tabs doesn't persist in Scheduled deliveries modal ([#19569](https://github.com/lightdash/lightdash/issues/19569)) ([a5fadcc](https://github.com/lightdash/lightdash/commit/a5fadcc4e5622582c2a13eba52bfd83c6f8745e4)), closes [#19369](https://github.com/lightdash/lightdash/issues/19369)
+
+# [0.2355.0](https://github.com/lightdash/lightdash/compare/0.2354.0...0.2355.0) (2026-01-20)
+
+
+### Features
+
+* enable PoP on metrics explorer modal v2 ([#19566](https://github.com/lightdash/lightdash/issues/19566)) ([3079c97](https://github.com/lightdash/lightdash/commit/3079c97842b32c7f2f35830ddb7263a816e91029))
+
+# [0.2354.0](https://github.com/lightdash/lightdash/compare/0.2353.5...0.2354.0) (2026-01-20)
+
+
+### Features
+
+* add search functionality to metrics catalog categories filter ([#19547](https://github.com/lightdash/lightdash/issues/19547)) ([6d97202](https://github.com/lightdash/lightdash/commit/6d97202a3c7766f03c45cf771032cdc0aa054a76))
+* add table filtering to metrics catalog ([#19546](https://github.com/lightdash/lightdash/issues/19546)) ([9ce7fdb](https://github.com/lightdash/lightdash/commit/9ce7fdb21b81248280f850a79a44aee617e5febe))
+* enable sorting by table name in metrics catalog ([#19544](https://github.com/lightdash/lightdash/issues/19544)) ([c6a9765](https://github.com/lightdash/lightdash/commit/c6a9765842aa92aff20ac088619025c621e787cb))
+
+## [0.2353.5](https://github.com/lightdash/lightdash/compare/0.2353.4...0.2353.5) (2026-01-20)
+
+
+### Bug Fixes
+
+* check ai copilot flag or env var on useAmbientAiEnabled ([#19554](https://github.com/lightdash/lightdash/issues/19554)) ([8aca1ff](https://github.com/lightdash/lightdash/commit/8aca1ffc1056d305891625a9b53db05fba363ac1))
+
+## [0.2353.4](https://github.com/lightdash/lightdash/compare/0.2353.3...0.2353.4) (2026-01-19)
+
+
+### Bug Fixes
+
+* show chart configuration warnings on validator when USE_SQL_PIVOT_RESULTS is disabled ([#19556](https://github.com/lightdash/lightdash/issues/19556)) ([710347a](https://github.com/lightdash/lightdash/commit/710347a1da925742963ed32f087a4d11c56d8c82))
+
+## [0.2353.3](https://github.com/lightdash/lightdash/compare/0.2353.2...0.2353.3) (2026-01-19)
+
+
+### Bug Fixes
+
+* Metric catalog explore name tooltip cut-off on hover ([#19542](https://github.com/lightdash/lightdash/issues/19542)) ([087fcd8](https://github.com/lightdash/lightdash/commit/087fcd82e431f3179e637f93fabdc671c1a757a4))
+* Metrics Catalog category filter dropdown missing existing categories ([#19538](https://github.com/lightdash/lightdash/issues/19538)) ([d4f1f67](https://github.com/lightdash/lightdash/commit/d4f1f67b2c06d89723befe221cbe87f50630d20f))
+
+## [0.2353.2](https://github.com/lightdash/lightdash/compare/0.2353.1...0.2353.2) (2026-01-19)
+
+
+### Bug Fixes
+
+* change catalog field filtering from whereIn to unnest arrays ([#19540](https://github.com/lightdash/lightdash/issues/19540)) ([8885368](https://github.com/lightdash/lightdash/commit/8885368506e2f9ef61f54e05685f4c399a3e6631))
+
 ## [0.2353.1](https://github.com/lightdash/lightdash/compare/0.2353.0...0.2353.1) (2026-01-19)
 
 

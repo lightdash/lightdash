@@ -99,12 +99,14 @@ export const SchedulerFormSetupTab: FC<Props> = ({
         return SlackStates.SUCCESS;
     }, [isInitialLoading, organizationHasSlack, slackInstallation]);
 
-    const [allTabsSelected, setAllTabsSelected] = useState(
-        form.values.selectedTabs === null ||
+    const allTabsSelected = useMemo(
+        () =>
+            form.values.selectedTabs === null ||
             isEqual(
                 dashboard?.tabs.map((tab) => tab.uuid),
                 form.values.selectedTabs,
             ), // make sure tab ids are identical
+        [form.values.selectedTabs, dashboard?.tabs],
     );
 
     const [emailValidationError, setEmailValidationError] = useState<
@@ -167,7 +169,7 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                         }}
                     />
                     {isThresholdAlertWithNoFields && (
-                        <Text color="red" size="xs" mb="sm">
+                        <Text c="red" size="xs" mb="sm">
                             No numeric fields available. You must have at least
                             one numeric metric or calculation to set an alert.
                         </Text>
@@ -343,7 +345,8 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                                     position="top"
                                     withinPortal
                                     disabled={
-                                        (form.values.emailTargets?.length || 0) > 0
+                                        (form.values.emailTargets?.length ||
+                                            0) > 0
                                     }
                                 >
                                     <Box display="flex" w="fit-content">
@@ -488,7 +491,6 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                         labelPosition="right"
                         checked={allTabsSelected}
                         onChange={(e) => {
-                            setAllTabsSelected((old) => !old);
                             form.setFieldValue(
                                 'selectedTabs',
                                 e.target.checked ? null : [],

@@ -593,7 +593,7 @@ export class CatalogModel {
     async search({
         projectUuid,
         exploreName,
-        catalogSearch: { catalogTags, filter, searchQuery = '', type },
+        catalogSearch: { catalogTags, filter, searchQuery = '', type, tables },
         excludeUnmatched = true,
         tablesConfiguration,
         userAttributes,
@@ -833,6 +833,15 @@ export class CatalogModel {
             );
         }
 
+        // Filter by table names
+        if (tables && tables.length > 0) {
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                `${CatalogTableName}.table_name`,
+                'in',
+                tables,
+            );
+        }
+
         // Filter by filteredExplores (AI agent explore tag filtering)
         if (filteredExplores) {
             if (type === CatalogType.Table) {
@@ -890,14 +899,16 @@ export class CatalogModel {
                 catalogItemsQuery = catalogItemsQuery.andWhere(
                     function allowedFieldsFiltering() {
                         if (allowedFields.length > 0) {
-                            // Use PostgreSQL's row comparison: (table_name, name) IN (VALUES ...)
-                            // This allows fields from joined tables to be found even if they're indexed
-                            // under a different cached_explore_uuid than the primary explore
+                            // Use unnest with two arrays to avoid creating thousands of bind parameters
+                            // This is much more efficient than VALUES (?, ?), (?, ?), ...
+                            const tableNames = allowedFields.map(([t]) => t);
+                            const fieldNames = allowedFields.map(([, n]) => n);
+
                             void this.whereRaw(
-                                `(${CatalogTableName}.table_name, ${CatalogTableName}.name) IN (VALUES ${allowedFields
-                                    .map(() => '(?, ?)')
-                                    .join(', ')})`,
-                                allowedFields.flat(),
+                                `(${CatalogTableName}.table_name, ${CatalogTableName}.name) IN (
+                                    SELECT * FROM unnest(?::text[], ?::text[]) AS t(table_name, field_name)
+                                )`,
+                                [tableNames, fieldNames],
                             );
                         } else {
                             // No fields allowed, return no results

@@ -8,6 +8,7 @@ import { useProject } from '../../../hooks/useProject';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
+import { DocumentTitle } from '../DocumentTitle';
 import Sidebar from './Sidebar';
 import {
     BANNER_HEIGHT,
@@ -274,7 +275,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
     return (
         <>
-            {title ? <title>{`${title} - Lightdash`}</title> : null}
+            <DocumentTitle title={title} />
 
             {header}
 

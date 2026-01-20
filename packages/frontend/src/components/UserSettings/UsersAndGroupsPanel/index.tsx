@@ -9,7 +9,7 @@ import {
 } from '@mantine-8/core';
 import { IconInfoCircle, IconUsers, IconUsersGroup } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import ForbiddenPanel from '../../ForbiddenPanel';
 import MantineIcon from '../../common/MantineIcon';
@@ -19,7 +19,7 @@ import UsersView from './UsersView';
 
 const UsersAndGroupsPanel: FC = () => {
     const { user } = useApp();
-    const userGroupsFeatureFlagQuery = useFeatureFlag(
+    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
 

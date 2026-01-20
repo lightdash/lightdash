@@ -7,14 +7,17 @@ import {
     Popover,
     Stack,
     Text,
+    TextInput,
     Tooltip,
-} from '@mantine/core';
-import { IconTag, IconX } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+} from '@mantine-8/core';
+import { clsx } from '@mantine/core';
+import { IconSearch, IconTag, IconX } from '@tabler/icons-react';
+import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useProjectTags } from '../../hooks/useProjectTags';
 import { CatalogCategory } from '../CatalogCategory';
+import styles from './CategoriesFilter.module.css';
 
 type CategoriesFilterProps = {
     selectedCategories: CatalogField['categories'][number]['tagUuid'][];
@@ -30,9 +33,20 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
+    const [searchValue, setSearchValue] = useState('');
 
     // Categories are just tags
     const { data: categories, isLoading } = useProjectTags(projectUuid);
+
+    // Filter categories by search
+    const filteredCategories = useMemo(() => {
+        if (!categories) return [];
+        if (!searchValue) return categories;
+        const searchLower = searchValue.toLowerCase();
+        return categories.filter((category) =>
+            category.name.toLowerCase().includes(searchLower),
+        );
+    }, [categories, searchValue]);
 
     const hasSelectedCategories = selectedCategories.length > 0;
 
@@ -55,12 +69,11 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
         : 'All categories';
 
     return (
-        <Group spacing="two">
+        <Group gap={2}>
             <Popover width={300} position="bottom-start" shadow="sm">
                 <Popover.Target>
                     <Tooltip
                         withinPortal
-                        variant="xs"
                         label="Filter metrics by category"
                         openDelay={200}
                         maw={250}
@@ -75,7 +88,7 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                             radius="md"
                             py="xs"
                             px="sm"
-                            leftIcon={
+                            leftSection={
                                 <MantineIcon
                                     icon={IconTag}
                                     size="md"
@@ -87,41 +100,50 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                                 />
                             }
                             loading={isLoading}
-                            styles={(theme) => ({
-                                root: {
-                                    border: hasSelectedCategories
-                                        ? `1px solid`
-                                        : `1px dashed`,
-                                    borderColor:
-                                        theme.colorScheme === 'dark'
-                                            ? theme.colors.ldGray[3]
-                                            : theme.colors.indigo[2],
-                                    backgroundColor:
-                                        hasSelectedCategories &&
-                                        theme.colorScheme === 'light'
-                                            ? theme.colors.indigo[0]
-                                            : undefined,
-                                    textOverflow: 'ellipsis',
-                                    boxShadow: theme.shadows.subtle,
-                                    '&:hover': {
-                                        backgroundColor: theme.colors.ldGray[0],
-                                        transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                                    },
-                                },
-                                label: {
-                                    height: 24,
-                                },
-                            })}
+                            className={clsx(
+                                styles.filterButton,
+                                hasSelectedCategories &&
+                                    styles.filterButtonSelected,
+                            )}
+                            classNames={{
+                                label: styles.filterButtonLabel,
+                            }}
                         >
                             {buttonLabel}
                         </Button>
                     </Tooltip>
                 </Popover.Target>
                 <Popover.Dropdown p="sm">
-                    <Stack spacing={4}>
+                    <Stack gap={4}>
                         <Text fz="xs" c="ldGray.6" fw={600}>
                             Filter by categories:
                         </Text>
+
+                        {(categories?.length ?? 0) > 5 && (
+                            <TextInput
+                                size="xs"
+                                placeholder="Search categories..."
+                                value={searchValue}
+                                onChange={(e) =>
+                                    setSearchValue(e.currentTarget.value)
+                                }
+                                rightSection={
+                                    searchValue ? (
+                                        <ActionIcon
+                                            size="xs"
+                                            onClick={() => setSearchValue('')}
+                                        >
+                                            <MantineIcon icon={IconX} />
+                                        </ActionIcon>
+                                    ) : (
+                                        <MantineIcon
+                                            icon={IconSearch}
+                                            color="ldGray.5"
+                                        />
+                                    )
+                                }
+                            />
+                        )}
 
                         {categories?.length === 0 && (
                             <Text fz="xs" fw={500} c="ldGray.6">
@@ -130,8 +152,13 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                             </Text>
                         )}
 
-                        <Stack spacing="xs">
-                            {categories?.map((category) => (
+                        <Stack
+                            gap="xs"
+                            mah={300}
+                            mt="xxs"
+                            className={styles.scrollableList}
+                        >
+                            {filteredCategories.map((category) => (
                                 <Checkbox
                                     key={category.tagUuid}
                                     label={
@@ -141,18 +168,10 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                                         category.tagUuid,
                                     )}
                                     size="xs"
-                                    styles={(theme) => ({
-                                        body: {
-                                            alignItems: 'center',
-                                        },
-                                        input: {
-                                            borderRadius: theme.radius.sm,
-                                            border: `1px solid ${theme.colors.ldGray[4]}`,
-                                        },
-                                        label: {
-                                            paddingLeft: theme.spacing.xs,
-                                        },
-                                    })}
+                                    classNames={{
+                                        body: styles.checkbox,
+                                        input: styles.checkboxInput,
+                                    }}
                                     onChange={() => {
                                         if (
                                             selectedCategories.includes(
@@ -174,64 +193,56 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                                     }}
                                 />
                             ))}
-                            <Checkbox
-                                label="Uncategorized"
-                                checked={selectedCategories.includes(
-                                    UNCATEGORIZED_TAG_UUID,
+                            {!searchValue && (categories?.length ?? 0) > 0 && (
+                                <Checkbox
+                                    label="Uncategorized"
+                                    checked={selectedCategories.includes(
+                                        UNCATEGORIZED_TAG_UUID,
+                                    )}
+                                    fw={500}
+                                    size="xs"
+                                    classNames={{
+                                        body: styles.checkbox,
+                                        input: styles.checkboxInput,
+                                    }}
+                                    onChange={() => {
+                                        if (
+                                            selectedCategories.includes(
+                                                UNCATEGORIZED_TAG_UUID,
+                                            )
+                                        ) {
+                                            setSelectedCategories(
+                                                selectedCategories.filter(
+                                                    (c) =>
+                                                        c !==
+                                                        UNCATEGORIZED_TAG_UUID,
+                                                ),
+                                            );
+                                        } else {
+                                            setSelectedCategories([
+                                                ...selectedCategories,
+                                                UNCATEGORIZED_TAG_UUID,
+                                            ]);
+                                        }
+                                    }}
+                                />
+                            )}
+                            {filteredCategories.length === 0 &&
+                                (categories?.length ?? 0) > 0 && (
+                                    <Text fz="xs" c="ldGray.5">
+                                        No categories match your search.
+                                    </Text>
                                 )}
-                                fw={500}
-                                size="xs"
-                                display={
-                                    categories?.length === 0 ? 'none' : 'block'
-                                }
-                                styles={(theme) => ({
-                                    body: {
-                                        alignItems: 'center',
-                                    },
-                                    input: {
-                                        borderRadius: theme.radius.sm,
-                                        border: `1px solid ${theme.colors.ldGray[4]}`,
-                                    },
-                                    label: {
-                                        paddingLeft: theme.spacing.xs,
-                                    },
-                                })}
-                                onChange={() => {
-                                    if (
-                                        selectedCategories.includes(
-                                            UNCATEGORIZED_TAG_UUID,
-                                        )
-                                    ) {
-                                        setSelectedCategories(
-                                            selectedCategories.filter(
-                                                (c) =>
-                                                    c !==
-                                                    UNCATEGORIZED_TAG_UUID,
-                                            ),
-                                        );
-                                    } else {
-                                        setSelectedCategories([
-                                            ...selectedCategories,
-                                            UNCATEGORIZED_TAG_UUID,
-                                        ]);
-                                    }
-                                }}
-                            />
                         </Stack>
                     </Stack>
                 </Popover.Dropdown>
             </Popover>
             {hasSelectedCategories && (
-                <Tooltip
-                    variant="xs"
-                    label="Clear all categories"
-                    openDelay={200}
-                    maw={250}
-                    fz="xs"
-                >
+                <Tooltip label="Clear all category filters">
                     <ActionIcon
                         size="xs"
                         color="ldGray.5"
+                        variant="subtle"
                         onClick={() => {
                             setSelectedCategories([]);
                         }}

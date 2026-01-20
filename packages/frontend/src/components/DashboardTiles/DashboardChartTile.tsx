@@ -99,7 +99,6 @@ import { useOrganization } from '../../hooks/organization/useOrganization';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
-import { useFeatureFlagEnabled } from '../../hooks/useFeatureFlagEnabled';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import {
@@ -107,6 +106,7 @@ import {
     type InfiniteQueryResults,
 } from '../../hooks/useQueryResults';
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
+import { useClientFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import { useAccount } from '../../hooks/user/useAccount';
 import { Can } from '../../providers/Ability';
@@ -503,7 +503,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { data: account } = useAccount();
     const { organizationUuid } = account?.organization || {};
 
-    const showExecutionTime = useFeatureFlagEnabled(
+    const showExecutionTime = useClientFeatureFlag(
         FeatureFlags.ShowExecutionTime,
     );
 

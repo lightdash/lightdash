@@ -23,7 +23,7 @@ import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
 import { useDateZoomGranularitySearch } from './useExplorerRoute';
-import { useFeatureFlag } from './useFeatureFlagEnabled';
+import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 /**
  * Manager hook for Explorer query state
@@ -87,7 +87,7 @@ export const useExplorerQueryManager = () => {
         refetchOnMount: false,
         refetchOnWindowFocus: false,
     });
-    const { data: useSqlPivotResults } = useFeatureFlag(
+    const { data: useSqlPivotResults } = useServerFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 

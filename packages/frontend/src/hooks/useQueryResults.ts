@@ -28,8 +28,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { lightdashApi } from '../api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { convertDateFilters } from '../utils/dateFilter';
-import { useFeatureFlag } from './useFeatureFlagEnabled';
 import useQueryError from './useQueryError';
+import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 export type QueryResultsProps = {
     projectUuid: string;
@@ -39,7 +39,7 @@ export type QueryResultsProps = {
     chartUuid?: string;
     chartVersionUuid?: string;
     dateZoomGranularity?: DateGranularity;
-    context?: string;
+    context?: QueryExecutionContext;
     invalidateCache?: boolean;
     parameters?: ParametersValuesMap;
     pivotConfiguration?: PivotConfiguration;
@@ -150,7 +150,7 @@ const executeAsyncQuery = (
         return executeAsyncMetricQuery(
             data.projectUuid,
             {
-                context: QueryExecutionContext.EXPLORE,
+                context: data.context ?? QueryExecutionContext.EXPLORE,
                 query: {
                     ...data.query,
                     limit: queryLimit,
@@ -211,7 +211,7 @@ export const useGetReadyQueryResults = (
         return missingRequiredParameters.length === 0;
     }, [data, missingRequiredParameters]);
 
-    const { data: useSqlPivotResults } = useFeatureFlag(
+    const { data: useSqlPivotResults } = useServerFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 
