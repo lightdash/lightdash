@@ -9,6 +9,7 @@ import {
     type ResultRow,
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
+import { captureException } from '@sentry/react';
 import type { CellContext } from '@tanstack/react-table';
 import {
     TableHeaderBoldLabel,
@@ -105,10 +106,26 @@ const getDataAndColumns = ({
     groupedSubtotals,
     parameters,
 }: Args): Array<TableHeader | TableColumn> => {
-    return columnOrder.reduce<Array<TableHeader | TableColumn>>(
+    // Deduplicate columnOrder to prevent duplicate columns if the same field appears multiple times
+    const uniqueColumnOrder = [...new Set(columnOrder)];
+
+    if (uniqueColumnOrder.length !== columnOrder.length) {
+        console.warn(
+            'Duplicate columns in columnOrder',
+            columnOrder,
+            uniqueColumnOrder,
+        );
+        captureException(new Error('Duplicate columns in columnOrder'), {
+            level: 'error',
+            tags: { errorType: 'duplicateColumns' },
+            extra: { columnOrder, uniqueColumnOrder },
+        });
+    }
+
+    return uniqueColumnOrder.reduce<Array<TableHeader | TableColumn>>(
         (acc, itemId) => {
             const item = itemsMap[itemId] as
-                | typeof itemsMap[number]
+                | (typeof itemsMap)[number]
                 | undefined;
 
             if (!selectedItemIds.includes(itemId)) {
