@@ -21,7 +21,7 @@ import {
 import { useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     useUserAttributes,
     useUserAttributesDeleteMutation,
@@ -116,7 +116,7 @@ const UserListItem: FC<{
 const UserAttributesPanel: FC = () => {
     const { classes } = useTableStyles();
     const { user } = useApp();
-    const userGroupsFeatureFlagQuery = useFeatureFlag(
+    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
     const [showAddAttributeModal, addAttributeModal] = useDisclosure(false);

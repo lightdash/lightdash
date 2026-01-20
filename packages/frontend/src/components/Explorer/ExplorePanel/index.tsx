@@ -37,8 +37,8 @@ import {
     EditVirtualViewModal,
 } from '../../../features/virtualView';
 import { useExplore } from '../../../hooks/useExplore';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -68,7 +68,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     const projectUuid = useProjectUuid();
     const isGitProject = useIsGitProject(projectUuid ?? '');
-    const { data: editYamlInUiFlag } = useFeatureFlag(
+    const { data: editYamlInUiFlag } = useServerFeatureFlag(
         FeatureFlags.EditYamlInUi,
     );
 

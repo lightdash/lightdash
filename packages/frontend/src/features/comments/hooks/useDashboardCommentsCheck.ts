@@ -1,5 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { type UserWithAbility } from '../../../hooks/user/useUser';
 
 export const useDashboardCommentsCheck = (
@@ -15,7 +15,7 @@ export const useDashboardCommentsCheck = (
         'DashboardComments',
     );
 
-    const { data: dashboardCommentsFeatureFlag } = useFeatureFlag(
+    const { data: dashboardCommentsFeatureFlag } = useServerFeatureFlag(
         FeatureFlags.DashboardComments,
     );
 

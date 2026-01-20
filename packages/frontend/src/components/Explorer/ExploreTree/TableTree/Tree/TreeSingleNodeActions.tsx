@@ -31,9 +31,9 @@ import {
     useExplorerDispatch,
 } from '../../../../../features/explorer/store';
 import useToaster from '../../../../../hooks/toaster/useToaster';
-import { useFeatureFlagEnabled } from '../../../../../hooks/useFeatureFlagEnabled';
 import { useFilteredFields } from '../../../../../hooks/useFilters';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
+import { useClientFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -72,7 +72,7 @@ const TreeSingleNodeActions: FC<Props> = ({
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
 
-    const isWriteBackCustomBinDimensionsEnabled = useFeatureFlagEnabled(
+    const isWriteBackCustomBinDimensionsEnabled = useClientFeatureFlag(
         FeatureFlags.WriteBackCustomBinDimensions,
     );
 

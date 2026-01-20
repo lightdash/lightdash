@@ -13,13 +13,13 @@ import { useMemo, type FC } from 'react';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationRoles } from '../../../hooks/useOrganizationRoles';
 import {
     useProjectGroupRoleAssignments,
     useUpsertProjectGroupRoleAssignmentMutation,
 } from '../../../hooks/useProjectGroupRoles';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { TrackPage } from '../../../providers/Tracking/TrackingProvider';
@@ -43,7 +43,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
     const { cx, classes } = useTableStyles();
     const { showToastSuccess } = useToaster();
 
-    const userGroupsFeatureFlagQuery = useFeatureFlag(
+    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
 

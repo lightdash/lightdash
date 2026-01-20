@@ -28,8 +28,8 @@ import {
     getMarkLineAxis,
     type ReferenceLineField,
 } from '../../components/common/ReferenceLine';
-import { useFeatureFlag } from '../useFeatureFlagEnabled';
 import type { InfiniteQueryResults } from '../useQueryResults';
+import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
@@ -743,7 +743,7 @@ const useCartesianChartConfig = ({
         [getOldTableCalculationMetadataIndex, tableCalculationsMetadata],
     );
 
-    const { data: useSqlPivotResults } = useFeatureFlag(
+    const { data: useSqlPivotResults } = useServerFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 

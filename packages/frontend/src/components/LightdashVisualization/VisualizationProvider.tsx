@@ -34,12 +34,12 @@ import {
     calculateSeriesLikeIdentifier,
     isGroupedSeries,
 } from '../../hooks/useChartColorConfig/utils';
-import {
-    useFeatureFlag,
-    useFeatureFlagEnabled,
-} from '../../hooks/useFeatureFlagEnabled';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
+import {
+    useClientFeatureFlag,
+    useServerFeatureFlag,
+} from '../../hooks/useServerOrClientFeatureFlag';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import VisualizationBigNumberConfig from './VisualizationBigNumberConfig';
@@ -145,7 +145,7 @@ const VisualizationProvider: FC<
         InfiniteQueryResults & { metricQuery?: MetricQuery; fields?: ItemsMap }
     >();
 
-    const { data: useSqlPivotResults } = useFeatureFlag(
+    const { data: useSqlPivotResults } = useServerFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 
@@ -255,7 +255,7 @@ const VisualizationProvider: FC<
         [calculateKeyColorAssignment, itemsMap],
     );
 
-    const isCalculateSeriesColorEnabled = useFeatureFlagEnabled(
+    const isCalculateSeriesColorEnabled = useClientFeatureFlag(
         FeatureFlags.CalculateSeriesColor,
     );
 

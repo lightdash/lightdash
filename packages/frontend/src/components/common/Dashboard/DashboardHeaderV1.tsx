@@ -46,8 +46,8 @@ import {
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
 import { useProject } from '../../../hooks/useProject';
+import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -110,7 +110,7 @@ const DashboardHeaderV1 = ({
     setAddingTab,
     onEditClicked,
 }: DashboardHeaderProps) => {
-    const isDashboardSummariesEnabled = useFeatureFlagEnabled(
+    const isDashboardSummariesEnabled = useClientFeatureFlag(
         'ai-dashboard-summary' as FeatureFlags,
     );
 

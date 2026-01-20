@@ -10,8 +10,8 @@ import { Badge, List, Tooltip } from '@mantine-8/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { useMemo, type FC } from 'react';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 
 export type PivotMismatchWarningProps = {
@@ -35,7 +35,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
     isLoading,
     maxColumnLimit,
 }) => {
-    const { data: useSqlPivotResults } = useFeatureFlag(
+    const { data: useSqlPivotResults } = useServerFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 

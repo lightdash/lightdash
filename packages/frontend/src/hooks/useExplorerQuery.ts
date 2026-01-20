@@ -9,12 +9,12 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import { useExplorerQueryManager } from './useExplorerQueryManager';
-import { useFeatureFlag } from './useFeatureFlagEnabled';
 import {
     executeQueryAndWaitForResults,
     useCancelQuery,
     type QueryResultsProps,
 } from './useQueryResults';
+import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 /**
  * Public API for Explorer query management
@@ -41,7 +41,7 @@ export const useExplorerQuery = () => {
     const unpivotedQueryArgs = useExplorerSelector(selectUnpivotedQueryArgs);
     const unpivotedEnabled = !!unpivotedQueryArgs;
 
-    const { data: useSqlPivotResults } = useFeatureFlag(
+    const { data: useSqlPivotResults } = useServerFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 
