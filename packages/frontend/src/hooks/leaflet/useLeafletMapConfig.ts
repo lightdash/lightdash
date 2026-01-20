@@ -66,6 +66,8 @@ export type LeafletMapConfig = {
     };
     tile: TileConfig;
     backgroundColor: string | null;
+    // Color for regions with no matching data (area maps)
+    noDataColor: string;
     showLegend: boolean;
     valueRange: { min: number; max: number } | null;
     valueFieldLabel: string | null;
@@ -194,6 +196,7 @@ const useLeafletMapConfig = ({
             heatmapConfig,
             tileBackground,
             backgroundColor,
+            noDataColor,
             showLegend,
             fieldConfig,
         } = chartConfig.validConfig || {};
@@ -420,6 +423,7 @@ const useLeafletMapConfig = ({
             },
             tile: getTileConfig(tileBackground),
             backgroundColor: backgroundColor ?? null,
+            noDataColor: noDataColor ?? '#f3f3f3',
             showLegend: showLegend ?? false,
             valueRange,
             valueFieldLabel,

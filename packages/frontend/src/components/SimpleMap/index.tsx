@@ -724,15 +724,22 @@ const SimpleMap: FC<SimpleMapProps> = memo(
             };
         }, [regionData]);
 
+        // When there's no base map, use opaque fills so shapes are fully visible
+        const hasBaseMap = !!mapConfig?.tile.url;
+        const fillOpacityWithData = hasBaseMap ? 0.7 : 1;
+        const fillOpacityNoData = hasBaseMap ? 0.5 : 1;
+
+        const noDataColor = mapConfig?.noDataColor ?? '#f3f3f3';
+
         const choroplethStyle = useCallback(
             (feature: any): L.PathOptions => {
                 if (!feature?.properties || !mapConfig) {
                     return {
-                        fillColor: '#f3f3f3',
+                        fillColor: noDataColor,
                         weight: 0.5,
                         opacity: 1,
                         color: '#999',
-                        fillOpacity: 0.5,
+                        fillOpacity: fillOpacityNoData,
                     };
                 }
 
@@ -760,19 +767,26 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         weight: 1,
                         opacity: 1,
                         color: '#666',
-                        fillOpacity: 0.7,
+                        fillOpacity: fillOpacityWithData,
                     };
                 }
 
                 return {
-                    fillColor: '#f3f3f3',
+                    fillColor: noDataColor,
                     weight: 0.5,
                     opacity: 1,
                     color: '#999',
-                    fillOpacity: 0.5,
+                    fillOpacity: fillOpacityNoData,
                 };
             },
-            [regionDataMap, regionValueRange, mapConfig],
+            [
+                regionDataMap,
+                regionValueRange,
+                mapConfig,
+                fillOpacityWithData,
+                fillOpacityNoData,
+                noDataColor,
+            ],
         );
 
         const onEachFeature = useCallback(
@@ -826,13 +840,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         mouseover: () => {
                             layer.setStyle({
                                 weight: 2,
-                                fillOpacity: 0.9,
+                                fillOpacity: hasBaseMap ? 0.9 : 1,
                             });
                         },
                         mouseout: () => {
                             layer.setStyle({
                                 weight: 1,
-                                fillOpacity: 0.7,
+                                fillOpacity: fillOpacityWithData,
                             });
                         },
                         popupopen: (e) => {
@@ -865,6 +879,8 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 mapConfig?.tooltipFields,
                 mapConfig?.locationFieldId,
                 handlePopupCopyClick,
+                hasBaseMap,
+                fillOpacityWithData,
             ],
         );
 
