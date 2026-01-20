@@ -45,6 +45,7 @@ import {
     validateParameterNames,
     validateParameterReferences,
 } from './parameters';
+import { validateSpotlightDimensionRefs } from './spotlight';
 
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
@@ -688,6 +689,10 @@ export class ExploreCompiler {
 
         const showUnderlyingValues =
             ExploreCompiler.expandShowUnderlyingValueSets(metric, tables);
+
+        // Validate spotlight dimension references
+        validateSpotlightDimensionRefs(metric, tables);
+
         const tablesRequiredAttributes = Array.from(
             compiledMetric.tablesReferences,
         ).reduce<Record<string, Record<string, string | string[]>>>(
