@@ -3126,6 +3126,7 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    error: `${e}`,
                 },
             });
             await this.schedulerService.logSchedulerJob({
