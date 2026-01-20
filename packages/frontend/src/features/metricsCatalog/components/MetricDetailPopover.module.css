@@ -1,0 +1,21 @@
+.target {
+    cursor: default;
+}
+
+.tableName {
+    word-break: break-word;
+}
+
+.codeBlock {
+    overflow-y: auto;
+    font-size: var(--mantine-font-size-xs);
+    white-space: pre-wrap;
+}
+
+.compiledToggle {
+    cursor: pointer;
+}
+
+.compiledToggle:hover {
+    opacity: 0.8;
+}

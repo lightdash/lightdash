@@ -7,11 +7,10 @@ import {
     Highlight,
     Paper,
     Portal,
-    Tooltip,
     getDefaultZIndex,
 } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
-import { IconTable, IconTrash } from '@tabler/icons-react';
+import { IconTrash } from '@tabler/icons-react';
 import EmojiPicker, {
     Emoji,
     EmojiStyle,
@@ -25,6 +24,7 @@ import { MetricIconPlaceholder } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateCatalogItemIcon } from '../hooks/useCatalogItemIcon';
+import { MetricDetailPopover } from './MetricDetailPopover';
 
 import '../../../styles/emoji-picker-react.css';
 
@@ -237,36 +237,22 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                             <MetricIconPlaceholder width={12} height={12} />
                         )}
                     </ActionIcon>
-                    <Tooltip
-                        label={
-                            <Group spacing={4}>
-                                <MantineIcon
-                                    color="ldGray.2"
-                                    icon={IconTable}
-                                    stroke={2.0}
-                                />
-                                {row.original.tableName}
-                            </Group>
-                        }
-                        disabled={!row.original.tableName}
-                        variant="xs"
-                        openDelay={300}
-                        maw={250}
-                        fz="xs"
-                        withinPortal
-                    >
-                        <Highlight
-                            highlight={table.getState().globalFilter || ''}
-                            fw={500}
-                            fz="sm"
-                            lh="150%"
-                            sx={{
-                                cursor: 'default',
-                            }}
+                    {projectUuid && (
+                        <MetricDetailPopover
+                            tableName={row.original.tableName}
+                            metricName={row.original.name}
+                            projectUuid={projectUuid}
                         >
-                            {row.original.label}
-                        </Highlight>
-                    </Tooltip>
+                            <Highlight
+                                highlight={table.getState().globalFilter || ''}
+                                fw={500}
+                                fz="sm"
+                                lh="150%"
+                            >
+                                {row.original.label}
+                            </Highlight>
+                        </MetricDetailPopover>
+                    )}
                 </Group>
                 <SharedEmojiPicker
                     emoji={row.original.icon}
