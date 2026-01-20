@@ -21,15 +21,15 @@ import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import MantineIcon from '../MantineIcon';
-import styles from './DashboardInfoOverlayV2.module.css';
-import InfoRowV2 from './InfoRowV2';
+import styles from './DashboardInfoOverlay.module.css';
+import InfoRow from './InfoRow';
 
-type DashboardInfoOverlayV2Props = {
+type DashboardInfoOverlayProps = {
     dashboard: Dashboard;
     projectUuid: string | undefined;
 };
 
-const DashboardInfoOverlayV2: FC<DashboardInfoOverlayV2Props> = ({
+const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
     dashboard,
     projectUuid,
 }) => {
@@ -49,16 +49,16 @@ const DashboardInfoOverlayV2: FC<DashboardInfoOverlayV2Props> = ({
             </Box>
 
             <Stack gap={10}>
-                <InfoRowV2 icon={IconClock} label="Last modified">
+                <InfoRow icon={IconClock} label="Last modified">
                     {timeAgo}
-                </InfoRowV2>
+                </InfoRow>
 
-                <InfoRowV2 icon={IconEye} label="Views">
+                <InfoRow icon={IconEye} label="Views">
                     {(dashboard.views ?? 0).toLocaleString()}
-                </InfoRowV2>
+                </InfoRow>
 
                 {dashboard.spaceName && (
-                    <InfoRowV2 icon={IconFolder} label="Space">
+                    <InfoRow icon={IconFolder} label="Space">
                         <Anchor
                             component={Link}
                             to={`/projects/${projectUuid}/spaces/${dashboard.spaceUuid}`}
@@ -67,12 +67,12 @@ const DashboardInfoOverlayV2: FC<DashboardInfoOverlayV2Props> = ({
                         >
                             {dashboard.spaceName}
                         </Anchor>
-                    </InfoRowV2>
+                    </InfoRow>
                 )}
 
                 <Divider mb={4} />
 
-                <InfoRowV2 icon={IconHash} label="Slug">
+                <InfoRow icon={IconHash} label="Slug">
                     <CopyButton value={dashboard.slug}>
                         {({ copied, copy }) => (
                             <UnstyledButton onClick={copy}>
@@ -94,10 +94,10 @@ const DashboardInfoOverlayV2: FC<DashboardInfoOverlayV2Props> = ({
                             </UnstyledButton>
                         )}
                     </CopyButton>
-                </InfoRowV2>
+                </InfoRow>
             </Stack>
         </Stack>
     );
 };
 
-export default DashboardInfoOverlayV2;
+export default DashboardInfoOverlay;

@@ -160,6 +160,30 @@ When you need custom colors, use our custom scales for dark mode compatibility:
 | `background` | Page/card backgrounds |
 | `foreground` | Primary text color |
 
+### Dark Mode in CSS Modules
+
+Use `@mixin dark` for theme-specific overrides:
+
+```css
+.clickableRow {
+    &:hover {
+        background-color: var(--mantine-color-ldGray-0);
+
+        @mixin dark {
+            background-color: var(--mantine-color-ldDark-5);
+        }
+    }
+}
+```
+
+Alternative: use CSS `light-dark()` function for single-line theme switching:
+
+```css
+.clickableRow:hover {
+    background-color: light-dark(var(--mantine-color-ldGray-0), var(--mantine-color-ldDark-5));
+}
+```
+
 ## Always Use Theme Tokens
 
 ```tsx
@@ -216,6 +240,4 @@ const MyComponent = () => {
 
 ## Mantine Documentation
 
-Component props and APIs: `https://mantine.dev/core/[component-name]/`
-
-**Tip**: In your IDE, hover over a component or use Go to Definition to see all available props.
+List of all components and links to their documentation in LLM-friendly format: `https://mantine.dev/llms.txt`

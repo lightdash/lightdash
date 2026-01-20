@@ -10,7 +10,6 @@ import ProjectRoute from './components/ProjectRoute';
 import UserCompletionModal from './components/UserCompletionModal';
 import FunnelBuilder from './features/funnelBuilder/FunnelBuilderPage';
 import { MetricCatalogView } from './features/metricsCatalog/types';
-import { useDashboardUIPreference } from './hooks/dashboard/useDashboardUIPreference';
 import AuthPopupResult from './pages/AuthPopupResult';
 import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
@@ -47,11 +46,10 @@ import { PageName } from './types/Events';
 
 const DashboardPageWrapper: FC = () => {
     const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
-    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
 
     return (
         <>
-            <NavBar isFixed={!isDashboardRedesignEnabled} />
+            <NavBar isFixed={false} />
             <TrackPage name={PageName.DASHBOARD}>
                 <Dashboard key={dashboardUuid} />
             </TrackPage>

@@ -201,9 +201,19 @@ const useCartesianChartConfig = ({
               }
             : initialChartConfig?.eChartsConfig,
     );
-    const isInitiallyStacked = (dirtyEchartsConfig?.series || []).some(
-        (series: Series) => series.stack !== undefined,
-    );
+
+    const isInitiallyStacked = useMemo(() => {
+        // First check the layout's stack property (persisted setting)
+        const layoutStack = initialChartConfig?.layout?.stack;
+        if (layoutStack !== undefined) {
+            return layoutStack !== StackType.NONE && layoutStack !== false;
+        }
+        // Fall back to checking if any series has stack property
+        return (dirtyEchartsConfig?.series || []).some(
+            (series: Series) => series.stack !== undefined,
+        );
+    }, [dirtyEchartsConfig?.series, initialChartConfig?.layout?.stack]);
+
     const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
 
     const setLegend = useCallback((legend: EchartsLegend) => {
@@ -605,8 +615,8 @@ const useCartesianChartConfig = ({
                     stack === true
                         ? StackType.NORMAL
                         : stack === false
-                        ? StackType.NONE
-                        : stack,
+                          ? StackType.NONE
+                          : stack,
             }));
 
             setDirtyEchartsConfig(
@@ -941,8 +951,8 @@ const useCartesianChartConfig = ({
                                     ? serie.encode.yRef
                                     : serie.encode.xRef
                                 : dirtyLayout?.flipAxes
-                                ? serie.encode.xRef
-                                : serie.encode.yRef;
+                                  ? serie.encode.xRef
+                                  : serie.encode.yRef;
                         return {
                             fieldId: axis.field,
                             data: {
@@ -1035,21 +1045,23 @@ const useCartesianChartConfig = ({
     ]);
 
     const validConfig: CartesianChart = useMemo(() => {
-        return isCompleteLayout(dirtyLayout) &&
-            isCompleteEchartsConfig(dirtyEchartsConfig)
-            ? {
-                  layout: dirtyLayout,
-                  eChartsConfig: {
+        // Always use the dirtyLayout and dirtyEchartsConfig when possible, fallback to the empty config if not complete.
+        return {
+            layout: isCompleteLayout(dirtyLayout)
+                ? dirtyLayout
+                : EMPTY_CARTESIAN_CHART_CONFIG.layout,
+            eChartsConfig: isCompleteEchartsConfig(dirtyEchartsConfig)
+                ? {
                       ...dirtyEchartsConfig,
                       series: dirtyEchartsConfig.series.filter(
                           (serie) => !serie.isFilteredOut,
                       ),
                       tooltip,
                       tooltipSort,
-                  },
-                  metadata: dirtyMetadata,
-              }
-            : EMPTY_CARTESIAN_CHART_CONFIG;
+                  }
+                : EMPTY_CARTESIAN_CHART_CONFIG.eChartsConfig,
+            metadata: dirtyMetadata,
+        };
     }, [dirtyLayout, dirtyEchartsConfig, dirtyMetadata, tooltip, tooltipSort]);
 
     const { dirtyChartType } = useMemo(() => {

@@ -20,7 +20,6 @@ import { type QueryResultsProps } from '../../../hooks/useQueryResults';
 import { useQueryExecutor } from '../../../providers/Explorer/useQueryExecutor';
 import { useMetric } from './useMetricsCatalog';
 
-
 const buildMetricQueryFromField = (
     field: MetricWithAssociatedTimeDimension,
     timeDimensionOverride?: TimeDimensionConfig,
@@ -29,11 +28,11 @@ const buildMetricQueryFromField = (
     const timeDimensionConfig = timeDimensionOverride ?? field.timeDimension;
     const timeDimensionName =
         timeDimensionConfig?.field && timeDimensionConfig.interval
-        ? getFieldIdForDateDimension(
-              timeDimensionConfig.field,
-              timeDimensionConfig.interval,
-          )
-        : undefined;
+            ? getFieldIdForDateDimension(
+                  timeDimensionConfig.field,
+                  timeDimensionConfig.interval,
+              )
+            : undefined;
     const timeDimensionFieldId =
         timeDimensionConfig && timeDimensionName
             ? getItemId({

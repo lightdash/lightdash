@@ -87,11 +87,9 @@ import { useVisualizationContext } from '../../components/LightdashVisualization
 import {
     defaultAxisLabelGap,
     defaultGrid,
-    defaultGridLegacy,
     legendTopSpacing,
 } from '../../components/VisualizationConfigs/ChartConfigPanel/Grid/constants';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
-import { useDashboardUIPreference } from '../dashboard/useDashboardUIPreference';
 import {
     getPivotedDataFromPivotDetails,
     getPlottedData,
@@ -1798,8 +1796,8 @@ const getEchartAxes = ({
                         ? gridStyle
                         : { show: false }
                     : showGridX
-                      ? gridStyle
-                      : { show: false },
+                    ? gridStyle
+                    : { show: false },
                 axisLine: getAxisLineStyle(),
                 axisTick: getAxisTickStyle(
                     validCartesianConfig?.eChartsConfig?.showAxisTicks,
@@ -1936,8 +1934,8 @@ const getEchartAxes = ({
                         ? gridStyle
                         : { show: false }
                     : showGridY
-                      ? gridStyle
-                      : { show: false },
+                    ? gridStyle
+                    : { show: false },
                 axisLine: getAxisLineStyle(),
                 axisTick: getAxisTickStyle(
                     validCartesianConfig?.eChartsConfig?.showAxisTicks,
@@ -2140,7 +2138,6 @@ const useEchartsCartesianConfig = (
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
-    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
 
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
@@ -2799,10 +2796,6 @@ const useEchartsCartesianConfig = (
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
         const flipAxes = validCartesianConfig?.layout?.flipAxes;
 
-        const baseGrid = isDashboardRedesignEnabled
-            ? defaultGrid
-            : defaultGridLegacy;
-
         const grid: {
             containLabel: boolean;
             left: string;
@@ -2810,25 +2803,23 @@ const useEchartsCartesianConfig = (
             top: string;
             bottom: string;
         } = {
-            ...baseGrid,
+            ...defaultGrid,
             ...removeEmptyProperties(validCartesianConfig?.eChartsConfig.grid),
         };
 
-        if (isDashboardRedesignEnabled) {
-            const legendConfig = removeEmptyProperties(
-                validCartesianConfig?.eChartsConfig.legend,
-            );
-            const isLegendShown = legendConfig
-                ? 'show' in legendConfig
-                    ? legendConfig.show !== false
-                    : true
-                : series.length > 1;
+        const legendConfig = removeEmptyProperties(
+            validCartesianConfig?.eChartsConfig.legend,
+        );
+        const isLegendShown = legendConfig
+            ? 'show' in legendConfig
+                ? legendConfig.show !== false
+                : true
+            : series.length > 1;
 
-            const hasExplicitTop =
-                validCartesianConfig?.eChartsConfig.grid?.top !== undefined;
-            if (isLegendShown && !hasExplicitTop && isPxValue(grid.top)) {
-                grid.top = addPx(grid.top, legendTopSpacing);
-            }
+        const hasExplicitTop =
+            validCartesianConfig?.eChartsConfig.grid?.top !== undefined;
+        if (isLegendShown && !hasExplicitTop && isPxValue(grid.top)) {
+            grid.top = addPx(grid.top, legendTopSpacing);
         }
 
         const gridLeft = grid.left;
@@ -2904,14 +2895,14 @@ const useEchartsCartesianConfig = (
                               stackLabelPaddingCalc.right,
                       )
                     : isPxValue(gridRight) && enableDataZoom && flipAxes
-                      ? addPx(
-                            gridRight,
-                            defaultAxisLabelGap +
-                                extraRightPadding +
-                                stackLabelPaddingCalc.right +
-                                30,
-                        )
-                      : grid.right,
+                    ? addPx(
+                          gridRight,
+                          defaultAxisLabelGap +
+                              extraRightPadding +
+                              stackLabelPaddingCalc.right +
+                              30,
+                      )
+                    : grid.right,
             // Add extra top spacing for 100% stacking labels when not flipped (vertical bars)
             top:
                 stackLabelPaddingCalc.top > 0 && isPxValue(grid.top)
@@ -2930,7 +2921,6 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.flipAxes,
         series,
         stackLabelPaddingCalc,
-        isDashboardRedesignEnabled,
     ]);
 
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();

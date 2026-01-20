@@ -1,18 +1,14 @@
-import { Button, type ModalProps, Stack, TextInput } from '@mantine-8/core';
+import { Button, Stack, TextInput, type ModalProps } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineModal from '../../components/common/MantineModal';
 
-type AddTabModalProps = Pick<ModalProps, 'opened' | 'onClose'> & {
+type AddProps = Pick<ModalProps, 'opened' | 'onClose'> & {
     onConfirm: (tabName: string) => void;
 };
 
-export const AddTabModal: FC<AddTabModalProps> = ({
-    opened,
-    onClose,
-    onConfirm,
-}) => {
+export const AddTabModal: FC<AddProps> = ({ opened, onClose, onConfirm }) => {
     const form = useForm<{ tabName: string }>();
 
     const handleConfirm = form.onSubmit(({ tabName }) => {

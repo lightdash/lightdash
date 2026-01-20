@@ -1,12 +1,6 @@
 import { type DashboardFilterRule } from '@lightdash/common';
-import {
-    Button,
-    CloseButton,
-    Text,
-    Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
-import { IconAlertTriangle } from '@tabler/icons-react';
+import { ActionIcon, Button, Text, Tooltip } from '@mantine-8/core';
+import { IconAlertTriangle, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 
@@ -17,7 +11,6 @@ type Props = {
 };
 
 const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
-    const theme = useMantineTheme();
     return (
         <Tooltip
             position="top-start"
@@ -25,40 +18,36 @@ const InvalidFilter: FC<Props> = ({ isEditMode, filterRule, onRemove }) => {
             offset={0}
             arrowOffset={16}
             label={
-                <Text span>
-                    <Text span color="ldGray.6">
+                <Text size="xs">
+                    <Text span c="dimmed">
                         Tried to reference field with unknown id:
-                    </Text>
-                    <Text span> {filterRule.target.fieldId}</Text>
+                    </Text>{' '}
+                    {filterRule.target.fieldId}
                 </Text>
             }
         >
             <Button
                 size="xs"
-                variant="default"
-                radius="md"
                 data-disabled
-                leftIcon={
-                    <MantineIcon
-                        icon={IconAlertTriangle}
-                        color="red.6"
-                        style={{ color: theme.colors.red[6] }}
-                    />
+                style={{ borderRadius: '100px' }}
+                leftSection={
+                    <MantineIcon icon={IconAlertTriangle} color="red.6" />
                 }
-                sx={{
-                    '&[data-disabled="true"]': {
-                        pointerEvents: 'all',
-                    },
-                }}
-                rightIcon={
-                    isEditMode && <CloseButton size="sm" onClick={onRemove} />
+                rightSection={
+                    isEditMode && (
+                        <ActionIcon
+                            onClick={onRemove}
+                            size="xs"
+                            color="dark"
+                            radius="xl"
+                            variant="subtle"
+                        >
+                            <MantineIcon size="sm" icon={IconX} />
+                        </ActionIcon>
+                    )
                 }
             >
-                <Text fz="xs">
-                    <Text fw={600} span>
-                        Invalid filter
-                    </Text>
-                </Text>
+                Invalid filter
             </Button>
         </Tooltip>
     );

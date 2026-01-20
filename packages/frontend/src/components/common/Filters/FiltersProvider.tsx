@@ -12,7 +12,7 @@ import {
 import { type PopoverProps } from '@mantine/core';
 import { useCallback, type ReactNode } from 'react';
 import { v4 as uuid4 } from 'uuid';
-import { doesFilterApplyToTile } from '../../../features/dashboardFiltersV2/FilterConfiguration/utils';
+import { doesFilterApplyToTile } from '../../../features/dashboardFilters/FilterConfiguration/utils';
 import Context, { type DefaultFieldsMap } from './context';
 
 type Props<T extends DefaultFieldsMap> = {

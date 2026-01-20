@@ -84,6 +84,7 @@ export const funnelBuilderSlice = createSlice({
         selectConversionWindowUnit: (state) => state.conversionWindowUnit,
         selectEventNames: (state) => state.eventNames,
         selectEventNamesLoading: (state) => state.eventNamesLoading,
+        selectEventNamesError: (state) => state.eventNamesError,
         selectResults: (state) => state.results,
         selectQueryLoading: (state) => state.queryLoading,
         selectQueryError: (state) => state.queryError,
@@ -237,8 +238,8 @@ export const {
     selectConversionWindowUnit,
     selectEventNames,
     selectEventNamesLoading,
+    selectEventNamesError,
     selectResults,
     selectQueryLoading,
+    selectQueryError,
 } = funnelBuilderSlice.selectors;
-
-//    selectQueryError, unused in prototype - add error handling later

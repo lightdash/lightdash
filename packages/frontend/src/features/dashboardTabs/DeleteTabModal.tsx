@@ -21,7 +21,7 @@ import MantineModal from '../../components/common/MantineModal';
 import { useDashboardSchedulers } from '../../features/scheduler/hooks/useDashboardSchedulers';
 import useToaster from '../../hooks/toaster/useToaster';
 
-type DeleteProps = Pick<ModalProps, 'opened' | 'onClose'> & {
+type DeleteProps = ModalProps & {
     tab: DashboardTab;
     dashboardTiles: DashboardTile[] | undefined;
     dashboardTabs: DashboardTab[] | undefined;
@@ -166,7 +166,6 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                     removing it?
                 </Text>
                 <Radio.Group
-                    size="xs"
                     value={removeAction}
                     onChange={(val: string) => setRemoveAction(val)}
                 >
@@ -174,10 +173,20 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                         <Radio
                             label="Delete all tiles in this tab"
                             value={RemoveActions.DELETE}
+                            styles={{
+                                label: {
+                                    paddingLeft: 'var(--mantine-spacing-xs)',
+                                },
+                            }}
                         />
                         <Radio
                             label="Transfer all tiles to another tab"
                             value={RemoveActions.MOVE}
+                            styles={{
+                                label: {
+                                    paddingLeft: 'var(--mantine-spacing-xs)',
+                                },
+                            }}
                         />
                         {dashboardTabs?.length &&
                             removeAction === RemoveActions.MOVE && (
@@ -191,7 +200,12 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                                         value: otherTab.uuid,
                                         label: otherTab.name,
                                     }))}
-                                    ml="xl"
+                                    styles={{
+                                        root: {
+                                            paddingLeft:
+                                                'var(--mantine-spacing-xl)',
+                                        },
+                                    }}
                                 />
                             )}
                     </Stack>

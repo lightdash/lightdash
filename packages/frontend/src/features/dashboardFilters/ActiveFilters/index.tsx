@@ -11,18 +11,14 @@ import {
     type DragStartEvent,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
-import { getTabUuidsForFilterRules } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Skeleton,
-    Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
-import { IconRotate2 } from '@tabler/icons-react';
+import { type DashboardFilterRule } from '@lightdash/common';
+import { Group, Skeleton, useMantineTheme } from '@mantine-8/core';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import {
+    doesFilterApplyToAnyTile,
+    getTabsForFilterRule,
+} from '../FilterConfiguration/utils';
 import InvalidFilter from '../InvalidFilter';
 import Filter from './Filter';
 
@@ -32,7 +28,6 @@ interface ActiveFiltersProps {
     openPopoverId: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
-    onResetDashboardFilters: () => void;
 }
 
 const DraggableItem: FC<{
@@ -98,7 +93,6 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     openPopoverId,
     onPopoverOpen,
     onPopoverClose,
-    onResetDashboardFilters,
 }) => {
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
@@ -130,11 +124,6 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     const setHaveFiltersChanged = useDashboardContext(
         (c) => c.setHaveFiltersChanged,
     );
-    const haveFiltersChanged = useDashboardContext(
-        (c) =>
-            c.haveFiltersChanged ||
-            c.dashboardTemporaryFilters.dimensions.length > 0,
-    );
 
     const mouseSensor = useSensor(MouseSensor, {
         activationConstraint: { distance: 10 },
@@ -149,49 +138,54 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
         return sortedTabs?.map((tab) => tab.uuid) || [];
     }, [dashboardTabs]);
 
+    // Tabs are only "enabled" when there's more than one tab
+    const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
+
+    // Compute which tabs a filter applies to based on tileTargets
+    // Note: We use getTabsForFilterRule because getTabUuidsForFilterRules from common
+    // skips disabled filters, but required filters ARE disabled until a value is set
     const getTabsUsingFilter = useCallback(
-        (filterId: string) => {
-            const tabsForFilterMap = getTabUuidsForFilterRules(
+        (filterRule: DashboardFilterRule) =>
+            getTabsForFilterRule(
+                filterRule,
                 dashboardTiles,
-                dashboardFilters,
+                sortedTabUuids,
                 filterableFieldsByTileUuid,
-            );
-            return sortedTabUuids.filter(
-                (tabUuid: string) =>
-                    tabsForFilterMap[filterId]?.includes(tabUuid) ?? false,
-            );
-        },
-        [
-            dashboardTiles,
-            dashboardFilters,
-            filterableFieldsByTileUuid,
-            sortedTabUuids,
-        ],
+            ),
+        [dashboardTiles, sortedTabUuids, filterableFieldsByTileUuid],
     );
 
-    const getTabsUsingTemporaryFilter = useCallback(
-        (filterId: string) => {
-            const tabsForFilterMap = getTabUuidsForFilterRules(
+    // Compute orphaned state for a filter
+    // - With multiple tabs: orphaned if filter applies to no tabs
+    // - With single/no tabs: orphaned if filter applies to no tiles
+    const getOrphanedState = useCallback(
+        (
+            filterRule: DashboardFilterRule,
+            appliesToTabs: string[],
+        ): { isOrphaned: boolean; orphanedTooltip: string } => {
+            if (tabsEnabled) {
+                return {
+                    isOrphaned: appliesToTabs.length === 0,
+                    orphanedTooltip: 'This filter is not applied to any tabs',
+                };
+            }
+            // Single tab or no tabs - check if filter applies to any tile
+            const appliesToAnyTile = doesFilterApplyToAnyTile(
+                filterRule,
                 dashboardTiles,
-                dashboardTemporaryFilters,
                 filterableFieldsByTileUuid,
             );
-            return sortedTabUuids.filter(
-                (tabUuid: string) =>
-                    tabsForFilterMap[filterId]?.includes(tabUuid) ?? false,
-            );
+            return {
+                isOrphaned: !appliesToAnyTile,
+                orphanedTooltip: 'This filter is not applied to any tiles',
+            };
         },
-        [
-            dashboardTiles,
-            dashboardTemporaryFilters,
-            filterableFieldsByTileUuid,
-            sortedTabUuids,
-        ],
+        [tabsEnabled, dashboardTiles, filterableFieldsByTileUuid],
     );
 
     if (isLoadingDashboardFilters || isFetchingDashboardFilters) {
         return (
-            <Group spacing="xs" ml="xs">
+            <Group gap="xs" ml="xs">
                 <Skeleton h={30} w={100} radius={4} />
                 <Skeleton h={30} w={100} radius={4} />
                 <Skeleton h={30} w={100} radius={4} />
@@ -228,23 +222,6 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
     return (
         <>
-            {!isEditMode && haveFiltersChanged && (
-                <Tooltip label="Reset all filters">
-                    <Button
-                        aria-label="Reset all filters"
-                        size="xs"
-                        variant="default"
-                        radius="md"
-                        color="gray"
-                        onClick={() => {
-                            setHaveFiltersChanged(false);
-                            onResetDashboardFilters();
-                        }}
-                    >
-                        <MantineIcon icon={IconRotate2} />
-                    </Button>
-                </Tooltip>
-            )}
             <DndContext
                 sensors={dragSensors}
                 onDragStart={handleDragStart}
@@ -252,7 +229,18 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
             >
                 {dashboardFilters.dimensions.map((item, index) => {
                     const field = allFilterableFieldsMap[item.target.fieldId];
-                    const appliesToTabs = getTabsUsingFilter(item.id);
+                    const appliesToTabs = getTabsUsingFilter(item);
+
+                    const isOrphanedFilter = appliesToTabs.length === 0;
+                    const appliedToCurrentTab =
+                        !activeTabUuid || appliesToTabs.includes(activeTabUuid);
+
+                    // Hide filter if it doesn't apply to the current tab
+                    // But always show orphaned filters so users can see and fix them
+                    if (!appliedToCurrentTab && !isOrphanedFilter) {
+                        return null;
+                    }
+
                     return (
                         <DroppableArea key={item.id} id={item.id}>
                             <DraggableItem
@@ -264,10 +252,12 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                     <Filter
                                         key={item.id}
                                         isEditMode={isEditMode}
+                                        {...getOrphanedState(
+                                            item,
+                                            appliesToTabs,
+                                        )}
                                         field={field}
                                         filterRule={item}
-                                        activeTabUuid={activeTabUuid}
-                                        appliesToTabs={appliesToTabs}
                                         openPopoverId={openPopoverId}
                                         onPopoverOpen={onPopoverOpen}
                                         onPopoverClose={onPopoverClose}
@@ -308,16 +298,26 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
 
             {dashboardTemporaryFilters.dimensions.map((item, index) => {
                 const field = allFilterableFieldsMap[item.target.fieldId];
-                const appliesToTabs = getTabsUsingTemporaryFilter(item.id);
+                const appliesToTabs = getTabsUsingFilter(item);
+
+                const isOrphanedFilter = appliesToTabs.length === 0;
+                const appliedToCurrentTab =
+                    !activeTabUuid || appliesToTabs.includes(activeTabUuid);
+
+                // Hide filter if it doesn't apply to the current tab
+                // But always show orphaned filters so users can see and fix them
+                if (!appliedToCurrentTab && !isOrphanedFilter) {
+                    return null;
+                }
+
                 return field || item.target.isSqlColumn ? (
                     <Filter
                         key={item.id}
+                        {...getOrphanedState(item, appliesToTabs)}
                         isTemporary
                         isEditMode={isEditMode}
                         field={field}
                         filterRule={item}
-                        activeTabUuid={activeTabUuid}
-                        appliesToTabs={appliesToTabs}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
                         onPopoverClose={onPopoverClose}

@@ -13,10 +13,10 @@ import {
 import { type FC, type ReactNode } from 'react';
 import PinnedParameters from '../../components/PinnedParameters';
 import MantineIcon from '../../components/common/MantineIcon';
-import FilterGroupSeparator from '../dashboardHeader/FilterGroupSeparator';
-import { DateZoomV2 } from '../dateZoomV2';
-import { ParametersV2 } from '../parametersV2';
-import DashboardFiltersV2 from './index';
+import { DateZoom } from '../dateZoom';
+import { Parameters } from '../parameters';
+import FilterGroupSeparator from './FilterGroupSeparator';
+import DashboardFilters from './index';
 
 type Props = {
     isEditMode: boolean;
@@ -97,7 +97,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                     </div>
                                 }
                             />
-                            <DashboardFiltersV2
+                            <DashboardFilters
                                 isEditMode={isEditMode}
                                 activeTabUuid={activeTabUuid}
                             />
@@ -106,7 +106,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                 <>
                                     <Divider orientation="vertical" />
 
-                                    <ParametersV2
+                                    <Parameters
                                         isEditMode={isEditMode}
                                         parameterValues={parameterValues}
                                         onParameterChange={onParameterChange}
@@ -148,7 +148,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         </div>
                                     }
                                 />
-                                <DateZoomV2 isEditMode={isEditMode} />
+                                <DateZoom isEditMode={isEditMode} />
                             </>
                         )}
 

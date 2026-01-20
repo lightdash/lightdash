@@ -1,11 +1,13 @@
 import { type DashboardTab } from '@lightdash/common';
-import { Button, type ModalProps, TextInput } from '@mantine-8/core';
+import { Button, TextInput } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineModal from '../../components/common/MantineModal';
 
-type EditProps = Pick<ModalProps, 'opened' | 'onClose'> & {
+type EditProps = {
+    opened: boolean;
+    onClose: () => void;
     tab: DashboardTab;
     onConfirm: (tabName: string, tabUuid: string) => void;
 };

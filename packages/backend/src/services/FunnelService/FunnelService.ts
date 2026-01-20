@@ -20,6 +20,7 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import * as Sentry from '@sentry/node';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
@@ -296,67 +297,93 @@ ORDER BY ${breakdownField ? 'breakdown_value, ' : ''}step_order
         eventDimensionId: string,
         timestampFieldId: string,
     ): Promise<string[]> {
-        await this.checkCanAccessFunnelBuilder(user, projectUuid);
+        return Sentry.startSpan(
+            {
+                op: 'FunnelService.getEventNames',
+                name: 'FunnelService.getEventNames',
+                attributes: {
+                    projectUuid,
+                    exploreName,
+                },
+            },
+            async () => {
+                await this.checkCanAccessFunnelBuilder(user, projectUuid);
 
-        const exploreResult = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            exploreName,
-        );
+                const exploreResult =
+                    await this.projectModel.getExploreFromCache(
+                        projectUuid,
+                        exploreName,
+                    );
 
-        if (isExploreError(exploreResult)) {
-            throw new ForbiddenError(
-                `Explore ${exploreName} has errors: ${exploreResult.errors
-                    .map((e) => e.message)
-                    .join(', ')}`,
-            );
-        }
+                if (isExploreError(exploreResult)) {
+                    throw new ForbiddenError(
+                        `Explore ${exploreName} has errors: ${exploreResult.errors
+                            .map((e) => e.message)
+                            .join(', ')}`,
+                    );
+                }
 
-        const explore = exploreResult;
-        const fieldMap = getFieldMap(explore);
-        const eventField = FunnelService.getDimensionFromFieldMap(
-            fieldMap,
-            eventDimensionId,
-        );
-        const timestampField = FunnelService.getDimensionFromFieldMap(
-            fieldMap,
-            timestampFieldId,
-        );
-        const baseTableSql = explore.tables[explore.baseTable].sqlTable;
-        const baseTableName = explore.baseTable;
+                const explore = exploreResult;
+                const fieldMap = getFieldMap(explore);
+                const eventField = FunnelService.getDimensionFromFieldMap(
+                    fieldMap,
+                    eventDimensionId,
+                );
+                const timestampField = FunnelService.getDimensionFromFieldMap(
+                    fieldMap,
+                    timestampFieldId,
+                );
+                const baseTableSql = explore.tables[explore.baseTable].sqlTable;
+                const baseTableName = explore.baseTable;
 
-        // Get SQL builder based on warehouse type (no credentials needed for SQL generation)
-        const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
-            );
-        const sqlBuilder = warehouseSqlBuilderFromType(credentials.type);
+                // Get SQL builder based on warehouse type (no credentials needed for SQL generation)
+                const credentials =
+                    await this.projectModel.getWarehouseCredentialsForProject(
+                        projectUuid,
+                    );
+                const sqlBuilder = warehouseSqlBuilderFromType(
+                    credentials.type,
+                );
 
-        // Filter to last 30 days to limit scan cost
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                // Filter to last 30 days to limit scan cost
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const quoteChar = sqlBuilder.getFieldQuoteChar();
+                const quoteChar = sqlBuilder.getFieldQuoteChar();
 
-        const sql = `
+                const sql = `
             SELECT DISTINCT ${eventField.compiledSql} AS event_name
             FROM ${baseTableSql} AS ${quoteChar}${baseTableName}${quoteChar}
             WHERE ${eventField.compiledSql} IS NOT NULL
               AND ${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(
-            thirtyDaysAgo,
-        )}
+                    thirtyDaysAgo,
+                )}
             ORDER BY event_name
             LIMIT 1000
         `;
 
-        const results = await this.projectService.runSqlQuery(
-            user,
-            projectUuid,
-            sql,
-        );
+                try {
+                    const results = await this.projectService.runSqlQuery(
+                        user,
+                        projectUuid,
+                        sql,
+                    );
 
-        return results.rows
-            .map((r) => r.event_name as string)
-            .filter((val): val is string => val !== null && val !== undefined);
+                    return results.rows
+                        .map((r) => r.event_name as string)
+                        .filter(
+                            (val): val is string =>
+                                val !== null && val !== undefined,
+                        );
+                } catch (error) {
+                    this.logger.error('Failed to fetch event names', {
+                        sql,
+                        error,
+                    });
+                    throw error;
+                }
+            },
+        );
     }
 
     async runFunnelQuery(
@@ -364,63 +391,93 @@ ORDER BY ${breakdownField ? 'breakdown_value, ' : ''}step_order
         projectUuid: string,
         request: FunnelQueryRequest,
     ): Promise<FunnelQueryResult> {
-        await this.checkCanAccessFunnelBuilder(user, projectUuid);
+        return Sentry.startSpan(
+            {
+                op: 'FunnelService.runFunnelQuery',
+                name: 'FunnelService.runFunnelQuery',
+                attributes: {
+                    projectUuid,
+                    exploreName: request.exploreName,
+                    stepCount: request.steps.length,
+                },
+            },
+            async () => {
+                await this.checkCanAccessFunnelBuilder(user, projectUuid);
 
-        const exploreResult = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            request.exploreName,
+                const exploreResult =
+                    await this.projectModel.getExploreFromCache(
+                        projectUuid,
+                        request.exploreName,
+                    );
+
+                if (isExploreError(exploreResult)) {
+                    throw new ForbiddenError(
+                        `Explore ${
+                            request.exploreName
+                        } has errors: ${exploreResult.errors
+                            .map((e) => e.message)
+                            .join(', ')}`,
+                    );
+                }
+
+                const explore = exploreResult;
+
+                // Get SQL builder based on warehouse type (no credentials needed for SQL generation)
+                const credentials =
+                    await this.projectModel.getWarehouseCredentialsForProject(
+                        projectUuid,
+                    );
+                const sqlBuilder = warehouseSqlBuilderFromType(
+                    credentials.type,
+                );
+
+                const sql = FunnelService.generateFunnelSql(
+                    request,
+                    explore,
+                    sqlBuilder,
+                );
+
+                this.logger.debug('Running funnel query', { sql });
+
+                try {
+                    const results = await this.projectService.runSqlQuery(
+                        user,
+                        projectUuid,
+                        sql,
+                    );
+
+                    // Map rows directly - conversion rates are computed in SQL
+                    const steps: FunnelStepResult[] = results.rows.map(
+                        (row) => ({
+                            stepOrder: Number(row.step_order),
+                            stepName: row.step_name as string,
+                            totalUsers: Number(row.total_users),
+                            conversionRate: Number(row.conversion_rate),
+                            stepConversionRate: Number(
+                                row.step_conversion_rate,
+                            ),
+                            medianTimeToConvertSeconds:
+                                row.median_time_to_convert != null
+                                    ? Number(row.median_time_to_convert)
+                                    : null,
+                            breakdownValue: row.breakdown_value as
+                                | string
+                                | undefined,
+                        }),
+                    );
+
+                    return {
+                        steps,
+                        sql,
+                    };
+                } catch (error) {
+                    this.logger.error('Failed to run funnel query', {
+                        sql,
+                        error,
+                    });
+                    throw error;
+                }
+            },
         );
-
-        if (isExploreError(exploreResult)) {
-            throw new ForbiddenError(
-                `Explore ${
-                    request.exploreName
-                } has errors: ${exploreResult.errors
-                    .map((e) => e.message)
-                    .join(', ')}`,
-            );
-        }
-
-        const explore = exploreResult;
-
-        // Get SQL builder based on warehouse type (no credentials needed for SQL generation)
-        const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
-                projectUuid,
-            );
-        const sqlBuilder = warehouseSqlBuilderFromType(credentials.type);
-
-        const sql = FunnelService.generateFunnelSql(
-            request,
-            explore,
-            sqlBuilder,
-        );
-
-        this.logger.debug('Running funnel query', { sql });
-
-        const results = await this.projectService.runSqlQuery(
-            user,
-            projectUuid,
-            sql,
-        );
-
-        // Map rows directly - conversion rates are computed in SQL
-        const steps: FunnelStepResult[] = results.rows.map((row) => ({
-            stepOrder: Number(row.step_order),
-            stepName: row.step_name as string,
-            totalUsers: Number(row.total_users),
-            conversionRate: Number(row.conversion_rate),
-            stepConversionRate: Number(row.step_conversion_rate),
-            medianTimeToConvertSeconds:
-                row.median_time_to_convert != null
-                    ? Number(row.median_time_to_convert)
-                    : null,
-            breakdownValue: row.breakdown_value as string | undefined,
-        }));
-
-        return {
-            steps,
-            sql,
-        };
     }
 }

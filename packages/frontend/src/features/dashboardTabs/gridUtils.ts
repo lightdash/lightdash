@@ -1,41 +1,11 @@
 import { type DashboardTile } from '@lightdash/common';
 import { type Layout } from 'react-grid-layout';
 
-export type ResponsiveGridLayoutProps = {
-    draggableCancel: string;
-    useCSSTransforms: boolean;
-    measureBeforeMount: boolean;
-    breakpoints: { lg: number; md: number; sm: number };
-    cols: { lg: number; md: number; sm: number };
-    rowHeight: number;
-};
-
-export const DEFAULT_COLS = 36;
+const DEFAULT_COLS = 36;
 /**
  * Row height: fontSize * lineHeight + padding + borders
  */
 export const DEFAULT_ROW_HEIGHT = 14 * 1.5 + 16 * 2 + 2;
-
-export const getReactGridLayoutConfig = (
-    tile: DashboardTile,
-    isEditMode = false,
-    cols = 36,
-): Layout => {
-    // Scale factor based on the number of columns (36 is the default for lg)
-    const scaleFactor = cols / DEFAULT_COLS;
-
-    return {
-        minH: 1,
-        minW: 4,
-        x: tile.x * scaleFactor,
-        y: tile.y,
-        w: tile.w * scaleFactor,
-        h: tile.h,
-        i: tile.uuid,
-        isDraggable: isEditMode,
-        isResizable: isEditMode,
-    };
-};
 
 /**
  * Converts layout positions from the current breakpoint's coordinate system
@@ -60,6 +30,36 @@ export const convertLayoutToBaseCoordinates = (
         x: Math.round(item.x / scaleFactor),
         w: Math.round(item.w / scaleFactor),
     }));
+};
+
+export type ResponsiveGridLayoutProps = {
+    draggableCancel: string;
+    useCSSTransforms: boolean;
+    measureBeforeMount: boolean;
+    breakpoints: { lg: number; md: number; sm: number };
+    cols: { lg: number; md: number; sm: number };
+    rowHeight: number;
+};
+
+export const getReactGridLayoutConfig = (
+    tile: DashboardTile,
+    isEditMode = false,
+    cols = 36,
+): Layout => {
+    // Scale factor based on the number of columns (36 is the default for lg)
+    const scaleFactor = cols / DEFAULT_COLS;
+
+    return {
+        minH: 1,
+        minW: 4,
+        x: tile.x * scaleFactor,
+        y: tile.y,
+        w: tile.w * scaleFactor,
+        h: tile.h,
+        i: tile.uuid,
+        isDraggable: isEditMode,
+        isResizable: isEditMode,
+    };
 };
 
 export const getResponsiveGridLayoutProps = ({

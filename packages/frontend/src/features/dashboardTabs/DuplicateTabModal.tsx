@@ -6,7 +6,7 @@ import { type FC } from 'react';
 import { z } from 'zod';
 import MantineModal from '../../components/common/MantineModal';
 
-type DuplicateTabModalProps = Pick<ModalProps, 'opened' | 'onClose'> & {
+type DuplicateTabModalProps = ModalProps & {
     tab: DashboardTab;
     onConfirm: (name: string) => void;
 };

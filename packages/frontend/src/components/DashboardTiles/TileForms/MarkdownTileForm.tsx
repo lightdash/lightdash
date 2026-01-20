@@ -2,15 +2,12 @@ import { type DashboardMarkdownTileProperties } from '@lightdash/common';
 import { Group, Stack, Switch, TextInput } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import MDEditor from '@uiw/react-md-editor';
-import { useDashboardUIPreference } from '../../../hooks/dashboard/useDashboardUIPreference';
 
 interface MarkdownTileFormProps {
     form: UseFormReturnType<DashboardMarkdownTileProperties['properties']>;
 }
 
 const MarkdownTileForm = ({ form }: MarkdownTileFormProps) => {
-    const { isDashboardRedesignEnabled } = useDashboardUIPreference();
-
     return (
         <Stack spacing="md">
             <TextInput
@@ -28,18 +25,13 @@ const MarkdownTileForm = ({ form }: MarkdownTileFormProps) => {
                 overflow={false}
                 {...form.getInputProps('content')}
             />
-            {isDashboardRedesignEnabled && (
-                <Switch
-                    label={<Group spacing="xs">Show tile frame</Group>}
-                    checked={!form.values.hideFrame}
-                    onChange={(e) =>
-                        form.setFieldValue(
-                            'hideFrame',
-                            !e.currentTarget.checked,
-                        )
-                    }
-                />
-            )}
+            <Switch
+                label={<Group spacing="xs">Show tile frame</Group>}
+                checked={!form.values.hideFrame}
+                onChange={(e) =>
+                    form.setFieldValue('hideFrame', !e.currentTarget.checked)
+                }
+            />
         </Stack>
     );
 };
