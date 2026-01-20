@@ -202,6 +202,7 @@ export type DbtColumnLightdashDimension = {
     };
     spotlight?: {
         filter_by?: boolean; // default true
+        segment_by?: boolean; // default true
     };
 } & DbtLightdashFieldTags;
 
@@ -234,6 +235,7 @@ export type DbtColumnLightdashMetric = {
         >['default_visibility'];
         categories?: string[]; // yaml_reference
         filter_by?: string[]; // dimension IDs allowlist
+        segment_by?: string[]; // dimension IDs allowlist
     };
     ai_hint?: string | string[];
 } & DbtLightdashFieldTags;
@@ -594,6 +596,7 @@ export const convertModelMetric = ({
             spotlightVisibility,
             spotlightCategories,
             metric.spotlight?.filter_by,
+            metric.spotlight?.segment_by,
         ),
         ...(metric.ai_hint ? { aiHint: convertToAiHints(metric.ai_hint) } : {}),
     };

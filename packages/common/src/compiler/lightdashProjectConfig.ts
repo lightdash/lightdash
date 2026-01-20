@@ -8,12 +8,14 @@ import type { LightdashProjectConfig } from '../types/lightdashProjectConfig';
  * @param visibility - The visibility of the resource
  * @param categories - The categories of the resource
  * @param filterBy - Dimension IDs allowlist for filtering (metrics only)
+ * @param segmentBy - Dimension IDs allowlist for segmenting (metrics only)
  * @returns The spotlight configuration for the resource
  */
 export const getSpotlightConfigurationForResource = (
     visibility?: LightdashProjectConfig['spotlight']['default_visibility'],
     categories?: string[],
     filterBy?: string[],
+    segmentBy?: string[],
 ): Pick<Explore, 'spotlight'> | Pick<Metric, 'spotlight'> => {
     if (visibility === undefined) {
         return {};
@@ -24,6 +26,7 @@ export const getSpotlightConfigurationForResource = (
             visibility,
             categories,
             ...(filterBy ? { filterBy } : {}),
+            ...(segmentBy ? { segmentBy } : {}),
         },
     };
 };

@@ -183,17 +183,28 @@ export const MetricExploreModalV2: FC<Props> = ({
         },
     });
 
+    const currentMetric = metrics[currentMetricIndex];
+
     const segmentByData = useMemo(() => {
-        return (
-            segmentDimensionsQuery.data?.map((dimension) => ({
+        const dimensions = segmentDimensionsQuery.data ?? [];
+        const metricSegmentByAllowlist = currentMetric?.spotlightSegmentBy;
+
+        return dimensions
+            .filter((dimension) => {
+                // If metric has allowlist, use it (supersedes dimension-level)
+                if (metricSegmentByAllowlist) {
+                    return metricSegmentByAllowlist.includes(dimension.name);
+                }
+
+                // Otherwise use dimension-level setting (default true)
+                return dimension.spotlight?.segmentBy !== false;
+            })
+            .map((dimension) => ({
                 value: getItemId(dimension),
                 label: dimension.label,
                 group: dimension.tableLabel,
-            })) ?? []
-        );
-    }, [segmentDimensionsQuery.data]);
-
-    const currentMetric = metrics[currentMetricIndex];
+            }));
+    }, [segmentDimensionsQuery.data, currentMetric?.spotlightSegmentBy]);
 
     const availableFilters = useMemo(
         () =>
