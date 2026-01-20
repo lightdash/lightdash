@@ -15,10 +15,9 @@ import { useGetSlack, useSlackChannels } from '../../hooks/slack/useSlack';
 import useToaster from '../../hooks/toaster/useToaster';
 import MantineIcon from '../common/MantineIcon';
 import LogsTable from './LogsTable';
-import ProjectSchedulersTable from './ProjectSchedulersTable';
+import SchedulersTable from './SchedulersTable';
 import classes from './SchedulersView.module.css';
 import { SchedulersViewTab } from './SchedulersViewConstants';
-import UserSchedulersTable from './UserSchedulersTable';
 
 const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
     projectUuid,
@@ -152,23 +151,15 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
                     </Tabs.List>
 
                     <Tabs.Panel value={SchedulersViewTab.ALL_SCHEDULERS}>
-                        {isUserScope ? (
-                            <UserSchedulersTable
+                        {(isUserScope || projectUuid) && (
+                            <SchedulersTable
+                                projectUuid={projectUuid}
                                 getSlackChannelName={getSlackChannelName}
                                 onSlackChannelIdsChange={
                                     setSchedulerSlackChannelIds
                                 }
+                                isUserScope={isUserScope}
                             />
-                        ) : (
-                            projectUuid && (
-                                <ProjectSchedulersTable
-                                    projectUuid={projectUuid}
-                                    getSlackChannelName={getSlackChannelName}
-                                    onSlackChannelIdsChange={
-                                        setSchedulerSlackChannelIds
-                                    }
-                                />
-                            )
                         )}
                     </Tabs.Panel>
                     {!isUserScope && (

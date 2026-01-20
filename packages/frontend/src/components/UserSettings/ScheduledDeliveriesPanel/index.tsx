@@ -1,5 +1,5 @@
 import { type FC } from 'react';
-import SchedulersView from '../SchedulersView';
+import SchedulersView from '../../SchedulersView';
 
 type UserScheduledDeliveriesPanelProps = Record<string, never>;
 

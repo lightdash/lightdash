@@ -36,10 +36,16 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
-import { DashboardsTableName } from '../../database/entities/dashboards';
+import {
+    DashboardsTableName,
+    DbDashboard,
+} from '../../database/entities/dashboards';
 import { OrganizationTableName } from '../../database/entities/organizations';
 import { ProjectTableName } from '../../database/entities/projects';
-import { SavedChartsTableName } from '../../database/entities/savedCharts';
+import {
+    DbSavedChart,
+    SavedChartsTableName,
+} from '../../database/entities/savedCharts';
 import {
     SchedulerDb,
     SchedulerEmailTargetDb,
@@ -53,7 +59,7 @@ import {
     SchedulerTableName,
 } from '../../database/entities/scheduler';
 import { SpaceTableName } from '../../database/entities/spaces';
-import { UserTableName } from '../../database/entities/users';
+import { DbUser, UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
 import { getColumnMatchRegexQuery } from '../SearchModel/utils/search';
 
@@ -318,7 +324,7 @@ export class SchedulerModel {
         return this.getSchedulersWithTargets(await schedulers);
     }
 
-    async getSchedulers({
+    async getProjectSchedulers({
         projectUuid,
         paginateArgs,
         searchQuery,
@@ -337,8 +343,44 @@ export class SchedulerModel {
             destinations?: string[];
         };
     }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
-        let baseQuery = SchedulerModel.getBaseSchedulerQuery(this.database);
+        const initialQuery = SchedulerModel.getBaseSchedulerQuery(
+            this.database,
+        );
+        return this.getSchedulers({
+            initialQuery,
+            projectUuid,
+            paginateArgs,
+            searchQuery,
+            sort,
+            filters,
+        });
+    }
 
+    private async getSchedulers({
+        initialQuery,
+        projectUuid,
+        paginateArgs,
+        searchQuery,
+        sort,
+        filters,
+    }: {
+        initialQuery: Knex.QueryBuilder<
+            SchedulerDb & DbUser & (DbSavedChart & (SchedulerDb | DbDashboard)),
+            SelectScheduler[]
+        >;
+        projectUuid?: string;
+        paginateArgs?: KnexPaginateArgs;
+        searchQuery?: string;
+        sort?: { column: string; direction: 'asc' | 'desc' };
+        filters?: {
+            createdByUserUuids?: string[];
+            formats?: string[];
+            resourceType?: 'chart' | 'dashboard';
+            resourceUuids?: string[];
+            destinations?: string[];
+        };
+    }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        let baseQuery = initialQuery;
         // Apply search query if present
         if (searchQuery) {
             baseQuery = getColumnMatchRegexQuery(baseQuery, searchQuery, [
@@ -444,45 +486,53 @@ export class SchedulerModel {
         // Create a union of two queries: one for saved charts and one for dashboards
         let schedulerCharts = baseQuery
             .clone()
-            // Join to get the dashboard that the chart belongs to (if any)
-            .leftJoin(
-                { [dashboardChartsJoinTable]: DashboardsTableName },
-                `${dashboardChartsJoinTable}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
-            .innerJoin(SpaceTableName, function joinSpaces() {
-                this.on(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${dashboardChartsJoinTable}.space_id`,
-                ).orOn(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${SavedChartsTableName}.space_id`,
-                );
-            })
-            .leftJoin(
-                ProjectTableName,
-                `${ProjectTableName}.project_id`,
-                `${SpaceTableName}.project_id`,
-            )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereNotNull(`${SchedulerTableName}.saved_chart_uuid`);
 
         let schedulerDashboards = baseQuery
             .clone()
-            .leftJoin(
-                SpaceTableName,
-                `${SpaceTableName}.space_id`,
-                `${DashboardsTableName}.space_id`,
-            )
-            .leftJoin(
-                ProjectTableName,
-                `${ProjectTableName}.project_id`,
-                `${SpaceTableName}.project_id`,
-            )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereNotNull(`${SchedulerTableName}.dashboard_uuid`);
+
+        // Only add project joins and filter when projectUuid is provided
+        // (for user schedulers, the base query already includes project info)
+        if (projectUuid) {
+            schedulerCharts = schedulerCharts
+                // Join to get the dashboard that the chart belongs to (if any)
+                .leftJoin(
+                    { [dashboardChartsJoinTable]: DashboardsTableName },
+                    `${dashboardChartsJoinTable}.dashboard_uuid`,
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                )
+                .innerJoin(SpaceTableName, function joinSpaces() {
+                    this.on(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${dashboardChartsJoinTable}.space_id`,
+                    ).orOn(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${SavedChartsTableName}.space_id`,
+                    );
+                })
+                .leftJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .where(`${ProjectTableName}.project_uuid`, projectUuid);
+
+            schedulerDashboards = schedulerDashboards
+                .leftJoin(
+                    SpaceTableName,
+                    `${SpaceTableName}.space_id`,
+                    `${DashboardsTableName}.space_id`,
+                )
+                .leftJoin(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .where(`${ProjectTableName}.project_uuid`, projectUuid);
+        }
 
         // Apply resource type filter
         if (filters?.resourceType === 'chart') {
@@ -541,15 +591,11 @@ export class SchedulerModel {
     }
 
     async getUserSchedulers({
-        organizationUuid,
-        userUuid,
         paginateArgs,
         searchQuery,
         sort,
         filters,
     }: {
-        organizationUuid: string;
-        userUuid: string;
         paginateArgs?: KnexPaginateArgs;
         searchQuery?: string;
         sort?: { column: string; direction: 'asc' | 'desc' };
@@ -562,202 +608,18 @@ export class SchedulerModel {
         };
     }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         // Use the extended query with project joins since user schedulers span multiple projects
-        let baseQuery = SchedulerModel.getBaseSchedulerQueryWithProject(
+        const initialQuery = SchedulerModel.getBaseSchedulerQueryWithProject(
             this.database,
         );
 
-        // Apply search query if present
-        if (searchQuery) {
-            baseQuery = getColumnMatchRegexQuery(baseQuery, searchQuery, [
-                `${SchedulerTableName}.name`,
-            ]);
-        }
-
-        // Filter by user's schedulers
-        baseQuery = baseQuery.where(
-            `${SchedulerTableName}.created_by`,
-            userUuid,
-        );
-
-        if (filters?.formats && filters.formats.length > 0) {
-            baseQuery = baseQuery.whereIn(
-                `${SchedulerTableName}.format`,
-                filters.formats,
-            );
-        }
-
-        if (filters?.destinations && filters.destinations.length > 0) {
-            baseQuery = baseQuery.where((builder) => {
-                let isFirst = true;
-                const destinations = filters.destinations!;
-
-                if (destinations.includes('email')) {
-                    if (isFirst) {
-                        void builder.whereExists((subQuery) => {
-                            void subQuery
-                                .select('*')
-                                .from(SchedulerEmailTargetTableName)
-                                .whereRaw(
-                                    `${SchedulerEmailTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
-                                );
-                        });
-                        isFirst = false;
-                    } else {
-                        void builder.orWhereExists((subQuery) => {
-                            void subQuery
-                                .select('*')
-                                .from(SchedulerEmailTargetTableName)
-                                .whereRaw(
-                                    `${SchedulerEmailTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
-                                );
-                        });
-                    }
-                }
-
-                if (destinations.includes('slack')) {
-                    if (isFirst) {
-                        void builder.whereExists((subQuery) => {
-                            void subQuery
-                                .select('*')
-                                .from(SchedulerSlackTargetTableName)
-                                .whereRaw(
-                                    `${SchedulerSlackTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
-                                );
-                        });
-                        isFirst = false;
-                    } else {
-                        void builder.orWhereExists((subQuery) => {
-                            void subQuery
-                                .select('*')
-                                .from(SchedulerSlackTargetTableName)
-                                .whereRaw(
-                                    `${SchedulerSlackTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
-                                );
-                        });
-                    }
-                }
-
-                if (destinations.includes('msteams')) {
-                    if (isFirst) {
-                        void builder.whereExists((subQuery) => {
-                            void subQuery
-                                .select('*')
-                                .from(SchedulerMsTeamsTargetTableName)
-                                .whereRaw(
-                                    `${SchedulerMsTeamsTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
-                                );
-                        });
-                        isFirst = false;
-                    } else {
-                        void builder.orWhereExists((subQuery) => {
-                            void subQuery
-                                .select('*')
-                                .from(SchedulerMsTeamsTargetTableName)
-                                .whereRaw(
-                                    `${SchedulerMsTeamsTargetTableName}.scheduler_uuid = ${SchedulerTableName}.scheduler_uuid`,
-                                );
-                        });
-                    }
-                }
-            });
-        }
-
-        const dashboardChartsJoinTable = 'dashboard_charts';
-
-        // Create a union of two queries: one for saved charts and one for dashboards
-        let schedulerCharts = baseQuery
-            .clone()
-            .select(`${ProjectTableName}.project_uuid`)
-            .leftJoin(
-                { [dashboardChartsJoinTable]: DashboardsTableName },
-                `${dashboardChartsJoinTable}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
-            .innerJoin(SpaceTableName, function joinSpaces() {
-                this.on(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${dashboardChartsJoinTable}.space_id`,
-                ).orOn(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${SavedChartsTableName}.space_id`,
-                );
-            })
-            .leftJoin(
-                ProjectTableName,
-                `${ProjectTableName}.project_id`,
-                `${SpaceTableName}.project_id`,
-            )
-            .whereNotNull(`${SchedulerTableName}.saved_chart_uuid`);
-
-        let schedulerDashboards = baseQuery
-            .clone()
-            .select(`${ProjectTableName}.project_uuid`)
-            .leftJoin(
-                SpaceTableName,
-                `${SpaceTableName}.space_id`,
-                `${DashboardsTableName}.space_id`,
-            )
-            .leftJoin(
-                ProjectTableName,
-                `${ProjectTableName}.project_id`,
-                `${SpaceTableName}.project_id`,
-            )
-            .whereNotNull(`${SchedulerTableName}.dashboard_uuid`);
-
-        // Apply resource type filter
-        if (filters?.resourceType === 'chart') {
-            schedulerDashboards = schedulerDashboards.where(
-                this.database.raw('1 = 0'),
-            );
-        } else if (filters?.resourceType === 'dashboard') {
-            schedulerCharts = schedulerCharts.where(this.database.raw('1 = 0'));
-        }
-
-        // Apply resource UUID filter
-        if (filters?.resourceUuids && filters.resourceUuids.length > 0) {
-            schedulerCharts = schedulerCharts.whereIn(
-                `${SchedulerTableName}.saved_chart_uuid`,
-                filters.resourceUuids,
-            );
-            schedulerDashboards = schedulerDashboards.whereIn(
-                `${SchedulerTableName}.dashboard_uuid`,
-                filters.resourceUuids,
-            );
-        }
-
-        // Use union to combine both queries
-        let query = schedulerCharts.unionAll(schedulerDashboards);
-
-        // Apply sorting if present, default to name asc
-        if (sort && sort.column && sort.direction) {
-            query = query.orderBy(sort.column, sort.direction);
-        } else {
-            query = query.orderBy([
-                {
-                    column: `name`,
-                    order: 'asc',
-                },
-                {
-                    column: `created_at`,
-                    order: 'asc',
-                },
-            ]);
-        }
-
-        // Paginate the results
-        const { pagination, data } = await KnexPaginate.paginate(
-            query as unknown as Knex.QueryBuilder,
+        return this.getSchedulers({
+            initialQuery,
+            projectUuid: undefined,
             paginateArgs,
-        );
-
-        return {
-            pagination,
-            data: await this.getSchedulersWithTargets(
-                data as SelectScheduler[],
-            ),
-        };
+            searchQuery,
+            sort,
+            filters,
+        });
     }
 
     async getChartSchedulers(

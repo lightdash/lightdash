@@ -48,10 +48,10 @@ import { OrganizationWarehouseCredentialsPanel } from '../components/UserSetting
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
 import ProjectManagementPanel from '../components/UserSettings/ProjectManagementPanel';
+import UserScheduledDeliveriesPanel from '../components/UserSettings/ScheduledDeliveriesPanel';
 import SlackSettingsPanel from '../components/UserSettings/SlackSettingsPanel';
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
-import UserScheduledDeliveriesPanel from '../components/UserSettings/UserScheduledDeliveriesPanel';
 import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';

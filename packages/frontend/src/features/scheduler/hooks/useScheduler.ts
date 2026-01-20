@@ -311,8 +311,9 @@ export const usePaginatedSchedulers = ({
     sortDirection,
     filters,
     includeLatestRun,
+    isUserScope = false,
 }: {
-    projectUuid: string;
+    projectUuid?: string;
     paginateArgs?: KnexPaginateArgs;
     searchQuery?: string;
     sortBy?: string;
@@ -322,13 +323,15 @@ export const usePaginatedSchedulers = ({
         formats?: string[];
         resourceType?: 'chart' | 'dashboard';
         resourceUuids?: string[];
+        destinations?: DestinationType[];
     };
     includeLatestRun?: boolean;
+    isUserScope?: boolean;
 }) => {
     return useInfiniteQuery<ApiSchedulersResponse['results']>({
         queryKey: [
             'paginatedSchedulers',
-            projectUuid,
+            isUserScope ? 'user' : projectUuid,
             paginateArgs,
             searchQuery,
             sortBy,
@@ -337,12 +340,25 @@ export const usePaginatedSchedulers = ({
             includeLatestRun,
         ],
         queryFn: async ({ pageParam = 1 }) => {
+            const paginateArgsWithPage = {
+                page: pageParam as number,
+                pageSize: paginateArgs?.pageSize ?? 10,
+            };
+
+            if (isUserScope) {
+                return getUserPaginatedSchedulers(
+                    paginateArgsWithPage,
+                    searchQuery,
+                    sortBy,
+                    sortDirection,
+                    filters,
+                    includeLatestRun,
+                );
+            }
+
             return getPaginatedSchedulers(
-                projectUuid,
-                {
-                    page: pageParam as number,
-                    pageSize: paginateArgs?.pageSize ?? 10,
-                },
+                projectUuid!,
+                paginateArgsWithPage,
                 searchQuery,
                 sortBy,
                 sortDirection,
@@ -357,60 +373,7 @@ export const usePaginatedSchedulers = ({
         },
         keepPreviousData: true,
         refetchOnWindowFocus: false,
-        enabled: !!projectUuid,
-    });
-};
-
-export const useUserPaginatedSchedulers = ({
-    paginateArgs,
-    searchQuery,
-    sortBy,
-    sortDirection,
-    filters,
-    includeLatestRun,
-}: {
-    paginateArgs?: KnexPaginateArgs;
-    searchQuery?: string;
-    sortBy?: string;
-    sortDirection?: 'asc' | 'desc';
-    filters?: {
-        formats?: string[];
-        resourceType?: 'chart' | 'dashboard';
-        resourceUuids?: string[];
-        destinations?: DestinationType[];
-    };
-    includeLatestRun?: boolean;
-}) => {
-    return useInfiniteQuery<ApiSchedulersResponse['results']>({
-        queryKey: [
-            'userPaginatedSchedulers',
-            paginateArgs,
-            searchQuery,
-            sortBy,
-            sortDirection,
-            filters,
-            includeLatestRun,
-        ],
-        queryFn: async ({ pageParam = 0 }) => {
-            return getUserPaginatedSchedulers(
-                {
-                    page: pageParam as number,
-                    pageSize: paginateArgs?.pageSize ?? 10,
-                },
-                searchQuery,
-                sortBy,
-                sortDirection,
-                filters,
-                includeLatestRun,
-            );
-        },
-        getNextPageParam: (_lastGroup, groups) => {
-            const currentPage = groups.length - 1;
-            const totalPages = _lastGroup.pagination?.totalPageCount ?? 0;
-            return currentPage < totalPages - 1 ? currentPage + 1 : undefined;
-        },
-        keepPreviousData: true,
-        refetchOnWindowFocus: false,
+        enabled: isUserScope || !!projectUuid,
     });
 };
 
