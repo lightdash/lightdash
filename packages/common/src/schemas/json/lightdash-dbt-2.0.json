@@ -328,6 +328,13 @@
                                                             "type": "string"
                                                         },
                                                         "description": "An array of categories for the metric in Spotlight"
+                                                    },
+                                                    "filter_by": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "description": "An array of dimension names that are allowed for filtering this metric in the Metrics Explorer"
                                                     }
                                                 },
                                                 "anyOf": [
@@ -339,6 +346,11 @@
                                                     {
                                                         "required": [
                                                             "categories"
+                                                        ]
+                                                    },
+                                                    {
+                                                        "required": [
+                                                            "filter_by"
                                                         ]
                                                     }
                                                 ]
@@ -831,6 +843,13 @@
                                                                         "type": "string"
                                                                     },
                                                                     "description": "An array of categories for the metric in Spotlight"
+                                                                },
+                                                                "filter_by": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "description": "An array of dimension names that are allowed for filtering this metric in the Metrics Explorer"
                                                                 }
                                                             },
                                                             "anyOf": [
@@ -842,6 +861,11 @@
                                                                 {
                                                                     "required": [
                                                                         "categories"
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "required": [
+                                                                        "filter_by"
                                                                     ]
                                                                 }
                                                             ]
@@ -1038,6 +1062,17 @@
                                                             }
                                                         ]
                                                     }
+                                                },
+                                                "spotlight": {
+                                                    "type": "object",
+                                                    "description": "Configure dimension visibility in the Metrics Explorer",
+                                                    "properties": {
+                                                        "filter_by": {
+                                                            "type": "boolean",
+                                                            "description": "Whether this dimension can be used for filtering in the Metrics Explorer. Defaults to true."
+                                                        }
+                                                    },
+                                                    "required": ["filter_by"]
                                                 }
                                             }
                                         },
@@ -1423,11 +1458,19 @@
                                             "type": "string"
                                         },
                                         "description": "An array of categories for the metric in Spotlight"
+                                    },
+                                    "filter_by": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "description": "An array of dimension names that are allowed for filtering this metric in the Metrics Explorer"
                                     }
                                 },
                                 "anyOf": [
                                     { "required": ["visibility"] },
-                                    { "required": ["categories"] }
+                                    { "required": ["categories"] },
+                                    { "required": ["filter_by"] }
                                 ]
                             }
                         }

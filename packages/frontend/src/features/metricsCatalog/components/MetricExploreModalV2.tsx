@@ -1,8 +1,8 @@
 import {
-    DimensionType,
     ECHARTS_DEFAULT_COLORS,
     MetricExplorerComparison,
     TimeFrames,
+    getAvailableFilterDimensions,
     getItemId,
     type CatalogField,
     type MetricExplorerQuery,
@@ -193,15 +193,15 @@ export const MetricExploreModalV2: FC<Props> = ({
         );
     }, [segmentDimensionsQuery.data]);
 
+    const currentMetric = metrics[currentMetricIndex];
+
     const availableFilters = useMemo(
         () =>
-            // Keep parity with V1: only allow filtering on string/boolean dimensions for now
-            segmentDimensionsQuery.data?.filter(
-                (dimension) =>
-                    dimension.type === DimensionType.STRING ||
-                    dimension.type === DimensionType.BOOLEAN,
-            ) ?? [],
-        [segmentDimensionsQuery.data],
+            getAvailableFilterDimensions(
+                segmentDimensionsQuery.data ?? [],
+                currentMetric?.spotlightFilterBy,
+            ),
+        [segmentDimensionsQuery.data, currentMetric?.spotlightFilterBy],
     );
 
     // Keyboard navigation

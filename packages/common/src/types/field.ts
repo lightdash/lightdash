@@ -573,6 +573,9 @@ export interface Dimension extends Field {
         height?: number;
         fit?: string;
     };
+    spotlight?: {
+        filterBy: boolean;
+    };
 }
 
 /**
@@ -757,6 +760,7 @@ export interface Metric extends Field {
     spotlight?: {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];
         categories?: string[]; // yaml_reference
+        filterBy?: string[]; // dimension IDs allowlist
     };
     aiHint?: string | string[];
 }
@@ -873,4 +877,3 @@ export function getCompactOptionsForFormatType(
         Compact.TRILLIONS,
     ];
 }
-
