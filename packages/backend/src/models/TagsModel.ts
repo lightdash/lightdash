@@ -36,7 +36,7 @@ export class TagsModel {
 
     async get(tagUuid: string): Promise<Tag | undefined> {
         const tag = await this.database(TagsTableName)
-            .join(
+            .leftJoin(
                 UserTableName,
                 `${TagsTableName}.created_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
@@ -48,7 +48,7 @@ export class TagsModel {
 
     async list(projectUuid: string): Promise<Tag[]> {
         const tags = await this.database(TagsTableName)
-            .join(
+            .leftJoin(
                 UserTableName,
                 `${TagsTableName}.created_by_user_uuid`,
                 `${UserTableName}.user_uuid`,

@@ -4109,6 +4109,15 @@
                     }
                 ]
             },
+            "TooltipSortBy": {
+                "type": "string",
+                "enum": [
+                    "default",
+                    "alphabetical",
+                    "value_ascending",
+                    "value_descending"
+                ]
+            },
             "Partial_CompleteEChartsConfig_": {
                 "properties": {
                     "legend": {
@@ -4137,6 +4146,9 @@
                     },
                     "tooltip": {
                         "type": "string"
+                    },
+                    "tooltipSort": {
+                        "$ref": "#/components/schemas/TooltipSortBy"
                     },
                     "showAxisTicks": {
                         "type": "boolean"
@@ -4527,8 +4539,15 @@
                     }
                 ]
             },
+            "ConditionalFormattingColorApplyTo": {
+                "enum": ["cell", "text"],
+                "type": "string"
+            },
             "ConditionalFormattingConfigWithSingleColor": {
                 "properties": {
+                    "applyTo": {
+                        "$ref": "#/components/schemas/ConditionalFormattingColorApplyTo"
+                    },
                     "rules": {
                         "items": {
                             "$ref": "#/components/schemas/ConditionalFormattingWithFilterOperator"
@@ -4594,6 +4613,9 @@
             },
             "ConditionalFormattingConfigWithColorRange": {
                 "properties": {
+                    "applyTo": {
+                        "$ref": "#/components/schemas/ConditionalFormattingColorApplyTo"
+                    },
                     "rule": {
                         "$ref": "#/components/schemas/ConditionalFormattingMinMax_number-or-auto_"
                     },
@@ -6949,6 +6971,59 @@
                 "required": ["fieldsContext", "tableName", "prompt"],
                 "type": "object"
             },
+            "GeneratedTooltip": {
+                "properties": {
+                    "html": {
+                        "type": "string"
+                    }
+                },
+                "required": ["html"],
+                "type": "object"
+            },
+            "ApiAiGenerateTooltipResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/GeneratedTooltip"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "TooltipFieldContext": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name"],
+                "type": "object"
+            },
+            "GenerateTooltipRequest": {
+                "properties": {
+                    "currentHtml": {
+                        "type": "string"
+                    },
+                    "fieldsContext": {
+                        "items": {
+                            "$ref": "#/components/schemas/TooltipFieldContext"
+                        },
+                        "type": "array"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fieldsContext", "prompt"],
+                "type": "object"
+            },
             "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableReasoning-or-version_": {
                 "properties": {
                     "description": {
@@ -8083,6 +8158,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -14532,6 +14620,13 @@
             },
             "SlackAppCustomSettings": {
                 "properties": {
+                    "aiMultiAgentProjectUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "aiMultiAgentChannelId": {
                         "type": "string"
                     },
@@ -14561,6 +14656,13 @@
             },
             "SlackSettings": {
                 "properties": {
+                    "aiMultiAgentProjectUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "aiMultiAgentChannelId": {
                         "type": "string"
                     },
@@ -21160,6 +21262,10 @@
                     }
                 ]
             },
+            "FunnelConversionWindowUnit": {
+                "type": "string",
+                "enum": ["hours", "days", "weeks"]
+            },
             "FunnelQueryRequest": {
                 "properties": {
                     "breakdownDimensionId": {
@@ -21168,8 +21274,7 @@
                     "conversionWindow": {
                         "properties": {
                             "unit": {
-                                "type": "string",
-                                "enum": ["hours", "days", "weeks"]
+                                "$ref": "#/components/schemas/FunnelConversionWindowUnit"
                             },
                             "value": {
                                 "type": "number",
@@ -24151,7 +24256,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2346.0",
+        "version": "0.2351.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -36882,6 +36987,17 @@
                     {
                         "in": "query",
                         "name": "categories",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "tables",
                         "required": false,
                         "schema": {
                             "type": "array",

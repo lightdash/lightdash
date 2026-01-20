@@ -11,8 +11,8 @@ vi.mock('./useExplore', () => ({
     useExplore: vi.fn(() => ({ data: null })),
 }));
 
-vi.mock('./useFeatureFlagEnabled', () => ({
-    useFeatureFlag: vi.fn(() => ({ data: { enabled: false } })),
+vi.mock('./useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: vi.fn(() => ({ data: { enabled: false } })),
 }));
 
 vi.mock('./parameters/useParameters', () => ({

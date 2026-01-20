@@ -12,7 +12,7 @@ import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
 import { type IDisposable, type languages } from 'monaco-editor';
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { useDeepCompareEffect } from 'react-use';
-import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
+import { useClientFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import DocumentationHelpButton from '../../../DocumentationHelpButton';
 import { isCustomVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
@@ -192,7 +192,7 @@ export const ConfigTabs: React.FC = memo(() => {
         EditorProps['options'] | undefined
     >();
 
-    const isAiEnabled = useFeatureFlagEnabled(FeatureFlags.AiCustomViz);
+    const isAiEnabled = useClientFeatureFlag(FeatureFlags.AiCustomViz);
     useDeepCompareEffect(() => {
         /** Creates a container that belongs to body, outside of the sidebar
          * so we can place the autocomplete tooltip and it doesn't overflow

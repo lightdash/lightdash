@@ -2,16 +2,18 @@
     overflow: hidden;
 
     @mixin light {
-        background-color: white;
+        border-color: var(--mantine-color-ldGray-2);
     }
     @mixin dark {
-        background-color: var(--mantine-color-ldGray-0);
+        border-color: var(--mantine-color-ldDark-4);
     }
+    padding-top: 8px;
 }
 
 /* Override Monaco editor styles for consistent rounded corners */
 .editorWrapper :global(.monaco-editor) {
     overflow: hidden;
+    padding: 0 8px 0 8px;
 }
 
 /* Override the existing border from monaco.css */

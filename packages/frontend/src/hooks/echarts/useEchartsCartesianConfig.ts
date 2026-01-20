@@ -210,10 +210,6 @@ const getAxisType = ({
     rightAxisYId,
     leftAxisYId,
 }: GetAxisTypeArg) => {
-    const hasBarSeries = validCartesianConfig.eChartsConfig.series?.some(
-        (serie) => serie.type === CartesianSeriesType.BAR,
-    );
-
     // Check if axis has reference lines (which need continuous 'time' axis for positioning)
     const hasReferenceLine = (axisId?: string, isXAxis: boolean = false) => {
         if (!axisId) return false;
@@ -227,15 +223,14 @@ const getAxisType = ({
         });
     };
 
-    // For bar charts with time axis, use category axis to prevent
-    // ECharts from extending axis beyond data range.
+    // For coarse time intervals (week, month, quarter, year), use category axis to prevent
+    // ECharts from generating misleading intermediate ticks (e.g., daily ticks for weekly data).
     // Exception: keep 'time' axis if there's a reference line (needs continuous positioning)
     const inferAxisType = (axisId?: string, isXAxis: boolean = false) => {
         const field = axisId ? itemsMap[axisId] : undefined;
         const axisType = getAxisTypeFromField(field);
         const shouldUseCategory =
             axisType === 'time' &&
-            hasBarSeries &&
             !hasReferenceLine(axisId, isXAxis) &&
             field &&
             'timeInterval' in field &&
@@ -1271,6 +1266,7 @@ export const getCategoryDateAxisConfig = (
     axisField?: Field | TableCalculation | CustomDimension,
     rows?: ResultRow[],
     axisType?: string,
+    series?: Series[],
 ) => {
     if (!axisId || !rows || !axisField || axisType !== 'category') return {};
     if (!('timeInterval' in axisField)) return {};
@@ -1283,6 +1279,13 @@ export const getCategoryDateAxisConfig = (
     const maxDateValue = dayjs.utc(maxX);
     if (!minDateValue.isValid() || !maxDateValue.isValid()) return {};
 
+    // Bar charts need boundary gap for proper bar spacing, but line/area charts
+    // look better extending to the edges
+    const hasBarSeries = series?.some(
+        (s) => s.type === CartesianSeriesType.BAR,
+    );
+    const boundaryGap = hasBarSeries;
+
     if (timeInterval === TimeFrames.WEEK) {
         const continuousRange: string[] = [];
         let nextDate = dayjs.utc(minX);
@@ -1294,6 +1297,7 @@ export const getCategoryDateAxisConfig = (
         return {
             data: continuousRange,
             axisTick: { alignWithLabel: true, interval: 0 },
+            boundaryGap,
         };
     }
 
@@ -1308,6 +1312,7 @@ export const getCategoryDateAxisConfig = (
         return {
             data: continuousRange,
             axisTick: { alignWithLabel: true, interval: 0 },
+            boundaryGap,
         };
     }
 
@@ -1323,6 +1328,7 @@ export const getCategoryDateAxisConfig = (
         return {
             data: continuousRange,
             axisTick: { alignWithLabel: true, interval: 0 },
+            boundaryGap,
         };
     }
 
@@ -1337,6 +1343,7 @@ export const getCategoryDateAxisConfig = (
         return {
             data: continuousRange,
             axisTick: { alignWithLabel: true, interval: 0 },
+            boundaryGap,
         };
     }
 
@@ -1511,29 +1518,34 @@ const getEchartAxes = ({
         itemsMap,
         resultsData?.pivotDetails,
     );
+    const eChartsSeries = validCartesianConfig.eChartsConfig.series;
     const bottomAxisExtraConfig = getCategoryDateAxisConfig(
         bottomAxisXId,
         bottomAxisXField,
         resultsData?.rows,
         bottomAxisType,
+        eChartsSeries,
     );
     const topAxisExtraConfig = getCategoryDateAxisConfig(
         topAxisXId,
         topAxisXField,
         resultsData?.rows,
         topAxisType,
+        eChartsSeries,
     );
     const rightAxisExtraConfig = getCategoryDateAxisConfig(
         rightAxisYId,
         rightAxisYField,
         resultsData?.rows,
         rightAxisType,
+        eChartsSeries,
     );
     const leftAxisExtraConfig = getCategoryDateAxisConfig(
         leftAxisYId,
         leftAxisYField,
         resultsData?.rows,
         leftAxisType,
+        eChartsSeries,
     );
 
     const axisLabelFontSize =
@@ -1786,8 +1798,8 @@ const getEchartAxes = ({
                         ? gridStyle
                         : { show: false }
                     : showGridX
-                    ? gridStyle
-                    : { show: false },
+                      ? gridStyle
+                      : { show: false },
                 axisLine: getAxisLineStyle(),
                 axisTick: getAxisTickStyle(
                     validCartesianConfig?.eChartsConfig?.showAxisTicks,
@@ -1924,8 +1936,8 @@ const getEchartAxes = ({
                         ? gridStyle
                         : { show: false }
                     : showGridY
-                    ? gridStyle
-                    : { show: false },
+                      ? gridStyle
+                      : { show: false },
                 axisLine: getAxisLineStyle(),
                 axisTick: getAxisTickStyle(
                     validCartesianConfig?.eChartsConfig?.showAxisTicks,
@@ -2138,6 +2150,11 @@ const useEchartsCartesianConfig = (
     const tooltipConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig.tooltip;
+    }, [visualizationConfig]);
+
+    const tooltipSortConfig = useMemo(() => {
+        if (!isCartesianVisualizationConfig(visualizationConfig)) return;
+        return visualizationConfig.chartConfig.tooltipSort;
     }, [visualizationConfig]);
 
     const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
@@ -2688,6 +2705,7 @@ const useEchartsCartesianConfig = (
                 originalValues,
                 series,
                 tooltipHtmlTemplate: tooltipConfig,
+                tooltipSort: tooltipSortConfig,
                 pivotValuesColumnsMap,
                 parameters,
                 rows: dataToRender,
@@ -2699,6 +2717,7 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.xField,
         tooltipConfig,
+        tooltipSortConfig,
         pivotValuesColumnsMap,
         originalValues,
         parameters,
@@ -2885,14 +2904,14 @@ const useEchartsCartesianConfig = (
                               stackLabelPaddingCalc.right,
                       )
                     : isPxValue(gridRight) && enableDataZoom && flipAxes
-                    ? addPx(
-                          gridRight,
-                          defaultAxisLabelGap +
-                              extraRightPadding +
-                              stackLabelPaddingCalc.right +
-                              30,
-                      )
-                    : grid.right,
+                      ? addPx(
+                            gridRight,
+                            defaultAxisLabelGap +
+                                extraRightPadding +
+                                stackLabelPaddingCalc.right +
+                                30,
+                        )
+                      : grid.right,
             // Add extra top spacing for 100% stacking labels when not flipped (vertical bars)
             top:
                 stackLabelPaddingCalc.top > 0 && isPxValue(grid.top)

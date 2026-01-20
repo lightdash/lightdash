@@ -9,17 +9,25 @@ import { useFeatureFlagEnabled as useFeatureFlagEnabledPosthog } from 'posthog-j
 import { lightdashApi } from '../api';
 
 /**
- * Thin wrapper around posthog's useFeatureFlagEnabled hook that is aware
- * of our FeatureFlags enum.
+ * Use Client Feature Flag to get the feature flag from the client directly from posthog.
+ *
+ * @param featureFlag - The feature flag to get.
+ * @returns boolean if the feature flag is enabled.
  */
-export const useFeatureFlagEnabled = (
+export const useClientFeatureFlag = (
     featureFlag: FeatureFlags | CommercialFeatureFlags,
 ) => useFeatureFlagEnabledPosthog(featureFlag) === true;
 
 /**
- * Use our own endpoint to get the feature flag from multiple sources.
+ * Use Server Feature Flag to get the feature flag from the server.
+ * This is useful to:
+ * - Get the feature flag from the server (which works well on shared instances)
+ * - When implemented, get a mix of Posthog and Environment variables feature flags (not always implemented)
+ *
+ * @param featureFlagId - The feature flag to get.
+ * @returns The feature flag.
  */
-export const useFeatureFlag = (featureFlagId: string) => {
+export const useServerFeatureFlag = (featureFlagId: string) => {
     return useQuery<FeatureFlag, ApiError>(
         ['feature-flag', featureFlagId],
         () => {

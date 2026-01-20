@@ -64,8 +64,9 @@ export type CatalogTable = Knex.CompositeTableType<
 >;
 
 // Utility to get the column name in the `catalog` table from a `CatalogItem` property
+// Also accepts 'tableLabel' which is only in CatalogField but needed for sorting
 export function getDbCatalogColumnFromCatalogProperty(
-    property: keyof CatalogItem,
+    property: keyof CatalogItem | 'tableLabel',
 ): keyof DbCatalog {
     switch (property) {
         case 'name':
@@ -86,6 +87,8 @@ export function getDbCatalogColumnFromCatalogProperty(
             return 'ai_hints';
         case 'icon':
             return 'icon';
+        case 'tableLabel':
+            return 'table_name';
         case 'searchRank':
         case 'categories':
         case 'tags':

@@ -68,6 +68,7 @@ import {
 import { MetricCatalogView } from '../../types';
 import CategoriesFilter from './CategoriesFilter';
 import SegmentedControlHoverCard from './SegmentedControlHoverCard';
+import TableFilter from './TableFilter';
 
 type MetricsTableTopToolbarProps = GroupProps & {
     search: string | undefined;
@@ -76,6 +77,8 @@ type MetricsTableTopToolbarProps = GroupProps & {
     setSelectedCategories: (
         categories: CatalogField['categories'][number]['tagUuid'][],
     ) => void;
+    selectedTables: string[];
+    setSelectedTables: (tables: string[]) => void;
     totalResults: number;
     isValidMetricsNodeCount: boolean;
     isValidMetricsEdgeCount: boolean;
@@ -154,6 +157,8 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         totalResults,
         selectedCategories,
         setSelectedCategories,
+        selectedTables,
+        setSelectedTables,
         showCategoriesFilter,
         isValidMetricsTree,
         isValidMetricsNodeCount,
@@ -385,6 +390,12 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             setSelectedCategories={setSelectedCategories}
                         />
                     )}
+
+                    {/* TODO :: permissions for table filter */}
+                    <TableFilter
+                        selectedTables={selectedTables}
+                        setSelectedTables={setSelectedTables}
+                    />
                 </Group>
                 <Group spacing="xs">
                     <Badge

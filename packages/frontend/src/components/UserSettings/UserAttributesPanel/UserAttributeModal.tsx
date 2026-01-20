@@ -24,9 +24,9 @@ import {
     IconUsersPlus,
 } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlagEnabled';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     useCreateUserAtributesMutation,
     useUpdateUserAtributesMutation,
@@ -40,7 +40,7 @@ const UserAttributeModal: FC<{
     allUserAttributes: UserAttribute[];
     onClose: () => void;
 }> = ({ opened, userAttribute, allUserAttributes, onClose }) => {
-    const userGroupsFeatureFlagQuery = useFeatureFlag(
+    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
 

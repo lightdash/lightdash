@@ -235,4 +235,19 @@ export class OpenIdIdentityModel {
             .where('user_id', user.user_id)
             .delete();
     }
+
+    async findIdentityByUserUuid(
+        userUuid: string,
+        issuerType: OpenIdIdentityIssuerType,
+    ): Promise<OpenIdIdentity | null> {
+        const [identity] = await this.getOpenIdQueryBuilder()
+            .where('users.user_uuid', userUuid)
+            .andWhere('issuer_type', issuerType);
+
+        if (!identity) {
+            return null;
+        }
+
+        return OpenIdIdentityModel._parseDbIdentity(identity);
+    }
 }

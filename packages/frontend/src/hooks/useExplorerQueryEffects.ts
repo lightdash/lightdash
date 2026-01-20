@@ -22,7 +22,7 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import { useExplorerQueryManager } from './useExplorerQueryManager';
-import { useFeatureFlag } from './useFeatureFlagEnabled';
+import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 /**
  * Effects layer for Explorer query orchestration
@@ -55,7 +55,7 @@ export const useExplorerQueryEffects = ({
     const fromDashboard = useExplorerSelector(selectFromDashboard);
     const isExploreFromHere = useExplorerSelector(selectIsExploreFromHere);
 
-    const { data: useSqlPivotResults } = useFeatureFlag(
+    const { data: useSqlPivotResults } = useServerFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 

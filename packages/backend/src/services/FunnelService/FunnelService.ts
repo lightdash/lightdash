@@ -321,7 +321,8 @@ ORDER BY ${breakdownField ? 'breakdown_value, ' : ''}step_order
             fieldMap,
             timestampFieldId,
         );
-        const baseTable = explore.tables[explore.baseTable].sqlTable;
+        const baseTableSql = explore.tables[explore.baseTable].sqlTable;
+        const baseTableName = explore.baseTable;
 
         // Get SQL builder based on warehouse type (no credentials needed for SQL generation)
         const credentials =
@@ -334,9 +335,11 @@ ORDER BY ${breakdownField ? 'breakdown_value, ' : ''}step_order
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+        const quoteChar = sqlBuilder.getFieldQuoteChar();
+
         const sql = `
             SELECT DISTINCT ${eventField.compiledSql} AS event_name
-            FROM ${baseTable}
+            FROM ${baseTableSql} AS ${quoteChar}${baseTableName}${quoteChar}
             WHERE ${eventField.compiledSql} IS NOT NULL
               AND ${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(
             thirtyDaysAgo,

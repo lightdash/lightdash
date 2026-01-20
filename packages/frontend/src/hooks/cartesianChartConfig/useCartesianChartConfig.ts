@@ -19,6 +19,7 @@ import {
     type Series,
     type SeriesMetadata,
     type TableCalculationMetadata,
+    type TooltipSortBy,
     type XAxis,
 } from '@lightdash/common';
 import { produce } from 'immer';
@@ -27,8 +28,8 @@ import {
     getMarkLineAxis,
     type ReferenceLineField,
 } from '../../components/common/ReferenceLine';
-import { useFeatureFlag } from '../useFeatureFlagEnabled';
 import type { InfiniteQueryResults } from '../useQueryResults';
+import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
@@ -742,7 +743,7 @@ const useCartesianChartConfig = ({
         [getOldTableCalculationMetadataIndex, tableCalculationsMetadata],
     );
 
-    const { data: useSqlPivotResults } = useFeatureFlag(
+    const { data: useSqlPivotResults } = useServerFeatureFlag(
         FeatureFlags.UseSqlPivotResults,
     );
 
@@ -967,6 +968,10 @@ const useCartesianChartConfig = ({
     const [tooltip, setTooltip] = useState<string | undefined>(
         dirtyEchartsConfig?.tooltip,
     );
+
+    const [tooltipSort, setTooltipSort] = useState<TooltipSortBy | undefined>(
+        dirtyEchartsConfig?.tooltipSort,
+    );
     // Generate expected series
     useEffect(() => {
         if (isCompleteLayout(dirtyLayout) && resultsData?.hasFetchedAllRows) {
@@ -1040,11 +1045,12 @@ const useCartesianChartConfig = ({
                           (serie) => !serie.isFilteredOut,
                       ),
                       tooltip,
+                      tooltipSort,
                   },
                   metadata: dirtyMetadata,
               }
             : EMPTY_CARTESIAN_CHART_CONFIG;
-    }, [dirtyLayout, dirtyEchartsConfig, dirtyMetadata, tooltip]);
+    }, [dirtyLayout, dirtyEchartsConfig, dirtyMetadata, tooltip, tooltipSort]);
 
     const { dirtyChartType } = useMemo(() => {
         const firstSeriesType =
@@ -1108,6 +1114,8 @@ const useCartesianChartConfig = ({
         setReferenceLines,
         tooltip,
         setTooltip,
+        tooltipSort,
+        setTooltipSort,
         updateMetadata,
     };
 };

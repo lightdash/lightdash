@@ -23,7 +23,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { memo, useMemo, type FC, type ReactNode } from 'react';
-import { useFeatureFlagEnabled } from '../../../hooks/useFeatureFlagEnabled';
+import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { BetaBadge } from '../../common/BetaBadge';
 import {
     COLLAPSABLE_CARD_BUTTON_PROPS,
@@ -53,7 +53,7 @@ const VisualizationCardOptions: FC = memo(() => {
         resultsData,
         pivotDimensions,
     } = useVisualizationContext();
-    const isMapsEnabled = useFeatureFlagEnabled(FeatureFlags.Maps);
+    const isMapsEnabled = useClientFeatureFlag(FeatureFlags.Maps);
     const disabled = isLoading || !resultsData || resultsData.rows.length <= 0;
 
     const cartesianConfig = useMemo(() => {

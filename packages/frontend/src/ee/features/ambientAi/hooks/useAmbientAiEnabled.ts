@@ -1,6 +1,6 @@
 import { CommercialFeatureFlags } from '@lightdash/common';
 import useHealth from '../../../../hooks/health/useHealth';
-import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 
 /**
  * Checks if the ambient ai is enabled.
@@ -8,8 +8,8 @@ import { useFeatureFlagEnabled } from '../../../../hooks/useFeatureFlagEnabled';
  */
 export const useAmbientAiEnabled = () => {
     const { data: health } = useHealth();
-    const isAiCopilotEnabled = useFeatureFlagEnabled(
+    const { data: aiCopilotFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
     );
-    return health?.ai.isAmbientAiEnabled || isAiCopilotEnabled;
+    return health?.ai.isAmbientAiEnabled || aiCopilotFlag?.enabled;
 };

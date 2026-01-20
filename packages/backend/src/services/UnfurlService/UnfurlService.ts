@@ -1270,6 +1270,67 @@ export class UnfurlService extends BaseService {
                             timeout: 150000,
                         });
 
+                        const blockingElementChecks = [
+                            {
+                                selector: SCREENSHOT_SELECTORS.ERROR_BOUNDARY,
+                                getError: async (
+                                    el: playwright.ElementHandle,
+                                ) => {
+                                    const errorMessage = await el.getAttribute(
+                                        'data-error-message',
+                                    );
+                                    const sentryEventId = await el.getAttribute(
+                                        'data-sentry-event-id',
+                                    );
+                                    const details = `message: ${errorMessage}, sentryEventId: ${sentryEventId}, url: ${url}`;
+                                    return {
+                                        logMessage: `Error boundary detected on page - ${details}`,
+                                        message: `Frontend error boundary detected: ${
+                                            errorMessage || 'Unknown error'
+                                        }`,
+                                        originalError: `ErrorBoundary rendered - ${details}`,
+                                    };
+                                },
+                            },
+                            {
+                                selector: SCREENSHOT_SELECTORS.LOGIN_PAGE,
+                                getError: async () => ({
+                                    logMessage: `Login page detected - authentication failed for screenshot request, url: ${url}`,
+                                    message:
+                                        'Authentication failed: redirected to login page instead of requested content',
+                                    originalError:
+                                        'PrivateRoute redirected to login page - session may be invalid or expired',
+                                }),
+                            },
+                        ];
+
+                        const blockingResults = await Promise.all(
+                            blockingElementChecks.map(async (check) => ({
+                                check,
+                                element: await page!
+                                    .locator(check.selector)
+                                    .first()
+                                    .elementHandle({ timeout: 1000 })
+                                    .catch(() => null),
+                            })),
+                        );
+
+                        const blocking = blockingResults.find(
+                            (r) => r.element !== null,
+                        );
+                        if (blocking && blocking.element) {
+                            const errorInfo = await blocking.check.getError(
+                                blocking.element,
+                            );
+                            this.logger.error(errorInfo.logMessage);
+                            throw new ScreenshotError(errorInfo.message, {
+                                url,
+                                lightdashPage,
+                                context,
+                                originalError: errorInfo.originalError,
+                            });
+                        }
+
                         if (
                             chartResultsPromises &&
                             !useScreenshotReadyIndicator
@@ -1278,6 +1339,10 @@ export class UnfurlService extends BaseService {
                             await Promise.allSettled(chartResultsPromises);
                         }
                     } catch (e) {
+                        // Re-throw ScreenshotError (e.g., from error boundary detection)
+                        if (e instanceof ScreenshotError) {
+                            throw e;
+                        }
                         this.logger.warn(
                             `Got a timeout when waiting for the page to load, returning current content`,
                         );

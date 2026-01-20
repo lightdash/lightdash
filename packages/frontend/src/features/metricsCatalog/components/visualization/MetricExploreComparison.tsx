@@ -31,6 +31,7 @@ type Props = {
         MetricWithAssociatedTimeDimension[],
         unknown
     >;
+    canCompareToAnotherMetric?: boolean;
 };
 
 export const MetricExploreComparison: FC<Props> = ({
@@ -38,6 +39,7 @@ export const MetricExploreComparison: FC<Props> = ({
     query,
     onQueryChange,
     metricsWithTimeDimensionsQuery,
+    canCompareToAnotherMetric = true,
 }) => {
     const { classes } = useSelectStyles();
 
@@ -109,138 +111,156 @@ export const MetricExploreComparison: FC<Props> = ({
                         tooltipLabel:
                             'Show data from the same period in the previous year',
                     },
-                    {
-                        type: MetricExplorerComparison.DIFFERENT_METRIC,
-                        icon: IconStack,
-                        label: 'Compare to another metric',
-                        tooltipLabel: `Compare "${baseMetricLabel}" to another metric`,
-                    },
-                ].map((comparison) => (
-                    <Tooltip
-                        key={comparison.type}
-                        label={comparison.tooltipLabel}
-                        variant="xs"
-                        position="right"
-                        withinPortal
-                    >
-                        <Paper
-                            p="sm"
-                            withBorder
-                            radius="md"
-                            sx={(theme) => ({
-                                cursor: 'pointer',
-                                transition: `all ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                                '&[data-with-border="true"]': {
-                                    border:
-                                        query.comparison === comparison.type
-                                            ? `1px solid ${theme.colors.indigo[5]}`
-                                            : `1px solid ${theme.colors.ldGray[2]}`,
-                                },
-                                '&:hover': {
-                                    backgroundColor:
-                                        theme.colorScheme === 'dark'
-                                            ? theme.colors.ldDark[3]
-                                            : theme.colors.ldGray[0],
-                                },
-                                backgroundColor:
-                                    query.comparison === comparison.type
-                                        ? theme.colorScheme === 'dark'
-                                            ? theme.colors.ldDark[2]
-                                            : theme.fn.lighten(
-                                                  theme.colors.ldGray[1],
-                                                  0.3,
-                                              )
-                                        : theme.colors.background[0],
-                            })}
-                            onClick={() =>
-                                handleComparisonChange(comparison.type)
-                            }
+                    canCompareToAnotherMetric
+                        ? {
+                              type: MetricExplorerComparison.DIFFERENT_METRIC,
+                              icon: IconStack,
+                              label: 'Compare to another metric',
+                              tooltipLabel: `Compare "${baseMetricLabel}" to another metric`,
+                          }
+                        : null,
+                ]
+                    .filter(
+                        (
+                            comparison,
+                        ): comparison is NonNullable<typeof comparison> =>
+                            comparison !== null,
+                    )
+                    .map((comparison) => (
+                        <Tooltip
+                            key={comparison.type}
+                            label={comparison.tooltipLabel}
+                            variant="xs"
+                            position="right"
+                            withinPortal
                         >
-                            <Stack>
-                                <Group align="center" noWrap position="apart">
-                                    <Group noWrap>
-                                        <Paper p="xs" radius="md" withBorder>
-                                            <MantineIcon
-                                                icon={comparison.icon}
-                                            />
-                                        </Paper>
-
-                                        <Text color="ldGray.7" fw={500}>
-                                            {comparison.label}
-                                        </Text>
-                                    </Group>
-                                    <Radio
-                                        value={comparison.type}
-                                        size="xs"
-                                        color="indigo"
-                                    />
-                                </Group>
-
-                                {comparison.type ===
-                                    MetricExplorerComparison.DIFFERENT_METRIC &&
-                                    query.comparison ===
-                                        MetricExplorerComparison.DIFFERENT_METRIC &&
-                                    (metricsWithTimeDimensionsQuery.isLoading ||
-                                    (metricsWithTimeDimensionsQuery.isSuccess &&
-                                        metricsWithTimeDimensionsQuery.data
-                                            .length > 0) ? (
-                                        <Select
-                                            placeholder="Select a metric"
-                                            searchable
-                                            radius="md"
-                                            size="xs"
-                                            data={
-                                                metricsWithTimeDimensionsQuery.data?.map(
-                                                    (metric) => ({
-                                                        value: getItemId(
-                                                            metric,
-                                                        ),
-                                                        label: metric.label,
-                                                        group: metric.tableLabel,
-                                                    }),
-                                                ) ?? []
-                                            }
-                                            value={getItemId(query.metric)}
-                                            onChange={handleMetricChange}
-                                            itemComponent={SelectItem}
-                                            // this does not work as expected in Mantine 6
-                                            data-disabled={
-                                                !metricsWithTimeDimensionsQuery.isSuccess
-                                            }
-                                            rightSection={
-                                                metricsWithTimeDimensionsQuery.isLoading ? (
-                                                    <Loader
-                                                        size="xs"
-                                                        color="ldGray.5"
-                                                    />
-                                                ) : undefined
-                                            }
-                                            classNames={{
-                                                input: classes.input,
-                                                item: classes.item,
-                                                rightSection:
-                                                    classes.rightSection,
-                                                dropdown: classes.dropdown,
-                                            }}
-                                        />
-                                    ) : (
-                                        <Text span c="ldGray.7" fz={13}>
-                                            Only metrics with a time dimension
-                                            defined in the .yml can be compared.{' '}
-                                            <Anchor
-                                                c="ldGray.9"
-                                                fw={500}
-                                                target="_blank"
-                                                href="https://docs.lightdash.com/guides/metrics-catalog/#configuring-default-time-settings-in-yml"
+                            <Paper
+                                p="sm"
+                                withBorder
+                                radius="md"
+                                sx={(theme) => ({
+                                    cursor: 'pointer',
+                                    transition: `all ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
+                                    '&[data-with-border="true"]': {
+                                        border:
+                                            query.comparison === comparison.type
+                                                ? `1px solid ${theme.colors.indigo[5]}`
+                                                : `1px solid ${theme.colors.ldGray[2]}`,
+                                    },
+                                    '&:hover': {
+                                        backgroundColor:
+                                            theme.colorScheme === 'dark'
+                                                ? theme.colors.ldDark[3]
+                                                : theme.colors.ldGray[0],
+                                    },
+                                    backgroundColor:
+                                        query.comparison === comparison.type
+                                            ? theme.colorScheme === 'dark'
+                                                ? theme.colors.ldDark[2]
+                                                : theme.fn.lighten(
+                                                      theme.colors.ldGray[1],
+                                                      0.3,
+                                                  )
+                                            : theme.colors.background[0],
+                                })}
+                                onClick={() =>
+                                    handleComparisonChange(comparison.type)
+                                }
+                            >
+                                <Stack>
+                                    <Group
+                                        align="center"
+                                        noWrap
+                                        position="apart"
+                                    >
+                                        <Group noWrap>
+                                            <Paper
+                                                p="xs"
+                                                radius="md"
+                                                withBorder
                                             >
-                                                Learn more
-                                            </Anchor>
-                                        </Text>
-                                    ))}
-                            </Stack>
-                        </Paper>
-                    </Tooltip>
-                ))}
+                                                <MantineIcon
+                                                    icon={comparison.icon}
+                                                />
+                                            </Paper>
+
+                                            <Text color="ldGray.7" fw={500}>
+                                                {comparison.label}
+                                            </Text>
+                                        </Group>
+                                        <Radio
+                                            value={comparison.type}
+                                            size="xs"
+                                            color="indigo"
+                                        />
+                                    </Group>
+
+                                    {comparison.type ===
+                                        MetricExplorerComparison.DIFFERENT_METRIC &&
+                                        query.comparison ===
+                                            MetricExplorerComparison.DIFFERENT_METRIC &&
+                                        (metricsWithTimeDimensionsQuery.isLoading ||
+                                        (metricsWithTimeDimensionsQuery.isSuccess &&
+                                            metricsWithTimeDimensionsQuery.data
+                                                .length > 0) ? (
+                                            <Select
+                                                placeholder="Select a metric"
+                                                searchable
+                                                radius="md"
+                                                size="xs"
+                                                data={
+                                                    metricsWithTimeDimensionsQuery.data?.map(
+                                                        (metric) => ({
+                                                            value: getItemId(
+                                                                metric,
+                                                            ),
+                                                            label: metric.label,
+                                                            group: metric.tableLabel,
+                                                        }),
+                                                    ) ?? []
+                                                }
+                                                value={getItemId(query.metric)}
+                                                onChange={handleMetricChange}
+                                                itemComponent={SelectItem}
+                                                // this does not work as expected in Mantine 6
+                                                data-disabled={
+                                                    !metricsWithTimeDimensionsQuery.isSuccess
+                                                }
+                                                rightSection={
+                                                    metricsWithTimeDimensionsQuery.isLoading ? (
+                                                        <Loader
+                                                            size="xs"
+                                                            color="ldGray.5"
+                                                        />
+                                                    ) : undefined
+                                                }
+                                                classNames={{
+                                                    input: classes.input,
+                                                    item: classes.item,
+                                                    rightSection:
+                                                        classes.rightSection,
+                                                    dropdown: classes.dropdown,
+                                                }}
+                                            />
+                                        ) : (
+                                            <Text span c="ldGray.7" fz={13}>
+                                                Only metrics with a time
+                                                dimension defined in the .yml
+                                                can be compared.{' '}
+                                                <Anchor
+                                                    c="ldGray.9"
+                                                    fw={500}
+                                                    target="_blank"
+                                                    href="https://docs.lightdash.com/guides/metrics-catalog/#configuring-default-time-settings-in-yml"
+                                                >
+                                                    Learn more
+                                                </Anchor>
+                                            </Text>
+                                        ))}
+                                </Stack>
+                            </Paper>
+                        </Tooltip>
+                    ))}
             </Stack>
         </Radio.Group>
     );

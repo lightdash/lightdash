@@ -35,6 +35,7 @@ import {
     setOrganizationUuid,
     setProjectUuid,
     setSearch,
+    setTableFilters,
     setTableSorting,
     setUser,
     toggleMetricExploreModal,
@@ -179,12 +180,16 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     );
     const navigate = useNavigate();
     const categoriesParam = useSearchParams('categories');
+    const tablesParam = useSearchParams('tables');
     const searchParam = useSearchParams('search');
     const sortingParam = useSearchParams('sortBy');
     const sortDirectionParam = useSearchParams('sortDirection');
 
     const categories = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
+    );
+    const tableFilters = useAppSelector(
+        (state) => state.metricsCatalog.tableFilters,
     );
     const search = useAppSelector((state) => state.metricsCatalog.search);
     const tableSorting = useAppSelector(
@@ -248,6 +253,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     useEffect(() => {
         const urlCategories =
             categoriesParam?.split(',').map(decodeURIComponent) || [];
+        const urlTables = tablesParam?.split(',').map(decodeURIComponent) || [];
         const urlSearch = searchParam
             ? decodeURIComponent(searchParam)
             : undefined;
@@ -259,6 +265,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
             : undefined;
 
         dispatch(setCategoryFilters(urlCategories));
+        dispatch(setTableFilters(urlTables));
         dispatch(setSearch(urlSearch));
 
         if (urlSortByParam) {
@@ -273,6 +280,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
         }
     }, [
         categoriesParam,
+        tablesParam,
         dispatch,
         searchParam,
         sortingParam,
@@ -291,6 +299,15 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
             queryParams.delete('categories');
         }
 
+        if (tableFilters.length > 0) {
+            queryParams.set(
+                'tables',
+                tableFilters.map(encodeURIComponent).join(','),
+            );
+        } else {
+            queryParams.delete('tables');
+        }
+
         if (search) {
             queryParams.set('search', encodeURIComponent(search));
         } else {
@@ -307,7 +324,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
         }
 
         void navigate({ search: queryParams.toString() }, { replace: true });
-    }, [categories, search, tableSorting, navigate]);
+    }, [categories, tableFilters, search, tableSorting, navigate]);
 
     useEffect(
         function handleAbilities() {

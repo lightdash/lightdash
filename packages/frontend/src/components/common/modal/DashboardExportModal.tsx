@@ -249,82 +249,85 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
 
                 {exportType === 'image' && (
                     <Stack gap="xs">
-                        {isDashboardTabsAvailable && (
-                            <Stack gap="xs">
-                                <Input.Label>
-                                    <Group gap="xs">
-                                        Tabs
-                                        <Tooltip
-                                            withinPortal={true}
-                                            maw={400}
-                                            variant="xs"
-                                            multiline
-                                            label="Select all tabs to include all tabs in the export. If you don't select this option, only selected tabs will be included."
-                                        >
-                                            <MantineIcon
-                                                icon={IconHelpCircle}
-                                                size="md"
-                                                display="inline"
-                                                color="gray"
-                                            />
-                                        </Tooltip>
-                                    </Group>
-                                </Input.Label>
-                                <Checkbox
-                                    size="sm"
-                                    label="Include all tabs"
-                                    labelPosition="right"
-                                    checked={allTabsSelected}
-                                    onChange={(e) => {
-                                        setAllTabsSelected(e.target.checked);
-                                        if (e.target.checked) {
-                                            setSelectedTabs(
-                                                dashboard?.tabs?.map(
-                                                    (tab) => tab.uuid,
-                                                ) || [],
+                        {isDashboardTabsAvailable &&
+                            dashboard.tabs.length > 1 && (
+                                <Stack gap="xs">
+                                    <Input.Label>
+                                        <Group gap="xs">
+                                            Tabs
+                                            <Tooltip
+                                                withinPortal={true}
+                                                maw={400}
+                                                variant="xs"
+                                                multiline
+                                                label="Select all tabs to include all tabs in the export. If you don't select this option, only selected tabs will be included."
+                                            >
+                                                <MantineIcon
+                                                    icon={IconHelpCircle}
+                                                    size="md"
+                                                    display="inline"
+                                                    color="gray"
+                                                />
+                                            </Tooltip>
+                                        </Group>
+                                    </Input.Label>
+                                    <Checkbox
+                                        size="sm"
+                                        label="Include all tabs"
+                                        labelPosition="right"
+                                        checked={allTabsSelected}
+                                        onChange={(e) => {
+                                            setAllTabsSelected(
+                                                e.target.checked,
                                             );
-                                        } else {
-                                            const firstTabUuid =
-                                                dashboard?.tabs?.[0]?.uuid;
-                                            setSelectedTabs(
-                                                firstTabUuid
-                                                    ? [firstTabUuid]
-                                                    : [],
-                                            );
-                                        }
-                                    }}
-                                />
-                                {!allTabsSelected && (
-                                    <MultiSelect
-                                        placeholder="Select tabs to include in the export"
-                                        value={selectedTabs}
-                                        data={(dashboard?.tabs || []).map(
-                                            (tab) => ({
-                                                value: tab.uuid,
-                                                label: tab.name,
-                                            }),
-                                        )}
-                                        clearButtonProps={{
-                                            style: {
-                                                display:
-                                                    selectedTabs.length > 1
-                                                        ? 'block'
-                                                        : 'none',
-                                            },
+                                            if (e.target.checked) {
+                                                setSelectedTabs(
+                                                    dashboard?.tabs?.map(
+                                                        (tab) => tab.uuid,
+                                                    ) || [],
+                                                );
+                                            } else {
+                                                const firstTabUuid =
+                                                    dashboard?.tabs?.[0]?.uuid;
+                                                setSelectedTabs(
+                                                    firstTabUuid
+                                                        ? [firstTabUuid]
+                                                        : [],
+                                                );
+                                            }
                                         }}
-                                        clearable={selectedTabs.length > 1}
-                                        searchable
-                                        onChange={setSelectedTabs}
-                                        required
-                                        error={
-                                            !hasTilesInSelectedTabs()
-                                                ? 'There are no tiles in the selected tab(s)'
-                                                : undefined
-                                        }
                                     />
-                                )}
-                            </Stack>
-                        )}
+                                    {!allTabsSelected && (
+                                        <MultiSelect
+                                            placeholder="Select tabs to include in the export"
+                                            value={selectedTabs}
+                                            data={(dashboard?.tabs || []).map(
+                                                (tab) => ({
+                                                    value: tab.uuid,
+                                                    label: tab.name,
+                                                }),
+                                            )}
+                                            clearButtonProps={{
+                                                style: {
+                                                    display:
+                                                        selectedTabs.length > 1
+                                                            ? 'block'
+                                                            : 'none',
+                                                },
+                                            }}
+                                            clearable={selectedTabs.length > 1}
+                                            searchable
+                                            onChange={setSelectedTabs}
+                                            required
+                                            error={
+                                                !hasTilesInSelectedTabs()
+                                                    ? 'There are no tiles in the selected tab(s)'
+                                                    : undefined
+                                            }
+                                        />
+                                    )}
+                                </Stack>
+                            )}
 
                         <PreviewAndCustomizeScreenshot
                             containerWidth={gridWidth}

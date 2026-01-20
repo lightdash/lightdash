@@ -1,3 +1,4 @@
+import { ERROR_BOUNDARY_ID } from '@lightdash/common';
 import { Box, Button, Flex, Stack, Text, type FlexProps } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import * as Sentry from '@sentry/react';
@@ -89,6 +90,12 @@ const ErrorFallback: FC<{
     error: unknown;
     wrapper?: FlexProps;
 }> = ({ eventId, error, wrapper }) => {
+    const errorMessage = isChunkLoadErrorObject(error)
+        ? 'Application update required (chunk load error)'
+        : error instanceof Error
+          ? error.message
+          : String(error);
+
     // Check if this is a chunk load error
     if (isChunkLoadErrorObject(error)) {
         // If we haven't recently reloaded, auto-reload now
@@ -100,6 +107,9 @@ const ErrorFallback: FC<{
         // Auto-reload already attempted, show manual refresh UI
         return (
             <Flex
+                id={ERROR_BOUNDARY_ID}
+                data-error-message={errorMessage}
+                data-sentry-event-id={eventId}
                 justify="flex-start"
                 align="center"
                 direction="column"
@@ -113,6 +123,9 @@ const ErrorFallback: FC<{
     // Regular error - show error details
     return (
         <Flex
+            id={ERROR_BOUNDARY_ID}
+            data-error-message={errorMessage}
+            data-sentry-event-id={eventId}
             justify="flex-start"
             align="center"
             direction="column"

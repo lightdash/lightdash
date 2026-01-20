@@ -1,3 +1,124 @@
+## [0.2355.1](https://github.com/lightdash/lightdash/compare/0.2355.0...0.2355.1) (2026-01-20)
+
+
+### Bug Fixes
+
+* include all tabs doesn't persist in Scheduled deliveries modal ([#19569](https://github.com/lightdash/lightdash/issues/19569)) ([a5fadcc](https://github.com/lightdash/lightdash/commit/a5fadcc4e5622582c2a13eba52bfd83c6f8745e4)), closes [#19369](https://github.com/lightdash/lightdash/issues/19369)
+
+# [0.2355.0](https://github.com/lightdash/lightdash/compare/0.2354.0...0.2355.0) (2026-01-20)
+
+
+### Features
+
+* enable PoP on metrics explorer modal v2 ([#19566](https://github.com/lightdash/lightdash/issues/19566)) ([3079c97](https://github.com/lightdash/lightdash/commit/3079c97842b32c7f2f35830ddb7263a816e91029))
+
+# [0.2354.0](https://github.com/lightdash/lightdash/compare/0.2353.5...0.2354.0) (2026-01-20)
+
+
+### Features
+
+* add search functionality to metrics catalog categories filter ([#19547](https://github.com/lightdash/lightdash/issues/19547)) ([6d97202](https://github.com/lightdash/lightdash/commit/6d97202a3c7766f03c45cf771032cdc0aa054a76))
+* add table filtering to metrics catalog ([#19546](https://github.com/lightdash/lightdash/issues/19546)) ([9ce7fdb](https://github.com/lightdash/lightdash/commit/9ce7fdb21b81248280f850a79a44aee617e5febe))
+* enable sorting by table name in metrics catalog ([#19544](https://github.com/lightdash/lightdash/issues/19544)) ([c6a9765](https://github.com/lightdash/lightdash/commit/c6a9765842aa92aff20ac088619025c621e787cb))
+
+## [0.2353.5](https://github.com/lightdash/lightdash/compare/0.2353.4...0.2353.5) (2026-01-20)
+
+
+### Bug Fixes
+
+* check ai copilot flag or env var on useAmbientAiEnabled ([#19554](https://github.com/lightdash/lightdash/issues/19554)) ([8aca1ff](https://github.com/lightdash/lightdash/commit/8aca1ffc1056d305891625a9b53db05fba363ac1))
+
+## [0.2353.4](https://github.com/lightdash/lightdash/compare/0.2353.3...0.2353.4) (2026-01-19)
+
+
+### Bug Fixes
+
+* show chart configuration warnings on validator when USE_SQL_PIVOT_RESULTS is disabled ([#19556](https://github.com/lightdash/lightdash/issues/19556)) ([710347a](https://github.com/lightdash/lightdash/commit/710347a1da925742963ed32f087a4d11c56d8c82))
+
+## [0.2353.3](https://github.com/lightdash/lightdash/compare/0.2353.2...0.2353.3) (2026-01-19)
+
+
+### Bug Fixes
+
+* Metric catalog explore name tooltip cut-off on hover ([#19542](https://github.com/lightdash/lightdash/issues/19542)) ([087fcd8](https://github.com/lightdash/lightdash/commit/087fcd82e431f3179e637f93fabdc671c1a757a4))
+* Metrics Catalog category filter dropdown missing existing categories ([#19538](https://github.com/lightdash/lightdash/issues/19538)) ([d4f1f67](https://github.com/lightdash/lightdash/commit/d4f1f67b2c06d89723befe221cbe87f50630d20f))
+
+## [0.2353.2](https://github.com/lightdash/lightdash/compare/0.2353.1...0.2353.2) (2026-01-19)
+
+
+### Bug Fixes
+
+* change catalog field filtering from whereIn to unnest arrays ([#19540](https://github.com/lightdash/lightdash/issues/19540)) ([8885368](https://github.com/lightdash/lightdash/commit/8885368506e2f9ef61f54e05685f4c399a3e6631))
+
+## [0.2353.1](https://github.com/lightdash/lightdash/compare/0.2353.0...0.2353.1) (2026-01-19)
+
+
+### Bug Fixes
+
+* custom tooltip values when sql pivoting ([#19504](https://github.com/lightdash/lightdash/issues/19504)) ([26bcf41](https://github.com/lightdash/lightdash/commit/26bcf419e661c00df242a1c0e8624b2c16460fd8))
+* do not run and disable scheduled deliveries when there are no targets ([#19495](https://github.com/lightdash/lightdash/issues/19495)) ([01a8aa1](https://github.com/lightdash/lightdash/commit/01a8aa18044ab058bdf5e4c8396eba94cc78ab37))
+* support referencing a grouped metric ([#19508](https://github.com/lightdash/lightdash/issues/19508)) ([111d553](https://github.com/lightdash/lightdash/commit/111d55334328e9499c150e2c93d877b1a9bbd01a))
+
+# [0.2353.0](https://github.com/lightdash/lightdash/compare/0.2352.0...0.2353.0) (2026-01-19)
+
+
+### Bug Fixes
+
+* preserve query params in Slack auth redirect ([#19526](https://github.com/lightdash/lightdash/issues/19526)) ([348ebd8](https://github.com/lightdash/lightdash/commit/348ebd87e9f15c55285089cc5efdd64c8504c468))
+
+
+### Features
+
+* duplicate charts when duplicating dashboard tabs ([#19438](https://github.com/lightdash/lightdash/issues/19438)) ([8949fbf](https://github.com/lightdash/lightdash/commit/8949fbf681e198f5acac3750bc7f3da52f812a91))
+* process Slack messages after OAuth authentication completes ([#19525](https://github.com/lightdash/lightdash/issues/19525)) ([a680d23](https://github.com/lightdash/lightdash/commit/a680d23f7239134032d4314978b929d1cbd01ae0))
+
+# [0.2352.0](https://github.com/lightdash/lightdash/compare/0.2351.0...0.2352.0) (2026-01-19)
+
+
+### Features
+
+* detect login page redirects in screenshot service ([#19505](https://github.com/lightdash/lightdash/issues/19505)) ([ec7694d](https://github.com/lightdash/lightdash/commit/ec7694deaf38f9ea9bdd0a7785544ee1e754e3c0)), closes [#19506](https://github.com/lightdash/lightdash/issues/19506)
+
+# [0.2351.0](https://github.com/lightdash/lightdash/compare/0.2350.0...0.2351.0) (2026-01-19)
+
+
+### Features
+
+* add AI-powered custom tooltip generator ([#19501](https://github.com/lightdash/lightdash/issues/19501)) ([3391c5e](https://github.com/lightdash/lightdash/commit/3391c5ec08e52d92f40265a4b937506569be0aa0))
+
+# [0.2350.0](https://github.com/lightdash/lightdash/compare/0.2349.1...0.2350.0) (2026-01-16)
+
+
+### Bug Fixes
+
+* avoid intermediate axis ticks for all series types ([#19487](https://github.com/lightdash/lightdash/issues/19487)) ([dd4efb2](https://github.com/lightdash/lightdash/commit/dd4efb2e5ade4c7657524e7c8c99f9537263686a))
+
+
+### Features
+
+* add tooltip sorting options for pivot charts ([#19478](https://github.com/lightdash/lightdash/issues/19478)) ([e0d2e13](https://github.com/lightdash/lightdash/commit/e0d2e1311cf4e884632db8bafe0f6132a25c8fa1))
+* detect error boundaries in screenshot service ([#19445](https://github.com/lightdash/lightdash/issues/19445)) ([7c196e4](https://github.com/lightdash/lightdash/commit/7c196e429b768ba3324c3a1d6279066ac5f1460d))
+
+## [0.2349.1](https://github.com/lightdash/lightdash/compare/0.2349.0...0.2349.1) (2026-01-16)
+
+
+### Bug Fixes
+
+* hide tabs selection in export modal when dashboard has only one tab ([#19470](https://github.com/lightdash/lightdash/issues/19470)) ([2bef353](https://github.com/lightdash/lightdash/commit/2bef353e4a3eb161d1b102e2fb550c64c6a9577e))
+* remove dashboard redesign check for markdown tile hideFrame property ([#19497](https://github.com/lightdash/lightdash/issues/19497)) ([ddc9b94](https://github.com/lightdash/lightdash/commit/ddc9b9412c7e60853118e3abf448ad577811307f))
+
+# [0.2349.0](https://github.com/lightdash/lightdash/compare/0.2348.2...0.2349.0) (2026-01-16)
+
+
+### Bug Fixes
+
+* remove duplicate users from user options select list ([#19499](https://github.com/lightdash/lightdash/issues/19499)) ([9273080](https://github.com/lightdash/lightdash/commit/9273080ef310a3c87cdb0b8aef005931bf9190e8))
+
+
+### Features
+
+* add project filtering for Slack multi-agent channel ([#19456](https://github.com/lightdash/lightdash/issues/19456)) ([6156faf](https://github.com/lightdash/lightdash/commit/6156faf114d4988552b7057bc7888995992f012a))
+
 ## [0.2348.2](https://github.com/lightdash/lightdash/compare/0.2348.1...0.2348.2) (2026-01-16)
 
 

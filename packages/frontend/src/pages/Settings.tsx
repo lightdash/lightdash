@@ -66,11 +66,11 @@ import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
-import {
-    useFeatureFlag,
-    useFeatureFlagEnabled,
-} from '../hooks/useFeatureFlagEnabled';
 import { useProject } from '../hooks/useProject';
+import {
+    useClientFeatureFlag,
+    useServerFeatureFlag,
+} from '../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
@@ -80,11 +80,11 @@ import ProjectSettings from './ProjectSettings';
 import classes from './Settings.module.css';
 
 const Settings: FC = () => {
-    const { data: embeddingEnabled } = useFeatureFlag(
+    const { data: embeddingEnabled } = useServerFeatureFlag(
         CommercialFeatureFlags.Embedding,
     );
 
-    const { data: isScimTokenManagementEnabled } = useFeatureFlag(
+    const { data: isScimTokenManagementEnabled } = useServerFeatureFlag(
         CommercialFeatureFlags.Scim,
     );
 
@@ -94,7 +94,7 @@ const Settings: FC = () => {
             aiOrganizationSettingsQuery.data?.isCopilotEnabled) ||
         aiOrganizationSettingsQuery.data?.isTrial;
 
-    const isServiceAccountFeatureFlagEnabled = useFeatureFlagEnabled(
+    const isServiceAccountFeatureFlagEnabled = useClientFeatureFlag(
         CommercialFeatureFlags.ServiceAccounts,
     );
 
@@ -109,7 +109,7 @@ const Settings: FC = () => {
 
     const isCustomRolesEnabled = health?.isCustomRolesEnabled;
 
-    const userGroupsFeatureFlagQuery = useFeatureFlag(
+    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,
     );
 
@@ -150,7 +150,7 @@ const Settings: FC = () => {
     const isServiceAccountsEnabled =
         health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
 
-    const isWarehouseCredentialsFeatureFlagEnabled = useFeatureFlagEnabled(
+    const isWarehouseCredentialsFeatureFlagEnabled = useClientFeatureFlag(
         CommercialFeatureFlags.OrganizationWarehouseCredentials,
     );
 

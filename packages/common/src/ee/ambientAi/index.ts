@@ -65,3 +65,23 @@ export type ApiAiGenerateTableCalculationResponse = {
     status: 'ok';
     results: GeneratedTableCalculation;
 };
+
+export type TooltipFieldContext = {
+    name: string;
+    label?: string;
+};
+
+export type GenerateTooltipRequest = {
+    prompt: string;
+    fieldsContext: TooltipFieldContext[];
+    currentHtml?: string;
+};
+
+export type GeneratedTooltip = {
+    html: string;
+};
+
+export type ApiAiGenerateTooltipResponse = {
+    status: 'ok';
+    results: GeneratedTooltip;
+};
