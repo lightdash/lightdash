@@ -1,3 +1,12 @@
+# [0.2354.0](https://github.com/lightdash/lightdash/compare/0.2353.5...0.2354.0) (2026-01-20)
+
+
+### Features
+
+* add search functionality to metrics catalog categories filter ([#19547](https://github.com/lightdash/lightdash/issues/19547)) ([6d97202](https://github.com/lightdash/lightdash/commit/6d97202a3c7766f03c45cf771032cdc0aa054a76))
+* add table filtering to metrics catalog ([#19546](https://github.com/lightdash/lightdash/issues/19546)) ([9ce7fdb](https://github.com/lightdash/lightdash/commit/9ce7fdb21b81248280f850a79a44aee617e5febe))
+* enable sorting by table name in metrics catalog ([#19544](https://github.com/lightdash/lightdash/issues/19544)) ([c6a9765](https://github.com/lightdash/lightdash/commit/c6a9765842aa92aff20ac088619025c621e787cb))
+
 ## [0.2353.5](https://github.com/lightdash/lightdash/compare/0.2353.4...0.2353.5) (2026-01-20)
 
 
