@@ -1,6 +1,6 @@
 import {
-    DimensionType,
     MetricExplorerComparison,
+    getAvailableFilterDimensions,
     getDefaultDateRangeFromInterval,
     getItemId,
     isDimension,
@@ -413,15 +413,15 @@ export const MetricExploreModalV1: FC<Props> = ({
         [],
     );
 
+    const currentMetric = metrics[currentMetricIndex];
+
     const availableFilters = useMemo(
         () =>
-            // TODO: Get filters from the query instead of segmentByData, this should include numeric dimensions as well
-            segmentDimensionsQuery.data?.filter(
-                (dimension) =>
-                    dimension.type === DimensionType.STRING ||
-                    dimension.type === DimensionType.BOOLEAN,
-            ) ?? [],
-        [segmentDimensionsQuery.data],
+            getAvailableFilterDimensions(
+                segmentDimensionsQuery.data ?? [],
+                currentMetric?.spotlightFilterBy,
+            ),
+        [segmentDimensionsQuery.data, currentMetric?.spotlightFilterBy],
     );
 
     return (

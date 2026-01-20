@@ -10,8 +10,8 @@ import {
 
 export const dimension: Dimension = {
     fieldType: FieldType.DIMENSION,
-    description: undefined,
     type: DimensionType.STRING,
+    description: undefined,
     name: 'name',
     label: 'label',
     table: 'table',
@@ -22,9 +22,16 @@ export const dimension: Dimension = {
 };
 
 export const metric: Metric = {
-    ...dimension,
     fieldType: FieldType.METRIC,
     type: MetricType.COUNT,
+    description: undefined,
+    name: 'name',
+    label: 'label',
+    table: 'table',
+    tableLabel: 'tableLabel',
+    sql: 'sql',
+    hidden: false,
+    groups: [],
 };
 
 export const tableCalculation: TableCalculation = {

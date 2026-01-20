@@ -553,6 +553,30 @@ export const getAvailableSegmentDimensions = (
                 !d.timeIntervalBaseDimensionName,
         );
 
+export const getAvailableFilterDimensions = (
+    dimensions: Dimension[],
+    metricFilterByAllowlist?: string[],
+): CompiledDimension[] =>
+    dimensions
+        .filter((d): d is CompiledDimension => !!d)
+        .filter((d) => {
+            // Only string/boolean dimensions can be used for filtering
+            if (
+                d.type !== DimensionType.STRING &&
+                d.type !== DimensionType.BOOLEAN
+            ) {
+                return false;
+            }
+
+            // If metric has allowlist, use it (supersedes dimension-level)
+            if (metricFilterByAllowlist) {
+                return metricFilterByAllowlist.includes(d.name);
+            }
+
+            // Otherwise use dimension-level setting (default true)
+            return d.spotlight?.filterBy !== false;
+        });
+
 export const getAvailableCompareMetrics = (
     metrics: MetricWithAssociatedTimeDimension[],
 ): MetricWithAssociatedTimeDimension[] =>
