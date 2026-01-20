@@ -308,11 +308,14 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                     stream.pause();
 
                     // Chain processing to ensure sequential handling
-                    processingPromise = processingPromise.then(async () => {
-                        await processRows(rows);
-                        // Resume stream after processing is complete
-                        stream.resume();
-                    });
+                    processingPromise = processingPromise
+                        .then(async () => {
+                            await processRows(rows);
+                        })
+                        .finally(() => {
+                            // Always resume stream, even on error
+                            stream.resume();
+                        });
                 },
             );
             await new Promise<void>((resolve, reject) => {
