@@ -1045,21 +1045,23 @@ const useCartesianChartConfig = ({
     ]);
 
     const validConfig: CartesianChart = useMemo(() => {
-        return isCompleteLayout(dirtyLayout) &&
-            isCompleteEchartsConfig(dirtyEchartsConfig)
-            ? {
-                  layout: dirtyLayout,
-                  eChartsConfig: {
+        // Always use the dirtyLayout and dirtyEchartsConfig when possible, fallback to the empty config if not complete.
+        return {
+            layout: isCompleteLayout(dirtyLayout)
+                ? dirtyLayout
+                : EMPTY_CARTESIAN_CHART_CONFIG.layout,
+            eChartsConfig: isCompleteEchartsConfig(dirtyEchartsConfig)
+                ? {
                       ...dirtyEchartsConfig,
                       series: dirtyEchartsConfig.series.filter(
                           (serie) => !serie.isFilteredOut,
                       ),
                       tooltip,
                       tooltipSort,
-                  },
-                  metadata: dirtyMetadata,
-              }
-            : EMPTY_CARTESIAN_CHART_CONFIG;
+                  }
+                : EMPTY_CARTESIAN_CHART_CONFIG.eChartsConfig,
+            metadata: dirtyMetadata,
+        };
     }, [dirtyLayout, dirtyEchartsConfig, dirtyMetadata, tooltip, tooltipSort]);
 
     const { dirtyChartType } = useMemo(() => {
