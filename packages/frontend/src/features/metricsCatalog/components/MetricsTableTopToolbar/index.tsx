@@ -17,6 +17,7 @@ import { CSS } from '@dnd-kit/utilities';
 import {
     DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
     SpotlightTableColumns,
+    type CatalogCategoryFilterMode,
     type CatalogField,
 } from '@lightdash/common';
 import {
@@ -77,6 +78,8 @@ type MetricsTableTopToolbarProps = GroupProps & {
     setSelectedCategories: (
         categories: CatalogField['categories'][number]['tagUuid'][],
     ) => void;
+    categoryFilterMode: CatalogCategoryFilterMode;
+    setCategoryFilterMode: (mode: CatalogCategoryFilterMode) => void;
     selectedTables: string[];
     setSelectedTables: (tables: string[]) => void;
     totalResults: number;
@@ -157,6 +160,8 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         totalResults,
         selectedCategories,
         setSelectedCategories,
+        categoryFilterMode,
+        setCategoryFilterMode,
         selectedTables,
         setSelectedTables,
         showCategoriesFilter,
@@ -388,6 +393,8 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         <CategoriesFilter
                             selectedCategories={selectedCategories}
                             setSelectedCategories={setSelectedCategories}
+                            categoryFilterMode={categoryFilterMode}
+                            setCategoryFilterMode={setCategoryFilterMode}
                         />
                     )}
 

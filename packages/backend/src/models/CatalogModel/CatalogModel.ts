@@ -1,4 +1,5 @@
 import {
+    CatalogCategoryFilterMode,
     CatalogFilter,
     CatalogItemIcon,
     CatalogItemsWithIcons,
@@ -593,7 +594,14 @@ export class CatalogModel {
     async search({
         projectUuid,
         exploreName,
-        catalogSearch: { catalogTags, filter, searchQuery = '', type, tables },
+        catalogSearch: {
+            catalogTags,
+            catalogTagsFilterMode,
+            filter,
+            searchQuery = '',
+            type,
+            tables,
+        },
         excludeUnmatched = true,
         tablesConfiguration,
         userAttributes,
@@ -774,60 +782,55 @@ export class CatalogModel {
         }
 
         if (catalogTags) {
-            catalogItemsQuery = catalogItemsQuery.andWhere(
-                function getCatalogItemsWithTags() {
-                    const regularTags = catalogTags.filter(
-                        (tag) => tag !== UNCATEGORIZED_TAG_UUID,
-                    );
-                    const includeUncategorized = catalogTags.includes(
-                        UNCATEGORIZED_TAG_UUID,
-                    );
+            const useAndMode =
+                catalogTagsFilterMode === CatalogCategoryFilterMode.AND;
+            const regularTags = catalogTags.filter(
+                (tag) => tag !== UNCATEGORIZED_TAG_UUID,
+            );
+            const includeUncategorized = catalogTags.includes(
+                UNCATEGORIZED_TAG_UUID,
+            );
 
+            // Subquery: items with no tags
+            const uncategorizedSubquery = this.database(CatalogTagsTableName)
+                .select('catalog_search_uuid')
+                .whereRaw(
+                    `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
+                );
+
+            // Subquery: items matching regular tags (AND: all tags, OR: any tag)
+            const matchingTagsSubquery =
+                regularTags.length > 0
+                    ? this.database(CatalogTagsTableName)
+                          .select('catalog_search_uuid')
+                          .whereIn('tag_uuid', regularTags)
+                          .whereRaw(
+                              `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
+                          )
+                          .groupBy('catalog_search_uuid')
+                          .modify((qb) => {
+                              if (useAndMode) {
+                                  void qb.havingRaw(
+                                      'COUNT(DISTINCT tag_uuid) = ?',
+                                      [regularTags.length],
+                                  );
+                              }
+                          })
+                    : null;
+
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                function catalogItemsQueryFn() {
                     if (regularTags.length > 0 && includeUncategorized) {
-                        // Show items that either:
-                        // 1. Have no tags OR
-                        // 2. Have any of the specified tags
-                        void this.where(function getUncategorizedItems() {
-                            void this.whereNotExists(function noTags() {
-                                void this.select('*')
-                                    .from(CatalogTagsTableName)
-                                    .whereRaw(
-                                        `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
-                                    );
-                            }).orWhereExists(function hasSpecificTags() {
-                                void this.select('*')
-                                    .from(CatalogTagsTableName)
-                                    .whereRaw(
-                                        `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
-                                    )
-                                    .whereIn(
-                                        `${CatalogTagsTableName}.tag_uuid`,
-                                        regularTags,
-                                    );
-                            });
-                        });
+                        // Items with no tags OR matching tags
+                        void this.whereNotExists(
+                            uncategorizedSubquery,
+                        ).orWhereExists(matchingTagsSubquery!);
                     } else if (includeUncategorized) {
-                        // Show only items with no tags
-                        void this.whereNotExists(function noTags() {
-                            void this.select('*')
-                                .from(CatalogTagsTableName)
-                                .whereRaw(
-                                    `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
-                                );
-                        });
-                    } else {
-                        // Show only items with specified tags
-                        void this.whereExists(function hasSpecificTags() {
-                            void this.select('*')
-                                .from(CatalogTagsTableName)
-                                .whereRaw(
-                                    `${CatalogTagsTableName}.catalog_search_uuid = ${CatalogTableName}.catalog_search_uuid`,
-                                )
-                                .whereIn(
-                                    `${CatalogTagsTableName}.tag_uuid`,
-                                    regularTags,
-                                );
-                        });
+                        // Only items with no tags
+                        void this.whereNotExists(uncategorizedSubquery);
+                    } else if (matchingTagsSubquery) {
+                        // Only items with matching tags
+                        void this.whereExists(matchingTagsSubquery);
                     }
                 },
             );

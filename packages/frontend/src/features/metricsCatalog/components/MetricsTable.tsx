@@ -2,6 +2,7 @@ import {
     MAX_METRICS_TREE_NODE_COUNT,
     SpotlightTableColumns,
     assertUnreachable,
+    type CatalogCategoryFilterMode,
     type CatalogItem,
 } from '@lightdash/common';
 import {
@@ -52,6 +53,7 @@ import {
 import { useMetricsTree } from '../hooks/useMetricsTree';
 import { useSpotlightTableConfig } from '../hooks/useSpotlightTable';
 import {
+    setCategoryFilterMode,
     setCategoryFilters,
     setColumnConfig,
     setSearch,
@@ -87,6 +89,9 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     );
     const categoryFilters = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
+    );
+    const categoryFilterMode = useAppSelector(
+        (state) => state.metricsCatalog.categoryFilterMode,
     );
     const tableFilters = useAppSelector(
         (state) => state.metricsCatalog.tableFilters,
@@ -127,6 +132,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         pageSize: 50,
         search: deferredSearch,
         categories: categoryFilters,
+        categoriesFilterMode: categoryFilterMode,
         tables: tableFilters,
         // TODO: Handle multiple sorting - this needs to be enabled and handled later in the backend
         ...(stateTableSorting.length > 0 && {
@@ -218,6 +224,10 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
 
     const handleSetTableFilters = (selectedTables: string[]) => {
         dispatch(setTableFilters(selectedTables));
+    };
+
+    const handleSetCategoryFilterMode = (mode: CatalogCategoryFilterMode) => {
+        dispatch(setCategoryFilterMode(mode));
     };
 
     // Reusable paper props to avoid duplicate when rendering tree view
@@ -513,6 +523,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     totalResults={totalResults}
                     selectedCategories={categoryFilters}
                     setSelectedCategories={handleSetCategoryFilters}
+                    categoryFilterMode={categoryFilterMode}
+                    setCategoryFilterMode={handleSetCategoryFilterMode}
                     selectedTables={tableFilters}
                     setSelectedTables={handleSetTableFilters}
                     position="apart"
@@ -665,6 +677,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                             totalResults={totalResults}
                             selectedCategories={categoryFilters}
                             setSelectedCategories={handleSetCategoryFilters}
+                            categoryFilterMode={categoryFilterMode}
+                            setCategoryFilterMode={handleSetCategoryFilterMode}
                             selectedTables={tableFilters}
                             setSelectedTables={handleSetTableFilters}
                             position="apart"

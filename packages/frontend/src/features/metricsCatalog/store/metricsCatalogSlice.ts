@@ -1,6 +1,8 @@
 import {
+    CatalogCategoryFilterMode,
     DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG,
     SpotlightTableColumns,
+    UNCATEGORIZED_TAG_UUID,
     type CatalogField,
     type SpotlightTableConfig,
 } from '@lightdash/common';
@@ -30,6 +32,7 @@ type MetricsCatalogState = {
     projectUuid: string | undefined;
     organizationUuid: string | undefined;
     categoryFilters: CatalogField['categories'][number]['tagUuid'][];
+    categoryFilterMode: CatalogCategoryFilterMode;
     tableFilters: string[];
     search: string | undefined;
     tableSorting: MRT_SortingState;
@@ -72,6 +75,7 @@ const initialState: MetricsCatalogState = {
     projectUuid: undefined,
     organizationUuid: undefined,
     categoryFilters: [],
+    categoryFilterMode: CatalogCategoryFilterMode.OR,
     tableFilters: [],
     search: undefined,
     tableSorting: [
@@ -141,6 +145,19 @@ export const metricsCatalogSlice = createSlice({
             >,
         ) => {
             state.categoryFilters = action.payload;
+            // Reset to OR when cleared or uncategorized selected (AND doesn't apply)
+            if (
+                action.payload.length === 0 ||
+                action.payload.includes(UNCATEGORIZED_TAG_UUID)
+            ) {
+                state.categoryFilterMode = CatalogCategoryFilterMode.OR;
+            }
+        },
+        setCategoryFilterMode: (
+            state,
+            action: PayloadAction<CatalogCategoryFilterMode>,
+        ) => {
+            state.categoryFilterMode = action.payload;
         },
         setTableFilters: (state, action: PayloadAction<string[]>) => {
             state.tableFilters = action.payload;
@@ -219,6 +236,7 @@ export const {
     setActiveMetric,
     setProjectUuid,
     setCategoryFilters,
+    setCategoryFilterMode,
     setTableFilters,
     setOrganizationUuid,
     setAbility,

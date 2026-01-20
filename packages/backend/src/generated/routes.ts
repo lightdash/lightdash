@@ -7866,11 +7866,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -21525,6 +21525,11 @@ const models: TsoaRoute.Models = {
             ],
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CatalogCategoryFilterMode: {
+        dataType: 'refEnum',
+        enums: ['and', 'or'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGetMetricPeek: {
@@ -44153,6 +44158,11 @@ export function RegisterRoutes(app: Router) {
             name: 'categories',
             dataType: 'array',
             array: { dataType: 'string' },
+        },
+        categoriesFilterMode: {
+            in: 'query',
+            name: 'categoriesFilterMode',
+            ref: 'CatalogCategoryFilterMode',
         },
         tables: {
             in: 'query',
