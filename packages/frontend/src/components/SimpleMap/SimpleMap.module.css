@@ -161,6 +161,11 @@
     }
 }
 
+/* Hide tooltips when a popup is open to reduce visual clutter */
+:global(.leaflet-container:has(.leaflet-popup)) :global(.leaflet-tooltip) {
+    display: none !important;
+}
+
 /* Match popup border-radius to tooltip (3px) and reduce horizontal padding */
 :global(.leaflet-popup-content-wrapper) {
     border-radius: 3px !important;
