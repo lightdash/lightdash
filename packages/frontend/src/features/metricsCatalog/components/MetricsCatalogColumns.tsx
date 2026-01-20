@@ -1,5 +1,5 @@
 import { SpotlightTableColumns, type CatalogField } from '@lightdash/common';
-import { Box, Button, Flex, Group, Text } from '@mantine/core';
+import { Button, Flex, Group, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus } from '@tabler/icons-react';
 import { type MRT_ColumnDef } from 'mantine-react-table';
@@ -20,7 +20,6 @@ import {
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setCategoryPopoverIsClosing } from '../store/metricsCatalogSlice';
 import { CatalogCategory } from './CatalogCategory';
-import { ExploreMetricButton } from './ExploreMetricButton';
 import { MetricCatalogColumnHeaderCell } from './MetricCatalogColumnHeaderCell';
 import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
@@ -40,29 +39,7 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             </MetricCatalogColumnHeaderCell>
         ),
         Cell: ({ row, table }) => {
-            const canManageExplore = useAppSelector(
-                (state) => state.metricsCatalog.abilities.canManageExplore,
-            );
-
-            return (
-                <Flex
-                    justify="space-between"
-                    align="center"
-                    w="100%"
-                    pos="relative"
-                >
-                    <MetricsCatalogColumnName row={row} table={table} />
-                    {canManageExplore && (
-                        <Box
-                            pos="absolute"
-                            right={0}
-                            className="explore-button-container"
-                        >
-                            <ExploreMetricButton row={row} />
-                        </Box>
-                    )}
-                </Flex>
-            );
+            return <MetricsCatalogColumnName row={row} table={table} />;
         },
     },
     {
@@ -257,7 +234,8 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
                     top={0}
                     w="100%"
                     h="100%"
-                    onClick={() => {
+                    onClick={(e) => {
+                        e.stopPropagation(); // Prevent row click from opening explore modal
                         // Prevent the cell from being clicked if the category or description popover is closing
                         if (
                             isCategoryPopoverClosing ||

@@ -96,9 +96,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const tableFilters = useAppSelector(
         (state) => state.metricsCatalog.tableFilters,
     );
-    const { canManageTags, canManageMetricsTree } = useAppSelector(
-        (state) => state.metricsCatalog.abilities,
-    );
+    const { canManageTags, canManageMetricsTree, canManageExplore } =
+        useAppSelector((state) => state.metricsCatalog.abilities);
     const isMetricExploreModalOpen = useAppSelector(
         (state) => state.metricsCatalog.modals.metricExploreModal.isOpen,
     );
@@ -459,26 +458,54 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 },
             },
         },
-        mantineTableBodyRowProps: {
+        mantineTableBodyRowProps: ({ row }) => ({
+            onClick: (e: React.MouseEvent<HTMLTableRowElement>) => {
+                // Skip if user doesn't have permission
+                if (!canManageExplore) return;
+
+                // Skip if clicking interactive elements (buttons, links, inputs)
+                const target = e.target as HTMLElement;
+                if (
+                    target.closest('button') ||
+                    target.closest('a') ||
+                    target.closest('input')
+                ) {
+                    return;
+                }
+
+                track({
+                    name: EventName.METRICS_CATALOG_EXPLORE_CLICKED,
+                    properties: {
+                        userId: userUuid,
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        metricName: row.original.name,
+                        tableName: row.original.tableName,
+                    },
+                });
+
+                void navigate({
+                    pathname: `/projects/${projectUuid}/metrics/peek/${row.original.tableName}/${row.original.name}`,
+                    search: location.search,
+                });
+
+                dispatch(
+                    toggleMetricExploreModal({
+                        name: row.original.name,
+                        tableName: row.original.tableName,
+                    }),
+                );
+            },
             sx: {
-                'td:first-of-type > div > .explore-button-container': {
-                    visibility: 'hidden',
-                    opacity: 0,
-                },
+                cursor: canManageExplore ? 'pointer' : 'default',
                 '&:hover': {
                     td: {
                         backgroundColor: theme.colors.ldGray[0],
                         transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
                     },
-
-                    'td:first-of-type > div > .explore-button-container': {
-                        visibility: 'visible',
-                        opacity: 1,
-                        transition: `visibility 0ms, opacity ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                    },
                 },
             },
-        },
+        }),
         mantineTableBodyCellProps: (props) => {
             const isLastVisibleColumn =
                 props.table
