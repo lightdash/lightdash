@@ -1,3 +1,10 @@
+## [0.2355.2](https://github.com/lightdash/lightdash/compare/0.2355.1...0.2355.2) (2026-01-20)
+
+
+### Bug Fixes
+
+* quote base table in funnel query sql ([#19578](https://github.com/lightdash/lightdash/issues/19578)) ([64acb55](https://github.com/lightdash/lightdash/commit/64acb559ceb98a6b800c294c871100ad3719f4c1))
+
 ## [0.2355.1](https://github.com/lightdash/lightdash/compare/0.2355.0...0.2355.1) (2026-01-20)
 
 
