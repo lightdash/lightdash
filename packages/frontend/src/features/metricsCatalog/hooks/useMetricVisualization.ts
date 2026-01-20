@@ -3,7 +3,9 @@ import {
     ChartType,
     getFieldIdForDateDimension,
     getItemId,
+    MetricExplorerComparison,
     QueryExecutionContext,
+    TimeFrames,
     type ApiError,
     type ChartConfig,
     type MetricQuery,
@@ -22,6 +24,7 @@ import { useMetric } from './useMetricsCatalog';
 const buildMetricQueryFromField = (
     field: MetricWithAssociatedTimeDimension,
     timeDimensionOverride?: TimeDimensionConfig,
+    comparison?: MetricExplorerComparison,
 ): MetricQuery => {
     const timeDimensionConfig = timeDimensionOverride ?? field.timeDimension;
     const timeDimensionName =
@@ -38,6 +41,12 @@ const buildMetricQueryFromField = (
                   table: timeDimensionConfig.table,
               })
             : undefined;
+
+    const shouldCompareToPreviousYear =
+        comparison === MetricExplorerComparison.PREVIOUS_PERIOD &&
+        timeDimensionConfig &&
+        timeDimensionName;
+
     return {
         exploreName: field.table,
         dimensions: timeDimensionFieldId ? [timeDimensionFieldId] : [],
@@ -46,20 +55,20 @@ const buildMetricQueryFromField = (
         sorts: [],
         limit: 5000,
         tableCalculations: [],
-        // TODO: implement period over period
-        // ...(timeDimensionConfig && timeDimensionName
-        //     ? {
-        //           periodOverPeriod: {
-        //               type: 'previousPeriod',
-        //               granularity: TimeFrames.MONTH,
-        //               periodOffset: 12,
-        //               field: {
-        //                   name: timeDimensionName,
-        //                   table: timeDimensionConfig.table,
-        //               },
-        //           },
-        //       }
-        //     : {}),
+        ...(shouldCompareToPreviousYear
+            ? {
+                  periodOverPeriod: {
+                      type: 'previousPeriod' as const,
+                      // Compare each point to the same period last year
+                      granularity: TimeFrames.YEAR,
+                      periodOffset: 1,
+                      field: {
+                          name: timeDimensionName,
+                          table: timeDimensionConfig.table,
+                      },
+                  },
+              }
+            : {}),
     };
 };
 
@@ -119,6 +128,7 @@ type UseMetricVisualizationProps = {
     tableName: string | undefined;
     metricName: string | undefined;
     timeDimensionOverride?: TimeDimensionConfig;
+    comparison?: MetricExplorerComparison;
 };
 
 /**
@@ -135,6 +145,7 @@ export function useMetricVisualization({
     tableName,
     metricName,
     timeDimensionOverride,
+    comparison,
 }: UseMetricVisualizationProps): MetricVisualizationResult {
     // 1. Fetch metric field metadata
     const metricFieldQuery = useMetric({
@@ -157,8 +168,9 @@ export function useMetricVisualization({
         return buildMetricQueryFromField(
             metricFieldQuery.data,
             timeDimensionConfig,
+            comparison,
         );
-    }, [metricFieldQuery.data, timeDimensionConfig]);
+    }, [metricFieldQuery.data, timeDimensionConfig, comparison]);
 
     const queryArgs = useMemo<QueryResultsProps | null>(() => {
         if (!projectUuid || !tableName || !metricQuery) return null;
@@ -187,10 +199,15 @@ export function useMetricVisualization({
     const resultsData = useMemo(
         () => ({
             ...queryResults,
-            metricQuery: createQuery.data?.metricQuery,
+            metricQuery: createQuery.data?.metricQuery ?? metricQuery,
             fields: createQuery.data?.fields ?? {},
         }),
-        [queryResults, createQuery.data?.metricQuery, createQuery.data?.fields],
+        [
+            queryResults,
+            createQuery.data?.metricQuery,
+            createQuery.data?.fields,
+            metricQuery,
+        ],
     );
 
     const columnOrder = useMemo(() => {

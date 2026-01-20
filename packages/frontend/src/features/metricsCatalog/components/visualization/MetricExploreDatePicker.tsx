@@ -37,6 +37,7 @@ type Props = {
     timeInterval: TimeFrames;
     onTimeIntervalChange: (timeInterval: TimeFrames) => void;
     isFetching: boolean;
+    disabled?: boolean;
 };
 
 export const MetricExploreDatePicker: FC<Props> = ({
@@ -48,6 +49,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
     onTimeIntervalChange,
     setTimeDimensionOverride,
     isFetching,
+    disabled = false,
 }) => {
     const { track } = useTracking();
     const userUuid = useAppSelector(
@@ -150,7 +152,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
             <Popover.Target>
                 <Group position="apart" w="fill-available" noWrap>
                     <SegmentedControl
-                        disabled={isFetching}
+                        disabled={isFetching || disabled}
                         size="xs"
                         h={32}
                         data={customWithPresets}

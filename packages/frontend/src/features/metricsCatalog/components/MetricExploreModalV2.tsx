@@ -2,6 +2,7 @@ import {
     DimensionType,
     ECHARTS_DEFAULT_COLORS,
     MetricExplorerComparison,
+    TimeFrames,
     getItemId,
     type CatalogField,
     type MetricExplorerQuery,
@@ -40,6 +41,7 @@ import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimension
 import { useMetricVisualization } from '../hooks/useMetricVisualization';
 import styles from './MetricExploreModalV2.module.css';
 import { MetricExploreComparison as MetricExploreComparisonSection } from './visualization/MetricExploreComparison';
+import { MetricExploreDatePicker } from './visualization/MetricExploreDatePicker';
 import { MetricExploreFilter } from './visualization/MetricExploreFilter';
 import { MetricExploreSegmentationPicker } from './visualization/MetricExploreSegmentationPicker';
 import { TimeDimensionIntervalPicker } from './visualization/TimeDimensionIntervalPicker';
@@ -106,15 +108,19 @@ export const MetricExploreModalV2: FC<Props> = ({
         TimeDimensionConfig | undefined
     >();
 
-    // Reset override when navigating to a different metric
-    const resetQueryState = useCallback(() => {
-        setTimeDimensionOverride(undefined);
-    }, []);
-
-    const [query] = useState<MetricExplorerQuery>({
+    const [query, setQuery] = useState<MetricExplorerQuery>({
         comparison: MetricExplorerComparison.NONE,
         segmentDimension: null,
     });
+
+    // Reset override when navigating to a different metric
+    const resetQueryState = useCallback(() => {
+        setTimeDimensionOverride(undefined);
+        setQuery({
+            comparison: MetricExplorerComparison.NONE,
+            segmentDimension: null,
+        });
+    }, [setTimeDimensionOverride, setQuery]);
 
     // Update navigateToMetric to reset state
     const navigateToMetricWithReset = useCallback(
@@ -158,13 +164,14 @@ export const MetricExploreModalV2: FC<Props> = ({
         tableName,
         metricName,
         timeDimensionOverride,
+        comparison: query.comparison,
     });
 
     const metricsWithTimeDimensionsQuery = useCatalogMetricsWithTimeDimensions({
         projectUuid,
         options: {
-            // Sidebar options are disabled in V2 for now, so don't fetch extra data
-            enabled: false,
+            enabled:
+                query.comparison === MetricExplorerComparison.DIFFERENT_METRIC,
         },
     });
 
@@ -288,58 +295,77 @@ export const MetricExploreModalV2: FC<Props> = ({
                             py="md"
                             className={styles.sidebarContainer}
                         >
-                            <Box className={styles.disabledOverlay}>
-                                <Stack gap="xl" w="100%">
-                                    <MetricExploreFilter
-                                        dimensions={availableFilters}
-                                        onFilterApply={() => {}}
-                                    />
-                                    <MetricExploreSegmentationPicker
-                                        query={query}
-                                        onSegmentDimensionChange={() => {}}
-                                        segmentByData={segmentByData}
-                                        segmentDimensionsQuery={
-                                            segmentDimensionsQuery
-                                        }
-                                        hasFilteredSeries={false}
-                                    />
-                                    <Divider color="ldGray.2" />
-                                    <Stack gap="xs">
-                                        <Group justify="space-between">
-                                            <Text fw={500} c="ldGray.7">
-                                                Comparison
-                                            </Text>
-                                            <Button
-                                                variant="subtle"
-                                                color="dark"
-                                                size="compact-xs"
-                                                radius="md"
-                                                className={styles.clearButton}
-                                            >
-                                                Clear
-                                            </Button>
-                                        </Group>
-                                        <MetricExploreComparisonSection
-                                            baseMetricLabel={metricField?.label}
-                                            query={query}
-                                            onQueryChange={() => {}}
-                                            metricsWithTimeDimensionsQuery={
-                                                metricsWithTimeDimensionsQuery
-                                            }
-                                        />
-                                    </Stack>
-                                </Stack>
-                            </Box>
+                            <Stack gap="xl" w="100%">
+                                <Box pos="relative">
+                                    <Box className={styles.disabledOverlay}>
+                                        <Stack gap="xl" w="100%">
+                                            <MetricExploreFilter
+                                                dimensions={availableFilters}
+                                                onFilterApply={() => {}}
+                                            />
+                                            <MetricExploreSegmentationPicker
+                                                query={query}
+                                                onSegmentDimensionChange={() => {}}
+                                                segmentByData={segmentByData}
+                                                segmentDimensionsQuery={
+                                                    segmentDimensionsQuery
+                                                }
+                                                hasFilteredSeries={false}
+                                            />
+                                        </Stack>
+                                    </Box>
+                                    <Box pos="absolute" inset={0}>
+                                        <Tooltip
+                                            label="Coming soon"
+                                            position="right"
+                                            withinPortal
+                                        >
+                                            <Box w="100%" h="100%" />
+                                        </Tooltip>
+                                    </Box>
+                                </Box>
 
-                            <Box pos="absolute" inset={0}>
-                                <Tooltip
-                                    label="Coming soon"
-                                    position="right"
-                                    withinPortal
-                                >
-                                    <Box w="100%" h="100%" />
-                                </Tooltip>
-                            </Box>
+                                <Divider color="ldGray.2" />
+
+                                <Stack gap="xs">
+                                    <Group justify="space-between">
+                                        <Text fw={500} c="ldGray.7">
+                                            Comparison
+                                        </Text>
+                                        <Button
+                                            variant="subtle"
+                                            color="dark"
+                                            size="compact-xs"
+                                            radius="md"
+                                            className={styles.clearButton}
+                                            data-visible={
+                                                query.comparison !==
+                                                MetricExplorerComparison.NONE
+                                            }
+                                            onClick={() =>
+                                                setQuery({
+                                                    comparison:
+                                                        MetricExplorerComparison.NONE,
+                                                    segmentDimension: null,
+                                                })
+                                            }
+                                        >
+                                            Clear
+                                        </Button>
+                                    </Group>
+
+                                    <MetricExploreComparisonSection
+                                        baseMetricLabel={metricField?.label}
+                                        query={query}
+                                        onQueryChange={setQuery}
+                                        metricsWithTimeDimensionsQuery={
+                                            metricsWithTimeDimensionsQuery
+                                        }
+                                        // TODO: enable this when it's implemented
+                                        canCompareToAnotherMetric={false}
+                                    />
+                                </Stack>
+                            </Stack>
                         </Box>
                     </Stack>
 
@@ -350,7 +376,23 @@ export const MetricExploreModalV2: FC<Props> = ({
 
                         {/* Granularity picker */}
                         {timeDimensionConfig && (
-                            <Group gap="sm">
+                            <Group
+                                gap="sm"
+                                justify="space-between"
+                                wrap="nowrap"
+                            >
+                                <MetricExploreDatePicker
+                                    dateRange={[new Date(), new Date()]}
+                                    onChange={() => {}}
+                                    showTimeDimensionIntervalPicker={false}
+                                    isFetching={false}
+                                    timeDimensionBaseField={undefined}
+                                    setTimeDimensionOverride={() => {}}
+                                    timeInterval={TimeFrames.DAY}
+                                    onTimeIntervalChange={() => {}}
+                                    // TODO: enable this when it's implemented
+                                    disabled
+                                />
                                 <Tooltip
                                     label="Change granularity"
                                     position="top"
