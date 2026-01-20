@@ -26,6 +26,7 @@ import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import ConfirmPauseSchedulerModal from '../../scheduler/components/ConfirmPauseSchedulerModal';
 import { useSendNowScheduler } from '../../scheduler/hooks/useScheduler';
 import { useSchedulersEnabledUpdateMutation } from '../../scheduler/hooks/useSchedulersUpdateMutation';
 import { SyncModalAction } from '../providers/types';
@@ -39,28 +40,45 @@ const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
     const [schedulerEnabled, setSchedulerEnabled] = useState<boolean>(
         scheduler.enabled,
     ); // To avoid delay on toggle
+    const [isConfirmPauseOpen, setIsConfirmPauseOpen] = useState(false);
 
     return (
-        <Tooltip
-            withinPortal
-            variant="xs"
-            maw={130}
-            label={
-                scheduler.enabled
-                    ? 'Toggle off to temporarily pause scheduled delivery'
-                    : 'Scheduled delivery paused. Toggle on to resume'
-            }
-        >
-            <Box mr="sm">
-                <Switch
-                    checked={schedulerEnabled}
-                    onChange={() => {
-                        mutateSchedulerEnabled(!schedulerEnabled);
-                        setSchedulerEnabled(!schedulerEnabled);
-                    }}
-                />
-            </Box>
-        </Tooltip>
+        <>
+            <Tooltip
+                withinPortal
+                variant="xs"
+                maw={130}
+                label={
+                    scheduler.enabled
+                        ? 'Toggle off to temporarily pause scheduled delivery'
+                        : 'Scheduled delivery paused. Toggle on to resume'
+                }
+            >
+                <Box mr="sm">
+                    <Switch
+                        checked={schedulerEnabled}
+                        onChange={() => {
+                            if (schedulerEnabled) {
+                                setIsConfirmPauseOpen(true);
+                            } else {
+                                mutateSchedulerEnabled(true);
+                                setSchedulerEnabled(true);
+                            }
+                        }}
+                    />
+                </Box>
+            </Tooltip>
+            <ConfirmPauseSchedulerModal
+                opened={isConfirmPauseOpen}
+                onClose={() => setIsConfirmPauseOpen(false)}
+                schedulerName={scheduler.name}
+                onConfirm={() => {
+                    mutateSchedulerEnabled(false);
+                    setSchedulerEnabled(false);
+                    setIsConfirmPauseOpen(false);
+                }}
+            />
+        </>
     );
 };
 
