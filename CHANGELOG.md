@@ -1,3 +1,10 @@
+# [0.2355.0](https://github.com/lightdash/lightdash/compare/0.2354.0...0.2355.0) (2026-01-20)
+
+
+### Features
+
+* enable PoP on metrics explorer modal v2 ([#19566](https://github.com/lightdash/lightdash/issues/19566)) ([3079c97](https://github.com/lightdash/lightdash/commit/3079c97842b32c7f2f35830ddb7263a816e91029))
+
 # [0.2354.0](https://github.com/lightdash/lightdash/compare/0.2353.5...0.2354.0) (2026-01-20)
 
 
