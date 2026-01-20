@@ -1,3 +1,16 @@
+# [0.2356.0](https://github.com/lightdash/lightdash/compare/0.2355.2...0.2356.0) (2026-01-20)
+
+
+### Bug Fixes
+
+* initial stack setting not being taken into account when reload explorer ([#19575](https://github.com/lightdash/lightdash/issues/19575)) ([7091dbd](https://github.com/lightdash/lightdash/commit/7091dbde31c8504395db6dbcbb0cbafc4631cf53))
+
+
+### Features
+
+* improved frontend and backend error handling for funnel builder service ([#19581](https://github.com/lightdash/lightdash/issues/19581)) ([5355d34](https://github.com/lightdash/lightdash/commit/5355d34156ad0de884bab00d24b28a218df6d2f1))
+* remove dashboard v1 code ([#19549](https://github.com/lightdash/lightdash/issues/19549)) ([3507673](https://github.com/lightdash/lightdash/commit/3507673f43cd0d71e476b86f94bbdf856bba478c))
+
 ## [0.2355.2](https://github.com/lightdash/lightdash/compare/0.2355.1...0.2355.2) (2026-01-20)
 
 
