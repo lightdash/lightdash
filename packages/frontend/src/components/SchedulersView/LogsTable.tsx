@@ -257,20 +257,6 @@ const LogsTable: FC<LogsTableProps> = ({
         return destinations;
     }, [health.data, organizationHasSlack]);
 
-    // Compute available users from runs (only users who created schedulers)
-    const availableUsers = useMemo(() => {
-        const userMap = new Map<string, { userUuid: string; name: string }>();
-        schedulerRunsData?.forEach((run) => {
-            userMap.set(run.createdByUserUuid, {
-                userUuid: run.createdByUserUuid,
-                name: run.createdByUserName,
-            });
-        });
-        return Array.from(userMap.values()).sort((a, b) =>
-            a.name.localeCompare(b.name),
-        );
-    }, [schedulerRunsData]);
-
     // Compute available schedulers from runs (unique schedulers)
     const availableSchedulers = useMemo(() => {
         const schedulerMap = new Map<
@@ -576,6 +562,7 @@ const LogsTable: FC<LogsTableProps> = ({
         enableBottomToolbar: false,
         renderTopToolbar: () => (
             <LogsTopToolbar
+                projectUuid={projectUuid}
                 search={search}
                 setSearch={setSearch}
                 selectedStatuses={selectedStatuses}
@@ -590,7 +577,6 @@ const LogsTable: FC<LogsTableProps> = ({
                 currentResultsCount={totalFetched}
                 hasActiveFilters={hasActiveFilters}
                 resetFilters={resetFilters}
-                availableUsers={availableUsers}
                 availableDestinations={availableDestinations}
                 availableSchedulers={availableSchedulers}
             />

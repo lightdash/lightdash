@@ -197,22 +197,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         setIsBulkReassign(false);
     }, []);
 
-    // Compute available users from loaded schedulers
-    const availableUsers = useMemo(() => {
-        const userMap = new Map<string, { userUuid: string; name: string }>();
-        flatData.forEach((scheduler) => {
-            if (scheduler.createdBy && scheduler.createdByName) {
-                userMap.set(scheduler.createdBy, {
-                    userUuid: scheduler.createdBy,
-                    name: scheduler.createdByName,
-                });
-            }
-        });
-        return Array.from(userMap.values()).sort((a, b) =>
-            a.name.localeCompare(b.name),
-        );
-    }, [flatData]);
-
     // Extract unique Slack channel IDs from loaded schedulers and report them
     useEffect(() => {
         if (!onSlackChannelIdsChange) return;
@@ -841,6 +825,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
 
             return (
                 <SchedulerTopToolbar
+                    projectUuid={projectUuid}
                     search={search}
                     setSearch={setSearch}
                     selectedFormats={selectedFormats}
@@ -857,7 +842,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                     currentResultsCount={totalFetched}
                     hasActiveFilters={hasActiveFilters}
                     onClearFilters={resetFilters}
-                    availableUsers={availableUsers}
                     availableDestinations={availableDestinations}
                     selectedCount={selectedRows.length}
                     onBulkReassign={handleBulkReassign}
