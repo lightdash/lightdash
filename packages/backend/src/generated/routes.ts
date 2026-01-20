@@ -21527,6 +21527,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CatalogCategoryFilterMode: {
+        dataType: 'refEnum',
+        enums: ['and', 'or'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiGetMetricPeek: {
         dataType: 'refAlias',
         type: {
@@ -44153,6 +44158,11 @@ export function RegisterRoutes(app: Router) {
             name: 'categories',
             dataType: 'array',
             array: { dataType: 'string' },
+        },
+        categoriesFilterMode: {
+            in: 'query',
+            name: 'categoriesFilterMode',
+            ref: 'CatalogCategoryFilterMode',
         },
         tables: {
             in: 'query',

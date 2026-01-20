@@ -22237,6 +22237,10 @@
                 "type": "string",
                 "enum": ["asc", "desc"]
             },
+            "CatalogCategoryFilterMode": {
+                "enum": ["and", "or"],
+                "type": "string"
+            },
             "ApiGetMetricPeek": {
                 "properties": {
                     "results": {
@@ -24275,7 +24279,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2354.0",
+        "version": "0.2357.4",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -37012,6 +37016,14 @@
                             "items": {
                                 "type": "string"
                             }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "categoriesFilterMode",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/CatalogCategoryFilterMode"
                         }
                     },
                     {
