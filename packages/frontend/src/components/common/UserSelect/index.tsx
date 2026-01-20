@@ -25,6 +25,7 @@ type UserSelectProps = {
     disabled?: boolean;
     /** When true, only shows users with an active Google connection (refresh token) */
     requireGoogleToken?: boolean;
+    projectUuid?: string;
 };
 
 export const UserSelect: FC<UserSelectProps> = ({
@@ -35,6 +36,7 @@ export const UserSelect: FC<UserSelectProps> = ({
     placeholder = 'Search for a user...',
     disabled = false,
     requireGoogleToken = false,
+    projectUuid,
 }) => {
     const [searchValue, setSearchValue] = useState('');
     const [debouncedSearchValue] = useDebouncedValue(searchValue, 300);
@@ -51,6 +53,7 @@ export const UserSelect: FC<UserSelectProps> = ({
             searchInput: debouncedSearchValue,
             pageSize: DEFAULT_PAGE_SIZE,
             googleOidcOnly: requireGoogleToken || undefined,
+            projectUuid,
         },
         { keepPreviousData: true },
     );
