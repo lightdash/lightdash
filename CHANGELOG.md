@@ -1,3 +1,10 @@
+## [0.2357.1](https://github.com/lightdash/lightdash/compare/0.2357.0...0.2357.1) (2026-01-20)
+
+
+### Bug Fixes
+
+* run pivot query on unsaved chart reload ([#19584](https://github.com/lightdash/lightdash/issues/19584)) ([f3cda3a](https://github.com/lightdash/lightdash/commit/f3cda3a37f959277cb657710923159df210a9ba7))
+
 # [0.2357.0](https://github.com/lightdash/lightdash/compare/0.2356.0...0.2357.0) (2026-01-20)
 
 
