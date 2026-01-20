@@ -1,0 +1,29 @@
+# Metadata
+type: model
+name: users
+
+# Table definition
+sql_from: 'DB.SCHEMA.USERS'
+
+# Metric definitions
+# For more configuration see: https://docs.lightdash.com/references/metrics
+metrics:
+  user_count:
+    type: count_distinct
+    sql: ${TABLE}.USER_ID
+    description: Total unique users
+
+# Dimension definitions
+# For more configuration see: https://docs.lightdash.com/references/dimensions
+dimensions:
+  - name: subscription_type
+    sql: ${TABLE}.SUBSCRIPTION
+    type: string
+
+  - name: signed_up_at
+    sql: ${TABLE}.SIGNED_UP
+    type: date
+    time_intervals:
+      - DAY
+      - WEEK
+      - MONTH
