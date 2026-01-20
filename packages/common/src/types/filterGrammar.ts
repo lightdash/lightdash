@@ -223,6 +223,7 @@ HEXDIG                  = [0-9a-f]i
 export const parseOperator = (
     operator: string,
     isTrue: boolean,
+    fieldName: string,
 ): FilterOperator => {
     switch (operator) {
         case FilterOperator.EQUALS:
@@ -254,7 +255,7 @@ export const parseOperator = (
             return isTrue ? FilterOperator.NULL : FilterOperator.NOT_NULL;
         default:
             throw new UnexpectedServerError(
-                `Invalid filter operator type ${operator}`,
+                `${fieldName} uses invalid filter operator type ${operator}`,
             );
     }
 };
@@ -294,6 +295,7 @@ export const parseFilters = (
                     operator: parseOperator(
                         parsedFilter.type,
                         !!parsedFilter.is,
+                        key,
                     ),
                     values: parsedFilter.values || [1],
                     ...(parsedFilter.date_interval
@@ -401,6 +403,7 @@ export const parseModelRequiredFilters = ({
                     operator: parseOperator(
                         parsedFilter.type,
                         !!parsedFilter.is,
+                        key,
                     ),
                     values: parsedFilter.values || [1],
                     ...(parsedFilter.date_interval
