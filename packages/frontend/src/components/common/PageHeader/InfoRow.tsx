@@ -3,13 +3,13 @@ import { type Icon as TablerIconType } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../MantineIcon';
 
-type InfoRowV2Props = {
+type InfoRowProps = {
     icon: TablerIconType;
     label: string;
     children: ReactNode;
 };
 
-const InfoRowV2: FC<InfoRowV2Props> = ({ icon: Icon, label, children }) => {
+const InfoRow: FC<InfoRowProps> = ({ icon: Icon, label, children }) => {
     return (
         <Group justify="space-between" wrap="nowrap">
             <Group gap={6} wrap="nowrap">
@@ -25,4 +25,4 @@ const InfoRowV2: FC<InfoRowV2Props> = ({ icon: Icon, label, children }) => {
     );
 };
 
-export default InfoRowV2;
+export default InfoRow;

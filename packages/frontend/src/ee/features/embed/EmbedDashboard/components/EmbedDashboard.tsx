@@ -3,6 +3,7 @@ import {
     DashboardTileTypes,
     type DashboardTile,
 } from '@lightdash/common';
+import { Group, Tabs } from '@mantine-8/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
@@ -21,11 +22,13 @@ import useEmbed from '../../../../providers/Embed/useEmbed';
 import { useEmbedDashboard } from '../hooks';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
-
-import { Group, Tabs, Title } from '@mantine/core';
-import '../../../../../styles/react-grid.css';
 import { EmbedHeadingTile } from './EmbedHeadingTile';
 import { EmbedMarkdownTile } from './EmbedMarkdownTile';
+
+// eslint-disable-next-line css-modules/no-unused-class
+import { dashboardCSSVars } from '../../../../../components/common/Dashboard/dashboard.constants';
+import tabStyles from '../../../../../features/dashboardTabs/tabs.module.css';
+import '../../../../../styles/react-grid.css';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -229,7 +232,6 @@ const EmbedDashboard: FC<{
 
     // Check if tabs should be enabled (more than one tab)
     const tabsEnabled = sortedTabs.length > 1;
-    const MAGIC_SCROLL_AREA_HEIGHT = 40;
 
     const gridProps = getResponsiveGridLayoutProps({ enableAnimation: false });
     const layouts = useMemo(
@@ -295,7 +297,8 @@ const EmbedDashboard: FC<{
     // Sync tabs with URL when user changes tab for iframes.
     // SDK mode does not sync URL when user changes tab because
     // the SDK app uses the same URL as the embedding app.
-    const handleTabChange = (tabUuid: string) => {
+    const handleTabChange = (tabUuid: string | null) => {
+        if (!tabUuid) return;
         const tab = sortedTabs.find((t) => t.uuid === tabUuid);
         if (tab) {
             setActiveTab(tab);
@@ -321,7 +324,15 @@ const EmbedDashboard: FC<{
     };
 
     return (
-        <div style={containerStyles ?? { height: '100vh', overflowY: 'auto' }}>
+        <div
+            style={
+                containerStyles ?? {
+                    height: '100vh',
+                    overflowY: 'auto',
+                    ...dashboardCSSVars,
+                }
+            }
+        >
             <EmbedDashboardHeader
                 dashboard={dashboard}
                 projectUuid={projectUuid}
@@ -334,38 +345,21 @@ const EmbedDashboard: FC<{
             {tabsEnabled ? (
                 <Tabs
                     value={activeTab?.uuid}
-                    onTabChange={handleTabChange}
+                    onChange={handleTabChange}
                     mt="md"
-                    styles={{
-                        tabsList: {
-                            flexWrap: 'nowrap',
-                            height: MAGIC_SCROLL_AREA_HEIGHT - 1,
-                        },
+                    classNames={{
+                        list: tabStyles.list,
+                        tab: tabStyles.tab,
                     }}
-                    variant="outline"
                 >
-                    <Tabs.List bg="ldGray.0" px="lg">
+                    <Tabs.List px="lg">
                         {sortedTabs.map((tab) => (
                             <Tabs.Tab
                                 key={tab.uuid}
                                 value={tab.uuid}
-                                bg={
-                                    activeTab?.uuid === tab.uuid
-                                        ? 'white'
-                                        : 'ldGray.0'
-                                }
+                                maw={`${100 / (sortedTabs?.length || 1)}vw`}
                             >
-                                <Title
-                                    fw={500}
-                                    order={6}
-                                    color="ldGray.7"
-                                    truncate
-                                    maw={`calc(${
-                                        100 / (sortedTabs?.length || 1)
-                                    }vw)`}
-                                >
-                                    {tab.name}
-                                </Title>
+                                {tab.name}
                             </Tabs.Tab>
                         ))}
                     </Tabs.List>

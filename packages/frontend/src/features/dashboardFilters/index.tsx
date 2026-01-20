@@ -1,10 +1,8 @@
 import {
     type DashboardFieldTarget,
     type DashboardFilterRule,
-    type FilterableDimension,
     type FilterOperator,
 } from '@lightdash/common';
-import { Flex } from '@mantine/core';
 import { useCallback, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
@@ -20,7 +18,7 @@ interface Props {
     activeTabUuid: string | undefined;
 }
 
-const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
+const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const { track } = useTracking();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [openPopoverId, setPopoverId] = useState<string>();
@@ -36,6 +34,10 @@ const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     );
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
+    );
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
     );
 
     const handleSaveNew = useCallback(
@@ -67,35 +69,34 @@ const DashboardFilter: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     }, []);
 
     return (
-        <FiltersProvider<Record<string, FilterableDimension>>
+        <FiltersProvider
             projectUuid={projectUuid}
             itemsMap={allFilterableFieldsMap}
             startOfWeek={
                 project.data?.warehouseConnection?.startOfWeek ?? undefined
             }
             dashboardFilters={allFilters}
+            dashboardTiles={dashboardTiles}
+            filterableFieldsByTileUuid={filterableFieldsByTileUuid}
         >
-            <Flex gap="xs" wrap="wrap" mb="xs">
-                <AddFilterButton
-                    isEditMode={isEditMode}
-                    openPopoverId={openPopoverId}
-                    activeTabUuid={activeTabUuid}
-                    onPopoverOpen={handlePopoverOpen}
-                    onPopoverClose={handlePopoverClose}
-                    onSave={handleSaveNew}
-                />
+            <AddFilterButton
+                isEditMode={isEditMode}
+                openPopoverId={openPopoverId}
+                onPopoverOpen={handlePopoverOpen}
+                onPopoverClose={handlePopoverClose}
+                onSave={handleSaveNew}
+                onResetDashboardFilters={resetDashboardFilters}
+            />
 
-                <ActiveFilters
-                    isEditMode={isEditMode}
-                    activeTabUuid={activeTabUuid}
-                    openPopoverId={openPopoverId}
-                    onPopoverOpen={handlePopoverOpen}
-                    onPopoverClose={handlePopoverClose}
-                    onResetDashboardFilters={resetDashboardFilters}
-                />
-            </Flex>
+            <ActiveFilters
+                isEditMode={isEditMode}
+                activeTabUuid={activeTabUuid}
+                openPopoverId={openPopoverId}
+                onPopoverOpen={handlePopoverOpen}
+                onPopoverClose={handlePopoverClose}
+            />
         </FiltersProvider>
     );
 };
 
-export default DashboardFilter;
+export default DashboardFilters;

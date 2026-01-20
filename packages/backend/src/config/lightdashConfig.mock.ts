@@ -300,5 +300,5 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     metricsCatalog: {
         echartsVisualizationEnabled: false,
-    }
+    },
 };

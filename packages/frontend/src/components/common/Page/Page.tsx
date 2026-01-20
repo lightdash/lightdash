@@ -67,15 +67,15 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
                       minHeight: '100%',
                   }
                 : params.withFullHeight
-                  ? {
-                        height: containerHeight,
-                        maxHeight: containerHeight,
-                    }
-                  : {
-                        height: containerHeight,
+                ? {
+                      height: containerHeight,
+                      maxHeight: containerHeight,
+                  }
+                : {
+                      height: containerHeight,
 
-                        overflowY: 'auto',
-                    }),
+                      overflowY: 'auto',
+                  }),
 
             ...(params.withSidebar || params.withRightSidebar
                 ? {
