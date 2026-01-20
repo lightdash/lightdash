@@ -94,6 +94,7 @@ const ReassignSchedulerOwnerModal: FC<ReassignSchedulerOwnerModalProps> = ({
                 </Text>
 
                 <UserSelect
+                    projectUuid={projectUuid}
                     label="New owner"
                     value={selectedUserUuid}
                     onChange={setSelectedUserUuid}
