@@ -16,6 +16,7 @@ type UseMetricsCatalogOptions = {
     projectUuid?: string;
     search?: string;
     categories?: string[];
+    tables?: string[];
     sortBy?: ApiSort['sort'] | 'name' | 'chartUsage';
     sortDirection?: ApiSort['order'];
 };
@@ -26,6 +27,7 @@ const getMetricsCatalog = async ({
     projectUuid,
     search,
     categories,
+    tables,
     paginateArgs,
     sortBy,
     sortDirection,
@@ -34,7 +36,7 @@ const getMetricsCatalog = async ({
     paginateArgs?: KnexPaginateArgs;
 } & Pick<
     UseMetricsCatalogOptions,
-    'search' | 'categories' | 'sortBy' | 'sortDirection'
+    'search' | 'categories' | 'tables' | 'sortBy' | 'sortDirection'
 >) => {
     const urlParams = new URLSearchParams({
         ...(paginateArgs
@@ -54,6 +56,10 @@ const getMetricsCatalog = async ({
         );
     }
 
+    if (tables && tables.length > 0) {
+        tables.forEach((table) => urlParams.append('tables', table));
+    }
+
     return lightdashApi<ApiMetricsCatalog['results']>({
         url: `/projects/${projectUuid}/dataCatalog/metrics${
             urlParams.toString() ? `?${urlParams.toString()}` : ''
@@ -69,6 +75,7 @@ export const useMetricsCatalog = ({
     sortBy,
     sortDirection,
     categories,
+    tables,
     pageSize,
 }: UseMetricsCatalogOptions & Pick<KnexPaginateArgs, 'pageSize'>) => {
     const queryClient = useQueryClient();
@@ -81,6 +88,7 @@ export const useMetricsCatalog = ({
             sortBy,
             sortDirection,
             categories,
+            tables,
         ],
         queryFn: ({ pageParam }) =>
             getMetricsCatalog({
@@ -89,6 +97,7 @@ export const useMetricsCatalog = ({
                 sortBy,
                 sortDirection,
                 categories,
+                tables,
                 paginateArgs: {
                     page: pageParam ?? 1,
                     pageSize,

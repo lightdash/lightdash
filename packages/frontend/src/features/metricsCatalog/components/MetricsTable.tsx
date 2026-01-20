@@ -55,6 +55,7 @@ import {
     setCategoryFilters,
     setColumnConfig,
     setSearch,
+    setTableFilters,
     setTableSorting,
     toggleMetricExploreModal,
 } from '../store/metricsCatalogSlice';
@@ -86,6 +87,9 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     );
     const categoryFilters = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
+    );
+    const tableFilters = useAppSelector(
+        (state) => state.metricsCatalog.tableFilters,
     );
     const { canManageTags, canManageMetricsTree } = useAppSelector(
         (state) => state.metricsCatalog.abilities,
@@ -123,6 +127,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         pageSize: 50,
         search: deferredSearch,
         categories: categoryFilters,
+        tables: tableFilters,
         // TODO: Handle multiple sorting - this needs to be enabled and handled later in the backend
         ...(stateTableSorting.length > 0 && {
             sortBy: stateTableSorting[0].id as keyof CatalogItem,
@@ -211,6 +216,10 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         }
     };
 
+    const handleSetTableFilters = (selectedTables: string[]) => {
+        dispatch(setTableFilters(selectedTables));
+    };
+
     // Reusable paper props to avoid duplicate when rendering tree view
     const mantinePaperProps: PaperProps = useMemo(
         () => ({
@@ -282,9 +291,18 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             !isFetching &&
             !hasNextPage &&
             !search &&
-            categoryFilters.length === 0
+            categoryFilters.length === 0 &&
+            tableFilters.length === 0
         );
-    }, [flatData, isLoading, isFetching, search, categoryFilters, hasNextPage]);
+    }, [
+        flatData,
+        isLoading,
+        isFetching,
+        search,
+        categoryFilters,
+        tableFilters,
+        hasNextPage,
+    ]);
 
     // Get column config from Redux
     const columnConfig = useAppSelector(
@@ -495,6 +513,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     totalResults={totalResults}
                     selectedCategories={categoryFilters}
                     setSelectedCategories={handleSetCategoryFilters}
+                    selectedTables={tableFilters}
+                    setSelectedTables={handleSetTableFilters}
                     position="apart"
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
@@ -645,6 +665,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                             totalResults={totalResults}
                             selectedCategories={categoryFilters}
                             setSelectedCategories={handleSetCategoryFilters}
+                            selectedTables={tableFilters}
+                            setSelectedTables={handleSetTableFilters}
                             position="apart"
                             p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                             showCategoriesFilter={

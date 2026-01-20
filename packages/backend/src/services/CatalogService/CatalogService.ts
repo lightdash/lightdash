@@ -835,7 +835,7 @@ export class CatalogService<
         projectUuid: string,
         context: CatalogSearchContext,
         paginateArgs?: KnexPaginateArgs,
-        { searchQuery, catalogTags }: ApiCatalogSearch = {},
+        { searchQuery, catalogTags, tables }: ApiCatalogSearch = {},
         sortArgs?: ApiSort,
     ): Promise<KnexPaginatedData<CatalogField[]>> {
         const { organizationUuid } = await this.projectModel.getSummary(
@@ -865,6 +865,7 @@ export class CatalogService<
                 type: CatalogType.Field,
                 filter: CatalogFilter.Metrics,
                 catalogTags,
+                tables,
             },
             context,
             paginateArgs,
