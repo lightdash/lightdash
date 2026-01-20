@@ -103,8 +103,8 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                             maw={130}
                             label={
                                 scheduler.enabled
-                                    ? 'Toggle off to temporarily pause notifications'
-                                    : 'Notifications paused. Toggle on to resume'
+                                    ? 'Toggle off to temporarily pause scheduled delivery'
+                                    : 'Scheduled delivery paused. Toggle on to resume'
                             }
                         >
                             <Box mr="sm">
