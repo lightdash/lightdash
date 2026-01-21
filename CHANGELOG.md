@@ -1,3 +1,10 @@
+## [0.2363.1](https://github.com/lightdash/lightdash/compare/0.2363.0...0.2363.1) (2026-01-21)
+
+
+### Bug Fixes
+
+* only check dbt version in cli when using dbt ([#19632](https://github.com/lightdash/lightdash/issues/19632)) ([97709a2](https://github.com/lightdash/lightdash/commit/97709a2a592b57a9b8129e0df6d9c2ac1a75cc12))
+
 # [0.2363.0](https://github.com/lightdash/lightdash/compare/0.2362.0...0.2363.0) (2026-01-21)
 
 
