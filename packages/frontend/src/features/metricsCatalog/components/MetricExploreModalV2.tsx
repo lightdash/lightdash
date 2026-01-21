@@ -2,8 +2,8 @@ import {
     ECHARTS_DEFAULT_COLORS,
     MetricExplorerComparison,
     TimeFrames,
-    getAvailableFilterDimensions,
-    getItemId,
+    getFilterDimensionsForMetric,
+    getSegmentDimensionsForMetric,
     type CatalogField,
     type MetricExplorerQuery,
     type TimeDimensionConfig,
@@ -36,6 +36,7 @@ import VisualizationProvider from '../../../components/LightdashVisualization/Vi
 import MetricQueryDataProvider from '../../../components/MetricQueryData/MetricQueryDataProvider';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { useCatalogFilterDimensions } from '../hooks/useCatalogFilterDimensions';
 import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
 import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
 import { useMetricVisualization } from '../hooks/useMetricVisualization';
@@ -175,6 +176,14 @@ export const MetricExploreModalV2: FC<Props> = ({
         },
     });
 
+    const filterDimensionsQuery = useCatalogFilterDimensions({
+        projectUuid,
+        tableName,
+        options: {
+            enabled: !!projectUuid && !!tableName,
+        },
+    });
+
     const segmentDimensionsQuery = useCatalogSegmentDimensions({
         projectUuid,
         tableName,
@@ -185,34 +194,22 @@ export const MetricExploreModalV2: FC<Props> = ({
 
     const currentMetric = metrics[currentMetricIndex];
 
-    const segmentByData = useMemo(() => {
-        const dimensions = segmentDimensionsQuery.data ?? [];
-        const metricSegmentByAllowlist = currentMetric?.spotlightSegmentBy;
-
-        return dimensions
-            .filter((dimension) => {
-                // If metric has allowlist, use it (supersedes dimension-level)
-                if (metricSegmentByAllowlist) {
-                    return metricSegmentByAllowlist.includes(dimension.name);
-                }
-
-                // Otherwise use dimension-level setting (default true)
-                return dimension.spotlight?.segmentBy !== false;
-            })
-            .map((dimension) => ({
-                value: getItemId(dimension),
-                label: dimension.label,
-                group: dimension.tableLabel,
-            }));
-    }, [segmentDimensionsQuery.data, currentMetric?.spotlightSegmentBy]);
-
-    const availableFilters = useMemo(
+    const availableFilterByDimensions = useMemo(
         () =>
-            getAvailableFilterDimensions(
-                segmentDimensionsQuery.data ?? [],
-                currentMetric?.spotlightFilterBy,
+            getFilterDimensionsForMetric(
+                filterDimensionsQuery.data ?? [],
+                currentMetric,
             ),
-        [segmentDimensionsQuery.data, currentMetric?.spotlightFilterBy],
+        [filterDimensionsQuery.data, currentMetric],
+    );
+
+    const availableSegmentByDimensions = useMemo(
+        () =>
+            getSegmentDimensionsForMetric(
+                segmentDimensionsQuery.data ?? [],
+                currentMetric,
+            ),
+        [segmentDimensionsQuery.data, currentMetric],
     );
 
     // Keyboard navigation
@@ -311,13 +308,17 @@ export const MetricExploreModalV2: FC<Props> = ({
                                     <Box className={styles.disabledOverlay}>
                                         <Stack gap="xl" w="100%">
                                             <MetricExploreFilter
-                                                dimensions={availableFilters}
+                                                dimensions={
+                                                    availableFilterByDimensions
+                                                }
                                                 onFilterApply={() => {}}
                                             />
                                             <MetricExploreSegmentationPicker
                                                 query={query}
                                                 onSegmentDimensionChange={() => {}}
-                                                segmentByData={segmentByData}
+                                                dimensions={
+                                                    availableSegmentByDimensions
+                                                }
                                                 segmentDimensionsQuery={
                                                     segmentDimensionsQuery
                                                 }

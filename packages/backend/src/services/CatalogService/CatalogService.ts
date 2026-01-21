@@ -31,6 +31,7 @@ import {
     getAvailableCompareMetrics,
     getAvailableTimeDimensionsFromTables,
     getDefaultTimeDimension,
+    getTypeValidFilterDimensions,
     getTypeValidSegmentDimensions,
     hasIntersection,
     isExploreError,
@@ -1354,6 +1355,58 @@ export class CatalogService<
         });
 
         return getAvailableCompareMetrics(allMetrics);
+    }
+
+    async getFilterDimensions(
+        user: SessionUser,
+        projectUuid: string,
+        tableName: string,
+        context: CatalogSearchContext,
+    ): Promise<CompiledDimension[]> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            tableName,
+        );
+
+        const userAttributes =
+            await this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+        const catalogDimensions = await this.catalogModel.search({
+            projectUuid,
+            userAttributes,
+            exploreName: tableName,
+            context,
+            catalogSearch: {
+                type: CatalogType.Field,
+                filter: CatalogFilter.Dimensions,
+            },
+            tablesConfiguration: await this.projectModel.getTablesConfiguration(
+                projectUuid,
+            ),
+        });
+
+        const allDimensions = catalogDimensions.data
+            .map((d) => explore?.tables?.[tableName]?.dimensions?.[d.name])
+            .filter((d): d is CompiledDimension => d !== undefined);
+
+        // Return type-valid dimensions only - frontend applies spotlight filtering with metric allowlist
+        return getTypeValidFilterDimensions(allDimensions);
     }
 
     async getSegmentDimensions(

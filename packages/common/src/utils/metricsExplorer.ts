@@ -6,7 +6,10 @@ import groupBy from 'lodash/groupBy';
 import mapKeys from 'lodash/mapKeys';
 import { v4 as uuidv4 } from 'uuid';
 import { type AnyType } from '../types/any';
-import type { MetricWithAssociatedTimeDimension } from '../types/catalog';
+import type {
+    CatalogField,
+    MetricWithAssociatedTimeDimension,
+} from '../types/catalog';
 import { type CompiledTable } from '../types/explore';
 import {
     DimensionType,
@@ -541,80 +544,69 @@ export const getAvailableTimeDimensionsFromTables = (
     );
 
 /**
- * Returns dimensions that can be used for segmenting based on type constraints only.
- * Used by backend API to return all potentially segment-able dimensions.
- * Does NOT apply spotlight settings - frontend handles that with metric allowlist.
- */
-export const getTypeValidSegmentDimensions = (
-    dimensions: Dimension[],
-): CompiledDimension[] =>
-    dimensions.filter((d): d is CompiledDimension => {
-        if (!d) return false;
-        // Exclude date/timestamp/number types
-        if (
-            d.type === DimensionType.DATE ||
-            d.type === DimensionType.TIMESTAMP ||
-            d.type === DimensionType.NUMBER
-        ) {
-            return false;
-        }
-        // Exclude time interval dimensions
-        if (d.timeIntervalBaseDimensionName) return false;
-        return true;
-    });
-
-/**
- * Returns dimensions that can be used for segmenting, applying spotlight settings.
- * Used by frontend to filter dimensions with metric's allowlist.
- */
-export const getAvailableSegmentDimensions = (
-    dimensions: Dimension[],
-    metricSegmentByAllowlist?: string[],
-): CompiledDimension[] =>
-    getTypeValidSegmentDimensions(dimensions).filter((d) => {
-        // If metric has allowlist, use it (supersedes dimension-level)
-        if (metricSegmentByAllowlist) {
-            return metricSegmentByAllowlist.includes(d.name);
-        }
-
-        // Otherwise use dimension-level setting (default true)
-        return d.spotlight?.segmentBy !== false;
-    });
-
-/**
  * Returns dimensions that can be used for filtering based on type constraints only.
- * Used by backend API to return all potentially filter-able dimensions.
+ * Only STRING and BOOLEAN dimensions are allowed, excluding time-derived dimensions.
  * Does NOT apply spotlight settings - frontend handles that with metric allowlist.
  */
 export const getTypeValidFilterDimensions = (
-    dimensions: Dimension[],
+    dimensions: CompiledDimension[],
 ): CompiledDimension[] =>
-    dimensions.filter((d): d is CompiledDimension => {
-        if (!d) return false;
-        // Only string/boolean dimensions can be used for filtering
-        if (d.type !== DimensionType.STRING && d.type !== DimensionType.BOOLEAN)
-            return false;
-        // Exclude time interval dimensions
+    dimensions.filter((d) => {
+        // Exclude date-derived dimensions (month name, day name, etc.) even though they're strings
         if (d.timeIntervalBaseDimensionName) return false;
-        return true;
+        return (
+            d.type === DimensionType.STRING || d.type === DimensionType.BOOLEAN
+        );
     });
 
 /**
- * Returns dimensions that can be used for filtering, applying spotlight settings.
- * Used by frontend to filter dimensions with metric's allowlist.
+ * Filters dimensions for a specific metric, applying metric's spotlight allowlist.
+ * Dimensions should already be type-valid from the backend.
  */
-export const getAvailableFilterDimensions = (
-    dimensions: Dimension[],
-    metricFilterByAllowlist?: string[],
+export const getFilterDimensionsForMetric = (
+    dimensions: CompiledDimension[],
+    metric: Pick<CatalogField, 'spotlightFilterBy'> | undefined,
 ): CompiledDimension[] =>
-    getTypeValidFilterDimensions(dimensions).filter((d) => {
+    dimensions.filter((d) => {
         // If metric has allowlist, use it (supersedes dimension-level)
-        if (metricFilterByAllowlist) {
-            return metricFilterByAllowlist.includes(d.name);
+        if (metric?.spotlightFilterBy) {
+            return metric.spotlightFilterBy.includes(d.name);
         }
-
-        // Otherwise use dimension-level setting (default true)
+        // Otherwise use dimension-level setting
         return d.spotlight?.filterBy !== false;
+    });
+
+/**
+ * Returns dimensions that can be used for segmenting based on type constraints only.
+ * Only STRING and BOOLEAN dimensions are allowed, excluding time-derived dimensions.
+ * Does NOT apply spotlight settings - frontend handles that with metric allowlist.
+ */
+export const getTypeValidSegmentDimensions = (
+    dimensions: CompiledDimension[],
+): CompiledDimension[] =>
+    dimensions.filter((d) => {
+        // Exclude date-derived dimensions (month name, day name, etc.) even though they're strings
+        if (d.timeIntervalBaseDimensionName) return false;
+        return (
+            d.type === DimensionType.STRING || d.type === DimensionType.BOOLEAN
+        );
+    });
+
+/**
+ * Filters dimensions for a specific metric, applying metric's spotlight allowlist.
+ * Dimensions should already be type-valid from the backend.
+ */
+export const getSegmentDimensionsForMetric = (
+    dimensions: CompiledDimension[],
+    metric: Pick<CatalogField, 'spotlightSegmentBy'> | undefined,
+): CompiledDimension[] =>
+    dimensions.filter((d) => {
+        // If metric has allowlist, use it (supersedes dimension-level)
+        if (metric?.spotlightSegmentBy) {
+            return metric.spotlightSegmentBy.includes(d.name);
+        }
+        // Otherwise use dimension-level setting
+        return d.spotlight?.segmentBy !== false;
     });
 
 export const getAvailableCompareMetrics = (

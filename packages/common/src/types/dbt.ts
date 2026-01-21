@@ -201,8 +201,8 @@ export type DbtColumnLightdashDimension = {
         fit?: string;
     };
     spotlight?: {
-        filter_by?: boolean; // default true
-        segment_by?: boolean; // default true
+        filter_by?: boolean;
+        segment_by?: boolean;
     };
 } & DbtLightdashFieldTags;
 

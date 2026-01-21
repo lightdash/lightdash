@@ -296,3 +296,8 @@ export type ApiSegmentDimensionsResponse = {
     status: 'ok';
     results: CompiledDimension[];
 };
+
+export type ApiFilterDimensionsResponse = {
+    status: 'ok';
+    results: CompiledDimension[];
+};
