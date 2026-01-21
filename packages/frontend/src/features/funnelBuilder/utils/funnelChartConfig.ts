@@ -10,6 +10,7 @@ import {
  * Check if funnel configuration is valid for running a query.
  */
 export function canRunFunnelQuery(config: {
+    projectUuid: string;
     exploreName: string | null;
     timestampFieldId: string | null;
     userIdFieldId: string | null;
@@ -19,6 +20,7 @@ export function canRunFunnelQuery(config: {
     customDateRange: [Date | null, Date | null];
 }): boolean {
     const hasRequiredFields =
+        config.projectUuid &&
         config.exploreName &&
         config.timestampFieldId &&
         config.userIdFieldId &&

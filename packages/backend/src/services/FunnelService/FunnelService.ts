@@ -21,12 +21,14 @@ import {
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
+import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
 import type { ProjectService } from '../ProjectService/ProjectService';
 
 type FunnelServiceArguments = {
+    analytics: LightdashAnalytics;
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
     projectService: ProjectService;
@@ -42,6 +44,8 @@ export class FunnelService extends BaseService {
         weeks: TimeIntervalUnit.WEEK,
     };
 
+    private analytics: LightdashAnalytics;
+
     private lightdashConfig: LightdashConfig;
 
     private projectModel: ProjectModel;
@@ -49,11 +53,13 @@ export class FunnelService extends BaseService {
     private projectService: ProjectService;
 
     constructor({
+        analytics,
         lightdashConfig,
         projectModel,
         projectService,
     }: FunnelServiceArguments) {
         super({ serviceName: 'FunnelService' });
+        this.analytics = analytics;
         this.lightdashConfig = lightdashConfig;
         this.projectModel = projectModel;
         this.projectService = projectService;
@@ -106,6 +112,7 @@ export class FunnelService extends BaseService {
         sqlBuilder: WarehouseSqlBuilder,
     ): string {
         const stringQuote = sqlBuilder.getStringQuoteChar();
+        const fieldQuote = sqlBuilder.getFieldQuoteChar();
         const fieldMap = getFieldMap(explore);
 
         // Helper to safely quote user-provided string values
@@ -155,7 +162,7 @@ export class FunnelService extends BaseService {
             : sqlBuilder.getIntervalSql(30, TimeIntervalUnit.DAY);
 
         const breakdownSelect = breakdownField
-            ? `, ${breakdownField.compiledSql} AS breakdown_value`
+            ? `, ${breakdownField.compiledSql} AS ${fieldQuote}breakdown_value${fieldQuote}`
             : '';
 
         const stepCTEs = request.steps
@@ -163,22 +170,30 @@ export class FunnelService extends BaseService {
                 (step: FunnelStep, idx: number) => `
 step_${idx + 1}_users AS (
     SELECT DISTINCT
-        fo.user_id,
-        fo.event_timestamp AS step_${idx + 1}_time
-        ${breakdownField ? ', fo.breakdown_value' : ''}
+        fo.${fieldQuote}user_id${fieldQuote},
+        fo.${fieldQuote}event_timestamp${fieldQuote} AS ${fieldQuote}step_${
+                    idx + 1
+                }_time${fieldQuote}
+        ${
+            breakdownField
+                ? `, fo.${fieldQuote}breakdown_value${fieldQuote}`
+                : ''
+        }
     FROM first_occurrences fo
-    WHERE fo.event_name = ${quoteString(step.eventName)}
+    WHERE fo.${fieldQuote}event_name${fieldQuote} = ${quoteString(
+                    step.eventName,
+                )}
     ${
         idx > 0
             ? `
         AND EXISTS (
             SELECT 1 FROM step_${idx}_users prev
-            WHERE prev.user_id = fo.user_id
-              AND fo.event_timestamp > prev.step_${idx}_time
-              AND fo.event_timestamp <= prev.step_${idx}_time + ${windowInterval}
+            WHERE prev.${fieldQuote}user_id${fieldQuote} = fo.${fieldQuote}user_id${fieldQuote}
+              AND fo.${fieldQuote}event_timestamp${fieldQuote} > prev.${fieldQuote}step_${idx}_time${fieldQuote}
+              AND fo.${fieldQuote}event_timestamp${fieldQuote} <= prev.${fieldQuote}step_${idx}_time${fieldQuote} + ${windowInterval}
               ${
                   breakdownField
-                      ? 'AND fo.breakdown_value = prev.breakdown_value'
+                      ? `AND fo.${fieldQuote}breakdown_value${fieldQuote} = prev.${fieldQuote}breakdown_value${fieldQuote}`
                       : ''
               }
         )
@@ -193,48 +208,64 @@ step_${idx + 1}_users AS (
             .map(
                 (step: FunnelStep, idx: number) => `
     SELECT
-        ${idx + 1} AS step_order,
-        ${quoteString(step.eventName)} AS step_name,
-        COUNT(DISTINCT s${idx + 1}.user_id) AS total_users
+        ${idx + 1} AS ${fieldQuote}step_order${fieldQuote},
+        ${quoteString(step.eventName)} AS ${fieldQuote}step_name${fieldQuote},
+        COUNT(DISTINCT s${
+            idx + 1
+        }.${fieldQuote}user_id${fieldQuote}) AS ${fieldQuote}total_users${fieldQuote}
         ${
             idx > 0
                 ? `,
         ${sqlBuilder.getMedianSql(
             sqlBuilder.getTimestampDiffSeconds(
-                `s${idx}.step_${idx}_time`,
-                `s${idx + 1}.step_${idx + 1}_time`,
+                `s${idx}.${fieldQuote}step_${idx}_time${fieldQuote}`,
+                `s${idx + 1}.${fieldQuote}step_${idx + 1}_time${fieldQuote}`,
             ),
-        )} AS median_time_to_convert`
-                : `, CAST(NULL AS ${sqlBuilder.getFloatingType()}) AS median_time_to_convert`
+        )} AS ${fieldQuote}median_time_to_convert${fieldQuote}`
+                : `, CAST(NULL AS ${sqlBuilder.getFloatingType()}) AS ${fieldQuote}median_time_to_convert${fieldQuote}`
         }
-        ${breakdownField ? `, s${idx + 1}.breakdown_value` : ''}
+        ${
+            breakdownField
+                ? `, s${idx + 1}.${fieldQuote}breakdown_value${fieldQuote}`
+                : ''
+        }
     FROM step_${idx + 1}_users s${idx + 1}
     ${
         idx > 0
             ? `
-    JOIN step_${idx}_users s${idx} ON s${idx + 1}.user_id = s${idx}.user_id
+    JOIN step_${idx}_users s${idx} ON s${
+                  idx + 1
+              }.${fieldQuote}user_id${fieldQuote} = s${idx}.${fieldQuote}user_id${fieldQuote}
         ${
             breakdownField
-                ? `AND s${idx + 1}.breakdown_value = s${idx}.breakdown_value`
+                ? `AND s${
+                      idx + 1
+                  }.${fieldQuote}breakdown_value${fieldQuote} = s${idx}.${fieldQuote}breakdown_value${fieldQuote}`
                 : ''
         }
     `
             : ''
     }
-    ${breakdownField ? `GROUP BY s${idx + 1}.breakdown_value` : ''}`,
+    ${
+        breakdownField
+            ? `GROUP BY s${idx + 1}.${fieldQuote}breakdown_value${fieldQuote}`
+            : ''
+    }`,
             )
             .join('\n    UNION ALL\n    ');
 
         const partitionClause = breakdownField
-            ? 'PARTITION BY breakdown_value'
+            ? `PARTITION BY ${fieldQuote}breakdown_value${fieldQuote}`
             : '';
 
         return `
 WITH filtered_events AS (
     SELECT
-        ${userIdField.compiledSql} AS user_id,
-        ${eventNameField.compiledSql} AS event_name,
-        ${timestampField.compiledSql} AS event_timestamp
+        ${userIdField.compiledSql} AS ${fieldQuote}user_id${fieldQuote},
+        ${eventNameField.compiledSql} AS ${fieldQuote}event_name${fieldQuote},
+        ${
+            timestampField.compiledSql
+        } AS ${fieldQuote}event_timestamp${fieldQuote}
         ${breakdownSelect}
     FROM ${baseTable}
     WHERE ${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(start)}
@@ -243,50 +274,52 @@ WITH filtered_events AS (
 ),
 user_step_times AS (
     SELECT
-        user_id,
-        event_name,
-        event_timestamp
-        ${breakdownField ? ', breakdown_value' : ''},
+        ${fieldQuote}user_id${fieldQuote},
+        ${fieldQuote}event_name${fieldQuote},
+        ${fieldQuote}event_timestamp${fieldQuote}
+        ${breakdownField ? `, ${fieldQuote}breakdown_value${fieldQuote}` : ''},
         ROW_NUMBER() OVER (
-            PARTITION BY user_id, event_name
-            ORDER BY event_timestamp
-        ) AS event_occurrence
+            PARTITION BY ${fieldQuote}user_id${fieldQuote}, ${fieldQuote}event_name${fieldQuote}
+            ORDER BY ${fieldQuote}event_timestamp${fieldQuote}
+        ) AS ${fieldQuote}event_occurrence${fieldQuote}
     FROM filtered_events
 ),
 first_occurrences AS (
     SELECT
-        user_id,
-        event_name,
-        event_timestamp
-        ${breakdownField ? ', breakdown_value' : ''}
+        ${fieldQuote}user_id${fieldQuote},
+        ${fieldQuote}event_name${fieldQuote},
+        ${fieldQuote}event_timestamp${fieldQuote}
+        ${breakdownField ? `, ${fieldQuote}breakdown_value${fieldQuote}` : ''}
     FROM user_step_times
-    WHERE event_occurrence = 1
+    WHERE ${fieldQuote}event_occurrence${fieldQuote} = 1
 ),
 ${stepCTEs},
 funnel_results AS (
     ${resultUnions}
 )
 SELECT
-    step_order,
-    step_name,
-    total_users,
-    median_time_to_convert,
+    ${fieldQuote}step_order${fieldQuote},
+    ${fieldQuote}step_name${fieldQuote},
+    ${fieldQuote}total_users${fieldQuote},
+    ${fieldQuote}median_time_to_convert${fieldQuote},
     -- Conversion rate relative to step 1 (per breakdown if applicable)
     CASE
-        WHEN FIRST_VALUE(total_users) OVER (${partitionClause} ORDER BY step_order) > 0
-        THEN (total_users * 100.0) / FIRST_VALUE(total_users) OVER (${partitionClause} ORDER BY step_order)
+        WHEN FIRST_VALUE(${fieldQuote}total_users${fieldQuote}) OVER (${partitionClause} ORDER BY ${fieldQuote}step_order${fieldQuote}) > 0
+        THEN (${fieldQuote}total_users${fieldQuote} * 100.0) / FIRST_VALUE(${fieldQuote}total_users${fieldQuote}) OVER (${partitionClause} ORDER BY ${fieldQuote}step_order${fieldQuote})
         ELSE 0
-    END AS conversion_rate,
+    END AS ${fieldQuote}conversion_rate${fieldQuote},
     -- Step conversion rate relative to previous step
     CASE
-        WHEN step_order = 1 THEN 100.0
-        WHEN LAG(total_users) OVER (${partitionClause} ORDER BY step_order) > 0
-        THEN (total_users * 100.0) / LAG(total_users) OVER (${partitionClause} ORDER BY step_order)
+        WHEN ${fieldQuote}step_order${fieldQuote} = 1 THEN 100.0
+        WHEN LAG(${fieldQuote}total_users${fieldQuote}) OVER (${partitionClause} ORDER BY ${fieldQuote}step_order${fieldQuote}) > 0
+        THEN (${fieldQuote}total_users${fieldQuote} * 100.0) / LAG(${fieldQuote}total_users${fieldQuote}) OVER (${partitionClause} ORDER BY ${fieldQuote}step_order${fieldQuote})
         ELSE 0
-    END AS step_conversion_rate
-    ${breakdownField ? ', breakdown_value' : ''}
+    END AS ${fieldQuote}step_conversion_rate${fieldQuote}
+    ${breakdownField ? `, ${fieldQuote}breakdown_value${fieldQuote}` : ''}
 FROM funnel_results
-ORDER BY ${breakdownField ? 'breakdown_value, ' : ''}step_order
+ORDER BY ${
+            breakdownField ? `${fieldQuote}breakdown_value${fieldQuote}, ` : ''
+        }${fieldQuote}step_order${fieldQuote}
 `;
     }
 
@@ -352,13 +385,15 @@ ORDER BY ${breakdownField ? 'breakdown_value, ' : ''}step_order
                 const quoteChar = sqlBuilder.getFieldQuoteChar();
 
                 const sql = `
-            SELECT DISTINCT ${eventField.compiledSql} AS event_name
+            SELECT DISTINCT ${
+                eventField.compiledSql
+            } AS ${quoteChar}event_name${quoteChar}
             FROM ${baseTableSql} AS ${quoteChar}${baseTableName}${quoteChar}
             WHERE ${eventField.compiledSql} IS NOT NULL
               AND ${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(
                     thirtyDaysAgo,
                 )}
-            ORDER BY event_name
+            ORDER BY ${quoteChar}event_name${quoteChar}
             LIMIT 1000
         `;
 
@@ -465,6 +500,22 @@ ORDER BY ${breakdownField ? 'breakdown_value, ' : ''}step_order
                                 | undefined,
                         }),
                     );
+
+                    const { organizationUuid } =
+                        await this.projectModel.getSummary(projectUuid);
+
+                    this.analytics.track({
+                        event: 'funnel.query_executed',
+                        userId: user.userUuid,
+                        properties: {
+                            organizationId: organizationUuid,
+                            projectId: projectUuid,
+                            exploreName: request.exploreName,
+                            stepCount: request.steps.length,
+                            hasBreakdown: !!request.breakdownDimensionId,
+                            hasConversionWindow: !!request.conversionWindow,
+                        },
+                    });
 
                     return {
                         steps,
