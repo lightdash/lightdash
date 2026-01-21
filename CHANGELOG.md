@@ -1,3 +1,10 @@
+## [0.2357.7](https://github.com/lightdash/lightdash/compare/0.2357.6...0.2357.7) (2026-01-21)
+
+
+### Bug Fixes
+
+* funnel builder sql + state management ([#19609](https://github.com/lightdash/lightdash/issues/19609)) ([fa6ebfc](https://github.com/lightdash/lightdash/commit/fa6ebfce7e492b65154995081cf56facec2adb82))
+
 ## [0.2357.6](https://github.com/lightdash/lightdash/compare/0.2357.5...0.2357.6) (2026-01-21)
 
 
