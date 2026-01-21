@@ -1,3 +1,37 @@
+## [0.2363.1](https://github.com/lightdash/lightdash/compare/0.2363.0...0.2363.1) (2026-01-21)
+
+
+### Bug Fixes
+
+* only check dbt version in cli when using dbt ([#19632](https://github.com/lightdash/lightdash/issues/19632)) ([97709a2](https://github.com/lightdash/lightdash/commit/97709a2a592b57a9b8129e0df6d9c2ac1a75cc12))
+
+# [0.2363.0](https://github.com/lightdash/lightdash/compare/0.2362.0...0.2363.0) (2026-01-21)
+
+
+### Features
+
+* improve area map color options ([#19588](https://github.com/lightdash/lightdash/issues/19588)) ([f81606d](https://github.com/lightdash/lightdash/commit/f81606d102f64b0f4a764369bd9797979e18708f))
+
+# [0.2362.0](https://github.com/lightdash/lightdash/compare/0.2361.0...0.2362.0) (2026-01-21)
+
+
+### Bug Fixes
+
+* zoom to data on maps ([#19587](https://github.com/lightdash/lightdash/issues/19587)) ([3944a2e](https://github.com/lightdash/lightdash/commit/3944a2ee344ff73a2bba625c553ec3193d78a381))
+
+
+### Features
+
+* add support for joins in custom maps ([#19583](https://github.com/lightdash/lightdash/issues/19583)) ([ba2d25f](https://github.com/lightdash/lightdash/commit/ba2d25f9ed3bb6268a59f7d089ed2df91d6df63b))
+* improve empty space at bottom of ai agent edit page ([#19608](https://github.com/lightdash/lightdash/issues/19608)) ([fafcd4a](https://github.com/lightdash/lightdash/commit/fafcd4a0ac3e337cb2b022ac4a56cfc3c48c52aa))
+
+# [0.2361.0](https://github.com/lightdash/lightdash/compare/0.2360.0...0.2361.0) (2026-01-21)
+
+
+### Features
+
+* hide tooltips when there is a map popup ([#19593](https://github.com/lightdash/lightdash/issues/19593)) ([5810b1b](https://github.com/lightdash/lightdash/commit/5810b1b0e2bfdace79e062c0f1ee3c8edb38f4d5))
+
 # [0.2360.0](https://github.com/lightdash/lightdash/compare/0.2359.0...0.2360.0) (2026-01-21)
 
 

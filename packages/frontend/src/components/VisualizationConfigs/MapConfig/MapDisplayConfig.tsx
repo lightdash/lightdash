@@ -113,6 +113,7 @@ export const Display: FC = memo(() => {
             setHeatmapConfig,
             setTileBackground,
             setBackgroundColor,
+            setNoDataColor,
         },
     } = visualizationConfig;
 
@@ -121,6 +122,7 @@ export const Display: FC = memo(() => {
     const isScatterMap =
         !validConfig.locationType ||
         validConfig.locationType === MapChartType.SCATTER;
+    const isAreaMap = validConfig.locationType === MapChartType.AREA;
     const isBackgroundNone =
         validConfig.tileBackground === MapTileBackground.NONE;
 
@@ -168,63 +170,89 @@ export const Display: FC = memo(() => {
                             />
                         </Config.Section>
                     )}
-                    <Config.Label>
-                        {showColorRange ? 'Color range' : 'Color'}
-                    </Config.Label>
-                    {showColorRange ? (
-                        <Group spacing="xs" align="flex-start">
-                            {colors.map((color, index) => {
-                                const isFirst = index === 0;
-                                const isLast = index === colors.length - 1;
-                                const label = isFirst
-                                    ? 'Low'
-                                    : isLast
-                                    ? 'High'
-                                    : '';
-                                // Can only remove middle colors (not first or last)
-                                const canRemove =
-                                    !isFirst && !isLast && colors.length > 2;
+                    {showColorRange && (
+                        <>
+                            <Config.Label>Color range</Config.Label>
+                            <Group spacing="xs" align="flex-start">
+                                {colors.map((color, index) => {
+                                    const isFirst = index === 0;
+                                    const isLast = index === colors.length - 1;
+                                    const label = isFirst
+                                        ? 'Low'
+                                        : isLast
+                                        ? 'High'
+                                        : '';
+                                    // Can only remove middle colors (not first or last)
+                                    const canRemove =
+                                        !isFirst &&
+                                        !isLast &&
+                                        colors.length > 2;
 
-                                return (
-                                    <ColorItem
-                                        key={index}
-                                        color={color}
-                                        label={label}
-                                        canRemove={canRemove}
-                                        onColorChange={(newColor) =>
-                                            updateColor(index, newColor)
-                                        }
-                                        onRemove={() => removeColor(index)}
-                                    />
-                                );
-                            })}
-                            {canAddColor && (
-                                <Stack spacing={4} align="center">
-                                    <Text size="xs" fw={500} h={16}>
-                                        {'\u00A0'}
-                                    </Text>
-                                    <ActionIcon
-                                        size="sm"
-                                        variant="light"
-                                        onClick={addColor}
-                                    >
-                                        <IconPlus size={14} />
-                                    </ActionIcon>
-                                </Stack>
-                            )}
-                        </Group>
-                    ) : (
-                        <ColorSelector
-                            color={colors[Math.floor(colors.length / 2)]}
-                            swatches={ECHARTS_DEFAULT_COLORS}
-                            onColorChange={(newColor) => {
-                                // Set a single color in the middle of the range
-                                updateColor(
-                                    Math.floor(colors.length / 2),
-                                    newColor,
-                                );
-                            }}
-                        />
+                                    return (
+                                        <ColorItem
+                                            key={index}
+                                            color={color}
+                                            label={label}
+                                            canRemove={canRemove}
+                                            onColorChange={(newColor) =>
+                                                updateColor(index, newColor)
+                                            }
+                                            onRemove={() => removeColor(index)}
+                                        />
+                                    );
+                                })}
+                                {canAddColor && (
+                                    <Stack spacing={4} align="center">
+                                        <Text size="xs" fw={500} h={16}>
+                                            {'\u00A0'}
+                                        </Text>
+                                        <ActionIcon
+                                            size="sm"
+                                            variant="light"
+                                            onClick={addColor}
+                                        >
+                                            <IconPlus size={14} />
+                                        </ActionIcon>
+                                    </Stack>
+                                )}
+                            </Group>
+                        </>
+                    )}
+                    {!showColorRange && !isAreaMap && (
+                        <>
+                            <Config.Label>Color</Config.Label>
+                            <ColorSelector
+                                color={colors[Math.floor(colors.length / 2)]}
+                                swatches={ECHARTS_DEFAULT_COLORS}
+                                onColorChange={(newColor) => {
+                                    // Set a single color in the middle of the range
+                                    updateColor(
+                                        Math.floor(colors.length / 2),
+                                        newColor,
+                                    );
+                                }}
+                            />
+                        </>
+                    )}
+                    {isAreaMap && (
+                        <Config.Group>
+                            <Config.Label>No data color</Config.Label>
+                            <ColorSelector
+                                color={validConfig.noDataColor ?? '#f3f3f3'}
+                                swatches={ECHARTS_DEFAULT_COLORS}
+                                onColorChange={setNoDataColor}
+                            />
+                        </Config.Group>
+                    )}
+                    {isBackgroundNone && (
+                        <Config.Group>
+                            <Config.Label>Background color</Config.Label>
+                            <ColorSelector
+                                color={validConfig.backgroundColor ?? '#f3f3f3'}
+                                swatches={ECHARTS_DEFAULT_COLORS}
+                                onColorChange={setBackgroundColor}
+                            />
+                        </Config.Group>
                     )}
                 </Config.Section>
             </Config>
@@ -409,16 +437,6 @@ export const Display: FC = memo(() => {
                             )
                         }
                     />
-                    {isBackgroundNone && (
-                        <Config.Group>
-                            <Config.Label>Background color</Config.Label>
-                            <ColorSelector
-                                color={validConfig.backgroundColor ?? '#f3f3f3'}
-                                swatches={ECHARTS_DEFAULT_COLORS}
-                                onColorChange={setBackgroundColor}
-                            />
-                        </Config.Group>
-                    )}
                 </Config.Section>
             </Config>
         </Stack>

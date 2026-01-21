@@ -66,6 +66,8 @@ export type LeafletMapConfig = {
     };
     tile: TileConfig;
     backgroundColor: string | null;
+    // Color for regions with no matching data (area maps)
+    noDataColor: string;
     showLegend: boolean;
     valueRange: { min: number; max: number } | null;
     valueFieldLabel: string | null;
@@ -194,6 +196,7 @@ const useLeafletMapConfig = ({
             heatmapConfig,
             tileBackground,
             backgroundColor,
+            noDataColor,
             showLegend,
             fieldConfig,
         } = chartConfig.validConfig || {};
@@ -364,9 +367,15 @@ const useLeafletMapConfig = ({
             mapType,
             geoJsonUrl: getGeoJsonUrl(mapType, customGeoJsonUrl),
             // Determine the geoJsonPropertyKey to use
-            // Default to 'code' for US states, 'ISO3166-1-Alpha-3' for world
+            // For custom maps, use configured key directly
+            // For built-in maps, validate against known property keys
             geoJsonPropertyKey: (() => {
-                // Define valid keys for each map type
+                // For custom maps, use the configured key directly (no whitelist)
+                if (mapType === MapChartLocation.CUSTOM) {
+                    return configGeoJsonPropertyKey || 'name';
+                }
+
+                // Define valid keys for each built-in map type
                 const usaValidKeys = ['code', 'name'];
                 const worldValidKeys = [
                     'ISO3166-1-Alpha-3',
@@ -414,6 +423,7 @@ const useLeafletMapConfig = ({
             },
             tile: getTileConfig(tileBackground),
             backgroundColor: backgroundColor ?? null,
+            noDataColor: noDataColor ?? '#f3f3f3',
             showLegend: showLegend ?? false,
             valueRange,
             valueFieldLabel,

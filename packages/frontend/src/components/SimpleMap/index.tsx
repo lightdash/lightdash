@@ -1,4 +1,4 @@
-import { MapChartType } from '@lightdash/common';
+import { MapChartLocation, MapChartType } from '@lightdash/common';
 import { Box, Divider, Stack, Text, UnstyledButton } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconMap } from '@tabler/icons-react';
@@ -314,6 +314,95 @@ const MapExtentTracker: FC<{
     return null;
 };
 
+// Component to auto-fit map bounds to data on initial load
+// Only fits once per unique geoJsonUrl/mapType combination
+const MapBoundsFitter: FC<{
+    geoJsonData: GeoJSON.FeatureCollection | null;
+    scatterData: ScatterPoint[] | null;
+    mapType: MapChartLocation;
+    geoJsonUrl: string | null;
+}> = ({ geoJsonData, scatterData, mapType, geoJsonUrl }) => {
+    const map = useMap();
+    // Track the last fitted configuration to prevent re-fitting on re-renders
+    const lastFittedRef = useRef<{
+        mapType: MapChartLocation;
+        geoJsonUrl: string | null;
+        hasFitted: boolean;
+    } | null>(null);
+
+    useEffect(() => {
+        // Check if we've already fitted for this exact mapType + URL combination
+        const isSameConfig =
+            lastFittedRef.current &&
+            lastFittedRef.current.mapType === mapType &&
+            lastFittedRef.current.geoJsonUrl === geoJsonUrl &&
+            lastFittedRef.current.hasFitted;
+
+        if (isSameConfig) {
+            return; // Already fitted for this configuration, skip
+        }
+
+        // For built-in maps, use fixed center/zoom instead of fitBounds
+        // (Alaska/Hawaii throw off USA bounds, and world should be centered)
+        if (mapType === MapChartLocation.USA) {
+            // Center on continental US
+            map.setView([39.8283, -98.5795], 3);
+            lastFittedRef.current = { mapType, geoJsonUrl, hasFitted: true };
+            return;
+        }
+
+        if (mapType === MapChartLocation.WORLD) {
+            // Center at 0,0 and zoom out to show full world
+            map.setView([0, 0], 1.2);
+            lastFittedRef.current = { mapType, geoJsonUrl, hasFitted: true };
+            return;
+        }
+
+        // For custom maps, fit to GeoJSON bounds
+        if (geoJsonData && geoJsonData.features.length > 0) {
+            try {
+                const geoJsonLayer = L.geoJSON(geoJsonData);
+                const bounds = geoJsonLayer.getBounds();
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [20, 20] });
+                    lastFittedRef.current = {
+                        mapType,
+                        geoJsonUrl,
+                        hasFitted: true,
+                    };
+                }
+            } catch (error) {
+                console.warn('Failed to fit map to GeoJSON bounds:', error);
+            }
+            return;
+        }
+
+        // Fit to scatter data bounds (scatter/heatmap maps)
+        if (scatterData && scatterData.length > 0) {
+            try {
+                const points = scatterData.map(
+                    (p) => [p.lat, p.lon] as L.LatLngTuple,
+                );
+                const bounds = L.latLngBounds(points);
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [20, 20] });
+                    lastFittedRef.current = {
+                        mapType,
+                        geoJsonUrl,
+                        hasFitted: true,
+                    };
+                }
+            } catch (error) {
+                console.warn('Failed to fit map to scatter bounds:', error);
+            }
+        }
+        // Note: geoJsonData and scatterData are intentionally in deps to re-fit when data loads,
+        // but the ref check above prevents re-fitting on subsequent renders with same config
+    }, [map, mapType, geoJsonUrl, geoJsonData, scatterData]);
+
+    return null;
+};
+
 const EmptyChart: FC<{ locationType?: MapChartType }> = ({ locationType }) => {
     const description =
         locationType === MapChartType.AREA
@@ -417,6 +506,9 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 return;
             }
 
+            // Clear old data first to unmount the layer before loading new data
+            setGeoJsonData(null);
+
             const loadGeoJson = async () => {
                 try {
                     const response = await fetch(mapConfig.geoJsonUrl!);
@@ -504,11 +596,11 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         // Force re-creating the GeoJSON layer when join key, tooltip fields, or
         // region data change so bound tooltips/popup content stays in sync.
+        // Note: Don't include mapConfig itself as it's a new object each render
         useEffect(() => {
             if (
                 !geoJsonData ||
-                !mapConfig ||
-                mapConfig.isLatLong ||
+                mapConfig?.isLatLong ||
                 !geoJsonData.features?.length
             ) {
                 return;
@@ -521,7 +613,6 @@ const SimpleMap: FC<SimpleMapProps> = memo(
             mapConfig?.regionData,
             mapConfig?.tooltipFields,
             mapConfig?.isLatLong,
-            mapConfig,
         ]);
 
         // Get location type from visualization config
@@ -633,15 +724,22 @@ const SimpleMap: FC<SimpleMapProps> = memo(
             };
         }, [regionData]);
 
+        // When there's no base map, use opaque fills so shapes are fully visible
+        const hasBaseMap = !!mapConfig?.tile.url;
+        const fillOpacityWithData = hasBaseMap ? 0.7 : 1;
+        const fillOpacityNoData = hasBaseMap ? 0.5 : 1;
+
+        const noDataColor = mapConfig?.noDataColor ?? '#f3f3f3';
+
         const choroplethStyle = useCallback(
             (feature: any): L.PathOptions => {
                 if (!feature?.properties || !mapConfig) {
                     return {
-                        fillColor: '#f3f3f3',
+                        fillColor: noDataColor,
                         weight: 0.5,
                         opacity: 1,
                         color: '#999',
-                        fillOpacity: 0.5,
+                        fillOpacity: fillOpacityNoData,
                     };
                 }
 
@@ -669,19 +767,26 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         weight: 1,
                         opacity: 1,
                         color: '#666',
-                        fillOpacity: 0.7,
+                        fillOpacity: fillOpacityWithData,
                     };
                 }
 
                 return {
-                    fillColor: '#f3f3f3',
+                    fillColor: noDataColor,
                     weight: 0.5,
                     opacity: 1,
                     color: '#999',
-                    fillOpacity: 0.5,
+                    fillOpacity: fillOpacityNoData,
                 };
             },
-            [regionDataMap, regionValueRange, mapConfig],
+            [
+                regionDataMap,
+                regionValueRange,
+                mapConfig,
+                fillOpacityWithData,
+                fillOpacityNoData,
+                noDataColor,
+            ],
         );
 
         const onEachFeature = useCallback(
@@ -735,13 +840,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         mouseover: () => {
                             layer.setStyle({
                                 weight: 2,
-                                fillOpacity: 0.9,
+                                fillOpacity: hasBaseMap ? 0.9 : 1,
                             });
                         },
                         mouseout: () => {
                             layer.setStyle({
                                 weight: 1,
-                                fillOpacity: 0.7,
+                                fillOpacity: fillOpacityWithData,
                             });
                         },
                         popupopen: (e) => {
@@ -774,6 +879,8 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 mapConfig?.tooltipFields,
                 mapConfig?.locationFieldId,
                 handlePopupCopyClick,
+                hasBaseMap,
+                fillOpacityWithData,
             ],
         );
 
@@ -806,7 +913,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         zoom={mapConfig.zoom}
                         style={{ height: '100%', width: '100%' }}
                         scrollWheelZoom
-                        minZoom={2}
+                        minZoom={1}
                         maxBounds={[
                             [-90, -180],
                             [90, 180],
@@ -819,6 +926,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                 extentSetters?.saveMapExtent ?? false
                             }
                             onExtentChange={handleExtentChange}
+                        />
+                        <MapBoundsFitter
+                            geoJsonData={null}
+                            scatterData={scatterData}
+                            mapType={mapConfig.mapType}
+                            geoJsonUrl={null}
                         />
                         {mapConfig.tile.url && (
                             <TileLayer
@@ -899,7 +1012,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         zoom={mapConfig.zoom}
                         style={{ height: '100%', width: '100%' }}
                         scrollWheelZoom
-                        minZoom={2}
+                        minZoom={1}
                         maxBounds={[
                             [-90, -180],
                             [90, 180],
@@ -912,6 +1025,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                 extentSetters?.saveMapExtent ?? false
                             }
                             onExtentChange={handleExtentChange}
+                        />
+                        <MapBoundsFitter
+                            geoJsonData={geoJsonData}
+                            scatterData={null}
+                            mapType={mapConfig.mapType}
+                            geoJsonUrl={mapConfig.geoJsonUrl}
                         />
                         {mapConfig.tile.url && (
                             <TileLayer

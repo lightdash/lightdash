@@ -10,14 +10,18 @@ import {
 } from '@lightdash/common';
 import {
     Group,
+    Loader,
     SegmentedControl,
     Select,
     Stack,
     Switch,
-    Text,
     TextInput,
 } from '@mantine/core';
 import { memo, useEffect, useMemo, type FC } from 'react';
+import {
+    findMatchingProperty,
+    useGeoJsonProperties,
+} from '../../../hooks/useGeoJsonProperties';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import FieldSelect from '../../common/FieldSelect';
@@ -33,6 +37,12 @@ const getRegionFieldConfig = (
             return {
                 label: 'State field',
                 description: 'Field containing state codes (e.g., "CA", "NY")',
+            };
+        case MapChartLocation.CUSTOM:
+            return {
+                label: 'Data join field',
+                description:
+                    'Field containing values that match the selected map join field',
             };
         case MapChartLocation.WORLD:
         default:
@@ -95,8 +105,49 @@ export const Layout: FC = memo(() => {
         );
     }, [itemsMap]);
 
+    // Extract chart config for use in hooks (before early return)
+    const chartConfig = useMemo(
+        () => (isMapConfig ? visualizationConfig.chartConfig : null),
+        [isMapConfig, visualizationConfig.chartConfig],
+    );
+
+    // Build proxied URL for custom GeoJSON (for fetching properties)
+    const proxiedGeoJsonUrl = useMemo(() => {
+        if (!chartConfig) return null;
+        const { mapType, customGeoJsonUrl } = chartConfig.validConfig;
+        if (mapType !== MapChartLocation.CUSTOM || !customGeoJsonUrl) {
+            return null;
+        }
+
+        const isExternalUrl =
+            customGeoJsonUrl.startsWith('http://') ||
+            customGeoJsonUrl.startsWith('https://');
+
+        if (isExternalUrl) {
+            return `/api/v1/geojson-proxy?url=${encodeURIComponent(
+                customGeoJsonUrl,
+            )}`;
+        }
+        return customGeoJsonUrl; // Local path
+    }, [chartConfig]);
+
+    // Fetch GeoJSON properties for custom maps
+    const {
+        data: geoJsonPropertiesData,
+        isLoading: isLoadingProperties,
+        error: propertiesError,
+    } = useGeoJsonProperties(proxiedGeoJsonUrl);
+
+    // Property options for Select dropdown
+    const propertyOptions = useMemo(() => {
+        if (!geoJsonPropertiesData?.properties) return [];
+        return geoJsonPropertiesData.properties.map((prop) => ({
+            value: prop,
+            label: prop,
+        }));
+    }, [geoJsonPropertiesData]);
+
     // Extract chart config values (only valid when isMapConfig is true)
-    const chartConfig = isMapConfig ? visualizationConfig.chartConfig : null;
     const validConfig = chartConfig?.validConfig;
     const setLocationFieldId = chartConfig?.setLocationFieldId;
     const setGeoJsonPropertyKey = chartConfig?.setGeoJsonPropertyKey;
@@ -129,6 +180,52 @@ export const Layout: FC = memo(() => {
             }
         }
     }, [validConfig, itemsMap, setLocationFieldId, setGeoJsonPropertyKey]);
+
+    // Get the label for locationFieldId (for auto-matching property to column)
+    const locationFieldLabel = useMemo(() => {
+        if (!validConfig?.locationFieldId || !itemsMap) return undefined;
+        const item = itemsMap[validConfig.locationFieldId];
+        if (!item) return undefined;
+        return 'label' in item
+            ? item.label
+            : 'displayName' in item
+            ? item.displayName
+            : 'name' in item
+            ? (item as { name: string }).name
+            : undefined;
+    }, [validConfig?.locationFieldId, itemsMap]);
+
+    // Auto-fill geoJsonPropertyKey when custom GeoJSON properties are loaded
+    useEffect(() => {
+        if (
+            !validConfig ||
+            !setGeoJsonPropertyKey ||
+            !geoJsonPropertiesData ||
+            validConfig.mapType !== MapChartLocation.CUSTOM ||
+            validConfig.geoJsonPropertyKey // Already set, don't override
+        ) {
+            return;
+        }
+
+        const { properties, suggestedProperty } = geoJsonPropertiesData;
+
+        // Try to match the selected location column name to a property
+        const matchedProperty = findMatchingProperty(
+            properties,
+            locationFieldLabel,
+        );
+
+        if (matchedProperty) {
+            setGeoJsonPropertyKey(matchedProperty);
+        } else if (suggestedProperty) {
+            setGeoJsonPropertyKey(suggestedProperty);
+        }
+    }, [
+        validConfig,
+        geoJsonPropertiesData,
+        locationFieldLabel,
+        setGeoJsonPropertyKey,
+    ]);
 
     if (!isMapConfig || !chartConfig) {
         return null;
@@ -288,16 +385,58 @@ export const Layout: FC = memo(() => {
                             />
 
                             {isCustomMap ? (
-                                <TextInput
-                                    label="Map URL"
-                                    placeholder="https://example.com/map.json"
-                                    value={config.customGeoJsonUrl || ''}
-                                    onChange={(e) =>
-                                        setCustomGeoJsonUrl(
-                                            e.currentTarget.value || undefined,
-                                        )
-                                    }
-                                />
+                                <>
+                                    <TextInput
+                                        label="Custom GeoJSON URL"
+                                        placeholder="https://example.com/map.geojson"
+                                        value={config.customGeoJsonUrl || ''}
+                                        onChange={(e) =>
+                                            setCustomGeoJsonUrl(
+                                                e.currentTarget.value ||
+                                                    undefined,
+                                            )
+                                        }
+                                    />
+                                    <Select
+                                        label="Map join field"
+                                        description="Property from geojson file to join on"
+                                        placeholder={
+                                            !config.customGeoJsonUrl
+                                                ? 'Enter URL first'
+                                                : isLoadingProperties
+                                                ? 'Loading...'
+                                                : propertyOptions.length === 0
+                                                ? 'No properties found'
+                                                : 'Select property'
+                                        }
+                                        data={propertyOptions}
+                                        value={
+                                            config.geoJsonPropertyKey || null
+                                        }
+                                        onChange={(value) =>
+                                            setGeoJsonPropertyKey?.(
+                                                value || undefined,
+                                            )
+                                        }
+                                        disabled={
+                                            !config.customGeoJsonUrl ||
+                                            isLoadingProperties ||
+                                            propertyOptions.length === 0
+                                        }
+                                        error={
+                                            propertiesError
+                                                ? `Failed to load: ${propertiesError.message}`
+                                                : undefined
+                                        }
+                                        rightSection={
+                                            isLoadingProperties ? (
+                                                <Loader size="xs" />
+                                            ) : undefined
+                                        }
+                                        clearable
+                                        searchable
+                                    />
+                                </>
                             ) : (
                                 <Select
                                     label="Map region"
@@ -324,6 +463,7 @@ export const Layout: FC = memo(() => {
                                 placeholder="Select field"
                                 item={locationField}
                                 items={availableFields}
+                                description={regionFieldConfig.description}
                                 onChange={(newField) =>
                                     setLocationField(
                                         newField
@@ -334,9 +474,6 @@ export const Layout: FC = memo(() => {
                                 hasGrouping
                                 clearable
                             />
-                            <Text size="xs" c="dimmed" mt={4}>
-                                {regionFieldConfig.description}
-                            </Text>
                         </Config.Section>
                     </Config>
                 </>
