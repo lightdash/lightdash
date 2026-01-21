@@ -96,6 +96,7 @@ x-lightdash-environment: &lightdash-environment
     TURBO_TOKEN: ${TURBO_TOKEN}
     TURBO_TEAM: ${TURBO_TEAM}
     TURBO_API: ${TURBO_API}
+    SIGNUP_URL: ${SIGNUP_URL}
 
 x-lightdash-base: &lightdash-base
     build: *lightdash-build

@@ -302,7 +302,11 @@ const Login: FC<{}> = () => {
                         )}
                         <Text mx="auto" mt="md">
                             Don't have an account?{' '}
-                            <Anchor href="/register">Sign up</Anchor>
+                            <Anchor
+                                href={health.data?.signupUrl || '/register'}
+                            >
+                                Sign up
+                            </Anchor>
                         </Text>
                     </Stack>
                 </form>

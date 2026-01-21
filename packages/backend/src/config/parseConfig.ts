@@ -793,6 +793,7 @@ export type LightdashConfig = {
     headway: HeadwayConfig;
     siteUrl: string;
     staticIp: string;
+    signupUrl: string | undefined;
     lightdashCloudInstance: string | undefined;
     k8s: {
         nodeName: string | undefined;
@@ -1508,6 +1509,7 @@ export const parseConfig = (): LightdashConfig => {
         },
         siteUrl,
         staticIp: process.env.STATIC_IP || '',
+        signupUrl: process.env.SIGNUP_URL,
         lightdashCloudInstance: process.env.LIGHTDASH_CLOUD_INSTANCE,
         k8s: {
             nodeName: process.env.K8S_NODE_NAME,

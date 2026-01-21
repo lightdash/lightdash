@@ -14,6 +14,7 @@ export const BaseResponse: HealthState = {
     localDbtEnabled: true,
     siteUrl: 'https://test.lightdash.cloud',
     staticIp: '',
+    signupUrl: undefined,
     hasEmailClient: false,
     hasExtendedUsageAnalytics: false,
     hasMicrosoftTeams: false,
