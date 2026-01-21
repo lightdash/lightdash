@@ -33,11 +33,17 @@ export type CatalogSelection = {
     field?: string;
 };
 
+export enum CatalogCategoryFilterMode {
+    AND = 'and',
+    OR = 'or',
+}
+
 export type ApiCatalogSearch = {
     searchQuery?: string;
     type?: CatalogType;
     filter?: CatalogFilter;
     catalogTags?: string[];
+    catalogTagsFilterMode?: CatalogCategoryFilterMode;
     tables?: string[];
 };
 
@@ -77,6 +83,8 @@ export type CatalogField = Pick<
         icon: CatalogItemIcon | null;
         aiHints: string[] | null;
         searchRank?: number;
+        spotlightFilterBy?: string[]; // dimension IDs allowlist (metrics only)
+        spotlightSegmentBy?: string[]; // dimension IDs allowlist (metrics only)
     };
 
 export type CatalogTable = Pick<
@@ -161,16 +169,19 @@ export type CatalogMetadata = {
 export type ApiCatalogMetadataResults = CatalogMetadata;
 
 export type CatalogAnalytics = {
-    charts: Pick<
+    charts: (Pick<
         ChartSummary,
         | 'uuid'
         | 'name'
+        | 'description'
         | 'spaceUuid'
         | 'spaceName'
         | 'dashboardName'
         | 'dashboardUuid'
         | 'chartKind'
-    >[];
+    > & {
+        viewsCount?: number;
+    })[];
 };
 export type ApiCatalogAnalyticsResults = CatalogAnalytics;
 
@@ -288,6 +299,11 @@ export type ApiMetricsWithAssociatedTimeDimensionResponse = {
 };
 
 export type ApiSegmentDimensionsResponse = {
+    status: 'ok';
+    results: CompiledDimension[];
+};
+
+export type ApiFilterDimensionsResponse = {
     status: 'ok';
     results: CompiledDimension[];
 };

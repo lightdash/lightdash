@@ -1,8 +1,8 @@
 import {
-    DimensionType,
     MetricExplorerComparison,
     getDefaultDateRangeFromInterval,
-    getItemId,
+    getFilterDimensionsForMetric,
+    getSegmentDimensionsForMetric,
     isDimension,
     type CatalogField,
     type FilterRule,
@@ -37,6 +37,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
+import { useCatalogFilterDimensions } from '../hooks/useCatalogFilterDimensions';
 import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
 import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
 import { useMetric } from '../hooks/useMetricsCatalog';
@@ -151,6 +152,14 @@ export const MetricExploreModalV1: FC<Props> = ({
         options: {
             enabled:
                 query.comparison === MetricExplorerComparison.DIFFERENT_METRIC,
+        },
+    });
+
+    const filterDimensionsQuery = useCatalogFilterDimensions({
+        projectUuid,
+        tableName,
+        options: {
+            enabled: !!projectUuid && !!tableName,
         },
     });
 
@@ -391,15 +400,25 @@ export const MetricExploreModalV1: FC<Props> = ({
         userUuid,
     ]);
 
-    const segmentByData = useMemo(() => {
-        return (
-            segmentDimensionsQuery.data?.map((dimension) => ({
-                value: getItemId(dimension),
-                label: dimension.label,
-                group: dimension.tableLabel,
-            })) ?? []
-        );
-    }, [segmentDimensionsQuery.data]);
+    const currentMetric = metrics[currentMetricIndex];
+
+    const availableFilterByDimensions = useMemo(
+        () =>
+            getFilterDimensionsForMetric(
+                filterDimensionsQuery.data ?? [],
+                currentMetric,
+            ),
+        [filterDimensionsQuery.data, currentMetric],
+    );
+
+    const availableSegmentByDimensions = useMemo(
+        () =>
+            getSegmentDimensionsForMetric(
+                segmentDimensionsQuery.data ?? [],
+                currentMetric,
+            ),
+        [segmentDimensionsQuery.data, currentMetric],
+    );
 
     useHotkeys([
         ['ArrowUp', () => handleGoToPreviousMetric()],
@@ -411,17 +430,6 @@ export const MetricExploreModalV1: FC<Props> = ({
             setFilter(filterRule);
         },
         [],
-    );
-
-    const availableFilters = useMemo(
-        () =>
-            // TODO: Get filters from the query instead of segmentByData, this should include numeric dimensions as well
-            segmentDimensionsQuery.data?.filter(
-                (dimension) =>
-                    dimension.type === DimensionType.STRING ||
-                    dimension.type === DimensionType.BOOLEAN,
-            ) ?? [],
-        [segmentDimensionsQuery.data],
     );
 
     return (
@@ -540,7 +548,7 @@ export const MetricExploreModalV1: FC<Props> = ({
                             py="md"
                         >
                             <MetricExploreFilter
-                                dimensions={availableFilters}
+                                dimensions={availableFilterByDimensions}
                                 onFilterApply={handleFilterApply}
                                 key={`${tableName}-${metricName}`}
                             />
@@ -549,7 +557,7 @@ export const MetricExploreModalV1: FC<Props> = ({
                                 onSegmentDimensionChange={
                                     handleSegmentDimensionChange
                                 }
-                                segmentByData={segmentByData}
+                                dimensions={availableSegmentByDimensions}
                                 segmentDimensionsQuery={segmentDimensionsQuery}
                                 hasFilteredSeries={
                                     !!metricResultsQuery.isSuccess &&

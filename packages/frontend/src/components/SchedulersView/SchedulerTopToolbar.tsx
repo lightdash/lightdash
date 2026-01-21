@@ -10,21 +10,13 @@ import {
 } from '@mantine-8/core';
 import { IconTrash, IconUserEdit } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
-import {
-    type DestinationType,
-    type useSchedulerFilters,
-} from '../../features/scheduler/hooks/useSchedulerFilters';
+import { type useSchedulerFilters } from '../../features/scheduler/hooks/useSchedulerFilters';
 import MantineIcon from '../common/MantineIcon';
 import CreatedByFilter from './filters/CreatedByFilter';
 import DestinationFilter from './filters/DestinationFilter';
 import FormatFilter from './filters/FormatFilter';
 import { ResourceTypeFilter } from './filters/ResourceTypeFilter';
 import { SearchFilter } from './filters/SearchFilter';
-
-type User = {
-    userUuid: string;
-    name: string;
-};
 
 type SchedulerTopToolbarProps = GroupProps &
     Pick<
@@ -44,8 +36,7 @@ type SchedulerTopToolbarProps = GroupProps &
         currentResultsCount: number;
         hasActiveFilters?: boolean;
         onClearFilters?: () => void;
-        availableUsers: User[];
-        availableDestinations: DestinationType[];
+        projectUuid: string;
         // Bulk selection props
         selectedCount?: number;
         onBulkReassign?: () => void;
@@ -67,10 +58,9 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
         currentResultsCount,
         hasActiveFilters,
         onClearFilters,
-        availableUsers,
-        availableDestinations,
         selectedCount = 0,
         onBulkReassign,
+        projectUuid,
         ...props
     }) => {
         const theme = useMantineTheme();
@@ -115,7 +105,7 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     />
 
                     <CreatedByFilter
-                        availableUsers={availableUsers}
+                        projectUuid={projectUuid}
                         selectedCreatedByUserUuids={selectedCreatedByUserUuids}
                         setSelectedCreatedByUserUuids={
                             setSelectedCreatedByUserUuids
@@ -125,7 +115,6 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     <DestinationFilter
                         selectedDestinations={selectedDestinations}
                         setSelectedDestinations={setSelectedDestinations}
-                        availableDestinations={availableDestinations}
                     />
                 </Group>
 

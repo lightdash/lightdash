@@ -119,6 +119,9 @@ models:
                 WHEN ${TABLE}.order_date >= ${lightdash.parameters.date_dim_parameter}
                   THEN 'param is smaller'
               END
+            spotlight:
+              filter_by: false
+              segment_by: false
         type: string
       - name: date_custom_param_test
         description: "Example of custom date"
@@ -131,6 +134,9 @@ models:
                 WHEN ${TABLE}.order_date >= ${lightdash.parameters.date_custom_parameter}
                   THEN 'I feel great!!!'
               END
+            spotlight:
+              filter_by: false
+              segment_by: false
         type: string
       - name: order_date
         description: Date (UTC) that the order was placed
@@ -193,6 +199,16 @@ models:
                 type: percent_of_total
                 sql: ${total_order_amount}
                 format: "#,##0.00%"
+                spotlight:
+                  filter_by:
+                    - status
+                    - currency
+                    - date_dim_param_test # to test that metric filter_by overrides dimension filter_by: false
+                  segment_by:
+                    - is_completed
+                    - order_source
+                    - order_priority
+                    - date_custom_param_test # to test that metric segment_by overrides dimension segment_by: false
               amount_running_total:
                 type: running_total
                 sql: ${total_order_amount}

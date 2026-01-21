@@ -1,3 +1,59 @@
+# [0.2360.0](https://github.com/lightdash/lightdash/compare/0.2359.0...0.2360.0) (2026-01-21)
+
+
+### Bug Fixes
+
+* handle reference lines for hidden series in cartesian charts ([#19621](https://github.com/lightdash/lightdash/issues/19621)) ([025021e](https://github.com/lightdash/lightdash/commit/025021e1fe927a34b208db23baf7f329a782c55a)), closes [#19599](https://github.com/lightdash/lightdash/issues/19599)
+
+
+### Features
+
+* add spotlight filtering and segmentation controls for metrics explorer ([#19612](https://github.com/lightdash/lightdash/issues/19612)) ([c81e795](https://github.com/lightdash/lightdash/commit/c81e795edfcab7bee5396484dcd46709ff0edecd))
+* improve visual feedback on scheduled delivery toggle ([#19580](https://github.com/lightdash/lightdash/issues/19580)) ([f80ab45](https://github.com/lightdash/lightdash/commit/f80ab457bace103958dd01f80c1bf0cf12799b94))
+
+# [0.2359.0](https://github.com/lightdash/lightdash/compare/0.2358.0...0.2359.0) (2026-01-21)
+
+
+### Features
+
+* add AND/OR filter mode for metric catalog categories ([#19563](https://github.com/lightdash/lightdash/issues/19563)) ([858f1f8](https://github.com/lightdash/lightdash/commit/858f1f8faf3ff6daf0088af3ea3a817ca09e310b))
+
+# [0.2358.0](https://github.com/lightdash/lightdash/compare/0.2357.7...0.2358.0) (2026-01-21)
+
+
+### Features
+
+* add dashboard seed and tests for scheduled delivery edge cases ([#19472](https://github.com/lightdash/lightdash/issues/19472)) ([4d91e5f](https://github.com/lightdash/lightdash/commit/4d91e5f760398086749ffb27636b3296cb41ee9c))
+
+## [0.2357.7](https://github.com/lightdash/lightdash/compare/0.2357.6...0.2357.7) (2026-01-21)
+
+
+### Bug Fixes
+
+* funnel builder sql + state management ([#19609](https://github.com/lightdash/lightdash/issues/19609)) ([fa6ebfc](https://github.com/lightdash/lightdash/commit/fa6ebfce7e492b65154995081cf56facec2adb82))
+
+## [0.2357.6](https://github.com/lightdash/lightdash/compare/0.2357.5...0.2357.6) (2026-01-21)
+
+
+### Bug Fixes
+
+* owners filter depended on unpaginated results ([#19592](https://github.com/lightdash/lightdash/issues/19592)) ([fef8773](https://github.com/lightdash/lightdash/commit/fef8773dd68d2dbac2cced23277a550e84a66b64))
+* pagination in schedulers table ([#19589](https://github.com/lightdash/lightdash/issues/19589)) ([b4b19a1](https://github.com/lightdash/lightdash/commit/b4b19a1d19fc1b3c8c0b62a9380d96e48a29de94))
+
+## [0.2357.5](https://github.com/lightdash/lightdash/compare/0.2357.4...0.2357.5) (2026-01-21)
+
+
+### Bug Fixes
+
+* improve metric catalog metric popularity overview modal ([#19577](https://github.com/lightdash/lightdash/issues/19577)) ([2d782c1](https://github.com/lightdash/lightdash/commit/2d782c104383f16164eac71acec133d84fc1808d))
+
+## [0.2357.4](https://github.com/lightdash/lightdash/compare/0.2357.3...0.2357.4) (2026-01-21)
+
+
+### Bug Fixes
+
+* prevent race condition in dashboard tile rendering ([#19605](https://github.com/lightdash/lightdash/issues/19605)) ([8913231](https://github.com/lightdash/lightdash/commit/891323144e595b5aa211f01a1bf8e3e7253a0fa6))
+
 ## [0.2357.3](https://github.com/lightdash/lightdash/compare/0.2357.2...0.2357.3) (2026-01-20)
 
 

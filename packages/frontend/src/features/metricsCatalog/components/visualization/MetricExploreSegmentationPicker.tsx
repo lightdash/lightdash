@@ -1,6 +1,8 @@
 import {
+    getItemId,
     MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
     MetricExplorerComparison,
+    type CompiledDimension,
     type MetricExplorerQuery,
 } from '@lightdash/common';
 import {
@@ -16,7 +18,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { Blocks } from '../../../../svgs/metricsCatalog';
 import { useSelectStyles } from '../../styles/useSelectStyles';
@@ -25,11 +27,7 @@ import SelectItem from '../SelectItem';
 type Props = {
     query: MetricExplorerQuery;
     onSegmentDimensionChange: (value: string | null) => void;
-    segmentByData: Array<{
-        value: string;
-        label: string;
-        group: string;
-    }>;
+    dimensions: CompiledDimension[] | undefined;
     segmentDimensionsQuery: UseQueryResult;
     hasFilteredSeries: boolean;
 };
@@ -37,11 +35,21 @@ type Props = {
 export const MetricExploreSegmentationPicker: FC<Props> = ({
     query,
     onSegmentDimensionChange,
-    segmentByData,
+    dimensions,
     segmentDimensionsQuery,
     hasFilteredSeries,
 }) => {
     const { classes } = useSelectStyles();
+
+    const segmentByData = useMemo(
+        () =>
+            dimensions?.map((dimension) => ({
+                value: getItemId(dimension),
+                label: dimension.label,
+                group: dimension.tableLabel,
+            })) ?? [],
+        [dimensions],
+    );
 
     return (
         <Stack spacing="xs">

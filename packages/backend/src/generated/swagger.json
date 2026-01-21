@@ -2792,6 +2792,17 @@
                         },
                         "required": ["url"],
                         "type": "object"
+                    },
+                    "spotlight": {
+                        "properties": {
+                            "segmentBy": {
+                                "type": "boolean"
+                            },
+                            "filterBy": {
+                                "type": "boolean"
+                            }
+                        },
+                        "type": "object"
                     }
                 },
                 "required": [
@@ -5492,6 +5503,17 @@
                         },
                         "required": ["url"],
                         "type": "object"
+                    },
+                    "spotlight": {
+                        "properties": {
+                            "segmentBy": {
+                                "type": "boolean"
+                            },
+                            "filterBy": {
+                                "type": "boolean"
+                            }
+                        },
+                        "type": "object"
                     }
                 },
                 "required": [
@@ -5680,6 +5702,18 @@
                     },
                     "spotlight": {
                         "properties": {
+                            "segmentBy": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "filterBy": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "categories": {
                                 "items": {
                                     "type": "string"
@@ -8158,19 +8192,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -15453,6 +15474,19 @@
                 ],
                 "type": "object"
             },
+            "PartialFailureType.MISSING_TARGETS": {
+                "enum": ["missing_targets"],
+                "type": "string"
+            },
+            "MissingTargetsPartialFailure": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/PartialFailureType.MISSING_TARGETS"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
             "PartialFailure": {
                 "anyOf": [
                     {
@@ -15460,6 +15494,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardSqlChartPartialFailure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MissingTargetsPartialFailure"
                     }
                 ]
             },
@@ -21855,6 +21892,18 @@
                     },
                     {
                         "properties": {
+                            "spotlightSegmentBy": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "spotlightFilterBy": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "searchRank": {
                                 "type": "number",
                                 "format": "double"
@@ -22112,8 +22161,11 @@
             "ApiCatalogMetadataResults": {
                 "$ref": "#/components/schemas/CatalogMetadata"
             },
-            "Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_": {
+            "Pick_ChartSummary.uuid-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_": {
                 "properties": {
+                    "description": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -22153,7 +22205,20 @@
                 "properties": {
                     "charts": {
                         "items": {
-                            "$ref": "#/components/schemas/Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_"
+                            "allOf": [
+                                {
+                                    "$ref": "#/components/schemas/Pick_ChartSummary.uuid-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_"
+                                },
+                                {
+                                    "properties": {
+                                        "viewsCount": {
+                                            "type": "number",
+                                            "format": "double"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            ]
                         },
                         "type": "array"
                     }
@@ -22218,6 +22283,10 @@
                 "type": "string",
                 "enum": ["asc", "desc"]
             },
+            "CatalogCategoryFilterMode": {
+                "enum": ["and", "or"],
+                "type": "string"
+            },
             "ApiGetMetricPeek": {
                 "properties": {
                     "results": {
@@ -22237,6 +22306,23 @@
                     "results": {
                         "items": {
                             "$ref": "#/components/schemas/MetricWithAssociatedTimeDimension"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiFilterDimensionsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/CompiledDimension"
                         },
                         "type": "array"
                     },
@@ -24256,7 +24342,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2351.0",
+        "version": "0.2357.7",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -36997,6 +37083,14 @@
                     },
                     {
                         "in": "query",
+                        "name": "categoriesFilterMode",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/CatalogCategoryFilterMode"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "tables",
                         "required": false,
                         "schema": {
@@ -37097,6 +37191,54 @@
                     {
                         "in": "path",
                         "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/{tableName}/filter-dimensions": {
+            "get": {
+                "operationId": "getFilterDimensions",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiFilterDimensionsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get dimensions that can be used to filter metrics",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "tableName",
                         "required": true,
                         "schema": {
                             "type": "string"

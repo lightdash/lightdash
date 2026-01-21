@@ -2,35 +2,109 @@ import {
     Badge,
     Button,
     Checkbox,
+    Loader,
     Popover,
     ScrollArea,
     Stack,
     Text,
+    TextInput,
     Tooltip,
 } from '@mantine-8/core';
-import { type FC } from 'react';
+import { useDebouncedValue } from '@mantine/hooks';
+import { IconSearch } from '@tabler/icons-react';
+import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
+import MantineIcon from '../../common/MantineIcon';
 import classes from './FormatFilter.module.css';
 
-type User = {
-    userUuid: string;
-    name: string;
+const getUserDisplayName = (
+    firstName: string | undefined,
+    lastName: string | undefined,
+    email: string,
+): string => {
+    if (firstName && lastName) {
+        return `${firstName} ${lastName}`;
+    }
+    return email;
 };
 
 interface CreatedByFilterProps {
-    availableUsers: User[];
+    projectUuid: string;
     selectedCreatedByUserUuids: string[];
     setSelectedCreatedByUserUuids: (userUuids: string[]) => void;
 }
 
 const CreatedByFilter: FC<CreatedByFilterProps> = ({
-    availableUsers,
+    projectUuid,
     selectedCreatedByUserUuids,
     setSelectedCreatedByUserUuids,
 }) => {
     const hasSelectedUsers = selectedCreatedByUserUuids.length > 0;
+    const [searchValue, setSearchValue] = useState('');
+    const [debouncedSearchValue] = useDebouncedValue(searchValue, 300);
+    const viewportRef = useRef<HTMLDivElement>(null);
+
+    const {
+        data: infiniteUsers,
+        isLoading,
+        isFetching,
+        hasNextPage,
+        fetchNextPage,
+    } = useInfiniteOrganizationUsers(
+        {
+            searchInput: debouncedSearchValue,
+            pageSize: 25,
+            projectUuid,
+        },
+        { keepPreviousData: true },
+    );
+
+    const organizationUsers = useMemo(() => {
+        const allUsers =
+            infiniteUsers?.pages.flatMap((page) => page.data) ?? [];
+        // Deduplicate by userUuid
+        const seen = new Set<string>();
+        return allUsers.filter((user) => {
+            if (seen.has(user.userUuid)) return false;
+            seen.add(user.userUuid);
+            return true;
+        });
+    }, [infiniteUsers]);
+
+    const handleScrollPositionChange = useCallback(
+        ({ y }: { x: number; y: number }) => {
+            if (!viewportRef.current || isFetching || !hasNextPage) return;
+
+            const { scrollHeight, clientHeight } = viewportRef.current;
+            const isNearBottom = y >= scrollHeight - clientHeight - 50;
+
+            if (isNearBottom) {
+                void fetchNextPage();
+            }
+        },
+        [fetchNextPage, hasNextPage, isFetching],
+    );
+
+    const handleCheckboxChange = useCallback(
+        (userUuid: string) => {
+            if (selectedCreatedByUserUuids.includes(userUuid)) {
+                setSelectedCreatedByUserUuids(
+                    selectedCreatedByUserUuids.filter(
+                        (uuid) => uuid !== userUuid,
+                    ),
+                );
+            } else {
+                setSelectedCreatedByUserUuids([
+                    ...selectedCreatedByUserUuids,
+                    userUuid,
+                ]);
+            }
+        },
+        [selectedCreatedByUserUuids, setSelectedCreatedByUserUuids],
+    );
 
     return (
-        <Popover width={250} position="bottom-start">
+        <Popover width={280} position="bottom-start">
             <Popover.Target>
                 <Tooltip
                     withinPortal
@@ -78,17 +152,47 @@ const CreatedByFilter: FC<CreatedByFilterProps> = ({
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown p="sm">
-                <Stack gap={4}>
+                <Stack gap="xs">
                     <Text fz="xs" c="ldGray.9" fw={600}>
                         Filter by owner:
                     </Text>
 
-                    <ScrollArea.Autosize mah={200} type="always" scrollbars="y">
+                    <TextInput
+                        size="xs"
+                        placeholder="Search users..."
+                        value={searchValue}
+                        onChange={(e) => setSearchValue(e.currentTarget.value)}
+                        leftSection={
+                            <MantineIcon icon={IconSearch} size={14} />
+                        }
+                        rightSection={
+                            isLoading || isFetching ? (
+                                <Loader size="xs" />
+                            ) : null
+                        }
+                    />
+
+                    <ScrollArea.Autosize
+                        mah={200}
+                        type="always"
+                        scrollbars="y"
+                        viewportRef={viewportRef}
+                        onScrollPositionChange={handleScrollPositionChange}
+                    >
                         <Stack gap="xs">
-                            {availableUsers.map((user) => (
+                            {organizationUsers.length === 0 && !isLoading && (
+                                <Text fz="xs" c="dimmed">
+                                    No users found
+                                </Text>
+                            )}
+                            {organizationUsers.map((user) => (
                                 <Checkbox
                                     key={user.userUuid}
-                                    label={user.name}
+                                    label={getUserDisplayName(
+                                        user.firstName,
+                                        user.lastName,
+                                        user.email,
+                                    )}
                                     checked={selectedCreatedByUserUuids.includes(
                                         user.userUuid,
                                     )}
@@ -98,25 +202,9 @@ const CreatedByFilter: FC<CreatedByFilterProps> = ({
                                         input: classes.checkboxInput,
                                         label: classes.checkboxLabel,
                                     }}
-                                    onChange={() => {
-                                        if (
-                                            selectedCreatedByUserUuids.includes(
-                                                user.userUuid,
-                                            )
-                                        ) {
-                                            setSelectedCreatedByUserUuids(
-                                                selectedCreatedByUserUuids.filter(
-                                                    (uuid) =>
-                                                        uuid !== user.userUuid,
-                                                ),
-                                            );
-                                        } else {
-                                            setSelectedCreatedByUserUuids([
-                                                ...selectedCreatedByUserUuids,
-                                                user.userUuid,
-                                            ]);
-                                        }
-                                    }}
+                                    onChange={() =>
+                                        handleCheckboxChange(user.userUuid)
+                                    }
                                 />
                             ))}
                         </Stack>

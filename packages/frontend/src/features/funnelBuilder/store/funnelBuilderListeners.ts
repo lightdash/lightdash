@@ -21,6 +21,7 @@ export const addFunnelConfigChangeListener = (
 
             // Check if query-relevant config changed
             return (
+                prev.projectUuid !== curr.projectUuid ||
                 prev.steps !== curr.steps ||
                 prev.dateRangePreset !== curr.dateRangePreset ||
                 prev.customDateRange !== curr.customDateRange ||
@@ -38,7 +39,18 @@ export const addFunnelConfigChangeListener = (
                 fb.customDateRange[1] ? new Date(fb.customDateRange[1]) : null,
             ];
 
-            if (canRunFunnelQuery({ ...fb, customDateRange })) {
+            if (
+                canRunFunnelQuery({
+                    projectUuid: fb.projectUuid,
+                    exploreName: fb.exploreName,
+                    timestampFieldId: fb.timestampFieldId,
+                    userIdFieldId: fb.userIdFieldId,
+                    eventNameFieldId: fb.eventNameFieldId,
+                    steps: fb.steps,
+                    dateRangePreset: fb.dateRangePreset,
+                    customDateRange,
+                })
+            ) {
                 await listenerApi.dispatch(runFunnelQuery());
             }
         },

@@ -3,6 +3,7 @@ import {
     type ApiGetMetricPeek,
     type ApiMetricsCatalog,
     type ApiSort,
+    type CatalogCategoryFilterMode,
     type KnexPaginateArgs,
 } from '@lightdash/common';
 import {
@@ -16,6 +17,7 @@ type UseMetricsCatalogOptions = {
     projectUuid?: string;
     search?: string;
     categories?: string[];
+    categoriesFilterMode?: CatalogCategoryFilterMode;
     tables?: string[];
     sortBy?: ApiSort['sort'] | 'name' | 'chartUsage';
     sortDirection?: ApiSort['order'];
@@ -27,6 +29,7 @@ const getMetricsCatalog = async ({
     projectUuid,
     search,
     categories,
+    categoriesFilterMode,
     tables,
     paginateArgs,
     sortBy,
@@ -36,7 +39,12 @@ const getMetricsCatalog = async ({
     paginateArgs?: KnexPaginateArgs;
 } & Pick<
     UseMetricsCatalogOptions,
-    'search' | 'categories' | 'tables' | 'sortBy' | 'sortDirection'
+    | 'search'
+    | 'categories'
+    | 'categoriesFilterMode'
+    | 'tables'
+    | 'sortBy'
+    | 'sortDirection'
 >) => {
     const urlParams = new URLSearchParams({
         ...(paginateArgs
@@ -54,6 +62,9 @@ const getMetricsCatalog = async ({
         categories.forEach((category) =>
             urlParams.append('categories', category),
         );
+        if (categoriesFilterMode) {
+            urlParams.set('categoriesFilterMode', categoriesFilterMode);
+        }
     }
 
     if (tables && tables.length > 0) {
@@ -75,6 +86,7 @@ export const useMetricsCatalog = ({
     sortBy,
     sortDirection,
     categories,
+    categoriesFilterMode,
     tables,
     pageSize,
 }: UseMetricsCatalogOptions & Pick<KnexPaginateArgs, 'pageSize'>) => {
@@ -88,6 +100,7 @@ export const useMetricsCatalog = ({
             sortBy,
             sortDirection,
             categories,
+            categoriesFilterMode,
             tables,
         ],
         queryFn: ({ pageParam }) =>
@@ -97,6 +110,7 @@ export const useMetricsCatalog = ({
                 sortBy,
                 sortDirection,
                 categories,
+                categoriesFilterMode,
                 tables,
                 paginateArgs: {
                     page: pageParam ?? 1,

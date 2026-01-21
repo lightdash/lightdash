@@ -945,6 +945,7 @@ export class ServiceRepository
             'funnelService',
             () =>
                 new FunnelService({
+                    analytics: this.context.lightdashAnalytics,
                     lightdashConfig: this.context.lightdashConfig,
                     projectModel: this.models.getProjectModel(),
                     projectService: this.getProjectService(),

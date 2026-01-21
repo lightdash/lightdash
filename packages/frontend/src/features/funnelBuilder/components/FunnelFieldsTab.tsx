@@ -141,6 +141,7 @@ export const FunnelFieldsTab: FC<Props> = ({ projectUuid }) => {
                 label="Explore"
                 placeholder="Select an explore"
                 searchable
+                selectFirstOptionOnChange
                 data={exploreSelectData}
                 value={exploreName}
                 onChange={(value) => dispatch(setExploreName(value))}
@@ -153,6 +154,7 @@ export const FunnelFieldsTab: FC<Props> = ({ projectUuid }) => {
                         label="Timestamp Field"
                         placeholder="Select timestamp"
                         searchable
+                        selectFirstOptionOnChange
                         data={timestampSelectData}
                         value={timestampFieldId}
                         onChange={(value) =>
@@ -165,6 +167,7 @@ export const FunnelFieldsTab: FC<Props> = ({ projectUuid }) => {
                         label="User ID Field"
                         placeholder="Select user identifier"
                         searchable
+                        selectFirstOptionOnChange
                         data={userIdSelectData}
                         value={userIdFieldId}
                         onChange={(value) => dispatch(setUserIdFieldId(value))}
@@ -175,6 +178,7 @@ export const FunnelFieldsTab: FC<Props> = ({ projectUuid }) => {
                         label="Event Name Field"
                         placeholder="Select event name"
                         searchable
+                        selectFirstOptionOnChange
                         data={eventNameSelectData}
                         value={eventNameFieldId}
                         onChange={(value) =>
@@ -187,6 +191,7 @@ export const FunnelFieldsTab: FC<Props> = ({ projectUuid }) => {
                         label="Breakdown (Optional)"
                         placeholder="Select breakdown"
                         searchable
+                        selectFirstOptionOnChange
                         clearable
                         data={breakdownSelectData}
                         value={breakdownDimensionId}

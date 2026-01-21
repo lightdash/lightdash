@@ -69,10 +69,13 @@ const applyReferenceLines = (
     dirtyLayout: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
     referenceLines: ReferenceLineField[],
 ): Series[] => {
-    let appliedReferenceLines: string[] = []; // Don't apply the same reference line to multiple series
+    // Track which reference lines have been applied to visible series
+    let appliedReferenceLines: string[] = [];
+
     return series.map((serie) => {
-        // Skip if the series is filtered out
-        if (serie.isFilteredOut) {
+        // If series is filtered out or hidden, ensure it has no markLine
+        // but DON'T mark the reference line as applied so another visible series can pick it up
+        if (serie.isFilteredOut || serie.hidden) {
             return { ...serie, markLine: undefined };
         }
 
@@ -90,6 +93,7 @@ const applyReferenceLines = (
 
         if (referenceLinesForSerie.length === 0)
             return { ...serie, markLine: undefined };
+
         const markLineData: MarkLineData[] = referenceLinesForSerie.map(
             (line) => {
                 if (line.fieldId === undefined) return line.data;
@@ -982,6 +986,18 @@ const useCartesianChartConfig = ({
     const [tooltipSort, setTooltipSort] = useState<TooltipSortBy | undefined>(
         dirtyEchartsConfig?.tooltipSort,
     );
+
+    // Track series hidden states to trigger reference line redistribution
+    const seriesHiddenStatesKey = useMemo(() => {
+        const hiddenStates =
+            dirtyEchartsConfig?.series?.map((s) => ({
+                id: getSeriesId(s),
+                hidden: !!s.hidden,
+            })) || [];
+        // Use JSON.stringify for stable comparison
+        return JSON.stringify(hiddenStates);
+    }, [dirtyEchartsConfig?.series]);
+
     // Generate expected series
     useEffect(() => {
         if (isCompleteLayout(dirtyLayout) && resultsData?.hasFetchedAllRows) {
@@ -1042,6 +1058,7 @@ const useCartesianChartConfig = ({
         isStacked,
         referenceLines,
         itemsMap,
+        seriesHiddenStatesKey, // Re-run when series hidden states change
     ]);
 
     const validConfig: CartesianChart = useMemo(() => {

@@ -51,12 +51,7 @@ import {
 } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { usePaginatedSchedulers } from '../../features/scheduler/hooks/useScheduler';
-import {
-    useSchedulerFilters,
-    type DestinationType,
-} from '../../features/scheduler/hooks/useSchedulerFilters';
-import useHealth from '../../hooks/health/useHealth';
-import { useGetSlack } from '../../hooks/slack/useSlack';
+import { useSchedulerFilters } from '../../features/scheduler/hooks/useSchedulerFilters';
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { useProject } from '../../hooks/useProject';
 import GSheetsSvg from '../../svgs/google-sheets.svg?react';
@@ -197,22 +192,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         setIsBulkReassign(false);
     }, []);
 
-    // Compute available users from loaded schedulers
-    const availableUsers = useMemo(() => {
-        const userMap = new Map<string, { userUuid: string; name: string }>();
-        flatData.forEach((scheduler) => {
-            if (scheduler.createdBy && scheduler.createdByName) {
-                userMap.set(scheduler.createdBy, {
-                    userUuid: scheduler.createdBy,
-                    name: scheduler.createdByName,
-                });
-            }
-        });
-        return Array.from(userMap.values()).sort((a, b) =>
-            a.name.localeCompare(b.name),
-        );
-    }, [flatData]);
-
     // Extract unique Slack channel IDs from loaded schedulers and report them
     useEffect(() => {
         if (!onSlackChannelIdsChange) return;
@@ -258,25 +237,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     useEffect(() => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
-
-    const health = useHealth();
-    const slack = useGetSlack();
-    const organizationHasSlack = !!slack.data?.organizationUuid;
-
-    // Compute available destinations based on integrations
-    const availableDestinations = useMemo<DestinationType[]>(() => {
-        const destinations: DestinationType[] = [];
-        if (health.data?.hasEmailClient) {
-            destinations.push('email');
-        }
-        if (organizationHasSlack) {
-            destinations.push('slack');
-        }
-        if (health.data?.hasMicrosoftTeams) {
-            destinations.push('msteams');
-        }
-        return destinations;
-    }, [health.data, organizationHasSlack]);
 
     const sorting = useMemo<MRT_SortingState>(
         () => [{ id: sortField, desc: sortDirection === 'desc' }],
@@ -841,6 +801,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
 
             return (
                 <SchedulerTopToolbar
+                    projectUuid={projectUuid}
                     search={search}
                     setSearch={setSearch}
                     selectedFormats={selectedFormats}
@@ -857,8 +818,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                     currentResultsCount={totalFetched}
                     hasActiveFilters={hasActiveFilters}
                     onClearFilters={resetFilters}
-                    availableUsers={availableUsers}
-                    availableDestinations={availableDestinations}
                     selectedCount={selectedRows.length}
                     onBulkReassign={handleBulkReassign}
                 />

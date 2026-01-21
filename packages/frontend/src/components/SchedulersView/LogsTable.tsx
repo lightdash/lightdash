@@ -40,20 +40,14 @@ import {
 } from 'react';
 import { Link } from 'react-router';
 import ConfirmSendNowModal from '../../features/scheduler/components/ConfirmSendNowModal';
-import {
-    useLogsFilters,
-    type DestinationType,
-} from '../../features/scheduler/hooks/useLogsFilters';
+import { useLogsFilters } from '../../features/scheduler/hooks/useLogsFilters';
 import {
     useFetchRunLogs,
     useSchedulerRuns,
     useSendNowSchedulerByUuid,
 } from '../../features/scheduler/hooks/useScheduler';
-import useHealth from '../../hooks/health/useHealth';
-import { useGetSlack } from '../../hooks/slack/useSlack';
 import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
-import ResourceEmptyState from '../common/ResourceView/ResourceEmptyState';
 import { LogsTopToolbar } from './LogsTopToolbar';
 import RunDetailsModal from './RunDetailsModal';
 import {
@@ -237,39 +231,6 @@ const LogsTable: FC<LogsTableProps> = ({
         },
         [childLogsMap, fetchRunLogsMutation],
     );
-
-    const health = useHealth();
-    const slack = useGetSlack();
-    const organizationHasSlack = !!slack.data?.organizationUuid;
-
-    // Compute available destinations based on integrations
-    const availableDestinations = useMemo<DestinationType[]>(() => {
-        const destinations: DestinationType[] = [];
-        if (health.data?.hasEmailClient) {
-            destinations.push('email');
-        }
-        if (organizationHasSlack) {
-            destinations.push('slack');
-        }
-        if (health.data?.hasMicrosoftTeams) {
-            destinations.push('msteams');
-        }
-        return destinations;
-    }, [health.data, organizationHasSlack]);
-
-    // Compute available users from runs (only users who created schedulers)
-    const availableUsers = useMemo(() => {
-        const userMap = new Map<string, { userUuid: string; name: string }>();
-        schedulerRunsData?.forEach((run) => {
-            userMap.set(run.createdByUserUuid, {
-                userUuid: run.createdByUserUuid,
-                name: run.createdByUserName,
-            });
-        });
-        return Array.from(userMap.values()).sort((a, b) =>
-            a.name.localeCompare(b.name),
-        );
-    }, [schedulerRunsData]);
 
     // Compute available schedulers from runs (unique schedulers)
     const availableSchedulers = useMemo(() => {
@@ -576,6 +537,7 @@ const LogsTable: FC<LogsTableProps> = ({
         enableBottomToolbar: false,
         renderTopToolbar: () => (
             <LogsTopToolbar
+                projectUuid={projectUuid}
                 search={search}
                 setSearch={setSearch}
                 selectedStatuses={selectedStatuses}
@@ -590,8 +552,6 @@ const LogsTable: FC<LogsTableProps> = ({
                 currentResultsCount={totalFetched}
                 hasActiveFilters={hasActiveFilters}
                 resetFilters={resetFilters}
-                availableUsers={availableUsers}
-                availableDestinations={availableDestinations}
                 availableSchedulers={availableSchedulers}
             />
         ),
@@ -697,15 +657,6 @@ const LogsTable: FC<LogsTableProps> = ({
 
     if (isLoading) {
         return <LoadingState title="Loading run history" />;
-    }
-
-    if (totalDBRowCount === 0) {
-        return (
-            <ResourceEmptyState
-                title="No scheduled delivery runs yet"
-                description="Scheduled deliveries will appear here once they run. Check back later or hit the refresh button."
-            />
-        );
     }
 
     return (

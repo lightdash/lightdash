@@ -728,7 +728,8 @@ export class SavedChartModel {
                                            order by ${SavedChartVersionsTableName}.created_at desc
                                            limit 1)`),
             )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .orderBy(`${SavedChartsTableName}.views_count`, 'desc');
     }
 
     async getChartCountPerField(projectUuid: string, fieldIds: string[]) {
@@ -1552,6 +1553,7 @@ export class SavedChartModel {
                 dashboardName: `${DashboardsTableName}.name`,
                 updatedAt: `saved_queries.last_version_updated_at`,
                 slug: `saved_queries.slug`,
+                viewsCount: 'saved_queries.views_count',
             })
             .leftJoin(
                 DashboardsTableName,
