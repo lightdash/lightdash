@@ -363,7 +363,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             <AppShell.Main
                 pt={0}
                 pr={0}
-                pb={0}
+                pb="emptySpace"
                 mih={`calc(100vh - ${navbarHeight}px)`}
                 bg="ldGray.0"
             >
