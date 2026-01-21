@@ -1615,7 +1615,8 @@ export class LightdashAnalytics extends Analytics {
                 version: VERSION,
                 mode: lightdashConfig.mode,
                 siteUrl:
-                    lightdashConfig.mode === LightdashMode.CLOUD_BETA
+                    lightdashConfig.mode === LightdashMode.CLOUD_BETA ||
+                    lightdashConfig.mode === LightdashMode.DEMO
                         ? lightdashConfig.siteUrl
                         : null,
                 installId: process.env.LIGHTDASH_INSTALL_ID || uuidv4(),
