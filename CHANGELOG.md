@@ -1,3 +1,10 @@
+# [0.2359.0](https://github.com/lightdash/lightdash/compare/0.2358.0...0.2359.0) (2026-01-21)
+
+
+### Features
+
+* add AND/OR filter mode for metric catalog categories ([#19563](https://github.com/lightdash/lightdash/issues/19563)) ([858f1f8](https://github.com/lightdash/lightdash/commit/858f1f8faf3ff6daf0088af3ea3a817ca09e310b))
+
 # [0.2358.0](https://github.com/lightdash/lightdash/compare/0.2357.7...0.2358.0) (2026-01-21)
 
 
