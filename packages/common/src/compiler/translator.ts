@@ -205,6 +205,19 @@ const convertDimension = (
         ...(meta.dimension?.ai_hint
             ? { aiHint: convertToAiHints(meta.dimension.ai_hint) }
             : {}),
+        ...(meta.dimension?.spotlight?.filter_by === false ||
+        meta.dimension?.spotlight?.segment_by === false
+            ? {
+                  spotlight: {
+                      ...(meta.dimension?.spotlight?.filter_by === false && {
+                          filterBy: false,
+                      }),
+                      ...(meta.dimension?.spotlight?.segment_by === false && {
+                          segmentBy: false,
+                      }),
+                  },
+              }
+            : {}),
     };
 };
 

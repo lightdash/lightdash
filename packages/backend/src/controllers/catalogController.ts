@@ -8,6 +8,7 @@ import {
     ApiMetricsCatalog,
     ApiSegmentDimensionsResponse,
     getItemId,
+    type ApiFilterDimensionsResponse,
     type ApiGetMetricsTree,
     type ApiMetricsTreeEdgePayload,
     type ApiMetricsWithAssociatedTimeDimensionResponse,
@@ -296,9 +297,41 @@ export class CatalogController extends BaseController {
     }
 
     /**
+     * Get dimensions that can be used to filter metrics
+     * @param projectUuid
+     * @param tableName
+     * @returns ApiFilterDimensionsResponse
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{tableName}/filter-dimensions')
+    @OperationId('getFilterDimensions')
+    async getFilterDimensions(
+        @Path() projectUuid: string,
+        @Path() tableName: string,
+        @Request() req: express.Request,
+    ): Promise<ApiFilterDimensionsResponse> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getFilterDimensions(
+                req.user!,
+                projectUuid,
+                tableName,
+                CatalogSearchContext.METRICS_EXPLORER,
+            );
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
      * Get dimensions that can be used to segment metrics
      * @param projectUuid
-     * @param metric
+     * @param tableName
      * @returns ApiSegmentDimensionsResponse
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

@@ -83,6 +83,8 @@ export type CatalogField = Pick<
         icon: CatalogItemIcon | null;
         aiHints: string[] | null;
         searchRank?: number;
+        spotlightFilterBy?: string[]; // dimension IDs allowlist (metrics only)
+        spotlightSegmentBy?: string[]; // dimension IDs allowlist (metrics only)
     };
 
 export type CatalogTable = Pick<
@@ -297,6 +299,11 @@ export type ApiMetricsWithAssociatedTimeDimensionResponse = {
 };
 
 export type ApiSegmentDimensionsResponse = {
+    status: 'ok';
+    results: CompiledDimension[];
+};
+
+export type ApiFilterDimensionsResponse = {
     status: 'ok';
     results: CompiledDimension[];
 };
