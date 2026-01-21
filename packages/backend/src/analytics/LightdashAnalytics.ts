@@ -989,6 +989,7 @@ export type SchedulerJobEvent = BaseTrack & {
     properties: {
         jobId: string;
         schedulerId: string | undefined;
+        groupId: string | undefined;
         sendNow?: boolean;
         isThresholdAlert?: boolean;
         error?: string;
@@ -1006,6 +1007,7 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         jobId: string;
         schedulerId?: string;
         schedulerTargetId?: string;
+        groupId: string | undefined;
         resourceType?: 'dashboard' | 'chart';
         type: 'slack' | 'email' | 'gsheets' | 'msteams';
         format?: SchedulerFormat;
