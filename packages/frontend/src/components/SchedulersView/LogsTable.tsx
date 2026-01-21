@@ -48,7 +48,6 @@ import {
 } from '../../features/scheduler/hooks/useScheduler';
 import LoadingState from '../common/LoadingState';
 import MantineIcon from '../common/MantineIcon';
-import ResourceEmptyState from '../common/ResourceView/ResourceEmptyState';
 import { LogsTopToolbar } from './LogsTopToolbar';
 import RunDetailsModal from './RunDetailsModal';
 import {
@@ -658,15 +657,6 @@ const LogsTable: FC<LogsTableProps> = ({
 
     if (isLoading) {
         return <LoadingState title="Loading run history" />;
-    }
-
-    if (totalDBRowCount === 0) {
-        return (
-            <ResourceEmptyState
-                title="No scheduled delivery runs yet"
-                description="Scheduled deliveries will appear here once they run. Check back later or hit the refresh button."
-            />
-        );
     }
 
     return (
