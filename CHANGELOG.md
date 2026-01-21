@@ -1,3 +1,16 @@
+# [0.2362.0](https://github.com/lightdash/lightdash/compare/0.2361.0...0.2362.0) (2026-01-21)
+
+
+### Bug Fixes
+
+* zoom to data on maps ([#19587](https://github.com/lightdash/lightdash/issues/19587)) ([3944a2e](https://github.com/lightdash/lightdash/commit/3944a2ee344ff73a2bba625c553ec3193d78a381))
+
+
+### Features
+
+* add support for joins in custom maps ([#19583](https://github.com/lightdash/lightdash/issues/19583)) ([ba2d25f](https://github.com/lightdash/lightdash/commit/ba2d25f9ed3bb6268a59f7d089ed2df91d6df63b))
+* improve empty space at bottom of ai agent edit page ([#19608](https://github.com/lightdash/lightdash/issues/19608)) ([fafcd4a](https://github.com/lightdash/lightdash/commit/fafcd4a0ac3e337cb2b022ac4a56cfc3c48c52aa))
+
 # [0.2361.0](https://github.com/lightdash/lightdash/compare/0.2360.0...0.2361.0) (2026-01-21)
 
 
