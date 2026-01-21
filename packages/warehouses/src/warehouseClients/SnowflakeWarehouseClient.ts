@@ -642,7 +642,13 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     }
 
     async executeAsyncQuery(
-        { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
+        {
+            sql,
+            values,
+            tags,
+            timezone,
+            streamResults,
+        }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
@@ -658,7 +664,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             await this.executeAsyncStatement(
                 connection,
                 sql,
-                resultsStreamCallback,
+                streamResults ? resultsStreamCallback : undefined,
                 {
                     values,
                 },
