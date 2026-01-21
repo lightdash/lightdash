@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { isCompileJob } from '@lightdash/common';
+import { CatalogCategoryFilterMode, isCompileJob } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -31,6 +31,7 @@ import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import {
     setAbility,
     setActiveMetric,
+    setCategoryFilterMode,
     setCategoryFilters,
     setOrganizationUuid,
     setProjectUuid,
@@ -180,6 +181,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     );
     const navigate = useNavigate();
     const categoriesParam = useSearchParams('categories');
+    const categoriesFilterModeParam = useSearchParams('categoriesFilterMode');
     const tablesParam = useSearchParams('tables');
     const searchParam = useSearchParams('search');
     const sortingParam = useSearchParams('sortBy');
@@ -187,6 +189,9 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
 
     const categories = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
+    );
+    const categoryFilterMode = useAppSelector(
+        (state) => state.metricsCatalog.categoryFilterMode,
     );
     const tableFilters = useAppSelector(
         (state) => state.metricsCatalog.tableFilters,
@@ -253,6 +258,10 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     useEffect(() => {
         const urlCategories =
             categoriesParam?.split(',').map(decodeURIComponent) || [];
+        const urlCategoriesFilterMode =
+            categoriesFilterModeParam === CatalogCategoryFilterMode.AND
+                ? CatalogCategoryFilterMode.AND
+                : CatalogCategoryFilterMode.OR;
         const urlTables = tablesParam?.split(',').map(decodeURIComponent) || [];
         const urlSearch = searchParam
             ? decodeURIComponent(searchParam)
@@ -265,6 +274,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
             : undefined;
 
         dispatch(setCategoryFilters(urlCategories));
+        dispatch(setCategoryFilterMode(urlCategoriesFilterMode));
         dispatch(setTableFilters(urlTables));
         dispatch(setSearch(urlSearch));
 
@@ -280,6 +290,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
         }
     }, [
         categoriesParam,
+        categoriesFilterModeParam,
         tablesParam,
         dispatch,
         searchParam,
@@ -295,8 +306,15 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                 'categories',
                 categories.map(encodeURIComponent).join(','),
             );
+            // Only include mode when categories selected and mode is not default (OR)
+            if (categoryFilterMode === CatalogCategoryFilterMode.AND) {
+                queryParams.set('categoriesFilterMode', categoryFilterMode);
+            } else {
+                queryParams.delete('categoriesFilterMode');
+            }
         } else {
             queryParams.delete('categories');
+            queryParams.delete('categoriesFilterMode');
         }
 
         if (tableFilters.length > 0) {
@@ -324,7 +342,14 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
         }
 
         void navigate({ search: queryParams.toString() }, { replace: true });
-    }, [categories, tableFilters, search, tableSorting, navigate]);
+    }, [
+        categories,
+        categoryFilterMode,
+        tableFilters,
+        search,
+        tableSorting,
+        navigate,
+    ]);
 
     useEffect(
         function handleAbilities() {

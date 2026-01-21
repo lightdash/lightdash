@@ -1,10 +1,15 @@
-import { UNCATEGORIZED_TAG_UUID, type CatalogField } from '@lightdash/common';
+import {
+    CatalogCategoryFilterMode,
+    UNCATEGORIZED_TAG_UUID,
+    type CatalogField,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Button,
     Checkbox,
     Group,
     Popover,
+    SegmentedControl,
     Stack,
     Text,
     TextInput,
@@ -24,11 +29,15 @@ type CategoriesFilterProps = {
     setSelectedCategories: (
         categories: CatalogField['categories'][number]['tagUuid'][],
     ) => void;
+    categoryFilterMode: CatalogCategoryFilterMode;
+    setCategoryFilterMode: (mode: CatalogCategoryFilterMode) => void;
 };
 
 const CategoriesFilter: FC<CategoriesFilterProps> = ({
     selectedCategories,
     setSelectedCategories,
+    categoryFilterMode,
+    setCategoryFilterMode,
 }) => {
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
@@ -114,10 +123,37 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                     </Tooltip>
                 </Popover.Target>
                 <Popover.Dropdown p="sm">
-                    <Stack gap={4}>
-                        <Text fz="xs" c="ldGray.6" fw={600}>
-                            Filter by categories:
-                        </Text>
+                    <Stack gap="sm">
+                        <Group justify="space-between">
+                            <Text fz="xs" c="ldGray.6" fw={600} span>
+                                Filter by categories:
+                            </Text>
+
+                            {selectedCategories.length > 1 &&
+                                !selectedCategories.includes(
+                                    UNCATEGORIZED_TAG_UUID,
+                                ) && (
+                                    <SegmentedControl
+                                        size="xs"
+                                        value={categoryFilterMode}
+                                        onChange={(value) =>
+                                            setCategoryFilterMode(
+                                                value as CatalogCategoryFilterMode,
+                                            )
+                                        }
+                                        data={[
+                                            {
+                                                label: 'Any',
+                                                value: CatalogCategoryFilterMode.OR,
+                                            },
+                                            {
+                                                label: 'All',
+                                                value: CatalogCategoryFilterMode.AND,
+                                            },
+                                        ]}
+                                    />
+                                )}
+                        </Group>
 
                         {(categories?.length ?? 0) > 5 && (
                             <TextInput
@@ -155,7 +191,6 @@ const CategoriesFilter: FC<CategoriesFilterProps> = ({
                         <Stack
                             gap="xs"
                             mah={300}
-                            mt="xxs"
                             className={styles.scrollableList}
                         >
                             {filteredCategories.map((category) => (

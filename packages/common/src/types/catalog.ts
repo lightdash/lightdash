@@ -33,11 +33,17 @@ export type CatalogSelection = {
     field?: string;
 };
 
+export enum CatalogCategoryFilterMode {
+    AND = 'and',
+    OR = 'or',
+}
+
 export type ApiCatalogSearch = {
     searchQuery?: string;
     type?: CatalogType;
     filter?: CatalogFilter;
     catalogTags?: string[];
+    catalogTagsFilterMode?: CatalogCategoryFilterMode;
     tables?: string[];
 };
 

@@ -13,6 +13,7 @@ import {
     type ApiMetricsWithAssociatedTimeDimensionResponse,
     type ApiSort,
     type ApiSuccessEmpty,
+    type CatalogCategoryFilterMode,
     type CatalogItemIcon,
     type KnexPaginateArgs,
 } from '@lightdash/common';
@@ -194,6 +195,7 @@ export class CatalogController extends BaseController {
         @Query() sort?: ApiSort['sort'],
         @Query() order?: ApiSort['order'],
         @Query() categories?: ApiCatalogSearch['catalogTags'],
+        @Query() categoriesFilterMode?: CatalogCategoryFilterMode,
         @Query() tables?: ApiCatalogSearch['tables'],
     ): Promise<ApiMetricsCatalog> {
         this.setStatus(200);
@@ -223,6 +225,7 @@ export class CatalogController extends BaseController {
                 {
                     searchQuery: search,
                     catalogTags: categories,
+                    catalogTagsFilterMode: categoriesFilterMode,
                     tables,
                 },
                 sortArgs,
