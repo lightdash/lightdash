@@ -19,6 +19,7 @@ import { PassThrough, Readable } from 'stream';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { createContentDispositionHeader } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import { writeWithBackpressure } from '../../utils/streamUtils';
 import getContentTypeFromFileType from './getContentTypeFromFileType';
 import { S3BaseClient } from './S3BaseClient';
 
@@ -293,7 +294,9 @@ export class S3Client extends S3BaseClient {
             throw new MissingConfigError('S3 configuration is not set');
         }
 
-        const passThrough = new PassThrough();
+        const passThrough = new PassThrough({
+            highWaterMark: 16 * 1024 * 1024,
+        });
 
         const contentDisposition = createContentDispositionHeader(
             attachmentDownloadName || fileName,
@@ -314,6 +317,11 @@ export class S3Client extends S3BaseClient {
             },
         });
 
+        // Start the upload immediately so it begins consuming from the PassThrough.
+        // Without this, the Upload won't read until done() is called, causing deadlock
+        // when the PassThrough buffer fills up.
+        const uploadPromise = upload.done();
+
         let isClosed = false;
         const close = async () => {
             if (!this.lightdashConfig.s3) {
@@ -324,7 +332,7 @@ export class S3Client extends S3BaseClient {
             isClosed = true;
             try {
                 passThrough.end(); // signal EOF
-                await upload.done(); // wait for upload to finish
+                await uploadPromise; // wait for upload to finish
                 Logger.debug(
                     `Successfully closed upload stream to ${this.lightdashConfig.s3.bucket}/${fileName}`,
                 );
@@ -339,12 +347,14 @@ export class S3Client extends S3BaseClient {
             }
         };
 
-        // Create a function that can be used as a streamQuery callback
-        const write = (rows: WarehouseResults['rows']) => {
+        const write = async (rows: WarehouseResults['rows']): Promise<void> => {
             try {
-                rows.forEach((row) =>
-                    passThrough.push(`${JSON.stringify(row)}\n`),
-                );
+                for await (const row of rows) {
+                    await writeWithBackpressure(
+                        passThrough,
+                        `${JSON.stringify(row)}\n`,
+                    );
+                }
             } catch (error) {
                 Logger.error(
                     `Failed to write rows to fileName ${fileName}: ${getErrorMessage(

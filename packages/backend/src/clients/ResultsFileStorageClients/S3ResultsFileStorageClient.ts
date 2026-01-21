@@ -11,6 +11,7 @@ import fs from 'fs';
 import { PassThrough, Readable } from 'stream';
 import Logger from '../../logging/logger';
 import { createContentDispositionHeader } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import { writeWithBackpressure } from '../../utils/streamUtils';
 import {
     S3CacheClient,
     type S3CacheClientArguments,
@@ -111,17 +112,11 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         // This function handles backpressure by waiting for drain when buffer is full.
         const write = async (rows: WarehouseResults['rows']): Promise<void> => {
             try {
-                for (let i = 0; i < rows.length; i += 1) {
-                    const canContinue = passThrough.write(
-                        `${JSON.stringify(rows[i])}\n`,
+                for await (const row of rows) {
+                    await writeWithBackpressure(
+                        passThrough,
+                        `${JSON.stringify(row)}\n`,
                     );
-                    if (!canContinue) {
-                        // Buffer is full, wait for drain before continuing
-                        // eslint-disable-next-line no-await-in-loop
-                        await new Promise<void>((resolve) => {
-                            passThrough.once('drain', resolve);
-                        });
-                    }
                 }
             } catch (error) {
                 Logger.error(
