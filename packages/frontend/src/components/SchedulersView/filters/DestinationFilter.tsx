@@ -8,14 +8,15 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import { type DestinationType } from '../../../features/scheduler/hooks/useSchedulerFilters';
+import useHealth from '../../../hooks/health/useHealth';
+import { useGetSlack } from '../../../hooks/slack/useSlack';
 import classes from './FormatFilter.module.css';
 
 interface DestinationFilterProps {
     selectedDestinations: DestinationType[];
     setSelectedDestinations: (destinations: DestinationType[]) => void;
-    availableDestinations: DestinationType[];
 }
 
 const DESTINATION_LABELS: Record<DestinationType, string> = {
@@ -27,8 +28,25 @@ const DESTINATION_LABELS: Record<DestinationType, string> = {
 const DestinationFilter: FC<DestinationFilterProps> = ({
     selectedDestinations,
     setSelectedDestinations,
-    availableDestinations,
 }) => {
+    const health = useHealth();
+    const slack = useGetSlack();
+    const organizationHasSlack = !!slack.data?.organizationUuid;
+
+    // Compute available destinations based on integrations
+    const availableDestinations = useMemo<DestinationType[]>(() => {
+        const destinations: DestinationType[] = [];
+        if (health.data?.hasEmailClient) {
+            destinations.push('email');
+        }
+        if (organizationHasSlack) {
+            destinations.push('slack');
+        }
+        if (health.data?.hasMicrosoftTeams) {
+            destinations.push('msteams');
+        }
+        return destinations;
+    }, [health.data, organizationHasSlack]);
     const hasSelectedDestinations = selectedDestinations.length > 0;
 
     return (

@@ -9,10 +9,7 @@ import {
 } from '@mantine-8/core';
 import { IconTrash } from '@tabler/icons-react';
 import { memo, type FC } from 'react';
-import {
-    type DestinationType,
-    type useLogsFilters,
-} from '../../features/scheduler/hooks/useLogsFilters';
+import { type useLogsFilters } from '../../features/scheduler/hooks/useLogsFilters';
 import MantineIcon from '../common/MantineIcon';
 import CreatedByFilter from './filters/CreatedByFilter';
 import DestinationFilter from './filters/DestinationFilter';
@@ -42,7 +39,6 @@ interface LogsTopToolbarProps
     > {
     isFetching: boolean;
     currentResultsCount: number;
-    availableDestinations: DestinationType[];
     availableSchedulers: Scheduler[];
     projectUuid: string;
 }
@@ -61,7 +57,6 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
         setSelectedSchedulerUuid,
         hasActiveFilters,
         resetFilters,
-        availableDestinations,
         availableSchedulers,
         projectUuid,
     }) => {
@@ -127,7 +122,6 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                     <DestinationFilter
                         selectedDestinations={selectedDestinations}
                         setSelectedDestinations={setSelectedDestinations}
-                        availableDestinations={availableDestinations}
                     />
                 </Group>
 
