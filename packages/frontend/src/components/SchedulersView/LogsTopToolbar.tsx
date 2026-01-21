@@ -19,11 +19,6 @@ import DestinationFilter from './filters/DestinationFilter';
 import { SearchFilter } from './filters/SearchFilter';
 import StatusFilter from './filters/StatusFilter';
 
-type User = {
-    userUuid: string;
-    name: string;
-};
-
 type Scheduler = {
     schedulerUuid: string;
     name: string;
@@ -47,9 +42,9 @@ interface LogsTopToolbarProps
     > {
     isFetching: boolean;
     currentResultsCount: number;
-    availableUsers: User[];
     availableDestinations: DestinationType[];
     availableSchedulers: Scheduler[];
+    projectUuid: string;
 }
 
 export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
@@ -66,9 +61,9 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
         setSelectedSchedulerUuid,
         hasActiveFilters,
         resetFilters,
-        availableUsers,
         availableDestinations,
         availableSchedulers,
+        projectUuid,
     }) => {
         const theme = useMantineTheme();
 
@@ -122,7 +117,7 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                     />
 
                     <CreatedByFilter
-                        availableUsers={availableUsers}
+                        projectUuid={projectUuid}
                         selectedCreatedByUserUuids={selectedCreatedByUserUuids}
                         setSelectedCreatedByUserUuids={
                             setSelectedCreatedByUserUuids

@@ -21,11 +21,6 @@ import FormatFilter from './filters/FormatFilter';
 import { ResourceTypeFilter } from './filters/ResourceTypeFilter';
 import { SearchFilter } from './filters/SearchFilter';
 
-type User = {
-    userUuid: string;
-    name: string;
-};
-
 type SchedulerTopToolbarProps = GroupProps &
     Pick<
         ReturnType<typeof useSchedulerFilters>,
@@ -44,8 +39,8 @@ type SchedulerTopToolbarProps = GroupProps &
         currentResultsCount: number;
         hasActiveFilters?: boolean;
         onClearFilters?: () => void;
-        availableUsers: User[];
         availableDestinations: DestinationType[];
+        projectUuid: string;
         // Bulk selection props
         selectedCount?: number;
         onBulkReassign?: () => void;
@@ -67,10 +62,10 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
         currentResultsCount,
         hasActiveFilters,
         onClearFilters,
-        availableUsers,
         availableDestinations,
         selectedCount = 0,
         onBulkReassign,
+        projectUuid,
         ...props
     }) => {
         const theme = useMantineTheme();
@@ -115,7 +110,7 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                     />
 
                     <CreatedByFilter
-                        availableUsers={availableUsers}
+                        projectUuid={projectUuid}
                         selectedCreatedByUserUuids={selectedCreatedByUserUuids}
                         setSelectedCreatedByUserUuids={
                             setSelectedCreatedByUserUuids
