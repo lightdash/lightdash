@@ -1,3 +1,10 @@
+## [0.2357.5](https://github.com/lightdash/lightdash/compare/0.2357.4...0.2357.5) (2026-01-21)
+
+
+### Bug Fixes
+
+* improve metric catalog metric popularity overview modal ([#19577](https://github.com/lightdash/lightdash/issues/19577)) ([2d782c1](https://github.com/lightdash/lightdash/commit/2d782c104383f16164eac71acec133d84fc1808d))
+
 ## [0.2357.4](https://github.com/lightdash/lightdash/compare/0.2357.3...0.2357.4) (2026-01-21)
 
 
