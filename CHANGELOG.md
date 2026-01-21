@@ -1,3 +1,10 @@
+# [0.2358.0](https://github.com/lightdash/lightdash/compare/0.2357.7...0.2358.0) (2026-01-21)
+
+
+### Features
+
+* add dashboard seed and tests for scheduled delivery edge cases ([#19472](https://github.com/lightdash/lightdash/issues/19472)) ([4d91e5f](https://github.com/lightdash/lightdash/commit/4d91e5f760398086749ffb27636b3296cb41ee9c))
+
 ## [0.2357.7](https://github.com/lightdash/lightdash/compare/0.2357.6...0.2357.7) (2026-01-21)
 
 
