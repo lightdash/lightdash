@@ -1,3 +1,10 @@
+## [0.2357.4](https://github.com/lightdash/lightdash/compare/0.2357.3...0.2357.4) (2026-01-21)
+
+
+### Bug Fixes
+
+* prevent race condition in dashboard tile rendering ([#19605](https://github.com/lightdash/lightdash/issues/19605)) ([8913231](https://github.com/lightdash/lightdash/commit/891323144e595b5aa211f01a1bf8e3e7253a0fa6))
+
 ## [0.2357.3](https://github.com/lightdash/lightdash/compare/0.2357.2...0.2357.3) (2026-01-20)
 
 
