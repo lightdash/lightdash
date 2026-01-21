@@ -1,16 +1,18 @@
 import {
     FilterOperator,
+    FilterType,
     getFilterRuleWithDefaultValue,
     supportsSingleValue,
     type DashboardFilterRule,
     type FilterRule,
-    type FilterType,
     type FilterableDimension,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Button,
     Checkbox,
+    Group,
     Select,
     Stack,
     Switch,
@@ -19,12 +21,13 @@ import {
     Tooltip,
     type PopoverProps,
 } from '@mantine/core';
-import { IconHelpCircle } from '@tabler/icons-react';
+import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
 import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useApp from '../../../providers/App/useApp';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
@@ -45,6 +48,9 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     popoverProps,
     onChangeFilterRule,
 }) => {
+    const { user } = useApp();
+    const canManageExplore = user.data?.ability?.can('manage', 'Explore');
+
     const [filterLabel, setFilterLabel] = useState<string>();
 
     const filterOperatorOptions = useMemo(
@@ -183,17 +189,62 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 )}
 
                 {(showValueInput || filterRule.required) && (
-                    <FilterInputComponent
-                        popoverProps={popoverProps}
-                        filterType={filterType}
-                        field={field}
-                        rule={filterRule}
-                        onChange={(newFilterRule) =>
-                            onChangeFilterRule(
-                                newFilterRule as DashboardFilterRule,
-                            )
-                        }
-                    />
+                    <Group spacing="xs" noWrap align="center">
+                        <Box style={{ flex: 1 }}>
+                            <FilterInputComponent
+                                popoverProps={popoverProps}
+                                filterType={filterType}
+                                field={field}
+                                rule={filterRule}
+                                onChange={(newFilterRule) =>
+                                    onChangeFilterRule(
+                                        newFilterRule as DashboardFilterRule,
+                                    )
+                                }
+                            />
+                        </Box>
+                        {canManageExplore &&
+                            !isEditMode &&
+                            !filterRule.required &&
+                            ![
+                                FilterOperator.NULL,
+                                FilterOperator.NOT_NULL,
+                            ].includes(filterRule.operator) && (
+                                <Tooltip
+                                    label={
+                                        filterRule.disabled
+                                            ? 'Already showing any value'
+                                            : (filterRule.values?.length ??
+                                                    0) === 0
+                                              ? 'No value to clear'
+                                              : 'Clear to any value'
+                                    }
+                                >
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        size="sm"
+                                        disabled={
+                                            filterRule.disabled ||
+                                            (filterRule.values?.length ?? 0) ===
+                                                0
+                                        }
+                                        onClick={() =>
+                                            onChangeFilterRule({
+                                                ...filterRule,
+                                                values: [],
+                                                ...(filterType ===
+                                                FilterType.DATE
+                                                    ? { settings: undefined }
+                                                    : {}),
+                                            })
+                                        }
+                                    >
+                                        <MantineIcon icon={IconX} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                    </Group>
                 )}
 
                 {isEditMode && (
