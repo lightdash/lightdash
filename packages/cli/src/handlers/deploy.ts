@@ -28,7 +28,7 @@ import {
 } from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
-import { getDbtVersion } from './dbt/getDbtVersion';
+import { tryGetDbtVersion } from './dbt/getDbtVersion';
 
 type DeployHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -271,7 +271,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         }
     }
 
-    const dbtVersion = await getDbtVersion();
+    const dbtVersionResult = await tryGetDbtVersion();
     await checkLightdashVersion();
     const executionId = uuidv4();
     const explores = await compile(options);
@@ -313,7 +313,11 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         ? `${serverUrl}/createProject/cli?projectUuid=${projectUuid}`
         : `${serverUrl}/projects/${projectUuid}/home`;
     let successMessage = 'Successfully deployed project:';
-    if (dbtVersion.isDbtCloudCLI && options.create) {
+    if (
+        dbtVersionResult.success &&
+        dbtVersionResult.version.isDbtCloudCLI &&
+        options.create
+    ) {
         successMessage =
             'Successfully deployed project! Complete the setup by adding warehouse connection details here:';
         displayUrl = `${serverUrl}/generalSettings/projectManagement/${projectUuid}/settings`;
