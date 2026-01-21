@@ -2,7 +2,7 @@ import { MapChartLocation, MapChartType } from '@lightdash/common';
 import { Box, Divider, Stack, Text, UnstyledButton } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconMap } from '@tabler/icons-react';
-import { scaleSqrt } from 'd3-scale';
+import { scaleLinear, scaleSqrt } from 'd3-scale';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -41,6 +41,11 @@ import HeatmapLayer from './HeatmapLayer';
 import MapLegend from './MapLegend';
 // eslint-disable-next-line css-modules/no-unused-class
 import classes from './SimpleMap.module.css';
+import {
+    MAP_FILL_NO_BASE_MAP_OPACITY,
+    MAP_FILL_NO_DATA_OPACITY,
+    MAP_FILL_WITH_DATA_OPACITY,
+} from './constants';
 
 // Helper to get formatted value from row data
 const getFormattedValue = (
@@ -203,6 +208,7 @@ type MapMarkerProps = {
     point: ScatterPoint;
     radius: number;
     color: string;
+    fillOpacity: number;
     tooltipFields: TooltipFieldInfo[];
 };
 
@@ -210,6 +216,7 @@ const MapMarker: FC<MapMarkerProps> = ({
     point,
     radius,
     color,
+    fillOpacity,
     tooltipFields,
 }) => {
     const [isPopupOpen, setIsPopupOpen] = useState(false);
@@ -239,7 +246,7 @@ const MapMarker: FC<MapMarkerProps> = ({
             pathOptions={{
                 fillColor: color,
                 color: '#fff',
-                fillOpacity: 0.7,
+                fillOpacity,
                 weight: 1,
             }}
             eventHandlers={{
@@ -429,20 +436,18 @@ type SimpleMapProps = {
     onScreenshotError?: () => void;
 };
 
-// Helper to calculate color based on value range
-const getColorForValue = (
-    value: number,
-    min: number,
-    max: number,
-    colors: string[],
-): string => {
-    if (max === min) return colors[Math.floor(colors.length / 2)]; // middle color
-    const ratio = (value - min) / (max - min);
-    const index = Math.min(
-        Math.floor(ratio * colors.length),
-        colors.length - 1,
+// Helper to create a color scale that interpolates between colors
+const createColorScale = (min: number, max: number, colors: string[]) => {
+    if (colors.length === 0) return () => '#888888';
+    if (colors.length === 1) return () => colors[0];
+    if (max === min) return () => colors[Math.floor(colors.length / 2)];
+
+    // Create domain points that map evenly across the value range
+    const domain = colors.map(
+        (_, i) => min + (i / (colors.length - 1)) * (max - min),
     );
-    return colors[index];
+
+    return scaleLinear<string>().domain(domain).range(colors).clamp(true);
 };
 
 const SimpleMap: FC<SimpleMapProps> = memo(
@@ -649,6 +654,16 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 .range([mapConfig.minBubbleSize, mapConfig.maxBubbleSize]);
         }, [mapConfig, scatterValueRange.min, scatterValueRange.max]);
 
+        // Memoized color scale for scatter points
+        const scatterColorScale = useMemo(() => {
+            if (!mapConfig) return null;
+            return createColorScale(
+                scatterValueRange.min,
+                scatterValueRange.max,
+                mapConfig.colors.scale,
+            );
+        }, [mapConfig, scatterValueRange.min, scatterValueRange.max]);
+
         const heatmapPoints = useMemo((): [number, number, number][] => {
             const { min, max } = scatterValueRange;
             return scatterData.map((point) => {
@@ -726,10 +741,23 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         // When there's no base map, use opaque fills so shapes are fully visible
         const hasBaseMap = !!mapConfig?.tile.url;
-        const fillOpacityWithData = hasBaseMap ? 0.7 : 1;
-        const fillOpacityNoData = hasBaseMap ? 0.5 : 1;
-
+        const fillOpacityWithData = hasBaseMap
+            ? MAP_FILL_WITH_DATA_OPACITY
+            : MAP_FILL_NO_BASE_MAP_OPACITY;
+        const fillOpacityNoData = hasBaseMap
+            ? MAP_FILL_NO_DATA_OPACITY
+            : MAP_FILL_NO_BASE_MAP_OPACITY;
         const noDataColor = mapConfig?.noDataColor ?? '#f3f3f3';
+
+        // Memoized color scale for choropleth regions
+        const regionColorScale = useMemo(() => {
+            if (!mapConfig) return null;
+            return createColorScale(
+                regionValueRange.min,
+                regionValueRange.max,
+                mapConfig.colors.scale,
+            );
+        }, [mapConfig, regionValueRange.min, regionValueRange.max]);
 
         const choroplethStyle = useCallback(
             (feature: any): L.PathOptions => {
@@ -755,15 +783,10 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     .toLowerCase();
                 const regionEntry = regionDataMap.get(propertyValue);
 
-                if (regionEntry !== undefined) {
-                    const color = getColorForValue(
-                        regionEntry.value,
-                        regionValueRange.min,
-                        regionValueRange.max,
-                        mapConfig.colors.scale,
-                    );
+                if (regionEntry !== undefined && regionColorScale) {
+                    const fillColor = regionColorScale(regionEntry.value);
                     return {
-                        fillColor: color,
+                        fillColor,
                         weight: 1,
                         opacity: 1,
                         color: '#666',
@@ -780,12 +803,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 };
             },
             [
-                regionDataMap,
-                regionValueRange,
                 mapConfig,
-                fillOpacityWithData,
-                fillOpacityNoData,
+                regionDataMap,
+                regionColorScale,
                 noDataColor,
+                fillOpacityNoData,
+                fillOpacityWithData,
             ],
         );
 
@@ -951,16 +974,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                             />
                         ) : (
                             sizeScale &&
+                            scatterColorScale &&
                             scatterData.map((point, idx) => {
-                                const radius = sizeScale(point.sizeValue); // Use default color (middle of scale) for non-numeric values
+                                const radius = sizeScale(point.sizeValue);
+                                // Use interpolated color for numeric values, middle of scale for non-numeric
                                 const color =
                                     point.value !== null
-                                        ? getColorForValue(
-                                              point.value,
-                                              scatterValueRange.min,
-                                              scatterValueRange.max,
-                                              mapConfig.colors.scale,
-                                          )
+                                        ? scatterColorScale(point.value)
                                         : mapConfig.colors.scale[
                                               Math.floor(
                                                   mapConfig.colors.scale
@@ -974,6 +994,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                         point={point}
                                         radius={radius}
                                         color={color}
+                                        fillOpacity={fillOpacityWithData}
                                         tooltipFields={mapConfig.tooltipFields}
                                     />
                                 );
