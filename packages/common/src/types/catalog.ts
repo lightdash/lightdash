@@ -161,16 +161,19 @@ export type CatalogMetadata = {
 export type ApiCatalogMetadataResults = CatalogMetadata;
 
 export type CatalogAnalytics = {
-    charts: Pick<
+    charts: (Pick<
         ChartSummary,
         | 'uuid'
         | 'name'
+        | 'description'
         | 'spaceUuid'
         | 'spaceName'
         | 'dashboardName'
         | 'dashboardUuid'
         | 'chartKind'
-    >[];
+    > & {
+        viewsCount?: number;
+    })[];
 };
 export type ApiCatalogAnalyticsResults = CatalogAnalytics;
 

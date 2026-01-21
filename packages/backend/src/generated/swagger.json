@@ -8168,19 +8168,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -15453,6 +15440,19 @@
                 ],
                 "type": "object"
             },
+            "PartialFailureType.MISSING_TARGETS": {
+                "enum": ["missing_targets"],
+                "type": "string"
+            },
+            "MissingTargetsPartialFailure": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/PartialFailureType.MISSING_TARGETS"
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
             "PartialFailure": {
                 "anyOf": [
                     {
@@ -15460,6 +15460,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DashboardSqlChartPartialFailure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MissingTargetsPartialFailure"
                     }
                 ]
             },
@@ -22112,8 +22115,11 @@
             "ApiCatalogMetadataResults": {
                 "$ref": "#/components/schemas/CatalogMetadata"
             },
-            "Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_": {
+            "Pick_ChartSummary.uuid-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_": {
                 "properties": {
+                    "description": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     },
@@ -22153,7 +22159,20 @@
                 "properties": {
                     "charts": {
                         "items": {
-                            "$ref": "#/components/schemas/Pick_ChartSummary.uuid-or-name-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_"
+                            "allOf": [
+                                {
+                                    "$ref": "#/components/schemas/Pick_ChartSummary.uuid-or-name-or-description-or-spaceUuid-or-spaceName-or-dashboardName-or-dashboardUuid-or-chartKind_"
+                                },
+                                {
+                                    "properties": {
+                                        "viewsCount": {
+                                            "type": "number",
+                                            "format": "double"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            ]
                         },
                         "type": "array"
                     }
@@ -24256,7 +24275,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2351.0",
+        "version": "0.2354.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
