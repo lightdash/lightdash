@@ -26,6 +26,7 @@ import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
 import { useSendNowSchedulerByUuid } from '../hooks/useScheduler';
 import { useSchedulersEnabledUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
+import ConfirmPauseSchedulerModal from './ConfirmPauseSchedulerModal';
 import ConfirmSendNowModal from './ConfirmSendNowModal';
 
 type SchedulersListItemProps = {
@@ -43,7 +44,8 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
         useSchedulersEnabledUpdateMutation(scheduler.schedulerUuid);
 
     const sendNowMutation = useSendNowSchedulerByUuid(scheduler.schedulerUuid);
-    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const [isConfirmSendNowOpen, setIsConfirmSendNowOpen] = useState(false);
+    const [isConfirmPauseOpen, setIsConfirmPauseOpen] = useState(false);
 
     const handleToggle = useCallback(
         (enabled: boolean) => {
@@ -103,16 +105,20 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                             maw={130}
                             label={
                                 scheduler.enabled
-                                    ? 'Toggle off to temporarily pause notifications'
-                                    : 'Notifications paused. Toggle on to resume'
+                                    ? 'Toggle off to temporarily pause the scheduled delivery'
+                                    : 'Scheduled delivery paused. Toggle on to resume'
                             }
                         >
                             <Box mr="sm">
                                 <Switch
                                     checked={scheduler.enabled}
-                                    onChange={() =>
-                                        handleToggle(!scheduler.enabled)
-                                    }
+                                    onChange={() => {
+                                        if (scheduler.enabled) {
+                                            setIsConfirmPauseOpen(true);
+                                        } else {
+                                            handleToggle(true);
+                                        }
+                                    }}
                                 />
                             </Box>
                         </Tooltip>
@@ -120,7 +126,7 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                         <Tooltip withinPortal label="Send now">
                             <ActionIcon
                                 variant="light"
-                                onClick={() => setIsConfirmOpen(true)}
+                                onClick={() => setIsConfirmSendNowOpen(true)}
                                 radius="md"
                                 color="ldDark.9"
                             >
@@ -158,14 +164,24 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                 )}
             </Group>
             <ConfirmSendNowModal
-                opened={isConfirmOpen}
-                onClose={() => setIsConfirmOpen(false)}
+                opened={isConfirmSendNowOpen}
+                onClose={() => setIsConfirmSendNowOpen(false)}
                 schedulerName={scheduler.name}
                 loading={sendNowMutation.isLoading}
                 onConfirm={() => {
                     sendNowMutation.mutate();
-                    setIsConfirmOpen(false);
+                    setIsConfirmSendNowOpen(false);
                 }}
+            />
+            <ConfirmPauseSchedulerModal
+                opened={isConfirmPauseOpen}
+                onClose={() => setIsConfirmPauseOpen(false)}
+                schedulerName={scheduler.name}
+                onConfirm={() => {
+                    handleToggle(false);
+                    setIsConfirmPauseOpen(false);
+                }}
+                description="This will pause the scheduled delivery. It will not run until it is enabled again."
             />
         </Paper>
     );
