@@ -1,3 +1,10 @@
+# [0.2363.0](https://github.com/lightdash/lightdash/compare/0.2362.0...0.2363.0) (2026-01-21)
+
+
+### Features
+
+* improve area map color options ([#19588](https://github.com/lightdash/lightdash/issues/19588)) ([f81606d](https://github.com/lightdash/lightdash/commit/f81606d102f64b0f4a764369bd9797979e18708f))
+
 # [0.2362.0](https://github.com/lightdash/lightdash/compare/0.2361.0...0.2362.0) (2026-01-21)
 
 
