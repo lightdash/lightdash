@@ -1,3 +1,11 @@
+## [0.2357.6](https://github.com/lightdash/lightdash/compare/0.2357.5...0.2357.6) (2026-01-21)
+
+
+### Bug Fixes
+
+* owners filter depended on unpaginated results ([#19592](https://github.com/lightdash/lightdash/issues/19592)) ([fef8773](https://github.com/lightdash/lightdash/commit/fef8773dd68d2dbac2cced23277a550e84a66b64))
+* pagination in schedulers table ([#19589](https://github.com/lightdash/lightdash/issues/19589)) ([b4b19a1](https://github.com/lightdash/lightdash/commit/b4b19a1d19fc1b3c8c0b62a9380d96e48a29de94))
+
 ## [0.2357.5](https://github.com/lightdash/lightdash/compare/0.2357.4...0.2357.5) (2026-01-21)
 
 
