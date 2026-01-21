@@ -89,6 +89,8 @@ export const getMantine8ThemeOverride = (
         spacing: {
             ...legacyTheme.spacing,
             xxs: `0.125rem`,
+            // Large padding for page bottoms to allow scrolling past last elements
+            emptySpace: `6rem`,
         },
 
         components: {
