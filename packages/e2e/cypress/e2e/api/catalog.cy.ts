@@ -125,8 +125,8 @@ describe('Lightdash catalog search', () => {
             expect(data).to.have.length(4);
 
             const expectedDescriptions = [
-                'Total revenue',
                 'Total revenue from completed orders',
+                'Total revenue',
                 'Sum of all payments',
                 'Sum of Revenue attributed',
             ];
