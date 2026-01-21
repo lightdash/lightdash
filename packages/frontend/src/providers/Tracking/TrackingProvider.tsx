@@ -43,7 +43,7 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
                 name: LIGHTDASH_APP_NAME,
                 version,
                 build: version,
-            } as any as rudderSDK.apiObject),
+            }) as any as rudderSDK.apiObject,
         [version],
     );
 
@@ -53,11 +53,11 @@ const TrackingProviderMain: FC<React.PropsWithChildren<TrackingData>> = ({
             category,
             type,
             hostname: window.location.hostname,
-            url: null,
-            path: null,
+            url: window.location.href,
+            path: window.location.pathname,
             referrer: null,
             initial_referrer: null,
-            search: null,
+            search: window.location.search,
             tab_url: null,
         }),
         [],
