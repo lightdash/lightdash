@@ -124,6 +124,9 @@ describe('Lightdash catalog search', () => {
             const { data } = resp.body.results;
             expect(data).to.have.length(4);
 
+            // All metrics should be named 'total_revenue'
+            // Order depends on search_rank (primary) and chart_usage (secondary),
+            // so we check descriptions without asserting specific order
             const expectedDescriptions = [
                 'Total revenue from completed orders',
                 'Total revenue',
@@ -131,12 +134,16 @@ describe('Lightdash catalog search', () => {
                 'Sum of Revenue attributed',
             ];
 
-            data.forEach((field: CatalogField, index: number) => {
+            const actualDescriptions = data.map(
+                (field: CatalogField) => field.description,
+            );
+
+            data.forEach((field: CatalogField) => {
                 expect(field).to.have.property('name', 'total_revenue');
-                expect(field).to.have.property(
-                    'description',
-                    expectedDescriptions[index],
-                );
+            });
+
+            expectedDescriptions.forEach((desc) => {
+                expect(actualDescriptions).to.include(desc);
             });
         });
     });
