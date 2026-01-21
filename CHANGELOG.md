@@ -1,3 +1,16 @@
+# [0.2360.0](https://github.com/lightdash/lightdash/compare/0.2359.0...0.2360.0) (2026-01-21)
+
+
+### Bug Fixes
+
+* handle reference lines for hidden series in cartesian charts ([#19621](https://github.com/lightdash/lightdash/issues/19621)) ([025021e](https://github.com/lightdash/lightdash/commit/025021e1fe927a34b208db23baf7f329a782c55a)), closes [#19599](https://github.com/lightdash/lightdash/issues/19599)
+
+
+### Features
+
+* add spotlight filtering and segmentation controls for metrics explorer ([#19612](https://github.com/lightdash/lightdash/issues/19612)) ([c81e795](https://github.com/lightdash/lightdash/commit/c81e795edfcab7bee5396484dcd46709ff0edecd))
+* improve visual feedback on scheduled delivery toggle ([#19580](https://github.com/lightdash/lightdash/issues/19580)) ([f80ab45](https://github.com/lightdash/lightdash/commit/f80ab457bace103958dd01f80c1bf0cf12799b94))
+
 # [0.2359.0](https://github.com/lightdash/lightdash/compare/0.2358.0...0.2359.0) (2026-01-21)
 
 
