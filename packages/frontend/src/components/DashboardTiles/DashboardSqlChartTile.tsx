@@ -149,6 +149,10 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
     ]);
 
     useEffect(() => {
+        if (!savedSqlUuid) {
+            markTileScreenshotErrored(tile.uuid);
+            return;
+        }
         if (chartError || chartResultsError) {
             markTileScreenshotErrored(tile.uuid);
             return;
@@ -157,6 +161,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             markTileScreenshotReady(tile.uuid);
         }
     }, [
+        savedSqlUuid,
         isChartLoading,
         isChartResultsLoading,
         chartResultsData,

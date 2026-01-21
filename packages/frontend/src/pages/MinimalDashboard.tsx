@@ -95,6 +95,13 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
         setDashboardTabs,
     ]);
 
+    // Wait for dashboardTiles to be set in context before rendering tiles.
+    // This prevents a race condition where tiles call markTileScreenshotErrored
+    // before the context is initialized, then the reset effect clears that status.
+    if (!dashboardTiles) {
+        return null;
+    }
+
     return (
         <>
             {/* This is when viewing a dashboard with tabs in mobile mode - you can navigate between tabs. */}
