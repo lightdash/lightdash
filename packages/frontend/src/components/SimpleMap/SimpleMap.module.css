@@ -73,21 +73,6 @@
     flex: 1;
 }
 
-.legendLabels {
-    display: flex;
-    justify-content: space-between;
-    margin-top: var(--mantine-spacing-xs);
-    font-size: var(--mantine-font-size-xs);
-
-    @mixin light {
-        color: var(--mantine-color-ldGray-7);
-    }
-
-    @mixin dark {
-        color: var(--mantine-color-ldGray-3);
-    }
-}
-
 /*
  * Custom styles for Leaflet zoom controls
  * Note: Using :global() because Leaflet renders its own DOM elements outside React.

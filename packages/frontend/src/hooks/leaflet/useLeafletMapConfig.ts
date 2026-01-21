@@ -69,7 +69,13 @@ export type LeafletMapConfig = {
     // Color for regions with no matching data (area maps)
     noDataColor: string;
     showLegend: boolean;
-    valueRange: { min: number; max: number } | null;
+    valueRange: {
+        min: number;
+        max: number;
+        // using formatted min/max instead of nesting so the changes are easier to track
+        formattedMin: string;
+        formattedMax: string;
+    } | null;
     valueFieldLabel: string | null;
     // The field ID used for location matching (for deriving labels)
     locationFieldId: string | null;
@@ -263,9 +269,9 @@ const useLeafletMapConfig = ({
                         const isNumeric = !isNaN(numericValue);
                         const value = isNumeric ? numericValue : null;
                         const displayValue = valueFieldId
-                            ? row[valueFieldId]?.value.formatted ??
+                            ? (row[valueFieldId]?.value.formatted ??
                               row[valueFieldId]?.value.raw ??
-                              rawValue
+                              rawValue)
                             : 1;
 
                         // Use sizeFieldId if set, otherwise use constant size
@@ -320,31 +326,69 @@ const useLeafletMapConfig = ({
         // Calculate zoom - use custom if provided, otherwise default based on map type
         const zoom = defaultZoom ?? getMapZoom(mapType);
 
-        // Calculate value range for legend
-        let valueRange: { min: number; max: number } | null = null;
+        // Calculate value range for legend (includes both raw and formatted values)
+        let valueRange: {
+            min: number;
+            max: number;
+            formattedMin: string;
+            formattedMax: string;
+        } | null = null;
         let sizeRange: { min: number; max: number } | null = null;
         if (scatterData && scatterData.length > 0) {
-            // Filter out non-numeric values for range calculation
-            const numericValues = scatterData
-                .map((d) => d.value)
-                .filter((v): v is number => v !== null);
-            if (numericValues.length > 0) {
+            // Single pass to find min/max for both value and size
+            let minPoint: (ScatterPoint & { value: number }) | null = null;
+            let maxPoint: (ScatterPoint & { value: number }) | null = null;
+            let minSize = scatterData[0].sizeValue;
+            let maxSize = scatterData[0].sizeValue;
+
+            for (const point of scatterData) {
+                // Track size range
+                if (point.sizeValue < minSize) minSize = point.sizeValue;
+                if (point.sizeValue > maxSize) maxSize = point.sizeValue;
+
+                // Track value range (only for numeric values)
+                if (point.value !== null) {
+                    if (!minPoint || point.value < minPoint.value) {
+                        minPoint = point as ScatterPoint & { value: number };
+                    }
+                    if (!maxPoint || point.value > maxPoint.value) {
+                        maxPoint = point as ScatterPoint & { value: number };
+                    }
+                }
+            }
+
+            // Only set valueRange when valueFieldId is set, otherwise all points
+            // have displayValue: 1 and the legend would show a meaningless "1 - 1" range
+            if (minPoint && maxPoint && valueFieldId) {
                 valueRange = {
-                    min: Math.min(...numericValues, 0),
-                    max: Math.max(...numericValues, 1),
+                    min: Math.min(minPoint.value, 0),
+                    max: Math.max(maxPoint.value, 1),
+                    formattedMin: String(minPoint.displayValue),
+                    formattedMax: String(maxPoint.displayValue),
                 };
             }
-            // Calculate size range for bubble sizing
-            const sizeValues = scatterData.map((d) => d.sizeValue);
+
             sizeRange = {
-                min: Math.min(...sizeValues, 0),
-                max: Math.max(...sizeValues, 1),
+                min: Math.min(minSize, 0),
+                max: Math.max(maxSize, 1),
             };
-        } else if (regionData && regionData.length > 0) {
-            const values = regionData.map((d) => d.value);
+        } else if (regionData && regionData.length > 0 && valueFieldId) {
+            // Single pass to find min/max values and their regions
+            let minRegion = regionData[0];
+            let maxRegion = regionData[0];
+            for (const region of regionData) {
+                if (region.value < minRegion.value) minRegion = region;
+                if (region.value > maxRegion.value) maxRegion = region;
+            }
             valueRange = {
-                min: Math.min(...values),
-                max: Math.max(...values),
+                min: minRegion.value,
+                max: maxRegion.value,
+                formattedMin:
+                    minRegion.rowData[valueFieldId]?.value?.formatted ??
+                    String(minRegion.value),
+                formattedMax:
+                    maxRegion.rowData[valueFieldId]?.value?.formatted ??
+                    String(maxRegion.value),
             };
         }
 
