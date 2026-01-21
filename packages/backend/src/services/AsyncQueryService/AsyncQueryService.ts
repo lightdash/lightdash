@@ -91,6 +91,7 @@ import {
     type WarehouseExecuteAsyncQuery,
     type WarehouseResults,
     type WarehouseSqlBuilder,
+    isPeriodOverPeriodAdditionalMetric,
 } from '@lightdash/common';
 import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { createInterface } from 'readline';
@@ -110,6 +111,10 @@ import { compileMetricQuery } from '../../queryCompiler';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { wrapSentryTransaction } from '../../utils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
+import {
+    addPopAdditionalMetricsToMetricQuery,
+    addPopAdditionalMetricsToMetricQueryForResponse,
+} from '../../utils/periodOverPeriodAdditionalMetrics';
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
@@ -1163,7 +1168,6 @@ export class AsyncQueryService extends ProjectService {
         write,
         pivotConfiguration,
         itemsMap,
-        popEnabledMetrics,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -1171,11 +1175,6 @@ export class AsyncQueryService extends ProjectService {
         write?: (rows: Record<string, unknown>[]) => void;
         pivotConfiguration?: PivotConfiguration;
         itemsMap: ItemsMap;
-        /**
-         * Set of metric field IDs that have period-over-period comparison enabled.
-         * Used to add popMetadata to the corresponding ResultColumns.
-         */
-        popEnabledMetrics?: Set<string>;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1213,7 +1212,6 @@ export class AsyncQueryService extends ProjectService {
                   unpivotedColumns = getUnpivotedColumns(
                       unpivotedColumns,
                       fields,
-                      { popEnabledMetrics },
                   );
 
                   const { indexColumn, valuesColumns, groupByColumns } =
@@ -1327,7 +1325,6 @@ export class AsyncQueryService extends ProjectService {
                   unpivotedColumns = getUnpivotedColumns(
                       unpivotedColumns,
                       fields,
-                      { popEnabledMetrics },
                   );
                   write?.(rows);
               };
@@ -1383,7 +1380,6 @@ export class AsyncQueryService extends ProjectService {
         cacheKey,
         pivotConfiguration,
         originalColumns,
-        popEnabledMetrics,
     }: RunAsyncWarehouseQueryArgs) {
         let stream:
             | {
@@ -1473,7 +1469,6 @@ export class AsyncQueryService extends ProjectService {
                 write: stream?.write,
                 pivotConfiguration,
                 itemsMap: fieldsMap,
-                popEnabledMetrics,
             });
 
             this.analytics.track({
@@ -1623,17 +1618,39 @@ export class AsyncQueryService extends ProjectService {
             dateZoom,
         );
 
+        const {
+            metricQuery: metricQueryWithPop,
+        } = addPopAdditionalMetricsToMetricQuery({
+            metricQuery,
+            explore: exploreWithOverride,
+        });
+
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
-            metricQuery,
+            metricQuery: metricQueryWithPop,
             warehouseSqlBuilder,
             availableParameters,
         });
 
-        return getFieldsFromMetricQuery(
-            compiledMetricQuery,
+        const fields = getFieldsFromMetricQuery(compiledMetricQuery, exploreWithOverride);
+
+        // PoP previous metrics are returned by the backend even when they are not explicitly selected
+        // so we need to include them in the fields map for formatting/labeling downstream.
+        const itemsMap = getItemMap(
             exploreWithOverride,
+            compiledMetricQuery.additionalMetrics,
+            compiledMetricQuery.tableCalculations,
+            metricQueryWithPop.customDimensions,
         );
+        (compiledMetricQuery.additionalMetrics ?? [])
+            .filter(isPeriodOverPeriodAdditionalMetric)
+            .forEach((popMetric) => {
+                const popMetricId = getItemId(popMetric);
+                const item = itemsMap[popMetricId];
+                if (item) fields[popMetricId] = item;
+            });
+
+        return fields;
     }
 
     private async prepareMetricQueryAsyncQueryArgs({
@@ -1704,6 +1721,12 @@ export class AsyncQueryService extends ProjectService {
             }),
         );
 
+        const { metricQuery: responseMetricQuery } =
+            addPopAdditionalMetricsToMetricQueryForResponse({
+                metricQuery,
+                explore,
+            });
+
         return {
             sql: fullQuery.query,
             fields: fieldsWithOverrides,
@@ -1713,6 +1736,7 @@ export class AsyncQueryService extends ProjectService {
                 fullQuery.missingParameterReferences,
             ),
             usedParameters: fullQuery.usedParameters,
+            responseMetricQuery,
         };
     }
 
@@ -1959,11 +1983,6 @@ export class AsyncQueryService extends ProjectService {
                         `Executing query ${queryHistoryUuid} in the main loop`,
                     );
 
-                    // Build set of metrics with PoP enabled for ResultColumn metadata
-                    const popEnabledMetrics = metricQuery.periodOverPeriod
-                        ? new Set(metricQuery.metrics)
-                        : undefined;
-
                     void this.runAsyncWarehouseQuery({
                         userId: account.user.id,
                         isRegisteredUser: account.isRegisteredUser(),
@@ -1976,7 +1995,6 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfiguration,
                         cacheKey,
                         originalColumns,
-                        popEnabledMetrics,
                     }).catch((e) => {
                         const errorMessage = getErrorMessage(e);
 
@@ -2095,6 +2113,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
             usedParameters,
+            responseMetricQuery,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -2128,7 +2147,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
-            metricQuery,
+            metricQuery: responseMetricQuery,
             fields,
             warnings,
             parameterReferences,
@@ -2293,6 +2312,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
             usedParameters,
+            responseMetricQuery,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -2324,7 +2344,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
-            metricQuery: metricQueryWithLimit,
+            metricQuery: responseMetricQuery,
             fields: fieldsWithOverrides,
             warnings,
             parameterReferences,
@@ -2549,6 +2569,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
             usedParameters,
+            responseMetricQuery,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -2583,7 +2604,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             cacheMetadata,
             appliedDashboardFilters,
-            metricQuery: metricQueryWithLimit,
+            metricQuery: responseMetricQuery,
             fields: fieldsWithOverrides,
             parameterReferences,
             usedParametersValues: usedParameters,
@@ -2813,6 +2834,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
             usedParameters,
+            responseMetricQuery,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: underlyingDataMetricQueryWithLimit,
@@ -2845,7 +2867,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid: underlyingDataQueryUuid,
             cacheMetadata,
-            metricQuery: underlyingDataMetricQueryWithLimit,
+            metricQuery: responseMetricQuery,
             fields,
             warnings,
             parameterReferences,

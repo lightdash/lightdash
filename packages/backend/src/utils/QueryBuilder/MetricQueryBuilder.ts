@@ -16,6 +16,7 @@ import {
     getDimensionMapFromTables,
     getDimensions,
     getFieldsFromMetricQuery,
+    getItemMap,
     getFilterRulesFromGroup,
     getItemId,
     getMetricsMapFromTables,
@@ -29,12 +30,12 @@ import {
     isJoinModelRequiredFilter,
     isNonAggregateMetric,
     isPostCalculationMetric,
+    isPeriodOverPeriodAdditionalMetric,
     ItemsMap,
     lightdashVariablePattern,
     MetricFilterRule,
     parseAllReferences,
     PivotConfiguration,
-    POP_PREVIOUS_PERIOD_SUFFIX,
     QueryWarning,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
@@ -231,6 +232,19 @@ export function getIntervalSyntax(
 export class MetricQueryBuilder {
     private compilationErrors: string[] = [];
 
+    private readonly popMetricIdByBaseMetricId: Record<string, string> = {};
+
+    private getPopMetricId(baseMetricId: string): string {
+        const popMetricId = this.popMetricIdByBaseMetricId[baseMetricId];
+        if (!popMetricId) {
+            throw new CompileError(
+                `Missing PoP previous metric mapping for base metric "${baseMetricId}"`,
+                {},
+            );
+        }
+        return popMetricId;
+    }
+
     private readonly exploreDimensions: Record<string, CompiledDimension> = {};
 
     private readonly exploreDimensionsWithoutAccess: Record<
@@ -259,6 +273,15 @@ export class MetricQueryBuilder {
                 {},
             ),
         };
+
+        this.popMetricIdByBaseMetricId = (
+            compiledMetricQuery.additionalMetrics ?? []
+        )
+            .filter(isPeriodOverPeriodAdditionalMetric)
+            .reduce<Record<string, string>>((acc, metric) => {
+                acc[metric.baseMetricId] = getItemId(metric);
+                return acc;
+            }, {});
     }
 
     static buildCtesSQL(ctes: string[]) {
@@ -1509,9 +1532,9 @@ export class MetricQueryBuilder {
                                 (metric) =>
                                     `  ${
                                         metric.compiledSql
-                                    } AS ${fieldQuoteChar}${getItemId(
-                                        metric,
-                                    )}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
+                                    } AS ${fieldQuoteChar}${this.getPopMetricId(
+                                        getItemId(metric),
+                                    )}${fieldQuoteChar}`,
                             ),
                         ].join(',\n'),
                         `FROM ${popKeysCteName}`,
@@ -1538,9 +1561,7 @@ export class MetricQueryBuilder {
                         name: popMetricsCteName,
                         metrics: metricsInCte.map(
                             (metric) =>
-                                `${getItemId(
-                                    metric,
-                                )}${POP_PREVIOUS_PERIOD_SUFFIX}`,
+                                this.getPopMetricId(getItemId(metric)),
                         ),
                     });
                 }
@@ -1641,9 +1662,9 @@ export class MetricQueryBuilder {
                             (metric) =>
                                 `  ${
                                     metric.compiledSql
-                                } AS ${fieldQuoteChar}${getItemId(
-                                    metric,
-                                )}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
+                                } AS ${fieldQuoteChar}${this.getPopMetricId(
+                                    getItemId(metric),
+                                )}${fieldQuoteChar}`,
                         ),
                     ].join(',\n'),
                     sqlFrom,
@@ -1678,8 +1699,7 @@ export class MetricQueryBuilder {
                 popMetricCtes.push({
                     name: popUnaffectedMetricsCteName,
                     metrics: unaffectedMetrics.map(
-                        (metric) =>
-                            `${getItemId(metric)}${POP_PREVIOUS_PERIOD_SUFFIX}`,
+                        (metric) => this.getPopMetricId(getItemId(metric)),
                     ),
                 });
             }
@@ -1721,9 +1741,7 @@ export class MetricQueryBuilder {
                             metricsObjects.find(
                                 (m) =>
                                     metric ===
-                                    `${getItemId(
-                                        m,
-                                    )}${POP_PREVIOUS_PERIOD_SUFFIX}`,
+                                    this.getPopMetricId(getItemId(m)),
                             ),
                         )
                         .map(
@@ -2148,6 +2166,23 @@ export class MetricQueryBuilder {
         const { explore, compiledMetricQuery } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
 
+        // PoP previous metrics are returned by the backend even when they are not explicitly selected,
+        // so include them in the fields map for formatting/labeling downstream.
+        if (compiledMetricQuery.periodOverPeriod) {
+            const itemsMap = getItemMap(
+                explore,
+                compiledMetricQuery.additionalMetrics,
+                compiledMetricQuery.tableCalculations,
+                [],
+            );
+
+            compiledMetricQuery.metrics.forEach((baseMetricId) => {
+                const popMetricId = this.getPopMetricId(baseMetricId);
+                const popMetric = itemsMap[popMetricId];
+                if (popMetric) fields[popMetricId] = popMetric;
+            });
+        }
+
         const dimensionsSQL = this.getDimensionsSQL();
         const metricsSQL = this.getMetricsSQL();
 
@@ -2231,16 +2266,17 @@ export class MetricQueryBuilder {
             });
 
             // Build pop CTE with same structure as base but filtered for previous period
+            const popMetricSelectsInPopCte = compiledMetricQuery.metrics.map(
+                (metricId) => {
+                    const metric = this.getMetricFromId(metricId);
+                    const popMetricId = this.getPopMetricId(metricId);
+                    return `  ${metric.compiledSql} AS ${fieldQuoteChar}${popMetricId}${fieldQuoteChar}`;
+                },
+            );
             const popCteParts = [
                 `SELECT\n${[
                     ...Object.values(dimensionsSQL.selects),
-                    ...metricsSQL.selects.map((select) =>
-                        // rename metric to include pop prefix
-                        select.replace(
-                            new RegExp(`${fieldQuoteChar}$`),
-                            `${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
-                        ),
-                    ),
+                    ...popMetricSelectsInPopCte,
                 ].join(',\n')}`,
                 sqlFrom,
                 joins.joinSQL,
@@ -2274,8 +2310,10 @@ export class MetricQueryBuilder {
 
             // Create new finalSelectParts that joins base CTE with pop CTE
             const popMetricSelects = compiledMetricQuery.metrics.map(
-                (metricId) =>
-                    `  ${popCteName}.${fieldQuoteChar}${metricId}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar} AS ${fieldQuoteChar}${metricId}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
+                (metricId) => {
+                    const popMetricId = this.getPopMetricId(metricId);
+                    return `  ${popCteName}.${fieldQuoteChar}${popMetricId}${fieldQuoteChar} AS ${fieldQuoteChar}${popMetricId}${fieldQuoteChar}`;
+                },
             );
             // Get dimension aliases from dimensionSelects
             const dimensionAlias = Object.keys(dimensionsSQL.selects).map(

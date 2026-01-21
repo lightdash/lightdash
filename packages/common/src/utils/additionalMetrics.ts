@@ -1,7 +1,10 @@
 import { convertColumnMetric } from '../types/dbt';
 import { type CompiledTable } from '../types/explore';
 import { DimensionType, MetricType, type Metric } from '../types/field';
-import { type AdditionalMetric } from '../types/metricQuery';
+import {
+    isPeriodOverPeriodAdditionalMetric,
+    type AdditionalMetric,
+} from '../types/metricQuery';
 
 type ConvertAdditionalMetricArgs = {
     additionalMetric: AdditionalMetric;
@@ -20,6 +23,13 @@ export const convertAdditionalMetric = ({
         tableLabel: table.label,
     });
 
+    const popMetadata = isPeriodOverPeriodAdditionalMetric(additionalMetric)
+        ? {
+              generatedBy: 'periodOverPeriod' as const,
+              baseMetricId: additionalMetric.baseMetricId,
+          }
+        : undefined;
+
     return {
         ...metric,
         ...(additionalMetric.filters && {
@@ -28,6 +38,7 @@ export const convertAdditionalMetric = ({
         ...(additionalMetric.formatOptions && {
             formatOptions: additionalMetric.formatOptions,
         }),
+        ...(popMetadata ?? {}),
     };
 };
 

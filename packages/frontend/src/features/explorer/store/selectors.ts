@@ -202,6 +202,16 @@ export const selectColumnOrder = createSelector(
             : unsavedChartVersion.tableConfig.columnOrder,
 );
 
+/**
+ * Active fields for rendering results.
+ * Uses `selectColumnOrder`, which prefers the results-derived `completeColumnOrder`
+ * (includes generated fields like PoP previous-period metrics) when available.
+ */
+export const selectActiveFieldsForResults = createSelector(
+    [selectColumnOrder],
+    (columnOrder) => new Set(columnOrder),
+);
+
 // Query limit selector
 export const selectQueryLimit = createSelector(
     [selectMetricQuery],

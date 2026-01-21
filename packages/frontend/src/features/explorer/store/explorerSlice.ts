@@ -45,7 +45,7 @@ import {
     getValidChartConfig,
 } from '../../../providers/Explorer/utils';
 
-import { calcColumnOrder, computeColumnOrderWithPoP } from './utils';
+import { calcColumnOrder } from './utils';
 
 export type ExplorerSliceState = ExplorerReduceState;
 
@@ -929,10 +929,14 @@ const explorerSlice = createSlice({
             state,
             action: PayloadAction<ResultColumns>,
         ) => {
-            const { completeColumnOrder } = computeColumnOrderWithPoP(
+            // Complete column order should always include *all* returned result columns
+            // (including generated metrics like PoP previous-period fields).
+            const completeColumnOrder = calcColumnOrder(
                 state.unsavedChartVersion.tableConfig.columnOrder,
-                action.payload,
+                Object.keys(action.payload) as FieldId[],
+                state.unsavedChartVersion.metricQuery.dimensions,
             );
+
             state.queryExecution.completeColumnOrder = completeColumnOrder;
         },
 

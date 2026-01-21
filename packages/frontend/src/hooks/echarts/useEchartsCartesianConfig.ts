@@ -96,10 +96,6 @@ import {
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
-import {
-    computeSeriesColorsWithPop,
-    generatePopSeries,
-} from './popSeriesUtils';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -2201,7 +2197,7 @@ const useEchartsCartesianConfig = (
         );
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 
-    const baseSeries = useMemo(() => {
+    const series = useMemo(() => {
         if (!itemsMap || !validCartesianConfig || !resultsData) {
             return [];
         }
@@ -2233,21 +2229,6 @@ const useEchartsCartesianConfig = (
         pivotValuesColumnsMap,
         parameters,
     ]);
-
-    // Generate period-over-period comparison series
-    // Creates dashed line series for _previous suffixed metrics returned by the backend
-    const series = useMemo(() => {
-        if (!resultsData?.metricQuery?.periodOverPeriod || !baseSeries.length) {
-            return baseSeries;
-        }
-
-        return generatePopSeries({
-            baseSeries,
-            periodOverPeriod: resultsData.metricQuery.periodOverPeriod,
-            resultsColumns: resultsData.columns,
-            metrics: resultsData.metricQuery.metrics || [],
-        });
-    }, [baseSeries, resultsData]);
 
     const resultsAndMinsAndMaxes = useMemo(
         () => getResultValueArray(rows, true, true),
@@ -2297,11 +2278,7 @@ const useEchartsCartesianConfig = (
             isHorizontal,
         );
 
-        // Compute colors for all series (handles PoP series with sibling color + opacity)
-        const seriesColors = computeSeriesColorsWithPop({
-            series,
-            getSeriesColor,
-        });
+        const seriesColors = series.map((serie) => getSeriesColor(serie));
 
         const seriesWithValidStack = series.map<EChartsSeries>(
             (serie, index) => {
