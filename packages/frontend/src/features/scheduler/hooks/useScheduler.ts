@@ -297,7 +297,7 @@ export const usePaginatedSchedulers = ({
             filters,
             includeLatestRun,
         ],
-        queryFn: async ({ pageParam = 0 }) => {
+        queryFn: async ({ pageParam = 1 }) => {
             return getPaginatedSchedulers(
                 projectUuid,
                 {
@@ -312,9 +312,9 @@ export const usePaginatedSchedulers = ({
             );
         },
         getNextPageParam: (_lastGroup, groups) => {
-            const currentPage = groups.length - 1;
+            const currentPage = groups.length;
             const totalPages = _lastGroup.pagination?.totalPageCount ?? 0;
-            return currentPage < totalPages - 1 ? currentPage + 1 : undefined;
+            return currentPage < totalPages ? currentPage + 1 : undefined;
         },
         keepPreviousData: true,
         refetchOnWindowFocus: false,
