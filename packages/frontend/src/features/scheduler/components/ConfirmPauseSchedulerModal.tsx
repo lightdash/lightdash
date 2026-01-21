@@ -1,6 +1,7 @@
 import { Button } from '@mantine-8/core';
 import { IconPlayerPause } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 
 type ConfirmPauseSchedulerModalProps = {
@@ -25,7 +26,7 @@ const ConfirmPauseSchedulerModal: FC<ConfirmPauseSchedulerModalProps> = ({
             opened={opened}
             onClose={onClose}
             title={`Pause "${schedulerName}"?`}
-            icon={IconPlayerPause}
+            icon={<MantineIcon icon={IconPlayerPause} />}
             size="md"
             actions={
                 <Button onClick={onConfirm} loading={loading}>
