@@ -1,3 +1,10 @@
+# [0.2361.0](https://github.com/lightdash/lightdash/compare/0.2360.0...0.2361.0) (2026-01-21)
+
+
+### Features
+
+* hide tooltips when there is a map popup ([#19593](https://github.com/lightdash/lightdash/issues/19593)) ([5810b1b](https://github.com/lightdash/lightdash/commit/5810b1b0e2bfdace79e062c0f1ee3c8edb38f4d5))
+
 # [0.2360.0](https://github.com/lightdash/lightdash/compare/0.2359.0...0.2360.0) (2026-01-21)
 
 
