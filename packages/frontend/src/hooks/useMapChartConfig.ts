@@ -52,6 +52,7 @@ type MapChartConfig = {
     ) => void;
     setTileBackground: (background: MapTileBackground | undefined) => void;
     setBackgroundColor: (color: string | undefined) => void;
+    setNoDataColor: (color: string | undefined) => void;
     // Field configuration methods
     updateFieldConfig: (
         fieldId: string,
@@ -126,6 +127,9 @@ const useMapChartConfig = (
     const [backgroundColor, setBackgroundColorState] = useState<
         string | undefined
     >(initialConfig?.backgroundColor);
+    const [noDataColor, setNoDataColorState] = useState<string | undefined>(
+        initialConfig?.noDataColor,
+    );
     const [fieldConfig, setFieldConfigState] = useState<
         Record<string, MapFieldConfig>
     >(initialConfig?.fieldConfig ?? {});
@@ -206,6 +210,7 @@ const useMapChartConfig = (
             heatmapConfig,
             tileBackground,
             backgroundColor,
+            noDataColor,
             fieldConfig,
         };
     }, [
@@ -229,6 +234,7 @@ const useMapChartConfig = (
         heatmapConfig,
         tileBackground,
         backgroundColor,
+        noDataColor,
         fieldConfig,
     ]);
 
@@ -383,6 +389,10 @@ const useMapChartConfig = (
         setBackgroundColorState(color);
     }, []);
 
+    const setNoDataColor = useCallback((color: string | undefined) => {
+        setNoDataColorState(color);
+    }, []);
+
     const updateFieldConfig = useCallback(
         (fieldId: string, config: Partial<MapFieldConfig>) => {
             setFieldConfigState((prev) => ({
@@ -437,6 +447,7 @@ const useMapChartConfig = (
         setHeatmapConfig,
         setTileBackground,
         setBackgroundColor,
+        setNoDataColor,
         updateFieldConfig,
         isFieldVisible,
         getFieldLabel,

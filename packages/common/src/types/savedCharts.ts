@@ -204,6 +204,8 @@ export type MapChart = {
     };
     tileBackground?: MapTileBackground;
     backgroundColor?: string;
+    // Color for regions with no matching data (area maps only)
+    noDataColor?: string;
     // Field configuration (controls tooltip visibility and custom labels)
     fieldConfig?: Record<string, MapFieldConfig>;
 };
