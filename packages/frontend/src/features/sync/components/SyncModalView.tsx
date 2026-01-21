@@ -50,8 +50,8 @@ const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
                 maw={130}
                 label={
                     scheduler.enabled
-                        ? 'Toggle off to temporarily pause scheduled delivery'
-                        : 'Scheduled delivery paused. Toggle on to resume'
+                        ? 'Toggle off to temporarily pause the sync'
+                        : 'Sync paused. Toggle on to resume'
                 }
             >
                 <Box mr="sm">
@@ -77,6 +77,7 @@ const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
                     setSchedulerEnabled(false);
                     setIsConfirmPauseOpen(false);
                 }}
+                description="This will pause the sync. It will not run until it is enabled again."
             />
         </>
     );

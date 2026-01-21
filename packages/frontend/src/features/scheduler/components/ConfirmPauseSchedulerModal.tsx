@@ -9,6 +9,7 @@ type ConfirmPauseSchedulerModalProps = {
     loading?: boolean;
     onClose: () => void;
     onConfirm: () => void;
+    description: string;
 };
 
 const ConfirmPauseSchedulerModal: FC<ConfirmPauseSchedulerModalProps> = ({
@@ -17,6 +18,7 @@ const ConfirmPauseSchedulerModal: FC<ConfirmPauseSchedulerModalProps> = ({
     loading,
     onClose,
     onConfirm,
+    description,
 }) => {
     return (
         <MantineModal
@@ -30,7 +32,7 @@ const ConfirmPauseSchedulerModal: FC<ConfirmPauseSchedulerModalProps> = ({
                     Pause
                 </Button>
             }
-            description="This will pause the scheduled delivery. It will not run until it is enabled again."
+            description={description}
         />
     );
 };

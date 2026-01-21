@@ -105,7 +105,7 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                             maw={130}
                             label={
                                 scheduler.enabled
-                                    ? 'Toggle off to temporarily pause scheduled delivery'
+                                    ? 'Toggle off to temporarily pause the scheduled delivery'
                                     : 'Scheduled delivery paused. Toggle on to resume'
                             }
                         >
@@ -181,6 +181,7 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                     handleToggle(false);
                     setIsConfirmPauseOpen(false);
                 }}
+                description="This will pause the scheduled delivery. It will not run until it is enabled again."
             />
         </Paper>
     );
