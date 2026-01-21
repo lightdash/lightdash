@@ -60,6 +60,7 @@ import {
     isField,
     isJwtUser,
     isMetric,
+    isPeriodOverPeriodAdditionalMetric,
     isVizTableConfig,
     ItemsMap,
     MetricQuery,
@@ -91,7 +92,6 @@ import {
     type WarehouseExecuteAsyncQuery,
     type WarehouseResults,
     type WarehouseSqlBuilder,
-    isPeriodOverPeriodAdditionalMetric,
 } from '@lightdash/common';
 import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import { createInterface } from 'readline';
@@ -111,10 +111,7 @@ import { compileMetricQuery } from '../../queryCompiler';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { wrapSentryTransaction } from '../../utils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
-import {
-    addPopAdditionalMetricsToMetricQuery,
-    addPopAdditionalMetricsToMetricQueryForResponse,
-} from '../../utils/periodOverPeriodAdditionalMetrics';
+// PoP additional metrics are now created client-side (metric-level PoP).
 import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
@@ -1618,37 +1615,17 @@ export class AsyncQueryService extends ProjectService {
             dateZoom,
         );
 
-        const {
-            metricQuery: metricQueryWithPop,
-        } = addPopAdditionalMetricsToMetricQuery({
-            metricQuery,
-            explore: exploreWithOverride,
-        });
-
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
-            metricQuery: metricQueryWithPop,
+            metricQuery,
             warehouseSqlBuilder,
             availableParameters,
         });
 
-        const fields = getFieldsFromMetricQuery(compiledMetricQuery, exploreWithOverride);
-
-        // PoP previous metrics are returned by the backend even when they are not explicitly selected
-        // so we need to include them in the fields map for formatting/labeling downstream.
-        const itemsMap = getItemMap(
+        const fields = getFieldsFromMetricQuery(
+            compiledMetricQuery,
             exploreWithOverride,
-            compiledMetricQuery.additionalMetrics,
-            compiledMetricQuery.tableCalculations,
-            metricQueryWithPop.customDimensions,
         );
-        (compiledMetricQuery.additionalMetrics ?? [])
-            .filter(isPeriodOverPeriodAdditionalMetric)
-            .forEach((popMetric) => {
-                const popMetricId = getItemId(popMetric);
-                const item = itemsMap[popMetricId];
-                if (item) fields[popMetricId] = item;
-            });
 
         return fields;
     }
@@ -1721,11 +1698,7 @@ export class AsyncQueryService extends ProjectService {
             }),
         );
 
-        const { metricQuery: responseMetricQuery } =
-            addPopAdditionalMetricsToMetricQueryForResponse({
-                metricQuery,
-                explore,
-            });
+        const responseMetricQuery = metricQuery;
 
         return {
             sql: fullQuery.query,

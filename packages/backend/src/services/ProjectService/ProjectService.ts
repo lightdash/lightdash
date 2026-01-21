@@ -241,7 +241,6 @@ import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
-import { addPopAdditionalMetricsToMetricQuery } from '../../utils/periodOverPeriodAdditionalMetrics';
 import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
@@ -2371,15 +2370,9 @@ export class ProjectService extends BaseService {
             dateZoom,
         );
 
-        const { metricQuery: metricQueryWithPop } =
-            addPopAdditionalMetricsToMetricQuery({
-                metricQuery,
-                explore: exploreWithOverride,
-            });
-
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
-            metricQuery: metricQueryWithPop,
+            metricQuery,
             warehouseSqlBuilder,
             availableParameters,
         });

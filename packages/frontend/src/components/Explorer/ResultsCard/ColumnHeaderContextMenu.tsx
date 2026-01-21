@@ -12,9 +12,10 @@ import {
     isNumericItem,
     isTableCalculation,
     isTimeBasedDimension,
+    type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import { ActionIcon, Menu, Text } from '@mantine/core';
+import { ActionIcon, Group, Menu, Text } from '@mantine/core';
 import {
     IconChevronDown,
     IconFilter,
@@ -40,6 +41,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
 import { type HeaderProps, type TableColumn } from '../../common/Table/types';
+import { MetricPeriodComparisonPopover } from '../PeriodComparison/MetricPeriodComparisonPopover';
 import ColumnHeaderSortMenuOptions from './ColumnHeaderSortMenuOptions';
 import FormatMenuOptions from './FormatMenuOptions';
 import QuickCalculationMenuOptions from './QuickCalculations';
@@ -91,6 +93,10 @@ const ContextMenu: FC<ContextMenuProps> = ({
     );
 
     const isItemAdditionalMetric = !!additionalMetric;
+    const isPopAdditionalMetric =
+        isItemAdditionalMetric &&
+        additionalMetric?.generatedBy === 'periodOverPeriod' &&
+        !!additionalMetric.baseMetricId;
 
     if (item && isField(item)) {
         const itemFieldId = getItemId(item);
@@ -143,7 +149,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     </>
                 )}
 
-                {isItemAdditionalMetric ? (
+                {isItemAdditionalMetric && !isPopAdditionalMetric ? (
                     <Menu.Item
                         icon={<MantineIcon icon={IconPencil} />}
                         onClick={() => {
@@ -158,6 +164,10 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     >
                         Edit custom metric
                     </Menu.Item>
+                ) : null}
+
+                {isMetric(item) && !isPopAdditionalMetric ? (
+                    <>{/* Period comparison via header icon popover */}</>
                 ) : null}
 
                 <Menu.Item
@@ -301,6 +311,31 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
     const meta = header.column.columnDef.meta as TableColumn['meta'];
     const item = meta?.item;
 
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const tableName = useExplorerSelector(selectTableName);
+    const { data: exploreData } = useExplore(tableName, {
+        refetchOnMount: false,
+    });
+
+    const itemsMap = useMemo(() => {
+        if (!exploreData) return undefined;
+        return getItemMap(exploreData, additionalMetrics, tableCalculations);
+    }, [exploreData, additionalMetrics, tableCalculations]);
+
+    const additionalMetric = useMemo(
+        () =>
+            !!additionalMetrics &&
+            !!item &&
+            additionalMetrics.find((am) => getItemId(am) === getItemId(item)),
+        [additionalMetrics, item],
+    );
+
+    const isPopAdditionalMetric =
+        !!additionalMetric &&
+        additionalMetric.generatedBy === 'periodOverPeriod' &&
+        !!additionalMetric.baseMetricId;
+
     if (meta && (meta.item || meta.isInvalidItem === true)) {
         return (
             <div
@@ -308,21 +343,34 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                     e.stopPropagation();
                 }}
             >
-                <Menu withinPortal withArrow shadow="md">
-                    <Menu.Target>
-                        <ActionIcon size="xs" variant="light" bg="transparent">
-                            <MantineIcon icon={IconChevronDown} />
-                        </ActionIcon>
-                    </Menu.Target>
-
-                    <Menu.Dropdown>
-                        <ContextMenu
-                            header={header}
-                            onToggleCalculationEditModal={setShowUpdate}
-                            onToggleCalculationDeleteModal={setShowDelete}
+                <Group spacing="two" noWrap>
+                    {item && isMetric(item) && !isPopAdditionalMetric && (
+                        <MetricPeriodComparisonPopover
+                            metric={item as Metric}
+                            itemsMap={itemsMap}
                         />
-                    </Menu.Dropdown>
-                </Menu>
+                    )}
+
+                    <Menu withinPortal withArrow shadow="md">
+                        <Menu.Target>
+                            <ActionIcon
+                                size="xs"
+                                variant="light"
+                                bg="transparent"
+                            >
+                                <MantineIcon icon={IconChevronDown} />
+                            </ActionIcon>
+                        </Menu.Target>
+
+                        <Menu.Dropdown>
+                            <ContextMenu
+                                header={header}
+                                onToggleCalculationEditModal={setShowUpdate}
+                                onToggleCalculationDeleteModal={setShowDelete}
+                            />
+                        </Menu.Dropdown>
+                    </Menu>
+                </Group>
 
                 {showUpdate && (
                     <UpdateTableCalculationModal

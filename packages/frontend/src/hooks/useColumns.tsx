@@ -12,7 +12,6 @@ import {
     isResultValue,
     itemsInMetricQuery,
     renderTemplatedUrl,
-    hasPeriodOverPeriodGeneratedMetricMetadata,
     type AdditionalMetric,
     type CustomDimension,
     type Dimension,
@@ -323,16 +322,7 @@ export const useColumns = (): TableColumn[] => {
 
     const { embedToken } = useEmbed();
 
-    const activeFieldsWithResultOnlyColumns = useMemo(() => {
-        const next = new Set(activeFields);
-        // Append any result-only columns (e.g. PoP previous metrics) once they appear
-        for (const fieldId of columnOrder) {
-            if (!next.has(fieldId)) next.add(fieldId);
-        }
-        return next;
-    }, [activeFields, columnOrder]);
-
-    const hasNoActiveFields = activeFieldsWithResultOnlyColumns.size === 0;
+    const hasNoActiveFields = activeFields.size === 0;
 
     // Split itemsMap into base map (rarely changes) and override layer (frequently changes)
     // This prevents full recalculation when only metricOverrides change
@@ -410,7 +400,7 @@ export const useColumns = (): TableColumn[] => {
         };
 
         // Filter itemsMap to only include fields to be rendered (preserves order via Set insertion)
-        for (const fieldId of activeFieldsWithResultOnlyColumns) {
+        for (const fieldId of activeFields) {
             const item = itemsMap[fieldId];
             if (item) {
                 result.activeItemsMap[fieldId] = item;
@@ -420,7 +410,7 @@ export const useColumns = (): TableColumn[] => {
         }
 
         return result;
-    }, [itemsMap, activeFieldsWithResultOnlyColumns]);
+    }, [itemsMap, activeFields]);
 
     const { data: totals } = useCalculateTotal({
         metricQuery: resultsMetricQuery,
@@ -439,8 +429,6 @@ export const useColumns = (): TableColumn[] => {
         }
 
         const hasJoins = (exploreData?.joinedTables || []).length > 0;
-
-        const isPopGenerated = hasPeriodOverPeriodGeneratedMetricMetadata;
 
         const validColumns = Object.entries(activeItemsMap).reduce<
             TableColumn[]
@@ -509,7 +497,7 @@ export const useColumns = (): TableColumn[] => {
                         );
                     },
                     footer: () =>
-                        !isPopGenerated(item) && totals?.[fieldId]
+                        totals?.[fieldId]
                             ? formatItemValue(
                                   item,
                                   totals[fieldId],
@@ -519,7 +507,7 @@ export const useColumns = (): TableColumn[] => {
                             : null,
                     meta: {
                         item,
-                        draggable: !isPopGenerated(item),
+                        draggable: true,
                         frozen: false,
                         bgColor: fieldColors.bg,
                         sort: isFieldSorted
@@ -530,9 +518,6 @@ export const useColumns = (): TableColumn[] => {
                                   isNumeric: isNumericItem(item),
                               }
                             : undefined,
-                        ...(isPopGenerated(item)
-                            ? { isReadOnly: true }
-                            : undefined),
                     },
                 },
             );

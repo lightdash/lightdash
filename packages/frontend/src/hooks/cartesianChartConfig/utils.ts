@@ -3,10 +3,10 @@ import {
     getDimensionsFromItemsMap,
     getItemId,
     getSeriesId,
+    hasPeriodOverPeriodGeneratedMetricMetadata,
     isDimension,
     type CartesianSeriesType,
     type ItemsMap,
-    type ResultColumns,
     type Series,
 } from '@lightdash/common';
 import {
@@ -125,14 +125,13 @@ export const getExpectedSeriesMap = ({
 type MergeExistingAndExpectedSeriesArgs = {
     expectedSeriesMap: Record<string, Series>;
     existingSeries: Series[];
-    /** ResultColumns from API response - contains popMetadata for PoP fields */
-    resultsColumns?: ResultColumns;
+    itemsMap: ItemsMap | undefined;
 };
 
 export const mergeExistingAndExpectedSeries = ({
     expectedSeriesMap,
     existingSeries,
-    resultsColumns,
+    itemsMap,
 }: MergeExistingAndExpectedSeriesArgs) => {
     const { existingValidSeries, existingValidSeriesIds } =
         existingSeries.reduce<{
@@ -189,13 +188,12 @@ export const mergeExistingAndExpectedSeries = ({
             // For PoP fields, inherit chart properties from the base field's series
             let seriesToAdd = expectedSeries;
             const yRefField = expectedSeries.encode.yRef.field;
-            const popMetadata = yRefField
-                ? resultsColumns?.[yRefField]?.popMetadata
+            const item = yRefField ? itemsMap?.[yRefField] : undefined;
+            const baseFieldId = hasPeriodOverPeriodGeneratedMetricMetadata(item)
+                ? item.baseMetricId
                 : undefined;
 
-            if (popMetadata) {
-                // Use baseFieldId from popMetadata
-                const { baseFieldId } = popMetadata;
+            if (baseFieldId) {
                 const baseSeries = acc.find(
                     (series) => series.encode.yRef.field === baseFieldId,
                 );

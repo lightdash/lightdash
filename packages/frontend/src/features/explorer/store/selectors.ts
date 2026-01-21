@@ -195,21 +195,8 @@ export const selectSorts = createSelector(
 );
 
 export const selectColumnOrder = createSelector(
-    [selectUnsavedChartVersion, selectQueryExecution],
-    (unsavedChartVersion, queryExecution) =>
-        queryExecution.completeColumnOrder.length > 0
-            ? queryExecution.completeColumnOrder
-            : unsavedChartVersion.tableConfig.columnOrder,
-);
-
-/**
- * Active fields for rendering results.
- * Uses `selectColumnOrder`, which prefers the results-derived `completeColumnOrder`
- * (includes generated fields like PoP previous-period metrics) when available.
- */
-export const selectActiveFieldsForResults = createSelector(
-    [selectColumnOrder],
-    (columnOrder) => new Set(columnOrder),
+    [selectUnsavedChartVersion],
+    (unsavedChartVersion) => unsavedChartVersion.tableConfig.columnOrder,
 );
 
 // Query limit selector

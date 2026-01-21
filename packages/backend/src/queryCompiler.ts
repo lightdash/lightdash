@@ -297,7 +297,11 @@ export const compileMetricQuery = ({
         .filter(isPeriodOverPeriodAdditionalMetric)
         .map(getItemId);
 
-    const validFieldIds = [...metricQuery.dimensions, ...metricQuery.metrics];
+    const validFieldIds = [
+        ...metricQuery.dimensions,
+        ...metricQuery.metrics,
+        ...popMetricIds,
+    ];
 
     const compiledAdditionalMetrics = (metricQuery.additionalMetrics || []).map(
         (additionalMetric) =>

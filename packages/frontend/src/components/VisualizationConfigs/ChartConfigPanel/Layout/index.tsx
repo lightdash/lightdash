@@ -1,11 +1,15 @@
 import {
     CartesianSeriesType,
     getItemId,
+    getItemMap,
     isCustomDimension,
     isDimension,
+    isMetric,
     isNumericItem,
+    isTableCalculation,
     replaceStringInArray,
     StackType,
+    type AdditionalMetric,
     type CustomDimension,
     type Field,
     type TableCalculation,
@@ -21,7 +25,15 @@ import {
 } from '@mantine/core';
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import {
+    selectAdditionalMetrics,
+    selectTableCalculations,
+    selectTableName,
+    useExplorerSelector,
+} from '../../../../features/explorer/store';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { useExplore } from '../../../../hooks/useExplore';
+import { MetricPeriodComparisonPopover } from '../../../Explorer/PeriodComparison/MetricPeriodComparisonPopover';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import FieldSelect from '../../../common/FieldSelect';
@@ -37,6 +49,19 @@ type Props = {
 export const Layout: FC<Props> = ({ items }) => {
     const { visualizationConfig, pivotDimensions, setPivotDimensions } =
         useVisualizationContext();
+
+    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const tableName = useExplorerSelector(selectTableName);
+
+    const { data: exploreData } = useExplore(tableName, {
+        refetchOnMount: false,
+    });
+
+    const itemsMap = useMemo(() => {
+        if (!exploreData) return undefined;
+        return getItemMap(exploreData, additionalMetrics, tableCalculations);
+    }, [exploreData, additionalMetrics, tableCalculations]);
 
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
@@ -263,6 +288,40 @@ export const Layout: FC<Props> = ({ items }) => {
                         const yFieldsOptions = activeField
                             ? [activeField, ...availableYFields]
                             : availableYFields;
+
+                        const activeAdditionalMetric = additionalMetrics.find(
+                            (am) =>
+                                !!activeField &&
+                                getItemId(am as AdditionalMetric) ===
+                                    getItemId(activeField),
+                        );
+
+                        const isPopAdditionalMetric =
+                            activeAdditionalMetric?.generatedBy ===
+                                'periodOverPeriod' &&
+                            !!activeAdditionalMetric.baseMetricId;
+
+                        const comparisonControl =
+                            activeField &&
+                            isMetric(activeField) &&
+                            !isPopAdditionalMetric ? (
+                                <MetricPeriodComparisonPopover
+                                    metric={activeField}
+                                    itemsMap={itemsMap}
+                                    onAddFieldIdToLayout={(fieldId) => {
+                                        if (!yFields.includes(fieldId)) {
+                                            addSingleSeries(fieldId);
+                                        }
+                                    }}
+                                    onRemoveFieldIdFromLayout={(fieldId) => {
+                                        const idx = yFields.findIndex(
+                                            (f) => f === fieldId,
+                                        );
+                                        if (idx >= 0) removeSingleSeries(idx);
+                                    }}
+                                />
+                            ) : null;
+
                         return (
                             <FieldSelect
                                 key={`${field}-y-axis`}
@@ -276,13 +335,21 @@ export const Layout: FC<Props> = ({ items }) => {
                                     );
                                 }}
                                 rightSection={
-                                    yFields?.length !== 1 && (
-                                        <CloseButton
-                                            onClick={() => {
-                                                removeSingleSeries(index);
-                                            }}
-                                        />
-                                    )
+                                    comparisonControl ||
+                                    yFields?.length !== 1 ? (
+                                        <Group spacing="two" noWrap>
+                                            {comparisonControl}
+                                            {yFields?.length !== 1 && (
+                                                <CloseButton
+                                                    onClick={() => {
+                                                        removeSingleSeries(
+                                                            index,
+                                                        );
+                                                    }}
+                                                />
+                                            )}
+                                        </Group>
+                                    ) : undefined
                                 }
                                 hasGrouping
                             />

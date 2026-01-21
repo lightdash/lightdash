@@ -124,12 +124,6 @@ const ResultsCard: FC = memo(() => {
                     {tableName && sorts.length > 0 && (
                         <SortButton isEditMode={isEditMode} sorts={sorts} />
                     )}
-                    {showPeriodOverPeriod && (
-                        <PeriodOverPeriodButton
-                            itemsMap={itemsMap}
-                            disabled={!isEditMode}
-                        />
-                    )}
                 </Group>
             }
             rightHeaderElement={

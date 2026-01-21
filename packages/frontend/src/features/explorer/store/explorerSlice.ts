@@ -2,6 +2,7 @@ import {
     convertFieldRefToFieldId,
     getFieldRef,
     getItemId,
+    isPeriodOverPeriodAdditionalMetric,
     isSqlTableCalculation,
     lightdashVariablePattern,
     maybeReplaceFieldsInChartVersion,
@@ -21,7 +22,6 @@ import {
     type ParameterValue,
     type PeriodOverPeriodComparison,
     type ReplaceCustomFields,
-    type ResultColumns,
     type SavedChart,
     type SortField,
     type TableCalculation,
@@ -248,36 +248,55 @@ const explorerSlice = createSlice({
             state,
             action: PayloadAction<PeriodOverPeriodComparison | undefined>,
         ) => {
+            if (action.payload === undefined) {
+                const popMetricIds = (
+                    state.unsavedChartVersion.metricQuery.additionalMetrics ||
+                    []
+                )
+                    .filter(isPeriodOverPeriodAdditionalMetric)
+                    .map(getItemId);
+
+                if (popMetricIds.length > 0) {
+                    state.unsavedChartVersion.metricQuery.additionalMetrics = (
+                        state.unsavedChartVersion.metricQuery
+                            .additionalMetrics || []
+                    ).filter((am) => !popMetricIds.includes(getItemId(am)));
+
+                    state.unsavedChartVersion.metricQuery.metrics =
+                        state.unsavedChartVersion.metricQuery.metrics.filter(
+                            (metricId) => !popMetricIds.includes(metricId),
+                        );
+
+                    state.unsavedChartVersion.metricQuery.sorts =
+                        state.unsavedChartVersion.metricQuery.sorts.filter(
+                            (s) => !popMetricIds.includes(s.fieldId),
+                        );
+
+                    state.unsavedChartVersion.tableConfig.columnOrder =
+                        state.unsavedChartVersion.tableConfig.columnOrder.filter(
+                            (fieldId) => !popMetricIds.includes(fieldId),
+                        );
+
+                    // Remove any metric overrides for removed PoP fields
+                    state.unsavedChartVersion.metricQuery.metricOverrides =
+                        Object.fromEntries(
+                            Object.entries(
+                                state.unsavedChartVersion.metricQuery
+                                    .metricOverrides || {},
+                            ).filter(([key]) =>
+                                state.unsavedChartVersion.metricQuery.metrics.includes(
+                                    key,
+                                ),
+                            ),
+                        );
+                }
+            }
             state.unsavedChartVersion.metricQuery.periodOverPeriod =
                 action.payload;
         },
 
         setColumnOrder: (state, action: PayloadAction<string[]>) => {
-            // Identify PoP fields by comparing with existing completeColumnOrder
-            // PoP fields are those in completeColumnOrder but not in base columnOrder
-            const currentBaseOrder =
-                state.unsavedChartVersion.tableConfig.columnOrder;
-            const currentCompleteOrder =
-                state.queryExecution.completeColumnOrder;
-
-            // Build set of PoP fields
-            const baseFieldsSet = new Set(currentBaseOrder);
-            const popFields = new Set(
-                currentCompleteOrder.filter(
-                    (field) => !baseFieldsSet.has(field),
-                ),
-            );
-
-            // Filter out PoP fields from the incoming order to get base order
-            const baseOrder = action.payload.filter(
-                (field) => !popFields.has(field),
-            );
-
-            // Update base order
-            state.unsavedChartVersion.tableConfig.columnOrder = baseOrder;
-
-            // Also update completeColumnOrder to match the user's drag immediately
-            state.queryExecution.completeColumnOrder = action.payload;
+            state.unsavedChartVersion.tableConfig.columnOrder = action.payload;
         },
 
         setPivotConfig: (
@@ -921,23 +940,7 @@ const explorerSlice = createSlice({
                 queryUuidHistory: [],
                 unpivotedQueryUuidHistory: [],
                 pendingFetch: false,
-                completeColumnOrder: [],
             };
-        },
-
-        setCompleteColumnOrder: (
-            state,
-            action: PayloadAction<ResultColumns>,
-        ) => {
-            // Complete column order should always include *all* returned result columns
-            // (including generated metrics like PoP previous-period fields).
-            const completeColumnOrder = calcColumnOrder(
-                state.unsavedChartVersion.tableConfig.columnOrder,
-                Object.keys(action.payload) as FieldId[],
-                state.unsavedChartVersion.metricQuery.dimensions,
-            );
-
-            state.queryExecution.completeColumnOrder = completeColumnOrder;
         },
 
         // Request a query execution (works regardless of auto-fetch setting)
