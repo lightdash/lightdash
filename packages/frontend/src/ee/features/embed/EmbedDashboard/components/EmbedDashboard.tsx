@@ -184,20 +184,12 @@ const EmbedDashboard: FC<{
             [dashboard],
         ) || false;
 
-    // Sort tabs by order
-    const sortedTabs = useMemo(() => {
-        if (!dashboard?.tabs || dashboard.tabs.length === 0) {
-            return [];
-        }
-        return dashboard.tabs.sort((a, b) => a.order - b.order);
-    }, [dashboard?.tabs]);
-
     // Ensure dashboard tabs are set in context
     useEffect(() => {
-        if (!dashboardTabs.length && sortedTabs.length) {
-            setDashboardTabs(sortedTabs);
+        if (!dashboardTabs.length && dashboard && dashboard.tabs.length > 0) {
+            setDashboardTabs(dashboard.tabs);
         }
-    }, [sortedTabs, dashboardTabs, setDashboardTabs]);
+    }, [dashboardTabs, setDashboardTabs, dashboard]);
 
     // Filter tiles by active tab
     const filteredTiles = useMemo(() => {
@@ -206,12 +198,12 @@ const EmbedDashboard: FC<{
         }
 
         // If no tabs or only one tab, show all tiles
-        if (sortedTabs.length <= 1) {
+        if (dashboardTabs.length <= 1) {
             return dashboard.tiles;
         }
 
         // Make sure we have a tab selected
-        const tab = activeTab || sortedTabs[0];
+        const tab = activeTab || dashboardTabs[0];
 
         // If there are tabs, filter tiles by active tab
         if (tab) {
@@ -221,17 +213,17 @@ const EmbedDashboard: FC<{
 
                 // Show tiles that don't belong to any tab (legacy tiles) on the first tab
                 const tileHasNoTab = !tile.tabUuid;
-                const isFirstTab = tab.uuid === sortedTabs[0]?.uuid;
+                const isFirstTab = tab.uuid === dashboardTabs[0]?.uuid;
 
                 return tileBelongsToActiveTab || (tileHasNoTab && isFirstTab);
             });
         }
 
         return [];
-    }, [dashboard?.tiles, sortedTabs, activeTab]);
+    }, [dashboard?.tiles, dashboardTabs, activeTab]);
 
     // Check if tabs should be enabled (more than one tab)
-    const tabsEnabled = sortedTabs.length > 1;
+    const tabsEnabled = dashboardTabs.length > 1;
 
     const gridProps = getResponsiveGridLayoutProps({ enableAnimation: false });
     const layouts = useMemo(
@@ -299,7 +291,7 @@ const EmbedDashboard: FC<{
     // the SDK app uses the same URL as the embedding app.
     const handleTabChange = (tabUuid: string | null) => {
         if (!tabUuid) return;
-        const tab = sortedTabs.find((t) => t.uuid === tabUuid);
+        const tab = dashboardTabs.find((t) => t.uuid === tabUuid);
         if (tab) {
             setActiveTab(tab);
 
@@ -353,11 +345,11 @@ const EmbedDashboard: FC<{
                     }}
                 >
                     <Tabs.List px="lg">
-                        {sortedTabs.map((tab) => (
+                        {dashboardTabs.map((tab) => (
                             <Tabs.Tab
                                 key={tab.uuid}
                                 value={tab.uuid}
-                                maw={`${100 / (sortedTabs?.length || 1)}vw`}
+                                maw={`${100 / (dashboardTabs?.length || 1)}vw`}
                             >
                                 {tab.name}
                             </Tabs.Tab>

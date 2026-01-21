@@ -25,6 +25,7 @@ import {
 import clone from 'lodash/clone';
 import isEqual from 'lodash/isEqual';
 import min from 'lodash/min';
+import sortBy from 'lodash/sortBy';
 import React, {
     useCallback,
     useEffect,
@@ -154,7 +155,17 @@ const DashboardProvider: React.FC<
     const [dashboardTiles, setDashboardTiles] = useState<Dashboard['tiles']>();
     const [haveTilesChanged, setHaveTilesChanged] = useState<boolean>(false);
     const [haveTabsChanged, setHaveTabsChanged] = useState<boolean>(false);
-    const [dashboardTabs, setDashboardTabs] = useState<Dashboard['tabs']>([]);
+    const [dashboardTabs, setDashboardTabsInternal] = useState<
+        Dashboard['tabs']
+    >([]);
+    const setDashboardTabs = useCallback<
+        React.Dispatch<React.SetStateAction<Dashboard['tabs']>>
+    >((tabs) => {
+        setDashboardTabsInternal((prevTabs) => {
+            const newTabs = typeof tabs === 'function' ? tabs(prevTabs) : tabs;
+            return sortBy(newTabs, 'order');
+        });
+    }, []);
     const [activeTab, setActiveTab] = useState<
         Dashboard['tabs'][number] | undefined
     >();
