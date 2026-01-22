@@ -546,6 +546,21 @@ export class ValidationService extends BaseService {
                         return acc;
                     };
 
+                    const checkTableFieldConsistency = (
+                        fieldId: string,
+                        tableName: string | undefined,
+                    ): CreateDashboardValidation | undefined => {
+                        if (tableName && !fieldId.startsWith(`${tableName}_`)) {
+                            return {
+                                ...commonValidation,
+                                errorType: ValidationErrorType.Filter,
+                                error: `Filter error: the field '${fieldId}' does not match table '${tableName}'`,
+                                fieldName: fieldId,
+                            };
+                        }
+                        return undefined;
+                    };
+
                     const dashboardFilterRules = [
                         ...filters.dimensions,
                         ...filters.metrics,
@@ -561,6 +576,21 @@ export class ValidationService extends BaseService {
                                 // Skip SQL column targets
                                 return acc;
                             }
+                            const { fieldId } = filter.target;
+                            const tableName = isDashboardFieldTarget(
+                                filter.target,
+                            )
+                                ? filter.target.tableName
+                                : undefined;
+
+                            const consistencyError = checkTableFieldConsistency(
+                                fieldId,
+                                tableName,
+                            );
+                            if (consistencyError) {
+                                return [...acc, consistencyError];
+                            }
+
                             return containsFieldId({
                                 acc,
                                 fieldIds: existingFieldIds,
@@ -597,6 +627,17 @@ export class ValidationService extends BaseService {
                                 isDashboardFieldTarget(tileTarget) &&
                                 !tileTarget.isSqlColumn // Skip SQL column targets
                             ) {
+                                const { fieldId, tableName } = tileTarget;
+
+                                const consistencyError =
+                                    checkTableFieldConsistency(
+                                        fieldId,
+                                        tableName,
+                                    );
+                                if (consistencyError) {
+                                    return [...acc, consistencyError];
+                                }
+
                                 return containsFieldId({
                                     acc,
                                     fieldIds: existingFieldIds,

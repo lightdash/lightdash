@@ -1,4 +1,5 @@
 import {
+    FilterOperator,
     TableCalculationTemplateType,
     TableSelectionType,
     ValidationTarget,
@@ -273,7 +274,7 @@ describe('validation', () => {
         (
             projectModel.findExploresFromCache as jest.Mock
         ).mockImplementationOnce(async () => [
-            exploreError,
+            explore,
             exploreWithoutDimension,
         ]);
 
@@ -293,6 +294,82 @@ describe('validation', () => {
         ];
 
         expect(errors.map((error) => error.error)).toEqual(expectedErrors);
+    });
+
+    it('Should validate dashboard filters with table name mismatch', async () => {
+        (
+            dashboardModel.findDashboardsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [
+            {
+                ...dashboardForValidation,
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'filter-uuid',
+                            target: {
+                                fieldId: 'other_table_field',
+                                tableName: 'table',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.DASHBOARDS]),
+        );
+
+        expect(errors.map((error) => error.error)).toContain(
+            "Filter error: the field 'other_table_field' does not match table 'table'",
+        );
+    });
+
+    it('Should validate dashboard tile targets with table name mismatch', async () => {
+        (
+            dashboardModel.findDashboardsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [
+            {
+                ...dashboardForValidation,
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'filter-uuid',
+                            target: {
+                                fieldId: 'table_field',
+                                tableName: 'table',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                            tileTargets: {
+                                'tile-uuid': {
+                                    fieldId: 'other_table_field',
+                                    tableName: 'table',
+                                },
+                            },
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.DASHBOARDS]),
+        );
+
+        expect(errors.map((error) => error.error)).toContain(
+            "Filter error: the field 'other_table_field' does not match table 'table'",
+        );
     });
 
     it('Should validate only tables and charts in project', async () => {
