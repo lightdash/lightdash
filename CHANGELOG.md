@@ -1,3 +1,10 @@
+## [0.2370.2](https://github.com/lightdash/lightdash/compare/0.2370.1...0.2370.2) (2026-01-22)
+
+
+### Bug Fixes
+
+* map render performance ([#19668](https://github.com/lightdash/lightdash/issues/19668)) ([3dd7c5a](https://github.com/lightdash/lightdash/commit/3dd7c5a78e2ecd04ee391e97ae4a9e6b395474eb))
+
 ## [0.2370.1](https://github.com/lightdash/lightdash/compare/0.2370.0...0.2370.1) (2026-01-22)
 
 
