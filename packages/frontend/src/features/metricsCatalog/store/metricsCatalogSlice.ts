@@ -63,10 +63,20 @@ export function convertStateToTableColumnConfig(
 export function convertTableColumnConfigToState(
     columnConfig: SpotlightTableConfig['columnConfig'],
 ): MetricsCatalogState['columnConfig'] {
+    // Merge with defaults to ensure all columns exist (handles old configs missing new columns)
+    const mergedConfig = DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG.map(
+        (defaultCol) => {
+            const savedCol = columnConfig.find(
+                (c) => c.column === defaultCol.column,
+            );
+            return savedCol ?? defaultCol;
+        },
+    );
+
     return {
-        columnOrder: columnConfig.map((column) => column.column),
+        columnOrder: mergedConfig.map((column) => column.column),
         columnVisibility: Object.fromEntries(
-            columnConfig.map((column) => [column.column, column.isVisible]),
+            mergedConfig.map((column) => [column.column, column.isVisible]),
         ),
     };
 }
