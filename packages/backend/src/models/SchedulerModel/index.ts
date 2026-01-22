@@ -578,7 +578,7 @@ export class SchedulerModel {
 
         // Paginate the results
         const { pagination, data } = await KnexPaginate.paginate(
-            query as unknown as Knex.QueryBuilder,
+            query,
             paginateArgs,
         );
 
