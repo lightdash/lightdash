@@ -385,6 +385,7 @@ export type HealthState = {
         enabled: boolean;
     };
     staticIp: string;
+    signupUrl: string | undefined;
     query: {
         maxLimit: number;
         defaultLimit: number;

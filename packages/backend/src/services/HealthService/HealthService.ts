@@ -113,6 +113,7 @@ export class HealthService extends BaseService {
             },
             siteUrl: this.lightdashConfig.siteUrl,
             staticIp: this.lightdashConfig.staticIp,
+            signupUrl: this.lightdashConfig.signupUrl,
             posthog: this.lightdashConfig.posthog,
             query: {
                 csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
