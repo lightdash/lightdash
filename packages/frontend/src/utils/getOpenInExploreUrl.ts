@@ -1,5 +1,5 @@
 import type { ChartConfig, MetricQuery } from '@lightdash/common';
-import { getExplorerUrlFromCreateSavedChartVersion } from '../../../../hooks/useExplorerRoute';
+import { getExplorerUrlFromCreateSavedChartVersion } from '../hooks/useExplorerRoute';
 
 export const getOpenInExploreUrl = ({
     metricQuery,
