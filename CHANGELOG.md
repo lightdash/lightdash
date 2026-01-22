@@ -1,3 +1,15 @@
+# [0.2370.0](https://github.com/lightdash/lightdash/compare/0.2369.0...0.2370.0) (2026-01-22)
+
+
+### Bug Fixes
+
+* ensure slack share screenshot is taken ([#19658](https://github.com/lightdash/lightdash/issues/19658)) ([ade6808](https://github.com/lightdash/lightdash/commit/ade680896a8ad7441f6e3460caecef6b5d644ddc))
+
+
+### Features
+
+* allow bigquery sso by default ([#19667](https://github.com/lightdash/lightdash/issues/19667)) ([23ce115](https://github.com/lightdash/lightdash/commit/23ce1152f9f8ee28e5f5c5b4f5e46492cc78d21f)), closes [#19641](https://github.com/lightdash/lightdash/issues/19641)
+
 # [0.2369.0](https://github.com/lightdash/lightdash/compare/0.2368.0...0.2369.0) (2026-01-22)
 
 
