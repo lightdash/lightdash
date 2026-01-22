@@ -166,7 +166,7 @@ export class PivotQueryBuilder {
 
     /**
      * Generates query that counts total distinct column combinations for pivot.
-     * Uses a subquery with SELECT DISTINCT for warehouse-agnostic counting.
+     * Uses COUNT(DISTINCT ...) for cleaner SQL generation.
      * @param groupByColumns - Columns that are being pivoted
      * @param valuesColumns - Value columns to multiply count by
      * @param filteredRowsTable - Name of the CTE containing filtered rows
@@ -182,9 +182,26 @@ export class PivotQueryBuilder {
         // This maintains consistent pivot behavior even when only grouping without aggregations
         const valuesCount = valuesColumns?.length || 1;
 
-        return `SELECT COUNT(*) * ${valuesCount} as total_columns FROM (SELECT DISTINCT ${groupByColumns
-            .map((col) => `${q}${col.reference}${q}`)
-            .join(', ')} FROM ${filteredRowsTable}) as distinct_groups`;
+        // For single groupBy column, use simple COUNT(DISTINCT col)
+        // For multiple columns, concatenate them to create a composite key
+        const columnRefs = groupByColumns.map(
+            (col) => `${q}${col.reference}${q}`,
+        );
+
+        let countExpression: string;
+        if (columnRefs.length === 1) {
+            countExpression = `COUNT(DISTINCT ${columnRefs[0]})`;
+        } else {
+            // Use CONCAT for multiple columns - warehouse-agnostic way to count distinct combinations
+            countExpression = `COUNT(DISTINCT CONCAT(${columnRefs.join(
+                ", '-', ",
+            )}))`;
+        }
+
+        // Multiply by valuesCount since each distinct group produces one column per value
+        const multiplier = valuesCount > 1 ? ` * ${valuesCount}` : '';
+
+        return `SELECT ${countExpression}${multiplier} AS total_columns FROM ${filteredRowsTable}`;
     }
 
     /**
@@ -539,23 +556,38 @@ export class PivotQueryBuilder {
      * Generates the anchor_column CTE that identifies the groupBy value(s) with column_index = 1.
      * This is the "first pivot column" - when users sort by a metric, rows are ordered by
      * their metric value in this column (e.g., the latest month when columns are sorted DESC by date).
-     * Uses LIMIT 1 to guarantee exactly one row is returned, preventing "more than one row"
-     * errors in the scalar subquery used by row anchor CTEs.
+     * Uses ORDER BY + LIMIT 1 for deterministic selection of a single anchor value.
      *
      * @param groupByColumns - Group by columns
+     * @param sortBy - Sort configuration to determine ORDER BY direction
      * @returns SQL for the anchor_column CTE
      */
     private getAnchorColumnSQL(
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+        sortBy: PivotConfiguration['sortBy'],
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
-        const groupByRefs = groupByColumns
-            .map((col) => `${q}${col.reference}${q}`)
+        // Select each groupBy column with an alias for use in CROSS JOIN
+        const selectParts = groupByColumns
+            .map(
+                (col) =>
+                    `cr.${q}${col.reference}${q} AS ${q}anchor_${col.reference}${q}`,
+            )
             .join(', ');
 
-        // LIMIT 1 ensures this is always scalar, even if column_ranking logic changes
-        return `SELECT ${groupByRefs} FROM column_ranking WHERE ${q}col_idx${q} = 1 LIMIT 1`;
+        // Build ORDER BY clause - use the same direction as the column sort
+        const orderByParts = groupByColumns.map((col) => {
+            const sort = sortBy?.find((s) => s.reference === col.reference);
+            const direction =
+                sort?.direction === SortByDirection.DESC ? 'DESC' : 'ASC';
+            return `cr.${q}${col.reference}${q} ${direction}`;
+        });
+
+        // ORDER BY + LIMIT 1 ensures deterministic, scalar result
+        return `SELECT ${selectParts} FROM column_ranking cr WHERE ${q}col_idx${q} = 1 ORDER BY ${orderByParts.join(
+            ', ',
+        )} LIMIT 1`;
     }
 
     /**
@@ -563,6 +595,8 @@ export class PivotQueryBuilder {
      * When sorting by a metric, rows are ordered by their metric value in the first pivot column
      * (anchor column), not by their MIN/MAX across all columns. This matches user expectations
      * when they click to sort by a metric - they expect ordering by the leftmost visible column.
+     *
+     * Uses CROSS JOIN with anchor_column CTE instead of scalar subqueries for cleaner SQL.
      *
      * @param indexColumns - Normalized index columns
      * @param valuesColumns - Value columns configuration
@@ -584,14 +618,18 @@ export class PivotQueryBuilder {
         }
 
         const indexColumnRefs = indexColumns
-            .map((col) => `${q}${col.reference}${q}`)
+            .map((col) => `q.${q}${col.reference}${q}`)
             .join(', ');
 
-        // Build condition to match anchor column
+        const indexColumnGroupBy = indexColumns
+            .map((col) => `q.${q}${col.reference}${q}`)
+            .join(', ');
+
+        // Build condition to match anchor column using CROSS JOIN alias
         const anchorMatchConditions = groupByColumns
             .map(
                 (col) =>
-                    `${q}${col.reference}${q} = (SELECT ${q}${col.reference}${q} FROM anchor_column)`,
+                    `q.${q}${col.reference}${q} = ac.${q}anchor_${col.reference}${q}`,
             )
             .join(' AND ');
 
@@ -608,9 +646,9 @@ export class PivotQueryBuilder {
 
             const rowAnchorCteName = `${valCol.reference}_row_anchor`;
 
-            // Use conditional aggregation to get the metric value at the anchor column only
+            // Use CROSS JOIN with anchor_column and conditional aggregation
             // MAX is used because there should be at most one value per (indexCols, anchorCol)
-            const rowAnchorSql = `SELECT ${indexColumnRefs}, MAX(CASE WHEN ${anchorMatchConditions} THEN ${q}${fieldName}${q} END) AS ${q}${rowAnchorCteName}_value${q} FROM group_by_query GROUP BY ${indexColumnRefs}`;
+            const rowAnchorSql = `SELECT ${indexColumnRefs}, MAX(CASE WHEN ${anchorMatchConditions} THEN q.${q}${fieldName}${q} END) AS ${q}${rowAnchorCteName}_value${q} FROM group_by_query q CROSS JOIN anchor_column ac GROUP BY ${indexColumnGroupBy}`;
 
             result[rowAnchorCteName] = {
                 cteName: rowAnchorCteName,
@@ -681,7 +719,10 @@ export class PivotQueryBuilder {
             columnRankingCTE = `column_ranking AS (${columnRankingSQL})`;
 
             // Generate anchor_column CTE
-            const anchorColumnSQL = this.getAnchorColumnSQL(groupByColumns);
+            const anchorColumnSQL = this.getAnchorColumnSQL(
+                groupByColumns,
+                sortBy,
+            );
             anchorColumnCTE = `anchor_column AS (${anchorColumnSQL})`;
 
             // Generate row anchor CTEs using anchor_column
@@ -963,9 +1004,11 @@ export class PivotQueryBuilder {
             groupByColumns,
         );
 
+        let finalSql: string;
+
         if (groupByColumns && groupByColumns.length > 0) {
             const { columnLimit } = opts ?? {};
-            return this.getFullPivotSQL(
+            finalSql = this.getFullPivotSQL(
                 baseSql,
                 groupByQuery,
                 indexColumns,
@@ -974,8 +1017,10 @@ export class PivotQueryBuilder {
                 sortBy,
                 columnLimit,
             );
+        } else {
+            finalSql = this.getSimpleQuerySQL(baseSql, groupByQuery, sortBy);
         }
 
-        return this.getSimpleQuerySQL(baseSql, groupByQuery, sortBy);
+        return finalSql;
     }
 }

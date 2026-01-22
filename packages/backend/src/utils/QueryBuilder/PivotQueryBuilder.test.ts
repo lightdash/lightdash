@@ -376,17 +376,19 @@ describe('PivotQueryBuilder', () => {
             );
 
             // Metric sort: should create anchor_column CTE to identify first pivot column (column_index = 1)
+            // Uses alias (anchor_category) and ORDER BY + LIMIT 1 for deterministic selection
             expect(result).toContain('anchor_column AS (');
             expect(replaceWhitespace(result)).toContain(
-                'SELECT "category" FROM column_ranking WHERE "col_idx" = 1 LIMIT 1',
+                'SELECT cr."category" AS "anchor_category" FROM column_ranking cr WHERE "col_idx" = 1 ORDER BY cr."category" ASC LIMIT 1',
             );
 
-            // Metric sort: row anchor should use conditional aggregation with anchor_column
+            // Metric sort: row anchor should use CROSS JOIN with anchor_column
             // (gets metric value at first pivot column only, not MIN/MAX across all columns)
             expect(result).toContain('revenue_row_anchor AS (');
             expect(replaceWhitespace(result)).toContain(
-                'MAX(CASE WHEN "category" = (SELECT "category" FROM anchor_column) THEN "revenue_sum" END)',
+                'MAX(CASE WHEN q."category" = ac."anchor_category" THEN q."revenue_sum" END)',
             );
+            expect(result).toContain('CROSS JOIN anchor_column ac');
         });
 
         test('Should include anchor CTEs and joins when sorting by a value column in pivot queries', () => {
@@ -499,11 +501,12 @@ describe('PivotQueryBuilder', () => {
                 'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
             );
 
-            // Row anchor now uses conditional aggregation with anchor_column
+            // Row anchor uses CROSS JOIN with anchor_column (cleaner than scalar subquery)
             // (gets value at first pivot column, not MIN/MAX across all columns)
             expect(replaceWhitespace(result)).toContain(
-                'MAX(CASE WHEN "category" = (SELECT "category" FROM anchor_column) THEN "revenue_sum" END)',
+                'MAX(CASE WHEN q."category" = ac."anchor_category" THEN q."revenue_sum" END)',
             );
+            expect(result).toContain('CROSS JOIN anchor_column ac');
 
             // Verify the complete FIRST_VALUE syntax in column anchor
             expect(replaceWhitespace(result)).toContain(
@@ -1251,8 +1254,10 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain(
                 'SELECT "category", "date" FROM original_query group by "category", "date"',
             );
-            // Should calculate total_columns correctly (1 value column default)
-            expect(result).toContain('* 1 as total_columns');
+            // Should calculate total_columns correctly (no multiplier when 1 value column)
+            expect(result).toContain(
+                'COUNT(DISTINCT "category") AS total_columns',
+            );
         });
 
         test('Should handle undefined limit (defaults to 500)', () => {
@@ -1478,11 +1483,12 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             const result = builder.toSql();
 
-            // Row anchor now uses conditional aggregation with anchor_column
+            // Row anchor uses CROSS JOIN with anchor_column (cleaner than scalar subquery)
             // The NULLS LAST is applied in the row_index ORDER BY, not the anchor CTE
             expect(replaceWhitespace(result)).toContain(
-                'MAX(CASE WHEN "category" = (SELECT "category" FROM anchor_column) THEN "revenue_sum" END)',
+                'MAX(CASE WHEN q."category" = ac."anchor_category" THEN q."revenue_sum" END)',
             );
+            expect(result).toContain('CROSS JOIN anchor_column ac');
 
             // Check that row_index ORDER BY has NULLS LAST
             expect(replaceWhitespace(result)).toContain(
