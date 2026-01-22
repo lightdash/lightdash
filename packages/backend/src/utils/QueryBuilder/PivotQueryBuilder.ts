@@ -1,7 +1,6 @@
 import {
     getAggregatedField,
     isDimension,
-    isField,
     normalizeIndexColumns,
     ParameterError,
     SortByDirection,
@@ -182,20 +181,22 @@ export class PivotQueryBuilder {
         // This maintains consistent pivot behavior even when only grouping without aggregations
         const valuesCount = valuesColumns?.length || 1;
 
-        // For single groupBy column, use simple COUNT(DISTINCT col)
-        // For multiple columns, concatenate them to create a composite key
-        const columnRefs = groupByColumns.map(
-            (col) => `${q}${col.reference}${q}`,
-        );
-
         let countExpression: string;
-        if (columnRefs.length === 1) {
-            countExpression = `COUNT(DISTINCT ${columnRefs[0]})`;
+        if (groupByColumns.length === 1) {
+            countExpression = `COUNT(DISTINCT ${q}${groupByColumns[0]?.reference}${q})`;
         } else {
             // Use CONCAT for multiple columns - warehouse-agnostic way to count distinct combinations
-            countExpression = `COUNT(DISTINCT CONCAT(${columnRefs.join(
-                ", '-', ",
-            )}))`;
+            // Include column names as prefixes to prevent hash collisions
+            // e.g., CONCAT('col1Name', col1_value, '-', 'col2Name', col2_value)
+            const concatParts = groupByColumns
+                .map(
+                    (col, i) =>
+                        `'${col.reference}', ${q}${col.reference}${q}${
+                            i < groupByColumns.length - 1 ? ", '-'" : ''
+                        }`,
+                )
+                .join(', ');
+            countExpression = `COUNT(DISTINCT CONCAT(${concatParts}))`;
         }
 
         // Multiply by valuesCount since each distinct group produces one column per value
