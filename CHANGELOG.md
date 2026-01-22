@@ -1,3 +1,15 @@
+# [0.2367.0](https://github.com/lightdash/lightdash/compare/0.2366.0...0.2367.0) (2026-01-22)
+
+
+### Bug Fixes
+
+* handle missing columns in metrics catalog table configuration ([#19661](https://github.com/lightdash/lightdash/issues/19661)) ([78d7221](https://github.com/lightdash/lightdash/commit/78d72216b629013dc4b95cc989df80ae6a8335d5))
+
+
+### Features
+
+* add owner filtering to metrics catalog ([#19637](https://github.com/lightdash/lightdash/issues/19637)) ([fbc74dd](https://github.com/lightdash/lightdash/commit/fbc74dde9f1422180e227066cdfffd7f886724fb))
+
 # [0.2366.0](https://github.com/lightdash/lightdash/compare/0.2365.3...0.2366.0) (2026-01-22)
 
 
