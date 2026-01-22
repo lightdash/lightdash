@@ -26,15 +26,17 @@ import { useHotkeys } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronUp,
+    IconExternalLink,
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import LightdashVisualization from '../../../components/LightdashVisualization';
 import VisualizationProvider from '../../../components/LightdashVisualization/VisualizationProvider';
 import MetricQueryDataProvider from '../../../components/MetricQueryData/MetricQueryDataProvider';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { getOpenInExploreUrl } from '../../../utils/getOpenInExploreUrl';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCatalogFilterDimensions } from '../hooks/useCatalogFilterDimensions';
 import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
@@ -212,6 +214,16 @@ export const MetricExploreModalV2: FC<Props> = ({
         [segmentDimensionsQuery.data, currentMetric],
     );
 
+    const openInExploreUrl = useMemo(() => {
+        if (!metricQuery || !chartConfig) return undefined;
+        return getOpenInExploreUrl({
+            metricQuery,
+            projectUuid,
+            columnOrder,
+            chartConfig,
+        });
+    }, [metricQuery, projectUuid, columnOrder, chartConfig]);
+
     // Keyboard navigation
     useHotkeys([
         ['ArrowUp', handleGoToPreviousMetric],
@@ -287,7 +299,45 @@ export const MetricExploreModalV2: FC<Props> = ({
                             />
                         </Tooltip>
                     </Group>
-                    <Modal.CloseButton />
+                    <Group gap="xs">
+                        <Tooltip
+                            label="Explore from here"
+                            position="bottom"
+                            disabled={!openInExploreUrl}
+                        >
+                            {openInExploreUrl ? (
+                                <Button
+                                    component={Link}
+                                    to={openInExploreUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    variant="default"
+                                    size="xs"
+                                    radius="md"
+                                    leftSection={
+                                        <MantineIcon icon={IconExternalLink} />
+                                    }
+                                >
+                                    Explore from here
+                                </Button>
+                            ) : (
+                                <Button
+                                    component="button"
+                                    type="button"
+                                    variant="default"
+                                    size="xs"
+                                    radius="md"
+                                    leftSection={
+                                        <MantineIcon icon={IconExternalLink} />
+                                    }
+                                    disabled
+                                >
+                                    Explore from here
+                                </Button>
+                            )}
+                        </Tooltip>
+                        <Modal.CloseButton />
+                    </Group>
                 </Modal.Header>
 
                 <Modal.Body
