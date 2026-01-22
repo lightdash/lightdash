@@ -1,13 +1,15 @@
 import {
     ECHARTS_DEFAULT_COLORS,
     MetricExplorerComparison,
-    TimeFrames,
+    getDefaultDateRangeFromInterval,
     getFilterDimensionsForMetric,
     getSegmentDimensionsForMetric,
     type CatalogField,
     type FilterRule,
+    type MetricExplorerDateRange,
     type MetricExplorerQuery,
     type TimeDimensionConfig,
+    type TimeFrames,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -49,7 +51,6 @@ import { MetricExploreComparison as MetricExploreComparisonSection } from './vis
 import { MetricExploreDatePicker } from './visualization/MetricExploreDatePicker';
 import { MetricExploreFilter } from './visualization/MetricExploreFilter';
 import { MetricExploreSegmentationPicker } from './visualization/MetricExploreSegmentationPicker';
-import { TimeDimensionIntervalPicker } from './visualization/TimeDimensionIntervalPicker';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     metrics: CatalogField[];
@@ -113,6 +114,10 @@ export const MetricExploreModalV2: FC<Props> = ({
         TimeDimensionConfig | undefined
     >();
 
+    const [dateRange, setDateRange] = useState<
+        MetricExplorerDateRange | undefined
+    >();
+
     const [filterRule, setFilterRule] = useState<FilterRule | undefined>();
 
     const [query, setQuery] = useState<MetricExplorerQuery>({
@@ -127,12 +132,13 @@ export const MetricExploreModalV2: FC<Props> = ({
     // Reset override when navigating to a different metric
     const resetQueryState = useCallback(() => {
         setTimeDimensionOverride(undefined);
+        setDateRange(undefined);
         setFilterRule(undefined);
         setQuery({
             comparison: MetricExplorerComparison.NONE,
             segmentDimension: null,
         });
-    }, [setTimeDimensionOverride, setFilterRule, setQuery]);
+    }, [setTimeDimensionOverride, setDateRange, setFilterRule, setQuery]);
 
     // Update navigateToMetric to reset state
     const navigateToMetricWithReset = useCallback(
@@ -166,6 +172,7 @@ export const MetricExploreModalV2: FC<Props> = ({
         explore,
         metricQuery,
         timeDimensionConfig,
+        effectiveDateRange,
         chartConfig,
         resultsData,
         columnOrder,
@@ -178,6 +185,7 @@ export const MetricExploreModalV2: FC<Props> = ({
         timeDimensionOverride,
         segmentDimensionId,
         filterRule,
+        dateRange,
         comparison: query.comparison,
     });
 
@@ -264,6 +272,10 @@ export const MetricExploreModalV2: FC<Props> = ({
         },
         [setFilterRule],
     );
+
+    const handleTimeIntervalChange = useCallback((timeInterval: TimeFrames) => {
+        setDateRange(getDefaultDateRangeFromInterval(timeInterval));
+    }, []);
 
     const showEmptyState = !isLoading && resultsData.totalResults === 0;
 
@@ -459,37 +471,19 @@ export const MetricExploreModalV2: FC<Props> = ({
                         <LoadingOverlay visible={isLoading} />
 
                         {/* Granularity picker */}
-                        {timeDimensionConfig && (
-                            <Group
-                                gap="sm"
-                                justify="space-between"
-                                wrap="nowrap"
-                            >
-                                <MetricExploreDatePicker
-                                    dateRange={[new Date(), new Date()]}
-                                    onChange={() => {}}
-                                    showTimeDimensionIntervalPicker={false}
-                                    isFetching={false}
-                                    timeDimensionBaseField={undefined}
-                                    setTimeDimensionOverride={() => {}}
-                                    timeInterval={TimeFrames.DAY}
-                                    onTimeIntervalChange={() => {}}
-                                    // TODO: enable this when it's implemented
-                                    disabled
-                                />
-                                <Tooltip
-                                    label="Change granularity"
-                                    position="top"
-                                    withinPortal
-                                >
-                                    <Box>
-                                        <TimeDimensionIntervalPicker
-                                            dimension={timeDimensionConfig}
-                                            onChange={setTimeDimensionOverride}
-                                        />
-                                    </Box>
-                                </Tooltip>
-                            </Group>
+                        {timeDimensionConfig && effectiveDateRange && (
+                            <MetricExploreDatePicker
+                                dateRange={effectiveDateRange}
+                                onChange={setDateRange}
+                                showTimeDimensionIntervalPicker
+                                isFetching={isLoading}
+                                timeDimensionBaseField={timeDimensionConfig}
+                                setTimeDimensionOverride={
+                                    setTimeDimensionOverride
+                                }
+                                timeInterval={timeDimensionConfig.interval}
+                                onTimeIntervalChange={handleTimeIntervalChange}
+                            />
                         )}
 
                         {/* ECharts visualization */}
