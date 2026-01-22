@@ -171,30 +171,30 @@ export class FunnelService extends BaseService {
                 (step: FunnelStep, idx: number) => `
 step_${idx + 1}_users AS (
     SELECT DISTINCT
-        fo.${fieldQuote}user_id${fieldQuote},
-        fo.${fieldQuote}event_timestamp${fieldQuote} AS ${fieldQuote}step_${
+        ${fieldQuote}fo${fieldQuote}.${fieldQuote}user_id${fieldQuote},
+        ${fieldQuote}fo${fieldQuote}.${fieldQuote}event_timestamp${fieldQuote} AS ${fieldQuote}step_${
                     idx + 1
                 }_time${fieldQuote}
         ${
             breakdownField
-                ? `, fo.${fieldQuote}breakdown_value${fieldQuote}`
+                ? `, ${fieldQuote}fo${fieldQuote}.${fieldQuote}breakdown_value${fieldQuote}`
                 : ''
         }
-    FROM first_occurrences fo
-    WHERE fo.${fieldQuote}event_name${fieldQuote} = ${quoteString(
+    FROM first_occurrences AS ${fieldQuote}fo${fieldQuote}
+    WHERE ${fieldQuote}fo${fieldQuote}.${fieldQuote}event_name${fieldQuote} = ${quoteString(
                     step.eventName,
                 )}
     ${
         idx > 0
             ? `
         AND EXISTS (
-            SELECT 1 FROM step_${idx}_users prev
-            WHERE prev.${fieldQuote}user_id${fieldQuote} = fo.${fieldQuote}user_id${fieldQuote}
-              AND fo.${fieldQuote}event_timestamp${fieldQuote} > prev.${fieldQuote}step_${idx}_time${fieldQuote}
-              AND fo.${fieldQuote}event_timestamp${fieldQuote} <= prev.${fieldQuote}step_${idx}_time${fieldQuote} + ${windowInterval}
+            SELECT 1 FROM step_${idx}_users AS ${fieldQuote}prev${fieldQuote}
+            WHERE ${fieldQuote}prev${fieldQuote}.${fieldQuote}user_id${fieldQuote} = ${fieldQuote}fo${fieldQuote}.${fieldQuote}user_id${fieldQuote}
+              AND ${fieldQuote}fo${fieldQuote}.${fieldQuote}event_timestamp${fieldQuote} > ${fieldQuote}prev${fieldQuote}.${fieldQuote}step_${idx}_time${fieldQuote}
+              AND ${fieldQuote}fo${fieldQuote}.${fieldQuote}event_timestamp${fieldQuote} <= ${fieldQuote}prev${fieldQuote}.${fieldQuote}step_${idx}_time${fieldQuote} + ${windowInterval}
               ${
                   breakdownField
-                      ? `AND fo.${fieldQuote}breakdown_value${fieldQuote} = prev.${fieldQuote}breakdown_value${fieldQuote}`
+                      ? `AND ${fieldQuote}fo${fieldQuote}.${fieldQuote}breakdown_value${fieldQuote} = ${fieldQuote}prev${fieldQuote}.${fieldQuote}breakdown_value${fieldQuote}`
                       : ''
               }
         )
@@ -211,37 +211,37 @@ step_${idx + 1}_users AS (
     SELECT
         ${idx + 1} AS ${fieldQuote}step_order${fieldQuote},
         ${quoteString(step.eventName)} AS ${fieldQuote}step_name${fieldQuote},
-        COUNT(DISTINCT s${
+        COUNT(DISTINCT ${fieldQuote}s${
             idx + 1
-        }.${fieldQuote}user_id${fieldQuote}) AS ${fieldQuote}total_users${fieldQuote}
+        }${fieldQuote}.${fieldQuote}user_id${fieldQuote}) AS ${fieldQuote}total_users${fieldQuote}
         ${
             idx > 0
                 ? `,
         ${sqlBuilder.getMedianSql(
             sqlBuilder.getTimestampDiffSeconds(
-                `s${idx}.${fieldQuote}step_${idx}_time${fieldQuote}`,
-                `s${idx + 1}.${fieldQuote}step_${idx + 1}_time${fieldQuote}`,
+                `${fieldQuote}s${idx}${fieldQuote}.${fieldQuote}step_${idx}_time${fieldQuote}`,
+                `${fieldQuote}s${idx + 1}${fieldQuote}.${fieldQuote}step_${idx + 1}_time${fieldQuote}`,
             ),
         )} AS ${fieldQuote}median_time_to_convert${fieldQuote}`
                 : `, CAST(NULL AS ${sqlBuilder.getFloatingType()}) AS ${fieldQuote}median_time_to_convert${fieldQuote}`
         }
         ${
             breakdownField
-                ? `, s${idx + 1}.${fieldQuote}breakdown_value${fieldQuote}`
+                ? `, ${fieldQuote}s${idx + 1}${fieldQuote}.${fieldQuote}breakdown_value${fieldQuote}`
                 : ''
         }
-    FROM step_${idx + 1}_users s${idx + 1}
+    FROM step_${idx + 1}_users AS ${fieldQuote}s${idx + 1}${fieldQuote}
     ${
         idx > 0
             ? `
-    JOIN step_${idx}_users s${idx} ON s${
+    JOIN step_${idx}_users AS ${fieldQuote}s${idx}${fieldQuote} ON ${fieldQuote}s${
                   idx + 1
-              }.${fieldQuote}user_id${fieldQuote} = s${idx}.${fieldQuote}user_id${fieldQuote}
+              }${fieldQuote}.${fieldQuote}user_id${fieldQuote} = ${fieldQuote}s${idx}${fieldQuote}.${fieldQuote}user_id${fieldQuote}
         ${
             breakdownField
-                ? `AND s${
+                ? `AND ${fieldQuote}s${
                       idx + 1
-                  }.${fieldQuote}breakdown_value${fieldQuote} = s${idx}.${fieldQuote}breakdown_value${fieldQuote}`
+                  }${fieldQuote}.${fieldQuote}breakdown_value${fieldQuote} = ${fieldQuote}s${idx}${fieldQuote}.${fieldQuote}breakdown_value${fieldQuote}`
                 : ''
         }
     `
@@ -249,7 +249,7 @@ step_${idx + 1}_users AS (
     }
     ${
         breakdownField
-            ? `GROUP BY s${idx + 1}.${fieldQuote}breakdown_value${fieldQuote}`
+            ? `GROUP BY ${fieldQuote}s${idx + 1}${fieldQuote}.${fieldQuote}breakdown_value${fieldQuote}`
             : ''
     }`,
             )
@@ -283,7 +283,7 @@ user_step_times AS (
             PARTITION BY ${fieldQuote}user_id${fieldQuote}, ${fieldQuote}event_name${fieldQuote}
             ORDER BY ${fieldQuote}event_timestamp${fieldQuote}
         ) AS ${fieldQuote}event_occurrence${fieldQuote}
-    FROM filtered_events
+    FROM filtered_events AS ${fieldQuote}filtered_events${fieldQuote}
 ),
 first_occurrences AS (
     SELECT
@@ -291,7 +291,7 @@ first_occurrences AS (
         ${fieldQuote}event_name${fieldQuote},
         ${fieldQuote}event_timestamp${fieldQuote}
         ${breakdownField ? `, ${fieldQuote}breakdown_value${fieldQuote}` : ''}
-    FROM user_step_times
+    FROM user_step_times AS ${fieldQuote}user_step_times${fieldQuote}
     WHERE ${fieldQuote}event_occurrence${fieldQuote} = 1
 ),
 ${stepCTEs},
@@ -317,7 +317,7 @@ SELECT
         ELSE 0
     END AS ${fieldQuote}step_conversion_rate${fieldQuote}
     ${breakdownField ? `, ${fieldQuote}breakdown_value${fieldQuote}` : ''}
-FROM funnel_results
+FROM funnel_results AS ${fieldQuote}funnel_results${fieldQuote}
 ORDER BY ${
             breakdownField ? `${fieldQuote}breakdown_value${fieldQuote}, ` : ''
         }${fieldQuote}step_order${fieldQuote}
