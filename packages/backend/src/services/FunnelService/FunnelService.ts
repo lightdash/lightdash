@@ -141,7 +141,8 @@ export class FunnelService extends BaseService {
               )
             : null;
 
-        const baseTable = explore.tables[explore.baseTable].sqlTable;
+        const baseTableSql = explore.tables[explore.baseTable].sqlTable;
+        const baseTableName = explore.baseTable;
 
         // Escape user-provided event names
         const stepNames = request.steps.map((s: FunnelStep) =>
@@ -267,7 +268,7 @@ WITH filtered_events AS (
             timestampField.compiledSql
         } AS ${fieldQuote}event_timestamp${fieldQuote}
         ${breakdownSelect}
-    FROM ${baseTable}
+    FROM ${baseTableSql} AS ${fieldQuote}${baseTableName}${fieldQuote}
     WHERE ${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(start)}
       AND ${timestampField.compiledSql} < ${sqlBuilder.castToTimestamp(end)}
       AND ${eventNameField.compiledSql} IN (${stepNames.join(', ')})
