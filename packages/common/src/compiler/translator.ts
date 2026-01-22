@@ -87,7 +87,9 @@ const convertTimezone = (
             return timestampSql;
         case SupportedDbtAdapter.DATABRICKS:
             return timestampSql;
+        // Athena uses Trino SQL, timestamps return in server timezone
         case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
             return timestampSql;
         case SupportedDbtAdapter.CLICKHOUSE:
             // DateTime: stored in server timezone, returns in server timezone

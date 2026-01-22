@@ -242,6 +242,36 @@ const credentialsTarget = (
                     [envVar('password')]: credentials.password,
                 },
             };
+        case WarehouseTypes.ATHENA: {
+            const athenaResult: CredentialsTarget = {
+                target: {
+                    type: WarehouseTypes.ATHENA,
+                    region_name: credentials.region,
+                    database: credentials.database,
+                    schema: credentials.schema,
+                    s3_staging_dir: credentials.s3StagingDir,
+                    s3_data_dir: credentials.s3DataDir || undefined,
+                    work_group: credentials.workGroup || undefined,
+                    threads: credentials.threads || DEFAULT_THREADS,
+                    num_retries: credentials.numRetries || undefined,
+                },
+                environment: {},
+            };
+
+            // Add access key authentication if provided
+            if (credentials.accessKeyId && credentials.secretAccessKey) {
+                athenaResult.target.aws_access_key_id =
+                    envVarReference('accessKeyId');
+                athenaResult.target.aws_secret_access_key =
+                    envVarReference('secretAccessKey');
+                athenaResult.environment[envVar('accessKeyId')] =
+                    credentials.accessKeyId;
+                athenaResult.environment[envVar('secretAccessKey')] =
+                    credentials.secretAccessKey;
+            }
+
+            return athenaResult;
+        }
         default:
             const { type } = credentials;
             return assertUnreachable(

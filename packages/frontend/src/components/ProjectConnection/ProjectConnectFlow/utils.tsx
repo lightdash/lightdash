@@ -9,6 +9,7 @@ import {
 } from './types';
 
 // assets
+import Athena from './Assets/athena.svg';
 import BigQuery from './Assets/bigquery.svg';
 import ClickHouse from './Assets/clickhouse.svg';
 import Databricks from './Assets/databricks.svg';
@@ -59,6 +60,12 @@ export const WarehouseTypeLabels: WarehouseLabel[] = [
         key: WarehouseTypes.CLICKHOUSE,
         iconType: 'image',
         image: ClickHouse,
+    },
+    {
+        label: 'Athena',
+        key: WarehouseTypes.ATHENA,
+        iconType: 'image',
+        image: Athena,
     },
     {
         label: 'Other',

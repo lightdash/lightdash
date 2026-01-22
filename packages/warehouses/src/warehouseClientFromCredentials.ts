@@ -4,6 +4,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { WarehouseClient } from './types';
+import { AthenaWarehouseClient } from './warehouseClients/AthenaWarehouseClient';
 import { BigqueryWarehouseClient } from './warehouseClients/BigqueryWarehouseClient';
 import { ClickhouseWarehouseClient } from './warehouseClients/ClickhouseWarehouseClient';
 import { DatabricksWarehouseClient } from './warehouseClients/DatabricksWarehouseClient';
@@ -30,6 +31,8 @@ export const warehouseClientFromCredentials = (
             return new TrinoWarehouseClient(credentials);
         case WarehouseTypes.CLICKHOUSE:
             return new ClickhouseWarehouseClient(credentials);
+        case WarehouseTypes.ATHENA:
+            return new AthenaWarehouseClient(credentials);
         default:
             const never: never = credentials;
             throw new UnexpectedServerError(

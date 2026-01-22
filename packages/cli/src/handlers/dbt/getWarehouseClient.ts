@@ -190,6 +190,18 @@ function getMockCredentials(
                 timeoutSeconds: 300,
             };
             break;
+        case SupportedDbtAdapter.ATHENA:
+            credentials = {
+                type: WarehouseTypes.ATHENA,
+                region: '',
+                database: '',
+                schema: '',
+                s3StagingDir: '',
+                s3DataDir: '',
+                accessKeyId: '',
+                secretAccessKey: '',
+            };
+            break;
         default:
             assertUnreachable(
                 dbtAdaptorType,

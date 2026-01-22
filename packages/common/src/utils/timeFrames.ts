@@ -397,6 +397,7 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.POSTGRES]: postgresConfig,
     [SupportedDbtAdapter.DATABRICKS]: databricksConfig,
     [SupportedDbtAdapter.TRINO]: trinoConfig,
+    [SupportedDbtAdapter.ATHENA]: trinoConfig, // Athena uses Trino SQL dialect
     [SupportedDbtAdapter.CLICKHOUSE]: clickhouseConfig,
 };
 

@@ -21,6 +21,7 @@ export const getFieldQuoteChar = (
             case WarehouseTypes.POSTGRES:
             case WarehouseTypes.TRINO:
             case WarehouseTypes.CLICKHOUSE:
+            case WarehouseTypes.ATHENA:
                 return '"';
             default:
                 return assertUnreachable(
@@ -45,6 +46,7 @@ export const getAggregatedField = (
         case SupportedDbtAdapter.SNOWFLAKE:
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
             const aggregationFunction =
                 aggregation === VizAggregationOptions.ANY
                     ? 'ANY_VALUE'

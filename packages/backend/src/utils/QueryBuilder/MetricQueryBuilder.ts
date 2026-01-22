@@ -113,12 +113,14 @@ export type BuildQueryProps = {
  * @returns The warehouse-specific interval syntax with comparison
  */
 /**
- * Converts QUARTER interval to 3 months for databases that don't support QUARTER.
+ * Normalizes intervals to units supported by all databases.
+ * - QUARTER → 3 MONTH (QUARTER not universally supported)
+ * - WEEK → 7 DAY (WEEK not supported in Trino/Athena intervals)
  * @param value - The interval value
  * @param granularity - The time granularity
  * @returns Tuple of [convertedValue, convertedGranularity]
  */
-function convertQuarterToMonths(
+function normalizeIntervalGranularity(
     value: number,
     granularity: string,
 ): [number, string] {
@@ -126,6 +128,10 @@ function convertQuarterToMonths(
 
     if (upperGranularity === 'QUARTER') {
         return [value * 3, 'MONTH'];
+    }
+
+    if (upperGranularity === 'WEEK') {
+        return [value * 7, 'DAY'];
     }
 
     return [value, granularity];
@@ -152,7 +158,7 @@ export function getIntervalSyntax(
         case SupportedDbtAdapter.DATABRICKS: {
             // Databricks uses interval arithmetic with quoted values
             // Databricks doesn't support QUARTER interval, convert to months
-            const [dbValue, dbGranularity] = convertQuarterToMonths(
+            const [dbValue, dbGranularity] = normalizeIntervalGranularity(
                 value,
                 granularity,
             );
@@ -170,10 +176,8 @@ export function getIntervalSyntax(
         case SupportedDbtAdapter.REDSHIFT: {
             // Redshift uses standard interval arithmetic
             // Redshift doesn't support QUARTER interval, convert to months
-            const [redshiftValue, redshiftGranularity] = convertQuarterToMonths(
-                value,
-                granularity,
-            );
+            const [redshiftValue, redshiftGranularity] =
+                normalizeIntervalGranularity(value, granularity);
             intervalExpression = `${columnWithInterval} ${
                 isAdd ? '+' : '-'
             } INTERVAL '${redshiftValue} ${redshiftGranularity}'`;
@@ -182,7 +186,7 @@ export function getIntervalSyntax(
         case SupportedDbtAdapter.POSTGRES: {
             // Postgres uses standard interval arithmetic
             // Postgres doesn't support QUARTER interval, convert to months
-            const [pgValue, pgGranularity] = convertQuarterToMonths(
+            const [pgValue, pgGranularity] = normalizeIntervalGranularity(
                 value,
                 granularity,
             );
@@ -191,10 +195,10 @@ export function getIntervalSyntax(
             } INTERVAL '${pgValue} ${pgGranularity}'`;
             break;
         }
-        case SupportedDbtAdapter.TRINO: {
-            // Trino uses standard interval arithmetic
-            // Trino doesn't support QUARTER interval, convert to months
-            const [trinoValue, trinoGranularity] = convertQuarterToMonths(
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA: {
+            // Trino/Athena uses standard interval arithmetic
+            const [trinoValue, trinoGranularity] = normalizeIntervalGranularity(
                 value,
                 granularity,
             );
@@ -206,7 +210,7 @@ export function getIntervalSyntax(
         case SupportedDbtAdapter.CLICKHOUSE: {
             // ClickHouse uses date arithmetic functions
             // ClickHouse doesn't support QUARTER interval, convert to months
-            const [chValue, chGranularity] = convertQuarterToMonths(
+            const [chValue, chGranularity] = normalizeIntervalGranularity(
                 value,
                 granularity,
             );
