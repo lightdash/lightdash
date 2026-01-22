@@ -113,19 +113,27 @@ export type BuildQueryProps = {
  * @returns The warehouse-specific interval syntax with comparison
  */
 /**
- * Converts QUARTER interval to 3 months for databases that don't support QUARTER.
+ * Normalizes intervals to units supported by databases.
+ * - QUARTER → 3 MONTH (QUARTER not universally supported)
+ * - WEEK → 7 DAY (only when convertWeeks is true, for Athena which doesn't support WEEK intervals)
  * @param value - The interval value
  * @param granularity - The time granularity
+ * @param convertWeeks - Whether to convert WEEK to DAY (only needed for Athena)
  * @returns Tuple of [convertedValue, convertedGranularity]
  */
-function convertQuarterToMonths(
+function normalizeIntervalGranularity(
     value: number,
     granularity: string,
+    convertWeeks: boolean = false,
 ): [number, string] {
     const upperGranularity = granularity.toUpperCase();
 
     if (upperGranularity === 'QUARTER') {
         return [value * 3, 'MONTH'];
+    }
+
+    if (convertWeeks && upperGranularity === 'WEEK') {
+        return [value * 7, 'DAY'];
     }
 
     return [value, granularity];
@@ -152,7 +160,7 @@ export function getIntervalSyntax(
         case SupportedDbtAdapter.DATABRICKS: {
             // Databricks uses interval arithmetic with quoted values
             // Databricks doesn't support QUARTER interval, convert to months
-            const [dbValue, dbGranularity] = convertQuarterToMonths(
+            const [dbValue, dbGranularity] = normalizeIntervalGranularity(
                 value,
                 granularity,
             );
@@ -170,10 +178,8 @@ export function getIntervalSyntax(
         case SupportedDbtAdapter.REDSHIFT: {
             // Redshift uses standard interval arithmetic
             // Redshift doesn't support QUARTER interval, convert to months
-            const [redshiftValue, redshiftGranularity] = convertQuarterToMonths(
-                value,
-                granularity,
-            );
+            const [redshiftValue, redshiftGranularity] =
+                normalizeIntervalGranularity(value, granularity);
             intervalExpression = `${columnWithInterval} ${
                 isAdd ? '+' : '-'
             } INTERVAL '${redshiftValue} ${redshiftGranularity}'`;
@@ -182,7 +188,7 @@ export function getIntervalSyntax(
         case SupportedDbtAdapter.POSTGRES: {
             // Postgres uses standard interval arithmetic
             // Postgres doesn't support QUARTER interval, convert to months
-            const [pgValue, pgGranularity] = convertQuarterToMonths(
+            const [pgValue, pgGranularity] = normalizeIntervalGranularity(
                 value,
                 granularity,
             );
@@ -193,8 +199,7 @@ export function getIntervalSyntax(
         }
         case SupportedDbtAdapter.TRINO: {
             // Trino uses standard interval arithmetic
-            // Trino doesn't support QUARTER interval, convert to months
-            const [trinoValue, trinoGranularity] = convertQuarterToMonths(
+            const [trinoValue, trinoGranularity] = normalizeIntervalGranularity(
                 value,
                 granularity,
             );
@@ -203,10 +208,20 @@ export function getIntervalSyntax(
             } INTERVAL '${trinoValue}' ${trinoGranularity}`;
             break;
         }
+        case SupportedDbtAdapter.ATHENA: {
+            // Athena uses standard interval arithmetic
+            // Athena doesn't support WEEK interval, convert to days
+            const [athenaValue, athenaGranularity] =
+                normalizeIntervalGranularity(value, granularity, true);
+            intervalExpression = `${columnWithInterval} ${
+                isAdd ? '+' : '-'
+            } INTERVAL '${athenaValue}' ${athenaGranularity}`;
+            break;
+        }
         case SupportedDbtAdapter.CLICKHOUSE: {
             // ClickHouse uses date arithmetic functions
             // ClickHouse doesn't support QUARTER interval, convert to months
-            const [chValue, chGranularity] = convertQuarterToMonths(
+            const [chValue, chGranularity] = normalizeIntervalGranularity(
                 value,
                 granularity,
             );

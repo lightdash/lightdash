@@ -25,6 +25,7 @@ export enum WarehouseTypes {
     DATABRICKS = 'databricks',
     TRINO = 'trino',
     CLICKHOUSE = 'clickhouse',
+    ATHENA = 'athena',
 }
 
 export type SshTunnelConfiguration = {
@@ -72,6 +73,8 @@ export const sensitiveCredentialsFieldNames = [
     'refreshToken',
     'oauthClientId',
     'oauthClientSecret',
+    'accessKeyId',
+    'secretAccessKey',
 ] as const;
 export type SensitiveCredentialsFieldNames =
     (typeof sensitiveCredentialsFieldNames)[number];
@@ -175,6 +178,28 @@ export type ClickhouseCredentials = Omit<
     CreateClickhouseCredentials,
     SensitiveCredentialsFieldNames
 >;
+
+export type CreateAthenaCredentials = {
+    type: WarehouseTypes.ATHENA;
+    region: string;
+    database: string;
+    schema: string;
+    s3StagingDir: string;
+    s3DataDir?: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    workGroup?: string;
+    threads?: number;
+    numRetries?: number;
+    requireUserCredentials?: boolean;
+    startOfWeek?: WeekDay | null;
+};
+
+export type AthenaCredentials = Omit<
+    CreateAthenaCredentials,
+    SensitiveCredentialsFieldNames
+>;
+
 export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     type: WarehouseTypes.REDSHIFT;
     host: string;
@@ -240,7 +265,8 @@ export type CreateWarehouseCredentials =
     | CreateSnowflakeCredentials
     | CreateDatabricksCredentials
     | CreateTrinoCredentials
-    | CreateClickhouseCredentials;
+    | CreateClickhouseCredentials
+    | CreateAthenaCredentials;
 export type WarehouseCredentials =
     | SnowflakeCredentials
     | RedshiftCredentials
@@ -248,7 +274,8 @@ export type WarehouseCredentials =
     | BigqueryCredentials
     | DatabricksCredentials
     | TrinoCredentials
-    | ClickhouseCredentials;
+    | ClickhouseCredentials
+    | AthenaCredentials;
 
 export type CreatePostgresLikeCredentials =
     | CreateRedshiftCredentials

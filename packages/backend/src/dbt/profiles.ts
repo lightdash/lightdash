@@ -242,6 +242,26 @@ const credentialsTarget = (
                     [envVar('password')]: credentials.password,
                 },
             };
+        case WarehouseTypes.ATHENA:
+            return {
+                target: {
+                    type: WarehouseTypes.ATHENA,
+                    region_name: credentials.region,
+                    database: credentials.database,
+                    schema: credentials.schema,
+                    s3_staging_dir: credentials.s3StagingDir,
+                    s3_data_dir: credentials.s3DataDir || undefined,
+                    work_group: credentials.workGroup || undefined,
+                    threads: credentials.threads || DEFAULT_THREADS,
+                    num_retries: credentials.numRetries || undefined,
+                    aws_access_key_id: envVarReference('accessKeyId'),
+                    aws_secret_access_key: envVarReference('secretAccessKey'),
+                },
+                environment: {
+                    [envVar('accessKeyId')]: credentials.accessKeyId,
+                    [envVar('secretAccessKey')]: credentials.secretAccessKey,
+                },
+            };
         default:
             const { type } = credentials;
             return assertUnreachable(
