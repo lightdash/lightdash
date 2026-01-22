@@ -1,3 +1,10 @@
+## [0.2370.1](https://github.com/lightdash/lightdash/compare/0.2370.0...0.2370.1) (2026-01-22)
+
+
+### Bug Fixes
+
+* sorting in pivoted tables ([#19510](https://github.com/lightdash/lightdash/issues/19510)) ([2872501](https://github.com/lightdash/lightdash/commit/287250104d702d2cfc380f65903c48fc0eda9583))
+
 # [0.2370.0](https://github.com/lightdash/lightdash/compare/0.2369.0...0.2370.0) (2026-01-22)
 
 
