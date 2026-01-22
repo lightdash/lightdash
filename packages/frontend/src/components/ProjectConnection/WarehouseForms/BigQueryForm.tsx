@@ -1,8 +1,4 @@
-import {
-    BigqueryAuthenticationType,
-    FeatureFlags,
-    WarehouseTypes,
-} from '@lightdash/common';
+import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
 import type { SelectItem } from '@mantine/core';
 import {
     Anchor,
@@ -27,7 +23,6 @@ import {
     useBigqueryDatasets,
     useIsBigQueryAuthenticated,
 } from '../../../hooks/useBigquerySSO';
-import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 import DocumentationHelpButton from '../../DocumentationHelpButton';
 import FormCollapseButton from '../FormCollapseButton';
@@ -120,8 +115,6 @@ const BigQueryForm: FC<{
     const [debouncedProject] = useDebouncedValue(project.value, 300);
     const health = useHealth();
     const isAdcEnabled = health.data?.auth.google?.enableGCloudADC;
-
-    const isSsoEnabled = useClientFeatureFlag(FeatureFlags.BigquerySSO);
     // Fetching databases can only happen if user is authenticated
     // if user authenticates, and change to private_key
     // We will not make any queries, in case private_key is different
@@ -133,10 +126,7 @@ const BigQueryForm: FC<{
         data: datasets,
         refetch: refetchDatasets,
         error: datasetsError,
-    } = useBigqueryDatasets(
-        isSsoEnabled && isAuthenticated && isSso,
-        debouncedProject,
-    );
+    } = useBigqueryDatasets(isAuthenticated && isSso, debouncedProject);
     const [isOpen, toggleOpen] = useToggle(false);
     const [temporaryFile, setTemporaryFile] = useState<File | null>(null);
     const { savedProject } = useProjectFormContext();
@@ -154,9 +144,7 @@ const BigQueryForm: FC<{
     }
 
     // savedProject might not be loaded when the form is rendered, so we need to set the defaultValue also on a hook
-    const defaultAuthenticationType = isSsoEnabled
-        ? BigqueryAuthenticationType.SSO
-        : BigqueryAuthenticationType.PRIVATE_KEY;
+    const defaultAuthenticationType = BigqueryAuthenticationType.SSO;
 
     const { mutate: openLoginPopup } = useGoogleLoginPopup(
         'bigquery',
@@ -179,7 +167,7 @@ const BigQueryForm: FC<{
             value: BigqueryAuthenticationType.PRIVATE_KEY,
             label: 'Service Account (JSON key file)',
         },
-        isSsoEnabled && {
+        {
             value: BigqueryAuthenticationType.SSO,
             label: 'User Account (Sign in with Google)',
         },
@@ -191,7 +179,7 @@ const BigQueryForm: FC<{
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
-                {(isSsoEnabled || isAdcEnabled) && (
+                {
                     <Group spacing="sm">
                         <Select
                             name="warehouse.authenticationType"
@@ -233,16 +221,15 @@ const BigQueryForm: FC<{
                             </Tooltip>
                         )}
                     </Group>
-                )}
+                }
 
-                {isSsoEnabled &&
-                    authenticationType === BigqueryAuthenticationType.SSO && (
-                        <BigQuerySSOInput
-                            isAuthenticated={isAuthenticated}
-                            disabled={disabled}
-                            openLoginPopup={openLoginPopup}
-                        />
-                    )}
+                {authenticationType === BigqueryAuthenticationType.SSO && (
+                    <BigQuerySSOInput
+                        isAuthenticated={isAuthenticated}
+                        disabled={disabled}
+                        openLoginPopup={openLoginPopup}
+                    />
+                )}
                 <Group spacing="sm">
                     <TextInput
                         name="warehouse.project"
@@ -303,8 +290,7 @@ const BigQueryForm: FC<{
                     disabled={disabled}
                 />
 
-                {isSsoEnabled &&
-                authenticationType === BigqueryAuthenticationType.SSO ? (
+                {authenticationType === BigqueryAuthenticationType.SSO ? (
                     <>
                         {/*
                 // Autocomplete for datasets
@@ -429,22 +415,21 @@ const BigQueryForm: FC<{
                 )}
                 <FormSection isOpen={isOpen} name="advanced">
                     <Stack style={{ marginTop: '8px' }}>
-                        {isSsoEnabled && (
-                            <BooleanSwitch
-                                name="warehouse.requireUserCredentials"
-                                {...form.getInputProps(
-                                    'warehouse.requireUserCredentials',
-                                    {
-                                        type: 'checkbox',
-                                    },
-                                )}
-                                label="Require users to provide their own credentials"
-                                disabled={disabled}
-                                defaultChecked={
-                                    BigQueryDefaultValues.requireUserCredentials
-                                }
-                            />
-                        )}
+                        <BooleanSwitch
+                            name="warehouse.requireUserCredentials"
+                            {...form.getInputProps(
+                                'warehouse.requireUserCredentials',
+                                {
+                                    type: 'checkbox',
+                                },
+                            )}
+                            label="Require users to provide their own credentials"
+                            disabled={disabled}
+                            defaultChecked={
+                                BigQueryDefaultValues.requireUserCredentials
+                            }
+                        />
+
                         <TextInput
                             name="warehouse.executionProject"
                             label="Execution project"

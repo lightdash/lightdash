@@ -43,8 +43,6 @@ export enum FeatureFlags {
      */
     AiCustomViz = 'ai-custom-viz',
 
-    BigquerySSO = 'bigquery-sso',
-
     /**
      * Use workers for async query execution
      */
