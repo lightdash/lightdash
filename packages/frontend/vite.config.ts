@@ -79,7 +79,6 @@ export default defineConfig({
                         'react',
                         'react-dom',
                         'react-router',
-                        'react-hook-form',
                         'react-use',
                         // TODO: removed because of PNPM
                         // 'react-draggable',

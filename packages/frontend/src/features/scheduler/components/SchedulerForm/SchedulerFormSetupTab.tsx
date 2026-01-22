@@ -43,7 +43,7 @@ import {
 } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { useMemo, useState, type FC } from 'react';
-import { CronInternalInputs } from '../../../../components/ReactHookForm/CronInput';
+import { CronInternalInputs } from '../../../../components/CronInput';
 import FieldSelect from '../../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../../components/common/MantineIcon';

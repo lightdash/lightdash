@@ -10,7 +10,7 @@ import {
 } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
-import { CronInternalInputs } from '../../../components/ReactHookForm/CronInput';
+import { CronInternalInputs } from '../../../components/CronInput';
 import MantineIcon from '../../../components/common/MantineIcon';
 import TimeZonePicker from '../../../components/common/TimeZonePicker';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
