@@ -469,10 +469,11 @@ export class ExploreCompiler {
             sqlPath,
             databricksCompute,
             ...(aiHint ? { aiHint } : {}),
-            ...getSpotlightConfigurationForResource(
-                spotlightVisibility,
-                spotlightCategories,
-            ),
+            ...getSpotlightConfigurationForResource({
+                visibility: spotlightVisibility,
+                categories: spotlightCategories,
+                owner: meta.spotlight?.owner,
+            }),
             ...(meta.parameters && Object.keys(meta.parameters).length > 0
                 ? { parameters: meta.parameters }
                 : {}),

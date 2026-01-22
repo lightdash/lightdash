@@ -137,6 +137,7 @@ export type DbtModelLightdashConfig = ExploreConfig &
                 LightdashProjectConfig['spotlight']
             >['default_visibility'];
             categories?: string[]; // yaml_reference
+            owner?: string; // model owner email (inherited by metrics)
         };
         explores?: Record<
             string,
@@ -236,6 +237,7 @@ export type DbtColumnLightdashMetric = {
         categories?: string[]; // yaml_reference
         filter_by?: string[]; // dimension IDs allowlist
         segment_by?: string[]; // dimension IDs allowlist
+        owner?: string; // metric owner email
     };
     ai_hint?: string | string[];
 } & DbtLightdashFieldTags;
@@ -530,6 +532,7 @@ type ConvertModelMetricArgs = {
     requiredAttributes?: Record<string, string | string[]>;
     spotlightConfig?: LightdashProjectConfig['spotlight'];
     modelCategories?: string[];
+    modelOwner?: string;
 };
 export const convertModelMetric = ({
     modelName,
@@ -541,6 +544,7 @@ export const convertModelMetric = ({
     requiredAttributes,
     spotlightConfig,
     modelCategories = [],
+    modelOwner,
 }: ConvertModelMetricArgs): Metric => {
     const groups = convertToGroups(metric.groups, metric.group_label);
     const spotlightVisibility =
@@ -555,6 +559,9 @@ export const convertModelMetric = ({
         spotlightConfig,
         metricCategories,
     );
+
+    // Metric owner takes precedence over model owner
+    const owner = metric.spotlight?.owner ?? modelOwner;
 
     return {
         fieldType: FieldType.METRIC,
@@ -592,12 +599,13 @@ export const convertModelMetric = ({
                   },
               }
             : null),
-        ...getSpotlightConfigurationForResource(
-            spotlightVisibility,
-            spotlightCategories,
-            metric.spotlight?.filter_by,
-            metric.spotlight?.segment_by,
-        ),
+        ...getSpotlightConfigurationForResource({
+            visibility: spotlightVisibility,
+            categories: spotlightCategories,
+            filterBy: metric.spotlight?.filter_by,
+            segmentBy: metric.spotlight?.segment_by,
+            owner,
+        }),
         ...(metric.ai_hint ? { aiHint: convertToAiHints(metric.ai_hint) } : {}),
     };
 };
@@ -621,6 +629,7 @@ export const convertColumnMetric = ({
     requiredAttributes,
     spotlightConfig,
     modelCategories = [],
+    modelOwner,
 }: ConvertColumnMetricArgs): Metric =>
     convertModelMetric({
         modelName,
@@ -652,6 +661,7 @@ export const convertColumnMetric = ({
             : null),
         spotlightConfig,
         modelCategories,
+        modelOwner,
     });
 
 export enum DbtManifestVersion {

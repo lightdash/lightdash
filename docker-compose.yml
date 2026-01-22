@@ -109,6 +109,7 @@ services:
             - TURBO_TOKEN=${TURBO_TOKEN}
             - TURBO_TEAM=${TURBO_TEAM}
             - TURBO_API=${TURBO_API}
+            - SIGNUP_URL=${SIGNUP_URL}
         volumes:
             - '${DBT_PROJECT_DIR}:/usr/app/dbt'
         ports:

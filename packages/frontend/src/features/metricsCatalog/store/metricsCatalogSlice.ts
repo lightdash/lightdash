@@ -34,6 +34,7 @@ type MetricsCatalogState = {
     categoryFilters: CatalogField['categories'][number]['tagUuid'][];
     categoryFilterMode: CatalogCategoryFilterMode;
     tableFilters: string[];
+    ownerFilters: string[];
     search: string | undefined;
     tableSorting: MRT_SortingState;
     popovers: {
@@ -62,10 +63,20 @@ export function convertStateToTableColumnConfig(
 export function convertTableColumnConfigToState(
     columnConfig: SpotlightTableConfig['columnConfig'],
 ): MetricsCatalogState['columnConfig'] {
+    // Merge with defaults to ensure all columns exist (handles old configs missing new columns)
+    const mergedConfig = DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG.map(
+        (defaultCol) => {
+            const savedCol = columnConfig.find(
+                (c) => c.column === defaultCol.column,
+            );
+            return savedCol ?? defaultCol;
+        },
+    );
+
     return {
-        columnOrder: columnConfig.map((column) => column.column),
+        columnOrder: mergedConfig.map((column) => column.column),
         columnVisibility: Object.fromEntries(
-            columnConfig.map((column) => [column.column, column.isVisible]),
+            mergedConfig.map((column) => [column.column, column.isVisible]),
         ),
     };
 }
@@ -77,6 +88,7 @@ const initialState: MetricsCatalogState = {
     categoryFilters: [],
     categoryFilterMode: CatalogCategoryFilterMode.OR,
     tableFilters: [],
+    ownerFilters: [],
     search: undefined,
     tableSorting: [
         {
@@ -117,6 +129,7 @@ const initialState: MetricsCatalogState = {
             [SpotlightTableColumns.DESCRIPTION]: false,
             [SpotlightTableColumns.CATEGORIES]: false,
             [SpotlightTableColumns.METRIC]: false,
+            [SpotlightTableColumns.OWNER]: false,
         },
     },
 };
@@ -161,6 +174,9 @@ export const metricsCatalogSlice = createSlice({
         },
         setTableFilters: (state, action: PayloadAction<string[]>) => {
             state.tableFilters = action.payload;
+        },
+        setOwnerFilters: (state, action: PayloadAction<string[]>) => {
+            state.ownerFilters = action.payload;
         },
         setSearch: (state, action: PayloadAction<string | undefined>) => {
             state.search = action.payload;
@@ -238,6 +254,7 @@ export const {
     setCategoryFilters,
     setCategoryFilterMode,
     setTableFilters,
+    setOwnerFilters,
     setOrganizationUuid,
     setAbility,
     setUser,

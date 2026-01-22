@@ -34,6 +34,7 @@ import {
     setCategoryFilterMode,
     setCategoryFilters,
     setOrganizationUuid,
+    setOwnerFilters,
     setProjectUuid,
     setSearch,
     setTableFilters,
@@ -186,6 +187,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     const searchParam = useSearchParams('search');
     const sortingParam = useSearchParams('sortBy');
     const sortDirectionParam = useSearchParams('sortDirection');
+    const ownerUserUuidParam = useSearchParams('ownerUserUuid');
 
     const categories = useAppSelector(
         (state) => state.metricsCatalog.categoryFilters,
@@ -199,6 +201,9 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     const search = useAppSelector((state) => state.metricsCatalog.search);
     const tableSorting = useAppSelector(
         (state) => state.metricsCatalog.tableSorting,
+    );
+    const ownerFilters = useAppSelector(
+        (state) => state.metricsCatalog.ownerFilters,
     );
 
     const organizationUuid = useAppSelector(
@@ -272,10 +277,13 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
         const urlSortDirectionParam = sortDirectionParam
             ? decodeURIComponent(sortDirectionParam)
             : undefined;
+        const urlOwnerUserUuids =
+            ownerUserUuidParam?.split(',').map(decodeURIComponent) || [];
 
         dispatch(setCategoryFilters(urlCategories));
         dispatch(setCategoryFilterMode(urlCategoriesFilterMode));
         dispatch(setTableFilters(urlTables));
+        dispatch(setOwnerFilters(urlOwnerUserUuids));
         dispatch(setSearch(urlSearch));
 
         if (urlSortByParam) {
@@ -292,6 +300,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
         categoriesParam,
         categoriesFilterModeParam,
         tablesParam,
+        ownerUserUuidParam,
         dispatch,
         searchParam,
         sortingParam,
@@ -341,11 +350,21 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
             );
         }
 
+        if (ownerFilters.length > 0) {
+            queryParams.set(
+                'ownerUserUuid',
+                ownerFilters.map(encodeURIComponent).join(','),
+            );
+        } else {
+            queryParams.delete('ownerUserUuid');
+        }
+
         void navigate({ search: queryParams.toString() }, { replace: true });
     }, [
         categories,
         categoryFilterMode,
         tableFilters,
+        ownerFilters,
         search,
         tableSorting,
         navigate,

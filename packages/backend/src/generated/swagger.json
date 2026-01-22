@@ -5705,6 +5705,9 @@
                     },
                     "spotlight": {
                         "properties": {
+                            "owner": {
+                                "type": "string"
+                            },
                             "segmentBy": {
                                 "items": {
                                     "type": "string"
@@ -5990,6 +5993,9 @@
                     },
                     "spotlight": {
                         "properties": {
+                            "owner": {
+                                "type": "string"
+                            },
                             "categories": {
                                 "items": {
                                     "type": "string"
@@ -8205,6 +8211,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -8220,12 +8239,12 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -8233,10 +8252,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -8245,8 +8264,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -8340,12 +8359,12 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "searchRank": {
+                                                                                    "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -8353,10 +8372,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -8365,8 +8384,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -13982,7 +14001,8 @@
                     "tableLabel",
                     "description",
                     "categories",
-                    "chartUsage"
+                    "chartUsage",
+                    "owner"
                 ],
                 "type": "string"
             },
@@ -18921,6 +18941,9 @@
                     },
                     "spotlight": {
                         "properties": {
+                            "owner": {
+                                "type": "string"
+                            },
                             "categories": {
                                 "items": {
                                     "type": "string"
@@ -21518,6 +21541,9 @@
                     },
                     "spotlight": {
                         "properties": {
+                            "owner": {
+                                "type": "string"
+                            },
                             "categories": {
                                 "items": {
                                     "type": "string"
@@ -21885,6 +21911,24 @@
                     }
                 ]
             },
+            "CatalogOwner": {
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    },
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["email", "lastName", "firstName", "userUuid"],
+                "type": "object"
+            },
             "CatalogField": {
                 "allOf": [
                     {
@@ -21895,6 +21939,14 @@
                     },
                     {
                         "properties": {
+                            "owner": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/CatalogOwner"
+                                    }
+                                ],
+                                "nullable": true
+                            },
                             "spotlightSegmentBy": {
                                 "items": {
                                     "type": "string"
@@ -21976,6 +22028,7 @@
                             }
                         },
                         "required": [
+                            "owner",
                             "aiHints",
                             "icon",
                             "categories",
@@ -24345,7 +24398,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2360.0",
+        "version": "0.2364.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -37102,6 +37155,17 @@
                                 "type": "string"
                             }
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "ownerUserUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
                     }
                 ]
             }
@@ -37666,6 +37730,61 @@
                     }
                 },
                 "description": "Check if there are any metrics in catalog",
+                "tags": ["Catalog"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/dataCatalog/metrics/owners": {
+            "get": {
+                "operationId": "getMetricOwners",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "items": {
+                                                "$ref": "#/components/schemas/CatalogOwner"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get distinct metric owners for filter dropdown",
+                "summary": "List metric owners",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [

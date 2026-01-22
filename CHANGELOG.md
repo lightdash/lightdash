@@ -1,3 +1,95 @@
+# [0.2370.0](https://github.com/lightdash/lightdash/compare/0.2369.0...0.2370.0) (2026-01-22)
+
+
+### Bug Fixes
+
+* ensure slack share screenshot is taken ([#19658](https://github.com/lightdash/lightdash/issues/19658)) ([ade6808](https://github.com/lightdash/lightdash/commit/ade680896a8ad7441f6e3460caecef6b5d644ddc))
+
+
+### Features
+
+* allow bigquery sso by default ([#19667](https://github.com/lightdash/lightdash/issues/19667)) ([23ce115](https://github.com/lightdash/lightdash/commit/23ce1152f9f8ee28e5f5c5b4f5e46492cc78d21f)), closes [#19641](https://github.com/lightdash/lightdash/issues/19641)
+
+# [0.2369.0](https://github.com/lightdash/lightdash/compare/0.2368.0...0.2369.0) (2026-01-22)
+
+
+### Bug Fixes
+
+* validate dashboard filters and tile targets for table name consistency ([#19659](https://github.com/lightdash/lightdash/issues/19659)) ([9d377cf](https://github.com/lightdash/lightdash/commit/9d377cf99e7062ae686579dedb44ebc3416f50c9))
+
+
+### Features
+
+* configure signup URL ([#19602](https://github.com/lightdash/lightdash/issues/19602)) ([83205d8](https://github.com/lightdash/lightdash/commit/83205d807953183e9875bf90f8140dec9b842c2a))
+* display empty state when no results from metric explore modal v2 ([#19662](https://github.com/lightdash/lightdash/issues/19662)) ([94d953c](https://github.com/lightdash/lightdash/commit/94d953cb5c78065382b05a935e319ff6983cd37d))
+
+# [0.2368.0](https://github.com/lightdash/lightdash/compare/0.2367.0...0.2368.0) (2026-01-22)
+
+
+### Features
+
+* resolve Slack channel names to IDs for reliable API calls ([#19660](https://github.com/lightdash/lightdash/issues/19660)) ([4bd374c](https://github.com/lightdash/lightdash/commit/4bd374ca575191ef4c86d6a7380b38a1424455d2))
+
+# [0.2367.0](https://github.com/lightdash/lightdash/compare/0.2366.0...0.2367.0) (2026-01-22)
+
+
+### Bug Fixes
+
+* handle missing columns in metrics catalog table configuration ([#19661](https://github.com/lightdash/lightdash/issues/19661)) ([78d7221](https://github.com/lightdash/lightdash/commit/78d72216b629013dc4b95cc989df80ae6a8335d5))
+
+
+### Features
+
+* add owner filtering to metrics catalog ([#19637](https://github.com/lightdash/lightdash/issues/19637)) ([fbc74dd](https://github.com/lightdash/lightdash/commit/fbc74dde9f1422180e227066cdfffd7f886724fb))
+
+# [0.2366.0](https://github.com/lightdash/lightdash/compare/0.2365.3...0.2366.0) (2026-01-22)
+
+
+### Features
+
+* allow filter by in metric explore modal v2 ([#19654](https://github.com/lightdash/lightdash/issues/19654)) ([678e651](https://github.com/lightdash/lightdash/commit/678e651a123fccbe5bfcd7fb4f6700a6de572fa5))
+* allow segment by in metric explore modal v2 ([#19652](https://github.com/lightdash/lightdash/issues/19652)) ([924fc67](https://github.com/lightdash/lightdash/commit/924fc67ff5a462971e0a03a6538be732f970dacd))
+
+## [0.2365.3](https://github.com/lightdash/lightdash/compare/0.2365.2...0.2365.3) (2026-01-22)
+
+
+### Bug Fixes
+
+* use colorsio with oklab colorspace for the gradients ([#19649](https://github.com/lightdash/lightdash/issues/19649)) ([2d2a690](https://github.com/lightdash/lightdash/commit/2d2a6905389c45d510382ebfa081e827973eea74))
+
+## [0.2365.2](https://github.com/lightdash/lightdash/compare/0.2365.1...0.2365.2) (2026-01-22)
+
+
+### Bug Fixes
+
+* improve map legend to show the gradient ([#19626](https://github.com/lightdash/lightdash/issues/19626)) ([bec3ec9](https://github.com/lightdash/lightdash/commit/bec3ec9c6fcb95dd96785e2601322b9423bfd444))
+
+## [0.2365.1](https://github.com/lightdash/lightdash/compare/0.2365.0...0.2365.1) (2026-01-22)
+
+
+### Bug Fixes
+
+* respect the color gradient in maps ([#19625](https://github.com/lightdash/lightdash/issues/19625)) ([bbe8b02](https://github.com/lightdash/lightdash/commit/bbe8b02787848295685f4048f98f7252e435b141))
+
+# [0.2365.0](https://github.com/lightdash/lightdash/compare/0.2364.0...0.2365.0) (2026-01-22)
+
+
+### Features
+
+* add explore from here link button on explore modal v2 ([#19640](https://github.com/lightdash/lightdash/issues/19640)) ([c3a6a03](https://github.com/lightdash/lightdash/commit/c3a6a03e29bec5a24804bdc35da21b28626f408b))
+
+# [0.2364.0](https://github.com/lightdash/lightdash/compare/0.2363.1...0.2364.0) (2026-01-22)
+
+
+### Bug Fixes
+
+* prevent duplicate fields in catalog for additional_explores ([#19620](https://github.com/lightdash/lightdash/issues/19620)) ([7419c99](https://github.com/lightdash/lightdash/commit/7419c99e42bc806ae4465ab15d6b6088ab25aae6))
+
+
+### Features
+
+* add debounce to metrics catalog search ([#19639](https://github.com/lightdash/lightdash/issues/19639)) ([56cb158](https://github.com/lightdash/lightdash/commit/56cb158e21e96594fb1e7ae2b197e940490486d4))
+
 ## [0.2363.1](https://github.com/lightdash/lightdash/compare/0.2363.0...0.2363.1) (2026-01-21)
 
 

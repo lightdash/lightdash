@@ -47,8 +47,9 @@ import {
 } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { type MRT_TableInstance } from 'mantine-react-table';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { useDebounce } from 'react-use';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { TotalMetricsDot } from '../../../../svgs/metricsCatalog';
@@ -68,9 +69,9 @@ import {
 } from '../../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../../types';
 import CategoriesFilter from './CategoriesFilter';
+import OwnersFilter from './OwnersFilter';
 import SegmentedControlHoverCard from './SegmentedControlHoverCard';
 import TableFilter from './TableFilter';
-
 type MetricsTableTopToolbarProps = GroupProps & {
     search: string | undefined;
     setSearch: (search: string) => void;
@@ -82,6 +83,8 @@ type MetricsTableTopToolbarProps = GroupProps & {
     setCategoryFilterMode: (mode: CatalogCategoryFilterMode) => void;
     selectedTables: string[];
     setSelectedTables: (tables: string[]) => void;
+    selectedOwners: string[];
+    setSelectedOwners: (owners: string[]) => void;
     totalResults: number;
     isValidMetricsNodeCount: boolean;
     isValidMetricsEdgeCount: boolean;
@@ -155,8 +158,8 @@ const SortableColumn: FC<{
 
 export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
     ({
-        search,
-        setSearch,
+        search: _search,
+        setSearch: _setSearch,
         totalResults,
         selectedCategories,
         setSelectedCategories,
@@ -164,6 +167,8 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         setCategoryFilterMode,
         selectedTables,
         setSelectedTables,
+        selectedOwners,
+        setSelectedOwners,
         showCategoriesFilter,
         isValidMetricsTree,
         isValidMetricsNodeCount,
@@ -172,6 +177,16 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         table,
         ...props
     }) => {
+        const [search, setSearch] = useState(_search);
+
+        useDebounce(
+            () => {
+                _setSearch(search ?? '');
+            },
+            300,
+            [search],
+        );
+
         const userUuid = useAppSelector(
             (state) => state.metricsCatalog.user?.userUuid,
         );
@@ -402,6 +417,11 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                     <TableFilter
                         selectedTables={selectedTables}
                         setSelectedTables={setSelectedTables}
+                    />
+
+                    <OwnersFilter
+                        selectedOwners={selectedOwners}
+                        setSelectedOwners={setSelectedOwners}
                     />
                 </Group>
                 <Group spacing="xs">

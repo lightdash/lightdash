@@ -24,10 +24,10 @@ import { useVisualizationContext } from '../../../../../components/LightdashVisu
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
+import { getOpenInExploreUrl } from '../../../../../utils/getOpenInExploreUrl';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
 import { useSavePromptQuery } from '../../hooks/useProjectAiAgents';
-import { getOpenInExploreUrl } from '../../utils/getOpenInExploreUrl';
 
 type Props = {
     projectUuid: string;

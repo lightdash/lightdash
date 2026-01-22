@@ -1253,17 +1253,17 @@ export class UnfurlService extends BaseService {
                                 ...(sqlPivotPromises || []),
                             ];
                         } else if (
-                            lightdashPage === LightdashPage.CHART ||
-                            lightdashPage === LightdashPage.EXPLORE
+                            !useScreenshotReadyIndicator &&
+                            (lightdashPage === LightdashPage.CHART ||
+                                lightdashPage === LightdashPage.EXPLORE)
                         ) {
-                            if (!useScreenshotReadyIndicator) {
-                                chartResultsPromises = [
-                                    this.waitForPaginatedResultsResponse(
-                                        page,
-                                        useScreenshotReadyIndicator,
-                                    ),
-                                ]; // NOTE: No await here
-                            }
+                            // Legacy behavior: wait for API response
+                            chartResultsPromises = [
+                                this.waitForPaginatedResultsResponse(
+                                    page,
+                                    false,
+                                ),
+                            ]; // NOTE: No await here
                         }
 
                         await page.goto(url, {
@@ -1331,11 +1331,7 @@ export class UnfurlService extends BaseService {
                             });
                         }
 
-                        if (
-                            chartResultsPromises &&
-                            !useScreenshotReadyIndicator
-                        ) {
-                            // We wait after navigating to the page
+                        if (chartResultsPromises) {
                             await Promise.allSettled(chartResultsPromises);
                         }
                     } catch (e) {
@@ -1360,7 +1356,7 @@ export class UnfurlService extends BaseService {
                             },
                         );
                         this.logger.info(
-                            'Screenshot ready indicator found - dashboard is ready',
+                            'Screenshot ready indicator found - page is ready',
                         );
                     } else {
                         if (lightdashPage === LightdashPage.DASHBOARD) {

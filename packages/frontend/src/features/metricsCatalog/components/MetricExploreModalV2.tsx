@@ -5,6 +5,7 @@ import {
     getFilterDimensionsForMetric,
     getSegmentDimensionsForMetric,
     type CatalogField,
+    type FilterRule,
     type MetricExplorerQuery,
     type TimeDimensionConfig,
 } from '@lightdash/common';
@@ -26,21 +27,24 @@ import { useHotkeys } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronUp,
+    IconExternalLink,
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import LightdashVisualization from '../../../components/LightdashVisualization';
 import VisualizationProvider from '../../../components/LightdashVisualization/VisualizationProvider';
 import MetricQueryDataProvider from '../../../components/MetricQueryData/MetricQueryDataProvider';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { getOpenInExploreUrl } from '../../../utils/getOpenInExploreUrl';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useCatalogFilterDimensions } from '../hooks/useCatalogFilterDimensions';
 import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
 import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
 import { useMetricVisualization } from '../hooks/useMetricVisualization';
 import styles from './MetricExploreModalV2.module.css';
+import { MetricsVisualizationEmptyState } from './MetricsVisualizationEmptyState';
 import { MetricExploreComparison as MetricExploreComparisonSection } from './visualization/MetricExploreComparison';
 import { MetricExploreDatePicker } from './visualization/MetricExploreDatePicker';
 import { MetricExploreFilter } from './visualization/MetricExploreFilter';
@@ -109,19 +113,26 @@ export const MetricExploreModalV2: FC<Props> = ({
         TimeDimensionConfig | undefined
     >();
 
+    const [filterRule, setFilterRule] = useState<FilterRule | undefined>();
+
     const [query, setQuery] = useState<MetricExplorerQuery>({
         comparison: MetricExplorerComparison.NONE,
         segmentDimension: null,
     });
 
+    const segmentDimensionId = useMemo(() => {
+        return 'segmentDimension' in query ? query.segmentDimension : null;
+    }, [query]);
+
     // Reset override when navigating to a different metric
     const resetQueryState = useCallback(() => {
         setTimeDimensionOverride(undefined);
+        setFilterRule(undefined);
         setQuery({
             comparison: MetricExplorerComparison.NONE,
             segmentDimension: null,
         });
-    }, [setTimeDimensionOverride, setQuery]);
+    }, [setTimeDimensionOverride, setFilterRule, setQuery]);
 
     // Update navigateToMetric to reset state
     const navigateToMetricWithReset = useCallback(
@@ -165,6 +176,8 @@ export const MetricExploreModalV2: FC<Props> = ({
         tableName,
         metricName,
         timeDimensionOverride,
+        segmentDimensionId,
+        filterRule,
         comparison: query.comparison,
     });
 
@@ -212,11 +225,47 @@ export const MetricExploreModalV2: FC<Props> = ({
         [segmentDimensionsQuery.data, currentMetric],
     );
 
+    const openInExploreUrl = useMemo(() => {
+        if (!metricQuery || !chartConfig) return undefined;
+        return getOpenInExploreUrl({
+            metricQuery,
+            projectUuid,
+            columnOrder,
+            pivotColumns: segmentDimensionId ? [segmentDimensionId] : undefined,
+            chartConfig,
+        });
+    }, [
+        metricQuery,
+        projectUuid,
+        columnOrder,
+        segmentDimensionId,
+        chartConfig,
+    ]);
+
     // Keyboard navigation
     useHotkeys([
         ['ArrowUp', handleGoToPreviousMetric],
         ['ArrowDown', handleGoToNextMetric],
     ]);
+
+    const handleSegmentDimensionChange = useCallback(
+        (value: string | null) => {
+            setQuery({
+                comparison: MetricExplorerComparison.NONE,
+                segmentDimension: value,
+            });
+        },
+        [setQuery],
+    );
+
+    const handleFilterApply = useCallback(
+        (nextFilterRule: FilterRule | undefined) => {
+            setFilterRule(nextFilterRule);
+        },
+        [setFilterRule],
+    );
+
+    const showEmptyState = !isLoading && resultsData.totalResults === 0;
 
     return (
         <Modal.Root
@@ -287,7 +336,45 @@ export const MetricExploreModalV2: FC<Props> = ({
                             />
                         </Tooltip>
                     </Group>
-                    <Modal.CloseButton />
+                    <Group gap="xs">
+                        <Tooltip
+                            label="Explore from here"
+                            position="bottom"
+                            disabled={!openInExploreUrl}
+                        >
+                            {openInExploreUrl ? (
+                                <Button
+                                    component={Link}
+                                    to={openInExploreUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    variant="default"
+                                    size="xs"
+                                    radius="md"
+                                    leftSection={
+                                        <MantineIcon icon={IconExternalLink} />
+                                    }
+                                >
+                                    Explore from here
+                                </Button>
+                            ) : (
+                                <Button
+                                    component="button"
+                                    type="button"
+                                    variant="default"
+                                    size="xs"
+                                    radius="md"
+                                    leftSection={
+                                        <MantineIcon icon={IconExternalLink} />
+                                    }
+                                    disabled
+                                >
+                                    Explore from here
+                                </Button>
+                            )}
+                        </Tooltip>
+                        <Modal.CloseButton />
+                    </Group>
                 </Modal.Header>
 
                 <Modal.Body
@@ -304,38 +391,23 @@ export const MetricExploreModalV2: FC<Props> = ({
                             className={styles.sidebarContainer}
                         >
                             <Stack gap="xl" w="100%">
-                                <Box pos="relative">
-                                    <Box className={styles.disabledOverlay}>
-                                        <Stack gap="xl" w="100%">
-                                            <MetricExploreFilter
-                                                dimensions={
-                                                    availableFilterByDimensions
-                                                }
-                                                onFilterApply={() => {}}
-                                            />
-                                            <MetricExploreSegmentationPicker
-                                                query={query}
-                                                onSegmentDimensionChange={() => {}}
-                                                dimensions={
-                                                    availableSegmentByDimensions
-                                                }
-                                                segmentDimensionsQuery={
-                                                    segmentDimensionsQuery
-                                                }
-                                                hasFilteredSeries={false}
-                                            />
-                                        </Stack>
-                                    </Box>
-                                    <Box pos="absolute" inset={0}>
-                                        <Tooltip
-                                            label="Coming soon"
-                                            position="right"
-                                            withinPortal
-                                        >
-                                            <Box w="100%" h="100%" />
-                                        </Tooltip>
-                                    </Box>
-                                </Box>
+                                <MetricExploreFilter
+                                    dimensions={availableFilterByDimensions}
+                                    onFilterApply={handleFilterApply}
+                                    key={`${tableName}-${metricName}`}
+                                />
+
+                                <MetricExploreSegmentationPicker
+                                    query={query}
+                                    onSegmentDimensionChange={
+                                        handleSegmentDimensionChange
+                                    }
+                                    dimensions={availableSegmentByDimensions}
+                                    segmentDimensionsQuery={
+                                        segmentDimensionsQuery
+                                    }
+                                    hasFilteredSeries={false}
+                                />
 
                                 <Divider color="ldGray.2" />
 
@@ -422,27 +494,39 @@ export const MetricExploreModalV2: FC<Props> = ({
 
                         {/* ECharts visualization */}
                         <Box flex={1}>
-                            {hasData && metricQuery && tableName && explore && (
-                                <MetricQueryDataProvider
-                                    metricQuery={metricQuery}
-                                    tableName={tableName}
-                                    explore={explore}
-                                >
-                                    <VisualizationProvider
-                                        resultsData={resultsData}
-                                        chartConfig={chartConfig}
-                                        columnOrder={columnOrder}
-                                        initialPivotDimensions={undefined}
-                                        colorPalette={colorPalette}
-                                        isLoading={isLoading}
-                                        onSeriesContextMenu={undefined}
-                                        onChartConfigChange={undefined}
-                                        pivotTableMaxColumnLimit={60}
-                                    >
-                                        <LightdashVisualization />
-                                    </VisualizationProvider>
-                                </MetricQueryDataProvider>
+                            {showEmptyState && (
+                                <MetricsVisualizationEmptyState />
                             )}
+
+                            {!showEmptyState &&
+                                hasData &&
+                                metricQuery &&
+                                tableName &&
+                                explore && (
+                                    <MetricQueryDataProvider
+                                        metricQuery={metricQuery}
+                                        tableName={tableName}
+                                        explore={explore}
+                                    >
+                                        <VisualizationProvider
+                                            resultsData={resultsData}
+                                            chartConfig={chartConfig}
+                                            columnOrder={columnOrder}
+                                            initialPivotDimensions={
+                                                segmentDimensionId
+                                                    ? [segmentDimensionId]
+                                                    : undefined
+                                            }
+                                            colorPalette={colorPalette}
+                                            isLoading={isLoading}
+                                            onSeriesContextMenu={undefined}
+                                            onChartConfigChange={undefined}
+                                            pivotTableMaxColumnLimit={60}
+                                        >
+                                            <LightdashVisualization />
+                                        </VisualizationProvider>
+                                    </MetricQueryDataProvider>
+                                )}
                         </Box>
                     </Stack>
                 </Modal.Body>

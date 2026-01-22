@@ -344,8 +344,8 @@ importers:
         specifier: ^0.3.37
         version: 0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55)))(@opentelemetry/api@1.9.0)(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(axios@1.12.2)(encoding@0.1.13)(handlebars@4.7.8)(openai@4.80.1(encoding@0.1.13)(ws@8.18.0)(zod@3.25.55))(ws@8.18.0)
       lodash:
-        specifier: ^4.17.21
-        version: 4.17.21
+        specifier: ^4.17.23
+        version: 4.17.23
       marked:
         specifier: ^9.0.3
         version: 9.0.3
@@ -1455,8 +1455,8 @@ importers:
         specifier: ^1.14.0
         version: 1.14.0
       trino-client:
-        specifier: 0.2.6
-        version: 0.2.6
+        specifier: 0.2.9
+        version: 0.2.9
     devDependencies:
       '@types/node-fetch':
         specifier: ^2.6.13
@@ -11017,6 +11017,9 @@ packages:
   lodash@4.17.21:
     resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
 
+  lodash@4.17.23:
+    resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
+
   log-symbols@4.1.0:
     resolution: {integrity: sha512-8XPvpAA8uyhfteu8pIvQxpJZ7SYYdpUivZpGy6sFsBuKRY/7rQGavedeB8aK+Zkyq6upMFVL/9AW6vOYzfRyLg==}
     engines: {node: '>=10'}
@@ -14137,8 +14140,8 @@ packages:
   trim-lines@3.0.1:
     resolution: {integrity: sha512-kRj8B+YHZCc9kQYdWfJB2/oUl9rA99qbowYYBtr4ui4mZyAQ2JpvVBd/6U2YloATfqBhBTSMhTpgBHtU0Mf3Rg==}
 
-  trino-client@0.2.6:
-    resolution: {integrity: sha512-MK+seOsnxCKASAV528xSE/15+b3tTuGxkzv9VuLfyoQsQsVoX+otT2Fo56xBwDR0iDzPuUwyGbRCd3xQE2776g==}
+  trino-client@0.2.9:
+    resolution: {integrity: sha512-bINcQxDH5v9DR1zqXtoNqnRJ5leYMyYzRuFZLsoqg4irWYPDh/4wBndC8c2x+QfNIOr6c35BtHKOwotelqSATg==}
 
   triple-beam@1.3.0:
     resolution: {integrity: sha512-XrHUvV5HpdLmIj4uVMxHggLbFSZYIn7HEWsqePZcI50pco+MPqJ50wMGY794X7AOOhxOBAjbkqfAbEe/QMp2Lw==}
@@ -15352,7 +15355,7 @@ snapshots:
 
   '@75lb/deep-merge@1.1.2':
     dependencies:
-      lodash: 4.17.21
+      lodash: 4.17.23
       typical: 7.1.1
 
   '@actions/core@1.11.1':
@@ -18739,7 +18742,7 @@ snapshots:
       '@rushstack/rig-package': 0.6.0
       '@rushstack/terminal': 0.19.1(@types/node@24.3.1)
       '@rushstack/ts-command-line': 5.1.1(@types/node@24.3.1)
-      lodash: 4.17.21
+      lodash: 4.17.23
       minimatch: 10.0.3
       resolve: 1.22.10
       semver: 7.5.4
@@ -20947,7 +20950,7 @@ snapshots:
       chalk: 3.0.0
       css.escape: 1.5.1
       dom-accessibility-api: 0.6.3
-      lodash: 4.17.21
+      lodash: 4.17.23
       redent: 3.0.0
     optionalDependencies:
       '@jest/globals': 29.7.0
@@ -20962,7 +20965,7 @@ snapshots:
       chalk: 3.0.0
       css.escape: 1.5.1
       dom-accessibility-api: 0.6.3
-      lodash: 4.17.21
+      lodash: 4.17.23
       redent: 3.0.0
 
   '@testing-library/react@14.1.2(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
@@ -22552,7 +22555,7 @@ snapshots:
       graceful-fs: 4.2.11
       is-stream: 2.0.1
       lazystream: 1.0.1
-      lodash: 4.17.21
+      lodash: 4.17.23
       normalize-path: 3.0.0
       readable-stream: 4.5.2
 
@@ -22828,7 +22831,7 @@ snapshots:
       '@babel/helper-annotate-as-pure': 7.15.4
       '@babel/helper-module-imports': 7.24.7(supports-color@5.5.0)
       babel-plugin-syntax-jsx: 6.18.0
-      lodash: 4.17.21
+      lodash: 4.17.23
       styled-components: 5.3.3(react-dom@19.2.0(react@19.2.0))(react-is@19.2.0)(react@19.2.0)
     transitivePeerDependencies:
       - supports-color
@@ -23067,7 +23070,7 @@ snapshots:
       cron-parser: 4.5.0
       get-port: 5.1.1
       ioredis: 5.4.1
-      lodash: 4.17.21
+      lodash: 4.17.23
       msgpackr: 1.11.2
       semver: 7.6.3
       uuid: 8.3.2
@@ -23765,7 +23768,7 @@ snapshots:
       is-installed-globally: 0.4.0
       lazy-ass: 1.6.0
       listr2: 3.13.5(enquirer@2.3.6)
-      lodash: 4.17.21
+      lodash: 4.17.23
       log-symbols: 4.1.0
       minimist: 1.2.8
       ospath: 1.2.2
@@ -24682,7 +24685,7 @@ snapshots:
     dependencies:
       eslint: 8.57.1
       gonzales-pe: 4.3.0
-      lodash: 4.17.21
+      lodash: 4.17.23
 
   eslint-plugin-import@2.26.0(@typescript-eslint/parser@5.62.0(eslint@8.57.1)(typescript@5.5.4))(eslint@8.57.1):
     dependencies:
@@ -24751,7 +24754,7 @@ snapshots:
   eslint-plugin-lodash@8.0.0(eslint@8.57.1):
     dependencies:
       eslint: 8.57.1
-      lodash: 4.17.21
+      lodash: 4.17.23
 
   eslint-plugin-prettier@4.2.1(eslint-config-prettier@8.5.0(eslint@8.57.1))(eslint@8.57.1)(prettier@2.8.1):
     dependencies:
@@ -25080,7 +25083,7 @@ snapshots:
   express-winston@4.2.0(winston@3.13.0):
     dependencies:
       chalk: 2.4.2
-      lodash: 4.17.21
+      lodash: 4.17.23
       winston: 3.13.0
 
   express@4.21.2:
@@ -26339,7 +26342,7 @@ snapshots:
       cli-width: 3.0.0
       external-editor: 3.1.0
       figures: 3.2.0
-      lodash: 4.17.21
+      lodash: 4.17.23
       mute-stream: 0.0.8
       ora: 5.4.1
       run-async: 2.4.1
@@ -27375,7 +27378,7 @@ snapshots:
       get-package-type: 0.1.0
       getopts: 2.3.0
       interpret: 2.2.0
-      lodash: 4.17.21
+      lodash: 4.17.23
       pg-connection-string: 2.6.1
       rechoir: 0.8.0
       resolve-from: 5.0.0
@@ -27627,6 +27630,8 @@ snapshots:
   lodash.uniq@4.5.0: {}
 
   lodash@4.17.21: {}
+
+  lodash@4.17.23: {}
 
   log-symbols@4.1.0:
     dependencies:
@@ -29073,7 +29078,7 @@ snapshots:
 
   passport-headerapikey@1.2.2:
     dependencies:
-      lodash: 4.17.21
+      lodash: 4.17.23
       passport-strategy: 1.0.0
 
   passport-local@1.0.0:
@@ -30082,7 +30087,7 @@ snapshots:
     dependencies:
       clsx: 2.1.1
       eventemitter3: 4.0.7
-      lodash: 4.17.21
+      lodash: 4.17.23
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
       react-is: 19.2.0
@@ -31479,7 +31484,7 @@ snapshots:
 
   trim-lines@3.0.1: {}
 
-  trino-client@0.2.6:
+  trino-client@0.2.9:
     dependencies:
       axios: 1.12.2
     transitivePeerDependencies:

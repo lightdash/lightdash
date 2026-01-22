@@ -859,6 +859,7 @@ export default class SchedulerTask {
                 jobId,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: schedulerSlackTargetUuid,
+                groupId: notification.jobGroup,
                 type: 'slack',
                 sendNow: schedulerUuid === undefined,
                 isThresholdAlert: scheduler.thresholds !== undefined,
@@ -1085,6 +1086,7 @@ export default class SchedulerTask {
                     jobId,
                     schedulerId: schedulerUuid,
                     schedulerTargetId: schedulerSlackTargetUuid,
+                    groupId: notification.jobGroup,
                     type: 'slack',
                     format,
                     resourceType:
@@ -1123,6 +1125,7 @@ export default class SchedulerTask {
                     jobId,
                     schedulerId: schedulerUuid,
                     schedulerTargetId: schedulerSlackTargetUuid,
+                    groupId: notification.jobGroup,
                     type: 'slack',
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
@@ -1186,6 +1189,7 @@ export default class SchedulerTask {
                 jobId,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: schedulerMsTeamsTargetUuid,
+                groupId: notification.jobGroup,
                 type: 'msteams',
                 sendNow: schedulerUuid === undefined,
                 isThresholdAlert: scheduler.thresholds !== undefined,
@@ -1324,6 +1328,7 @@ export default class SchedulerTask {
                     jobId,
                     schedulerId: schedulerUuid,
                     schedulerTargetId: schedulerMsTeamsTargetUuid,
+                    groupId: notification.jobGroup,
                     type: 'msteams',
                     format,
                     resourceType:
@@ -1362,6 +1367,7 @@ export default class SchedulerTask {
                     jobId,
                     schedulerId: schedulerUuid,
                     schedulerTargetId: schedulerMsTeamsTargetUuid,
+                    groupId: notification.jobGroup,
                     type: 'msteams',
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
@@ -2029,6 +2035,7 @@ export default class SchedulerTask {
                 jobId,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: schedulerEmailTargetUuid,
+                groupId: notification.jobGroup,
                 type: 'email',
                 sendNow: schedulerUuid === undefined,
                 isThresholdAlert: scheduler.thresholds !== undefined,
@@ -2217,6 +2224,7 @@ export default class SchedulerTask {
                     jobId,
                     schedulerId: schedulerUuid,
                     schedulerTargetId: schedulerEmailTargetUuid,
+                    groupId: notification.jobGroup,
                     type: 'email',
                     format,
                     withPdf: pdfFile !== undefined,
@@ -2255,6 +2263,7 @@ export default class SchedulerTask {
                     jobId,
                     schedulerId: schedulerUuid,
                     schedulerTargetId: schedulerEmailTargetUuid,
+                    groupId: notification.jobGroup,
                     type: 'email',
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
@@ -2367,6 +2376,7 @@ export default class SchedulerTask {
                 jobId,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: undefined,
+                groupId: notification.jobGroup,
                 type: 'gsheets',
                 sendNow: schedulerUuid === undefined,
             },
@@ -2695,6 +2705,7 @@ export default class SchedulerTask {
                     jobId,
                     schedulerId: schedulerUuid,
                     schedulerTargetId: undefined,
+                    groupId: notification.jobGroup,
                     type: 'gsheets',
                     format,
                     resourceType: savedChartUuid ? 'chart' : 'dashboard',
@@ -2728,6 +2739,7 @@ export default class SchedulerTask {
                     jobId,
                     schedulerId: schedulerUuid,
                     schedulerTargetId: undefined,
+                    groupId: notification.jobGroup,
                     type: 'gsheets',
                     sendNow: schedulerUuid === undefined,
                 },
@@ -2975,6 +2987,7 @@ export default class SchedulerTask {
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
+                groupId: jobId,
                 sendNow: schedulerUuid === undefined,
                 isThresholdAlert: scheduler.thresholds !== undefined,
             },
@@ -3110,6 +3123,7 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    groupId: jobId,
                     isThresholdAlert: scheduler.thresholds !== undefined,
                     hasPartialFailures:
                         partialFailures && partialFailures.length > 0,
@@ -3126,6 +3140,7 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    groupId: jobId,
                     error: `${e}`,
                 },
             });
@@ -3468,6 +3483,7 @@ export default class SchedulerTask {
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
+                groupId: notification.jobGroup,
                 type: 'slack',
                 targetCount: targets.length,
                 sendNow: false,
@@ -3546,6 +3562,7 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    groupId: notification.jobGroup,
                     type: 'slack',
                     targetCount: targets.length,
                     succeeded,
@@ -3580,6 +3597,7 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    groupId: notification.jobGroup,
                     type: 'slack',
                     targetCount: targets.length,
                     succeeded,
@@ -3621,6 +3639,7 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    groupId: notification.jobGroup,
                     type: 'slack',
                     targetCount: targets.length,
                     succeeded,
@@ -3674,6 +3693,7 @@ export default class SchedulerTask {
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
+                groupId: notification.jobGroup,
                 type: 'email',
                 targetCount: targets.length,
                 sendNow: false,
@@ -3752,6 +3772,7 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    groupId: notification.jobGroup,
                     type: 'email',
                     targetCount: targets.length,
                     succeeded,
@@ -3786,6 +3807,7 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    groupId: notification.jobGroup,
                     type: 'email',
                     targetCount: targets.length,
                     succeeded,
@@ -3832,6 +3854,7 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    groupId: notification.jobGroup,
                     type: 'email',
                     targetCount: targets.length,
                     succeeded,
@@ -3885,6 +3908,7 @@ export default class SchedulerTask {
             properties: {
                 jobId,
                 schedulerId: schedulerUuid,
+                groupId: notification.jobGroup,
                 type: 'msteams',
                 targetCount: targets.length,
                 sendNow: false,
@@ -3964,6 +3988,7 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    groupId: notification.jobGroup,
                     type: 'msteams',
                     targetCount: targets.length,
                     succeeded,
@@ -3998,6 +4023,7 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    groupId: notification.jobGroup,
                     type: 'msteams',
                     targetCount: targets.length,
                     succeeded,
@@ -4039,6 +4065,7 @@ export default class SchedulerTask {
                 properties: {
                     jobId,
                     schedulerId: schedulerUuid,
+                    groupId: notification.jobGroup,
                     type: 'msteams',
                     targetCount: targets.length,
                     succeeded,

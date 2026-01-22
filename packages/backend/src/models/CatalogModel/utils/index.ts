@@ -29,7 +29,10 @@ const getSpotlightShow = (
     return visibility === 'show';
 };
 
-type CatalogInsertWithYamlTags = DbCatalogIn & { assigned_yaml_tags?: DbTag[] };
+type CatalogInsertWithYamlTags = Omit<DbCatalogIn, 'owner_user_uuid'> & {
+    assigned_yaml_tags?: DbTag[];
+    ownerEmail: string | null;
+};
 
 export const convertExploresToCatalog = (
     projectUuid: string,
@@ -45,9 +48,26 @@ export const convertExploresToCatalog = (
 
     let numberOfCategoriesApplied = 0;
 
+    // Build map of base explore field names per baseTable
+    // Used to avoid duplicating fields for additional explores
+    const baseExploreFieldsByTable = new Map<string, Set<string>>();
+    cachedExplores.forEach((explore) => {
+        const isBaseExplore = explore.name === explore.baseTable;
+        if (isBaseExplore) {
+            const baseTable = explore?.tables?.[explore.baseTable];
+            const fieldNames = new Set([
+                ...Object.keys(baseTable?.dimensions || {}),
+                ...Object.keys(baseTable?.metrics || {}),
+            ]);
+            baseExploreFieldsByTable.set(explore.baseTable, fieldNames);
+        }
+    });
+
     const catalogInserts = cachedExplores.reduce<CatalogInsertWithYamlTags[]>(
         (acc, explore) => {
             const baseTable = explore?.tables?.[explore.baseTable];
+            const isAdditionalExplore = explore.name !== explore.baseTable;
+
             const table: CatalogInsertWithYamlTags = {
                 project_uuid: projectUuid,
                 cached_explore_uuid: explore.cachedExploreUuid,
@@ -65,14 +85,28 @@ export const convertExploresToCatalog = (
                         : null,
                 ai_hints: convertToAiHints(explore.aiHint) ?? null,
                 joined_tables: explore.joinedTables.map((t) => t.table),
+                ownerEmail: null, // Tables don't have owners (only metrics)
             };
 
-            const dimensionsAndMetrics = [
+            let dimensionsAndMetrics = [
                 ...Object.values(baseTable?.dimensions || {}).filter(
                     (d) => !d.isIntervalBase,
                 ),
                 ...Object.values(baseTable?.metrics || {}),
             ].filter((f) => !f.hidden); // Filter out hidden fields from catalog
+
+            // For additional explores, only index fields NOT in base explore
+            // This avoids duplicate entries for the same metric/dimension
+            if (isAdditionalExplore) {
+                const baseFieldNames = baseExploreFieldsByTable.get(
+                    explore.baseTable,
+                );
+                if (baseFieldNames) {
+                    dimensionsAndMetrics = dimensionsAndMetrics.filter(
+                        (field) => !baseFieldNames.has(field.name),
+                    );
+                }
+            }
 
             const fields = dimensionsAndMetrics.map<CatalogInsertWithYamlTags>(
                 (field) => {
@@ -96,6 +130,13 @@ export const convertExploresToCatalog = (
                     if (assignedYamlTags.length > 0) {
                         numberOfCategoriesApplied += assignedYamlTags.length;
                     }
+
+                    // Metric owner takes precedence over explore/model owner
+                    const metricOwner = isMetric(field)
+                        ? field.spotlight?.owner
+                        : undefined;
+                    const owner =
+                        metricOwner ?? explore.spotlight?.owner ?? null;
 
                     return {
                         project_uuid: projectUuid,
@@ -123,6 +164,7 @@ export const convertExploresToCatalog = (
                                 : null,
                         ai_hints: convertToAiHints(field.aiHint) ?? null,
                         joined_tables: null,
+                        ownerEmail: owner,
                     };
                 },
             );

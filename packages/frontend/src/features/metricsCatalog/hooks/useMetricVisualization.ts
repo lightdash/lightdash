@@ -8,6 +8,8 @@ import {
     TimeFrames,
     type ApiError,
     type ChartConfig,
+    type FilterRule,
+    type Filters,
     type MetricQuery,
     type MetricWithAssociatedTimeDimension,
     type TimeDimensionConfig,
@@ -23,6 +25,8 @@ import { useMetric } from './useMetricsCatalog';
 const buildMetricQueryFromField = (
     field: MetricWithAssociatedTimeDimension,
     timeDimensionOverride?: TimeDimensionConfig,
+    segmentDimensionId?: string | null,
+    filterRule?: FilterRule,
     comparison?: MetricExplorerComparison,
 ): MetricQuery => {
     const timeDimensionConfig = timeDimensionOverride ?? field.timeDimension;
@@ -46,11 +50,24 @@ const buildMetricQueryFromField = (
         timeDimensionConfig &&
         timeDimensionName;
 
+    const dimensions = [timeDimensionFieldId, segmentDimensionId].filter(
+        (d): d is string => Boolean(d),
+    );
+
+    const filters: Filters = filterRule
+        ? {
+              dimensions: {
+                  id: filterRule.id,
+                  and: [filterRule],
+              },
+          }
+        : {};
+
     return {
         exploreName: field.table,
-        dimensions: timeDimensionFieldId ? [timeDimensionFieldId] : [],
+        dimensions,
         metrics: [getItemId(field)],
-        filters: {},
+        filters,
         sorts: [],
         limit: 5000,
         tableCalculations: [],
@@ -127,6 +144,8 @@ type UseMetricVisualizationProps = {
     tableName: string | undefined;
     metricName: string | undefined;
     timeDimensionOverride?: TimeDimensionConfig;
+    segmentDimensionId?: string | null;
+    filterRule?: FilterRule;
     comparison?: MetricExplorerComparison;
 };
 
@@ -144,6 +163,8 @@ export function useMetricVisualization({
     tableName,
     metricName,
     timeDimensionOverride,
+    segmentDimensionId,
+    filterRule,
     comparison,
 }: UseMetricVisualizationProps): MetricVisualizationResult {
     // 1. Fetch metric field metadata
@@ -167,9 +188,17 @@ export function useMetricVisualization({
         return buildMetricQueryFromField(
             metricFieldQuery.data,
             timeDimensionConfig,
+            segmentDimensionId,
+            filterRule,
             comparison,
         );
-    }, [metricFieldQuery.data, timeDimensionConfig, comparison]);
+    }, [
+        metricFieldQuery.data,
+        timeDimensionConfig,
+        segmentDimensionId,
+        filterRule,
+        comparison,
+    ]);
 
     const queryArgs = useMemo<QueryResultsProps | null>(() => {
         if (!projectUuid || !tableName || !metricQuery) return null;

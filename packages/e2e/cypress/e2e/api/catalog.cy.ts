@@ -1,4 +1,4 @@
-import { AnyType, SEED_PROJECT, type CatalogField } from '@lightdash/common';
+import { SEED_PROJECT, type CatalogField } from '@lightdash/common';
 import { chartMock } from '../../support/mocks';
 import { createChartAndUpdateDashboard, createDashboard } from './dashboard.cy';
 
@@ -61,6 +61,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 icon: null,
                 aiHints: null,
                 fieldValueType: 'string',
+                owner: null,
             });
 
             const metric = resp.body.results.find(
@@ -83,6 +84,7 @@ describe('Lightdash catalog all tables and fields', () => {
                 icon: null,
                 aiHints: null,
                 fieldValueType: 'sum',
+                owner: null,
             });
         });
     });

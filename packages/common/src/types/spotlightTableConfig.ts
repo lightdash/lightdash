@@ -5,6 +5,7 @@ export enum SpotlightTableColumns {
     DESCRIPTION = 'description',
     CATEGORIES = 'categories',
     CHART_USAGE = 'chartUsage',
+    OWNER = 'owner',
 }
 
 type ColumnConfig = Array<{
@@ -24,4 +25,5 @@ export const DEFAULT_SPOTLIGHT_TABLE_COLUMN_CONFIG: ColumnConfig = [
     { column: SpotlightTableColumns.DESCRIPTION, isVisible: true },
     { column: SpotlightTableColumns.CATEGORIES, isVisible: true },
     { column: SpotlightTableColumns.CHART_USAGE, isVisible: true },
+    { column: SpotlightTableColumns.OWNER, isVisible: false },
 ];

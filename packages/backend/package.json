@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.2363.1",
+    "version": "0.2370.0",
     "private": true,
     "main": "dist/index",
     "license": "MIT",
@@ -111,7 +111,7 @@
         "jsonwebtoken": "^9.0.3",
         "knex": "^2.5.1",
         "langchain": "^0.3.37",
-        "lodash": "^4.17.21",
+        "lodash": "^4.17.23",
         "marked": "^9.0.3",
         "moment": "^2.29.4",
         "nanoid": "^3.3.8",

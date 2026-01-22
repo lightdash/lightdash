@@ -19,12 +19,13 @@ import {
     Stack,
     Switch,
     Text,
-} from '@mantine/core';
-import { useHover } from '@mantine/hooks';
+} from '@mantine-8/core';
+import { useHover } from '@mantine-8/hooks';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import { DEFAULT_MAP_COLORS } from '../../../hooks/useMapChartConfig';
 import FieldSelect from '../../common/FieldSelect';
+import GradientBar from '../../common/GradientBar';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import ColorSelector from '../ColorSelector';
@@ -48,7 +49,7 @@ const ColorItem: FC<ColorItemProps> = ({
     const { hovered, ref } = useHover();
 
     return (
-        <Stack spacing={4} align="center">
+        <Stack gap="xs" align="center">
             <Text size="xs" fw={500} h={16}>
                 {label || '\u00A0'}
             </Text>
@@ -151,7 +152,7 @@ export const Display: FC = memo(() => {
                 <Config.Section>
                     <Config.Heading>Colors</Config.Heading>
                     {!isHeatmap && (
-                        <Config.Section>
+                        <Config.Group>
                             <FieldSelect
                                 label="Color based on"
                                 placeholder="Select field (optional)"
@@ -166,60 +167,65 @@ export const Display: FC = memo(() => {
                                 }
                                 hasGrouping
                                 clearable
-                                mb="sm"
                             />
-                        </Config.Section>
+                        </Config.Group>
                     )}
                     {showColorRange && (
-                        <>
-                            <Config.Label>Color range</Config.Label>
-                            <Group spacing="xs" align="flex-start">
-                                {colors.map((color, index) => {
-                                    const isFirst = index === 0;
-                                    const isLast = index === colors.length - 1;
-                                    const label = isFirst
-                                        ? 'Low'
-                                        : isLast
-                                        ? 'High'
-                                        : '';
-                                    // Can only remove middle colors (not first or last)
-                                    const canRemove =
-                                        !isFirst &&
-                                        !isLast &&
-                                        colors.length > 2;
+                        <Config.Group mb="xs">
+                            <Stack w="100%" gap="xs">
+                                <Config.Label>Color range</Config.Label>
+                                <Group gap="xs" align="flex-start">
+                                    {colors.map((color, index) => {
+                                        const isFirst = index === 0;
+                                        const isLast =
+                                            index === colors.length - 1;
+                                        const label = isFirst
+                                            ? 'Low'
+                                            : isLast
+                                            ? 'High'
+                                            : '';
+                                        // Can only remove middle colors (not first or last)
+                                        const canRemove =
+                                            !isFirst &&
+                                            !isLast &&
+                                            colors.length > 2;
 
-                                    return (
-                                        <ColorItem
-                                            key={index}
-                                            color={color}
-                                            label={label}
-                                            canRemove={canRemove}
-                                            onColorChange={(newColor) =>
-                                                updateColor(index, newColor)
-                                            }
-                                            onRemove={() => removeColor(index)}
-                                        />
-                                    );
-                                })}
-                                {canAddColor && (
-                                    <Stack spacing={4} align="center">
-                                        <Text size="xs" fw={500} h={16}>
-                                            {'\u00A0'}
-                                        </Text>
-                                        <ActionIcon
-                                            size="sm"
-                                            variant="light"
-                                            onClick={addColor}
-                                        >
-                                            <IconPlus size={14} />
-                                        </ActionIcon>
-                                    </Stack>
-                                )}
-                            </Group>
-                        </>
+                                        return (
+                                            <ColorItem
+                                                key={index}
+                                                color={color}
+                                                label={label}
+                                                canRemove={canRemove}
+                                                onColorChange={(newColor) =>
+                                                    updateColor(index, newColor)
+                                                }
+                                                onRemove={() =>
+                                                    removeColor(index)
+                                                }
+                                            />
+                                        );
+                                    })}
+                                    {canAddColor && (
+                                        <Stack gap={4} align="center">
+                                            <Text size="xs" fw={500} h={16}>
+                                                {'\u00A0'}
+                                            </Text>
+                                            <ActionIcon
+                                                size="sm"
+                                                variant="light"
+                                                onClick={addColor}
+                                            >
+                                                <IconPlus size={14} />
+                                            </ActionIcon>
+                                        </Stack>
+                                    )}
+                                </Group>
+                                <GradientBar colors={colors} />
+                            </Stack>
+                        </Config.Group>
                     )}
                     {!showColorRange && !isAreaMap && (
-                        <>
+                        <Config.Group>
                             <Config.Label>Color</Config.Label>
                             <ColorSelector
                                 color={colors[Math.floor(colors.length / 2)]}
@@ -232,7 +238,7 @@ export const Display: FC = memo(() => {
                                     );
                                 }}
                             />
-                        </>
+                        </Config.Group>
                     )}
                     {isAreaMap && (
                         <Config.Group>

@@ -31,7 +31,6 @@ type FunnelChartProps = Omit<EChartsReactProps, 'option'> & {
     isInDashboard: boolean;
     $shouldExpand?: boolean;
     className?: string;
-    'data-testid'?: string;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 };
@@ -122,7 +121,6 @@ const FunnelChart: FC<FunnelChartProps> = memo(
             <>
                 <EChartsReact
                     ref={chartRef}
-                    data-testid={props['data-testid']}
                     className={props.className}
                     style={
                         props.$shouldExpand

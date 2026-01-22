@@ -342,6 +342,10 @@
                                                             "type": "string"
                                                         },
                                                         "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
+                                                    },
+                                                    "owner": {
+                                                        "type": "string",
+                                                        "description": "Email of the metric owner"
                                                     }
                                                 },
                                                 "anyOf": [
@@ -364,6 +368,9 @@
                                                         "required": [
                                                             "segment_by"
                                                         ]
+                                                    },
+                                                    {
+                                                        "required": ["owner"]
                                                     }
                                                 ]
                                             }
@@ -407,11 +414,16 @@
                                             "type": "string"
                                         },
                                         "description": "An optional array of categories for all metrics in this model in Spotlight"
+                                    },
+                                    "owner": {
+                                        "type": "string",
+                                        "description": "Email of the model owner (inherited by all metrics)"
                                     }
                                 },
                                 "anyOf": [
                                     { "required": ["visibility"] },
-                                    { "required": ["categories"] }
+                                    { "required": ["categories"] },
+                                    { "required": ["owner"] }
                                 ]
                             },
                             "primary_key": {
@@ -869,6 +881,10 @@
                                                                         "type": "string"
                                                                     },
                                                                     "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
+                                                                },
+                                                                "owner": {
+                                                                    "type": "string",
+                                                                    "description": "Email of the metric owner"
                                                                 }
                                                             },
                                                             "anyOf": [
@@ -890,6 +906,11 @@
                                                                 {
                                                                     "required": [
                                                                         "segment_by"
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "required": [
+                                                                        "owner"
                                                                     ]
                                                                 }
                                                             ]
@@ -1499,13 +1520,18 @@
                                             "type": "string"
                                         },
                                         "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
+                                    },
+                                    "owner": {
+                                        "type": "string",
+                                        "description": "Email of the metric owner"
                                     }
                                 },
                                 "anyOf": [
                                     { "required": ["visibility"] },
                                     { "required": ["categories"] },
                                     { "required": ["filter_by"] },
-                                    { "required": ["segment_by"] }
+                                    { "required": ["segment_by"] },
+                                    { "required": ["owner"] }
                                 ]
                             }
                         }

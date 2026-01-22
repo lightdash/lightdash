@@ -1,6 +1,7 @@
 import {
     CatalogField,
     CatalogItemIcon,
+    CatalogOwner,
     CatalogTable,
     CatalogType,
     CompiledDimension,
@@ -27,6 +28,7 @@ const parseFieldFromMetricOrDimension = (
         chartUsage: number | undefined;
         icon: CatalogItemIcon | null;
         searchRank?: number;
+        owner: CatalogOwner | null;
     },
 ): CatalogField => ({
     name: field.name,
@@ -47,6 +49,7 @@ const parseFieldFromMetricOrDimension = (
     catalogSearchUuid: catalogArgs.catalogSearchUuid,
     icon: catalogArgs.icon,
     searchRank: catalogArgs.searchRank,
+    owner: catalogArgs.owner,
     ...(isMetric(field) && field.spotlight?.filterBy
         ? { spotlightFilterBy: field.spotlight.filterBy }
         : {}),
@@ -74,6 +77,7 @@ export const parseFieldsFromCompiledTable = (
             chartUsage: undefined,
             catalogSearchUuid: '',
             icon: null,
+            owner: null, // Not resolved until indexed
         }),
     );
 };
@@ -86,8 +90,24 @@ export const parseCatalog = (
             'tagUuid' | 'name' | 'color' | 'yamlReference'
         >[];
         search_rank: number;
+        owner_first_name?: string;
+        owner_last_name?: string;
+        owner_email?: string;
     },
 ): CatalogTable | CatalogField | null => {
+    // Construct owner object from joined user data
+    const owner: CatalogOwner | null =
+        dbCatalog.owner_user_uuid &&
+        dbCatalog.owner_first_name &&
+        dbCatalog.owner_last_name &&
+        dbCatalog.owner_email
+            ? {
+                  userUuid: dbCatalog.owner_user_uuid,
+                  firstName: dbCatalog.owner_first_name,
+                  lastName: dbCatalog.owner_last_name,
+                  email: dbCatalog.owner_email,
+              }
+            : null;
     const baseTable = dbCatalog.explore.tables[dbCatalog.explore.baseTable];
 
     if (dbCatalog.type === CatalogType.Table) {
@@ -146,5 +166,6 @@ export const parseCatalog = (
         chartUsage: dbCatalog.chart_usage ?? 0,
         icon: dbCatalog.icon ?? null,
         searchRank: dbCatalog.search_rank,
+        owner,
     });
 };
