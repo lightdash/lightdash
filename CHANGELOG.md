@@ -1,3 +1,10 @@
+## [0.2365.3](https://github.com/lightdash/lightdash/compare/0.2365.2...0.2365.3) (2026-01-22)
+
+
+### Bug Fixes
+
+* use colorsio with oklab colorspace for the gradients ([#19649](https://github.com/lightdash/lightdash/issues/19649)) ([2d2a690](https://github.com/lightdash/lightdash/commit/2d2a6905389c45d510382ebfa081e827973eea74))
+
 ## [0.2365.2](https://github.com/lightdash/lightdash/compare/0.2365.1...0.2365.2) (2026-01-22)
 
 
