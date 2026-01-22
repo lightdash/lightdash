@@ -2,7 +2,7 @@ import { MapChartLocation, MapChartType } from '@lightdash/common';
 import { Box, Divider, Stack, Text, UnstyledButton } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconMap } from '@tabler/icons-react';
-import { scaleLinear, scaleSqrt } from 'd3-scale';
+import { scaleSqrt } from 'd3-scale';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -32,6 +32,7 @@ import useLeafletMapConfig, {
     type TooltipFieldInfo,
 } from '../../hooks/leaflet/useLeafletMapConfig';
 import useToaster from '../../hooks/toaster/useToaster';
+import { createMultiColorScale } from '../../utils/colorUtils';
 import { isMapVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import LoadingChart from '../common/LoadingChart';
@@ -436,20 +437,6 @@ type SimpleMapProps = {
     onScreenshotError?: () => void;
 };
 
-// Helper to create a color scale that interpolates between colors
-const createColorScale = (min: number, max: number, colors: string[]) => {
-    if (colors.length === 0) return () => '#888888';
-    if (colors.length === 1) return () => colors[0];
-    if (max === min) return () => colors[Math.floor(colors.length / 2)];
-
-    // Create domain points that map evenly across the value range
-    const domain = colors.map(
-        (_, i) => min + (i / (colors.length - 1)) * (max - min),
-    );
-
-    return scaleLinear<string>().domain(domain).range(colors).clamp(true);
-};
-
 const SimpleMap: FC<SimpleMapProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
         const { isLoading, visualizationConfig, resultsData, leafletMapRef } =
@@ -657,7 +644,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
         // Memoized color scale for scatter points
         const scatterColorScale = useMemo(() => {
             if (!mapConfig) return null;
-            return createColorScale(
+            return createMultiColorScale(
                 scatterValueRange.min,
                 scatterValueRange.max,
                 mapConfig.colors.scale,
@@ -752,7 +739,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
         // Memoized color scale for choropleth regions
         const regionColorScale = useMemo(() => {
             if (!mapConfig) return null;
-            return createColorScale(
+            return createMultiColorScale(
                 regionValueRange.min,
                 regionValueRange.max,
                 mapConfig.colors.scale,
