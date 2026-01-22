@@ -5,6 +5,7 @@ import {
     getFilterDimensionsForMetric,
     getSegmentDimensionsForMetric,
     type CatalogField,
+    type FilterRule,
     type MetricExplorerQuery,
     type TimeDimensionConfig,
 } from '@lightdash/common';
@@ -111,6 +112,8 @@ export const MetricExploreModalV2: FC<Props> = ({
         TimeDimensionConfig | undefined
     >();
 
+    const [filterRule, setFilterRule] = useState<FilterRule | undefined>();
+
     const [query, setQuery] = useState<MetricExplorerQuery>({
         comparison: MetricExplorerComparison.NONE,
         segmentDimension: null,
@@ -123,11 +126,12 @@ export const MetricExploreModalV2: FC<Props> = ({
     // Reset override when navigating to a different metric
     const resetQueryState = useCallback(() => {
         setTimeDimensionOverride(undefined);
+        setFilterRule(undefined);
         setQuery({
             comparison: MetricExplorerComparison.NONE,
             segmentDimension: null,
         });
-    }, [setTimeDimensionOverride, setQuery]);
+    }, [setTimeDimensionOverride, setFilterRule, setQuery]);
 
     // Update navigateToMetric to reset state
     const navigateToMetricWithReset = useCallback(
@@ -172,6 +176,7 @@ export const MetricExploreModalV2: FC<Props> = ({
         metricName,
         timeDimensionOverride,
         segmentDimensionId,
+        filterRule,
         comparison: query.comparison,
     });
 
@@ -250,6 +255,13 @@ export const MetricExploreModalV2: FC<Props> = ({
             });
         },
         [setQuery],
+    );
+
+    const handleFilterApply = useCallback(
+        (nextFilterRule: FilterRule | undefined) => {
+            setFilterRule(nextFilterRule);
+        },
+        [setFilterRule],
     );
 
     return (
@@ -376,25 +388,11 @@ export const MetricExploreModalV2: FC<Props> = ({
                             className={styles.sidebarContainer}
                         >
                             <Stack gap="xl" w="100%">
-                                <Box pos="relative">
-                                    <Box className={styles.disabledOverlay}>
-                                        <MetricExploreFilter
-                                            dimensions={
-                                                availableFilterByDimensions
-                                            }
-                                            onFilterApply={() => {}}
-                                        />
-                                    </Box>
-                                    <Box pos="absolute" inset={0}>
-                                        <Tooltip
-                                            label="Coming soon"
-                                            position="right"
-                                            withinPortal
-                                        >
-                                            <Box w="100%" h="100%" />
-                                        </Tooltip>
-                                    </Box>
-                                </Box>
+                                <MetricExploreFilter
+                                    dimensions={availableFilterByDimensions}
+                                    onFilterApply={handleFilterApply}
+                                    key={`${tableName}-${metricName}`}
+                                />
 
                                 <MetricExploreSegmentationPicker
                                     query={query}
