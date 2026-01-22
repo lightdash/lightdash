@@ -44,6 +44,7 @@ import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsW
 import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
 import { useMetricVisualization } from '../hooks/useMetricVisualization';
 import styles from './MetricExploreModalV2.module.css';
+import { MetricsVisualizationEmptyState } from './MetricsVisualizationEmptyState';
 import { MetricExploreComparison as MetricExploreComparisonSection } from './visualization/MetricExploreComparison';
 import { MetricExploreDatePicker } from './visualization/MetricExploreDatePicker';
 import { MetricExploreFilter } from './visualization/MetricExploreFilter';
@@ -263,6 +264,8 @@ export const MetricExploreModalV2: FC<Props> = ({
         },
         [setFilterRule],
     );
+
+    const showEmptyState = !isLoading && resultsData.totalResults === 0;
 
     return (
         <Modal.Root
@@ -491,31 +494,39 @@ export const MetricExploreModalV2: FC<Props> = ({
 
                         {/* ECharts visualization */}
                         <Box flex={1}>
-                            {hasData && metricQuery && tableName && explore && (
-                                <MetricQueryDataProvider
-                                    metricQuery={metricQuery}
-                                    tableName={tableName}
-                                    explore={explore}
-                                >
-                                    <VisualizationProvider
-                                        resultsData={resultsData}
-                                        chartConfig={chartConfig}
-                                        columnOrder={columnOrder}
-                                        initialPivotDimensions={
-                                            segmentDimensionId
-                                                ? [segmentDimensionId]
-                                                : undefined
-                                        }
-                                        colorPalette={colorPalette}
-                                        isLoading={isLoading}
-                                        onSeriesContextMenu={undefined}
-                                        onChartConfigChange={undefined}
-                                        pivotTableMaxColumnLimit={60}
-                                    >
-                                        <LightdashVisualization />
-                                    </VisualizationProvider>
-                                </MetricQueryDataProvider>
+                            {showEmptyState && (
+                                <MetricsVisualizationEmptyState />
                             )}
+
+                            {!showEmptyState &&
+                                hasData &&
+                                metricQuery &&
+                                tableName &&
+                                explore && (
+                                    <MetricQueryDataProvider
+                                        metricQuery={metricQuery}
+                                        tableName={tableName}
+                                        explore={explore}
+                                    >
+                                        <VisualizationProvider
+                                            resultsData={resultsData}
+                                            chartConfig={chartConfig}
+                                            columnOrder={columnOrder}
+                                            initialPivotDimensions={
+                                                segmentDimensionId
+                                                    ? [segmentDimensionId]
+                                                    : undefined
+                                            }
+                                            colorPalette={colorPalette}
+                                            isLoading={isLoading}
+                                            onSeriesContextMenu={undefined}
+                                            onChartConfigChange={undefined}
+                                            pivotTableMaxColumnLimit={60}
+                                        >
+                                            <LightdashVisualization />
+                                        </VisualizationProvider>
+                                    </MetricQueryDataProvider>
+                                )}
                         </Box>
                     </Stack>
                 </Modal.Body>
