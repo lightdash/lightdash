@@ -308,6 +308,7 @@ export class SchedulerClient {
                 properties: {
                     jobId: id,
                     schedulerId: schedulerUuid,
+                    groupId: id,
                 },
             });
         });
@@ -372,6 +373,7 @@ export class SchedulerClient {
             properties: {
                 jobId: id,
                 schedulerId: schedulerUuid,
+                groupId: id,
             },
         });
 
@@ -411,6 +413,7 @@ export class SchedulerClient {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
                 schedulerTargetId: undefined,
+                groupId: jobGroup,
                 type: 'gsheets',
                 format: scheduler.format,
                 sendNow: scheduler.schedulerUuid === undefined,
@@ -520,6 +523,7 @@ export class SchedulerClient {
                 jobId: id,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: targetUuid,
+                groupId: jobGroup,
                 type,
                 format: scheduler.format,
                 sendNow: schedulerUuid === undefined,
@@ -567,6 +571,7 @@ export class SchedulerClient {
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
+                groupId: jobGroup,
                 type: 'slack',
                 targetCount: targets.length,
                 format: scheduler.format,
@@ -618,6 +623,7 @@ export class SchedulerClient {
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
+                groupId: jobGroup,
                 type: 'email',
                 targetCount: targets.length,
                 format: scheduler.format,
@@ -669,6 +675,7 @@ export class SchedulerClient {
             properties: {
                 jobId: id,
                 schedulerId: scheduler.schedulerUuid,
+                groupId: jobGroup,
                 type: 'msteams',
                 targetCount: targets.length,
                 format: scheduler.format,
