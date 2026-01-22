@@ -1,3 +1,10 @@
+## [0.2365.1](https://github.com/lightdash/lightdash/compare/0.2365.0...0.2365.1) (2026-01-22)
+
+
+### Bug Fixes
+
+* respect the color gradient in maps ([#19625](https://github.com/lightdash/lightdash/issues/19625)) ([bbe8b02](https://github.com/lightdash/lightdash/commit/bbe8b02787848295685f4048f98f7252e435b141))
+
 # [0.2365.0](https://github.com/lightdash/lightdash/compare/0.2364.0...0.2365.0) (2026-01-22)
 
 
