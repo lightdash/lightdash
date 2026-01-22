@@ -45,9 +45,26 @@ export const convertExploresToCatalog = (
 
     let numberOfCategoriesApplied = 0;
 
+    // Build map of base explore field names per baseTable
+    // Used to avoid duplicating fields for additional explores
+    const baseExploreFieldsByTable = new Map<string, Set<string>>();
+    cachedExplores.forEach((explore) => {
+        const isBaseExplore = explore.name === explore.baseTable;
+        if (isBaseExplore) {
+            const baseTable = explore?.tables?.[explore.baseTable];
+            const fieldNames = new Set([
+                ...Object.keys(baseTable?.dimensions || {}),
+                ...Object.keys(baseTable?.metrics || {}),
+            ]);
+            baseExploreFieldsByTable.set(explore.baseTable, fieldNames);
+        }
+    });
+
     const catalogInserts = cachedExplores.reduce<CatalogInsertWithYamlTags[]>(
         (acc, explore) => {
             const baseTable = explore?.tables?.[explore.baseTable];
+            const isAdditionalExplore = explore.name !== explore.baseTable;
+
             const table: CatalogInsertWithYamlTags = {
                 project_uuid: projectUuid,
                 cached_explore_uuid: explore.cachedExploreUuid,
@@ -67,12 +84,25 @@ export const convertExploresToCatalog = (
                 joined_tables: explore.joinedTables.map((t) => t.table),
             };
 
-            const dimensionsAndMetrics = [
+            let dimensionsAndMetrics = [
                 ...Object.values(baseTable?.dimensions || {}).filter(
                     (d) => !d.isIntervalBase,
                 ),
                 ...Object.values(baseTable?.metrics || {}),
             ].filter((f) => !f.hidden); // Filter out hidden fields from catalog
+
+            // For additional explores, only index fields NOT in base explore
+            // This avoids duplicate entries for the same metric/dimension
+            if (isAdditionalExplore) {
+                const baseFieldNames = baseExploreFieldsByTable.get(
+                    explore.baseTable,
+                );
+                if (baseFieldNames) {
+                    dimensionsAndMetrics = dimensionsAndMetrics.filter(
+                        (field) => !baseFieldNames.has(field.name),
+                    );
+                }
+            }
 
             const fields = dimensionsAndMetrics.map<CatalogInsertWithYamlTags>(
                 (field) => {
