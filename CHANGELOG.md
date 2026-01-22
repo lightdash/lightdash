@@ -1,3 +1,10 @@
+## [0.2365.2](https://github.com/lightdash/lightdash/compare/0.2365.1...0.2365.2) (2026-01-22)
+
+
+### Bug Fixes
+
+* improve map legend to show the gradient ([#19626](https://github.com/lightdash/lightdash/issues/19626)) ([bec3ec9](https://github.com/lightdash/lightdash/commit/bec3ec9c6fcb95dd96785e2601322b9423bfd444))
+
 ## [0.2365.1](https://github.com/lightdash/lightdash/compare/0.2365.0...0.2365.1) (2026-01-22)
 
 
