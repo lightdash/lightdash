@@ -1,3 +1,11 @@
+# [0.2366.0](https://github.com/lightdash/lightdash/compare/0.2365.3...0.2366.0) (2026-01-22)
+
+
+### Features
+
+* allow filter by in metric explore modal v2 ([#19654](https://github.com/lightdash/lightdash/issues/19654)) ([678e651](https://github.com/lightdash/lightdash/commit/678e651a123fccbe5bfcd7fb4f6700a6de572fa5))
+* allow segment by in metric explore modal v2 ([#19652](https://github.com/lightdash/lightdash/issues/19652)) ([924fc67](https://github.com/lightdash/lightdash/commit/924fc67ff5a462971e0a03a6538be732f970dacd))
+
 ## [0.2365.3](https://github.com/lightdash/lightdash/compare/0.2365.2...0.2365.3) (2026-01-22)
 
 
