@@ -2669,26 +2669,37 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     );
 
                     const account = fromSession(user);
-                    return this.projectService.runMetricQuery({
-                        account,
-                        projectUuid,
-                        metricQuery: {
-                            ...metricQuery,
-                            additionalMetrics: populateCustomMetricsSQL(
-                                metricQuery.additionalMetrics,
-                                explore,
-                            ),
-                        },
-                        exploreName: metricQuery.exploreName,
-                        csvLimit: metricQuery.limit,
-                        context: QueryExecutionContext.AI,
-                        chartUuid: undefined,
-                        queryTags: {
-                            project_uuid: projectUuid,
-                            user_uuid: user.userUuid,
-                            organization_uuid: organizationUuid,
-                        },
-                    });
+                    const result =
+                        await this.asyncQueryService.executeMetricQueryAndGetResults(
+                            {
+                                account,
+                                projectUuid,
+                                metricQuery: {
+                                    ...metricQuery,
+                                    additionalMetrics: populateCustomMetricsSQL(
+                                        metricQuery.additionalMetrics,
+                                        explore,
+                                    ),
+                                },
+                                context: QueryExecutionContext.AI,
+                            },
+                        );
+
+                    // Extract raw values from ResultRow format
+                    const rawRows = result.rows.map((row) =>
+                        Object.fromEntries(
+                            Object.entries(row).map(([key, cell]) => [
+                                key,
+                                cell.value.raw,
+                            ]),
+                        ),
+                    );
+
+                    return {
+                        rows: rawRows,
+                        cacheMetadata: result.cacheMetadata,
+                        fields: result.fields,
+                    };
                 },
             );
 

@@ -12,6 +12,7 @@ import {
     type ApiGetAsyncQueryResults,
     assertIsAccountWithOrg,
     assertUnreachable,
+    type CacheMetadata,
     type CompiledCustomSqlDimension,
     CompiledDimension,
     type CompiledMetric,
@@ -110,7 +111,10 @@ import { compileMetricQuery } from '../../queryCompiler';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { wrapSentryTransaction } from '../../utils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
-import { processFieldsForExport } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import {
+    processFieldsForExport,
+    streamJsonlData,
+} from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import {
@@ -718,40 +722,7 @@ export class AsyncQueryService extends ProjectService {
     // Note: This method should only be used in scheduler worker. It may cause API timeouts.
     async downloadSyncQueryResults(args: DownloadAsyncQueryResultsArgs) {
         const { queryUuid, projectUuid, account } = args;
-        // Recursive function that waits for query results to be ready
-        const pollForAsyncChartResults = async (
-            backoffMs: number = 500,
-        ): Promise<void> => {
-            const queryHistory = await this.queryHistoryModel.get(
-                queryUuid,
-                projectUuid,
-                account,
-            );
-            const { status } = queryHistory;
-
-            switch (status) {
-                case QueryHistoryStatus.CANCELLED:
-                    throw new Error('Query was cancelled');
-                case QueryHistoryStatus.ERROR:
-                    throw new Error(
-                        queryHistory.error ?? 'Warehouse query failed',
-                    );
-                case QueryHistoryStatus.PENDING:
-                    // Implement backoff: 500ms -> 1000ms -> 2000 (then stay at 2000ms)
-                    const nextBackoff = Math.min(backoffMs * 2, 2000);
-                    await sleep(backoffMs);
-                    return pollForAsyncChartResults(nextBackoff);
-                case QueryHistoryStatus.READY:
-                    // Continue with execution
-                    return undefined;
-                default:
-                    return assertUnreachable(status, 'Unknown query status');
-            }
-        };
-
-        // Wait for results to be ready
-        await pollForAsyncChartResults();
-
+        await this.pollForQueryCompletion({ account, projectUuid, queryUuid });
         return this.downloadAsyncQueryResults(args);
     }
 
@@ -3401,5 +3372,105 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             usedParametersValues: usedParameters,
         };
+    }
+
+    /**
+     * Poll for query completion with exponential backoff.
+     * Throws on CANCELLED, ERROR, or timeout.
+     */
+    async pollForQueryCompletion({
+        account,
+        projectUuid,
+        queryUuid,
+        initialBackoffMs = 500,
+        maxBackoffMs = 2000,
+        timeoutMs = 5 * 60 * 1000, // 5 min default
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        initialBackoffMs?: number;
+        maxBackoffMs?: number;
+        timeoutMs?: number;
+    }): Promise<void> {
+        const startTime = Date.now();
+
+        const poll = async (backoffMs: number): Promise<void> => {
+            if (Date.now() - startTime > timeoutMs) {
+                throw new Error(`Query polling timed out after ${timeoutMs}ms`);
+            }
+
+            const queryHistory = await this.queryHistoryModel.get(
+                queryUuid,
+                projectUuid,
+                account,
+            );
+
+            switch (queryHistory.status) {
+                case QueryHistoryStatus.CANCELLED:
+                    throw new Error('Query was cancelled');
+                case QueryHistoryStatus.ERROR:
+                    throw new Error(
+                        queryHistory.error ?? 'Warehouse query failed',
+                    );
+                case QueryHistoryStatus.PENDING:
+                    await sleep(backoffMs);
+                    return poll(Math.min(backoffMs * 2, maxBackoffMs));
+                case QueryHistoryStatus.READY:
+                    return undefined;
+                default:
+                    return assertUnreachable(
+                        queryHistory.status,
+                        'Unknown query status',
+                    );
+            }
+        };
+
+        await poll(initialBackoffMs);
+    }
+
+    /**
+     * Execute metric query and wait for all results.
+     * Returns ResultRow[] (formatted values).
+     */
+    async executeMetricQueryAndGetResults(
+        args: ExecuteAsyncMetricQueryArgs,
+    ): Promise<{
+        rows: ResultRow[];
+        cacheMetadata: CacheMetadata;
+        fields: ItemsMap;
+    }> {
+        const { account, projectUuid } = args;
+
+        const { queryUuid, cacheMetadata, fields } =
+            await this.executeAsyncMetricQuery(args);
+
+        await this.pollForQueryCompletion({ account, projectUuid, queryUuid });
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+
+        const resultsStream = await this.resultsStorageClient.getDownloadStream(
+            queryHistory.resultsFileName!,
+        );
+
+        const rows: ResultRow[] = [];
+        await streamJsonlData<void>({
+            readStream: resultsStream,
+            onRow: (rawRow) => {
+                rows.push(
+                    formatRow(
+                        rawRow,
+                        queryHistory.fields,
+                        queryHistory.pivotValuesColumns,
+                    ),
+                );
+            },
+        });
+
+        return { rows, cacheMetadata, fields };
     }
 }
