@@ -1,3 +1,16 @@
+# [0.2369.0](https://github.com/lightdash/lightdash/compare/0.2368.0...0.2369.0) (2026-01-22)
+
+
+### Bug Fixes
+
+* validate dashboard filters and tile targets for table name consistency ([#19659](https://github.com/lightdash/lightdash/issues/19659)) ([9d377cf](https://github.com/lightdash/lightdash/commit/9d377cf99e7062ae686579dedb44ebc3416f50c9))
+
+
+### Features
+
+* configure signup URL ([#19602](https://github.com/lightdash/lightdash/issues/19602)) ([83205d8](https://github.com/lightdash/lightdash/commit/83205d807953183e9875bf90f8140dec9b842c2a))
+* display empty state when no results from metric explore modal v2 ([#19662](https://github.com/lightdash/lightdash/issues/19662)) ([94d953c](https://github.com/lightdash/lightdash/commit/94d953cb5c78065382b05a935e319ff6983cd37d))
+
 # [0.2368.0](https://github.com/lightdash/lightdash/compare/0.2367.0...0.2368.0) (2026-01-22)
 
 
