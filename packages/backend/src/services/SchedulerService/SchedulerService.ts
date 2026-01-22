@@ -299,7 +299,7 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const schedulers = await this.schedulerModel.getProjectSchedulers({
+        const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid,
             paginateArgs,
             searchQuery,
@@ -376,7 +376,7 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const schedulers = await this.schedulerModel.getUserSchedulers({
+        const schedulers = await this.schedulerModel.getSchedulers({
             paginateArgs,
             searchQuery,
             sort,

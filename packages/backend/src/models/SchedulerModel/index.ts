@@ -239,7 +239,7 @@ export class SchedulerModel {
         return this.getSchedulersWithTargets(await schedulers);
     }
 
-    async getProjectSchedulers({
+    async getSchedulers({
         projectUuid,
         paginateArgs,
         searchQuery,
@@ -258,44 +258,31 @@ export class SchedulerModel {
             destinations?: string[];
         };
     }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
-        const initialQuery = SchedulerModel.getBaseSchedulerQuery(
-            this.database,
-        );
-        return this.getSchedulers({
-            initialQuery,
-            projectUuid,
-            paginateArgs,
-            searchQuery,
-            sort,
-            filters,
-        });
-    }
-
-    private async getSchedulers({
-        initialQuery,
-        projectUuid,
-        paginateArgs,
-        searchQuery,
-        sort,
-        filters,
-    }: {
-        initialQuery: Knex.QueryBuilder<
-            SchedulerDb & DbUser & (DbSavedChart & (SchedulerDb | DbDashboard)),
-            SelectScheduler[]
-        >;
-        projectUuid?: string;
-        paginateArgs?: KnexPaginateArgs;
-        searchQuery?: string;
-        sort?: { column: string; direction: 'asc' | 'desc' };
-        filters?: {
-            createdByUserUuids?: string[];
-            formats?: string[];
-            resourceType?: 'chart' | 'dashboard';
-            resourceUuids?: string[];
-            destinations?: string[];
-        };
-    }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
-        let baseQuery = initialQuery;
+        let baseQuery = this.database(SchedulerTableName)
+            .select<SelectScheduler[]>(
+                `${SchedulerTableName}.*`,
+                this.database.raw(
+                    `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_name`,
+                ),
+                `${SavedChartsTableName}.name as saved_chart_name`,
+                `${DashboardsTableName}.name as dashboard_name`,
+                `${ProjectTableName}.project_uuid as project_uuid`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${SchedulerTableName}.created_by`,
+            )
+            .leftJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SchedulerTableName}.saved_chart_uuid`,
+            )
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SchedulerTableName}.dashboard_uuid`,
+            );
         // Apply search query if present
         if (searchQuery) {
             baseQuery = getColumnMatchRegexQuery(baseQuery, searchQuery, [
@@ -509,37 +496,6 @@ export class SchedulerModel {
                 data as SelectScheduler[],
             ),
         };
-    }
-
-    async getUserSchedulers({
-        paginateArgs,
-        searchQuery,
-        sort,
-        filters,
-    }: {
-        paginateArgs?: KnexPaginateArgs;
-        searchQuery?: string;
-        sort?: { column: string; direction: 'asc' | 'desc' };
-        filters?: {
-            createdByUserUuids?: string[];
-            formats?: string[];
-            resourceType?: 'chart' | 'dashboard';
-            resourceUuids?: string[];
-            destinations?: string[];
-        };
-    }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
-        const initialQuery = SchedulerModel.getBaseSchedulerQuery(
-            this.database,
-        );
-
-        return this.getSchedulers({
-            initialQuery,
-            projectUuid: undefined,
-            paginateArgs,
-            searchQuery,
-            sort,
-            filters,
-        });
     }
 
     async getChartSchedulers(
