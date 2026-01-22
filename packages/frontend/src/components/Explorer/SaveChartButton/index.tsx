@@ -11,6 +11,7 @@ import {
     selectIsValidQuery,
     selectSavedChart,
     selectUnsavedChartVersion,
+    selectUnsavedChartVersionForSave,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
@@ -28,6 +29,10 @@ const SaveChartButton: FC<{ isExplorer?: boolean; disabled?: boolean }> = ({
     const isAmbientAiEnabled = useAmbientAiEnabled();
     const projectUuid = useProjectUuid();
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    // For saving: enriched with map extent (only subscribes here to avoid re-renders elsewhere)
+    const unsavedChartVersionForSave = useExplorerSelector(
+        selectUnsavedChartVersionForSave,
+    );
 
     const savedChart = useExplorerSelector(selectSavedChart);
 
@@ -53,10 +58,10 @@ const SaveChartButton: FC<{ isExplorer?: boolean; disabled?: boolean }> = ({
 
     const update = useAddVersionMutation();
     const handleSavedQueryUpdate = () => {
-        if (savedChart?.uuid && unsavedChartVersion) {
+        if (savedChart?.uuid && unsavedChartVersionForSave) {
             update.mutate({
                 uuid: savedChart.uuid,
-                payload: unsavedChartVersion,
+                payload: unsavedChartVersionForSave,
             });
         }
     };
@@ -154,10 +159,10 @@ const SaveChartButton: FC<{ isExplorer?: boolean; disabled?: boolean }> = ({
                 </Button>
             </Tooltip>
 
-            {unsavedChartVersion && (
+            {unsavedChartVersionForSave && (
                 <ChartCreateModal
                     opened={isQueryModalOpen}
-                    savedData={unsavedChartVersion}
+                    savedData={unsavedChartVersionForSave}
                     onClose={() => {
                         setIsQueryModalOpen(false);
                     }}
