@@ -75,6 +75,23 @@ export type ChartConfigCache<T = AnyType> = {
     pivotConfig?: { columns: string[] };
 };
 
+/**
+ * Map extent representing the current view state of a map.
+ * Used for saving/restoring map position.
+ */
+export type MapExtent = {
+    zoom: number;
+    lat: number;
+    lng: number;
+};
+
+// Extended cache type for map charts that includes temporary map extent
+export type MapChartConfigCache = ChartConfigCache<MapChartConfig['config']> & {
+    // Temporary map extent - updated on pan/zoom, read at save time
+    // This is NOT used during render to avoid re-renders on map interaction
+    tempMapExtent?: MapExtent | null;
+};
+
 export type ConfigCacheMap = {
     [ChartType.PIE]: ChartConfigCache<PieChartConfig['config']>;
     [ChartType.FUNNEL]: ChartConfigCache<FunnelChartConfig['config']>;
@@ -83,7 +100,7 @@ export type ConfigCacheMap = {
     [ChartType.CARTESIAN]: ChartConfigCache<CartesianChartConfig['config']>;
     [ChartType.TREEMAP]: ChartConfigCache<TreemapChartConfig['config']>;
     [ChartType.GAUGE]: ChartConfigCache<GaugeChartConfig['config']>;
-    [ChartType.MAP]: ChartConfigCache<MapChartConfig['config']>;
+    [ChartType.MAP]: MapChartConfigCache;
     [ChartType.CUSTOM]: ChartConfigCache<CustomVisConfig['config']>;
 };
 

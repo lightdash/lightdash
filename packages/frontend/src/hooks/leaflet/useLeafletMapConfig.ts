@@ -9,6 +9,7 @@ import { useMantineTheme } from '@mantine/core';
 import { useMemo } from 'react';
 import { isMapVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
+import { type MapExtent } from '../../providers/Explorer/types';
 
 type Args = {
     isInDashboard: boolean;
@@ -50,8 +51,10 @@ export type LeafletMapConfig = {
     geoJsonUrl: string | null;
     // Property key to match in GeoJSON features (e.g., 'name', 'ISO3166-1-Alpha-3')
     geoJsonPropertyKey: string;
-    center: [number, number];
-    zoom: number;
+    // Map extent (position and zoom level)
+    extent: MapExtent;
+    // True if the extent came from a saved chart (not defaults)
+    hasSavedExtent: boolean;
     colors: {
         primary: string;
         scale: string[];
@@ -317,14 +320,15 @@ const useLeafletMapConfig = ({
             }
         }
 
-        // Calculate center - use custom if provided, otherwise default based on map type
-        const center: [number, number] =
-            defaultCenterLat !== undefined && defaultCenterLon !== undefined
-                ? [defaultCenterLat, defaultCenterLon]
-                : getMapCenter(mapType);
-
-        // Calculate zoom - use custom if provided, otherwise default based on map type
-        const zoom = defaultZoom ?? getMapZoom(mapType);
+        // Calculate extent - use saved values if provided, otherwise defaults based on map type
+        const hasSavedExtent =
+            defaultCenterLat !== undefined && defaultCenterLon !== undefined;
+        const defaultCenter = getMapCenter(mapType);
+        const extent: MapExtent = {
+            lat: hasSavedExtent ? defaultCenterLat : defaultCenter[0],
+            lng: hasSavedExtent ? defaultCenterLon : defaultCenter[1],
+            zoom: defaultZoom ?? getMapZoom(mapType),
+        };
 
         // Calculate value range for legend (includes both raw and formatted values)
         let valueRange: {
@@ -445,8 +449,8 @@ const useLeafletMapConfig = ({
                 }
                 return 'ISO3166-1-Alpha-3';
             })(),
-            center,
-            zoom,
+            extent,
+            hasSavedExtent,
             colors: {
                 primary: colorRange?.[0] || theme.colors.blue[6],
                 scale: colorRange || [

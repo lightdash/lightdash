@@ -1,4 +1,5 @@
 import {
+    ChartType,
     convertFieldRefToFieldId,
     getFieldRef,
     getItemId,
@@ -9,7 +10,6 @@ import {
     updateFieldIdInFilters,
     type AdditionalMetric,
     type ChartConfig,
-    type ChartType,
     type CustomDimension,
     type CustomFormat,
     type Dimension,
@@ -39,6 +39,7 @@ import {
     type ConfigCacheMap,
     type ExplorerReduceState,
     type ExplorerSection,
+    type MapExtent,
 } from '../../../providers/Explorer/types';
 import {
     getCachedPivotConfig,
@@ -975,6 +976,20 @@ const explorerSlice = createSlice({
                 draft.unsavedChartVersion.tableName = tableName;
                 draft.unsavedChartVersion.metricQuery.exploreName = tableName;
             });
+        },
+
+        // Map extent - updated on pan/zoom, read at save time
+        // Stored in cachedChartConfigs[MAP] to keep map-specific state together
+        // This does NOT cause re-renders because nothing subscribes to it during render
+        setMapExtent: (state, action: PayloadAction<MapExtent | null>) => {
+            // Ensure the MAP cache exists
+            if (!state.cachedChartConfigs[ChartType.MAP]) {
+                state.cachedChartConfigs[ChartType.MAP] = {
+                    chartConfig: undefined as any,
+                };
+            }
+            state.cachedChartConfigs[ChartType.MAP].tempMapExtent =
+                action.payload;
         },
     },
 });

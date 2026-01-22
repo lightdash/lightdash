@@ -27,6 +27,12 @@ import {
 } from 'react-leaflet';
 import * as topojson from 'topojson-client';
 import type { Topology } from 'topojson-specification';
+import {
+    explorerActions,
+    selectSavedChart,
+    useExplorerDispatch,
+    useExplorerSelector,
+} from '../../features/explorer/store';
 import useLeafletMapConfig, {
     type ScatterPoint,
     type TooltipFieldInfo,
@@ -290,46 +296,56 @@ const MapRefUpdater: FC<{ mapRef: RefObject<L.Map | null> }> = ({ mapRef }) => {
     return null;
 };
 
-// Component to track map extent when saveMapExtent is enabled
-const MapExtentTracker: FC<{
-    saveMapExtent: boolean;
-    onExtentChange: (zoom: number, lat: number, lon: number) => void;
-}> = ({ saveMapExtent, onExtentChange }) => {
+// Component to track map extent and dispatch to Redux
+// This does NOT cause re-renders because nothing subscribes to mapExtent during render
+const MapExtentTracker: FC = () => {
     const map = useMap();
+    const dispatch = useExplorerDispatch();
 
     useEffect(() => {
-        if (!saveMapExtent) return;
-
-        const handleMoveEnd = () => {
-            const center = map.getCenter();
-            const zoom = map.getZoom();
-            onExtentChange(zoom, center.lat, center.lng);
+        const updateExtent = () => {
+            try {
+                const center = map.getCenter();
+                const zoom = map.getZoom();
+                dispatch(
+                    explorerActions.setMapExtent({
+                        zoom,
+                        lat: center.lat,
+                        lng: center.lng,
+                    }),
+                );
+            } catch {
+                // Map might not be ready
+            }
         };
 
-        // Capture initial extent
-        handleMoveEnd();
+        // Initial capture
+        updateExtent();
 
-        // Listen for map movements
-        map.on('moveend', handleMoveEnd);
-        map.on('zoomend', handleMoveEnd);
+        // Update on map move/zoom
+        map.on('moveend', updateExtent);
+        map.on('zoomend', updateExtent);
 
         return () => {
-            map.off('moveend', handleMoveEnd);
-            map.off('zoomend', handleMoveEnd);
+            map.off('moveend', updateExtent);
+            map.off('zoomend', updateExtent);
+            dispatch(explorerActions.setMapExtent(null));
         };
-    }, [map, saveMapExtent, onExtentChange]);
+    }, [map, dispatch]);
 
     return null;
 };
 
 // Component to auto-fit map bounds to data on initial load
 // Only fits once per unique geoJsonUrl/mapType combination
+// Skips fitting if there's a saved extent (hasSavedExtent=true)
 const MapBoundsFitter: FC<{
     geoJsonData: GeoJSON.FeatureCollection | null;
     scatterData: ScatterPoint[] | null;
     mapType: MapChartLocation;
     geoJsonUrl: string | null;
-}> = ({ geoJsonData, scatterData, mapType, geoJsonUrl }) => {
+    hasSavedExtent: boolean;
+}> = ({ geoJsonData, scatterData, mapType, geoJsonUrl, hasSavedExtent }) => {
     const map = useMap();
     // Track the last fitted configuration to prevent re-fitting on re-renders
     const lastFittedRef = useRef<{
@@ -339,6 +355,12 @@ const MapBoundsFitter: FC<{
     } | null>(null);
 
     useEffect(() => {
+        // If there's a saved extent, don't override it with auto-fitting
+        if (hasSavedExtent) {
+            lastFittedRef.current = { mapType, geoJsonUrl, hasFitted: true };
+            return;
+        }
+
         // Check if we've already fitted for this exact mapType + URL combination
         const isSameConfig =
             lastFittedRef.current &&
@@ -406,7 +428,7 @@ const MapBoundsFitter: FC<{
         }
         // Note: geoJsonData and scatterData are intentionally in deps to re-fit when data loads,
         // but the ref check above prevents re-fitting on subsequent renders with same config
-    }, [map, mapType, geoJsonUrl, geoJsonData, scatterData]);
+    }, [map, mapType, geoJsonUrl, geoJsonData, scatterData, hasSavedExtent]);
 
     return null;
 };
@@ -444,6 +466,33 @@ const SimpleMap: FC<SimpleMapProps> = memo(
             isInDashboard: props.isInDashboard,
         });
 
+        // Read savedChart extent from Redux - this is the source of truth after save
+        // The visualization config layer has stale extent values until reload
+        const savedChart = useExplorerSelector(selectSavedChart);
+        const savedExtent = useMemo(() => {
+            const config = savedChart?.chartConfig?.config as
+                | {
+                      defaultCenterLat?: number;
+                      defaultCenterLon?: number;
+                      defaultZoom?: number;
+                  }
+                | undefined;
+            if (
+                config?.defaultCenterLat !== undefined &&
+                config?.defaultCenterLon !== undefined
+            ) {
+                return {
+                    lat: config.defaultCenterLat,
+                    lng: config.defaultCenterLon,
+                    zoom: config.defaultZoom ?? mapConfig?.extent.zoom ?? 2,
+                };
+            }
+            return null;
+        }, [savedChart, mapConfig?.extent.zoom]);
+
+        // Use savedChart extent if available, otherwise fall back to mapConfig
+        const effectiveExtent = savedExtent ?? mapConfig?.extent;
+
         const [geoJsonData, setGeoJsonData] =
             useState<GeoJSON.FeatureCollection | null>(null);
         const [geoJsonLayerKey, setGeoJsonLayerKey] = useState(0);
@@ -458,32 +507,6 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 hasSignaledScreenshotReady.current = true;
             }
         }, [isLoading, mapConfig, onScreenshotReady, onScreenshotError]);
-
-        // Get extent setters from visualization config
-        const extentSetters = useMemo(() => {
-            if (!isMapVisualizationConfig(visualizationConfig)) return null;
-            return {
-                setDefaultZoom: visualizationConfig.chartConfig.setDefaultZoom,
-                setDefaultCenterLat:
-                    visualizationConfig.chartConfig.setDefaultCenterLat,
-                setDefaultCenterLon:
-                    visualizationConfig.chartConfig.setDefaultCenterLon,
-                saveMapExtent:
-                    visualizationConfig.chartConfig.validConfig.saveMapExtent,
-            };
-        }, [visualizationConfig]);
-
-        // Handler to update extent when map moves
-        const handleExtentChange = useCallback(
-            (zoom: number, lat: number, lon: number) => {
-                if (extentSetters) {
-                    extentSetters.setDefaultZoom(zoom);
-                    extentSetters.setDefaultCenterLat(lat);
-                    extentSetters.setDefaultCenterLon(lon);
-                }
-            },
-            [extentSetters],
-        );
 
         // Load all data when component mounts
         useEffect(() => {
@@ -658,8 +681,8 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     point.value === null
                         ? 0.5
                         : max === min
-                          ? 0.5
-                          : (point.value - min) / (max - min);
+                        ? 0.5
+                        : (point.value - min) / (max - min);
                 return [point.lat, point.lon, scale];
             });
         }, [scatterData, scatterValueRange]);
@@ -917,8 +940,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     }
                 >
                     <MapContainer
-                        center={mapConfig.center}
-                        zoom={mapConfig.zoom}
+                        // Key based on saved extent - forces remount when saved config changes
+                        key={`scatter-${effectiveExtent?.lat}-${effectiveExtent?.lng}-${effectiveExtent?.zoom}`}
+                        center={[
+                            effectiveExtent?.lat ?? 20,
+                            effectiveExtent?.lng ?? 0,
+                        ]}
+                        zoom={effectiveExtent?.zoom ?? 2}
                         style={{ height: '100%', width: '100%' }}
                         scrollWheelZoom
                         minZoom={1}
@@ -929,17 +957,15 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         maxBoundsViscosity={1.0}
                     >
                         <MapRefUpdater mapRef={leafletMapRef} />
-                        <MapExtentTracker
-                            saveMapExtent={
-                                extentSetters?.saveMapExtent ?? false
-                            }
-                            onExtentChange={handleExtentChange}
-                        />
+                        <MapExtentTracker />
                         <MapBoundsFitter
                             geoJsonData={null}
                             scatterData={scatterData}
                             mapType={mapConfig.mapType}
                             geoJsonUrl={null}
+                            hasSavedExtent={
+                                savedExtent !== null || mapConfig.hasSavedExtent
+                            }
                         />
                         {mapConfig.tile.url && (
                             <TileLayer
@@ -1015,8 +1041,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     }
                 >
                     <MapContainer
-                        center={mapConfig.center}
-                        zoom={mapConfig.zoom}
+                        // Key based on saved extent - forces remount when saved config changes
+                        key={`choropleth-${effectiveExtent?.lat}-${effectiveExtent?.lng}-${effectiveExtent?.zoom}`}
+                        center={[
+                            effectiveExtent?.lat ?? 20,
+                            effectiveExtent?.lng ?? 0,
+                        ]}
+                        zoom={effectiveExtent?.zoom ?? 2}
                         style={{ height: '100%', width: '100%' }}
                         scrollWheelZoom
                         minZoom={1}
@@ -1027,17 +1058,15 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         maxBoundsViscosity={1.0}
                     >
                         <MapRefUpdater mapRef={leafletMapRef} />
-                        <MapExtentTracker
-                            saveMapExtent={
-                                extentSetters?.saveMapExtent ?? false
-                            }
-                            onExtentChange={handleExtentChange}
-                        />
+                        <MapExtentTracker />
                         <MapBoundsFitter
                             geoJsonData={geoJsonData}
                             scatterData={null}
                             mapType={mapConfig.mapType}
                             geoJsonUrl={mapConfig.geoJsonUrl}
+                            hasSavedExtent={
+                                savedExtent !== null || mapConfig.hasSavedExtent
+                            }
                         />
                         {mapConfig.tile.url && (
                             <TileLayer
