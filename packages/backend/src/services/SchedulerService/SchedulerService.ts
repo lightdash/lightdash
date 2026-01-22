@@ -369,14 +369,10 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        if (
-            user.ability.cannot(
-                'create',
-                subject('ScheduledDeliveries', {
-                    organizationUuid: user.organizationUuid,
-                }),
-            )
-        ) {
+        // A user might not be able to create scheduled permissions on the org level but on a specific project
+        // level. The check here makes sure that the user has the ability to create a scheduled delivery at least somewhere.
+        // Since the service returns specifically the user's scheduled deliveries, this is completely intended behavior.
+        if (user.ability.cannot('create', 'ScheduledDeliveries')) {
             throw new ForbiddenError();
         }
 

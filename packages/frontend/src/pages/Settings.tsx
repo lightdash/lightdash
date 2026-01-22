@@ -210,6 +210,9 @@ const Settings: FC = () => {
             ),
         });
         if (user?.ability.can('create', 'ScheduledDeliveries')) {
+            // A user might not be able to create scheduled permissions on the org level but on a specific project
+            // level. The check here makes sure that the user has the ability to create a scheduled delivery at least somewhere.
+            // Since the service returns specifically the user's scheduled deliveries, this is completely intended behavior.
             allowedRoutes.push({
                 path: '/userScheduledDeliveries',
                 element: (
