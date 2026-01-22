@@ -733,6 +733,47 @@ export class SlackClient {
         return null;
     }
 
+    /**
+     * Resolve channel name to ID for reliable Slack API calls.
+     * - If input is already an ID (matches SLACK_ID_REGEX), returns as-is
+     * - If input is a name, looks up the ID in the cache
+     * - Falls back to original input if not found
+     *
+     * This is critical for private channels where Slack API requires IDs.
+     */
+    async resolveChannelToId(
+        organizationUuid: string,
+        channel: string,
+    ): Promise<string> {
+        // If already looks like an ID (starts with C/G/D), use as-is
+        if (SLACK_ID_REGEX.test(channel)) {
+            return channel;
+        }
+
+        // Try to resolve name to ID from cache
+        const organizationId =
+            await this.slackChannelCacheModel.getOrganizationId(
+                organizationUuid,
+            );
+
+        if (organizationId) {
+            const normalizedName = channel.startsWith('#')
+                ? channel
+                : `#${channel}`;
+            const cachedChannel =
+                await this.slackChannelCacheModel.getChannelByName(
+                    organizationId,
+                    normalizedName,
+                );
+            if (cachedChannel?.id) {
+                return cachedChannel.id;
+            }
+        }
+
+        // Fall back to original channel name/ID
+        return channel;
+    }
+
     private static async isBotInChannel(
         webClient: WebClient,
         channelId: string,
@@ -769,9 +810,17 @@ export class SlackClient {
 
             if (channelsToJoin.length === 0) return;
 
+            // Resolve channel names to IDs for reliable membership checks
+            // This is critical for private channels where Slack API requires IDs
+            const resolvedChannels = await Promise.all(
+                channelsToJoin.map((channel) =>
+                    this.resolveChannelToId(organizationUuid, channel),
+                ),
+            );
+
             // Check which channels we're already in
             const membershipChecks = await Promise.allSettled(
-                channelsToJoin.map(async (channel) => ({
+                resolvedChannels.map(async (channel) => ({
                     channel,
                     isMember: await SlackClient.isBotInChannel(
                         webClient,
@@ -840,7 +889,7 @@ export class SlackClient {
             organizationUuid: string;
         } & ChatPostMessageArguments,
     ) {
-        const { organizationUuid, ...slackMessageArgs } = message;
+        const { organizationUuid, channel, ...slackMessageArgs } = message;
         const webClient = await this.getWebClient(organizationUuid);
 
         const installation =
@@ -854,9 +903,16 @@ export class SlackClient {
 
         const { appProfilePhotoUrl } = installation;
 
+        // Resolve channel name to ID for reliable API calls (critical for private channels)
+        const resolvedChannel = await this.resolveChannelToId(
+            organizationUuid,
+            channel,
+        );
+
         return webClient.chat
             .postMessage({
                 ...(appProfilePhotoUrl ? { icon_url: appProfilePhotoUrl } : {}),
+                channel: resolvedChannel,
                 ...slackMessageArgs,
             })
             .catch((e) => {
@@ -961,8 +1017,13 @@ export class SlackClient {
         messageTs: string;
     }) {
         const webClient = await this.getWebClient(organizationUuid);
+        // Resolve channel name to ID for reliable API calls (critical for private channels)
+        const resolvedChannel = await this.resolveChannelToId(
+            organizationUuid,
+            channelId,
+        );
         return webClient.chat.update({
-            channel: channelId,
+            channel: resolvedChannel,
             text,
             blocks,
             ts: messageTs,
@@ -979,8 +1040,13 @@ export class SlackClient {
         messageTs: string;
     }) {
         const webClient = await this.getWebClient(organizationUuid);
+        // Resolve channel name to ID for reliable API calls (critical for private channels)
+        const resolvedChannel = await this.resolveChannelToId(
+            organizationUuid,
+            channelId,
+        );
         return webClient.chat.delete({
-            channel: channelId,
+            channel: resolvedChannel,
             ts: messageTs,
         });
     }
@@ -988,7 +1054,12 @@ export class SlackClient {
     async postFileToThread(args: PostSlackFile) {
         const webClient = await this.getWebClient(args.organizationUuid);
 
-        let { channelId } = args;
+        // Resolve channel name to ID for reliable API calls (critical for private channels)
+        let channelId = await this.resolveChannelToId(
+            args.organizationUuid,
+            args.channelId,
+        );
+
         // If the channel ID is a user ID (starts with U), we need to open a DM channel first
         // Slack API's files.uploadV2 doesn't support uploading files where channel_id is a user ID
         if (channelId.startsWith('U')) {
