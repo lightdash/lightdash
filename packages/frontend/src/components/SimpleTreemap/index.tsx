@@ -21,7 +21,6 @@ type SimpleTreemapProps = Omit<EChartsReactProps, 'option'> & {
     isInDashboard: boolean;
     $shouldExpand?: boolean;
     className?: string;
-    'data-testid'?: string;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 };
@@ -64,7 +63,6 @@ const SimpleTreemap: FC<SimpleTreemapProps> = memo(
             <>
                 <EChartsReact
                     ref={chartRef}
-                    data-testid={props['data-testid']}
                     className={props.className}
                     style={
                         props.$shouldExpand

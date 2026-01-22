@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { getAvailableParametersFromTables } from '@lightdash/common';
 import { Stack } from '@mantine/core';
-import { memo, useEffect, useMemo, type FC } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import {
     explorerActions,
     selectAdditionalMetricModal,
@@ -27,6 +27,7 @@ import { useExplore } from '../../hooks/useExplore';
 import { useExplorerQuery } from '../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { Can } from '../../providers/Ability';
+import ScreenshotReadyIndicator from '../common/ScreenshotReadyIndicator';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
@@ -68,8 +69,32 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         const projectUuid = useProjectUuid();
 
-        const { query } = useExplorerQuery();
+        const { query, queryResults } = useExplorerQuery();
         const queryUuid = query.data?.queryUuid;
+
+        // Screenshot readiness tracking for EXPLORE pages (Slack unfurls)
+        const isLoadingQueryResults =
+            query.isFetching ||
+            queryResults.isFetchingRows ||
+            !query.data?.queryUuid ||
+            queryResults.queryUuid !== query.data.queryUuid;
+        const hasQueryError = !!query.error || !!queryResults.error;
+
+        const [isScreenshotReady, setIsScreenshotReady] = useState(false);
+        const hasSignaledReady = useRef(false);
+
+        useEffect(() => {
+            if (hasSignaledReady.current) return;
+            if (!tableName) return;
+
+            const isSuccessfullyLoaded = !isLoadingQueryResults;
+            if (!isSuccessfullyLoaded && !hasQueryError) {
+                return;
+            }
+
+            setIsScreenshotReady(true);
+            hasSignaledReady.current = true;
+        }, [tableName, isLoadingQueryResults, hasQueryError]);
 
         const { data: explore } = useExplore(tableName);
 
@@ -197,6 +222,15 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
                 {isAdditionalMetricModalOpen && <CustomMetricModal />}
                 {isFormatModalOpen && <FormatModal />}
+
+                {/* Screenshot readiness indicator for EXPLORE pages (Slack unfurls) */}
+                {isScreenshotReady && (
+                    <ScreenshotReadyIndicator
+                        tilesTotal={1}
+                        tilesReady={hasQueryError ? 0 : 1}
+                        tilesErrored={hasQueryError ? 1 : 0}
+                    />
+                )}
             </MetricQueryDataProvider>
         );
     },

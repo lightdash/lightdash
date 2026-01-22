@@ -432,7 +432,6 @@ type SimpleMapProps = {
     isInDashboard: boolean;
     $shouldExpand?: boolean;
     className?: string;
-    'data-testid'?: string;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 };
@@ -908,7 +907,6 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 <div
                     className={`${classes.container} ${props.className ?? ''}`}
                     data-should-expand={props.$shouldExpand}
-                    data-testid={props['data-testid']}
                     style={
                         mapConfig.backgroundColor
                             ? ({
@@ -1007,7 +1005,6 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 <div
                     className={`${classes.container} ${props.className ?? ''}`}
                     data-should-expand={props.$shouldExpand}
-                    data-testid={props['data-testid']}
                     style={
                         mapConfig.backgroundColor
                             ? ({

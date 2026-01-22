@@ -17,7 +17,6 @@ const VegaEmbed = lazy(async () => {
 
 type Props = {
     className?: string;
-    'data-testid'?: string;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 };
@@ -119,7 +118,6 @@ const CustomVisualization: FC<Props> = ({
 
     return (
         <div
-            data-testid={props['data-testid']}
             className={props.className}
             style={{
                 minHeight: 'inherit',
