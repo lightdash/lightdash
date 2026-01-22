@@ -1,3 +1,10 @@
+# [0.2365.0](https://github.com/lightdash/lightdash/compare/0.2364.0...0.2365.0) (2026-01-22)
+
+
+### Features
+
+* add explore from here link button on explore modal v2 ([#19640](https://github.com/lightdash/lightdash/issues/19640)) ([c3a6a03](https://github.com/lightdash/lightdash/commit/c3a6a03e29bec5a24804bdc35da21b28626f408b))
+
 # [0.2364.0](https://github.com/lightdash/lightdash/compare/0.2363.1...0.2364.0) (2026-01-22)
 
 
