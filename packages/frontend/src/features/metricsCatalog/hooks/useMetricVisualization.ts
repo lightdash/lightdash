@@ -8,6 +8,8 @@ import {
     TimeFrames,
     type ApiError,
     type ChartConfig,
+    type FilterRule,
+    type Filters,
     type MetricQuery,
     type MetricWithAssociatedTimeDimension,
     type TimeDimensionConfig,
@@ -24,6 +26,7 @@ const buildMetricQueryFromField = (
     field: MetricWithAssociatedTimeDimension,
     timeDimensionOverride?: TimeDimensionConfig,
     segmentDimensionId?: string | null,
+    filterRule?: FilterRule,
     comparison?: MetricExplorerComparison,
 ): MetricQuery => {
     const timeDimensionConfig = timeDimensionOverride ?? field.timeDimension;
@@ -51,11 +54,20 @@ const buildMetricQueryFromField = (
         (d): d is string => Boolean(d),
     );
 
+    const filters: Filters = filterRule
+        ? {
+              dimensions: {
+                  id: filterRule.id,
+                  and: [filterRule],
+              },
+          }
+        : {};
+
     return {
         exploreName: field.table,
         dimensions,
         metrics: [getItemId(field)],
-        filters: {},
+        filters,
         sorts: [],
         limit: 5000,
         tableCalculations: [],
@@ -133,6 +145,7 @@ type UseMetricVisualizationProps = {
     metricName: string | undefined;
     timeDimensionOverride?: TimeDimensionConfig;
     segmentDimensionId?: string | null;
+    filterRule?: FilterRule;
     comparison?: MetricExplorerComparison;
 };
 
@@ -151,6 +164,7 @@ export function useMetricVisualization({
     metricName,
     timeDimensionOverride,
     segmentDimensionId,
+    filterRule,
     comparison,
 }: UseMetricVisualizationProps): MetricVisualizationResult {
     // 1. Fetch metric field metadata
@@ -175,12 +189,14 @@ export function useMetricVisualization({
             metricFieldQuery.data,
             timeDimensionConfig,
             segmentDimensionId,
+            filterRule,
             comparison,
         );
     }, [
         metricFieldQuery.data,
         timeDimensionConfig,
         segmentDimensionId,
+        filterRule,
         comparison,
     ]);
 
