@@ -83,7 +83,7 @@ export default abstract class WarehouseBaseClient<
             tags,
             timezone,
         }: WarehouseExecuteAsyncQueryArgs,
-        resultsStreamCallback: (
+        resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
         ) => void | Promise<void>,
@@ -95,7 +95,7 @@ export default abstract class WarehouseBaseClient<
             sql,
             async ({ rows, fields }) => {
                 rowCount = (rowCount ?? 0) + rows.length;
-                await resultsStreamCallback(rows, fields);
+                await resultsStreamCallback?.(rows, fields);
             },
             {
                 values,

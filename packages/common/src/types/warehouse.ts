@@ -59,7 +59,6 @@ export type WarehouseExecuteAsyncQueryArgs = {
     values?: AnyType[]; // same as queryParams but in array form
     queryParams?: Record<string, AnyType>; // same as values but in object form
     sql: string;
-    streamResults?: boolean; // false when S3 is not configured
 };
 
 export type WarehouseExecuteAsyncQuery = {

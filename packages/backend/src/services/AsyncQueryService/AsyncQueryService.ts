@@ -1164,7 +1164,6 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         itemsMap,
         popEnabledMetrics,
-        streamResults,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -1177,11 +1176,6 @@ export class AsyncQueryService extends ProjectService {
          * Used to add popMetadata to the corresponding ResultColumns.
          */
         popEnabledMetrics?: Set<string>;
-        /**
-         * When true, stream results directly to the write callback during query execution.
-         * When false, query runs async and results can be fetched later via queryId (e.g., when S3 is disabled).
-         */
-        streamResults?: boolean;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1345,9 +1339,8 @@ export class AsyncQueryService extends ProjectService {
             {
                 sql: query,
                 tags: queryTags,
-                streamResults,
             },
-            writeAndTransformRowsIfPivot,
+            write ? writeAndTransformRowsIfPivot : undefined,
         );
 
         const columns = pivotConfiguration?.groupByColumns?.length
@@ -1484,7 +1477,6 @@ export class AsyncQueryService extends ProjectService {
                 pivotConfiguration,
                 itemsMap: fieldsMap,
                 popEnabledMetrics,
-                streamResults: stream !== undefined,
             });
 
             this.analytics.track({

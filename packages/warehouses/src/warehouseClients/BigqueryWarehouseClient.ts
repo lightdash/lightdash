@@ -639,7 +639,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
 
     async executeAsyncQuery(
         { sql, tags }: WarehouseExecuteAsyncQueryArgs,
-        resultsStreamCallback: (
+        resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
         ) => void,
@@ -673,9 +673,11 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 BigqueryWarehouseClient.getFieldsFromResponse(resultsMetadata);
 
             // If a callback is provided, stream the results to the callback
-            await this.streamResults(job, (row) =>
-                resultsStreamCallback([row], fields),
-            );
+            if (resultsStreamCallback) {
+                await this.streamResults(job, (row) =>
+                    resultsStreamCallback([row], fields),
+                );
+            }
 
             return {
                 queryId: job.id,
