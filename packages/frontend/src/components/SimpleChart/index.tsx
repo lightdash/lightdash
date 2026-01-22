@@ -74,7 +74,6 @@ type SimpleChartProps = Omit<EChartsReactProps, 'option'> & {
     isInDashboard: boolean;
     $shouldExpand?: boolean;
     className?: string;
-    'data-testid'?: string;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 };
@@ -335,7 +334,6 @@ const SimpleChart: FC<SimpleChartProps> = memo(
 
         return (
             <EChartsReact
-                data-testid={props['data-testid']}
                 className={props.className}
                 style={
                     props.$shouldExpand

@@ -424,7 +424,6 @@ type SimpleMapProps = {
     isInDashboard: boolean;
     $shouldExpand?: boolean;
     className?: string;
-    'data-testid'?: string;
     onScreenshotReady?: () => void;
     onScreenshotError?: () => void;
 };
@@ -657,8 +656,8 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     point.value === null
                         ? 0.5
                         : max === min
-                        ? 0.5
-                        : (point.value - min) / (max - min);
+                          ? 0.5
+                          : (point.value - min) / (max - min);
                 return [point.lat, point.lon, scale];
             });
         }, [scatterData, scatterValueRange]);
@@ -898,7 +897,6 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 <div
                     className={`${classes.container} ${props.className ?? ''}`}
                     data-should-expand={props.$shouldExpand}
-                    data-testid={props['data-testid']}
                     style={
                         mapConfig.backgroundColor
                             ? ({
@@ -997,7 +995,6 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 <div
                     className={`${classes.container} ${props.className ?? ''}`}
                     data-should-expand={props.$shouldExpand}
-                    data-testid={props['data-testid']}
                     style={
                         mapConfig.backgroundColor
                             ? ({
