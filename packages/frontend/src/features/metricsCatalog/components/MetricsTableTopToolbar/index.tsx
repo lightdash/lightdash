@@ -47,8 +47,9 @@ import {
 } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { type MRT_TableInstance } from 'mantine-react-table';
-import { memo, useCallback, useMemo, type FC } from 'react';
+import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { useDebounce } from 'react-use';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { TotalMetricsDot } from '../../../../svgs/metricsCatalog';
@@ -70,7 +71,6 @@ import { MetricCatalogView } from '../../types';
 import CategoriesFilter from './CategoriesFilter';
 import SegmentedControlHoverCard from './SegmentedControlHoverCard';
 import TableFilter from './TableFilter';
-
 type MetricsTableTopToolbarProps = GroupProps & {
     search: string | undefined;
     setSearch: (search: string) => void;
@@ -155,8 +155,8 @@ const SortableColumn: FC<{
 
 export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
     ({
-        search,
-        setSearch,
+        search: _search,
+        setSearch: _setSearch,
         totalResults,
         selectedCategories,
         setSelectedCategories,
@@ -172,6 +172,16 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         table,
         ...props
     }) => {
+        const [search, setSearch] = useState(_search);
+
+        useDebounce(
+            () => {
+                _setSearch(search ?? '');
+            },
+            300,
+            [search],
+        );
+
         const userUuid = useAppSelector(
             (state) => state.metricsCatalog.user?.userUuid,
         );
