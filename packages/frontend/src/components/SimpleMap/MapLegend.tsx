@@ -1,55 +1,46 @@
-import {
-    Compact,
-    CustomFormatType,
-    applyCustomFormat,
-} from '@lightdash/common';
+import { Box, Group, Text } from '@mantine-8/core';
 import { type FC } from 'react';
+import GradientBar from '../common/GradientBar';
 // eslint-disable-next-line css-modules/no-unused-class
 import classes from './SimpleMap.module.css';
 
 type MapLegendProps = {
     colors: string[];
-    min: number;
-    max: number;
+    formattedMin: string;
+    formattedMax: string;
+    label?: string;
+    opacity?: number;
 };
 
-const MapLegend: FC<MapLegendProps> = ({ colors, min, max }) => {
-    // Format numbers for display using Lightdash's compact formatter
-    const formatValue = (value: number): string => {
-        const absValue = Math.abs(value);
-        let compact: Compact | undefined;
-
-        if (absValue >= 1000000000) {
-            compact = Compact.BILLIONS;
-        } else if (absValue >= 1000000) {
-            compact = Compact.MILLIONS;
-        } else if (absValue >= 1000) {
-            compact = Compact.THOUSANDS;
-        }
-
-        return applyCustomFormat(value, {
-            type: CustomFormatType.NUMBER,
-            compact,
-            round: compact ? 1 : Number.isInteger(value) ? 0 : 2,
-        });
-    };
-
+const MapLegend: FC<MapLegendProps> = ({
+    colors,
+    formattedMin,
+    formattedMax,
+    label,
+    opacity,
+}) => {
     return (
-        <div className={classes.legend}>
-            <div className={classes.legendGradient}>
-                {colors.map((color, index) => (
-                    <div
-                        key={index}
-                        className={classes.legendColorStop}
-                        style={{ backgroundColor: color }}
-                    />
-                ))}
-            </div>
-            <div className={classes.legendLabels}>
-                <span>{formatValue(min)}</span>
-                <span>{formatValue(max)}</span>
-            </div>
-        </div>
+        <Box className={classes.legend}>
+            {label && (
+                <Text fz="xs" fw={500} c="ldGray.7" mb={4}>
+                    {label}
+                </Text>
+            )}
+            <GradientBar
+                colors={colors}
+                height={12}
+                borderRadius={4}
+                opacity={opacity}
+            />
+            <Group justify="space-between">
+                <Text span fz="xs" c="ldGray.6">
+                    {formattedMin}
+                </Text>
+                <Text span fz="xs" c="ldGray.6">
+                    {formattedMax}
+                </Text>
+            </Group>
+        </Box>
     );
 };
 

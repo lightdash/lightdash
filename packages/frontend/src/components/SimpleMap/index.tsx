@@ -672,8 +672,8 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     point.value === null
                         ? 0.5
                         : max === min
-                        ? 0.5
-                        : (point.value - min) / (max - min);
+                          ? 0.5
+                          : (point.value - min) / (max - min);
                 return [point.lat, point.lon, scale];
             });
         }, [scatterData, scatterValueRange]);
@@ -1004,8 +1004,10 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     {mapConfig.showLegend && mapConfig.valueRange && (
                         <MapLegend
                             colors={mapConfig.colors.scale}
-                            min={mapConfig.valueRange.min}
-                            max={mapConfig.valueRange.max}
+                            formattedMin={mapConfig.valueRange.formattedMin}
+                            formattedMax={mapConfig.valueRange.formattedMax}
+                            label={mapConfig.valueFieldLabel ?? undefined}
+                            opacity={fillOpacityWithData}
                         />
                     )}
                 </div>
@@ -1072,8 +1074,10 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     {mapConfig.showLegend && mapConfig.valueRange && (
                         <MapLegend
                             colors={mapConfig.colors.scale}
-                            min={mapConfig.valueRange.min}
-                            max={mapConfig.valueRange.max}
+                            formattedMin={mapConfig.valueRange.formattedMin}
+                            formattedMax={mapConfig.valueRange.formattedMax}
+                            label={mapConfig.valueFieldLabel ?? undefined}
+                            opacity={fillOpacityWithData}
                         />
                     )}
                 </div>
