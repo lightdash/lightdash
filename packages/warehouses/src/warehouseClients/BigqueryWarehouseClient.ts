@@ -333,15 +333,21 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 job.getQueryResultsStream(options),
                 new Transform({
                     objectMode: true,
-                    transform(chunk, _encoding, callback) {
-                        const chunkParsed = parseRow(chunk);
-                        // Handle async callback to support backpressure
-                        Promise.resolve(streamCallback(chunkParsed))
-                            .then(() => callback())
-                            .catch(callback);
+                    async transform(chunk, _encoding, callback) {
+                        try {
+                            const chunkParsed = parseRow(chunk);
+                            await streamCallback(chunkParsed);
+                            callback();
+                        } catch (err) {
+                            if (err instanceof Error) {
+                                callback(err);
+                            } else {
+                                callback(new Error(String(err)));
+                            }
+                        }
                     },
                 }),
-                (err) => {
+                (err: NodeJS.ErrnoException | null) => {
                     if (err) {
                         reject(err);
                     }

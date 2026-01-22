@@ -684,7 +684,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
-        ) => void,
+        ) => void | Promise<void>,
         options?: {
             values?: AnyType[];
         },
@@ -723,13 +723,23 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                             new Writable({
                                 objectMode: true,
                                 highWaterMark: 1,
-                                write(chunk, encoding, callback) {
-                                    rowCount += 1;
-                                    Promise.resolve(
-                                        resultsStreamCallback([chunk], fields),
-                                    )
-                                        .then(() => callback())
-                                        .catch(callback);
+                                async write(chunk, encoding, callback) {
+                                    try {
+                                        rowCount += 1;
+                                        await resultsStreamCallback(
+                                            [chunk],
+                                            fields,
+                                        );
+                                        callback();
+                                    } catch (writeError) {
+                                        if (writeError instanceof Error) {
+                                            callback(writeError);
+                                        } else {
+                                            callback(
+                                                new Error(String(writeError)),
+                                            );
+                                        }
+                                    }
                                 },
                             }),
                             (error) => {
@@ -860,13 +870,21 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         }),
                         new Writable({
                             objectMode: true,
-                            write(chunk, encoding, callback) {
-                                // Handle async callback to support backpressure
-                                Promise.resolve(
-                                    streamCallback({ fields, rows: [chunk] }),
-                                )
-                                    .then(() => callback())
-                                    .catch(callback);
+                            async write(chunk, encoding, callback) {
+                                try {
+                                    await streamCallback({
+                                        fields,
+                                        rows: [chunk],
+                                    });
+                                    callback();
+                                } catch (writeError) {
+                                    // Pass error to pipeline which will reject the promise
+                                    if (writeError instanceof Error) {
+                                        callback(writeError);
+                                    } else {
+                                        callback(new Error(String(writeError)));
+                                    }
+                                }
                             },
                         }),
                         (error) => {

@@ -294,7 +294,7 @@ export class PostgresClient<
 
                     const writable = new Writable({
                         objectMode: true,
-                        write(
+                        async write(
                             chunk: {
                                 row: AnyType;
                                 fields: QueryResult<AnyType>['fields'];
@@ -302,17 +302,21 @@ export class PostgresClient<
                             encoding,
                             callback,
                         ) {
-                            // Handle async callback to support backpressure
-                            Promise.resolve(
-                                streamCallback({
+                            try {
+                                await streamCallback({
                                     fields: PostgresClient.convertQueryResultFields(
                                         chunk.fields,
                                     ),
                                     rows: [chunk.row],
-                                }),
-                            )
-                                .then(() => callback())
-                                .catch(callback);
+                                });
+                                callback();
+                            } catch (writeError) {
+                                if (writeError instanceof Error) {
+                                    callback(writeError);
+                                } else {
+                                    callback(new Error(String(writeError)));
+                                }
+                            }
                         },
                     });
 
@@ -320,6 +324,9 @@ export class PostgresClient<
                     // (not 'end' on readable - async write callbacks may still be in flight)
                     writable.on('finish', () => {
                         resolve();
+                    });
+                    writable.on('error', (err2) => {
+                        reject(err2);
                     });
                     stream.on('error', (err2) => {
                         reject(err2);
