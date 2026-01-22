@@ -6,6 +6,7 @@ import {
     MultiSelect,
     PasswordInput,
     Pill,
+    PillsInput,
     ScrollArea,
     Select,
     TagsInput,
@@ -241,6 +242,14 @@ export const getMantine8ThemeOverride = (
                 vars: (theme, props) => {
                     if (props.variant === 'subtle')
                         return subtleInputStyles(theme);
+                    return {};
+                },
+            }),
+            PillsInput: PillsInput.extend({
+                vars: (theme, props) => {
+                    if (props.variant === 'subtle') {
+                        return subtleInputStyles(theme);
+                    }
                     return {};
                 },
             }),
