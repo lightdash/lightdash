@@ -1,3 +1,10 @@
+# [0.2368.0](https://github.com/lightdash/lightdash/compare/0.2367.0...0.2368.0) (2026-01-22)
+
+
+### Features
+
+* resolve Slack channel names to IDs for reliable API calls ([#19660](https://github.com/lightdash/lightdash/issues/19660)) ([4bd374c](https://github.com/lightdash/lightdash/commit/4bd374ca575191ef4c86d6a7380b38a1424455d2))
+
 # [0.2367.0](https://github.com/lightdash/lightdash/compare/0.2366.0...0.2367.0) (2026-01-22)
 
 
