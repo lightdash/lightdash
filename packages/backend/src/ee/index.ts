@@ -307,6 +307,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new McpService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
+                    asyncQueryService: repository.getAsyncQueryService(),
                     catalogService: repository.getCatalogService(),
                     projectService: repository.getProjectService(),
                     userAttributesModel: models.getUserAttributesModel(),
