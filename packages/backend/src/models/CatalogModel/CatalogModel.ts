@@ -13,6 +13,7 @@ import {
     FieldType,
     NotFoundError,
     TableSelectionType,
+    UNASSIGNED_OWNER,
     UNCATEGORIZED_TAG_UUID,
     UnexpectedServerError,
     assertUnreachable,
@@ -50,8 +51,10 @@ import {
     type DbMetricsTreeEdgeDelete,
     type DbMetricsTreeEdgeIn,
 } from '../../database/entities/catalog';
+import { EmailTableName } from '../../database/entities/emails';
 import { CachedExploreTableName } from '../../database/entities/projects';
 import { DbTag, TagsTableName } from '../../database/entities/tags';
+import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
@@ -146,6 +149,48 @@ export class CatalogModel {
                                     .where('project_uuid', projectUuid)
                                     .delete();
 
+                                // Collect unique owner emails and resolve to user_uuids
+                                const ownerEmails = [
+                                    ...new Set(
+                                        catalogInserts
+                                            .map((ci) => ci.ownerEmail)
+                                            .filter(
+                                                (email): email is string =>
+                                                    email !== null,
+                                            ),
+                                    ),
+                                ];
+
+                                const emailToUserUuidMap = new Map<
+                                    string,
+                                    string
+                                >();
+                                if (ownerEmails.length > 0) {
+                                    const userRows = await trx('emails')
+                                        .join(
+                                            'users',
+                                            'emails.user_id',
+                                            'users.user_id',
+                                        )
+                                        .whereIn('emails.email', ownerEmails)
+                                        .select(
+                                            'emails.email',
+                                            'users.user_uuid',
+                                        );
+
+                                    userRows.forEach(
+                                        (row: {
+                                            email: string;
+                                            user_uuid: string;
+                                        }) => {
+                                            emailToUserUuidMap.set(
+                                                row.email.toLowerCase(),
+                                                row.user_uuid,
+                                            );
+                                        },
+                                    );
+                                }
+
                                 const BATCH_SIZE = 3000;
 
                                 const results = await trx
@@ -154,8 +199,16 @@ export class CatalogModel {
                                         catalogInserts.map(
                                             ({
                                                 assigned_yaml_tags,
+                                                ownerEmail,
                                                 ...catalogInsert
-                                            }) => catalogInsert,
+                                            }) => ({
+                                                ...catalogInsert,
+                                                owner_user_uuid: ownerEmail
+                                                    ? emailToUserUuidMap.get(
+                                                          ownerEmail.toLowerCase(),
+                                                      ) ?? null
+                                                    : null,
+                                            }),
                                         ),
                                         BATCH_SIZE,
                                     )
@@ -287,6 +340,7 @@ export class CatalogModel {
                                             table_name: change.entityTableName,
                                             spotlight_show: true,
                                             joined_tables: [],
+                                            owner_user_uuid: null,
                                         })
                                         .returning('*');
 
@@ -601,6 +655,7 @@ export class CatalogModel {
             searchQuery = '',
             type,
             tables,
+            ownerUserUuids,
         },
         excludeUnmatched = true,
         tablesConfiguration,
@@ -643,6 +698,10 @@ export class CatalogModel {
                 `${CatalogTableName}.joined_tables`,
                 `${CatalogTableName}.table_name`,
                 `icon`,
+                `${CatalogTableName}.owner_user_uuid`,
+                `owner_user.first_name as owner_first_name`,
+                `owner_user.last_name as owner_last_name`,
+                `owner_email.email as owner_email`,
                 {
                     search_rank: useWebSearch
                         ? getWebSearchRankCalcSql({
@@ -666,6 +725,21 @@ export class CatalogModel {
                 CachedExploreTableName,
                 `${CatalogTableName}.cached_explore_uuid`,
                 `${CachedExploreTableName}.cached_explore_uuid`,
+            )
+            .leftJoin(
+                `${UserTableName} as owner_user`,
+                `${CatalogTableName}.owner_user_uuid`,
+                'owner_user.user_uuid',
+            )
+            .leftJoin(
+                `${EmailTableName} as owner_email`,
+                function ownerEmailJoin() {
+                    void this.on(
+                        'owner_user.user_id',
+                        '=',
+                        'owner_email.user_id',
+                    ).andOnVal('owner_email.is_primary', '=', true);
+                },
             )
             .where(`${CatalogTableName}.project_uuid`, projectUuid)
             // tables configuration filtering
@@ -842,6 +916,39 @@ export class CatalogModel {
                 `${CatalogTableName}.table_name`,
                 'in',
                 tables,
+            );
+        }
+
+        // Filter by owner user uuids
+        if (ownerUserUuids && ownerUserUuids.length > 0) {
+            const hasUnassigned = ownerUserUuids.includes(UNASSIGNED_OWNER);
+            const actualUserUuids = ownerUserUuids.filter(
+                (o) => o !== UNASSIGNED_OWNER,
+            );
+
+            catalogItemsQuery = catalogItemsQuery.andWhere(
+                function ownerFiltering() {
+                    if (hasUnassigned && actualUserUuids.length > 0) {
+                        // Show unassigned OR specific owners
+                        void this.whereNull(
+                            `${CatalogTableName}.owner_user_uuid`,
+                        ).orWhereIn(
+                            `${CatalogTableName}.owner_user_uuid`,
+                            actualUserUuids,
+                        );
+                    } else if (hasUnassigned) {
+                        // Only unassigned
+                        void this.whereNull(
+                            `${CatalogTableName}.owner_user_uuid`,
+                        );
+                    } else {
+                        // Only specific owners
+                        void this.whereIn(
+                            `${CatalogTableName}.owner_user_uuid`,
+                            actualUserUuids,
+                        );
+                    }
+                },
             );
         }
 
@@ -1553,5 +1660,49 @@ export class CatalogModel {
             .first();
 
         return result !== undefined;
+    }
+
+    async getDistinctOwners(projectUuid: string): Promise<
+        {
+            userUuid: string;
+            firstName: string;
+            lastName: string;
+            email: string;
+        }[]
+    > {
+        const results = await this.database(CatalogTableName)
+            .distinct(
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${EmailTableName}.email`,
+            )
+            .join(
+                `${UserTableName} as users`,
+                `${CatalogTableName}.owner_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .join(`${EmailTableName} as emails`, function emailJoin() {
+                void this.on(
+                    `${UserTableName}.user_id`,
+                    '=',
+                    `${EmailTableName}.user_id`,
+                ).andOnVal(`${EmailTableName}.is_primary`, '=', true);
+            })
+            .where({
+                project_uuid: projectUuid,
+                spotlight_show: true,
+                type: CatalogType.Field,
+                field_type: FieldType.METRIC,
+            })
+            .whereNotNull(`${CatalogTableName}.owner_user_uuid`)
+            .orderBy('users.first_name');
+
+        return results.map((r) => ({
+            userUuid: r.user_uuid,
+            firstName: r.first_name,
+            lastName: r.last_name,
+            email: r.email,
+        }));
     }
 }

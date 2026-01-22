@@ -7,6 +7,7 @@ import {
     ApiGetMetricPeek,
     ApiMetricsCatalog,
     ApiSegmentDimensionsResponse,
+    CatalogOwner,
     getItemId,
     type ApiFilterDimensionsResponse,
     type ApiGetMetricsTree,
@@ -198,6 +199,7 @@ export class CatalogController extends BaseController {
         @Query() categories?: ApiCatalogSearch['catalogTags'],
         @Query() categoriesFilterMode?: CatalogCategoryFilterMode,
         @Query() tables?: ApiCatalogSearch['tables'],
+        @Query() ownerUserUuids?: ApiCatalogSearch['ownerUserUuids'],
     ): Promise<ApiMetricsCatalog> {
         this.setStatus(200);
 
@@ -228,6 +230,7 @@ export class CatalogController extends BaseController {
                     catalogTags: categories,
                     catalogTagsFilterMode: categoriesFilterMode,
                     tables,
+                    ownerUserUuids,
                 },
                 sortArgs,
             );
@@ -536,6 +539,30 @@ export class CatalogController extends BaseController {
         const results = await this.services
             .getCatalogService()
             .hasMetricsInCatalog(req.user!, projectUuid);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get distinct metric owners for filter dropdown
+     * @summary List metric owners
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/owners')
+    @OperationId('getMetricOwners')
+    async getMetricOwners(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: CatalogOwner[] }> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetricOwners(req.user!, projectUuid);
 
         return {
             status: 'ok',

@@ -56,6 +56,7 @@ import {
     setCategoryFilterMode,
     setCategoryFilters,
     setColumnConfig,
+    setOwnerFilters,
     setSearch,
     setTableFilters,
     setTableSorting,
@@ -96,6 +97,9 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const tableFilters = useAppSelector(
         (state) => state.metricsCatalog.tableFilters,
     );
+    const ownerFilters = useAppSelector(
+        (state) => state.metricsCatalog.ownerFilters,
+    );
     const { canManageTags, canManageMetricsTree } = useAppSelector(
         (state) => state.metricsCatalog.abilities,
     );
@@ -134,6 +138,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         categories: categoryFilters,
         categoriesFilterMode: categoryFilterMode,
         tables: tableFilters,
+        ownerUserUuids: ownerFilters,
         // TODO: Handle multiple sorting - this needs to be enabled and handled later in the backend
         ...(stateTableSorting.length > 0 && {
             sortBy: stateTableSorting[0].id as keyof CatalogItem,
@@ -230,6 +235,10 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         dispatch(setCategoryFilterMode(mode));
     };
 
+    const handleSetOwnerFilters = (selectedOwners: string[]) => {
+        dispatch(setOwnerFilters(selectedOwners));
+    };
+
     // Reusable paper props to avoid duplicate when rendering tree view
     const mantinePaperProps: PaperProps = useMemo(
         () => ({
@@ -302,7 +311,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             !hasNextPage &&
             !search &&
             categoryFilters.length === 0 &&
-            tableFilters.length === 0
+            tableFilters.length === 0 &&
+            ownerFilters.length === 0
         );
     }, [
         flatData,
@@ -311,6 +321,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         search,
         categoryFilters,
         tableFilters,
+        ownerFilters,
         hasNextPage,
     ]);
 
@@ -527,6 +538,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     setCategoryFilterMode={handleSetCategoryFilterMode}
                     selectedTables={tableFilters}
                     setSelectedTables={handleSetTableFilters}
+                    selectedOwners={ownerFilters}
+                    setSelectedOwners={handleSetOwnerFilters}
                     position="apart"
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
@@ -681,6 +694,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                             setCategoryFilterMode={handleSetCategoryFilterMode}
                             selectedTables={tableFilters}
                             setSelectedTables={handleSetTableFilters}
+                            selectedOwners={ownerFilters}
+                            setSelectedOwners={handleSetOwnerFilters}
                             position="apart"
                             p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                             showCategoriesFilter={

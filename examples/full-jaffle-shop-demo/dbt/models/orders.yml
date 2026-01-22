@@ -21,6 +21,8 @@ models:
             description: The customer who placed this order (many orders can belong to one customer)
         metrics:
           completion_percentage:
+            spotlight:
+              owner: demo@lightdash.com
             type: number
             sql: ${total_completed_order_amount}/${total_order_amount}
             format: percent
@@ -88,6 +90,8 @@ models:
                 show_underlying_values:
                   - amount
                   - customers.first_name
+                spotlight:
+                  owner: demo2@lightdash.com
               fulfillment_rate_with_format_expression:
                 type: average
                 format: "#,##0.0%"
@@ -200,6 +204,7 @@ models:
                 sql: ${total_order_amount}
                 format: "#,##0.00%"
                 spotlight:
+                  owner: demo@lightdash.com
                   filter_by:
                     - status
                     - currency

@@ -763,6 +763,7 @@ export interface Metric extends Field {
         categories?: string[]; // yaml_reference
         filterBy?: string[]; // dimension IDs allowlist
         segmentBy?: string[]; // dimension IDs allowlist
+        owner?: string; // metric owner email
     };
     aiHint?: string | string[];
 }

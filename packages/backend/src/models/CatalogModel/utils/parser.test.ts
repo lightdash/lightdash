@@ -21,6 +21,7 @@ const createDbCatalog = (
     yaml_tags: null,
     ai_hints: null,
     joined_tables: null,
+    owner_user_uuid: null,
     ...overrides,
 });
 

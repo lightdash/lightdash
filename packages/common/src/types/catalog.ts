@@ -45,6 +45,7 @@ export type ApiCatalogSearch = {
     catalogTags?: string[];
     catalogTagsFilterMode?: CatalogCategoryFilterMode;
     tables?: string[];
+    ownerUserUuids?: string[];
 };
 
 type EmojiIcon = {
@@ -58,6 +59,14 @@ type CustomIcon = {
 export type CatalogItemIcon = EmojiIcon | CustomIcon;
 
 export const UNCATEGORIZED_TAG_UUID = '__uncategorized__';
+export const UNASSIGNED_OWNER = '__unassigned__';
+
+export type CatalogOwner = {
+    userUuid: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+};
 
 export const isEmojiIcon = (icon: CatalogItemIcon | null): icon is EmojiIcon =>
     Boolean(icon && 'unicode' in icon);
@@ -85,6 +94,7 @@ export type CatalogField = Pick<
         searchRank?: number;
         spotlightFilterBy?: string[]; // dimension IDs allowlist (metrics only)
         spotlightSegmentBy?: string[]; // dimension IDs allowlist (metrics only)
+        owner: CatalogOwner | null; // resolved metric owner
     };
 
 export type CatalogTable = Pick<
