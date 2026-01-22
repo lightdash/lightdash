@@ -93,6 +93,7 @@ export type Explore = {
     spotlight?: {
         visibility: LightdashProjectConfig['spotlight']['default_visibility'];
         categories?: string[]; // yaml_reference
+        owner?: string; // model owner email (inherited by metrics)
     };
     aiHint?: string | string[];
     parameters?: LightdashProjectConfig['parameters'];

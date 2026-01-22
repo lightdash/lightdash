@@ -29,7 +29,10 @@ const getSpotlightShow = (
     return visibility === 'show';
 };
 
-type CatalogInsertWithYamlTags = DbCatalogIn & { assigned_yaml_tags?: DbTag[] };
+type CatalogInsertWithYamlTags = Omit<DbCatalogIn, 'owner_user_uuid'> & {
+    assigned_yaml_tags?: DbTag[];
+    ownerEmail: string | null;
+};
 
 export const convertExploresToCatalog = (
     projectUuid: string,
@@ -82,6 +85,7 @@ export const convertExploresToCatalog = (
                         : null,
                 ai_hints: convertToAiHints(explore.aiHint) ?? null,
                 joined_tables: explore.joinedTables.map((t) => t.table),
+                ownerEmail: null, // Tables don't have owners (only metrics)
             };
 
             let dimensionsAndMetrics = [
@@ -127,6 +131,13 @@ export const convertExploresToCatalog = (
                         numberOfCategoriesApplied += assignedYamlTags.length;
                     }
 
+                    // Metric owner takes precedence over explore/model owner
+                    const metricOwner = isMetric(field)
+                        ? field.spotlight?.owner
+                        : undefined;
+                    const owner =
+                        metricOwner ?? explore.spotlight?.owner ?? null;
+
                     return {
                         project_uuid: projectUuid,
                         cached_explore_uuid: explore.cachedExploreUuid,
@@ -153,6 +164,7 @@ export const convertExploresToCatalog = (
                                 : null,
                         ai_hints: convertToAiHints(field.aiHint) ?? null,
                         joined_tables: null,
+                        ownerEmail: owner,
                     };
                 },
             );

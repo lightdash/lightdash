@@ -415,10 +415,11 @@ const convertDbtMetricToLightdashMetric = (
                       : [metric.meta.tags],
               }
             : {}),
-        ...getSpotlightConfigurationForResource(
-            spotlightVisibility,
-            spotlightCategories,
-        ),
+        ...getSpotlightConfigurationForResource({
+            visibility: spotlightVisibility,
+            categories: spotlightCategories,
+            owner: metric.meta?.spotlight?.owner,
+        }),
     };
 };
 
@@ -722,6 +723,7 @@ export const convertTable = (
                                     spotlightConfig.default_visibility,
                             },
                             modelCategories: meta.spotlight?.categories,
+                            modelOwner: meta.spotlight?.owner,
                         }),
                     ],
                 ),
@@ -754,6 +756,7 @@ export const convertTable = (
                         spotlightConfig.default_visibility,
                 },
                 modelCategories: meta.spotlight?.categories,
+                modelOwner: meta.spotlight?.owner,
             }),
         ]),
     );

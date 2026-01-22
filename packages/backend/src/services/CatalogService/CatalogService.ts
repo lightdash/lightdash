@@ -7,6 +7,7 @@ import {
     CatalogItemIcon,
     CatalogItemsWithIcons,
     CatalogMetadata,
+    CatalogOwner,
     CatalogTable,
     CatalogType,
     ChartSummary,
@@ -845,6 +846,7 @@ export class CatalogService<
             catalogTags,
             catalogTagsFilterMode,
             tables,
+            ownerUserUuids,
         }: ApiCatalogSearch = {},
         sortArgs?: ApiSort,
     ): Promise<KnexPaginatedData<CatalogField[]>> {
@@ -877,6 +879,7 @@ export class CatalogService<
                 catalogTags,
                 catalogTagsFilterMode,
                 tables,
+                ownerUserUuids,
             },
             context,
             paginateArgs,
@@ -1515,5 +1518,25 @@ export class CatalogService<
 
         // NOTE: No need to add user attribute filtering here since the catalog search already handles this for us. This is project-wide, not user-specific.
         return this.catalogModel.hasMetricsInCatalog(projectUuid);
+    }
+
+    async getMetricOwners(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<CatalogOwner[]> {
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.catalogModel.getDistinctOwners(projectUuid);
     }
 }

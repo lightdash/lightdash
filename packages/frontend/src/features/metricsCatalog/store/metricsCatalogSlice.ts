@@ -34,6 +34,7 @@ type MetricsCatalogState = {
     categoryFilters: CatalogField['categories'][number]['tagUuid'][];
     categoryFilterMode: CatalogCategoryFilterMode;
     tableFilters: string[];
+    ownerFilters: string[];
     search: string | undefined;
     tableSorting: MRT_SortingState;
     popovers: {
@@ -77,6 +78,7 @@ const initialState: MetricsCatalogState = {
     categoryFilters: [],
     categoryFilterMode: CatalogCategoryFilterMode.OR,
     tableFilters: [],
+    ownerFilters: [],
     search: undefined,
     tableSorting: [
         {
@@ -117,6 +119,7 @@ const initialState: MetricsCatalogState = {
             [SpotlightTableColumns.DESCRIPTION]: false,
             [SpotlightTableColumns.CATEGORIES]: false,
             [SpotlightTableColumns.METRIC]: false,
+            [SpotlightTableColumns.OWNER]: false,
         },
     },
 };
@@ -161,6 +164,9 @@ export const metricsCatalogSlice = createSlice({
         },
         setTableFilters: (state, action: PayloadAction<string[]>) => {
             state.tableFilters = action.payload;
+        },
+        setOwnerFilters: (state, action: PayloadAction<string[]>) => {
+            state.ownerFilters = action.payload;
         },
         setSearch: (state, action: PayloadAction<string | undefined>) => {
             state.search = action.payload;
@@ -238,6 +244,7 @@ export const {
     setCategoryFilters,
     setCategoryFilterMode,
     setTableFilters,
+    setOwnerFilters,
     setOrganizationUuid,
     setAbility,
     setUser,

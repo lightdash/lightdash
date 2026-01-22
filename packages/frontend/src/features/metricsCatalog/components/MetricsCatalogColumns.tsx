@@ -1,7 +1,7 @@
 import { SpotlightTableColumns, type CatalogField } from '@lightdash/common';
 import { Box, Button, Flex, Group, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
-import { IconPlus } from '@tabler/icons-react';
+import { IconPlus, IconUser } from '@tabler/icons-react';
 import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -26,6 +26,7 @@ import { MetricChartUsageButton } from './MetricChartUsageButton';
 import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
 import { MetricsCatalogColumnDescription } from './MetricsCatalogColumnDescription';
 import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
+import { MetricsCatalogColumnOwner } from './MetricsCatalogColumnOwner';
 
 export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
     {
@@ -328,5 +329,24 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
             </MetricCatalogColumnHeaderCell>
         ),
         Cell: ({ row }) => <MetricChartUsageButton row={row} />,
+    },
+    {
+        accessorKey: SpotlightTableColumns.OWNER,
+        header: 'Owner',
+        enableSorting: true,
+        enableEditing: false,
+        size: 200,
+        minSize: 100,
+        Header: ({ column }) => (
+            <MetricCatalogColumnHeaderCell
+                Icon={() => (
+                    <MantineIcon icon={IconUser} size={14} color="ldGray.5" />
+                )}
+                tooltipLabel="Metric owner defined in the YAML file"
+            >
+                {column.columnDef.header}
+            </MetricCatalogColumnHeaderCell>
+        ),
+        Cell: ({ row }) => <MetricsCatalogColumnOwner row={row} />,
     },
 ];

@@ -69,6 +69,7 @@ import {
 } from '../../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../../types';
 import CategoriesFilter from './CategoriesFilter';
+import OwnersFilter from './OwnersFilter';
 import SegmentedControlHoverCard from './SegmentedControlHoverCard';
 import TableFilter from './TableFilter';
 type MetricsTableTopToolbarProps = GroupProps & {
@@ -82,6 +83,8 @@ type MetricsTableTopToolbarProps = GroupProps & {
     setCategoryFilterMode: (mode: CatalogCategoryFilterMode) => void;
     selectedTables: string[];
     setSelectedTables: (tables: string[]) => void;
+    selectedOwners: string[];
+    setSelectedOwners: (owners: string[]) => void;
     totalResults: number;
     isValidMetricsNodeCount: boolean;
     isValidMetricsEdgeCount: boolean;
@@ -164,6 +167,8 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         setCategoryFilterMode,
         selectedTables,
         setSelectedTables,
+        selectedOwners,
+        setSelectedOwners,
         showCategoriesFilter,
         isValidMetricsTree,
         isValidMetricsNodeCount,
@@ -412,6 +417,11 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                     <TableFilter
                         selectedTables={selectedTables}
                         setSelectedTables={setSelectedTables}
+                    />
+
+                    <OwnersFilter
+                        selectedOwners={selectedOwners}
+                        setSelectedOwners={setSelectedOwners}
                     />
                 </Group>
                 <Group spacing="xs">

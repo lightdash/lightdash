@@ -5,6 +5,8 @@ models:
     config:
       tags: ["core", "ai"]
       meta:
+        spotlight:
+          owner: demo@lightdash.com
         sets:
           base_set:
             fields:
@@ -44,6 +46,8 @@ models:
           meta:
             metrics:
               total_revenue:
+                spotlight:
+                  owner: demo2@lightdash.com
                 type: sum
                 description: Sum of all payments
                 # E2E tests rely on these values
