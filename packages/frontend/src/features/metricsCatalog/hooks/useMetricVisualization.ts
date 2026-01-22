@@ -23,6 +23,7 @@ import { useMetric } from './useMetricsCatalog';
 const buildMetricQueryFromField = (
     field: MetricWithAssociatedTimeDimension,
     timeDimensionOverride?: TimeDimensionConfig,
+    segmentDimensionId?: string | null,
     comparison?: MetricExplorerComparison,
 ): MetricQuery => {
     const timeDimensionConfig = timeDimensionOverride ?? field.timeDimension;
@@ -46,9 +47,13 @@ const buildMetricQueryFromField = (
         timeDimensionConfig &&
         timeDimensionName;
 
+    const dimensions = [timeDimensionFieldId, segmentDimensionId].filter(
+        (d): d is string => Boolean(d),
+    );
+
     return {
         exploreName: field.table,
-        dimensions: timeDimensionFieldId ? [timeDimensionFieldId] : [],
+        dimensions,
         metrics: [getItemId(field)],
         filters: {},
         sorts: [],
@@ -127,6 +132,7 @@ type UseMetricVisualizationProps = {
     tableName: string | undefined;
     metricName: string | undefined;
     timeDimensionOverride?: TimeDimensionConfig;
+    segmentDimensionId?: string | null;
     comparison?: MetricExplorerComparison;
 };
 
@@ -144,6 +150,7 @@ export function useMetricVisualization({
     tableName,
     metricName,
     timeDimensionOverride,
+    segmentDimensionId,
     comparison,
 }: UseMetricVisualizationProps): MetricVisualizationResult {
     // 1. Fetch metric field metadata
@@ -167,9 +174,15 @@ export function useMetricVisualization({
         return buildMetricQueryFromField(
             metricFieldQuery.data,
             timeDimensionConfig,
+            segmentDimensionId,
             comparison,
         );
-    }, [metricFieldQuery.data, timeDimensionConfig, comparison]);
+    }, [
+        metricFieldQuery.data,
+        timeDimensionConfig,
+        segmentDimensionId,
+        comparison,
+    ]);
 
     const queryArgs = useMemo<QueryResultsProps | null>(() => {
         if (!projectUuid || !tableName || !metricQuery) return null;
