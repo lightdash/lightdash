@@ -1,4 +1,5 @@
 import {
+    ChartType,
     convertFieldRefToFieldId,
     deepEqual,
     getAllReferences,
@@ -9,14 +10,20 @@ import {
     isCustomSqlDimension,
     removeEmptyProperties,
     type AdditionalMetric,
+    type ChartConfig,
+    type CreateSavedChartVersion,
     type CustomDimension,
     type Explore,
+    type MapChart,
     type MetricOverrides,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { createSelector } from '@reduxjs/toolkit';
 import type { ExplorerStoreState } from '.';
-import { ExplorerSection } from '../../../providers/Explorer/types';
+import {
+    ExplorerSection,
+    type MapExtent,
+} from '../../../providers/Explorer/types';
 import { cleanConfig } from '../../../providers/Explorer/utils';
 
 const EMPTY_METRIC_OVERRIDES: MetricOverrides = {};
@@ -25,6 +32,8 @@ const EMPTY_PARAMETERS: ParametersValuesMap = {};
 // Base selectors
 const selectExplorerState = (state: ExplorerStoreState) => state.explorer;
 
+// Unsaved chart version for rendering
+// Does NOT include map extent to avoid re-renders on pan/zoom
 export const selectUnsavedChartVersion = createSelector(
     [selectExplorerState],
     (explorer) => explorer.unsavedChartVersion,
@@ -418,21 +427,83 @@ export const selectAdditionalMetricModal = createSelector(
     (modals) => modals?.additionalMetric ?? { isOpen: false },
 );
 
+// Map extent selector - used at save time to capture current map position
+// Stored in cachedChartConfigs['map'].tempMapExtent (ChartType.MAP = 'map')
+// NOTE: This is intentionally NOT subscribed to during render to avoid re-renders on pan/zoom
+const selectMapExtent = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.cachedChartConfigs?.map?.tempMapExtent,
+);
+
+// Helper to strip map extent fields from chart config for comparison
+// Map extent is handled separately (captured at save time) and shouldn't trigger "unsaved changes"
+const stripMapExtentForComparison = (chartConfig: ChartConfig): ChartConfig => {
+    if (chartConfig.type !== ChartType.MAP || !chartConfig.config) {
+        return chartConfig;
+    }
+    const { defaultZoom, defaultCenterLat, defaultCenterLon, ...rest } =
+        chartConfig.config as MapChart;
+    return {
+        ...chartConfig,
+        config: rest,
+    } as ChartConfig;
+};
+
+// Helper to check if map extent has changed from saved
+const hasMapExtentChanged = (
+    mapExtent: MapExtent | null | undefined,
+    savedChart:
+        | { chartConfig?: { type?: string; config?: unknown } }
+        | undefined,
+): boolean => {
+    if (!mapExtent) return false;
+    if (savedChart?.chartConfig?.type !== ChartType.MAP) return false;
+
+    const savedConfig = savedChart.chartConfig.config as MapChart | undefined;
+    if (!savedConfig) return false;
+
+    // Compare current extent with saved extent
+    // Only consider it changed if saved values exist and differ
+    const savedLat = savedConfig.defaultCenterLat;
+    const savedLng = savedConfig.defaultCenterLon;
+    const savedZoom = savedConfig.defaultZoom;
+
+    // If no saved extent, any current extent is a change
+    if (savedLat === undefined || savedLng === undefined) {
+        return true;
+    }
+
+    // Compare with small tolerance for floating point
+    const latChanged = Math.abs(mapExtent.lat - savedLat) > 0.0001;
+    const lngChanged = Math.abs(mapExtent.lng - savedLng) > 0.0001;
+    const zoomChanged = savedZoom !== undefined && mapExtent.zoom !== savedZoom;
+
+    return latChanged || lngChanged || zoomChanged;
+};
+
 // Selector to check if unsaved chart has changes compared to saved chart
 // Returns true if there are unsaved changes, false otherwise
 export const selectHasUnsavedChanges = createSelector(
-    [selectUnsavedChartVersion, selectSavedChart],
-    (unsavedChartVersion, savedChart) => {
+    [selectUnsavedChartVersion, selectSavedChart, selectMapExtent],
+    (unsavedChartVersion, savedChart, mapExtent) => {
         if (!savedChart) {
             // No saved chart means this is a new chart - no "unsaved changes"
             return false;
         }
 
+        // Check if map extent has changed (lightweight comparison of 3 numbers)
+        if (hasMapExtentChanged(mapExtent, savedChart)) {
+            return true;
+        }
+
         // Compare normalized versions of saved and unsaved
+        // Strip map extent fields since they're checked separately above
         return !deepEqual(
             removeEmptyProperties({
                 tableName: savedChart.tableName,
-                chartConfig: cleanConfig(savedChart.chartConfig),
+                chartConfig: stripMapExtentForComparison(
+                    cleanConfig(savedChart.chartConfig),
+                ),
                 metricQuery: savedChart.metricQuery,
                 tableConfig: savedChart.tableConfig,
                 pivotConfig: savedChart.pivotConfig,
@@ -440,7 +511,9 @@ export const selectHasUnsavedChanges = createSelector(
             }),
             removeEmptyProperties({
                 tableName: unsavedChartVersion.tableName,
-                chartConfig: cleanConfig(unsavedChartVersion.chartConfig),
+                chartConfig: stripMapExtentForComparison(
+                    cleanConfig(unsavedChartVersion.chartConfig),
+                ),
                 metricQuery: unsavedChartVersion.metricQuery,
                 tableConfig: unsavedChartVersion.tableConfig,
                 pivotConfig: unsavedChartVersion.pivotConfig,
@@ -448,4 +521,63 @@ export const selectHasUnsavedChanges = createSelector(
             }),
         );
     },
+);
+
+/**
+ * Enriches a chart version with current map extent if applicable.
+ * Only applies to map charts - other chart types are returned unchanged.
+ */
+const enrichWithMapExtent = (
+    chartVersion: CreateSavedChartVersion,
+    mapExtent: MapExtent | null | undefined,
+): CreateSavedChartVersion => {
+    const { chartConfig } = chartVersion;
+
+    // Only apply to map charts
+    if (chartConfig.type !== ChartType.MAP) {
+        return chartVersion;
+    }
+
+    const mapConfig = chartConfig.config as MapChart | undefined;
+
+    // Only skip if saveMapExtent is explicitly disabled
+    // Default to saving extent (saveMapExtent is UI-only, not persisted to backend)
+    if (mapConfig?.saveMapExtent === false) {
+        return chartVersion;
+    }
+
+    // Need extent data to enrich
+    if (!mapExtent) {
+        return chartVersion;
+    }
+
+    // Return enriched version with current extent
+    return {
+        ...chartVersion,
+        chartConfig: {
+            ...chartConfig,
+            config: {
+                ...mapConfig,
+                defaultZoom: mapExtent.zoom,
+                defaultCenterLat: mapExtent.lat,
+                defaultCenterLon: mapExtent.lng,
+            },
+        },
+    };
+};
+
+/**
+ * Selector for saving: Returns unsaved chart version enriched with map extent.
+ *
+ * For map charts: Merges current map position (zoom/lat/lng) into chartConfig.
+ * For other chart types: Returns unchanged.
+ *
+ * IMPORTANT: Only use this selector at save time (SaveChartButton, ChartCreateModal).
+ * Do NOT use for rendering - it will cause re-renders on every map pan/zoom.
+ * For rendering, use selectUnsavedChartVersion or specific field selectors.
+ */
+export const selectUnsavedChartVersionForSave = createSelector(
+    [selectUnsavedChartVersion, selectMapExtent],
+    (unsavedChartVersion, mapExtent) =>
+        enrichWithMapExtent(unsavedChartVersion, mapExtent),
 );

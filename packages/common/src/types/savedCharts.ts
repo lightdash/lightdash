@@ -208,6 +208,7 @@ export type MapChart = {
     noDataColor?: string;
     // Field configuration (controls tooltip visibility and custom labels)
     fieldConfig?: Record<string, MapFieldConfig>;
+    saveMapExtent?: boolean;
 };
 
 export enum FunnelChartDataInput {
