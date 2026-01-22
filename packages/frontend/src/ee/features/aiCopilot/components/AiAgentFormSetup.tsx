@@ -741,6 +741,7 @@ export const AiAgentFormSetup = ({
                                             multiple
                                             withRefresh
                                             size="sm"
+                                            variant="subtle"
                                             label="Channels"
                                             placeholder="Search channel(s)"
                                             value={form.values.integrations.map(
