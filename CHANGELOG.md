@@ -1,3 +1,15 @@
+# [0.2364.0](https://github.com/lightdash/lightdash/compare/0.2363.1...0.2364.0) (2026-01-22)
+
+
+### Bug Fixes
+
+* prevent duplicate fields in catalog for additional_explores ([#19620](https://github.com/lightdash/lightdash/issues/19620)) ([7419c99](https://github.com/lightdash/lightdash/commit/7419c99e42bc806ae4465ab15d6b6088ab25aae6))
+
+
+### Features
+
+* add debounce to metrics catalog search ([#19639](https://github.com/lightdash/lightdash/issues/19639)) ([56cb158](https://github.com/lightdash/lightdash/commit/56cb158e21e96594fb1e7ae2b197e940490486d4))
+
 ## [0.2363.1](https://github.com/lightdash/lightdash/compare/0.2363.0...0.2363.1) (2026-01-21)
 
 
