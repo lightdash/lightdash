@@ -195,91 +195,6 @@ export class SchedulerModel {
             );
     }
 
-    /**
-     * Extended base query that includes project_uuid derivation.
-     * Used for user-scoped queries where schedulers span multiple projects.
-     */
-    static getBaseSchedulerQueryWithProject(db: Knex) {
-        // Alias for the space joined via saved_charts (for chart schedulers)
-        const chartSpaceAlias = 'chart_space';
-        // Alias for the space joined via dashboards (for dashboard schedulers)
-        const dashboardSpaceAlias = 'dashboard_space';
-        // Alias for the space joined via saved_charts.dashboard_uuid (for charts in dashboards)
-        const chartDashboardSpaceAlias = 'chart_dashboard_space';
-
-        return (
-            db(SchedulerTableName)
-                .select<SelectScheduler[]>(
-                    `${SchedulerTableName}.*`,
-                    db.raw(
-                        `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_name`,
-                    ),
-                    `${SavedChartsTableName}.name as saved_chart_name`,
-                    `${DashboardsTableName}.name as dashboard_name`,
-                    // Get project_uuid through the appropriate path:
-                    // 1. For chart schedulers with chart in a space: chart -> space -> project
-                    // 2. For chart schedulers with chart in a dashboard: chart -> dashboard -> space -> project
-                    // 3. For dashboard schedulers: dashboard -> space -> project
-                    db.raw(
-                        `COALESCE(chart_project.project_uuid, chart_dashboard_project.project_uuid, dashboard_project.project_uuid) as project_uuid`,
-                    ),
-                )
-                .leftJoin(
-                    UserTableName,
-                    `${UserTableName}.user_uuid`,
-                    `${SchedulerTableName}.created_by`,
-                )
-                .leftJoin(
-                    SavedChartsTableName,
-                    `${SavedChartsTableName}.saved_query_uuid`,
-                    `${SchedulerTableName}.saved_chart_uuid`,
-                )
-                .leftJoin(
-                    DashboardsTableName,
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    `${SchedulerTableName}.dashboard_uuid`,
-                )
-                // Join path for charts in spaces: saved_charts.space_id -> spaces -> projects
-                .leftJoin(
-                    `${SpaceTableName} as ${chartSpaceAlias}`,
-                    `${chartSpaceAlias}.space_id`,
-                    `${SavedChartsTableName}.space_id`,
-                )
-                .leftJoin(
-                    `${ProjectTableName} as chart_project`,
-                    `chart_project.project_id`,
-                    `${chartSpaceAlias}.project_id`,
-                )
-                // Join path for charts in dashboards: saved_charts.dashboard_uuid -> dashboards -> spaces -> projects
-                .leftJoin(
-                    `${DashboardsTableName} as chart_dashboard`,
-                    `chart_dashboard.dashboard_uuid`,
-                    `${SavedChartsTableName}.dashboard_uuid`,
-                )
-                .leftJoin(
-                    `${SpaceTableName} as ${chartDashboardSpaceAlias}`,
-                    `${chartDashboardSpaceAlias}.space_id`,
-                    `chart_dashboard.space_id`,
-                )
-                .leftJoin(
-                    `${ProjectTableName} as chart_dashboard_project`,
-                    `chart_dashboard_project.project_id`,
-                    `${chartDashboardSpaceAlias}.project_id`,
-                )
-                // Join path for dashboard schedulers: dashboards.space_id -> spaces -> projects
-                .leftJoin(
-                    `${SpaceTableName} as ${dashboardSpaceAlias}`,
-                    `${dashboardSpaceAlias}.space_id`,
-                    `${DashboardsTableName}.space_id`,
-                )
-                .leftJoin(
-                    `${ProjectTableName} as dashboard_project`,
-                    `dashboard_project.project_id`,
-                    `${dashboardSpaceAlias}.project_id`,
-                )
-        );
-    }
-
     private async getSchedulersWithTargets(
         schedulers: SelectScheduler[],
     ): Promise<SchedulerAndTargets[]> {
@@ -492,46 +407,52 @@ export class SchedulerModel {
             .clone()
             .whereNotNull(`${SchedulerTableName}.dashboard_uuid`);
 
-        // Only add project joins and filter when projectUuid is provided
-        // (for user schedulers, the base query already includes project info)
-        if (projectUuid) {
-            schedulerCharts = schedulerCharts
-                // Join to get the dashboard that the chart belongs to (if any)
-                .leftJoin(
-                    { [dashboardChartsJoinTable]: DashboardsTableName },
-                    `${dashboardChartsJoinTable}.dashboard_uuid`,
-                    `${SavedChartsTableName}.dashboard_uuid`,
-                )
-                .innerJoin(SpaceTableName, function joinSpaces() {
-                    this.on(
-                        `${SpaceTableName}.space_id`,
-                        '=',
-                        `${dashboardChartsJoinTable}.space_id`,
-                    ).orOn(
-                        `${SpaceTableName}.space_id`,
-                        '=',
-                        `${SavedChartsTableName}.space_id`,
-                    );
-                })
-                .leftJoin(
-                    ProjectTableName,
-                    `${ProjectTableName}.project_id`,
-                    `${SpaceTableName}.project_id`,
-                )
-                .where(`${ProjectTableName}.project_uuid`, projectUuid);
-
-            schedulerDashboards = schedulerDashboards
-                .leftJoin(
-                    SpaceTableName,
+        schedulerCharts = schedulerCharts
+            // Join to get the dashboard that the chart belongs to (if any)
+            .leftJoin(
+                { [dashboardChartsJoinTable]: DashboardsTableName },
+                `${dashboardChartsJoinTable}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function joinSpaces() {
+                this.on(
                     `${SpaceTableName}.space_id`,
-                    `${DashboardsTableName}.space_id`,
-                )
-                .leftJoin(
-                    ProjectTableName,
-                    `${ProjectTableName}.project_id`,
-                    `${SpaceTableName}.project_id`,
-                )
-                .where(`${ProjectTableName}.project_uuid`, projectUuid);
+                    '=',
+                    `${dashboardChartsJoinTable}.space_id`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                );
+            })
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            );
+
+        schedulerDashboards = schedulerDashboards
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            );
+
+        if (projectUuid) {
+            schedulerCharts = schedulerCharts.where(
+                `${ProjectTableName}.project_uuid`,
+                projectUuid,
+            );
+
+            schedulerDashboards = schedulerDashboards.where(
+                `${ProjectTableName}.project_uuid`,
+                projectUuid,
+            );
         }
 
         // Apply resource type filter
@@ -607,8 +528,7 @@ export class SchedulerModel {
             destinations?: string[];
         };
     }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
-        // Use the extended query with project joins since user schedulers span multiple projects
-        const initialQuery = SchedulerModel.getBaseSchedulerQueryWithProject(
+        const initialQuery = SchedulerModel.getBaseSchedulerQuery(
             this.database,
         );
 
