@@ -261,7 +261,136 @@ describe('PivotQueryBuilder', () => {
         });
     });
 
-    describe('Metric sorting CTEs', () => {
+    describe('Sorting strategies', () => {
+        // Two sorting strategies exist based on what column is being sorted:
+        //
+        // 1. Dimension sort (lexicographic): When sorting by an index or groupBy column,
+        //    rows are ordered directly by the dimension value. No extra CTEs needed.
+        //
+        // 2. Metric sort (anchor-based): When sorting by a value/metric column, we need
+        //    to determine what metric value represents each row/column. The metric value
+        //    used for sorting comes from the "first" pivot column (column_index = 1),
+        //    not MIN/MAX across all columns.
+
+        test('Dimension sort: should NOT create column_ranking or anchor_column CTEs when sorting by index column', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'date', direction: SortByDirection.DESC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Dimension sort: row_index should use the dimension value directly
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."date" desc) as "row_index"',
+            );
+
+            // Should NOT create column_ranking or anchor_column CTEs
+            // (these are only needed for metric-based sorting)
+            expect(result).not.toContain('column_ranking AS (');
+            expect(result).not.toContain('anchor_column AS (');
+
+            // Should NOT create row anchor CTEs for revenue
+            expect(result).not.toContain('revenue_row_anchor AS (');
+        });
+
+        test('Dimension sort: should NOT create metric anchor CTEs when sorting by groupBy column', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'category', direction: SortByDirection.ASC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // GroupBy column sort: column_index should use the dimension value directly
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."category" asc) as "column_index"',
+            );
+
+            // Should NOT create column_ranking or anchor_column CTEs
+            expect(result).not.toContain('column_ranking AS (');
+            expect(result).not.toContain('anchor_column AS (');
+
+            // Should NOT create metric anchor CTEs
+            expect(result).not.toContain('revenue_row_anchor AS (');
+            expect(result).not.toContain('revenue_column_anchor AS (');
+        });
+
+        test('Metric sort: should create column_ranking and anchor_column CTEs when sorting by value column', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Metric sort: should create column_ranking CTE to compute column_index per groupBy value
+            expect(result).toContain('column_ranking AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY revenue_column_anchor."revenue_column_anchor_value" DESC',
+            );
+
+            // Metric sort: should create anchor_column CTE to identify first pivot column (column_index = 1)
+            // Uses alias (anchor_category) and ORDER BY + LIMIT 1 for deterministic selection
+            expect(result).toContain('anchor_column AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'SELECT cr."category" AS "anchor_category" FROM column_ranking cr WHERE "col_idx" = 1 ORDER BY cr."category" ASC LIMIT 1',
+            );
+
+            // Metric sort: row anchor should use CROSS JOIN with anchor_column
+            // (gets metric value at first pivot column only, not MIN/MAX across all columns)
+            expect(result).toContain('revenue_row_anchor AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(CASE WHEN q."category" = ac."anchor_category" THEN q."revenue_sum" END)',
+            );
+            expect(result).toContain('CROSS JOIN anchor_column ac');
+        });
+
         test('Should include anchor CTEs and joins when sorting by a value column in pivot queries', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
@@ -367,15 +496,17 @@ describe('PivotQueryBuilder', () => {
 
             const result = builder.toSql();
 
-            // Both anchor CTEs should have explicit frame clauses
+            // Column anchor CTEs should have explicit frame clauses (for Redshift compatibility)
             expect(result).toContain(
                 'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
             );
 
-            // Verify the complete FIRST_VALUE syntax in row anchor
+            // Row anchor uses CROSS JOIN with anchor_column (cleaner than scalar subquery)
+            // (gets value at first pivot column, not MIN/MAX across all columns)
             expect(replaceWhitespace(result)).toContain(
-                'FIRST_VALUE("revenue_sum") OVER (PARTITION BY "date" ORDER BY "revenue_sum" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
+                'MAX(CASE WHEN q."category" = ac."anchor_category" THEN q."revenue_sum" END)',
             );
+            expect(result).toContain('CROSS JOIN anchor_column ac');
 
             // Verify the complete FIRST_VALUE syntax in column anchor
             expect(replaceWhitespace(result)).toContain(
@@ -1123,8 +1254,10 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain(
                 'SELECT "category", "date" FROM original_query group by "category", "date"',
             );
-            // Should calculate total_columns correctly (1 value column default)
-            expect(result).toContain('* 1 as total_columns');
+            // Should calculate total_columns correctly (no multiplier when 1 value column)
+            expect(result).toContain(
+                'COUNT(DISTINCT "category") AS total_columns',
+            );
         });
 
         test('Should handle undefined limit (defaults to 500)', () => {
@@ -1350,9 +1483,16 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             const result = builder.toSql();
 
-            // Check row anchor CTE has NULLS LAST
+            // Row anchor uses CROSS JOIN with anchor_column (cleaner than scalar subquery)
+            // The NULLS LAST is applied in the row_index ORDER BY, not the anchor CTE
             expect(replaceWhitespace(result)).toContain(
-                'FIRST_VALUE("revenue_sum") OVER (PARTITION BY "date" ORDER BY "revenue_sum" DESC NULLS LAST ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
+                'MAX(CASE WHEN q."category" = ac."anchor_category" THEN q."revenue_sum" END)',
+            );
+            expect(result).toContain('CROSS JOIN anchor_column ac');
+
+            // Check that row_index ORDER BY has NULLS LAST
+            expect(replaceWhitespace(result)).toContain(
+                'revenue_row_anchor."revenue_row_anchor_value" DESC NULLS LAST',
             );
 
             // Check column anchor CTE has NULLS LAST
