@@ -116,6 +116,10 @@ export const MetricExploreModalV2: FC<Props> = ({
         segmentDimension: null,
     });
 
+    const segmentDimensionId = useMemo(() => {
+        return 'segmentDimension' in query ? query.segmentDimension : null;
+    }, [query]);
+
     // Reset override when navigating to a different metric
     const resetQueryState = useCallback(() => {
         setTimeDimensionOverride(undefined);
@@ -167,6 +171,7 @@ export const MetricExploreModalV2: FC<Props> = ({
         tableName,
         metricName,
         timeDimensionOverride,
+        segmentDimensionId,
         comparison: query.comparison,
     });
 
@@ -220,15 +225,32 @@ export const MetricExploreModalV2: FC<Props> = ({
             metricQuery,
             projectUuid,
             columnOrder,
+            pivotColumns: segmentDimensionId ? [segmentDimensionId] : undefined,
             chartConfig,
         });
-    }, [metricQuery, projectUuid, columnOrder, chartConfig]);
+    }, [
+        metricQuery,
+        projectUuid,
+        columnOrder,
+        segmentDimensionId,
+        chartConfig,
+    ]);
 
     // Keyboard navigation
     useHotkeys([
         ['ArrowUp', handleGoToPreviousMetric],
         ['ArrowDown', handleGoToNextMetric],
     ]);
+
+    const handleSegmentDimensionChange = useCallback(
+        (value: string | null) => {
+            setQuery({
+                comparison: MetricExplorerComparison.NONE,
+                segmentDimension: value,
+            });
+        },
+        [setQuery],
+    );
 
     return (
         <Modal.Root
@@ -356,25 +378,12 @@ export const MetricExploreModalV2: FC<Props> = ({
                             <Stack gap="xl" w="100%">
                                 <Box pos="relative">
                                     <Box className={styles.disabledOverlay}>
-                                        <Stack gap="xl" w="100%">
-                                            <MetricExploreFilter
-                                                dimensions={
-                                                    availableFilterByDimensions
-                                                }
-                                                onFilterApply={() => {}}
-                                            />
-                                            <MetricExploreSegmentationPicker
-                                                query={query}
-                                                onSegmentDimensionChange={() => {}}
-                                                dimensions={
-                                                    availableSegmentByDimensions
-                                                }
-                                                segmentDimensionsQuery={
-                                                    segmentDimensionsQuery
-                                                }
-                                                hasFilteredSeries={false}
-                                            />
-                                        </Stack>
+                                        <MetricExploreFilter
+                                            dimensions={
+                                                availableFilterByDimensions
+                                            }
+                                            onFilterApply={() => {}}
+                                        />
                                     </Box>
                                     <Box pos="absolute" inset={0}>
                                         <Tooltip
@@ -386,6 +395,18 @@ export const MetricExploreModalV2: FC<Props> = ({
                                         </Tooltip>
                                     </Box>
                                 </Box>
+
+                                <MetricExploreSegmentationPicker
+                                    query={query}
+                                    onSegmentDimensionChange={
+                                        handleSegmentDimensionChange
+                                    }
+                                    dimensions={availableSegmentByDimensions}
+                                    segmentDimensionsQuery={
+                                        segmentDimensionsQuery
+                                    }
+                                    hasFilteredSeries={false}
+                                />
 
                                 <Divider color="ldGray.2" />
 
@@ -482,7 +503,11 @@ export const MetricExploreModalV2: FC<Props> = ({
                                         resultsData={resultsData}
                                         chartConfig={chartConfig}
                                         columnOrder={columnOrder}
-                                        initialPivotDimensions={undefined}
+                                        initialPivotDimensions={
+                                            segmentDimensionId
+                                                ? [segmentDimensionId]
+                                                : undefined
+                                        }
                                         colorPalette={colorPalette}
                                         isLoading={isLoading}
                                         onSeriesContextMenu={undefined}
