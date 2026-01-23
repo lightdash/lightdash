@@ -1,3 +1,10 @@
+## [0.2372.1](https://github.com/lightdash/lightdash/compare/0.2372.0...0.2372.1) (2026-01-23)
+
+
+### Bug Fixes
+
+* open edit modal on scheduler deep link ([#19682](https://github.com/lightdash/lightdash/issues/19682)) ([8b0b8d3](https://github.com/lightdash/lightdash/commit/8b0b8d3f383eac4a88fc2e4c4673fd6c1f211a5e))
+
 # [0.2372.0](https://github.com/lightdash/lightdash/compare/0.2371.0...0.2372.0) (2026-01-23)
 
 
