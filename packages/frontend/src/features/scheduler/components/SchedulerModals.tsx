@@ -21,6 +21,8 @@ interface DashboardSchedulersProps {
     name: string;
     isOpen: boolean;
     onClose: () => void;
+    /** If provided, opens directly in edit mode for this scheduler */
+    initialSchedulerUuid?: string;
 }
 
 export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
@@ -60,6 +62,8 @@ interface ChartSchedulersProps {
     isThresholdAlert?: boolean;
     itemsMap?: ItemsMap;
     onClose: () => void;
+    /** If provided, opens directly in edit mode for this scheduler */
+    initialSchedulerUuid?: string;
 }
 
 export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({

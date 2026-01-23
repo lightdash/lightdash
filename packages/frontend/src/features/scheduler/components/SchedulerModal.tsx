@@ -6,15 +6,10 @@ import {
 import { Box, Button, Group } from '@mantine-8/core';
 import { IconBell, IconSend } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
-import React, { useEffect, useState, type FC } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import React, { useState, type FC } from 'react';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import MantineModal from '../../../components/common/MantineModal';
-import {
-    getSchedulerUuidFromUrlParams,
-    getThresholdUuidFromUrlParams,
-    States,
-} from '../utils';
+import { States } from '../utils';
 import { SchedulerModalCreateOrEdit } from './SchedulerModalCreateOrEdit';
 import SchedulersList from './SchedulersList';
 
@@ -33,6 +28,8 @@ const SchedulersModal: FC<
         isThresholdAlert?: boolean;
         itemsMap?: ItemsMap;
         schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
+        /** If provided, opens directly in edit mode for this scheduler */
+        initialSchedulerUuid?: string;
     }
 > = ({
     resourceUuid,
@@ -45,41 +42,14 @@ const SchedulersModal: FC<
     currentParameterValues,
     availableParameters,
     onClose = () => {},
+    initialSchedulerUuid,
 }) => {
-    const navigate = useNavigate();
-    const { search, pathname } = useLocation();
-    const [modalState, setModalState] = useState<States>(States.LIST);
+    const [modalState, setModalState] = useState<States>(
+        initialSchedulerUuid ? States.EDIT : States.LIST,
+    );
     const [schedulerUuidToEdit, setSchedulerUuidToEdit] = useState<
         string | undefined
-    >();
-
-    // Handle URL params for deep linking to edit mode
-    useEffect(() => {
-        if (!isOpen) return;
-
-        const schedulerUuidFromUrl = isThresholdAlert
-            ? getThresholdUuidFromUrlParams(search)
-            : getSchedulerUuidFromUrlParams(search);
-
-        if (schedulerUuidFromUrl) {
-            setSchedulerUuidToEdit(schedulerUuidFromUrl);
-            setModalState(States.EDIT);
-
-            // Clear the URL param to prevent the modal from reopening
-            const newParams = new URLSearchParams(search);
-            newParams.delete(
-                isThresholdAlert ? 'threshold_uuid' : 'scheduler_uuid',
-            );
-            void navigate(
-                {
-                    pathname,
-                    search: newParams.toString(),
-                },
-                { replace: true },
-            );
-        }
-    }, [isOpen, isThresholdAlert, navigate, pathname, search]);
-
+    >(initialSchedulerUuid);
     const Actions = () => {
         if (modalState === States.LIST) {
             return (
