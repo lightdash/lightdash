@@ -75,6 +75,7 @@ import {
 } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
+import { wrapSentryTransaction } from '../utils';
 import { generateUniqueSlug } from '../utils/SlugUtils';
 import { SpaceModel } from './SpaceModel';
 
@@ -707,29 +708,33 @@ export class SavedChartModel {
     }
 
     async getChartSummariesForFieldId(projectUuid: string, fieldId: string) {
-        return this.getChartSummaryQuery()
-            .leftJoin(
-                SavedChartVersionsTableName,
-                `${SavedChartsTableName}.saved_query_id`,
-                `${SavedChartVersionsTableName}.saved_query_id`,
-            )
-            .leftJoin(
-                SavedChartVersionFieldsTableName,
-                `${SavedChartVersionsTableName}.saved_queries_version_id`,
-                `${SavedChartVersionFieldsTableName}.saved_queries_version_id`,
-            )
-            .where(`${SavedChartVersionFieldsTableName}.name`, fieldId)
-            .where(
-                // filter by last version
-                `${SavedChartVersionsTableName}.saved_queries_version_id`,
-                this.database.raw(`(select saved_queries_version_id
-                                           from ${SavedChartVersionsTableName}
-                                           where saved_queries.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
-                                           order by ${SavedChartVersionsTableName}.created_at desc
-                                           limit 1)`),
-            )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .orderBy(`${SavedChartsTableName}.views_count`, 'desc');
+        return wrapSentryTransaction(
+            'SavedChartModel.getChartSummariesForFieldId',
+            { project_uuid: projectUuid, field_id: fieldId },
+            async () =>
+                this.getChartSummaryQuery()
+                    .innerJoin(
+                        SavedChartVersionsTableName,
+                        `${SavedChartsTableName}.saved_query_id`,
+                        `${SavedChartVersionsTableName}.saved_query_id`,
+                    )
+                    .innerJoin(
+                        SavedChartVersionFieldsTableName,
+                        `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                        `${SavedChartVersionFieldsTableName}.saved_queries_version_id`,
+                    )
+                    .where(`${SavedChartVersionFieldsTableName}.name`, fieldId)
+                    .where(
+                        `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                        this.database.raw(`(select saved_queries_version_id
+                    from ${SavedChartVersionsTableName}
+                    where ${SavedChartsTableName}.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
+                    order by ${SavedChartVersionsTableName}.created_at desc
+                    limit 1)`),
+                    )
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .orderBy(`${SavedChartsTableName}.views_count`, 'desc'),
+        );
     }
 
     async getChartCountPerField(projectUuid: string, fieldIds: string[]) {
@@ -743,17 +748,9 @@ export class SavedChartModel {
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${SavedChartsTableName}.dashboard_uuid`,
             )
-            .innerJoin(SpaceTableName, function spaceJoin() {
-                this.on(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${DashboardsTableName}.space_id`,
-                ).orOn(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${SavedChartsTableName}.space_id`,
-                );
-            })
+            .joinRaw(
+                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+            )
             .innerJoin(
                 ProjectTableName,
                 `${SpaceTableName}.project_id`,
@@ -1560,17 +1557,9 @@ export class SavedChartModel {
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${SavedChartsTableName}.dashboard_uuid`,
             )
-            .innerJoin(SpaceTableName, function spaceJoin() {
-                this.on(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${DashboardsTableName}.space_id`,
-                ).orOn(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${SavedChartsTableName}.space_id`,
-                );
-            })
+            .joinRaw(
+                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+            )
             .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
             .leftJoin(
                 OrganizationTableName,
