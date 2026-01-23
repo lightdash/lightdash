@@ -1,3 +1,10 @@
+## [0.2372.2](https://github.com/lightdash/lightdash/compare/0.2372.1...0.2372.2) (2026-01-23)
+
+
+### Performance Improvements
+
+* optimize chart queries with Sentry tracking and improved joins ([#19680](https://github.com/lightdash/lightdash/issues/19680)) ([424f8d3](https://github.com/lightdash/lightdash/commit/424f8d3b432287e412d1c5e28184f73b053d4fe3))
+
 ## [0.2372.1](https://github.com/lightdash/lightdash/compare/0.2372.0...0.2372.1) (2026-01-23)
 
 
