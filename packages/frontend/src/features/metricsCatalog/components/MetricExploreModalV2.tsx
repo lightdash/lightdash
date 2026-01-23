@@ -70,6 +70,9 @@ export const MetricExploreModalV2: FC<Props> = ({
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
+    const canExploreFromHere = useAppSelector(
+        (state) => state.metricsCatalog.abilities.canManageExplore,
+    );
 
     const { tableName, metricName } = useParams<{
         tableName: string;
@@ -350,11 +353,11 @@ export const MetricExploreModalV2: FC<Props> = ({
                     </Group>
                     <Group gap="xs">
                         <Tooltip
-                            label="Explore from here"
+                            label="Continue exploring this metric further"
                             position="bottom"
-                            disabled={!openInExploreUrl}
+                            disabled={!openInExploreUrl || !canExploreFromHere}
                         >
-                            {openInExploreUrl ? (
+                            {openInExploreUrl && canExploreFromHere ? (
                                 <Button
                                     component={Link}
                                     to={openInExploreUrl}
