@@ -724,6 +724,8 @@ export const convertTable = (
                             },
                             modelCategories: meta.spotlight?.categories,
                             modelOwner: meta.spotlight?.owner,
+                            defaultShowUnderlyingValues:
+                                meta.default_show_underlying_values,
                         }),
                     ],
                 ),
@@ -757,6 +759,8 @@ export const convertTable = (
                 },
                 modelCategories: meta.spotlight?.categories,
                 modelOwner: meta.spotlight?.owner,
+                defaultShowUnderlyingValues:
+                    meta.default_show_underlying_values,
             }),
         ]),
     );

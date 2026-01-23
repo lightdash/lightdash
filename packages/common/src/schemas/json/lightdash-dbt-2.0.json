@@ -400,6 +400,13 @@
                                 },
                                 "required": ["field", "interval"]
                             },
+                            "default_show_underlying_values": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "description": "Default show underlying values configuration that will be applied to all metrics in this model that don't have their own show_underlying_values defined"
+                            },
                             "spotlight": {
                                 "type": "object",
                                 "description": "Set the visibility and/or categories of a metric in Spotlight",
