@@ -321,10 +321,7 @@ export class SchedulerService extends BaseService {
 
         const runs = await this.schedulerModel.getRunsForSchedulers({
             schedulers: schedulers.data,
-            paginateArgs,
-            searchQuery,
-            sort,
-            filters,
+            sort: { column: 'scheduledTime', direction: 'desc' },
         });
 
         const latestRunByScheduler = new Map<string, SchedulerRun>();
@@ -399,10 +396,7 @@ export class SchedulerService extends BaseService {
 
         const runs = await this.schedulerModel.getRunsForSchedulers({
             schedulers: schedulers.data,
-            paginateArgs,
-            searchQuery,
-            sort,
-            filters,
+            sort: { column: 'scheduledTime', direction: 'desc' },
         });
 
         const latestRunByScheduler = new Map<string, SchedulerRun>();
