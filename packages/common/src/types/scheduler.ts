@@ -118,6 +118,7 @@ export type SchedulerBase = {
     notificationFrequency?: NotificationFrequency;
     includeLinks: boolean;
     projectUuid?: string | null;
+    projectName?: string | null;
 };
 
 export type ChartScheduler = SchedulerBase & {

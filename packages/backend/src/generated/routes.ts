@@ -4486,6 +4486,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                saveMapExtent: { dataType: 'boolean' },
                 fieldConfig: { ref: 'Record_string.MapFieldConfig_' },
                 noDataColor: { dataType: 'string' },
                 backgroundColor: { dataType: 'string' },

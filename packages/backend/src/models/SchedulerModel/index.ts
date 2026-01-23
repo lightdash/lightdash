@@ -68,6 +68,7 @@ type SelectScheduler = SchedulerDb & {
     saved_chart_name: string | null;
     dashboard_name: string | null;
     project_uuid?: string | null;
+    project_name?: string | null;
     project_scheduler_timezone?: string | null;
 };
 
@@ -117,6 +118,7 @@ export class SchedulerModel {
             selectedTabs: scheduler.selected_tabs,
             includeLinks: scheduler.include_links,
             projectUuid: scheduler.project_uuid ?? undefined,
+            projectName: scheduler.project_name ?? undefined,
         } as Scheduler;
     }
 
@@ -270,6 +272,7 @@ export class SchedulerModel {
                 `${SavedChartsTableName}.name as saved_chart_name`,
                 `${DashboardsTableName}.name as dashboard_name`,
                 `${ProjectTableName}.project_uuid as project_uuid`,
+                `${ProjectTableName}.name as project_name`,
                 `${ProjectTableName}.scheduler_timezone as project_scheduler_timezone`,
             )
             .leftJoin(

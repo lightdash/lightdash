@@ -414,6 +414,33 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
             });
         }
 
+        // Project column - only for user scope
+        if (isUserScope) {
+            baseColumns.push({
+                accessorKey: 'projectName',
+                header: 'Project',
+                enableSorting: false,
+                size: 150,
+                Header: ({ column }) => (
+                    <Group gap="two" wrap="nowrap">
+                        <MantineIcon
+                            icon={IconLayoutDashboard}
+                            color="ldGray.6"
+                        />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => {
+                    const item = row.original;
+                    return (
+                        <Text fz="xs" c="ldGray.6">
+                            {item.projectName || 'Unknown'}
+                        </Text>
+                    );
+                },
+            });
+        }
+
         // Last Run column
         baseColumns.push({
             accessorKey: 'lastRunStatus',
