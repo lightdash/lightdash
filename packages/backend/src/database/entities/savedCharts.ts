@@ -12,7 +12,6 @@ import {
     MetricFilterRule,
     MetricOverrides,
     MetricType,
-    PeriodOverPeriodComparison,
     TableCalculationTemplate,
     TableCalculationType,
 } from '@lightdash/common';
@@ -99,7 +98,6 @@ export type DbSavedChartVersion = {
     parameters: AnyType | null; // JSONB
     updated_by_user_uuid: string | null;
     timezone: string | null;
-    period_over_period_config: PeriodOverPeriodComparison | null; // JSONB
 };
 
 export type SavedChartVersionsTable = Knex.CompositeTableType<
@@ -121,7 +119,6 @@ export type CreateDbSavedChartVersion = Pick<
     | 'parameters'
     | 'updated_by_user_uuid'
     | 'timezone'
-    | 'period_over_period_config'
 >;
 
 type DbSavedChartVersionField = {
@@ -237,6 +234,12 @@ export type DbSavedChartAdditionalMetric = {
     base_dimension_name: string | null;
     uuid: string;
     format_options?: CustomFormat | null; // JSONB
+    // PoP metadata (optional)
+    generation_type?: string | null;
+    base_metric_id?: string | null;
+    time_dimension_id?: string | null;
+    granularity?: string | null;
+    period_offset?: number | null;
 };
 export type DbSavedChartAdditionalMetricInsert = Omit<
     DbSavedChartAdditionalMetric,
@@ -276,6 +279,11 @@ export type DBFilteredAdditionalMetrics = Pick<
             | 'filters'
             | 'base_dimension_name'
             | 'format_options'
+            | 'generation_type'
+            | 'base_metric_id'
+            | 'time_dimension_id'
+            | 'granularity'
+            | 'period_offset'
         >
     >;
 
