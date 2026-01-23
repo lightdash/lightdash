@@ -6,6 +6,7 @@ import { type ChartSourceType } from './content';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 import { type ParametersValuesMap } from './parameters';
+import type { SchedulerAndTargets } from './scheduler';
 // eslint-disable-next-line import/no-cycle
 import { type SpaceShare } from './space';
 import { type LightdashUser, type UpdatedByUser } from './user';
@@ -953,4 +954,14 @@ export type SkippedReplaceCustomFields = {
             };
         };
     };
+};
+
+export type ApiSavedChartSchedulersResponse = {
+    status: 'ok';
+    results: SchedulerAndTargets[];
+};
+
+export type ApiCreateSavedChartSchedulerResponse = {
+    status: 'ok';
+    results: SchedulerAndTargets;
 };

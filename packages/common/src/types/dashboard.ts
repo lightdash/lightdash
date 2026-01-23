@@ -6,6 +6,7 @@ import {
     type CreateSavedChart,
     type SavedChartType,
 } from './savedCharts';
+import type { SchedulerAndTargets } from './scheduler';
 import { type SpaceShare } from './space';
 import { type UpdatedByUser } from './user';
 import { type ValidationSummary } from './validation';
@@ -343,4 +344,14 @@ export type CreateDashboardWithCharts = {
 export type ApiCreateDashboardWithChartsResponse = {
     status: 'ok';
     results: Dashboard;
+};
+
+export type ApiDashboardSchedulersResponse = {
+    status: 'ok';
+    results: SchedulerAndTargets[];
+};
+
+export type ApiCreateDashboardSchedulerResponse = {
+    status: 'ok';
+    results: SchedulerAndTargets;
 };

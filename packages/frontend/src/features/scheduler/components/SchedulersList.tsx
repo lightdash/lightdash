@@ -1,6 +1,8 @@
 import {
     SchedulerFormat,
+    type ApiDashboardSchedulersResponse,
     type ApiError,
+    type ApiSavedChartSchedulersResponse,
     type SchedulerAndTargets,
 } from '@lightdash/common';
 import { Loader, Stack, Text, Title } from '@mantine/core';
@@ -11,7 +13,11 @@ import { SchedulerDeleteModal } from './SchedulerDeleteModal';
 import SchedulersListItem from './SchedulersListItem';
 
 type Props = {
-    schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
+    schedulersQuery: UseQueryResult<
+        | ApiSavedChartSchedulersResponse['results']
+        | ApiDashboardSchedulersResponse['results'],
+        ApiError
+    >;
     isThresholdAlertList?: boolean;
     onEdit: (schedulerUuid: string) => void;
 };
@@ -24,7 +30,7 @@ const SchedulersList: FC<Props> = ({
     const { data: schedulers, isInitialLoading, error } = schedulersQuery;
     const [schedulerUuid, setSchedulerUuid] = useState<string>();
 
-    const { deliverySchedulers, alertSchedulers } = (schedulers || []).reduce<{
+    const { deliverySchedulers, alertSchedulers } = (schedulers ?? []).reduce<{
         deliverySchedulers: SchedulerAndTargets[];
         alertSchedulers: SchedulerAndTargets[];
     }>(
