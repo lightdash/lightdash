@@ -49,7 +49,6 @@ import {
     selectCustomDimensions,
     selectMetricOverrides,
     selectParameters,
-    selectPeriodOverPeriod,
     selectSorts,
     selectTableCalculations,
     selectTableName,
@@ -308,7 +307,7 @@ export const useColumns = (): TableColumn[] => {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const sorts = useExplorerSelector(selectSorts);
     const metricOverrides = useExplorerSelector(selectMetricOverrides);
-    const periodOverPeriod = useExplorerSelector(selectPeriodOverPeriod);
+    const periodOverPeriod = undefined;
 
     const { activeFields, query, queryResults } = useExplorerQuery();
     const resultsMetricQuery = query.data?.metricQuery;

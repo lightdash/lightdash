@@ -10,7 +10,6 @@ export const defaultQueryExecution: ExplorerSliceState['queryExecution'] = {
     queryUuidHistory: [],
     unpivotedQueryUuidHistory: [],
     pendingFetch: false,
-    completeColumnOrder: [],
 };
 
 const defaultFilters: Filters = {};
@@ -60,6 +59,9 @@ export const defaultState: ExplorerSliceState = {
             isOpen: false,
         },
         itemDetail: {
+            isOpen: false,
+        },
+        periodOverPeriodComparison: {
             isOpen: false,
         },
     },

@@ -50,3 +50,6 @@ export const periodOverPeriodGranularityLabels: Record<TimeFrames, string> = {
 export const isSupportedPeriodOverPeriodGranularity = (
     granularity: TimeFrames,
 ) => validPeriodOverPeriodGranularities.includes(granularity);
+
+export const buildPopAdditionalMetricName = (baseMetricName: string) =>
+    `${baseMetricName}__pop`;

@@ -15,13 +15,12 @@ import {
     type Dimension,
     type FieldId,
     type Item,
+    type ItemsMap,
     type Metric,
     type MetricQuery,
     type MetricType,
     type ParameterValue,
-    type PeriodOverPeriodComparison,
     type ReplaceCustomFields,
-    type ResultColumns,
     type SavedChart,
     type SortField,
     type TableCalculation,
@@ -46,7 +45,7 @@ import {
     getValidChartConfig,
 } from '../../../providers/Explorer/utils';
 
-import { calcColumnOrder, computeColumnOrderWithPoP } from './utils';
+import { calcColumnOrder } from './utils';
 
 export type ExplorerSliceState = ExplorerReduceState;
 
@@ -245,39 +244,8 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.timezone = action.payload;
         },
 
-        setPeriodOverPeriod: (
-            _state,
-            _action: PayloadAction<PeriodOverPeriodComparison | undefined>,
-        ) => {
-            // No-op
-        },
-
         setColumnOrder: (state, action: PayloadAction<string[]>) => {
-            // Identify PoP fields by comparing with existing completeColumnOrder
-            // PoP fields are those in completeColumnOrder but not in base columnOrder
-            const currentBaseOrder =
-                state.unsavedChartVersion.tableConfig.columnOrder;
-            const currentCompleteOrder =
-                state.queryExecution.completeColumnOrder;
-
-            // Build set of PoP fields
-            const baseFieldsSet = new Set(currentBaseOrder);
-            const popFields = new Set(
-                currentCompleteOrder.filter(
-                    (field) => !baseFieldsSet.has(field),
-                ),
-            );
-
-            // Filter out PoP fields from the incoming order to get base order
-            const baseOrder = action.payload.filter(
-                (field) => !popFields.has(field),
-            );
-
-            // Update base order
-            state.unsavedChartVersion.tableConfig.columnOrder = baseOrder;
-
-            // Also update completeColumnOrder to match the user's drag immediately
-            state.queryExecution.completeColumnOrder = action.payload;
+            state.unsavedChartVersion.tableConfig.columnOrder = action.payload;
         },
 
         setPivotConfig: (
@@ -359,6 +327,17 @@ const explorerSlice = createSlice({
         ) => {
             state.modals.additionalMetric = {
                 isOpen: !state.modals.additionalMetric.isOpen,
+                ...(action.payload && { ...action.payload }),
+            };
+        },
+        togglePeriodOverPeriodComparisonModal: (
+            state,
+            action: PayloadAction<
+                { metric?: Metric; itemsMap?: ItemsMap } | undefined
+            >,
+        ) => {
+            state.modals.periodOverPeriodComparison = {
+                isOpen: !state.modals.periodOverPeriodComparison.isOpen,
                 ...(action.payload && { ...action.payload }),
             };
         },
@@ -921,19 +900,7 @@ const explorerSlice = createSlice({
                 queryUuidHistory: [],
                 unpivotedQueryUuidHistory: [],
                 pendingFetch: false,
-                completeColumnOrder: [],
             };
-        },
-
-        setCompleteColumnOrder: (
-            state,
-            action: PayloadAction<ResultColumns>,
-        ) => {
-            const { completeColumnOrder } = computeColumnOrderWithPoP(
-                state.unsavedChartVersion.tableConfig.columnOrder,
-                action.payload,
-            );
-            state.queryExecution.completeColumnOrder = completeColumnOrder;
         },
 
         // Request a query execution (works regardless of auto-fetch setting)
