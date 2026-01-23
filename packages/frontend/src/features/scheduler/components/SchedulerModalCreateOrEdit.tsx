@@ -21,8 +21,7 @@ import {
 } from '@mantine-8/core';
 import { IconBell, IconChevronLeft, IconSend } from '@tabler/icons-react';
 import { type UseMutationResult } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useCallback, useEffect, useMemo, type FC } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
@@ -34,10 +33,6 @@ import { EventName } from '../../../types/Events';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
 import { useScheduler, useSendNowScheduler } from '../hooks/useScheduler';
 import { useSchedulersUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
-import {
-    getSchedulerUuidFromUrlParams,
-    getThresholdUuidFromUrlParams,
-} from '../utils';
 import SchedulerForm from './SchedulerForm';
 import {
     DEFAULT_VALUES,
@@ -138,18 +133,18 @@ const useSchedulerFormModal = ({
                       ),
                   })
                 : isThresholdAlert
-                ? DEFAULT_VALUES_ALERT
-                : {
-                      ...DEFAULT_VALUES,
-                      selectedTabs: isDashboardTabsAvailable
-                          ? dashboard?.tabs.map((tab) => tab.uuid)
-                          : null,
-                      parameters:
-                          isDashboard &&
-                          Object.keys(dashboardParameterValues).length > 0
-                              ? dashboardParameterValues
-                              : undefined,
-                  },
+                  ? DEFAULT_VALUES_ALERT
+                  : {
+                        ...DEFAULT_VALUES,
+                        selectedTabs: isDashboardTabsAvailable
+                            ? dashboard?.tabs.map((tab) => tab.uuid)
+                            : null,
+                        parameters:
+                            isDashboard &&
+                            Object.keys(dashboardParameterValues).length > 0
+                                ? dashboardParameterValues
+                                : undefined,
+                    },
         validateInputOnBlur: ['options.customLimit'],
 
         validate: {
@@ -284,8 +279,8 @@ const useSchedulerFormModal = ({
                   dashboardUuid: scheduler.data?.dashboardUuid ?? null,
               }
             : isChart
-            ? { savedChartUuid: resourceUuid, dashboardUuid: null }
-            : { dashboardUuid: resourceUuid, savedChartUuid: null };
+              ? { savedChartUuid: resourceUuid, dashboardUuid: null }
+              : { dashboardUuid: resourceUuid, savedChartUuid: null };
 
         const unsavedScheduler: CreateSchedulerAndTargets = {
             ...schedulerData,
@@ -314,8 +309,8 @@ const useSchedulerFormModal = ({
     const confirmText = isEditMode
         ? 'Save'
         : isThresholdAlert
-        ? 'Create alert'
-        : 'Create schedule';
+          ? 'Create alert'
+          : 'Create schedule';
 
     return {
         isEditMode,
@@ -368,48 +363,8 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
     onClose,
     onBack,
 }) => {
-    const [schedulerUuid, setSchedulerUuid] = useState<string | undefined>(
-        schedulerUuidToEdit,
-    );
-    const navigate = useNavigate();
-    const { search, pathname } = useLocation();
-
-    // Handle URL params for deep linking to edit
-    useEffect(() => {
-        const schedulerUuidFromUrlParams =
-            getSchedulerUuidFromUrlParams(search);
-        if (schedulerUuidFromUrlParams) {
-            setSchedulerUuid(schedulerUuidFromUrlParams);
-
-            // remove from url param after modal is open
-            const newParams = new URLSearchParams(search);
-            newParams.delete('scheduler_uuid');
-            void navigate(
-                {
-                    pathname,
-                    search: newParams.toString(),
-                },
-                { replace: true },
-            );
-        } else {
-            const thresholdUuidFromUrlParams =
-                getThresholdUuidFromUrlParams(search);
-            if (thresholdUuidFromUrlParams) {
-                setSchedulerUuid(thresholdUuidFromUrlParams);
-
-                // remove from url param after modal is open
-                const newParams = new URLSearchParams(search);
-                newParams.delete('threshold_uuid');
-                void navigate(
-                    {
-                        pathname,
-                        search: newParams.toString(),
-                    },
-                    { replace: true },
-                );
-            }
-        }
-    }, [navigate, pathname, search]);
+    // URL param handling is done in SchedulerModal parent component
+    const schedulerUuid = schedulerUuidToEdit;
 
     const {
         isLoading,
