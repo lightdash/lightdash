@@ -1,3 +1,10 @@
+# [0.2374.0](https://github.com/lightdash/lightdash/compare/0.2373.0...0.2374.0) (2026-01-23)
+
+
+### Features
+
+* add `my scheduled deliveries` user settings page ([#19571](https://github.com/lightdash/lightdash/issues/19571)) ([a04eb24](https://github.com/lightdash/lightdash/commit/a04eb24cf6a35da3b797cd4e605e226e6206dcc0))
+
 # [0.2373.0](https://github.com/lightdash/lightdash/compare/0.2372.3...0.2373.0) (2026-01-23)
 
 
