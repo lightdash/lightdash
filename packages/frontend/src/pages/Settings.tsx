@@ -515,14 +515,12 @@ const Settings: FC = () => {
                                 <Title order={6} fw={600} mb="xs">
                                     Your settings
                                 </Title>
-
                                 <RouterNavLink
                                     exact
                                     to="/generalSettings"
                                     label="Profile"
                                     icon={<MantineIcon icon={IconUserCircle} />}
                                 />
-
                                 {allowPasswordAuthentication && (
                                     <RouterNavLink
                                         label={
@@ -535,7 +533,6 @@ const Settings: FC = () => {
                                         icon={<MantineIcon icon={IconLock} />}
                                     />
                                 )}
-
                                 <RouterNavLink
                                     label="My warehouse connections"
                                     exact
@@ -544,7 +541,14 @@ const Settings: FC = () => {
                                         <MantineIcon icon={IconDatabaseCog} />
                                     }
                                 />
-
+                                {/*A user might not be able to create scheduled
+                                permissions on the org level but on a specific
+                                project level. The check here makes sure that
+                                the user has the ability to create a scheduled
+                                delivery at least somewhere. Since the
+                                service returns specifically the user's
+                                scheduled deliveries, this is completely
+                                intended behavior.*/}
                                 {user.ability.can(
                                     'create',
                                     'ScheduledDeliveries',
@@ -560,7 +564,6 @@ const Settings: FC = () => {
                                         }
                                     />
                                 )}
-
                                 {user.ability.can(
                                     'manage',
                                     'PersonalAccessToken',

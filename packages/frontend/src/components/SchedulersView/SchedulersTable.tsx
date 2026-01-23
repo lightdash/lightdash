@@ -102,7 +102,7 @@ const getRunStatusConfig = (status: SchedulerRunStatus) => {
 };
 
 const SchedulersTable: FC<SchedulersTableProps> = ({
-    projectUuid: projectUuidProp,
+    projectUuid,
     getSlackChannelName,
     onSlackChannelIdsChange,
     isUserScope = false,
@@ -144,7 +144,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
 
     const { data, fetchNextPage, isError, isFetching, isLoading } =
         usePaginatedSchedulers({
-            projectUuid: projectUuidProp,
+            projectUuid,
             paginateArgs: { page: 1, pageSize: fetchSize },
             searchQuery: debouncedSearchAndFilters.search,
             sortBy: debouncedSearchAndFilters.sortField,
@@ -161,11 +161,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
 
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = flatData.length;
-
-    // For user scope, get projectUuid from first scheduler item for fetching project details
-    const projectUuid = isUserScope
-        ? (flatData[0]?.projectUuid ?? undefined)
-        : projectUuidProp;
     const { data: project } = useProject(projectUuid);
 
     // Temporary workaround to resolve a memoization issue with react-mantine-table.
@@ -308,7 +303,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                     // For user scope, use projectUuid from the item itself
                     const itemProjectUuid = isUserScope
                         ? item.projectUuid
-                        : projectUuidProp;
+                        : projectUuid;
 
                     return (
                         <Group wrap="nowrap">
@@ -674,11 +669,13 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 const item = row.original;
                 return (
                     <Text fz="xs" c="ldGray.6">
-                        {project &&
-                            getHumanReadableCronExpression(
-                                item.cron,
-                                item.timezone || project.schedulerTimezone,
-                            )}
+                        {getHumanReadableCronExpression(
+                            item.cron,
+                            item.timezone ??
+                                item.projectSchedulerTimezone ??
+                                project?.schedulerTimezone ??
+                                'UTC',
+                        )}
                     </Text>
                 );
             },
@@ -718,7 +715,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                 // For user scope, use projectUuid from the item itself
                 const itemProjectUuid = isUserScope
                     ? item.projectUuid
-                    : projectUuidProp;
+                    : projectUuid;
 
                 return (
                     <Box
@@ -742,7 +739,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     }, [
         isUserScope,
         project,
-        projectUuidProp,
+        projectUuid,
         getSlackChannelName,
         setSearchParams,
         handleReassignOwner,
@@ -945,9 +942,8 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         });
     }, [schedulerUuidsToReassign, flatData]);
 
-    // For user scope, get projectUuid from the first scheduler being reassigned
     const reassignProjectUuid = useMemo(() => {
-        if (projectUuidProp) return projectUuidProp;
+        if (projectUuid) return projectUuid;
         if (schedulerUuidsToReassign.length > 0) {
             const scheduler = flatData.find(
                 (s) => s.schedulerUuid === schedulerUuidsToReassign[0],
@@ -955,7 +951,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
             return scheduler?.projectUuid;
         }
         return undefined;
-    }, [projectUuidProp, schedulerUuidsToReassign, flatData]);
+    }, [projectUuid, schedulerUuidsToReassign, flatData]);
 
     return (
         <>
