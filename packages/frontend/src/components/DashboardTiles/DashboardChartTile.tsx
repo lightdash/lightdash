@@ -1345,7 +1345,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                         </>
                     )
                 }
-                fullWidth={chart.chartConfig.type === ChartType.TABLE}
+                fullWidth={
+                    chart.chartConfig.type === ChartType.TABLE ||
+                    chart.chartConfig.type === ChartType.MAP
+                }
                 {...props}
             >
                 <>
@@ -1671,7 +1674,10 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                         </>
                     ) : undefined
                 }
-                fullWidth={chart.chartConfig.type === ChartType.TABLE}
+                fullWidth={
+                    chart.chartConfig.type === ChartType.TABLE ||
+                    chart.chartConfig.type === ChartType.MAP
+                }
                 {...props}
             >
                 <>
