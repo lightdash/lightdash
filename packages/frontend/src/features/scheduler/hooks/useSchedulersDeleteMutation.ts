@@ -19,7 +19,6 @@ export const useSchedulersDeleteMutation = () => {
             await queryClient.invalidateQueries(['chart_schedulers']);
             await queryClient.invalidateQueries(['dashboard_schedulers']);
             await queryClient.invalidateQueries(['paginatedSchedulers']);
-            await queryClient.invalidateQueries(['userPaginatedSchedulers']);
             showToastSuccess({
                 title: `Success! Scheduled delivery was deleted`,
             });

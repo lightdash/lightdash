@@ -83,12 +83,10 @@ const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
     };
 
     const handleRefresh = async () => {
-        const invalidateQueries = isUserScope
-            ? [queryClient.invalidateQueries(['userPaginatedSchedulers'])]
-            : [
-                  queryClient.invalidateQueries(['paginatedSchedulers']),
-                  queryClient.invalidateQueries(['schedulerRuns']),
-              ];
+        const invalidateQueries = [
+            queryClient.invalidateQueries(['paginatedSchedulers']),
+            queryClient.invalidateQueries(['schedulerRuns']),
+        ];
 
         await Promise.all(invalidateQueries);
 
