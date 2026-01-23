@@ -83,9 +83,12 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const [isScreenshotReady, setIsScreenshotReady] = useState(false);
         const hasSignaledReady = useRef(false);
 
+        const { data: explore } = useExplore(tableName);
+
         useEffect(() => {
             if (hasSignaledReady.current) return;
             if (!tableName) return;
+            if (!explore) return;
 
             const isSuccessfullyLoaded = !isLoadingQueryResults;
             if (!isSuccessfullyLoaded && !hasQueryError) {
@@ -94,9 +97,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
             setIsScreenshotReady(true);
             hasSignaledReady.current = true;
-        }, [tableName, isLoadingQueryResults, hasQueryError]);
-
-        const { data: explore } = useExplore(tableName);
+        }, [tableName, isLoadingQueryResults, hasQueryError, explore]);
 
         const { data: { parameterReferences } = {}, isError } = useCompiledSql({
             enabled: !!tableName,
