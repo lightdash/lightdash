@@ -6,7 +6,6 @@ import {
     isDimension,
     type CartesianSeriesType,
     type ItemsMap,
-    type ResultColumns,
     type Series,
 } from '@lightdash/common';
 import {
@@ -125,8 +124,6 @@ export const getExpectedSeriesMap = ({
 type MergeExistingAndExpectedSeriesArgs = {
     expectedSeriesMap: Record<string, Series>;
     existingSeries: Series[];
-    /** ResultColumns from API response - contains popMetadata for PoP fields */
-    resultsColumns?: ResultColumns;
 };
 
 export const mergeExistingAndExpectedSeries = ({
@@ -185,7 +182,6 @@ export const mergeExistingAndExpectedSeries = ({
                 return [...acc];
             }
 
-            // For PoP fields, inherit chart properties from the base field's series
             let seriesToAdd = expectedSeries;
 
             // Add series to the end of its group
