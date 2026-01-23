@@ -5,6 +5,7 @@ import {
     getFilterDimensionsForMetric,
     getSegmentDimensionsForMetric,
     type CatalogField,
+    type ChartConfig,
     type FilterRule,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
@@ -192,6 +193,11 @@ export const MetricExploreModalV2: FC<Props> = ({
         comparison: query.comparison,
     });
 
+    // Track the expanded chart config -> used to let the VisualizationProvider re-render with the new chart config, e.g. calculation of series & color assignment
+    const [expandedChartConfig, setExpandedChartConfig] = useState<
+        ChartConfig | undefined
+    >(undefined);
+
     const metricsWithTimeDimensionsQuery = useCatalogMetricsWithTimeDimensions({
         projectUuid,
         options: {
@@ -258,6 +264,10 @@ export const MetricExploreModalV2: FC<Props> = ({
         ['ArrowUp', handleGoToPreviousMetric],
         ['ArrowDown', handleGoToNextMetric],
     ]);
+
+    const handleChartConfigChange = useCallback((newConfig: ChartConfig) => {
+        setExpandedChartConfig(newConfig);
+    }, []);
 
     const handleSegmentDimensionChange = useCallback(
         (value: string | null) => {
@@ -507,7 +517,10 @@ export const MetricExploreModalV2: FC<Props> = ({
                                     >
                                         <VisualizationProvider
                                             resultsData={resultsData}
-                                            chartConfig={chartConfig}
+                                            chartConfig={
+                                                expandedChartConfig ??
+                                                chartConfig
+                                            }
                                             columnOrder={columnOrder}
                                             initialPivotDimensions={
                                                 segmentDimensionId
@@ -517,7 +530,9 @@ export const MetricExploreModalV2: FC<Props> = ({
                                             colorPalette={colorPalette}
                                             isLoading={isLoading}
                                             onSeriesContextMenu={undefined}
-                                            onChartConfigChange={undefined}
+                                            onChartConfigChange={
+                                                handleChartConfigChange
+                                            }
                                             pivotTableMaxColumnLimit={60}
                                         >
                                             <LightdashVisualization />
