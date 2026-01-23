@@ -18,6 +18,7 @@ import {
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getItemId,
+    getItemMap,
     getMetricsMapFromTables,
     getParsedReference,
     IntrinsicUserAttributes,
@@ -28,13 +29,13 @@ import {
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
     isNonAggregateMetric,
+    isPeriodOverPeriodAdditionalMetric,
     isPostCalculationMetric,
     ItemsMap,
     lightdashVariablePattern,
     MetricFilterRule,
     parseAllReferences,
     PivotConfiguration,
-    POP_PREVIOUS_PERIOD_SUFFIX,
     QueryWarning,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
@@ -231,6 +232,42 @@ export function getIntervalSyntax(
 export class MetricQueryBuilder {
     private compilationErrors: string[] = [];
 
+    private readonly popMetricIdByBaseMetricId: Record<string, string> = {};
+
+    private readonly baseMetricIdByPopMetricId: Record<string, string> = {};
+
+    private readonly popEnabledBaseMetricIds: Set<string> = new Set();
+
+    private readonly popComparisonConfig:
+        | {
+              timeDimensionId: string;
+              granularity: TimeFrames;
+              periodOffset: number;
+          }
+        | undefined;
+
+    private getPopMetricId(baseMetricId: string): string {
+        const popMetricId = this.popMetricIdByBaseMetricId[baseMetricId];
+        if (!popMetricId) {
+            throw new CompileError(
+                `Missing PoP previous metric mapping for base metric "${baseMetricId}"`,
+                {},
+            );
+        }
+        return popMetricId;
+    }
+
+    private isPopMetricId(metricId: string): boolean {
+        return metricId in this.baseMetricIdByPopMetricId;
+    }
+
+    private shouldGeneratePopForBaseMetricId(baseMetricId: string): boolean {
+        return (
+            baseMetricId in this.popMetricIdByBaseMetricId &&
+            this.popEnabledBaseMetricIds.has(baseMetricId)
+        );
+    }
+
     private readonly exploreDimensions: Record<string, CompiledDimension> = {};
 
     private readonly exploreDimensionsWithoutAccess: Record<
@@ -259,6 +296,88 @@ export class MetricQueryBuilder {
                 {},
             ),
         };
+
+        this.popMetricIdByBaseMetricId = (
+            compiledMetricQuery.additionalMetrics ?? []
+        )
+            .filter(isPeriodOverPeriodAdditionalMetric)
+            .reduce<Record<string, string>>((acc, metric) => {
+                const popMetricId = getItemId(metric);
+                const existingPopMetricId = acc[metric.baseMetricId];
+                if (
+                    existingPopMetricId !== undefined &&
+                    existingPopMetricId !== popMetricId
+                ) {
+                    throw new CompileError(
+                        `Multiple period comparisons for the same base metric are not supported yet (base metric: "${metric.baseMetricId}")`,
+                        {},
+                    );
+                }
+                acc[metric.baseMetricId] = getItemId(metric);
+                return acc;
+            }, {});
+
+        this.baseMetricIdByPopMetricId = Object.fromEntries(
+            Object.entries(this.popMetricIdByBaseMetricId).map(
+                ([baseMetricId, popMetricId]) => [popMetricId, baseMetricId],
+            ),
+        );
+
+        // PoP is metric-level: only generate PoP for base metrics whose PoP sibling is explicitly selected
+        this.popEnabledBaseMetricIds = new Set(
+            (compiledMetricQuery.metrics ?? [])
+                .map((metricId) => this.baseMetricIdByPopMetricId[metricId])
+                .filter(
+                    (baseMetricId): baseMetricId is string =>
+                        typeof baseMetricId === 'string',
+                ),
+        );
+
+        const selectedPopAdditionalMetrics = (
+            compiledMetricQuery.additionalMetrics ?? []
+        )
+            .filter(isPeriodOverPeriodAdditionalMetric)
+            .filter((am) =>
+                (compiledMetricQuery.metrics ?? []).includes(getItemId(am)),
+            );
+
+        if (selectedPopAdditionalMetrics.length > 0) {
+            const first = selectedPopAdditionalMetrics[0];
+            const expected = {
+                timeDimensionId: first.timeDimensionId,
+                granularity: first.granularity,
+                periodOffset: first.periodOffset,
+            };
+
+            const hasMixedConfig = selectedPopAdditionalMetrics.some(
+                (am) =>
+                    am.timeDimensionId !== expected.timeDimensionId ||
+                    am.granularity !== expected.granularity ||
+                    am.periodOffset !== expected.periodOffset,
+            );
+            if (hasMixedConfig) {
+                throw new CompileError(
+                    `Multiple period comparison configurations in a single query are not supported yet`,
+                    {},
+                );
+            }
+
+            // Ensure the comparison time dimension is actually selected in the query (required for joins)
+            if (
+                !compiledMetricQuery.dimensions.includes(
+                    expected.timeDimensionId,
+                )
+            ) {
+                throw new CompileError(
+                    `Period comparison time dimension "${expected.timeDimensionId}" must be selected in the query`,
+                    {},
+                );
+            }
+
+            this.popComparisonConfig = expected;
+        } else {
+            this.popComparisonConfig = undefined;
+        }
     }
 
     static buildCtesSQL(ctes: string[]) {
@@ -548,7 +667,9 @@ export class MetricQueryBuilder {
         const { metrics, filters } = compiledMetricQuery;
 
         // Regular metrics
-        const referencedMetricIds = new Set<string>(metrics);
+        const referencedMetricIds = new Set<string>(
+            metrics.filter((metricId) => !this.isPopMetricId(metricId)),
+        );
 
         // Add metrics from filters
         getFilterRulesFromGroup(filters.metrics).forEach((filter) =>
@@ -1169,7 +1290,7 @@ export class MetricQueryBuilder {
             intrinsicUserAttributes,
             userAttributes = {},
         } = this.args;
-        const { metrics, filters, periodOverPeriod } = compiledMetricQuery;
+        const { metrics, filters } = compiledMetricQuery;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
         const adapterType: SupportedDbtAdapter =
             warehouseSqlBuilder.getAdapterType();
@@ -1413,8 +1534,11 @@ export class MetricQueryBuilder {
                     metrics: metricsInCte.map((metric) => getItemId(metric)),
                 });
 
-                if (periodOverPeriod?.field) {
-                    const popFieldId = getItemId(periodOverPeriod?.field);
+                if (
+                    this.popComparisonConfig &&
+                    this.popEnabledBaseMetricIds.size > 0
+                ) {
+                    const popFieldId = this.popComparisonConfig.timeDimensionId;
                     /**
                      * CTE to get min and max date in deduplicated keys
                      */
@@ -1466,16 +1590,16 @@ export class MetricQueryBuilder {
                             popField.compiledSql,
                             `${popMinMaxCteName}.min_date`,
                             '>=',
-                            periodOverPeriod.periodOffset || 1,
-                            periodOverPeriod.granularity,
+                            this.popComparisonConfig!.periodOffset,
+                            this.popComparisonConfig!.granularity,
                             false,
                         )} AND ${getIntervalSyntax(
                             adapterType,
                             popField.compiledSql,
                             `${popMinMaxCteName}.max_date`,
                             '<=',
-                            periodOverPeriod.periodOffset || 1,
-                            periodOverPeriod.granularity,
+                            this.popComparisonConfig!.periodOffset,
+                            this.popComparisonConfig!.granularity,
                             false,
                         )}`,
                     ];
@@ -1499,19 +1623,27 @@ export class MetricQueryBuilder {
                     const popMetricsCteName = `cte_pop_metrics_${snakeCaseName(
                         table.name,
                     )}`;
+                    const popMetricsInCte = metricsInCte.filter((metric) =>
+                        this.shouldGeneratePopForBaseMetricId(
+                            getItemId(metric),
+                        ),
+                    );
+                    if (popMetricsInCte.length === 0) {
+                        return;
+                    }
                     const popMetricsCteParts = [
                         `SELECT`,
                         [
                             ...dimensionAlias.map(
                                 (alias) => `  ${popKeysCteName}.${alias}`,
                             ),
-                            ...metricsInCte.map(
+                            ...popMetricsInCte.map(
                                 (metric) =>
                                     `  ${
                                         metric.compiledSql
-                                    } AS ${fieldQuoteChar}${getItemId(
-                                        metric,
-                                    )}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
+                                    } AS ${fieldQuoteChar}${this.getPopMetricId(
+                                        getItemId(metric),
+                                    )}${fieldQuoteChar}`,
                             ),
                         ].join(',\n'),
                         `FROM ${popKeysCteName}`,
@@ -1536,11 +1668,8 @@ export class MetricQueryBuilder {
                     );
                     popMetricCtes.push({
                         name: popMetricsCteName,
-                        metrics: metricsInCte.map(
-                            (metric) =>
-                                `${getItemId(
-                                    metric,
-                                )}${POP_PREVIOUS_PERIOD_SUFFIX}`,
+                        metrics: popMetricsInCte.map((metric) =>
+                            this.getPopMetricId(getItemId(metric)),
                         ),
                     });
                 }
@@ -1600,8 +1729,12 @@ export class MetricQueryBuilder {
             }
             // Create PoP CTEs for unaffected metrics
             const popUnaffectedMetricsCteName = `cte_pop_unaffected`;
-            if (periodOverPeriod?.field && hasUnaffectedCte) {
-                const popFieldId = getItemId(periodOverPeriod?.field);
+            if (
+                this.popComparisonConfig &&
+                hasUnaffectedCte &&
+                this.popEnabledBaseMetricIds.size > 0
+            ) {
+                const popFieldId = this.popComparisonConfig.timeDimensionId;
 
                 /**
                  * CTE to get min and max date in unaffected metrics
@@ -1633,55 +1766,62 @@ export class MetricQueryBuilder {
                  * CTE for PoP unaffected metrics
                  * Filters are PoP specific rather than metric query filters
                  */
-                const popUnaffectedMetricsCteParts = [
-                    'SELECT',
-                    [
-                        ...Object.values(dimensionSelects),
-                        ...unaffectedMetrics.map(
-                            (metric) =>
-                                `  ${
-                                    metric.compiledSql
-                                } AS ${fieldQuoteChar}${getItemId(
-                                    metric,
-                                )}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
+                const popUnaffectedMetrics = unaffectedMetrics.filter(
+                    (metric) =>
+                        this.shouldGeneratePopForBaseMetricId(
+                            getItemId(metric),
                         ),
-                    ].join(',\n'),
-                    sqlFrom,
-                    ...[
-                        ...joins,
-                        `LEFT JOIN ${popUnaffectedMinMaxCteName} ON TRUE`,
-                    ],
-                    `WHERE ${getIntervalSyntax(
-                        adapterType,
-                        popField.compiledSql,
-                        `${popUnaffectedMinMaxCteName}.min_date`,
-                        '>=',
-                        periodOverPeriod.periodOffset || 1,
-                        periodOverPeriod.granularity,
-                        false,
-                    )} AND ${getIntervalSyntax(
-                        adapterType,
-                        popField.compiledSql,
-                        `${popUnaffectedMinMaxCteName}.max_date`,
-                        '<=',
-                        periodOverPeriod.periodOffset || 1,
-                        periodOverPeriod.granularity,
-                        false,
-                    )}`,
-                    dimensionGroupBy,
-                ];
-                ctes.push(
-                    `${popUnaffectedMetricsCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
-                        popUnaffectedMetricsCteParts,
-                    )}\n)`,
                 );
-                popMetricCtes.push({
-                    name: popUnaffectedMetricsCteName,
-                    metrics: unaffectedMetrics.map(
-                        (metric) =>
-                            `${getItemId(metric)}${POP_PREVIOUS_PERIOD_SUFFIX}`,
-                    ),
-                });
+                if (popUnaffectedMetrics.length > 0) {
+                    const popUnaffectedMetricsCteParts = [
+                        'SELECT',
+                        [
+                            ...Object.values(dimensionSelects),
+                            ...popUnaffectedMetrics.map(
+                                (metric) =>
+                                    `  ${
+                                        metric.compiledSql
+                                    } AS ${fieldQuoteChar}${this.getPopMetricId(
+                                        getItemId(metric),
+                                    )}${fieldQuoteChar}`,
+                            ),
+                        ].join(',\n'),
+                        sqlFrom,
+                        ...[
+                            ...joins,
+                            `LEFT JOIN ${popUnaffectedMinMaxCteName} ON TRUE`,
+                        ],
+                        `WHERE ${getIntervalSyntax(
+                            adapterType,
+                            popField.compiledSql,
+                            `${popUnaffectedMinMaxCteName}.min_date`,
+                            '>=',
+                            this.popComparisonConfig!.periodOffset,
+                            this.popComparisonConfig!.granularity,
+                            false,
+                        )} AND ${getIntervalSyntax(
+                            adapterType,
+                            popField.compiledSql,
+                            `${popUnaffectedMinMaxCteName}.max_date`,
+                            '<=',
+                            this.popComparisonConfig!.periodOffset,
+                            this.popComparisonConfig!.granularity,
+                            false,
+                        )}`,
+                        dimensionGroupBy,
+                    ];
+                    ctes.push(
+                        `${popUnaffectedMetricsCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(
+                            popUnaffectedMetricsCteParts,
+                        )}\n)`,
+                    );
+                    popMetricCtes.push({
+                        name: popUnaffectedMetricsCteName,
+                        metrics: popUnaffectedMetrics.map((metric) =>
+                            this.getPopMetricId(getItemId(metric)),
+                        ),
+                    });
+                }
             }
 
             const finalMetricSelects = [
@@ -1718,13 +1858,17 @@ export class MetricQueryBuilder {
                     metricCte.metrics
                         // excludes metrics only used for references
                         .filter((metric) =>
-                            metricsObjects.find(
-                                (m) =>
-                                    metric ===
-                                    `${getItemId(
-                                        m,
-                                    )}${POP_PREVIOUS_PERIOD_SUFFIX}`,
-                            ),
+                            metricsObjects.find((m) => {
+                                const baseMetricId = getItemId(m);
+                                const popMetricId =
+                                    this.popMetricIdByBaseMetricId[
+                                        baseMetricId
+                                    ];
+                                return (
+                                    popMetricId !== undefined &&
+                                    metric === popMetricId
+                                );
+                            }),
                         )
                         .map(
                             (metricName) =>
@@ -1768,11 +1912,10 @@ export class MetricQueryBuilder {
                             popMetricCte.name
                         } ON ${dimensionAlias
                             .map((alias) => {
-                                const popFieldId = periodOverPeriod
-                                    ? getItemId(periodOverPeriod?.field)
-                                    : undefined;
+                                const popFieldId =
+                                    this.popComparisonConfig?.timeDimensionId;
                                 if (
-                                    periodOverPeriod &&
+                                    this.popComparisonConfig &&
                                     alias ===
                                         `${fieldQuoteChar}${popFieldId}${fieldQuoteChar}`
                                 ) {
@@ -1782,8 +1925,8 @@ export class MetricQueryBuilder {
                                         `${unaffectedMetricsCteName}.${alias}`,
                                         `${popMetricCte.name}.${alias}`,
                                         '=',
-                                        periodOverPeriod.periodOffset || 1,
-                                        periodOverPeriod.granularity,
+                                        this.popComparisonConfig.periodOffset,
+                                        this.popComparisonConfig.granularity,
                                         true,
                                     )})`;
                                 }
@@ -2184,12 +2327,14 @@ export class MetricQueryBuilder {
         if (experimentalMetricsCteSQL.finalSelectParts) {
             finalSelectParts = experimentalMetricsCteSQL.finalSelectParts;
             ctes.push(...experimentalMetricsCteSQL.ctes);
-        } else if (compiledMetricQuery.periodOverPeriod?.field) {
+        } else if (
+            this.popComparisonConfig &&
+            this.popEnabledBaseMetricIds.size > 0
+        ) {
             // 1. Wrap finalSelectParts as a CTE
             // 2. Generate pop CTEs based on this CTE
             // 3. Create new finalSelectParts that joins everything
 
-            const { periodOverPeriod } = compiledMetricQuery;
             const fieldQuoteChar =
                 this.args.warehouseSqlBuilder.getFieldQuoteChar();
             const adapterType: SupportedDbtAdapter =
@@ -2202,7 +2347,7 @@ export class MetricQueryBuilder {
                 MetricQueryBuilder.wrapAsCte(baseCteName, finalSelectParts),
             );
 
-            const popFieldId = getItemId(periodOverPeriod.field);
+            const popFieldId = this.popComparisonConfig.timeDimensionId;
 
             // Create pop_min_max CTE to get date range
             const popMinMaxCteName = 'pop_min_max';
@@ -2231,16 +2376,20 @@ export class MetricQueryBuilder {
             });
 
             // Build pop CTE with same structure as base but filtered for previous period
+            const baseMetricIdsForPop = Array.from(
+                this.popEnabledBaseMetricIds,
+            );
+            const popMetricSelectsInPopCte = baseMetricIdsForPop.map(
+                (baseMetricId) => {
+                    const metric = this.getMetricFromId(baseMetricId);
+                    const popMetricId = this.getPopMetricId(baseMetricId);
+                    return `  ${metric.compiledSql} AS ${fieldQuoteChar}${popMetricId}${fieldQuoteChar}`;
+                },
+            );
             const popCteParts = [
                 `SELECT\n${[
                     ...Object.values(dimensionsSQL.selects),
-                    ...metricsSQL.selects.map((select) =>
-                        // rename metric to include pop prefix
-                        select.replace(
-                            new RegExp(`${fieldQuoteChar}$`),
-                            `${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
-                        ),
-                    ),
+                    ...popMetricSelectsInPopCte,
                 ].join(',\n')}`,
                 sqlFrom,
                 joins.joinSQL,
@@ -2251,16 +2400,16 @@ export class MetricQueryBuilder {
                     popField.compiledSql,
                     `${popMinMaxCteName}.min_date`,
                     '>=',
-                    periodOverPeriod.periodOffset || 1,
-                    periodOverPeriod.granularity,
+                    this.popComparisonConfig!.periodOffset,
+                    this.popComparisonConfig!.granularity,
                     false,
                 )} AND ${getIntervalSyntax(
                     adapterType,
                     popField.compiledSql,
                     `${popMinMaxCteName}.max_date`,
                     '<=',
-                    periodOverPeriod.periodOffset || 1,
-                    periodOverPeriod.granularity,
+                    this.popComparisonConfig!.periodOffset,
+                    this.popComparisonConfig!.granularity,
                     false,
                 )}`,
                 dimensionsSQL.groupBySQL,
@@ -2273,10 +2422,10 @@ export class MetricQueryBuilder {
             );
 
             // Create new finalSelectParts that joins base CTE with pop CTE
-            const popMetricSelects = compiledMetricQuery.metrics.map(
-                (metricId) =>
-                    `  ${popCteName}.${fieldQuoteChar}${metricId}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar} AS ${fieldQuoteChar}${metricId}${POP_PREVIOUS_PERIOD_SUFFIX}${fieldQuoteChar}`,
-            );
+            const popMetricSelects = baseMetricIdsForPop.map((baseMetricId) => {
+                const popMetricId = this.getPopMetricId(baseMetricId);
+                return `  ${popCteName}.${fieldQuoteChar}${popMetricId}${fieldQuoteChar} AS ${fieldQuoteChar}${popMetricId}${fieldQuoteChar}`;
+            });
             // Get dimension aliases from dimensionSelects
             const dimensionAlias = Object.keys(dimensionsSQL.selects).map(
                 (alias) => `${fieldQuoteChar}${alias}${fieldQuoteChar}`,
@@ -2298,8 +2447,8 @@ export class MetricQueryBuilder {
                                 `${baseCteName}.${alias}`,
                                 `${popCteName}.${alias}`,
                                 '=',
-                                periodOverPeriod.periodOffset || 1,
-                                periodOverPeriod.granularity,
+                                this.popComparisonConfig!.periodOffset,
+                                this.popComparisonConfig!.granularity,
                                 true,
                             )})`;
                         }
