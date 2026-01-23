@@ -88,7 +88,7 @@ type Props = { chartUuid: string } & Pick<MantineModalProps, 'onClose'>;
 export const SyncModalView: FC<Props> = ({ chartUuid, onClose }) => {
     const { data } = useChartSchedulers(chartUuid);
     const { setAction, setCurrentSchedulerUuid } = useSyncModal();
-    const googleSheetsSyncs = data?.filter(
+    const googleSheetsSyncs = data?.data.filter(
         ({ format }) => format === SchedulerFormat.GSHEETS,
     );
 

@@ -1,5 +1,6 @@
 import { type FilterableDimension } from './field';
 import { type DashboardFilters } from './filter';
+import { type KnexPaginatedData } from './knex-paginate';
 import { type DashboardParameters } from './parameters';
 import {
     type ChartKind,
@@ -348,7 +349,7 @@ export type ApiCreateDashboardWithChartsResponse = {
 
 export type ApiDashboardSchedulersResponse = {
     status: 'ok';
-    results: SchedulerAndTargets[];
+    results: KnexPaginatedData<SchedulerAndTargets[]>;
 };
 
 export type ApiCreateDashboardSchedulerResponse = {

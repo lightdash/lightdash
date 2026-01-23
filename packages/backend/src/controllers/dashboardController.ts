@@ -2,6 +2,7 @@ import {
     ApiErrorPayload,
     ApiPromoteDashboardResponse,
     ApiPromotionChangesResponse,
+    KnexPaginateArgs,
     type ApiCreateDashboardSchedulerResponse,
     type ApiDashboardSchedulersResponse,
 } from '@lightdash/common';
@@ -11,6 +12,7 @@ import {
     OperationId,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -77,6 +79,14 @@ export class DashboardController extends BaseController {
         };
     }
 
+    /**
+     * Get all schedulers for a dashboard
+     * @summary List dashboard schedulers
+     * @param dashboardUuid The uuid of the dashboard
+     * @param req express request
+     * @param pageSize number of items per page
+     * @param page page number
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/schedulers')
@@ -84,13 +94,24 @@ export class DashboardController extends BaseController {
     async getDashboardSchedulers(
         @Path() dashboardUuid: string,
         @Request() req: express.Request,
+        @Query() pageSize?: number,
+        @Query() page?: number,
     ): Promise<ApiDashboardSchedulersResponse> {
         this.setStatus(200);
+
+        let paginateArgs: KnexPaginateArgs | undefined;
+        if (pageSize && page) {
+            paginateArgs = {
+                page,
+                pageSize,
+            };
+        }
+
         return {
             status: 'ok',
             results: await this.services
                 .getDashboardService()
-                .getSchedulers(req.user!, dashboardUuid),
+                .getSchedulers(req.user!, dashboardUuid, paginateArgs),
         };
     }
 

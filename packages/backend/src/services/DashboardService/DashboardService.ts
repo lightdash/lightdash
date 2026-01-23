@@ -13,6 +13,8 @@ import {
     DashboardVersionedFields,
     ExploreType,
     ForbiddenError,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     ParameterError,
     PossibleAbilities,
     SchedulerAndTargets,
@@ -1064,9 +1066,13 @@ export class DashboardService
     async getSchedulers(
         user: SessionUser,
         dashboardUuid: string,
-    ): Promise<SchedulerAndTargets[]> {
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         await this.checkCreateScheduledDeliveryAccess(user, dashboardUuid);
-        return this.schedulerModel.getDashboardSchedulers(dashboardUuid);
+        return this.schedulerModel.getDashboardSchedulers(
+            dashboardUuid,
+            paginateArgs,
+        );
     }
 
     async createScheduler(

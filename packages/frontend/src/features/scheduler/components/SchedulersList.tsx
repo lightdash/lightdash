@@ -30,7 +30,9 @@ const SchedulersList: FC<Props> = ({
     const { data: schedulers, isInitialLoading, error } = schedulersQuery;
     const [schedulerUuid, setSchedulerUuid] = useState<string>();
 
-    const { deliverySchedulers, alertSchedulers } = (schedulers ?? []).reduce<{
+    const { deliverySchedulers, alertSchedulers } = (
+        schedulers?.data ?? []
+    ).reduce<{
         deliverySchedulers: SchedulerAndTargets[];
         alertSchedulers: SchedulerAndTargets[];
     }>(

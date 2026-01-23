@@ -507,8 +507,9 @@ export class SchedulerModel {
 
     async getChartSchedulers(
         savedChartUuid: string,
-    ): Promise<SchedulerAndTargets[]> {
-        const schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        const query = SchedulerModel.getBaseSchedulerQuery(this.database)
             .where(`${SchedulerTableName}.saved_chart_uuid`, savedChartUuid)
             .orderBy([
                 {
@@ -520,13 +521,23 @@ export class SchedulerModel {
                     order: 'asc',
                 },
             ]);
-        return this.getSchedulersWithTargets(await schedulers);
+
+        const { pagination, data } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        return {
+            pagination,
+            data: await this.getSchedulersWithTargets(data),
+        };
     }
 
     async getDashboardSchedulers(
         dashboardUuid: string,
-    ): Promise<SchedulerAndTargets[]> {
-        const schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        const query = SchedulerModel.getBaseSchedulerQuery(this.database)
             .where(`${SchedulerTableName}.dashboard_uuid`, dashboardUuid)
             .orderBy([
                 {
@@ -538,7 +549,16 @@ export class SchedulerModel {
                     order: 'asc',
                 },
             ]);
-        return this.getSchedulersWithTargets(await schedulers);
+
+        const { pagination, data } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        return {
+            pagination,
+            data: await this.getSchedulersWithTargets(data),
+        };
     }
 
     async getScheduler(schedulerUuid: string): Promise<Scheduler> {

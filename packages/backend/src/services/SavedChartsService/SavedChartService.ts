@@ -14,6 +14,8 @@ import {
     ExploreType,
     ForbiddenError,
     GoogleSheetsTransientError,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -1084,9 +1086,10 @@ export class SavedChartService
     async getSchedulers(
         user: SessionUser,
         chartUuid: string,
-    ): Promise<SchedulerAndTargets[]> {
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         await this.checkCreateScheduledDeliveryAccess(user, chartUuid);
-        return this.schedulerModel.getChartSchedulers(chartUuid);
+        return this.schedulerModel.getChartSchedulers(chartUuid, paginateArgs);
     }
 
     async createScheduler(

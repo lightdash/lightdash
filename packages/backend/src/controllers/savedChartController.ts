@@ -8,6 +8,7 @@ import {
     ApiPromotionChangesResponse,
     ApiSuccessEmpty,
     DateZoom,
+    KnexPaginateArgs,
     QueryExecutionContext,
     SortField,
     type ApiCreateSavedChartSchedulerResponse,
@@ -22,6 +23,7 @@ import {
     OperationId,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -394,6 +396,14 @@ export class SavedChartController extends BaseController {
         };
     }
 
+    /**
+     * Get all schedulers for a saved chart
+     * @summary List chart schedulers
+     * @param chartUuid The uuid of the chart
+     * @param req express request
+     * @param pageSize number of items per page
+     * @param page page number
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/schedulers')
@@ -401,13 +411,24 @@ export class SavedChartController extends BaseController {
     async getSavedChartSchedulers(
         @Path() chartUuid: string,
         @Request() req: express.Request,
+        @Query() pageSize?: number,
+        @Query() page?: number,
     ): Promise<ApiSavedChartSchedulersResponse> {
         this.setStatus(200);
+
+        let paginateArgs: KnexPaginateArgs | undefined;
+        if (pageSize && page) {
+            paginateArgs = {
+                page,
+                pageSize,
+            };
+        }
+
         return {
             status: 'ok',
             results: await this.services
                 .getSavedChartService()
-                .getSchedulers(req.user!, chartUuid),
+                .getSchedulers(req.user!, chartUuid, paginateArgs),
         };
     }
 

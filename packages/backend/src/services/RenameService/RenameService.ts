@@ -655,7 +655,12 @@ export class RenameService extends BaseService {
             const chartSchedulerPromises = chartSummaries.map((chart) =>
                 this.schedulerModel.getChartSchedulers(chart.uuid),
             );
-            const chartSchedulers = await Promise.all(chartSchedulerPromises);
+            const chartSchedulersResults = await Promise.all(
+                chartSchedulerPromises,
+            );
+            const chartSchedulers = chartSchedulersResults.map(
+                (result) => result.data,
+            );
             const alerts = chartSchedulers
                 .flat()
                 .filter((scheduler) => scheduler.thresholds !== undefined);
@@ -680,8 +685,11 @@ export class RenameService extends BaseService {
                 (dashboard) =>
                     this.schedulerModel.getDashboardSchedulers(dashboard.uuid),
             );
-            const dashboardSchedulers = await Promise.all(
+            const dashboardSchedulersResults = await Promise.all(
                 dashboardSchedulerPromises,
+            );
+            const dashboardSchedulers = dashboardSchedulersResults.map(
+                (result) => result.data,
             );
             const dashboardSchedulerChanges = dashboardSchedulers
                 .flat()

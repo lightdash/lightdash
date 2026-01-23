@@ -57,7 +57,7 @@ export const TabDeleteModal: FC<DeleteProps> = ({
     const affectedSchedulers = useMemo(() => {
         if (!schedulers) return [];
 
-        return schedulers.filter((scheduler) => {
+        return schedulers.data.filter((scheduler) => {
             if (isDashboardScheduler(scheduler) && scheduler.selectedTabs) {
                 return scheduler.selectedTabs.includes(tab.uuid);
             }
