@@ -28,13 +28,13 @@ import {
     MetricOverrides,
     NotFoundError,
     Organization,
-    PeriodOverPeriodComparison,
     Project,
     SavedChartDAO,
     SessionUser,
     SortField,
     Space,
     TableCalculation,
+    TimeFrames,
     TimeZone,
     UpdatedByUser,
     UpdateMultipleSavedChart,
@@ -103,7 +103,6 @@ type DbSavedChartDetails = {
     pinned_list_uuid: string;
     dashboard_uuid: string | null;
     timezone: TimeZone | null;
-    period_over_period_config: PeriodOverPeriodComparison | null;
 };
 
 const createSavedChartVersionFields = async (
@@ -195,7 +194,6 @@ const createSavedChartVersion = async (
             additionalMetrics,
             customDimensions,
             timezone,
-            periodOverPeriod,
         },
         chartConfig,
         tableConfig,
@@ -231,7 +229,8 @@ const createSavedChartVersion = async (
                 parameters: parameters ? JSON.stringify(parameters) : null,
                 updated_by_user_uuid: updatedByUser?.userUuid || null,
                 timezone: timezone || null,
-                period_over_period_config: periodOverPeriod || null,
+                // Deprecated: PoP is now explicit additional metrics, not a saved chart-level config
+                period_over_period_config: null,
             })
             .returning('*');
         await createSavedChartVersionFields(
@@ -348,6 +347,14 @@ const createSavedChartVersion = async (
                 format_options: additionalMetric.formatOptions
                     ? JSON.stringify(additionalMetric.formatOptions)
                     : null,
+                generated_by: additionalMetric.generatedBy ?? null,
+                base_metric_id: additionalMetric.baseMetricId ?? null,
+                time_dimension_id: additionalMetric.timeDimensionId ?? null,
+                granularity: additionalMetric.granularity ?? null,
+                period_offset:
+                    additionalMetric.periodOffset !== undefined
+                        ? additionalMetric.periodOffset
+                        : null,
             })),
         );
     });
@@ -503,6 +510,23 @@ export class SavedChartModel {
             sql: additionalMetric.sql,
             table: additionalMetric.table,
             type: additionalMetric.type,
+            ...(additionalMetric.generated_by && {
+                generatedBy:
+                    additionalMetric.generated_by as 'periodOverPeriod',
+            }),
+            ...(additionalMetric.base_metric_id && {
+                baseMetricId: additionalMetric.base_metric_id,
+            }),
+            ...(additionalMetric.time_dimension_id && {
+                timeDimensionId: additionalMetric.time_dimension_id,
+            }),
+            ...(additionalMetric.granularity && {
+                granularity: additionalMetric.granularity as TimeFrames,
+            }),
+            ...(additionalMetric.period_offset !== undefined &&
+                additionalMetric.period_offset !== null && {
+                    periodOffset: additionalMetric.period_offset,
+                }),
             ...(additionalMetric.base_dimension_name && {
                 baseDimensionName: additionalMetric.base_dimension_name,
             }),
@@ -884,7 +908,6 @@ export class SavedChartModel {
                         'saved_queries_versions.pivot_dimensions',
                         'saved_queries_versions.timezone',
                         'saved_queries_versions.parameters',
-                        'saved_queries_versions.period_over_period_config',
                         `${OrganizationTableName}.organization_uuid`,
                         `${OrganizationColorPaletteTableName}.colors as color_palette`,
                         `${UserTableName}.user_uuid`,
@@ -975,6 +998,12 @@ export class SavedChartModel {
                         'uuid',
                         'compact',
                         'format_options',
+                        // PoP metadata (optional)
+                        'generated_by',
+                        'base_metric_id',
+                        'time_dimension_id',
+                        'granularity',
+                        'period_offset',
                     ])
                     .where('saved_queries_version_id', savedQueriesVersionId);
 
@@ -1127,8 +1156,6 @@ export class SavedChartModel {
                             })),
                         ],
                         timezone: savedQuery.timezone || undefined,
-                        periodOverPeriod:
-                            savedQuery.period_over_period_config ?? undefined,
                     },
                     parameters: savedQuery.parameters || undefined,
                     chartConfig,

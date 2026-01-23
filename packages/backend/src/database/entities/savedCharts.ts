@@ -237,6 +237,12 @@ export type DbSavedChartAdditionalMetric = {
     base_dimension_name: string | null;
     uuid: string;
     format_options?: CustomFormat | null; // JSONB
+    // PoP metadata (optional)
+    generated_by?: string | null;
+    base_metric_id?: string | null;
+    time_dimension_id?: string | null;
+    granularity?: string | null;
+    period_offset?: number | null;
 };
 export type DbSavedChartAdditionalMetricInsert = Omit<
     DbSavedChartAdditionalMetric,
@@ -276,6 +282,11 @@ export type DBFilteredAdditionalMetrics = Pick<
             | 'filters'
             | 'base_dimension_name'
             | 'format_options'
+            | 'generated_by'
+            | 'base_metric_id'
+            | 'time_dimension_id'
+            | 'granularity'
+            | 'period_offset'
         >
     >;
 
