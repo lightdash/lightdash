@@ -1,3 +1,16 @@
+# [0.2373.0](https://github.com/lightdash/lightdash/compare/0.2372.3...0.2373.0) (2026-01-23)
+
+
+### Bug Fixes
+
+* dashboard export fails when first tab is empty ([#19474](https://github.com/lightdash/lightdash/issues/19474)) ([9470c88](https://github.com/lightdash/lightdash/commit/9470c8820a6e801aa28937ca0bb49d7a0d0d6e76)), closes [#19427](https://github.com/lightdash/lightdash/issues/19427)
+* increase UPLOAD_GSHEET_FROM_QUERY job priority from LOW to HIGH ([#19693](https://github.com/lightdash/lightdash/issues/19693)) ([76bd143](https://github.com/lightdash/lightdash/commit/76bd143a1274d056951f44e610c2572b70ffe02a))
+
+
+### Features
+
+* always sort tabs before updating dashboard provider ([#19604](https://github.com/lightdash/lightdash/issues/19604)) ([8506fe3](https://github.com/lightdash/lightdash/commit/8506fe37d519b6ec96e8a506cc785fe2d3d19045))
+
 ## [0.2372.3](https://github.com/lightdash/lightdash/compare/0.2372.2...0.2372.3) (2026-01-23)
 
 
