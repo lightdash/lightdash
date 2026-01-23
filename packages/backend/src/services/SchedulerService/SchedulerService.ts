@@ -319,7 +319,7 @@ export class SchedulerService extends BaseService {
             return schedulers;
         }
 
-        const runs = await this.schedulerModel.getSchedulerRuns({
+        const runs = await this.schedulerModel.getProjectSchedulerRuns({
             projectUuid,
             sort: { column: 'scheduledTime', direction: 'desc' },
             filters: {
@@ -396,7 +396,6 @@ export class SchedulerService extends BaseService {
         }
 
         const runs = await this.schedulerModel.getUserSchedulerRuns({
-            organizationUuid: user.organizationUuid,
             userUuid: user.userUuid,
             sort: { column: 'scheduledTime', direction: 'desc' },
             filters: {
@@ -1042,13 +1041,15 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const schedulerRuns = await this.schedulerModel.getSchedulerRuns({
-            projectUuid,
-            paginateArgs,
-            searchQuery,
-            sort,
-            filters,
-        });
+        const schedulerRuns = await this.schedulerModel.getProjectSchedulerRuns(
+            {
+                projectUuid,
+                paginateArgs,
+                searchQuery,
+                sort,
+                filters,
+            },
+        );
 
         this.analytics.track({
             userId: user.userUuid,
