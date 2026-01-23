@@ -1,20 +1,15 @@
 import { TextInput } from '@mantine/core';
 import cronstrue from 'cronstrue';
-import React, { useMemo, type FC } from 'react';
-import { isInvalidCronExpression } from '../../../utils/fieldValidators';
+import { useMemo, type FC } from 'react';
+import { isInvalidCronExpression } from '../../utils/fieldValidators';
 
 const CustomInputs: FC<{
     name: string;
     disabled?: boolean;
     cronExpression: string;
-    // These two error types are from the two form handlers.
-    // We should be removing one of them.
     error?: string;
-    errors?: {
-        [x: string]: any;
-    };
     onChange: (value: string) => void;
-}> = ({ name, disabled, cronExpression, error, errors, onChange }) => {
+}> = ({ name, disabled, cronExpression, error, onChange }) => {
     const cronHelperText = useMemo(() => {
         const validationError =
             isInvalidCronExpression('Cron expression')(cronExpression);
@@ -24,10 +19,10 @@ const CustomInputs: FC<{
         });
         return validationError ?? cronHumanString;
     }, [cronExpression]);
-    const cronError = error ?? errors?.[name]?.message;
 
     return (
         <TextInput
+            name={name}
             maw="350px"
             withAsterisk
             value={cronExpression}
@@ -35,8 +30,8 @@ const CustomInputs: FC<{
             disabled={disabled}
             onChange={(e) => onChange(e.target.value)}
             inputWrapperOrder={['label', 'input', 'description', 'error']}
-            description={!cronError && cronHelperText}
-            error={cronError}
+            description={!error && cronHelperText}
+            error={error}
         />
     );
 };

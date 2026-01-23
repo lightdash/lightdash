@@ -6,7 +6,6 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
-import { type ControllerRenderProps, type FieldValues } from 'react-hook-form';
 import CustomInputs from './CustomInputs';
 import DailyInputs from './DailyInputs';
 import FrequencySelect from './FrequencySelect';
@@ -19,21 +18,18 @@ import {
     mapCronExpressionToFrequency,
 } from './cronInputUtils';
 
-// TODO: this type is a bit of a mess because this component is used
-// both in react-hook-form forms as well as mantine forms. If/when
-// we move away from one of them, this should get simplified.
+type CronInternalInputsProps = {
+    name: string;
+    value: string;
+    onChange: (value: string) => void;
+    disabled?: boolean;
+    error?: string;
+    onBlur?: () => void;
+};
+
 export const CronInternalInputs: FC<
-    PropsWithChildren<
-        {
-            disabled: boolean | undefined;
-            error?: string;
-            errors?: {
-                [x: string]: any;
-            };
-            onBlur?: () => void;
-        } & Omit<ControllerRenderProps<FieldValues, string>, 'ref' | 'onBlur'>
-    >
-> = ({ value, disabled, onChange, name, error, errors, children }) => {
+    PropsWithChildren<CronInternalInputsProps>
+> = ({ name, value, disabled, onChange, error, children }) => {
     const [frequency, setFrequency] = useState<Frequency>(
         mapCronExpressionToFrequency(value),
     );
@@ -76,7 +72,6 @@ export const CronInternalInputs: FC<
                     name={name}
                     cronExpression={value}
                     onChange={onChange}
-                    errors={errors}
                     error={error}
                 />
             )}
