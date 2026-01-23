@@ -4039,6 +4039,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         channelId: string,
         threadTs: string | undefined,
         say: Function,
+        shouldSkipForwardingQuery = false,
     ): Promise<void> {
         // Fetch project names for grouping
         const uniqueProjectUuids = [
@@ -4064,6 +4065,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 availableAgents,
                 channelId,
                 projectMap,
+                shouldSkipForwardingQuery,
             ),
             thread_ts: threadTs,
         });
@@ -4078,7 +4080,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
      * IMPORTANT: This function should ONLY be called for multi-agent channel contexts.
      * Regular channels should use channel-based agent routing instead.
      *
-     * @returns The selected agent, or undefined if selection is pending (UI shown) or no agents available
+     * @returns The selected agent and a flag indicating whether to skip forwarding the query, or undefined if selection is pending (UI shown) or no agents available
      */
     private async selectAgentForSlack({
         availableAgents,
@@ -4098,7 +4100,10 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         botUserId: string | undefined;
         client: WebClient;
         isMultiAgentChannel: boolean;
-    }): Promise<AiAgentWithContext | undefined> {
+    }): Promise<
+        | { agent: AiAgentWithContext; shouldSkipForwardingQuery: boolean }
+        | undefined
+    > {
         // Guard: This function is only meant for multi-agent channel contexts
         if (!isMultiAgentChannel) {
             Logger.warn(
@@ -4119,7 +4124,10 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         }
 
         if (availableAgents.length === 1) {
-            return availableAgents[0];
+            return {
+                agent: availableAgents[0],
+                shouldSkipForwardingQuery: false,
+            };
         }
 
         // Multiple agents - use LLM to select the best one
@@ -4138,6 +4146,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 agentName: selectedAgent.name,
                 reasoning: selection.reasoning,
                 confidence: selection.confidence,
+                shouldSkipForwardingQuery: selection.shouldSkipForwardingQuery,
             })}`,
         );
 
@@ -4145,13 +4154,18 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         if (selection.confidence === 'low') {
             Logger.info(
                 `Low confidence in agent selection - showing manual selection UI,
-                ${JSON.stringify({ reasoning: selection.reasoning })},`,
+                ${JSON.stringify({
+                    reasoning: selection.reasoning,
+                    shouldSkipForwardingQuery:
+                        selection.shouldSkipForwardingQuery,
+                })},`,
             );
             await this.showAgentSelectionUI(
                 availableAgents,
                 channelId,
                 threadTs,
                 say,
+                selection.shouldSkipForwardingQuery,
             );
             return undefined;
         }
@@ -4169,7 +4183,10 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             },
         );
 
-        return selectedAgent;
+        return {
+            agent: selectedAgent,
+            shouldSkipForwardingQuery: selection.shouldSkipForwardingQuery,
+        };
     }
 
     /**
@@ -4413,7 +4430,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 },
             );
 
-            agentConfig = await this.selectAgentForSlack({
+            const selectionResult = await this.selectAgentForSlack({
                 availableAgents,
                 messageText: event.text,
                 channelId: event.channel,
@@ -4424,8 +4441,19 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 isMultiAgentChannel,
             });
 
-            if (!agentConfig) {
+            if (!selectionResult) {
                 // Selection pending (UI shown) or no agents available
+                return;
+            }
+
+            const { agent, shouldSkipForwardingQuery } = selectionResult;
+            agentConfig = agent;
+
+            // If this was a meta-query about agent selection, don't forward it to the agent
+            if (shouldSkipForwardingQuery) {
+                Logger.info(
+                    `Skipping query forwarding for meta-query in multi-agent channel message`,
+                );
                 return;
             }
 
@@ -4487,9 +4515,13 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             }
 
             try {
-                // Parse the selected agent UUID and channel ID from the action value
+                // Parse the selected agent UUID, channel ID, and shouldSkipForwardingQuery flag from the action value
                 const selectedValue = JSON.parse(action.selected_option.value);
-                const { agentUuid, channelId } = selectedValue;
+                const {
+                    agentUuid,
+                    channelId,
+                    shouldSkipForwardingQuery = false,
+                } = selectedValue;
 
                 if (!agentUuid || !channelId) {
                     Logger.error('Invalid agent selection value', {
@@ -4632,18 +4664,6 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     }
                 }
 
-                // Create the prompt with the selected agent
-                const [slackPromptUuid] = await this.createSlackPrompt({
-                    userUuid,
-                    projectUuid: agentConfig.projectUuid,
-                    slackUserId: body.user.id,
-                    slackChannelId: channelId,
-                    slackThreadTs: threadTs,
-                    prompt: originalMessage.text,
-                    promptSlackTs: originalMessage.ts || '',
-                    agentUuid: agentConfig.uuid,
-                });
-
                 // Post confirmation message with agent details
                 const botMentionName = context.botUserId
                     ? `<@${context.botUserId}>`
@@ -4659,6 +4679,26 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         botMentionName,
                     },
                 );
+
+                // If this was a meta-query about agent selection, don't forward it to the agent
+                if (shouldSkipForwardingQuery) {
+                    Logger.info(
+                        `Skipping query forwarding for meta-query in agent selection`,
+                    );
+                    return;
+                }
+
+                // Create the prompt with the selected agent
+                const [slackPromptUuid] = await this.createSlackPrompt({
+                    userUuid,
+                    projectUuid: agentConfig.projectUuid,
+                    slackUserId: body.user.id,
+                    slackChannelId: channelId,
+                    slackThreadTs: threadTs,
+                    prompt: originalMessage.text,
+                    promptSlackTs: originalMessage.ts || '',
+                    agentUuid: agentConfig.uuid,
+                });
 
                 // Post the initial "working on it" message
                 const postedMessage = await client.chat.postMessage({
@@ -5096,7 +5136,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     },
                 );
 
-                agentConfig = await this.selectAgentForSlack({
+                const selectionResult = await this.selectAgentForSlack({
                     availableAgents,
                     messageText: event.text ?? '',
                     channelId: event.channel,
@@ -5107,7 +5147,18 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     isMultiAgentChannel,
                 });
 
-                if (!agentConfig) {
+                if (!selectionResult) {
+                    return;
+                }
+
+                const { agent, shouldSkipForwardingQuery } = selectionResult;
+                agentConfig = agent;
+
+                // If this was a meta-query about agent selection, don't forward it to the agent
+                if (shouldSkipForwardingQuery) {
+                    Logger.info(
+                        `Skipping query forwarding for meta-query in app mention`,
+                    );
                     return;
                 }
             }
@@ -5150,7 +5201,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         },
                     );
 
-                    agentConfig = await this.selectAgentForSlack({
+                    const selectionResult = await this.selectAgentForSlack({
                         availableAgents,
                         messageText: event.text ?? '',
                         channelId: event.channel,
@@ -5161,7 +5212,19 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         isMultiAgentChannel,
                     });
 
-                    if (!agentConfig) {
+                    if (!selectionResult) {
+                        return;
+                    }
+
+                    const { agent, shouldSkipForwardingQuery } =
+                        selectionResult;
+                    agentConfig = agent;
+
+                    // If this was a meta-query about agent selection, don't forward it to the agent
+                    if (shouldSkipForwardingQuery) {
+                        Logger.info(
+                            `Skipping query forwarding for meta-query in existing thread`,
+                        );
                         return;
                     }
                 }

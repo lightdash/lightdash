@@ -7,6 +7,7 @@ export enum Frequency {
     MONTHLY = 'MONTHLY',
     CUSTOM = 'CUSTOM',
 }
+
 const hasAllHours = (count: number) => count === 24;
 const hasAllDays = (count: number) => count === 31;
 const hasAllMonths = (count: number) => count === 12;

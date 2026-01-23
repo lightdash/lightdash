@@ -1,5 +1,4 @@
 import { type SearchItemType, type TimeFrames } from '@lightdash/common';
-import { type FormState } from 'react-hook-form';
 import type * as rudderSDK from 'rudder-sdk-js';
 import {
     type CategoryName,
@@ -131,14 +130,6 @@ export type GlobalSearchClosedEvent = {
     name: EventName.GLOBAL_SEARCH_CLOSED;
     properties: {
         action: 'result_click' | 'default';
-    };
-};
-
-export type FormClickedEvent = {
-    name: EventName.FORM_STATE_CHANGED;
-    properties: {
-        form: string;
-        formState: FormState<any>;
     };
 };
 
@@ -470,7 +461,6 @@ type DashboardUiVersionToggledEvent = {
 
 export type EventData =
     | GenericEvent
-    | FormClickedEvent
     | SetupStepClickedEvent
     | DocumentationClickedEvent
     | SearchResultClickedEvent

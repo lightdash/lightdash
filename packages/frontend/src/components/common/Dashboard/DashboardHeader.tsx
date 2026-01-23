@@ -36,8 +36,8 @@ import {
     IconUpload,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useLocation, useParams } from 'react-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import AIDashboardSummary from '../../../ee/features/ambientAi/components/aiDashboardSummary';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
@@ -121,7 +121,8 @@ const DashboardHeader = ({
         'ai-dashboard-summary' as FeatureFlags,
     );
 
-    const { search } = useLocation();
+    const { search, pathname } = useLocation();
+    const navigate = useNavigate();
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
@@ -149,13 +150,47 @@ const DashboardHeader = ({
         isLoading: promoteDashboardDiffLoading,
     } = usePromoteDashboardDiffMutation();
 
+    // Capture scheduler UUID from URL for deep linking to edit mode
+    const [initialSchedulerUuid, setInitialSchedulerUuid] = useState<
+        string | undefined
+    >(() => getSchedulerUuidFromUrlParams(search) ?? undefined);
+
+    const hasProcessedUrlParams = useRef(false);
     useEffect(() => {
+        if (hasProcessedUrlParams.current) return;
+
         const schedulerUuidFromUrlParams =
             getSchedulerUuidFromUrlParams(search);
-        if (schedulerUuidFromUrlParams) {
-            toggleScheduledDeliveriesModal(true);
+
+        if (!schedulerUuidFromUrlParams) {
+            return;
         }
-    }, [search, toggleScheduledDeliveriesModal]);
+
+        hasProcessedUrlParams.current = true;
+        toggleScheduledDeliveriesModal(true);
+
+        // Clear URL params to prevent modal from reopening on close
+        const newParams = new URLSearchParams(search);
+        newParams.delete('scheduler_uuid');
+        void navigate(
+            { pathname, search: newParams.toString() },
+            { replace: true },
+        );
+    }, [search, pathname, navigate, toggleScheduledDeliveriesModal]);
+
+    // Clear initial UUID when modal is closed so reopening shows the list
+    const wasScheduledDeliveriesModalOpen = useRef(false);
+    useEffect(() => {
+        // Only clear when transitioning from open to closed, not on initial render
+        if (
+            wasScheduledDeliveriesModalOpen.current &&
+            !isScheduledDeliveriesModalOpen
+        ) {
+            setInitialSchedulerUuid(undefined);
+        }
+        wasScheduledDeliveriesModalOpen.current =
+            isScheduledDeliveriesModalOpen;
+    }, [isScheduledDeliveriesModalOpen]);
 
     const isPinned = useMemo(() => {
         return Boolean(dashboard?.pinnedListUuid);
@@ -652,6 +687,7 @@ const DashboardHeader = ({
                             onClose={() =>
                                 toggleScheduledDeliveriesModal(false)
                             }
+                            initialSchedulerUuid={initialSchedulerUuid}
                         />
                     )}
                     {(promoteDashboardDiff || promoteDashboardDiffLoading) &&

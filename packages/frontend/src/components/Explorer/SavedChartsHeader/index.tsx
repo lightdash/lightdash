@@ -37,7 +37,14 @@ import {
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { useBlocker, useLocation, useNavigate, useParams } from 'react-router';
 import {
     explorerActions,
@@ -101,7 +108,7 @@ const SavedChartsHeader: FC = () => {
         FeatureFlags.EnableUserTimezones,
     );
 
-    const { search } = useLocation();
+    const { search, pathname } = useLocation();
     const { projectUuid } = useParams<{
         projectUuid: string;
     }>();
@@ -174,30 +181,83 @@ const SavedChartsHeader: FC = () => {
         health.data?.auth.google.oauth2ClientId !== undefined &&
         health.data?.auth.google.googleDriveApiKey !== undefined;
 
+    // Capture scheduler UUID from URL for deep linking to edit mode
+    const [initialSchedulerUuid, setInitialSchedulerUuid] = useState<
+        string | undefined
+    >(() => getSchedulerUuidFromUrlParams(search) ?? undefined);
+    const [initialThresholdUuid, setInitialThresholdUuid] = useState<
+        string | undefined
+    >(() => getThresholdUuidFromUrlParams(search) ?? undefined);
+
+    const hasProcessedUrlParams = useRef(false);
     useEffect(() => {
+        if (hasProcessedUrlParams.current) return;
+
         const schedulerUuidFromUrlParams =
             getSchedulerUuidFromUrlParams(search);
-        const isSync = isSchedulerTypeSync(search);
+        const thresholdUuidFromUrlParams =
+            getThresholdUuidFromUrlParams(search);
 
+        if (!schedulerUuidFromUrlParams && !thresholdUuidFromUrlParams) {
+            return;
+        }
+
+        hasProcessedUrlParams.current = true;
+
+        const isSync = isSchedulerTypeSync(search);
         if (schedulerUuidFromUrlParams) {
             if (isSync) {
                 syncWithGoogleSheetsModalHandlers.open();
             } else {
                 scheduledDeliveriesModalHandlers.open();
             }
-        } else {
-            const thresholdUuidFromUrlParams =
-                getThresholdUuidFromUrlParams(search);
-            if (thresholdUuidFromUrlParams) {
-                thresholdAlertsModalHandlers.open();
-            }
+        } else if (thresholdUuidFromUrlParams) {
+            thresholdAlertsModalHandlers.open();
         }
+
+        // Clear URL params to prevent modal from reopening on close
+        const newParams = new URLSearchParams(search);
+        newParams.delete('scheduler_uuid');
+        newParams.delete('threshold_uuid');
+        newParams.delete('isSync');
+        void navigate(
+            { pathname, search: newParams.toString() },
+            { replace: true },
+        );
     }, [
         search,
+        navigate,
+        pathname,
         syncWithGoogleSheetsModalHandlers,
         scheduledDeliveriesModalHandlers,
         thresholdAlertsModalHandlers,
     ]);
+
+    // Clear initial UUIDs when modals are closed so reopening shows the list
+    const wasScheduledDeliveriesModalOpen = useRef(false);
+    useEffect(() => {
+        // Only clear when transitioning from open to closed, not on initial render
+        if (
+            wasScheduledDeliveriesModalOpen.current &&
+            !isScheduledDeliveriesModalOpen
+        ) {
+            setInitialSchedulerUuid(undefined);
+        }
+        wasScheduledDeliveriesModalOpen.current =
+            isScheduledDeliveriesModalOpen;
+    }, [isScheduledDeliveriesModalOpen]);
+
+    const wasThresholdAlertsModalOpen = useRef(false);
+    useEffect(() => {
+        // Only clear when transitioning from open to closed, not on initial render
+        if (
+            wasThresholdAlertsModalOpen.current &&
+            !isThresholdAlertsModalOpen
+        ) {
+            setInitialThresholdUuid(undefined);
+        }
+        wasThresholdAlertsModalOpen.current = isThresholdAlertsModalOpen;
+    }, [isThresholdAlertsModalOpen]);
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {
@@ -769,6 +829,7 @@ const SavedChartsHeader: FC = () => {
                     name={savedChart.name}
                     isOpen={isScheduledDeliveriesModalOpen}
                     onClose={scheduledDeliveriesModalHandlers.close}
+                    initialSchedulerUuid={initialSchedulerUuid}
                 />
             )}
             {isThresholdAlertsModalOpen && savedChart?.uuid && (
@@ -779,6 +840,7 @@ const SavedChartsHeader: FC = () => {
                     itemsMap={itemsMap}
                     isOpen={isThresholdAlertsModalOpen}
                     onClose={thresholdAlertsModalHandlers.close}
+                    initialSchedulerUuid={initialThresholdUuid}
                 />
             )}
             {savedChart && (

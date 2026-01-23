@@ -28,6 +28,8 @@ const SchedulersModal: FC<
         isThresholdAlert?: boolean;
         itemsMap?: ItemsMap;
         schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
+        /** If provided, opens directly in edit mode for this scheduler */
+        initialSchedulerUuid?: string;
     }
 > = ({
     resourceUuid,
@@ -40,11 +42,14 @@ const SchedulersModal: FC<
     currentParameterValues,
     availableParameters,
     onClose = () => {},
+    initialSchedulerUuid,
 }) => {
-    const [modalState, setModalState] = useState<States>(States.LIST);
+    const [modalState, setModalState] = useState<States>(
+        initialSchedulerUuid ? States.EDIT : States.LIST,
+    );
     const [schedulerUuidToEdit, setSchedulerUuidToEdit] = useState<
         string | undefined
-    >();
+    >(initialSchedulerUuid);
     const Actions = () => {
         if (modalState === States.LIST) {
             return (

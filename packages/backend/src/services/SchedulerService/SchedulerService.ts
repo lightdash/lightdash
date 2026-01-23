@@ -319,12 +319,9 @@ export class SchedulerService extends BaseService {
             return schedulers;
         }
 
-        const runs = await this.schedulerModel.getSchedulerRuns({
-            projectUuid,
+        const runs = await this.schedulerModel.getRunsForSchedulers({
+            schedulers: schedulers.data,
             sort: { column: 'scheduledTime', direction: 'desc' },
-            filters: {
-                schedulerUuids,
-            },
         });
 
         const latestRunByScheduler = new Map<string, SchedulerRun>();
@@ -349,6 +346,74 @@ export class SchedulerService extends BaseService {
         schedulerUuid: string,
     ): Promise<SchedulerAndTargets> {
         return this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
+    }
+
+    async getUserSchedulers(
+        user: SessionUser,
+        paginateArgs?: KnexPaginateArgs,
+        searchQuery?: string,
+        sort?: { column: string; direction: 'asc' | 'desc' },
+        filters?: {
+            formats?: string[];
+            resourceType?: 'chart' | 'dashboard';
+            resourceUuids?: string[];
+            destinations?: string[];
+        },
+        includeLatestRun?: boolean,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+
+        // A user might not be able to create scheduled permissions on the org level but on a specific project
+        // level. The check here makes sure that the user has the ability to create a scheduled delivery at least somewhere.
+        // Since the service returns specifically the user's scheduled deliveries, this is completely intended behavior.
+        if (user.ability.cannot('create', 'ScheduledDeliveries')) {
+            throw new ForbiddenError();
+        }
+
+        const schedulers = await this.schedulerModel.getSchedulers({
+            paginateArgs,
+            searchQuery,
+            sort,
+            filters: {
+                ...filters,
+                createdByUserUuids: [user.userUuid],
+            },
+        });
+
+        if (!includeLatestRun) {
+            return schedulers;
+        }
+
+        const schedulerUuids = schedulers.data.map(
+            (scheduler) => scheduler.schedulerUuid,
+        );
+
+        if (schedulerUuids.length === 0) {
+            return schedulers;
+        }
+
+        const runs = await this.schedulerModel.getRunsForSchedulers({
+            schedulers: schedulers.data,
+            sort: { column: 'scheduledTime', direction: 'desc' },
+        });
+
+        const latestRunByScheduler = new Map<string, SchedulerRun>();
+        runs.data.forEach((run) => {
+            if (!latestRunByScheduler.has(run.schedulerUuid)) {
+                latestRunByScheduler.set(run.schedulerUuid, run);
+            }
+        });
+
+        return {
+            ...schedulers,
+            data: schedulers.data.map((scheduler) => ({
+                ...scheduler,
+                latestRun:
+                    latestRunByScheduler.get(scheduler.schedulerUuid) ?? null,
+            })),
+        };
     }
 
     async getSchedulerDefaultTimezone(schedulerUuid: string | undefined) {
@@ -972,13 +1037,15 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const schedulerRuns = await this.schedulerModel.getSchedulerRuns({
-            projectUuid,
-            paginateArgs,
-            searchQuery,
-            sort,
-            filters,
-        });
+        const schedulerRuns = await this.schedulerModel.getProjectSchedulerRuns(
+            {
+                projectUuid,
+                paginateArgs,
+                searchQuery,
+                sort,
+                filters,
+            },
+        );
 
         this.analytics.track({
             userId: user.userUuid,

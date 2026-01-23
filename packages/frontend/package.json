@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "0.2370.2",
+    "version": "0.2374.0",
     "private": true,
     "scripts": {
         "typecheck": "tsc --project tsconfig.json --noEmit",
@@ -31,7 +31,6 @@
         "@dnd-kit/utilities": "^3.2.2",
         "@emotion/react": "^11.10.6",
         "@hello-pangea/dnd": "^16.5.0",
-        "@hookform/error-message": "^2.0.0",
         "@lightdash/common": "workspace:*",
         "@mantine-8/core": "npm:@mantine/core@8.0.0",
         "@mantine-8/hooks": "npm:@mantine/hooks@8.0.0",
@@ -112,7 +111,6 @@
         "react-dom": "19.2.0",
         "react-google-drive-picker": "^1.2.2",
         "react-grid-layout": "1.3.4",
-        "react-hook-form": "^7.26.1",
         "react-json-view": "^1.21.3",
         "react-leaflet": "^5.0.0",
         "react-redux": "^9.2.0",

@@ -17,13 +17,12 @@ import MantineIcon from '../common/MantineIcon';
 import LogsTable from './LogsTable';
 import SchedulersTable from './SchedulersTable';
 import classes from './SchedulersView.module.css';
+import { SchedulersViewTab } from './SchedulersViewConstants';
 
-enum SchedulersViewTab {
-    ALL_SCHEDULERS = 'scheduled-deliveries',
-    RUN_HISTORY = 'run-history',
-}
-
-const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+const SchedulersView: FC<{ projectUuid?: string; isUserScope?: boolean }> = ({
+    projectUuid,
+    isUserScope = false,
+}) => {
     const [searchParams, setSearchParams] = useSearchParams();
     const queryClient = useQueryClient();
     const { showToastSuccess } = useToaster();
@@ -84,10 +83,12 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     };
 
     const handleRefresh = async () => {
-        await Promise.all([
+        const invalidateQueries = [
             queryClient.invalidateQueries(['paginatedSchedulers']),
             queryClient.invalidateQueries(['schedulerRuns']),
-        ]);
+        ];
+
+        await Promise.all(invalidateQueries);
 
         showToastSuccess({
             title: 'Scheduled deliveries refreshed successfully',
@@ -137,29 +138,36 @@ const SchedulersView: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         >
                             All schedulers
                         </Tabs.Tab>
-                        <Tabs.Tab
-                            value={SchedulersViewTab.RUN_HISTORY}
-                            leftSection={<MantineIcon icon={IconClock} />}
-                        >
-                            Run history
-                        </Tabs.Tab>
+                        {!isUserScope && (
+                            <Tabs.Tab
+                                value={SchedulersViewTab.RUN_HISTORY}
+                                leftSection={<MantineIcon icon={IconClock} />}
+                            >
+                                Run history
+                            </Tabs.Tab>
+                        )}
                     </Tabs.List>
 
                     <Tabs.Panel value={SchedulersViewTab.ALL_SCHEDULERS}>
-                        <SchedulersTable
-                            projectUuid={projectUuid}
-                            getSlackChannelName={getSlackChannelName}
-                            onSlackChannelIdsChange={
-                                setSchedulerSlackChannelIds
-                            }
-                        />
+                        {(isUserScope || projectUuid) && (
+                            <SchedulersTable
+                                projectUuid={projectUuid}
+                                getSlackChannelName={getSlackChannelName}
+                                onSlackChannelIdsChange={
+                                    setSchedulerSlackChannelIds
+                                }
+                                isUserScope={isUserScope}
+                            />
+                        )}
                     </Tabs.Panel>
-                    <Tabs.Panel value={SchedulersViewTab.RUN_HISTORY}>
-                        <LogsTable
-                            projectUuid={projectUuid}
-                            getSlackChannelName={getSlackChannelName}
-                        />
-                    </Tabs.Panel>
+                    {!isUserScope && (
+                        <Tabs.Panel value={SchedulersViewTab.RUN_HISTORY}>
+                            <LogsTable
+                                projectUuid={projectUuid}
+                                getSlackChannelName={getSlackChannelName}
+                            />
+                        </Tabs.Panel>
+                    )}
                 </Tabs>
             </Stack>
         </Card>

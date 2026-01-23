@@ -1,3 +1,69 @@
+# [0.2374.0](https://github.com/lightdash/lightdash/compare/0.2373.0...0.2374.0) (2026-01-23)
+
+
+### Features
+
+* add `my scheduled deliveries` user settings page ([#19571](https://github.com/lightdash/lightdash/issues/19571)) ([a04eb24](https://github.com/lightdash/lightdash/commit/a04eb24cf6a35da3b797cd4e605e226e6206dcc0))
+
+# [0.2373.0](https://github.com/lightdash/lightdash/compare/0.2372.3...0.2373.0) (2026-01-23)
+
+
+### Bug Fixes
+
+* dashboard export fails when first tab is empty ([#19474](https://github.com/lightdash/lightdash/issues/19474)) ([9470c88](https://github.com/lightdash/lightdash/commit/9470c8820a6e801aa28937ca0bb49d7a0d0d6e76)), closes [#19427](https://github.com/lightdash/lightdash/issues/19427)
+* increase UPLOAD_GSHEET_FROM_QUERY job priority from LOW to HIGH ([#19693](https://github.com/lightdash/lightdash/issues/19693)) ([76bd143](https://github.com/lightdash/lightdash/commit/76bd143a1274d056951f44e610c2572b70ffe02a))
+
+
+### Features
+
+* always sort tabs before updating dashboard provider ([#19604](https://github.com/lightdash/lightdash/issues/19604)) ([8506fe3](https://github.com/lightdash/lightdash/commit/8506fe37d519b6ec96e8a506cc785fe2d3d19045))
+
+## [0.2372.3](https://github.com/lightdash/lightdash/compare/0.2372.2...0.2372.3) (2026-01-23)
+
+
+### Bug Fixes
+
+* make the Map dashboard tile full-width ([#19690](https://github.com/lightdash/lightdash/issues/19690)) ([d6b38b1](https://github.com/lightdash/lightdash/commit/d6b38b1626c4ccf2c6532e2e31d469d9ec7a8b48))
+
+## [0.2372.2](https://github.com/lightdash/lightdash/compare/0.2372.1...0.2372.2) (2026-01-23)
+
+
+### Performance Improvements
+
+* optimize chart queries with Sentry tracking and improved joins ([#19680](https://github.com/lightdash/lightdash/issues/19680)) ([424f8d3](https://github.com/lightdash/lightdash/commit/424f8d3b432287e412d1c5e28184f73b053d4fe3))
+
+## [0.2372.1](https://github.com/lightdash/lightdash/compare/0.2372.0...0.2372.1) (2026-01-23)
+
+
+### Bug Fixes
+
+* open edit modal on scheduler deep link ([#19682](https://github.com/lightdash/lightdash/issues/19682)) ([8b0b8d3](https://github.com/lightdash/lightdash/commit/8b0b8d3f383eac4a88fc2e4c4673fd6c1f211a5e))
+
+# [0.2372.0](https://github.com/lightdash/lightdash/compare/0.2371.0...0.2372.0) (2026-01-23)
+
+
+### Bug Fixes
+
+* add onChartConfigChange to compute series in Metric explore modal v2 ([#19685](https://github.com/lightdash/lightdash/issues/19685)) ([b54fb75](https://github.com/lightdash/lightdash/commit/b54fb75a893dfbbd05d6f0c79655fc0e581e8db4))
+* maps on dashboards ([#19684](https://github.com/lightdash/lightdash/issues/19684)) ([b765c99](https://github.com/lightdash/lightdash/commit/b765c993955763bc3e22354f307fd2ee61b1a8f1))
+
+
+### Features
+
+* add meta-query detection to skip forwarding agent selection queries ([#19648](https://github.com/lightdash/lightdash/issues/19648)) ([b12b386](https://github.com/lightdash/lightdash/commit/b12b386868c3b25690b0d421024f197b3735c03e)), closes [#19650](https://github.com/lightdash/lightdash/issues/19650)
+
+# [0.2371.0](https://github.com/lightdash/lightdash/compare/0.2370.2...0.2371.0) (2026-01-23)
+
+
+### Bug Fixes
+
+* hide explore button from metric explore modal v2 if insufficient permissions ([#19664](https://github.com/lightdash/lightdash/issues/19664)) ([aa10098](https://github.com/lightdash/lightdash/commit/aa100987b75f39de7c12e083d1ce3bf1caadfc88))
+
+
+### Features
+
+* allow changing query date range in metric explore modal v2 ([#19663](https://github.com/lightdash/lightdash/issues/19663)) ([a916dc9](https://github.com/lightdash/lightdash/commit/a916dc9d83c8f99cc4735e92018fe3eb3fd2e20b))
+
 ## [0.2370.2](https://github.com/lightdash/lightdash/compare/0.2370.1...0.2370.2) (2026-01-22)
 
 

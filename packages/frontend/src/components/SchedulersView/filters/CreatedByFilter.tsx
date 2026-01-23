@@ -29,7 +29,7 @@ const getUserDisplayName = (
 };
 
 interface CreatedByFilterProps {
-    projectUuid: string;
+    projectUuid?: string;
     selectedCreatedByUserUuids: string[];
     setSelectedCreatedByUserUuids: (userUuids: string[]) => void;
 }

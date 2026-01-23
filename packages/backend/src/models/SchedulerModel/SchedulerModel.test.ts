@@ -122,7 +122,7 @@ describe('Scheduler model test', () => {
                 .spyOn(model, 'getSchedulerForProject')
                 .mockResolvedValue([]);
 
-            const result = await model.getSchedulerRuns({
+            const result = await model.getProjectSchedulerRuns({
                 projectUuid: 'project-1',
                 filters: { schedulerUuids: ['scheduler-1'] },
             });
@@ -149,7 +149,7 @@ describe('Scheduler model test', () => {
                 .spyOn(model, 'getSchedulerForProject')
                 .mockResolvedValue([]);
 
-            const result = await model.getSchedulerRuns({
+            const result = await model.getProjectSchedulerRuns({
                 projectUuid: 'project-2',
             });
 

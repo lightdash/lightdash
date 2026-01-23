@@ -58,7 +58,7 @@ import {
 } from './SchedulersViewUtils';
 
 type LogsTableProps = {
-    projectUuid: string;
+    projectUuid?: string;
     getSlackChannelName: (channelId: string) => string | null;
 };
 
@@ -116,7 +116,7 @@ const LogsTable: FC<LogsTableProps> = ({
 
     const { data, fetchNextPage, isError, isFetching, isLoading } =
         useSchedulerRuns({
-            projectUuid,
+            projectUuid: projectUuid!,
             paginateArgs: { page: 1, pageSize: fetchSize },
             searchQuery: debouncedSearchAndFilters.search,
             sortBy: 'scheduledTime',
@@ -284,7 +284,7 @@ const LogsTable: FC<LogsTableProps> = ({
                             <Stack gap="two">
                                 <Anchor
                                     component={Link}
-                                    to={getSchedulerLink(run, projectUuid)}
+                                    to={getSchedulerLink(run, projectUuid!)}
                                     target="_blank"
                                 >
                                     <Tooltip

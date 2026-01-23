@@ -29,9 +29,7 @@ import * as topojson from 'topojson-client';
 import type { Topology } from 'topojson-specification';
 import {
     explorerActions,
-    selectSavedChart,
     useExplorerDispatch,
-    useExplorerSelector,
 } from '../../features/explorer/store';
 import useLeafletMapConfig, {
     type ScatterPoint,
@@ -466,32 +464,9 @@ const SimpleMap: FC<SimpleMapProps> = memo(
             isInDashboard: props.isInDashboard,
         });
 
-        // Read savedChart extent from Redux - this is the source of truth after save
-        // The visualization config layer has stale extent values until reload
-        const savedChart = useExplorerSelector(selectSavedChart);
-        const savedExtent = useMemo(() => {
-            const config = savedChart?.chartConfig?.config as
-                | {
-                      defaultCenterLat?: number;
-                      defaultCenterLon?: number;
-                      defaultZoom?: number;
-                  }
-                | undefined;
-            if (
-                config?.defaultCenterLat !== undefined &&
-                config?.defaultCenterLon !== undefined
-            ) {
-                return {
-                    lat: config.defaultCenterLat,
-                    lng: config.defaultCenterLon,
-                    zoom: config.defaultZoom ?? mapConfig?.extent.zoom ?? 2,
-                };
-            }
-            return null;
-        }, [savedChart, mapConfig?.extent.zoom]);
-
-        // Use savedChart extent if available, otherwise fall back to mapConfig
-        const effectiveExtent = savedExtent ?? mapConfig?.extent;
+        // Use mapConfig.extent directly - it has the correct values from the saved chart
+        // via the visualization context
+        const effectiveExtent = mapConfig?.extent;
 
         const [geoJsonData, setGeoJsonData] =
             useState<GeoJSON.FeatureCollection | null>(null);
@@ -957,15 +932,14 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         maxBoundsViscosity={1.0}
                     >
                         <MapRefUpdater mapRef={leafletMapRef} />
-                        <MapExtentTracker />
+                        {/* Only track extent changes in explorer, not on dashboards */}
+                        {!props.isInDashboard && <MapExtentTracker />}
                         <MapBoundsFitter
                             geoJsonData={null}
                             scatterData={scatterData}
                             mapType={mapConfig.mapType}
                             geoJsonUrl={null}
-                            hasSavedExtent={
-                                savedExtent !== null || mapConfig.hasSavedExtent
-                            }
+                            hasSavedExtent={mapConfig.hasSavedExtent}
                         />
                         {mapConfig.tile.url && (
                             <TileLayer
@@ -1058,15 +1032,14 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         maxBoundsViscosity={1.0}
                     >
                         <MapRefUpdater mapRef={leafletMapRef} />
-                        <MapExtentTracker />
+                        {/* Only track extent changes in explorer, not on dashboards */}
+                        {!props.isInDashboard && <MapExtentTracker />}
                         <MapBoundsFitter
                             geoJsonData={geoJsonData}
                             scatterData={null}
                             mapType={mapConfig.mapType}
                             geoJsonUrl={mapConfig.geoJsonUrl}
-                            hasSavedExtent={
-                                savedExtent !== null || mapConfig.hasSavedExtent
-                            }
+                            hasSavedExtent={mapConfig.hasSavedExtent}
                         />
                         {mapConfig.tile.url && (
                             <TileLayer

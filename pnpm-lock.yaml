@@ -811,9 +811,6 @@ importers:
       '@hello-pangea/dnd':
         specifier: ^16.5.0
         version: 16.5.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      '@hookform/error-message':
-        specifier: ^2.0.0
-        version: 2.0.0(react-dom@19.2.0(react@19.2.0))(react-hook-form@7.26.1(react@19.2.0))(react@19.2.0)
       '@lightdash/common':
         specifier: workspace:*
         version: link:../common
@@ -1054,9 +1051,6 @@ importers:
       react-grid-layout:
         specifier: 1.3.4
         version: 1.3.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-      react-hook-form:
-        specifier: ^7.26.1
-        version: 7.26.1(react@19.2.0)
       react-json-view:
         specifier: ^1.21.3
         version: 1.21.3(@types/react@19.2.2)(encoding@0.1.13)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -3323,13 +3317,6 @@ packages:
     engines: {node: '>=18.14.1'}
     peerDependencies:
       hono: ^4
-
-  '@hookform/error-message@2.0.0':
-    resolution: {integrity: sha512-Y90nHzjgL2MP7GFy75kscdvxrCTjtyxGmOLLxX14nd08OXRIh9lMH/y9Kpdo0p1IPowJBiZMHyueg7p+yrqynQ==}
-    peerDependencies:
-      react: '>=16.8.0'
-      react-dom: '>=16.8.0'
-      react-hook-form: ^7.0.0
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -6861,6 +6848,7 @@ packages:
 
   antlr4ng-cli@1.0.7:
     resolution: {integrity: sha512-qN2FsDBmLvsQcA5CWTrPz8I8gNXeS1fgXBBhI78VyxBSBV/EJgqy8ks6IDTC9jyugpl40csCQ4sL5K4i2YZ/2w==}
+    deprecated: 'This package is deprecated and will no longer be updated. Please use the new antlr-ng package instead: https://github.com/mike-lischke/antlr-ng'
     hasBin: true
 
   antlr4ng@2.0.11:
@@ -12774,12 +12762,6 @@ packages:
       react: '>= 16.3.0'
       react-dom: '>= 16.3.0'
 
-  react-hook-form@7.26.1:
-    resolution: {integrity: sha512-/Qw/7IsCCVfYSGryJAMcouEpIDgWZJPeHR15J0IFSgo1BgofcfnY+AeUDcYD1E3yzzXYpR7NHyJehhkBKvjdMg==}
-    engines: {node: '>=12.22.0'}
-    peerDependencies:
-      react: ^16.8.0 || ^17
-
   react-i18next@15.4.1:
     resolution: {integrity: sha512-ahGab+IaSgZmNPYXdV1n+OYky95TGpFwnKRflX/16dY04DsYYKHtVLjeny7sBSCREEcoMbAgSkFiGLF5g5Oofw==}
     peerDependencies:
@@ -18136,12 +18118,6 @@ snapshots:
   '@hono/node-server@1.19.7(hono@4.11.1)':
     dependencies:
       hono: 4.11.1
-
-  '@hookform/error-message@2.0.0(react-dom@19.2.0(react@19.2.0))(react-hook-form@7.26.1(react@19.2.0))(react@19.2.0)':
-    dependencies:
-      react: 19.2.0
-      react-dom: 19.2.0(react@19.2.0)
-      react-hook-form: 7.26.1(react@19.2.0)
 
   '@humanfs/core@0.19.1': {}
 
@@ -29766,10 +29742,6 @@ snapshots:
       react-dom: 19.2.0(react@19.2.0)
       react-draggable: 4.4.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       react-resizable: 3.0.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-
-  react-hook-form@7.26.1(react@19.2.0):
-    dependencies:
-      react: 19.2.0
 
   react-i18next@15.4.1(i18next@24.2.2(typescript@5.5.4))(react-dom@19.2.0(react@19.2.0))(react@19.2.0):
     dependencies:

@@ -24,12 +24,10 @@ type SchedulerTopToolbarProps = GroupProps &
         | 'search'
         | 'selectedFormats'
         | 'selectedResourceType'
-        | 'selectedCreatedByUserUuids'
         | 'selectedDestinations'
         | 'setSearch'
         | 'setSelectedFormats'
         | 'setSelectedResourceType'
-        | 'setSelectedCreatedByUserUuids'
         | 'setSelectedDestinations'
     > & {
         isFetching: boolean;
@@ -40,6 +38,12 @@ type SchedulerTopToolbarProps = GroupProps &
         // Bulk selection props
         selectedCount?: number;
         onBulkReassign?: () => void;
+        // Feature toggles
+        hideCreatedByFilter?: boolean;
+        hideBulkReassign?: boolean;
+        // Optional created by filter props (only needed when hideCreatedByFilter is false)
+        selectedCreatedByUserUuids?: string[];
+        setSelectedCreatedByUserUuids?: (userUuids: string[]) => void;
     };
 
 export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
@@ -61,6 +65,8 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
         selectedCount = 0,
         onBulkReassign,
         projectUuid,
+        hideCreatedByFilter = false,
+        hideBulkReassign = false,
         ...props
     }) => {
         const theme = useMantineTheme();
@@ -104,13 +110,19 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                         setSelectedFormats={setSelectedFormats}
                     />
 
-                    <CreatedByFilter
-                        projectUuid={projectUuid}
-                        selectedCreatedByUserUuids={selectedCreatedByUserUuids}
-                        setSelectedCreatedByUserUuids={
-                            setSelectedCreatedByUserUuids
-                        }
-                    />
+                    {!hideCreatedByFilter &&
+                        selectedCreatedByUserUuids &&
+                        setSelectedCreatedByUserUuids && (
+                            <CreatedByFilter
+                                projectUuid={projectUuid}
+                                selectedCreatedByUserUuids={
+                                    selectedCreatedByUserUuids
+                                }
+                                setSelectedCreatedByUserUuids={
+                                    setSelectedCreatedByUserUuids
+                                }
+                            />
+                        )}
 
                     <DestinationFilter
                         selectedDestinations={selectedDestinations}
@@ -119,7 +131,7 @@ export const SchedulerTopToolbar: FC<SchedulerTopToolbarProps> = memo(
                 </Group>
 
                 <Group gap="sm" wrap="nowrap" style={{ flexShrink: 0 }}>
-                    {hasSelection && onBulkReassign && (
+                    {hasSelection && onBulkReassign && !hideBulkReassign && (
                         <>
                             <Text size="sm" c="dimmed">
                                 {selectedCount}{' '}

@@ -218,6 +218,79 @@ export class SchedulerController extends BaseController {
     }
 
     /**
+     * List all schedulers for the current user across all projects with pagination, search, sorting, and filtering
+     * @param req express request
+     * @param pageSize number of items per page
+     * @param page page number
+     * @param searchQuery search query to filter schedulers by name
+     * @param sortBy column to sort by
+     * @param sortDirection sort direction (asc or desc)
+     * @param formats filter by scheduler formats (comma-separated)
+     * @param resourceType filter by resource type (chart or dashboard)
+     * @param resourceUuids filter by resource UUIDs (comma-separated)
+     * @param destinations filter by destination types (comma-separated: email, slack, msteams)
+     * @param includeLatestRun include latest run information for each scheduler
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('user-schedulers')
+    @OperationId('listUserSchedulers')
+    async getUserSchedulers(
+        @Request() req: express.Request,
+        @Query() pageSize?: number,
+        @Query() page?: number,
+        @Query() searchQuery?: string,
+        @Query() sortBy?: 'name' | 'createdAt',
+        @Query() sortDirection?: 'asc' | 'desc',
+        @Query() formats?: string,
+        @Query() resourceType?: 'chart' | 'dashboard',
+        @Query() resourceUuids?: string,
+        @Query() destinations?: string,
+        @Query() includeLatestRun?: boolean,
+    ): Promise<ApiSchedulersResponse> {
+        this.setStatus(200);
+        let paginateArgs: KnexPaginateArgs | undefined;
+
+        if (pageSize && page) {
+            paginateArgs = {
+                page,
+                pageSize,
+            };
+        }
+
+        let sort: { column: string; direction: 'asc' | 'desc' } | undefined;
+        if (sortBy && sortDirection) {
+            sort = {
+                column: sortBy,
+                direction: sortDirection,
+            };
+        }
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSchedulerService()
+                .getUserSchedulers(
+                    req.user!,
+                    paginateArgs,
+                    searchQuery,
+                    sort,
+                    {
+                        formats: formats ? formats.split(',') : undefined,
+                        resourceType,
+                        resourceUuids: resourceUuids
+                            ? resourceUuids.split(',')
+                            : undefined,
+                        destinations: destinations
+                            ? destinations.split(',')
+                            : undefined,
+                    },
+                    includeLatestRun,
+                ),
+        };
+    }
+
+    /**
      * List all schedulers with pagination, search, sorting, and filtering
      * @param req express request
      * @param projectUuid

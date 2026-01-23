@@ -16,6 +16,11 @@ const AgentSelectionSchema = z.object({
     confidence: z
         .enum(['high', 'medium', 'low'])
         .describe('Confidence level in the selection'),
+    shouldSkipForwardingQuery: z
+        .boolean()
+        .describe(
+            'Set to true for meta-queries about agent selection itself (e.g., "what agents are available"). Set to false for actual data questions that should be forwarded to the selected agent.',
+        ),
 });
 
 export type AgentSelectionResult = z.infer<typeof AgentSelectionSchema>;
@@ -76,6 +81,7 @@ export async function selectBestAgent(
             agentUuid: agents[0].uuid,
             reasoning: 'Only one agent available',
             confidence: 'high',
+            shouldSkipForwardingQuery: false,
         };
     }
 
@@ -113,6 +119,13 @@ Selection Guidelines:
 - Consider agents that have answered similar questions before
 - If no perfect match, choose the most general-purpose agent
 - Be confident in your choice, but indicate lower confidence if the match is uncertain
+
+Meta-Query Detection (shouldSkipForwardingQuery):
+- Set shouldSkipForwardingQuery to TRUE for queries about agent selection itself:
+  * "What agents are available?"
+  * "Show me the available agents"
+- Set shouldSkipForwardingQuery to FALSE for actual data/analytics questions
+- When shouldSkipForwardingQuery is TRUE, set confidence to 'low' to show the agent selector UI
 
 You must select exactly ONE agent from the list above by providing its exact UUID.`,
             },
@@ -153,6 +166,7 @@ export async function selectBestAgentWithContext(
                 agentUuid: agents[0].uuid,
                 reasoning: `Selected agent "${selection.agentUuid}" not found. Defaulting to first available agent.`,
                 confidence: 'low',
+                shouldSkipForwardingQuery: false,
             },
         };
     }

@@ -187,10 +187,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const defaultTab = dashboardTabs?.[0];
     // Context: We don't want to show the "tabs mode" if there is only one tab in state
     // This is because the tabs mode is only useful when there are multiple tabs
-    const sortedTabs =
-        dashboardTabs.length > 1
-            ? dashboardTabs?.sort((a, b) => a.order - b.order)
-            : [];
+    const sortedTabs = dashboardTabs.length > 1 ? dashboardTabs : [];
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
     const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
 
