@@ -1538,55 +1538,62 @@ export class SavedChartModel {
     }
 
     private getChartSummaryQuery() {
-        return this.database('saved_queries')
-            .select({
-                uuid: 'saved_queries.saved_query_uuid',
-                name: 'saved_queries.name',
-                description: 'saved_queries.description',
-                spaceUuid: 'spaces.space_uuid',
-                spaceName: 'spaces.name',
-                projectUuid: 'projects.project_uuid',
-                organizationUuid: 'organizations.organization_uuid',
-                pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
-                chartKind: 'saved_queries.last_version_chart_kind',
-                dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
-                dashboardName: `${DashboardsTableName}.name`,
-                updatedAt: `saved_queries.last_version_updated_at`,
-                slug: `saved_queries.slug`,
-                viewsCount: 'saved_queries.views_count',
-            })
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
-            .innerJoin(SpaceTableName, function spaceJoin() {
-                this.on(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${DashboardsTableName}.space_id`,
-                ).orOn(
-                    `${SpaceTableName}.space_id`,
-                    '=',
-                    `${SavedChartsTableName}.space_id`,
-                );
-            })
-            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
-            .leftJoin(
-                OrganizationTableName,
-                'organizations.organization_id',
-                'projects.organization_id',
-            )
-            .leftJoin(
-                PinnedChartTableName,
-                `${PinnedChartTableName}.saved_chart_uuid`,
-                `${SavedChartsTableName}.saved_query_uuid`,
-            )
-            .leftJoin(
-                PinnedListTableName,
-                `${PinnedListTableName}.pinned_list_uuid`,
-                `${PinnedChartTableName}.pinned_list_uuid`,
-            );
+        return (
+            this.database('saved_queries')
+                .select({
+                    uuid: 'saved_queries.saved_query_uuid',
+                    name: 'saved_queries.name',
+                    description: 'saved_queries.description',
+                    spaceUuid: 'spaces.space_uuid',
+                    spaceName: 'spaces.name',
+                    projectUuid: 'projects.project_uuid',
+                    organizationUuid: 'organizations.organization_uuid',
+                    pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
+                    chartKind: 'saved_queries.last_version_chart_kind',
+                    dashboardUuid: `${DashboardsTableName}.dashboard_uuid`,
+                    dashboardName: `${DashboardsTableName}.name`,
+                    updatedAt: `saved_queries.last_version_updated_at`,
+                    slug: `saved_queries.slug`,
+                    viewsCount: 'saved_queries.views_count',
+                })
+                .leftJoin(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                )
+                // or join dummy pr
+                .innerJoin(SpaceTableName, function spaceJoin() {
+                    this.on(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${DashboardsTableName}.space_id`,
+                    ).orOn(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${SavedChartsTableName}.space_id`,
+                    );
+                })
+                .leftJoin(
+                    'projects',
+                    'spaces.project_id',
+                    'projects.project_id',
+                )
+                .leftJoin(
+                    OrganizationTableName,
+                    'organizations.organization_id',
+                    'projects.organization_id',
+                )
+                .leftJoin(
+                    PinnedChartTableName,
+                    `${PinnedChartTableName}.saved_chart_uuid`,
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                )
+                .leftJoin(
+                    PinnedListTableName,
+                    `${PinnedListTableName}.pinned_list_uuid`,
+                    `${PinnedChartTableName}.pinned_list_uuid`,
+                )
+        );
     }
 
     async getInfoForAvailableFilters(savedChartUuids: string[]): Promise<
