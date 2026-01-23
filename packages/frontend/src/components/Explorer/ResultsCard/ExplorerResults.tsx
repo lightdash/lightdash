@@ -1,6 +1,21 @@
-import { FeatureFlags, getItemMap } from '@lightdash/common';
-import { Box, Text } from '@mantine/core';
-import { memo, useCallback, useMemo, useState, type FC } from 'react';
+import {
+    FeatureFlags,
+    getItemLabel,
+    getItemMap,
+    isField,
+    type PivotData,
+} from '@lightdash/common';
+import { Box, Button, Group, Loader, Text } from '@mantine/core';
+import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+} from 'react';
+import { ResultsViewMode } from './types';
 
 import {
     explorerActions,
@@ -24,6 +39,7 @@ import type {
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
+import PivotTable from '../../common/PivotTable';
 import Table from '../../common/Table';
 import { JsonViewerModal } from '../../JsonViewerModal';
 import CellContextMenu from './CellContextMenu';
@@ -35,6 +51,10 @@ import {
     MissingRequiredParameters,
     NoTableSelected,
 } from './ExplorerResultsNonIdealStates';
+
+const createWorker = createWorkerFactory(
+    () => import('@lightdash/common/src/pivot/pivotQueryResults'),
+);
 
 const getQueryStatus = (
     query: ReturnType<typeof useGetReadyQueryResults>,
@@ -57,247 +77,482 @@ const getQueryStatus = (
     }
 };
 
-export const ExplorerResults = memo(() => {
-    const dispatch = useExplorerDispatch();
-    const columns = useColumns();
-    const isEditMode = useExplorerSelector(selectIsEditMode);
-    const activeTableName = useExplorerSelector(selectTableName);
-    const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
-    const tableCalculations = useExplorerSelector(selectTableCalculations);
+type ExplorerResultsProps = {
+    onViewModeChange?: (mode: ResultsViewMode) => void;
+};
 
-    // Get chart config for column properties
-    const chartConfig = useExplorerSelector(selectChartConfig);
-    const columnProperties =
-        chartConfig.type === 'table' && chartConfig.config?.columns
-            ? chartConfig.config.columns
-            : undefined;
+export const ExplorerResults = memo(
+    ({ onViewModeChange }: ExplorerResultsProps) => {
+        const dispatch = useExplorerDispatch();
+        const columns = useColumns();
+        const isEditMode = useExplorerSelector(selectIsEditMode);
+        const activeTableName = useExplorerSelector(selectTableName);
+        const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+        const tableCalculations = useExplorerSelector(selectTableCalculations);
 
-    // Get query state from new hook
-    const {
-        query,
-        queryResults,
-        unpivotedQuery,
-        unpivotedQueryResults,
-        unpivotedEnabled,
-        missingRequiredParameters,
-    } = useExplorerQuery();
+        // Get chart config for column properties
+        const chartConfig = useExplorerSelector(selectChartConfig);
+        const columnProperties =
+            chartConfig.type === 'table' && chartConfig.config?.columns
+                ? chartConfig.config.columns
+                : undefined;
 
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
+        // Get query state from new hook
+        const {
+            query,
+            queryResults,
+            unpivotedQuery,
+            unpivotedQueryResults,
+            unpivotedEnabled,
+            missingRequiredParameters,
+        } = useExplorerQuery();
 
-    const dimensions = query.data?.metricQuery?.dimensions ?? [];
-    const metrics = query.data?.metricQuery?.metrics ?? [];
-    const explorerColumnOrder = useExplorerSelector(selectColumnOrder);
-
-    const pivotConfig = useExplorerSelector(selectPivotConfig);
-    const hasPivotConfig = !!pivotConfig;
-
-    const resultsData = useMemo(() => {
-        const isSqlPivotEnabled = !!useSqlPivotResults?.enabled;
-        const hasUnpivotedQuery = !!unpivotedQuery?.data?.queryUuid;
-
-        // Check if we need unpivoted data (regardless of whether it's ready)
-        const needsUnpivotedData =
-            isSqlPivotEnabled && hasPivotConfig && unpivotedEnabled;
-
-        // Only use unpivoted data when it's ready
-        const shouldUseUnpivotedData = needsUnpivotedData && hasUnpivotedQuery;
-
-        // When we need unpivoted data but it's not ready yet,
-        // show loading state instead of falling back to pivoted main query data.
-        // The main query has a different row structure (pivoted) that would cause
-        // the first column to show "-" because the pivot dimension key is missing.
-        if (needsUnpivotedData && !hasUnpivotedQuery) {
-            return {
-                rows: [],
-                totalResults: undefined,
-                isFetchingRows: true,
-                fetchMoreRows: () => {},
-                status: 'loading' as const,
-                apiError: undefined,
-            };
-        }
-
-        if (shouldUseUnpivotedData) {
-            return {
-                rows: unpivotedQueryResults.rows,
-                totalResults: unpivotedQueryResults.totalResults,
-                isFetchingRows:
-                    unpivotedQueryResults.isFetchingRows &&
-                    !unpivotedQueryResults.error,
-                fetchMoreRows: unpivotedQueryResults.fetchMoreRows,
-                status: getQueryStatus(unpivotedQuery, unpivotedQueryResults),
-                apiError: unpivotedQuery.error ?? unpivotedQueryResults.error,
-            };
-        }
-
-        const finalStatus = getQueryStatus(query, queryResults);
-        const result = {
-            rows: queryResults.rows,
-            totalResults: queryResults.totalResults,
-            isFetchingRows: queryResults.isFetchingRows && !queryResults.error,
-            fetchMoreRows: queryResults.fetchMoreRows,
-            status: finalStatus,
-            apiError: query.error ?? queryResults.error,
-        };
-
-        return result;
-    }, [
-        useSqlPivotResults?.enabled,
-        unpivotedQuery,
-        hasPivotConfig,
-        unpivotedEnabled,
-        query,
-        queryResults,
-        unpivotedQueryResults,
-    ]);
-
-    const {
-        rows,
-        totalResults: totalRows,
-        isFetchingRows,
-        fetchMoreRows,
-        status,
-        apiError,
-    } = resultsData;
-
-    const handleColumnOrderChange = useCallback(
-        (order: string[]) => {
-            dispatch(explorerActions.setColumnOrder(order));
-        },
-        [dispatch],
-    );
-
-    const { data: exploreData, isInitialLoading: isExploreLoading } =
-        useExplore(activeTableName, {
-            refetchOnMount: false,
-        });
-    const [isExpandModalOpened, setIsExpandModalOpened] = useState(false);
-    const [expandData, setExpandData] = useState<{
-        name: string;
-        jsonObject: Record<string, unknown>;
-    }>({
-        name: 'unknown',
-        jsonObject: {},
-    });
-
-    const handleCellExpand = (name: string, data: Record<string, unknown>) => {
-        setExpandData({
-            name: name,
-            jsonObject: data,
-        });
-        setIsExpandModalOpened(true);
-    };
-
-    const itemsMap = useMemo(() => {
-        if (exploreData) {
-            return getItemMap(
-                exploreData,
-                additionalMetrics,
-                tableCalculations,
-            );
-        }
-        return undefined;
-    }, [exploreData, additionalMetrics, tableCalculations]);
-
-    const cellContextMenu = useCallback(
-        (props: any) => (
-            <CellContextMenu
-                isEditMode={isEditMode}
-                {...props}
-                itemsMap={itemsMap}
-                onExpand={handleCellExpand}
-            />
-        ),
-        [isEditMode, itemsMap],
-    );
-
-    const IdleState: FC = useCallback(() => {
-        const description =
-            dimensions.length <= 0 ? (
-                <>
-                    Pick one or more{' '}
-                    <Text span color="blue.9">
-                        dimensions
-                    </Text>{' '}
-                    to split your selected metric by.
-                </>
-            ) : metrics.length <= 0 ? (
-                <>
-                    Pick a{' '}
-                    <Text span color="yellow.9">
-                        metric
-                    </Text>{' '}
-                    to make calculations across your selected dimensions.
-                </>
-            ) : (
-                <>
-                    Run query to view your results and visualize them as a
-                    chart.
-                </>
-            );
-
-        return <EmptyStateNoTableData description={description} />;
-    }, [dimensions.length, metrics.length]);
-
-    const pagination = useMemo(
-        () => ({
-            show: true,
-            showResultsTotal: true,
-        }),
-        [],
-    );
-    const footer = useMemo(
-        () => ({
-            show: true,
-        }),
-        [],
-    );
-
-    if (!activeTableName) return <NoTableSelected />;
-
-    if (columns.length === 0) return <EmptyStateNoColumns />;
-
-    if (isExploreLoading) return <EmptyStateExploreLoading />;
-
-    if (missingRequiredParameters && missingRequiredParameters.length > 0)
-        return (
-            <MissingRequiredParameters
-                missingRequiredParameters={missingRequiredParameters}
-            />
+        const { data: useSqlPivotResults } = useServerFeatureFlag(
+            FeatureFlags.UseSqlPivotResults,
         );
 
-    return (
-        <TrackSection name={SectionName.RESULTS_TABLE}>
-            <Box px="xs" py="lg" data-testid="results-table-container">
-                <Table
-                    status={status}
-                    errorDetail={apiError?.error}
-                    data={rows || []}
-                    totalRowsCount={totalRows || 0}
-                    isFetchingRows={isFetchingRows}
-                    fetchMoreRows={fetchMoreRows}
-                    columns={columns}
-                    columnOrder={explorerColumnOrder}
-                    onColumnOrderChange={handleColumnOrderChange}
-                    cellContextMenu={cellContextMenu}
-                    headerContextMenu={
-                        isEditMode ? ColumnHeaderContextMenu : undefined
+        const dimensions = query.data?.metricQuery?.dimensions ?? [];
+        const metrics = query.data?.metricQuery?.metrics ?? [];
+        const explorerColumnOrder = useExplorerSelector(selectColumnOrder);
+
+        const pivotConfig = useExplorerSelector(selectPivotConfig);
+        const hasPivotConfig = !!pivotConfig;
+
+        // View mode state for switching between results and grouped results
+        const [viewMode, setViewMode] = useState<ResultsViewMode>(
+            ResultsViewMode.RESULTS,
+        );
+
+        // Check if grouped view is available (only when backend pivoting is enabled and we have pivot config)
+        const isSqlPivotEnabled = !!useSqlPivotResults?.enabled;
+        const canShowGroupedResults = isSqlPivotEnabled && hasPivotConfig;
+
+        // Notify parent of view mode changes
+        useEffect(() => {
+            onViewModeChange?.(viewMode);
+        }, [viewMode, onViewModeChange]);
+
+        const resultsData = useMemo(() => {
+            const hasUnpivotedQuery = !!unpivotedQuery?.data?.queryUuid;
+
+            // Check if we need unpivoted data (regardless of whether it's ready)
+            const needsUnpivotedData =
+                isSqlPivotEnabled && hasPivotConfig && unpivotedEnabled;
+
+            // Only use unpivoted data when it's ready
+            const shouldUseUnpivotedData =
+                needsUnpivotedData && hasUnpivotedQuery;
+
+            // When we need unpivoted data but it's not ready yet,
+            // show loading state instead of falling back to pivoted main query data.
+            // The main query has a different row structure (pivoted) that would cause
+            // the first column to show "-" because the pivot dimension key is missing.
+            if (needsUnpivotedData && !hasUnpivotedQuery) {
+                return {
+                    rows: [],
+                    totalResults: undefined,
+                    isFetchingRows: true,
+                    fetchMoreRows: () => {},
+                    status: 'loading' as const,
+                    apiError: undefined,
+                };
+            }
+
+            if (shouldUseUnpivotedData) {
+                return {
+                    rows: unpivotedQueryResults.rows,
+                    totalResults: unpivotedQueryResults.totalResults,
+                    isFetchingRows:
+                        unpivotedQueryResults.isFetchingRows &&
+                        !unpivotedQueryResults.error,
+                    fetchMoreRows: unpivotedQueryResults.fetchMoreRows,
+                    status: getQueryStatus(
+                        unpivotedQuery,
+                        unpivotedQueryResults,
+                    ),
+                    apiError:
+                        unpivotedQuery.error ?? unpivotedQueryResults.error,
+                };
+            }
+
+            const finalStatus = getQueryStatus(query, queryResults);
+            const result = {
+                rows: queryResults.rows,
+                totalResults: queryResults.totalResults,
+                isFetchingRows:
+                    queryResults.isFetchingRows && !queryResults.error,
+                fetchMoreRows: queryResults.fetchMoreRows,
+                status: finalStatus,
+                apiError: query.error ?? queryResults.error,
+            };
+
+            return result;
+        }, [
+            isSqlPivotEnabled,
+            unpivotedQuery,
+            hasPivotConfig,
+            unpivotedEnabled,
+            query,
+            queryResults,
+            unpivotedQueryResults,
+        ]);
+
+        const {
+            rows,
+            totalResults: totalRows,
+            isFetchingRows,
+            fetchMoreRows,
+            status,
+            apiError,
+        } = resultsData;
+
+        // Grouped results data - uses the main query which has pivoted data when backend pivoting is enabled
+        const groupedResultsData = useMemo(() => {
+            if (!canShowGroupedResults) {
+                return null;
+            }
+
+            const finalStatus = getQueryStatus(query, queryResults);
+            return {
+                rows: queryResults.rows,
+                totalResults: queryResults.totalResults,
+                isFetchingRows:
+                    queryResults.isFetchingRows && !queryResults.error,
+                fetchMoreRows: queryResults.fetchMoreRows,
+                status: finalStatus,
+                apiError: query.error ?? queryResults.error,
+                pivotDetails: queryResults.pivotDetails,
+            };
+        }, [canShowGroupedResults, query, queryResults]);
+
+        const handleColumnOrderChange = useCallback(
+            (order: string[]) => {
+                dispatch(explorerActions.setColumnOrder(order));
+            },
+            [dispatch],
+        );
+
+        const { data: exploreData, isInitialLoading: isExploreLoading } =
+            useExplore(activeTableName, {
+                refetchOnMount: false,
+            });
+        const [isExpandModalOpened, setIsExpandModalOpened] = useState(false);
+        const [expandData, setExpandData] = useState<{
+            name: string;
+            jsonObject: Record<string, unknown>;
+        }>({
+            name: 'unknown',
+            jsonObject: {},
+        });
+
+        const handleCellExpand = (
+            name: string,
+            data: Record<string, unknown>,
+        ) => {
+            setExpandData({
+                name: name,
+                jsonObject: data,
+            });
+            setIsExpandModalOpened(true);
+        };
+
+        const itemsMap = useMemo(() => {
+            if (exploreData) {
+                return getItemMap(
+                    exploreData,
+                    additionalMetrics,
+                    tableCalculations,
+                );
+            }
+            return undefined;
+        }, [exploreData, additionalMetrics, tableCalculations]);
+
+        // Field helper functions for PivotTable
+        const getField = useCallback(
+            (fieldId: string) => (itemsMap ? itemsMap[fieldId] : undefined),
+            [itemsMap],
+        );
+
+        const getFieldLabel = useCallback(
+            (fieldId: string | null | undefined) => {
+                if (!fieldId || !itemsMap || !(fieldId in itemsMap))
+                    return undefined;
+
+                const item = itemsMap[fieldId];
+                if (isField(item)) {
+                    return item.label;
+                }
+                return getItemLabel(item);
+            },
+            [itemsMap],
+        );
+
+        // Web worker for converting pivoted data to PivotData format
+        const worker = useWorker(createWorker);
+        const [pivotTableData, setPivotTableData] = useState<{
+            loading: boolean;
+            data: PivotData | undefined;
+            error: string | undefined;
+        }>({
+            loading: false,
+            data: undefined,
+            error: undefined,
+        });
+
+        // Convert pivoted query results to PivotData format for PivotTable
+        useEffect(() => {
+            if (
+                !canShowGroupedResults ||
+                !queryResults.pivotDetails ||
+                queryResults.rows.length === 0 ||
+                !pivotConfig
+            ) {
+                setPivotTableData((prev) => {
+                    if (
+                        prev.loading !== false ||
+                        prev.data !== undefined ||
+                        prev.error !== undefined
+                    ) {
+                        return {
+                            loading: false,
+                            data: undefined,
+                            error: undefined,
+                        };
                     }
-                    idleState={IdleState}
-                    pagination={pagination}
-                    footer={footer}
+                    return prev;
+                });
+                return;
+            }
+
+            setPivotTableData((prev) => ({
+                ...prev,
+                loading: true,
+                error: undefined,
+            }));
+
+            worker
+                .convertSqlPivotedRowsToPivotData({
+                    rows: queryResults.rows,
+                    pivotDetails: queryResults.pivotDetails,
+                    pivotConfig: {
+                        metricsAsRows: false,
+                        columnTotals: false,
+                        rowTotals: false,
+                        hiddenMetricFieldIds: [],
+                        columnOrder: explorerColumnOrder,
+                    },
+                    getField,
+                    getFieldLabel,
+                    groupedSubtotals: undefined,
+                })
+                .then((data) => {
+                    setPivotTableData({
+                        loading: false,
+                        data,
+                        error: undefined,
+                    });
+                })
+                .catch((e) => {
+                    setPivotTableData({
+                        loading: false,
+                        data: undefined,
+                        error: e.message,
+                    });
+                });
+        }, [
+            canShowGroupedResults,
+            queryResults.pivotDetails,
+            queryResults.rows,
+            pivotConfig,
+            explorerColumnOrder,
+            getField,
+            getFieldLabel,
+            worker,
+        ]);
+
+        const cellContextMenu = useCallback(
+            (props: any) => (
+                <CellContextMenu
+                    isEditMode={isEditMode}
+                    {...props}
+                    itemsMap={itemsMap}
+                    onExpand={handleCellExpand}
+                />
+            ),
+            [isEditMode, itemsMap],
+        );
+
+        const IdleState: FC = useCallback(() => {
+            const description =
+                dimensions.length <= 0 ? (
+                    <>
+                        Pick one or more{' '}
+                        <Text span color="blue.9">
+                            dimensions
+                        </Text>{' '}
+                        to split your selected metric by.
+                    </>
+                ) : metrics.length <= 0 ? (
+                    <>
+                        Pick a{' '}
+                        <Text span color="yellow.9">
+                            metric
+                        </Text>{' '}
+                        to make calculations across your selected dimensions.
+                    </>
+                ) : (
+                    <>
+                        Run query to view your results and visualize them as a
+                        chart.
+                    </>
+                );
+
+            return <EmptyStateNoTableData description={description} />;
+        }, [dimensions.length, metrics.length]);
+
+        const pagination = useMemo(
+            () => ({
+                show: true,
+                showResultsTotal: true,
+            }),
+            [],
+        );
+        const footer = useMemo(
+            () => ({
+                show: true,
+            }),
+            [],
+        );
+
+        if (!activeTableName) return <NoTableSelected />;
+
+        if (columns.length === 0) return <EmptyStateNoColumns />;
+
+        if (isExploreLoading) return <EmptyStateExploreLoading />;
+
+        if (missingRequiredParameters && missingRequiredParameters.length > 0)
+            return (
+                <MissingRequiredParameters
+                    missingRequiredParameters={missingRequiredParameters}
+                />
+            );
+
+        const showGroupedView =
+            viewMode === ResultsViewMode.GROUPED && groupedResultsData;
+
+        // Render grouped view content
+        const renderGroupedView = () => {
+            if (pivotTableData.loading || groupedResultsData?.isFetchingRows) {
+                return (
+                    <Box
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            minHeight: 200,
+                        }}
+                    >
+                        <Loader />
+                    </Box>
+                );
+            }
+
+            if (pivotTableData.error) {
+                return (
+                    <Text c="red" ta="center">
+                        Error loading grouped results: {pivotTableData.error}
+                    </Text>
+                );
+            }
+
+            if (!pivotTableData.data) {
+                return <IdleState />;
+            }
+
+            return (
+                <PivotTable
+                    data={pivotTableData.data}
+                    conditionalFormattings={[]}
+                    minMaxMap={undefined}
+                    hideRowNumbers={false}
+                    getFieldLabel={getFieldLabel}
+                    getField={getField}
                     showSubtotals={false}
-                    columnProperties={columnProperties}
+                    isMinimal={false}
                 />
-                <JsonViewerModal
-                    heading={`Field: ${expandData.name}`}
-                    jsonObject={expandData.jsonObject}
-                    opened={isExpandModalOpened}
-                    onClose={() => setIsExpandModalOpened(false)}
-                />
-            </Box>
-        </TrackSection>
-    );
-});
+            );
+        };
+
+        return (
+            <TrackSection name={SectionName.RESULTS_TABLE}>
+                <Box px="xs" py="lg" data-testid="results-table-container">
+                    {showGroupedView ? (
+                        // Grouped results view - shows pivoted data with hierarchical headers
+                        renderGroupedView()
+                    ) : (
+                        // Regular results view - shows unpivoted data
+                        <Table
+                            status={status}
+                            errorDetail={apiError?.error}
+                            data={rows || []}
+                            totalRowsCount={totalRows || 0}
+                            isFetchingRows={isFetchingRows}
+                            fetchMoreRows={fetchMoreRows}
+                            columns={columns}
+                            columnOrder={explorerColumnOrder}
+                            onColumnOrderChange={handleColumnOrderChange}
+                            cellContextMenu={cellContextMenu}
+                            headerContextMenu={
+                                isEditMode ? ColumnHeaderContextMenu : undefined
+                            }
+                            idleState={IdleState}
+                            pagination={pagination}
+                            footer={footer}
+                            showSubtotals={false}
+                            columnProperties={columnProperties}
+                        />
+                    )}
+
+                    {/* View mode toggle - only show when grouped results are available */}
+                    {canShowGroupedResults && (
+                        <Group mt="sm" spacing="xs">
+                            <Button
+                                variant={
+                                    viewMode === ResultsViewMode.RESULTS
+                                        ? 'filled'
+                                        : 'default'
+                                }
+                                size="xs"
+                                onClick={() =>
+                                    setViewMode(ResultsViewMode.RESULTS)
+                                }
+                            >
+                                Results
+                            </Button>
+                            <Button
+                                variant={
+                                    viewMode === ResultsViewMode.GROUPED
+                                        ? 'filled'
+                                        : 'default'
+                                }
+                                size="xs"
+                                onClick={() =>
+                                    setViewMode(ResultsViewMode.GROUPED)
+                                }
+                            >
+                                Grouped results
+                            </Button>
+                        </Group>
+                    )}
+
+                    <JsonViewerModal
+                        heading={`Field: ${expandData.name}`}
+                        jsonObject={expandData.jsonObject}
+                        opened={isExpandModalOpened}
+                        onClose={() => setIsExpandModalOpened(false)}
+                    />
+                </Box>
+            </TrackSection>
+        );
+    },
+);
