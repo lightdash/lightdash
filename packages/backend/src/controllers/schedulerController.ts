@@ -266,14 +266,6 @@ export class SchedulerController extends BaseController {
             };
         }
 
-        const filters = {
-            createdByUserUuids: [req.user!.userUuid],
-            formats: formats ? formats.split(',') : undefined,
-            resourceType,
-            resourceUuids: resourceUuids ? resourceUuids.split(',') : undefined,
-            destinations: destinations ? destinations.split(',') : undefined,
-        };
-
         return {
             status: 'ok',
             results: await this.services
@@ -283,7 +275,16 @@ export class SchedulerController extends BaseController {
                     paginateArgs,
                     searchQuery,
                     sort,
-                    filters,
+                    {
+                        formats: formats ? formats.split(',') : undefined,
+                        resourceType,
+                        resourceUuids: resourceUuids
+                            ? resourceUuids.split(',')
+                            : undefined,
+                        destinations: destinations
+                            ? destinations.split(',')
+                            : undefined,
+                    },
                     includeLatestRun,
                 ),
         };

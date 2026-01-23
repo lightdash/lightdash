@@ -319,12 +319,12 @@ export class SchedulerService extends BaseService {
             return schedulers;
         }
 
-        const runs = await this.schedulerModel.getProjectSchedulerRuns({
-            projectUuid,
-            sort: { column: 'scheduledTime', direction: 'desc' },
-            filters: {
-                schedulerUuids,
-            },
+        const runs = await this.schedulerModel.getRunsForSchedulers({
+            schedulers: schedulers.data,
+            paginateArgs,
+            searchQuery,
+            sort,
+            filters,
         });
 
         const latestRunByScheduler = new Map<string, SchedulerRun>();
@@ -357,7 +357,6 @@ export class SchedulerService extends BaseService {
         searchQuery?: string,
         sort?: { column: string; direction: 'asc' | 'desc' },
         filters?: {
-            createdByUserUuids?: string[];
             formats?: string[];
             resourceType?: 'chart' | 'dashboard';
             resourceUuids?: string[];
@@ -380,7 +379,10 @@ export class SchedulerService extends BaseService {
             paginateArgs,
             searchQuery,
             sort,
-            filters,
+            filters: {
+                ...filters,
+                createdByUserUuids: [user.userUuid],
+            },
         });
 
         if (!includeLatestRun) {
@@ -395,12 +397,12 @@ export class SchedulerService extends BaseService {
             return schedulers;
         }
 
-        const runs = await this.schedulerModel.getUserSchedulerRuns({
-            userUuid: user.userUuid,
-            sort: { column: 'scheduledTime', direction: 'desc' },
-            filters: {
-                schedulerUuids,
-            },
+        const runs = await this.schedulerModel.getRunsForSchedulers({
+            schedulers: schedulers.data,
+            paginateArgs,
+            searchQuery,
+            sort,
+            filters,
         });
 
         const latestRunByScheduler = new Map<string, SchedulerRun>();

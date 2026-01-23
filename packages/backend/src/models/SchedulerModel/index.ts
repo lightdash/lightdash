@@ -874,70 +874,6 @@ export class SchedulerModel {
         };
     }
 
-    private async getSchedulerForUser(
-        userUuid: string,
-        schedulerUuids: string[],
-    ): Promise<SchedulerAndTargets[]> {
-        const schedulerCharts = this.database(SchedulerTableName)
-            .select<SelectScheduler[]>(
-                `${SchedulerTableName}.*`,
-                this.database.raw(
-                    `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_name`,
-                ),
-                `${SavedChartsTableName}.name as saved_chart_name`,
-                `${DashboardsTableName}.name as dashboard_name`,
-            )
-            .leftJoin(
-                UserTableName,
-                `${UserTableName}.user_uuid`,
-                `${SchedulerTableName}.created_by`,
-            )
-            .leftJoin(
-                SavedChartsTableName,
-                `${SavedChartsTableName}.saved_query_uuid`,
-                `${SchedulerTableName}.saved_chart_uuid`,
-            )
-            .leftJoin(DashboardsTableName, function joinDashboards() {
-                this.on(
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    '=',
-                    `${SavedChartsTableName}.dashboard_uuid`,
-                ).andOnNotNull(`${SavedChartsTableName}.dashboard_uuid`);
-            })
-            .where(`${UserTableName}.user_uuid`, userUuid)
-            .whereIn(`${SchedulerTableName}.scheduler_uuid`, schedulerUuids);
-
-        const schedulerDashboards = this.database(SchedulerTableName)
-            .select<SelectScheduler[]>(
-                `${SchedulerTableName}.*`,
-                this.database.raw(
-                    `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_name`,
-                ),
-                this.database.raw(`NULL as saved_chart_name`),
-                `${DashboardsTableName}.name as dashboard_name`,
-            )
-            .leftJoin(
-                UserTableName,
-                `${UserTableName}.user_uuid`,
-                `${SchedulerTableName}.created_by`,
-            )
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SchedulerTableName}.dashboard_uuid`,
-            )
-            .where(`${UserTableName}.user_uuid`, userUuid)
-            .whereIn(`${SchedulerTableName}.scheduler_uuid`, schedulerUuids);
-
-        const schedulerDashboardWithTargets =
-            await this.getSchedulersWithTargets(await schedulerDashboards);
-        const schedulerChartWithTargets = await this.getSchedulersWithTargets(
-            await schedulerCharts,
-        );
-
-        return [...schedulerChartWithTargets, ...schedulerDashboardWithTargets];
-    }
-
     async getSchedulerForProject(
         projectUuid: string,
         schedulerUuids?: string[],
@@ -1350,40 +1286,6 @@ export class SchedulerModel {
         });
     }
 
-    async getUserSchedulerRuns({
-        userUuid,
-        paginateArgs,
-        searchQuery,
-        sort,
-        filters,
-    }: {
-        userUuid: string;
-        paginateArgs?: KnexPaginateArgs;
-        searchQuery?: string;
-        sort?: { column: string; direction: 'asc' | 'desc' };
-        filters: {
-            schedulerUuids: string[];
-            statuses?: SchedulerRunStatus[];
-            createdByUserUuids?: string[];
-            destinations?: string[];
-            resourceType?: 'chart' | 'dashboard';
-            resourceUuids?: string[];
-        };
-    }): Promise<KnexPaginatedData<SchedulerRun[]>> {
-        const schedulers = await this.getSchedulerForUser(
-            userUuid,
-            filters.schedulerUuids,
-        );
-
-        return this.getSchedulerRuns({
-            schedulers,
-            paginateArgs,
-            searchQuery,
-            sort,
-            filters,
-        });
-    }
-
     async getProjectSchedulerRuns({
         projectUuid,
         paginateArgs,
@@ -1412,7 +1314,7 @@ export class SchedulerModel {
                   )
                 : await this.getSchedulerForProject(projectUuid);
 
-        return this.getSchedulerRuns({
+        return this.getRunsForSchedulers({
             schedulers,
             paginateArgs,
             searchQuery,
@@ -1421,7 +1323,7 @@ export class SchedulerModel {
         });
     }
 
-    private async getSchedulerRuns({
+    async getRunsForSchedulers({
         schedulers,
         paginateArgs,
         searchQuery,
