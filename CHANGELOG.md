@@ -1,3 +1,16 @@
+# [0.2372.0](https://github.com/lightdash/lightdash/compare/0.2371.0...0.2372.0) (2026-01-23)
+
+
+### Bug Fixes
+
+* add onChartConfigChange to compute series in Metric explore modal v2 ([#19685](https://github.com/lightdash/lightdash/issues/19685)) ([b54fb75](https://github.com/lightdash/lightdash/commit/b54fb75a893dfbbd05d6f0c79655fc0e581e8db4))
+* maps on dashboards ([#19684](https://github.com/lightdash/lightdash/issues/19684)) ([b765c99](https://github.com/lightdash/lightdash/commit/b765c993955763bc3e22354f307fd2ee61b1a8f1))
+
+
+### Features
+
+* add meta-query detection to skip forwarding agent selection queries ([#19648](https://github.com/lightdash/lightdash/issues/19648)) ([b12b386](https://github.com/lightdash/lightdash/commit/b12b386868c3b25690b0d421024f197b3735c03e)), closes [#19650](https://github.com/lightdash/lightdash/issues/19650)
+
 # [0.2371.0](https://github.com/lightdash/lightdash/compare/0.2370.2...0.2371.0) (2026-01-23)
 
 
