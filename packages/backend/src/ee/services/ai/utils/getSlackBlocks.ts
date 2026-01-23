@@ -410,6 +410,7 @@ export function getAgentSelectionBlocks(
     agents: AiAgent[],
     channelId: string,
     projectMap?: Map<string, string>,
+    shouldSkipForwardingQuery = false,
 ): (Block | KnownBlock)[] {
     if (agents.length === 0) {
         return [
@@ -462,6 +463,7 @@ export function getAgentSelectionBlocks(
                         value: JSON.stringify({
                             agentUuid: agent.uuid,
                             channelId,
+                            shouldSkipForwardingQuery,
                         }),
                     })),
                 };
@@ -523,6 +525,7 @@ export function getAgentSelectionBlocks(
                         value: JSON.stringify({
                             agentUuid: agent.uuid,
                             channelId,
+                            shouldSkipForwardingQuery,
                         }),
                     })),
                 },
