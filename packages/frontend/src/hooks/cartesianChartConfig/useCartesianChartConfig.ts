@@ -619,8 +619,8 @@ const useCartesianChartConfig = ({
                     stack === true
                         ? StackType.NORMAL
                         : stack === false
-                          ? StackType.NONE
-                          : stack,
+                        ? StackType.NONE
+                        : stack,
             }));
 
             setDirtyEchartsConfig(
@@ -955,8 +955,8 @@ const useCartesianChartConfig = ({
                                     ? serie.encode.yRef
                                     : serie.encode.xRef
                                 : dirtyLayout?.flipAxes
-                                  ? serie.encode.xRef
-                                  : serie.encode.yRef;
+                                ? serie.encode.xRef
+                                : serie.encode.yRef;
                         return {
                             fieldId: axis.field,
                             data: {
@@ -1029,7 +1029,6 @@ const useCartesianChartConfig = ({
                 const newSeries = mergeExistingAndExpectedSeries({
                     expectedSeriesMap,
                     existingSeries: prev?.series || [],
-                    resultsColumns: resultsData.columns,
                 });
 
                 const seriesWithReferenceLines = applyReferenceLines(

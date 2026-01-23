@@ -21,7 +21,6 @@ import {
     type TableCalculation,
 } from './field';
 import { type Filters, type MetricFilterRule } from './filter';
-import { type PeriodOverPeriodComparison } from './periodOverPeriodComparison';
 import { type TimeFrames } from './timeFrames';
 
 export interface AdditionalMetric {
@@ -73,7 +72,7 @@ export const isAdditionalMetric = (value: AnyType): value is AdditionalMetric =>
     !isCustomDimension(value);
 
 export interface PeriodOverPeriodAdditionalMetric extends AdditionalMetric {
-    generatedBy: 'periodOverPeriod';
+    generationType: 'periodOverPeriod';
     /**
      * The base metric id that this metric is the previous-period version of.
      * This avoids relying on suffix parsing to establish the relationship.
@@ -94,7 +93,7 @@ export interface PeriodOverPeriodAdditionalMetric extends AdditionalMetric {
 }
 
 type PeriodOverPeriodGeneratedMetricMetadata = {
-    generatedBy: 'periodOverPeriod';
+    generationType: 'periodOverPeriod';
     baseMetricId: FieldId;
     timeDimensionId: FieldId;
     granularity: TimeFrames;
@@ -113,7 +112,7 @@ export const hasPeriodOverPeriodGeneratedMetricMetadata = (
 ): value is PeriodOverPeriodGeneratedMetricMetadata => {
     if (!value || typeof value !== 'object') return false;
     if (
-        !('generatedBy' in value) ||
+        !('generationType' in value) ||
         !('baseMetricId' in value) ||
         !('timeDimensionId' in value) ||
         !('granularity' in value) ||
@@ -123,7 +122,7 @@ export const hasPeriodOverPeriodGeneratedMetricMetadata = (
 
     const record = value as Record<string, unknown>;
     return (
-        record.generatedBy === 'periodOverPeriod' &&
+        record.generationType === 'periodOverPeriod' &&
         typeof record.baseMetricId === 'string' &&
         typeof record.timeDimensionId === 'string' &&
         typeof record.granularity === 'string' &&

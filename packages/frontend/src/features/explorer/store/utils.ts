@@ -49,18 +49,6 @@ export const computeColumnOrderWithPoP = (
     const popFieldsByBase = new Map<string, string>();
     const popFieldIds = new Set<string>();
 
-    for (const [fieldId, column] of Object.entries(resultsColumns)) {
-        if (column.popMetadata) {
-            const { baseFieldId } = column.popMetadata;
-            popFieldsByBase.set(baseFieldId, fieldId);
-            popFieldIds.add(fieldId);
-            popRelationships.set(fieldId, {
-                baseFieldId,
-                popFieldId: fieldId,
-            });
-        }
-    }
-
     // If no PoP columns found, return base order
     if (popFieldsByBase.size === 0) {
         return {

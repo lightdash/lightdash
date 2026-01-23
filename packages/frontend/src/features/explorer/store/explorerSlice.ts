@@ -246,11 +246,10 @@ const explorerSlice = createSlice({
         },
 
         setPeriodOverPeriod: (
-            state,
-            action: PayloadAction<PeriodOverPeriodComparison | undefined>,
+            _state,
+            _action: PayloadAction<PeriodOverPeriodComparison | undefined>,
         ) => {
-            state.unsavedChartVersion.metricQuery.periodOverPeriod =
-                action.payload;
+            // No-op
         },
 
         setColumnOrder: (state, action: PayloadAction<string[]>) => {

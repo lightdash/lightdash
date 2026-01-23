@@ -132,7 +132,6 @@ type MergeExistingAndExpectedSeriesArgs = {
 export const mergeExistingAndExpectedSeries = ({
     expectedSeriesMap,
     existingSeries,
-    resultsColumns,
 }: MergeExistingAndExpectedSeriesArgs) => {
     const { existingValidSeries, existingValidSeriesIds } =
         existingSeries.reduce<{
@@ -188,28 +187,6 @@ export const mergeExistingAndExpectedSeries = ({
 
             // For PoP fields, inherit chart properties from the base field's series
             let seriesToAdd = expectedSeries;
-            const yRefField = expectedSeries.encode.yRef.field;
-            const popMetadata = yRefField
-                ? resultsColumns?.[yRefField]?.popMetadata
-                : undefined;
-
-            if (popMetadata) {
-                // Use baseFieldId from popMetadata
-                const { baseFieldId } = popMetadata;
-                const baseSeries = acc.find(
-                    (series) => series.encode.yRef.field === baseFieldId,
-                );
-                if (baseSeries) {
-                    seriesToAdd = {
-                        ...expectedSeries,
-                        type: baseSeries.type,
-                        areaStyle: baseSeries.areaStyle,
-                        smooth: baseSeries.smooth,
-                        showSymbol: baseSeries.showSymbol,
-                        yAxisIndex: baseSeries.yAxisIndex,
-                    };
-                }
-            }
 
             // Add series to the end of its group
             if (

@@ -24,13 +24,7 @@ export const convertAdditionalMetric = ({
     });
 
     const popMetadata = isPeriodOverPeriodAdditionalMetric(additionalMetric)
-        ? {
-              generatedBy: 'periodOverPeriod' as const,
-              baseMetricId: additionalMetric.baseMetricId,
-              timeDimensionId: additionalMetric.timeDimensionId,
-              granularity: additionalMetric.granularity,
-              periodOffset: additionalMetric.periodOffset,
-          }
+        ? additionalMetric
         : undefined;
 
     return {

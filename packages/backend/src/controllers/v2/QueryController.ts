@@ -154,7 +154,6 @@ export class QueryController extends BaseController {
             timezone: body.query.timezone,
             metricOverrides: body.query.metricOverrides,
             dimensionOverrides: body.query.dimensionOverrides,
-            periodOverPeriod: body.query.periodOverPeriod,
         };
 
         const results = await this.services
