@@ -938,7 +938,7 @@ export class SchedulerClient {
             SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY,
             payload,
             now,
-            JobPriority.LOW,
+            JobPriority.HIGH,
             3,
         );
 
