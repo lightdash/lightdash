@@ -36,9 +36,16 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
-import { DashboardsTableName } from '../../database/entities/dashboards';
+import {
+    DashboardsTableName,
+    DbDashboard,
+} from '../../database/entities/dashboards';
+import { OrganizationTableName } from '../../database/entities/organizations';
 import { ProjectTableName } from '../../database/entities/projects';
-import { SavedChartsTableName } from '../../database/entities/savedCharts';
+import {
+    DbSavedChart,
+    SavedChartsTableName,
+} from '../../database/entities/savedCharts';
 import {
     SchedulerDb,
     SchedulerEmailTargetDb,
@@ -52,7 +59,7 @@ import {
     SchedulerTableName,
 } from '../../database/entities/scheduler';
 import { SpaceTableName } from '../../database/entities/spaces';
-import { UserTableName } from '../../database/entities/users';
+import { DbUser, UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
 import { getColumnMatchRegexQuery } from '../SearchModel/utils/search';
 
@@ -60,6 +67,9 @@ type SelectScheduler = SchedulerDb & {
     created_by_name: string | null;
     saved_chart_name: string | null;
     dashboard_name: string | null;
+    project_uuid?: string | null;
+    project_name?: string | null;
+    project_scheduler_timezone?: string | null;
 };
 
 type SchedulerModelArguments = {
@@ -91,6 +101,8 @@ export class SchedulerModel {
             createdByName: scheduler.created_by_name,
             cron: scheduler.cron,
             timezone: scheduler.timezone ?? undefined,
+            projectSchedulerTimezone:
+                scheduler.project_scheduler_timezone ?? undefined,
             savedChartUuid: scheduler.saved_chart_uuid,
             savedChartName: scheduler.saved_chart_name,
             dashboardUuid: scheduler.dashboard_uuid,
@@ -105,6 +117,8 @@ export class SchedulerModel {
             notificationFrequency: scheduler.notification_frequency,
             selectedTabs: scheduler.selected_tabs,
             includeLinks: scheduler.include_links,
+            projectUuid: scheduler.project_uuid ?? undefined,
+            projectName: scheduler.project_name ?? undefined,
         } as Scheduler;
     }
 
@@ -249,8 +263,33 @@ export class SchedulerModel {
             destinations?: string[];
         };
     }): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
-        let baseQuery = SchedulerModel.getBaseSchedulerQuery(this.database);
-
+        let baseQuery = this.database(SchedulerTableName)
+            .select<SelectScheduler[]>(
+                `${SchedulerTableName}.*`,
+                this.database.raw(
+                    `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_name`,
+                ),
+                `${SavedChartsTableName}.name as saved_chart_name`,
+                `${DashboardsTableName}.name as dashboard_name`,
+                `${ProjectTableName}.project_uuid as project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                `${ProjectTableName}.scheduler_timezone as project_scheduler_timezone`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${SchedulerTableName}.created_by`,
+            )
+            .leftJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                `${SchedulerTableName}.saved_chart_uuid`,
+            )
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SchedulerTableName}.dashboard_uuid`,
+            );
         // Apply search query if present
         if (searchQuery) {
             baseQuery = getColumnMatchRegexQuery(baseQuery, searchQuery, [
@@ -356,6 +395,13 @@ export class SchedulerModel {
         // Create a union of two queries: one for saved charts and one for dashboards
         let schedulerCharts = baseQuery
             .clone()
+            .whereNotNull(`${SchedulerTableName}.saved_chart_uuid`);
+
+        let schedulerDashboards = baseQuery
+            .clone()
+            .whereNotNull(`${SchedulerTableName}.dashboard_uuid`);
+
+        schedulerCharts = schedulerCharts
             // Join to get the dashboard that the chart belongs to (if any)
             .leftJoin(
                 { [dashboardChartsJoinTable]: DashboardsTableName },
@@ -377,12 +423,9 @@ export class SchedulerModel {
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
-            )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .whereNotNull(`${SchedulerTableName}.saved_chart_uuid`);
+            );
 
-        let schedulerDashboards = baseQuery
-            .clone()
+        schedulerDashboards = schedulerDashboards
             .leftJoin(
                 SpaceTableName,
                 `${SpaceTableName}.space_id`,
@@ -392,9 +435,19 @@ export class SchedulerModel {
                 ProjectTableName,
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
-            )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid)
-            .whereNotNull(`${SchedulerTableName}.dashboard_uuid`);
+            );
+
+        if (projectUuid) {
+            schedulerCharts = schedulerCharts.where(
+                `${ProjectTableName}.project_uuid`,
+                projectUuid,
+            );
+
+            schedulerDashboards = schedulerDashboards.where(
+                `${ProjectTableName}.project_uuid`,
+                projectUuid,
+            );
+        }
 
         // Apply resource type filter
         if (filters?.resourceType === 'chart') {
@@ -446,7 +499,9 @@ export class SchedulerModel {
 
         return {
             pagination,
-            data: await this.getSchedulersWithTargets(data),
+            data: await this.getSchedulersWithTargets(
+                data as SelectScheduler[],
+            ),
         };
     }
 
@@ -1231,7 +1286,7 @@ export class SchedulerModel {
         });
     }
 
-    async getSchedulerRuns({
+    async getProjectSchedulerRuns({
         projectUuid,
         paginateArgs,
         searchQuery,
@@ -1259,6 +1314,35 @@ export class SchedulerModel {
                   )
                 : await this.getSchedulerForProject(projectUuid);
 
+        return this.getRunsForSchedulers({
+            schedulers,
+            paginateArgs,
+            searchQuery,
+            sort,
+            filters,
+        });
+    }
+
+    async getRunsForSchedulers({
+        schedulers,
+        paginateArgs,
+        searchQuery,
+        sort,
+        filters,
+    }: {
+        schedulers: SchedulerAndTargets[];
+        paginateArgs?: KnexPaginateArgs;
+        searchQuery?: string;
+        sort?: { column: string; direction: 'asc' | 'desc' };
+        filters?: {
+            schedulerUuids?: string[];
+            statuses?: SchedulerRunStatus[];
+            createdByUserUuids?: string[];
+            destinations?: string[];
+            resourceType?: 'chart' | 'dashboard';
+            resourceUuids?: string[];
+        };
+    }): Promise<KnexPaginatedData<SchedulerRun[]>> {
         // Apply scheduler-level filters
         let filteredSchedulers = schedulers;
 

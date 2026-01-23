@@ -40,7 +40,7 @@ interface LogsTopToolbarProps
     isFetching: boolean;
     currentResultsCount: number;
     availableSchedulers: Scheduler[];
-    projectUuid: string;
+    projectUuid?: string;
 }
 
 export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(

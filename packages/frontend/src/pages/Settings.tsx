@@ -48,6 +48,7 @@ import { OrganizationWarehouseCredentialsPanel } from '../components/UserSetting
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
 import ProjectManagementPanel from '../components/UserSettings/ProjectManagementPanel';
+import UserScheduledDeliveriesPanel from '../components/UserSettings/ScheduledDeliveriesPanel';
 import SlackSettingsPanel from '../components/UserSettings/SlackSettingsPanel';
 import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
@@ -208,6 +209,22 @@ const Settings: FC = () => {
                 </Stack>
             ),
         });
+        if (user?.ability.can('create', 'ScheduledDeliveries')) {
+            // A user might not be able to create scheduled permissions on the org level but on a specific project
+            // level. The check here makes sure that the user has the ability to create a scheduled delivery at least somewhere.
+            // Since the service returns specifically the user's scheduled deliveries, this is completely intended behavior.
+            allowedRoutes.push({
+                path: '/userScheduledDeliveries',
+                element: (
+                    <Stack gap="xl">
+                        <SettingsGridCard>
+                            <Title order={4}>My scheduled deliveries</Title>
+                        </SettingsGridCard>
+                        <UserScheduledDeliveriesPanel />
+                    </Stack>
+                ),
+            });
+        }
         if (user?.ability.can('manage', 'PersonalAccessToken')) {
             allowedRoutes.push({
                 path: '/organization',
@@ -426,6 +443,12 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 {
+                    path: '/generalSettings/userScheduledDeliveries',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
                     path: '/generalSettings/projectManagement/:projectUuid/compilationHistory',
                 },
                 location.pathname,
@@ -492,14 +515,12 @@ const Settings: FC = () => {
                                 <Title order={6} fw={600} mb="xs">
                                     Your settings
                                 </Title>
-
                                 <RouterNavLink
                                     exact
                                     to="/generalSettings"
                                     label="Profile"
                                     icon={<MantineIcon icon={IconUserCircle} />}
                                 />
-
                                 {allowPasswordAuthentication && (
                                     <RouterNavLink
                                         label={
@@ -512,7 +533,6 @@ const Settings: FC = () => {
                                         icon={<MantineIcon icon={IconLock} />}
                                     />
                                 )}
-
                                 <RouterNavLink
                                     label="My warehouse connections"
                                     exact
@@ -521,6 +541,29 @@ const Settings: FC = () => {
                                         <MantineIcon icon={IconDatabaseCog} />
                                     }
                                 />
+                                {/*A user might not be able to create scheduled
+                                permissions on the org level but on a specific
+                                project level. The check here makes sure that
+                                the user has the ability to create a scheduled
+                                delivery at least somewhere. Since the
+                                service returns specifically the user's
+                                scheduled deliveries, this is completely
+                                intended behavior.*/}
+                                {user.ability.can(
+                                    'create',
+                                    'ScheduledDeliveries',
+                                ) && (
+                                    <RouterNavLink
+                                        label="My scheduled deliveries"
+                                        exact
+                                        to="/generalSettings/userScheduledDeliveries"
+                                        icon={
+                                            <MantineIcon
+                                                icon={IconCalendarStats}
+                                            />
+                                        }
+                                    />
+                                )}
                                 {user.ability.can(
                                     'manage',
                                     'PersonalAccessToken',
