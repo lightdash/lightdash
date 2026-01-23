@@ -1,3 +1,15 @@
+# [0.2371.0](https://github.com/lightdash/lightdash/compare/0.2370.2...0.2371.0) (2026-01-23)
+
+
+### Bug Fixes
+
+* hide explore button from metric explore modal v2 if insufficient permissions ([#19664](https://github.com/lightdash/lightdash/issues/19664)) ([aa10098](https://github.com/lightdash/lightdash/commit/aa100987b75f39de7c12e083d1ce3bf1caadfc88))
+
+
+### Features
+
+* allow changing query date range in metric explore modal v2 ([#19663](https://github.com/lightdash/lightdash/issues/19663)) ([a916dc9](https://github.com/lightdash/lightdash/commit/a916dc9d83c8f99cc4735e92018fe3eb3fd2e20b))
+
 ## [0.2370.2](https://github.com/lightdash/lightdash/compare/0.2370.1...0.2370.2) (2026-01-22)
 
 
