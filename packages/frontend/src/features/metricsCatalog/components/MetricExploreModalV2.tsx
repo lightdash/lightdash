@@ -5,7 +5,6 @@ import {
     getFilterDimensionsForMetric,
     getSegmentDimensionsForMetric,
     type CatalogField,
-    type ChartConfig,
     type FilterRule,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
@@ -180,6 +179,7 @@ export const MetricExploreModalV2: FC<Props> = ({
         chartConfig,
         resultsData,
         columnOrder,
+        computedSeries,
         isLoading,
         hasData,
     } = useMetricVisualization({
@@ -192,11 +192,6 @@ export const MetricExploreModalV2: FC<Props> = ({
         dateRange,
         comparison: query.comparison,
     });
-
-    // Track the expanded chart config -> used to let the VisualizationProvider re-render with the new chart config, e.g. calculation of series & color assignment
-    const [expandedChartConfig, setExpandedChartConfig] = useState<
-        ChartConfig | undefined
-    >(undefined);
 
     const metricsWithTimeDimensionsQuery = useCatalogMetricsWithTimeDimensions({
         projectUuid,
@@ -264,10 +259,6 @@ export const MetricExploreModalV2: FC<Props> = ({
         ['ArrowUp', handleGoToPreviousMetric],
         ['ArrowDown', handleGoToNextMetric],
     ]);
-
-    const handleChartConfigChange = useCallback((newConfig: ChartConfig) => {
-        setExpandedChartConfig(newConfig);
-    }, []);
 
     const handleSegmentDimensionChange = useCallback(
         (value: string | null) => {
@@ -517,10 +508,7 @@ export const MetricExploreModalV2: FC<Props> = ({
                                     >
                                         <VisualizationProvider
                                             resultsData={resultsData}
-                                            chartConfig={
-                                                expandedChartConfig ??
-                                                chartConfig
-                                            }
+                                            chartConfig={chartConfig}
                                             columnOrder={columnOrder}
                                             initialPivotDimensions={
                                                 segmentDimensionId
@@ -530,10 +518,8 @@ export const MetricExploreModalV2: FC<Props> = ({
                                             colorPalette={colorPalette}
                                             isLoading={isLoading}
                                             onSeriesContextMenu={undefined}
-                                            onChartConfigChange={
-                                                handleChartConfigChange
-                                            }
                                             pivotTableMaxColumnLimit={60}
+                                            computedSeries={computedSeries}
                                         >
                                             <LightdashVisualization />
                                         </VisualizationProvider>
