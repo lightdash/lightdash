@@ -1,20 +1,25 @@
 import {
     CartesianSeriesType,
     ChartType,
+    FilterOperator,
+    getDefaultDateRangeFromInterval,
     getFieldIdForDateDimension,
     getItemId,
     MetricExplorerComparison,
+    METRICS_EXPLORER_DATE_FORMAT,
     QueryExecutionContext,
     TimeFrames,
     type ApiError,
     type ChartConfig,
     type FilterRule,
     type Filters,
+    type MetricExplorerDateRange,
     type MetricQuery,
     type MetricWithAssociatedTimeDimension,
     type TimeDimensionConfig,
 } from '@lightdash/common';
-import { useMemo } from 'react';
+import dayjs from 'dayjs';
+import { useMemo, useRef } from 'react';
 import { type VisualizationProviderProps } from '../../../components/LightdashVisualization/VisualizationProvider';
 import { type MetricQueryDataContext } from '../../../components/MetricQueryData/context';
 import { useExplore } from '../../../hooks/useExplore';
@@ -27,6 +32,11 @@ const buildMetricQueryFromField = (
     timeDimensionOverride?: TimeDimensionConfig,
     segmentDimensionId?: string | null,
     filterRule?: FilterRule,
+    dateRange?: MetricExplorerDateRange,
+    ids?: {
+        dateFilterId: string;
+        dimensionsFilterGroupId: string;
+    },
     comparison?: MetricExplorerComparison,
 ): MetricQuery => {
     const timeDimensionConfig = timeDimensionOverride ?? field.timeDimension;
@@ -54,14 +64,34 @@ const buildMetricQueryFromField = (
         (d): d is string => Boolean(d),
     );
 
-    const filters: Filters = filterRule
-        ? {
-              dimensions: {
-                  id: filterRule.id,
-                  and: [filterRule],
-              },
-          }
-        : {};
+    const dateFilterRule: FilterRule | undefined =
+        timeDimensionFieldId && dateRange
+            ? {
+                  id: ids?.dateFilterId ?? 'metrics-explore-date-filter',
+                  target: { fieldId: timeDimensionFieldId },
+                  operator: FilterOperator.IN_BETWEEN,
+                  values: [
+                      dayjs(dateRange[0]).format(METRICS_EXPLORER_DATE_FORMAT),
+                      dayjs(dateRange[1]).format(METRICS_EXPLORER_DATE_FORMAT),
+                  ],
+              }
+            : undefined;
+
+    const dimensionRules = [filterRule, dateFilterRule].filter(
+        (r): r is FilterRule => Boolean(r),
+    );
+
+    const filters: Filters =
+        dimensionRules.length > 0
+            ? {
+                  dimensions: {
+                      id:
+                          ids?.dimensionsFilterGroupId ??
+                          'metrics-explore-dimensions-filters',
+                      and: dimensionRules,
+                  },
+              }
+            : {};
 
     return {
         exploreName: field.table,
@@ -129,6 +159,7 @@ export type MetricVisualizationResult = {
 
     // Time dimension config (for granularity picker)
     timeDimensionConfig: TimeDimensionConfig | undefined;
+    effectiveDateRange: MetricExplorerDateRange | undefined;
 
     chartConfig: VisualizationProviderProps['chartConfig'];
     resultsData: VisualizationProviderProps['resultsData'];
@@ -146,6 +177,7 @@ type UseMetricVisualizationProps = {
     timeDimensionOverride?: TimeDimensionConfig;
     segmentDimensionId?: string | null;
     filterRule?: FilterRule;
+    dateRange?: MetricExplorerDateRange;
     comparison?: MetricExplorerComparison;
 };
 
@@ -165,8 +197,17 @@ export function useMetricVisualization({
     timeDimensionOverride,
     segmentDimensionId,
     filterRule,
+    dateRange,
     comparison,
 }: UseMetricVisualizationProps): MetricVisualizationResult {
+    /**
+     * Keep filter IDs stable to avoid unnecessary query churn.
+     */
+    const dateFilterIdRef = useRef<string>('metrics-explore-date-filter');
+    const dimensionsFilterGroupIdRef = useRef<string>(
+        'metrics-explore-dimensions-filters',
+    );
+
     // 1. Fetch metric field metadata
     const metricFieldQuery = useMetric({
         projectUuid,
@@ -182,6 +223,15 @@ export function useMetricVisualization({
         return timeDimensionOverride ?? metricFieldQuery.data?.timeDimension;
     }, [timeDimensionOverride, metricFieldQuery.data?.timeDimension]);
 
+    const defaultDateRange = useMemo(() => {
+        if (!timeDimensionConfig) return undefined;
+        return getDefaultDateRangeFromInterval(timeDimensionConfig.interval);
+    }, [timeDimensionConfig]);
+
+    const effectiveDateRange = useMemo(() => {
+        return dateRange ?? defaultDateRange;
+    }, [dateRange, defaultDateRange]);
+
     // 4. Build MetricQuery & Start executing
     const metricQuery = useMemo(() => {
         if (!metricFieldQuery.data) return undefined;
@@ -190,6 +240,11 @@ export function useMetricVisualization({
             timeDimensionConfig,
             segmentDimensionId,
             filterRule,
+            effectiveDateRange,
+            {
+                dateFilterId: dateFilterIdRef.current,
+                dimensionsFilterGroupId: dimensionsFilterGroupIdRef.current,
+            },
             comparison,
         );
     }, [
@@ -197,6 +252,7 @@ export function useMetricVisualization({
         timeDimensionConfig,
         segmentDimensionId,
         filterRule,
+        effectiveDateRange,
         comparison,
     ]);
 
@@ -269,6 +325,7 @@ export function useMetricVisualization({
         explore: exploreQuery.data,
         metricQuery,
         timeDimensionConfig,
+        effectiveDateRange,
         chartConfig,
         resultsData,
         columnOrder,
