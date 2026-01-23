@@ -1,3 +1,10 @@
+## [0.2372.3](https://github.com/lightdash/lightdash/compare/0.2372.2...0.2372.3) (2026-01-23)
+
+
+### Bug Fixes
+
+* make the Map dashboard tile full-width ([#19690](https://github.com/lightdash/lightdash/issues/19690)) ([d6b38b1](https://github.com/lightdash/lightdash/commit/d6b38b1626c4ccf2c6532e2e31d469d9ec7a8b48))
+
 ## [0.2372.2](https://github.com/lightdash/lightdash/compare/0.2372.1...0.2372.2) (2026-01-23)
 
 
