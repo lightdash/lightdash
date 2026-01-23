@@ -1,0 +1,86 @@
+version: 2
+models:
+  - name: spain_regional_metrics
+    description: |
+      # Spain Provincial Metrics
+
+      Business metrics for Spain's 52 provinces.
+      Use province_name for choropleth maps with the spain-provinces.geojson file.
+      Province names match: https://raw.githubusercontent.com/codeforgermany/click_that_hood/main/public/data/spain-provinces.geojson
+    columns:
+      - name: province_name
+        description: "Province name matching the GeoJSON 'name' property"
+        config:
+          meta:
+            dimension:
+              type: string
+
+      - name: capital_city
+        description: Capital city of the province
+        config:
+          meta:
+            dimension:
+              type: string
+
+      - name: latitude
+        description: Latitude of the capital city
+        config:
+          meta:
+            dimension:
+              type: number
+
+      - name: longitude
+        description: Longitude of the capital city
+        config:
+          meta:
+            dimension:
+              type: number
+
+      - name: customer_count
+        description: Number of customers in this province
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_spain_customers:
+                type: sum
+                label: Total Spain Customers
+                description: Sum of customers across Spanish provinces
+
+      - name: annual_revenue_eur
+        description: Annual revenue in EUR for this province
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_spain_revenue:
+                type: sum
+                label: Total Spain Revenue
+                description: Sum of revenue across Spanish provinces
+
+      - name: employee_count
+        description: Number of employees in this province
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_spain_employees:
+                type: sum
+                label: Total Spain Employees
+
+      - name: market_penetration_pct
+        description: Market penetration percentage in this province
+        config:
+          meta:
+            dimension:
+              type: number
+
+      - name: yoy_growth_pct
+        description: Year-over-year growth percentage
+        config:
+          meta:
+            dimension:
+              type: number
