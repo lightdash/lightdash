@@ -72,6 +72,7 @@ export type DbAiPrompt = {
     created_by_user_uuid: string | null;
     prompt: string;
     response: string | null;
+    error_message: string | null;
     responded_at: Date | null;
     viz_config_output: object | null;
     filters_output: object | null;
@@ -93,6 +94,7 @@ export type AiPromptTable = Knex.CompositeTableType<
         Pick<
             DbAiPrompt,
             | 'response'
+            | 'error_message'
             | 'viz_config_output'
             | 'filters_output'
             | 'human_score'

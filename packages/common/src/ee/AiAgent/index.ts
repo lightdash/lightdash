@@ -154,6 +154,8 @@ export type AiAgentMessageAssistant = {
 
     // ai_prompt.response
     message: string | null;
+    // ai_prompt.error_message
+    errorMessage: string | null;
     // ai_prompt.responded_at but this can not be null because
     // we check for null before creating the agent message
     createdAt: string;
