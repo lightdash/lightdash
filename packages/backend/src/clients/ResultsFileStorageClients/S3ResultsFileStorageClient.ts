@@ -51,7 +51,12 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             throw new MissingConfigError('S3 configuration is not set');
         }
 
-        const passThrough = new PassThrough();
+        // Use a larger buffer (16MB) to allow the S3 Upload to start consuming
+        // before backpressure kicks in. Without this, the first write() might
+        // return false immediately before Upload starts reading, causing deadlock.
+        const passThrough = new PassThrough({
+            highWaterMark: 16 * 1024 * 1024,
+        });
 
         const contentDisposition = createContentDispositionHeader(
             attachmentDownloadName || fileName,
@@ -72,6 +77,11 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             },
         });
 
+        // Start the upload immediately so it begins consuming from the PassThrough.
+        // Without this, the Upload won't read until done() is called, causing deadlock
+        // when the PassThrough buffer fills up waiting for drain.
+        const uploadPromise = upload.done();
+
         let isClosed = false;
         const close = async () => {
             if (!this.configuration) {
@@ -82,7 +92,7 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
             isClosed = true;
             try {
                 passThrough.end(); // signal EOF
-                await upload.done(); // wait for upload to finish
+                await uploadPromise; // wait for upload to finish
                 Logger.debug(
                     `Successfully closed upload stream to ${this.configuration.bucket}/${fileName}`,
                 );
@@ -98,11 +108,21 @@ export class S3ResultsFileStorageClient extends S3CacheClient {
         };
 
         // Create a function that can be used as a streamQuery callback
-        const write = (rows: WarehouseResults['rows']) => {
+        // This function handles backpressure by waiting for drain when buffer is full.
+        const write = async (rows: WarehouseResults['rows']): Promise<void> => {
             try {
-                rows.forEach((row) =>
-                    passThrough.push(`${JSON.stringify(row)}\n`),
-                );
+                for (let i = 0; i < rows.length; i += 1) {
+                    const canContinue = passThrough.write(
+                        `${JSON.stringify(rows[i])}\n`,
+                    );
+                    if (!canContinue) {
+                        // Buffer is full, wait for drain before continuing
+                        // eslint-disable-next-line no-await-in-loop
+                        await new Promise<void>((resolve) => {
+                            passThrough.once('drain', resolve);
+                        });
+                    }
+                }
             } catch (error) {
                 Logger.error(
                     `Failed to write rows to fileName ${fileName}: ${getErrorMessage(

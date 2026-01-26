@@ -219,7 +219,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
 
     async streamQuery(
         sql: string,
-        streamCallback: (data: WarehouseResults) => void,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
         options: {
             queryParams?: Record<string, AnyType>;
             tags?: Record<string, string>;
@@ -247,56 +247,81 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             const fields: Record<string, { type: DimensionType }> = {};
 
             const stream = resultSet.stream();
+
+            // Track async callback completion to handle backpressure
+            let processingPromise: Promise<void> = Promise.resolve();
+
+            // Process rows sequentially to handle backpressure
+            const processRows = async (
+                rows: Row<unknown, 'JSONCompactEachRowWithNamesAndTypes'>[],
+            ): Promise<void> => {
+                for (let i = 0; i < rows.length; i += 1) {
+                    const row: unknown[] = rows[i].json();
+                    // handle first row with column names
+                    if (columnNames.length === 0) {
+                        row.forEach((c) => {
+                            if (typeof c === 'string') {
+                                columnNames.push(c);
+                            } else {
+                                columnNames.push(String(c));
+                            }
+                        });
+                    } else if (Object.keys(fields).length === 0) {
+                        // handle second row with column types
+                        columnNames.forEach((c, index) => {
+                            fields[c] = {
+                                type: convertDataTypeToDimensionType(
+                                    String(row[index]),
+                                ),
+                            };
+                        });
+                        // eslint-disable-next-line no-await-in-loop
+                        await streamCallback({
+                            fields,
+                            rows: [],
+                        });
+                    } else {
+                        // eslint-disable-next-line no-await-in-loop
+                        await streamCallback({
+                            fields,
+                            rows: [
+                                // convert value array to object
+                                columnNames.reduce<Record<string, unknown>>(
+                                    (acc, c, index) => {
+                                        acc[c] = row[index];
+                                        return acc;
+                                    },
+                                    {},
+                                ),
+                            ],
+                        });
+                    }
+                }
+            };
+
             stream.on(
                 'data',
                 (
                     rows: Row<unknown, 'JSONCompactEachRowWithNamesAndTypes'>[],
                 ) => {
-                    // handle the rest of the rows with results
-                    rows.forEach((r: Row) => {
-                        const row: unknown[] = r.json();
-                        // handle first row with column names
-                        if (columnNames.length === 0) {
-                            row.map((c) => {
-                                if (typeof c === 'string') {
-                                    return columnNames.push(c);
-                                }
-                                return columnNames.push(String(c));
-                            });
-                        } else if (Object.keys(fields).length === 0) {
-                            // handle second row with column types
-                            columnNames.forEach((c, index) => {
-                                fields[c] = {
-                                    type: convertDataTypeToDimensionType(
-                                        String(row[index]),
-                                    ),
-                                };
-                            });
-                            streamCallback({
-                                fields,
-                                rows: [],
-                            });
-                        } else {
-                            streamCallback({
-                                fields,
-                                rows: [
-                                    // convert value array to object
-                                    columnNames.reduce<Record<string, unknown>>(
-                                        (acc, c, index) => {
-                                            acc[c] = row[index];
-                                            return acc;
-                                        },
-                                        {},
-                                    ),
-                                ],
-                            });
-                        }
-                    });
+                    // Pause stream to handle backpressure while processing
+                    stream.pause();
+
+                    // Chain processing to ensure sequential handling
+                    processingPromise = processingPromise
+                        .then(async () => {
+                            await processRows(rows);
+                        })
+                        .finally(() => {
+                            // Always resume stream, even on error
+                            stream.resume();
+                        });
                 },
             );
             await new Promise<void>((resolve, reject) => {
                 stream.on('end', () => {
-                    resolve();
+                    // Wait for any pending processing to complete before resolving
+                    processingPromise.then(resolve).catch(reject);
                 });
                 stream.on('error', reject);
             });
