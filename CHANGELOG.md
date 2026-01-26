@@ -1,3 +1,11 @@
+# [0.2378.0](https://github.com/lightdash/lightdash/compare/0.2377.0...0.2378.0) (2026-01-26)
+
+
+### Features
+
+* add dashboards and saved charts v2 controller with pagination for schedulers ([#19718](https://github.com/lightdash/lightdash/issues/19718)) ([ad5b9e5](https://github.com/lightdash/lightdash/commit/ad5b9e5582da46e9344044404b5b909552f260e9))
+* allow searching and paginate scheduler modals ([#19721](https://github.com/lightdash/lightdash/issues/19721)) ([cfffc8e](https://github.com/lightdash/lightdash/commit/cfffc8e6426c14641585a6650359fb27f88653be))
+
 # [0.2377.0](https://github.com/lightdash/lightdash/compare/0.2376.0...0.2377.0) (2026-01-26)
 
 
