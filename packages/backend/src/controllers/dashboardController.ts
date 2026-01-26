@@ -2,6 +2,8 @@ import {
     ApiErrorPayload,
     ApiPromoteDashboardResponse,
     ApiPromotionChangesResponse,
+    type ApiCreateDashboardSchedulerResponse,
+    type ApiDashboardSchedulersResponse,
 } from '@lightdash/common';
 import {
     Get,
@@ -72,6 +74,44 @@ export class DashboardController extends BaseController {
             results: await this.services
                 .getPromoteService()
                 .getPromoteDashboardDiff(req.user!, dashboardUuid),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/schedulers')
+    @OperationId('getDashboardSchedulers')
+    async getDashboardSchedulers(
+        @Path() dashboardUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiDashboardSchedulersResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .getSchedulers(req.user!, dashboardUuid),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/schedulers')
+    @OperationId('createDashboardScheduler')
+    async createDashboardScheduler(
+        @Path() dashboardUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiCreateDashboardSchedulerResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .createScheduler(req.user!, dashboardUuid, req.body),
         };
     }
 }
