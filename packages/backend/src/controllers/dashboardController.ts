@@ -2,10 +2,12 @@ import {
     ApiErrorPayload,
     ApiPromoteDashboardResponse,
     ApiPromotionChangesResponse,
+    AuthorizationError,
     type ApiCreateDashboardSchedulerResponse,
     type ApiDashboardSchedulersResponse,
 } from '@lightdash/common';
 import {
+    Deprecated,
     Get,
     Middlewares,
     OperationId,
@@ -81,16 +83,24 @@ export class DashboardController extends BaseController {
     @SuccessResponse('200', 'Success')
     @Get('/schedulers')
     @OperationId('getDashboardSchedulers')
+    @Deprecated()
     async getDashboardSchedulers(
         @Path() dashboardUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiDashboardSchedulersResponse> {
+        if (!req.user) {
+            throw new AuthorizationError('User session not found');
+        }
+
+        const schedulers = await this.services
+            .getDashboardService()
+            .getSchedulers(req.user, dashboardUuid);
+
         this.setStatus(200);
+
         return {
             status: 'ok',
-            results: await this.services
-                .getDashboardService()
-                .getSchedulers(req.user!, dashboardUuid),
+            results: schedulers.data,
         };
     }
 

@@ -13,6 +13,8 @@ import {
     DashboardVersionedFields,
     ExploreType,
     ForbiddenError,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     ParameterError,
     PossibleAbilities,
     SchedulerAndTargets,
@@ -1064,9 +1066,22 @@ export class DashboardService
     async getSchedulers(
         user: SessionUser,
         dashboardUuid: string,
-    ): Promise<SchedulerAndTargets[]> {
-        await this.checkCreateScheduledDeliveryAccess(user, dashboardUuid);
-        return this.schedulerModel.getDashboardSchedulers(dashboardUuid);
+        searchQuery?: string,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        const dashboard = await this.checkCreateScheduledDeliveryAccess(
+            user,
+            dashboardUuid,
+        );
+        return this.schedulerModel.getSchedulers({
+            projectUuid: dashboard.projectUuid,
+            paginateArgs,
+            searchQuery,
+            filters: {
+                resourceType: 'dashboard',
+                resourceUuids: [dashboardUuid],
+            },
+        });
     }
 
     async createScheduler(
