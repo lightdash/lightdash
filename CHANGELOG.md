@@ -1,3 +1,10 @@
+# [0.2376.0](https://github.com/lightdash/lightdash/compare/0.2375.0...0.2376.0) (2026-01-26)
+
+
+### Features
+
+* use AsyncQueryService for MCP metric queries ([#19656](https://github.com/lightdash/lightdash/issues/19656)) ([c6b4a06](https://github.com/lightdash/lightdash/commit/c6b4a0628e8259211cd1cf26e2689175da4d679c))
+
 # [0.2375.0](https://github.com/lightdash/lightdash/compare/0.2374.2...0.2375.0) (2026-01-26)
 
 
