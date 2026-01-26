@@ -12,60 +12,15 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconRefresh, IconX } from '@tabler/icons-react';
 import compact from 'lodash/compact';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import uniq from 'lodash/uniq';
+import { useMemo, useState, type FC } from 'react';
 import {
     useSlackChannelLookup,
     useSlackChannels,
 } from '../../../hooks/slack/useSlack';
+import useToaster from '../../../hooks/toaster/useToaster';
 import MantineIcon from '../MantineIcon';
-
-type ChannelOption = {
-    value: string;
-    label: string;
-};
-
-type SlackChannelOptionsProps = {
-    filteredOptions: ChannelOption[];
-    selectedValues: string[];
-    showCreateOption: boolean;
-    search: string;
-    normalizeChannelName: (name: string) => string;
-};
-
-const SlackChannelOptions: FC<SlackChannelOptionsProps> = ({
-    filteredOptions,
-    selectedValues,
-    showCreateOption,
-    search,
-    normalizeChannelName,
-}) => {
-    return (
-        <>
-            {filteredOptions.length > 0 ? (
-                filteredOptions.map((option) => (
-                    <Combobox.Option
-                        value={option.value}
-                        key={option.value}
-                        active={selectedValues.includes(option.value)}
-                    >
-                        {option.label}
-                    </Combobox.Option>
-                ))
-            ) : showCreateOption ? null : (
-                <Combobox.Empty>No channels found</Combobox.Empty>
-            )}
-            {showCreateOption && (
-                <Combobox.Option value="__create__">
-                    {SLACK_ID_REGEX.test(search)
-                        ? `Look up channel ID: ${search}`
-                        : `Send to private channel: #${normalizeChannelName(
-                              search,
-                          )}`}
-                </Combobox.Option>
-            )}
-        </>
-    );
-};
+import classes from './SlackChannelSelect.module.css';
 
 type CommonProps = {
     disabled?: boolean;
@@ -101,21 +56,6 @@ const normalizeValues = (
     return compact(multiple ? (value as string[]) : [value as string | null]);
 };
 
-// Helper to initialize lookedUpChannels with channel names from initial value
-const initializeLookedUpChannels = (
-    multiple: boolean | undefined,
-    value: string | null | undefined | string[],
-): Map<string, string> => {
-    const initial = new Map<string, string>();
-    const initialValues = normalizeValues(multiple, value);
-    initialValues
-        .filter((v) => !SLACK_ID_REGEX.test(v))
-        .forEach((name) => {
-            initial.set(name, `#${name}`);
-        });
-    return initial;
-};
-
 export const SlackChannelSelect: FC<
     SingleSelectProps | MultiSelectComponentProps
 > = (props) => {
@@ -129,10 +69,7 @@ export const SlackChannelSelect: FC<
         includeGroups = false,
     } = props;
 
-    const values = useMemo(
-        () => normalizeValues(props.multiple, props.value),
-        [props.multiple, props.value],
-    );
+    const values = normalizeValues(props.multiple, props.value);
 
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
@@ -146,14 +83,15 @@ export const SlackChannelSelect: FC<
     });
 
     // Track looked-up channels (ID -> name) that aren't in the cached list yet
-    // Initialize with any existing channel names (not Slack IDs) so they display when editing
     const [lookedUpChannels, setLookedUpChannels] = useState<
         Map<string, string>
-    >(() => initializeLookedUpChannels(props.multiple, props.value));
+    >(() => new Map());
 
     // On-demand lookup for pasted channel IDs not in DB cache
     const { mutate: lookupChannel, isLoading: isLookingUp } =
         useSlackChannelLookup();
+
+    const { showToastInfo } = useToaster();
 
     const {
         data: slackChannels,
@@ -168,53 +106,28 @@ export const SlackChannelSelect: FC<
             excludeGroups: !includeGroups,
             includeChannelIds: values.length > 0 ? values : undefined,
         },
-        { enabled: !disabled },
+        { enabled: !disabled, keepPreviousData: true },
     );
 
-    // On-demand lookup when user pastes a Slack channel ID
-    useEffect(() => {
-        if (
-            !debouncedSearch ||
-            debouncedSearch.trim() === '' ||
-            !SLACK_ID_REGEX.test(debouncedSearch)
-        )
-            return;
-
-        // Check if already in fetched channels
-        const alreadyHaveChannel = slackChannels?.some(
-            (c) => c.id === debouncedSearch,
-        );
-        if (alreadyHaveChannel) return;
-
-        // Lookup the channel by ID
-        lookupChannel(debouncedSearch);
-    }, [debouncedSearch, slackChannels, lookupChannel]);
-
     const allOptions = useMemo(() => {
-        const optionsMap = new Map<string, string>();
+        const channelsById = new Map([
+            ...lookedUpChannels,
+            ...(slackChannels?.map((c) => [c.id, c.name] as const) ?? []),
+        ]);
 
-        // Add looked-up channels first
-        lookedUpChannels.forEach((name, id) => {
-            optionsMap.set(id, name);
-        });
-
-        // Add channels from API (will override looked-up if same ID)
-        slackChannels?.forEach((channel) => {
-            optionsMap.set(channel.id, channel.name);
-        });
-
-        return Array.from(optionsMap.entries()).map(([id, name]) => ({
+        return Array.from(channelsById, ([id, name]) => ({
             value: id,
             label: name,
         }));
     }, [slackChannels, lookedUpChannels]);
 
     const filteredOptions = useMemo(() => {
-        if (!search || search.trim() === '') {
+        const trimmedSearch = search.trim();
+        if (!trimmedSearch) {
             return allOptions.filter((opt) => !values.includes(opt.value));
         }
 
-        const searchLower = search.toLowerCase().trim();
+        const searchLower = trimmedSearch.toLowerCase();
         return allOptions.filter(
             (opt) =>
                 !values.includes(opt.value) &&
@@ -225,21 +138,6 @@ export const SlackChannelSelect: FC<
 
     const isBusy = isLoading || isRefreshing || isLookingUp;
 
-    // Allow creating items that look like Slack channel IDs or channel names
-    const shouldAllowCreate = (query: string) => {
-        // Allow Slack IDs (C01234567, G01234567, etc.)
-        if (SLACK_ID_REGEX.test(query)) return true;
-        // Allow channel names (at least 1 character, no spaces at start/end)
-        const trimmed = query.trim();
-        return trimmed.length > 0 && trimmed === query;
-    };
-
-    // Normalize channel name (remove # prefix if present)
-    const normalizeChannelName = (name: string) => {
-        const trimmed = name.trim();
-        return trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
-    };
-
     const getLabel = (value: string) => {
         const option = allOptions.find((opt) => opt.value === value);
         return option?.label ?? value;
@@ -247,11 +145,7 @@ export const SlackChannelSelect: FC<
 
     const handleValueSelect = (val: string) => {
         if (props.multiple) {
-            if (values.includes(val)) {
-                props.onChange(props.value.filter((v) => v !== val));
-            } else {
-                props.onChange([...props.value, val]);
-            }
+            props.onChange(uniq([...props.value, val]));
         } else {
             props.onChange(val);
             combobox.closeDropdown();
@@ -274,34 +168,9 @@ export const SlackChannelSelect: FC<
         });
     };
 
-    const handleCreateItem = (newItem: string) => {
-        if (SLACK_ID_REGEX.test(newItem)) {
-            // Trigger lookup to get channel info
-            lookupChannel(newItem, {
-                onSuccess: (channel) => {
-                    if (channel) {
-                        addLookedUpChannel(channel.id, channel.name);
-                        handleValueSelect(channel.id);
-                    }
-                },
-            });
-        } else {
-            // For channel names, normalize and add directly
-            // The backend will resolve the name to an ID when posting
-            const normalized = normalizeChannelName(newItem);
-            addLookedUpChannel(normalized, `#${normalized}`);
-            handleValueSelect(normalized);
-        }
-    };
-
-    // Check if search query should show "create" option
-    const exactMatch = filteredOptions.some(
-        (opt) =>
-            opt.label.toLowerCase() === search.toLowerCase().trim() ||
-            opt.value.toLowerCase() === search.toLowerCase().trim(),
-    );
-    const showCreateOption =
-        search.trim() !== '' && !exactMatch && shouldAllowCreate(search);
+    const trimmedSearch = search.trim();
+    const showLookup =
+        trimmedSearch !== '' && SLACK_ID_REGEX.test(trimmedSearch);
 
     const rightSection = withRefresh ? (
         isBusy ? (
@@ -328,31 +197,56 @@ export const SlackChannelSelect: FC<
         </ActionIcon>
     ) : undefined;
 
-    const pills = values.map((value) => (
-        <Pill
-            styles={
-                props.multiple
-                    ? {}
-                    : // When single option, remove al pills styles to make it look like a select
-                      {
-                          root: {
-                              background: 'none',
-                              padding: 0,
-                              fontSize: 'var(--pill-fz-sm)',
-                          },
-                      }
-            }
-            key={value}
-            withRemoveButton={props.multiple}
-            onRemove={() => handleValueRemove(value)}
-        >
-            {getLabel(value)}
-        </Pill>
-    ));
+    const pills = values.map((value) => {
+        const isIdValue = SLACK_ID_REGEX.test(value);
+        const pillLabel = getLabel(value);
+        /**
+         * NOTE: we used to support adding channels by name because we performed a full channel lookup.
+         * This is now deprecated and the new system has smart lookup support by ID.
+         * To handle the transition, we display a special pill to notify users. This is still supported by backend, but
+         * we plan to remove it eventually.
+         */
+        const isUncached = !isBusy && !isIdValue;
+
+        return (
+            <Tooltip
+                key={value}
+                label={
+                    "We couldn't find this channel and the integration may not be installed correctly. Please use the channel ID instead."
+                }
+                withArrow
+                withinPortal
+                disabled={!isUncached}
+            >
+                <Pill
+                    className={classes.pill}
+                    data-uncached={isUncached}
+                    data-single-mode={!props.multiple}
+                    key={value}
+                    withRemoveButton={props.multiple}
+                    onRemove={() => handleValueRemove(value)}
+                >
+                    {pillLabel}
+                </Pill>
+            </Tooltip>
+        );
+    });
 
     const handleOptionSubmit = (val: string) => {
-        if (val === '__create__') {
-            handleCreateItem(search);
+        if (val === '__lookup__') {
+            lookupChannel(trimmedSearch, {
+                onSuccess: (channel) => {
+                    if (channel) {
+                        addLookedUpChannel(channel.id, channel.name);
+                        handleValueSelect(channel.id);
+                    } else {
+                        showToastInfo({
+                            title: 'Channel not found',
+                            subtitle: `Could not find channel with ID "${trimmedSearch}". If it's a private channel, make sure the Lightdash integration is added first.`,
+                        });
+                    }
+                },
+            });
         } else {
             handleValueSelect(val);
         }
@@ -369,6 +263,11 @@ export const SlackChannelSelect: FC<
                 <PillsInput
                     size={size}
                     label={label}
+                    description={
+                        includeGroups
+                            ? 'To add a private channel, first add the Lightdash integration to that channel and use the Channel ID here.'
+                            : undefined
+                    }
                     rightSection={rightSection}
                     onClick={() => !disabled && combobox.openDropdown()}
                     disabled={disabled}
@@ -381,7 +280,6 @@ export const SlackChannelSelect: FC<
                                 onFocus={() =>
                                     !disabled && combobox.openDropdown()
                                 }
-                                onBlur={() => combobox.closeDropdown()}
                                 value={search}
                                 placeholder={
                                     values.length === 0
@@ -416,13 +314,26 @@ export const SlackChannelSelect: FC<
             <Combobox.Dropdown>
                 <ScrollArea.Autosize mah={220} type="scroll">
                     <Combobox.Options>
-                        <SlackChannelOptions
-                            filteredOptions={filteredOptions}
-                            selectedValues={values}
-                            showCreateOption={showCreateOption}
-                            search={search}
-                            normalizeChannelName={normalizeChannelName}
-                        />
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((option) => (
+                                <Combobox.Option
+                                    value={option.value}
+                                    key={option.value}
+                                    active={values.includes(option.value)}
+                                >
+                                    {option.label}
+                                </Combobox.Option>
+                            ))
+                        ) : showLookup ? null : (
+                            <Combobox.Empty>
+                                No channels found, try using Channel ID instead?
+                            </Combobox.Empty>
+                        )}
+                        {showLookup && (
+                            <Combobox.Option value="__lookup__">
+                                Look up channel ID: {search}
+                            </Combobox.Option>
+                        )}
                     </Combobox.Options>
                 </ScrollArea.Autosize>
             </Combobox.Dropdown>

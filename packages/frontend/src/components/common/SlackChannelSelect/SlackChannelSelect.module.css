@@ -1,0 +1,15 @@
+.pill[data-single-mode='true'] {
+    background: none;
+    font-size: var(--pill-fz-sm);
+}
+
+.pill[data-uncached='true'] {
+    color: var(--mantine-color-dimmed);
+    text-decoration: underline dashed var(--mantine-color-dimmed);
+    text-underline-offset: 2px;
+    background: none;
+}
+
+.pill[data-single-mode='true'][data-uncached='false'] {
+    padding: 0;
+}
