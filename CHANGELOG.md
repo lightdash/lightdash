@@ -1,3 +1,10 @@
+# [0.2375.0](https://github.com/lightdash/lightdash/compare/0.2374.2...0.2375.0) (2026-01-26)
+
+
+### Features
+
+* use AsyncQueryService for AI agent metric queries ([#19655](https://github.com/lightdash/lightdash/issues/19655)) ([7caaee3](https://github.com/lightdash/lightdash/commit/7caaee3928638c530f292147744d8a76080619e6))
+
 ## [0.2374.2](https://github.com/lightdash/lightdash/compare/0.2374.1...0.2374.2) (2026-01-26)
 
 
