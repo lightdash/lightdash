@@ -1,3 +1,10 @@
+# [0.2377.0](https://github.com/lightdash/lightdash/compare/0.2376.0...0.2377.0) (2026-01-26)
+
+
+### Features
+
+* allow enabling map charts with env var ([#19189](https://github.com/lightdash/lightdash/issues/19189)) ([5b2c742](https://github.com/lightdash/lightdash/commit/5b2c74236fb2e657a25e4fb2401ef7261deef61d))
+
 # [0.2376.0](https://github.com/lightdash/lightdash/compare/0.2375.0...0.2376.0) (2026-01-26)
 
 
