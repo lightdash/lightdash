@@ -43,6 +43,7 @@ export class FeatureFlagModel {
                 this.getScreenshotReadyIndicator.bind(this),
             [FeatureFlags.MetricsCatalogEchartsVisualization]:
                 this.getMetricsCatalogEchartsVisualizationEnabled.bind(this),
+            [FeatureFlags.Maps]: this.getMapsEnabled.bind(this),
         };
     }
 
@@ -189,6 +190,24 @@ export class FeatureFlagModel {
                           timeoutMilliseconds: 500,
                       },
                   )
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getMapsEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.maps.enabled ??
+            (user
+                ? await isFeatureFlagEnabled(FeatureFlags.Maps, {
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
+                  })
                 : false);
         return {
             id: featureFlagId,
