@@ -9,6 +9,7 @@ tags: [research, mcp, warehouse, schema, catalog, sql-runner]
 status: complete
 last_updated: 2026-01-26
 last_updated_by: Claude
+last_updated_note: "Added clarifications on cache usage, user credentials, and database scope"
 ---
 
 # Research: MCP Tool for Warehouse Schema Search
@@ -32,6 +33,81 @@ Lightdash has a comprehensive three-tier caching system for warehouse metadata t
 3. **In-memory cache** - Optional NodeCache layer with 30s TTL
 
 The existing MCP implementation provides a clear pattern for adding new tools via `McpService.registerTool()`. The SQL runner already has APIs and services for fetching cached warehouse schema data that can be reused.
+
+## Key Clarifications
+
+### Which Cache Does SQL Runner Use?
+
+SQL runner uses **`warehouse_credentials_available_tables`** (table-level cache only), NOT `cached_warehouse`.
+
+- **Table listing**: `ProjectService.getWarehouseTables()` → `WarehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials()`
+- **Column fetching**: Done on-demand via `ProjectService.getWarehouseFields()` → `warehouseClient.getFields()` (live query, not cached)
+
+The `cached_warehouse` table (which stores full `WarehouseCatalog` with columns) is used by dbt project compilation, not SQL runner.
+
+### Does getWarehouseTables Have Filtering?
+
+**No.** The current implementation has **zero server-side filtering**.
+
+```typescript
+// sqlRunnerController.ts:57-67
+async getTables(@Path() projectUuid: string): Promise<ApiWarehouseTablesCatalog> {
+    return {
+        status: 'ok',
+        results: await this.projectService.getWarehouseTables(req.user!, projectUuid),
+        // Returns entire WarehouseTablesCatalog - no filter params
+    };
+}
+```
+
+All filtering happens **client-side** in the frontend using Fuse.js fuzzy search (`packages/frontend/src/features/sqlRunner/components/Tables.tsx:319`).
+
+### User-Level Warehouse Credentials
+
+The cache **respects user-specific warehouse credentials**:
+
+```typescript
+// ProjectService.ts:4823-4841
+const credentials = await this.getWarehouseCredentials({
+    projectUuid,
+    userId: user.userUuid,  // User-specific lookup
+});
+
+if (credentials.userWarehouseCredentialsUuid) {
+    // User has personal credentials → separate cache per user
+    catalog = await this.warehouseAvailableTablesModel.getTablesForUserWarehouseCredentials(
+        credentials.userWarehouseCredentialsUuid,
+    );
+} else {
+    // Falls back to project-level credentials → shared cache
+    catalog = await this.warehouseAvailableTablesModel.getTablesForProjectWarehouseCredentials(
+        projectUuid,
+    );
+}
+```
+
+The `warehouse_credentials_available_tables` table has two foreign key columns:
+- `user_warehouse_credentials_uuid` - For user-specific credentials
+- `project_warehouse_credentials_id` - For shared project credentials
+
+### Database Scan Scope
+
+The `getAllTables()` method scans **only the configured database**, not all databases:
+
+| Warehouse | Scope | Filter Logic |
+|-----------|-------|--------------|
+| **Postgres** | Single database | `WHERE table_catalog = $1` using `config.database` |
+| **Snowflake** | Single database | `WHERE TABLE_CATALOG ILIKE ?` using `connectionOptions.database` |
+| **Trino** | Single catalog | `WHERE table_catalog = '...'` using `connectionOptions.catalog` |
+| **Clickhouse** | Single database | `WHERE database = {databaseName}` using `credentials.schema` |
+| **BigQuery** | All datasets in project | `client.getDatasets()` - no database filter, scans all datasets |
+| **Databricks** | **All visible catalogs** | No filter in `getAllTables()` - returns everything accessible |
+
+**Source files**:
+- `packages/warehouses/src/warehouseClients/PostgresWarehouseClient.ts:483-506`
+- `packages/warehouses/src/warehouseClients/SnowflakeWarehouseClient.ts:1003-1031`
+- `packages/warehouses/src/warehouseClients/BigqueryWarehouseClient.ts:456-506`
+- `packages/warehouses/src/warehouseClients/DatabricksWarehouseClient.ts:496-509`
 
 ## Detailed Findings
 
