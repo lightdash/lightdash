@@ -49,6 +49,9 @@ process.on('uncaughtException', (err) => {
     } catch (error) {
         Logger.error(`Failed to start Lightdash: ${getErrorMessage(error)}`);
         console.error(`Failed to start Lightdash:`, error);
+        if (error instanceof Error && error.stack) {
+            console.error(error.stack);
+        }
         process.exit(1);
     }
 })();

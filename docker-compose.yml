@@ -12,7 +12,6 @@ services:
             - MINIO_ROOT_PASSWORD=minioadmin
             - MINIO_DEFAULT_BUCKETS=default
     lightdash:
-        platform: linux/amd64
         image: lightdash/lightdash:latest
         depends_on:
             - db

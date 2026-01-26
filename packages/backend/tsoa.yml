@@ -1,6 +1,6 @@
 entryFile: src/index.ts
 controllerPathGlobs:
-    - src/**/*Controller.ts
+    - src/controllers/**/*Controller.ts
 spec:
     name: Lightdash API
     description: >
