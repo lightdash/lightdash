@@ -1,6 +1,6 @@
 import {
     AdditionalMetric,
-    CustomMetricBase,
+    CustomMetricBaseTransformed,
     getFields,
     getItemId,
     type Explore,
@@ -12,7 +12,7 @@ import {
  * but we need to populate it from the explore when executing queries
  */
 export function populateCustomMetricSQL(
-    metric: CustomMetricBase | Omit<AdditionalMetric, 'sql'>,
+    metric: CustomMetricBaseTransformed | Omit<AdditionalMetric, 'sql'>,
     explore: Explore,
 ): AdditionalMetric | null {
     const exploreFields = getFields(explore);
@@ -45,7 +45,7 @@ export function populateCustomMetricSQL(
  */
 export function populateCustomMetricsSQL(
     customMetrics:
-        | (CustomMetricBase | Omit<AdditionalMetric, 'sql'>)[]
+        | (CustomMetricBaseTransformed | Omit<AdditionalMetric, 'sql'>)[]
         | null
         | undefined,
     explore: Explore,

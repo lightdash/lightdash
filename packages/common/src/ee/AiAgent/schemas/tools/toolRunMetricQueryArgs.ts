@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { customMetricsSchema } from '../customMetrics';
+import {
+    customMetricsSchema,
+    customMetricsSchemaTransformed,
+} from '../customMetrics';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
@@ -36,7 +39,9 @@ export const toolRunMetricQueryArgsSchema = createToolSchema({
 export const toolRunMetricQueryArgsSchemaTransformed =
     toolRunMetricQueryArgsSchema.transform((data) => ({
         ...data,
-        customMetrics: customMetricsSchema.parse(data.customMetrics ?? []),
+        customMetrics: customMetricsSchemaTransformed.parse(
+            data.customMetrics ?? [],
+        ),
         filters: filtersSchemaTransformed.parse(data.filters ?? null),
     }));
 

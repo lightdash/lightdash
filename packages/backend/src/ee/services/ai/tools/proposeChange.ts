@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     ChangeBase,
     convertAdditionalMetric,
+    customMetricBaseSchemaTransformed,
     Explore,
     getItemId,
     ToolProposeChangeArgs,
@@ -58,9 +59,12 @@ export const translateToolProposeChangeArgs = async (
             };
         case 'create':
             const exploreCompiler = await getExploreCompiler();
+            const transformedMetric = customMetricBaseSchemaTransformed.parse(
+                value.value.metric,
+            );
 
             const additionalMetric = populateCustomMetricSQL(
-                value.value.metric,
+                transformedMetric,
                 explore,
             );
 
@@ -72,7 +76,7 @@ export const translateToolProposeChangeArgs = async (
 
             const metric = convertAdditionalMetric({
                 additionalMetric,
-                table: explore.tables[value.value.metric.table],
+                table: explore.tables[transformedMetric.table],
             });
 
             const compiledMetric = exploreCompiler.compileMetric(

@@ -4,7 +4,10 @@ import {
     legacyFollowUpToolsTransform,
 } from '../../followUpTools';
 import { AiResultType } from '../../types';
-import { customMetricsSchema } from '../customMetrics';
+import {
+    customMetricsSchema,
+    customMetricsSchemaTransformed,
+} from '../customMetrics';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
@@ -59,6 +62,7 @@ export const toolTableVizArgsSchemaTransformed = toolTableVizArgsSchema
     })
     .transform((data) => ({
         ...data,
+        customMetrics: customMetricsSchemaTransformed.parse(data.customMetrics),
         followUpTools: legacyFollowUpToolsTransform(data.followUpTools),
     }));
 

@@ -1,7 +1,7 @@
 import {
     MetricType,
     type AdditionalMetric,
-    type CustomMetricBase,
+    type CustomMetricBaseTransformed,
     type TableCalcsSchema,
     type TableCalculation,
 } from '@lightdash/common';
@@ -48,7 +48,7 @@ describe('validateSelectedFieldsExistence', () => {
                 'running_total_calc',
             ];
 
-            const customMetrics: CustomMetricBase[] = [
+            const customMetrics: CustomMetricBaseTransformed[] = [
                 {
                     name: 'avg_metric',
                     label: 'Average Metric',
@@ -81,7 +81,7 @@ describe('validateSelectedFieldsExistence', () => {
         it('should not throw when fields exist only in custom metrics', () => {
             const customMetricSelectedFieldIds = ['users_custom_metric'];
 
-            const customMetrics: CustomMetricBase[] = [
+            const customMetrics: CustomMetricBaseTransformed[] = [
                 {
                     name: 'custom_metric',
                     label: 'Custom Metric',

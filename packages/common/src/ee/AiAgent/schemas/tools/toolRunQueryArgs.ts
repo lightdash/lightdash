@@ -1,5 +1,8 @@
 import { z } from 'zod';
-import { customMetricsSchema } from '../customMetrics';
+import {
+    customMetricsSchema,
+    customMetricsSchemaTransformed,
+} from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
@@ -181,6 +184,7 @@ export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchema
     .transform((data) => ({
         ...data,
         filters: filtersSchemaTransformed.parse(data.filters),
+        customMetrics: customMetricsSchemaTransformed.parse(data.customMetrics),
     }));
 
 export type ToolRunQueryArgsTransformed = z.infer<
