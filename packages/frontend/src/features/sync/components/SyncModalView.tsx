@@ -1,6 +1,6 @@
 import {
-    SchedulerFormat,
     getHumanReadableCronExpression,
+    SchedulerFormat,
     type Scheduler,
 } from '@lightdash/common';
 import {
@@ -8,6 +8,7 @@ import {
     Box,
     Button,
     Group,
+    Loader,
     Paper,
     Stack,
     Switch,
@@ -15,7 +16,7 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { IconPencil, IconSend, IconTrash } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { GSheetsIcon } from '../../../components/common/GSheetsIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
@@ -86,10 +87,37 @@ const ToggleSyncEnabled: FC<{ scheduler: Scheduler }> = ({ scheduler }) => {
 type Props = { chartUuid: string } & Pick<MantineModalProps, 'onClose'>;
 
 export const SyncModalView: FC<Props> = ({ chartUuid, onClose }) => {
-    const { data } = useChartSchedulers(chartUuid);
+    const { data, hasNextPage, fetchNextPage, isFetchingNextPage } =
+        useChartSchedulers({
+            chartUuid,
+            formats: [SchedulerFormat.GSHEETS],
+        });
     const { setAction, setCurrentSchedulerUuid } = useSyncModal();
-    const googleSheetsSyncs = data?.filter(
-        ({ format }) => format === SchedulerFormat.GSHEETS,
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Callback to fetch more data when scrolling near the bottom
+    const fetchMoreOnBottomReached = useCallback(
+        (containerRefElement?: HTMLDivElement | null) => {
+            if (containerRefElement) {
+                const { scrollHeight, scrollTop, clientHeight } =
+                    containerRefElement;
+                // Load more when within 200px of the bottom
+                if (
+                    scrollHeight - scrollTop - clientHeight < 200 &&
+                    !isFetchingNextPage &&
+                    hasNextPage
+                ) {
+                    void fetchNextPage();
+                }
+            }
+        },
+        [fetchNextPage, isFetchingNextPage, hasNextPage],
+    );
+
+    // Flatten all pages into a single array of schedulers (already filtered by backend)
+    const googleSheetsSyncs = useMemo(
+        () => data?.pages.flatMap((page) => page.data) ?? [],
+        [data],
     );
 
     const { activeProjectUuid } = useActiveProjectUuid();
@@ -116,100 +144,116 @@ export const SyncModalView: FC<Props> = ({ chartUuid, onClose }) => {
             }
             modalBodyProps={{
                 bg: 'background',
-                mah: 500,
                 mih: 300,
             }}
         >
             {googleSheetsSyncs && googleSheetsSyncs.length ? (
-                <Stack>
-                    {googleSheetsSyncs.map((sync) => (
-                        <Paper
-                            key={sync.schedulerUuid}
-                            p="sm"
-                            withBorder
-                            style={{
-                                overflow: 'hidden',
-                            }}
-                        >
-                            <Group wrap="nowrap" justify="space-between">
-                                <Stack gap="xs">
-                                    <Text fz="sm" fw={600} truncate>
-                                        {sync.name}
-                                    </Text>
+                <Box
+                    ref={scrollContainerRef}
+                    mah={400}
+                    style={{ overflowY: 'auto' }}
+                    onScroll={(e) =>
+                        fetchMoreOnBottomReached(e.target as HTMLDivElement)
+                    }
+                >
+                    <Stack>
+                        {googleSheetsSyncs.map((sync) => (
+                            <Paper
+                                key={sync.schedulerUuid}
+                                p="sm"
+                                withBorder
+                                style={{
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                <Group wrap="nowrap" justify="space-between">
+                                    <Stack gap="xs">
+                                        <Text fz="sm" fw={600} truncate>
+                                            {sync.name}
+                                        </Text>
 
-                                    <Text size="xs" c="ldGray.6">
-                                        {getHumanReadableCronExpression(
-                                            sync.cron,
-                                            sync.timezone ||
-                                                project.schedulerTimezone,
-                                        )}
-                                    </Text>
-                                </Stack>
+                                        <Text size="xs" c="ldGray.6">
+                                            {getHumanReadableCronExpression(
+                                                sync.cron,
+                                                sync.timezone ||
+                                                    project.schedulerTimezone,
+                                            )}
+                                        </Text>
+                                    </Stack>
 
-                                <Group wrap="nowrap" gap="xs">
-                                    <ToggleSyncEnabled scheduler={sync} />
+                                    <Group wrap="nowrap" gap="xs">
+                                        <ToggleSyncEnabled scheduler={sync} />
 
-                                    <Tooltip withinPortal label="Sync now">
-                                        <ActionIcon
-                                            variant="light"
-                                            radius="md"
-                                            color="ldDark.9"
-                                            disabled={isSendingNowLoading}
-                                            onClick={() => {
-                                                track({
-                                                    name: EventName.SCHEDULER_SEND_NOW_BUTTON,
-                                                });
-                                                mutateSendNow(sync);
-                                            }}
-                                        >
-                                            <MantineIcon
+                                        <Tooltip withinPortal label="Sync now">
+                                            <ActionIcon
+                                                variant="light"
+                                                radius="md"
                                                 color="ldDark.9"
-                                                icon={IconSend}
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
+                                                disabled={isSendingNowLoading}
+                                                onClick={() => {
+                                                    track({
+                                                        name: EventName.SCHEDULER_SEND_NOW_BUTTON,
+                                                    });
+                                                    mutateSendNow(sync);
+                                                }}
+                                            >
+                                                <MantineIcon
+                                                    color="ldDark.9"
+                                                    icon={IconSend}
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
 
-                                    <Tooltip withinPortal label="Edit">
-                                        <ActionIcon
-                                            variant="light"
-                                            radius="md"
-                                            color="ldDark.9"
-                                            onClick={() => {
-                                                setAction(SyncModalAction.EDIT);
-                                                setCurrentSchedulerUuid(
-                                                    sync.schedulerUuid,
-                                                );
-                                            }}
-                                        >
-                                            <MantineIcon
+                                        <Tooltip withinPortal label="Edit">
+                                            <ActionIcon
+                                                variant="light"
+                                                radius="md"
                                                 color="ldDark.9"
-                                                icon={IconPencil}
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
+                                                onClick={() => {
+                                                    setAction(
+                                                        SyncModalAction.EDIT,
+                                                    );
+                                                    setCurrentSchedulerUuid(
+                                                        sync.schedulerUuid,
+                                                    );
+                                                }}
+                                            >
+                                                <MantineIcon
+                                                    color="ldDark.9"
+                                                    icon={IconPencil}
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
 
-                                    <Tooltip withinPortal label="Delete">
-                                        <ActionIcon
-                                            variant="light"
-                                            color="red"
-                                            radius="md"
-                                            onClick={() => {
-                                                setAction(
-                                                    SyncModalAction.DELETE,
-                                                );
-                                                setCurrentSchedulerUuid(
-                                                    sync.schedulerUuid,
-                                                );
-                                            }}
-                                        >
-                                            <MantineIcon icon={IconTrash} />
-                                        </ActionIcon>
-                                    </Tooltip>
+                                        <Tooltip withinPortal label="Delete">
+                                            <ActionIcon
+                                                variant="light"
+                                                color="red"
+                                                radius="md"
+                                                onClick={() => {
+                                                    setAction(
+                                                        SyncModalAction.DELETE,
+                                                    );
+                                                    setCurrentSchedulerUuid(
+                                                        sync.schedulerUuid,
+                                                    );
+                                                }}
+                                            >
+                                                <MantineIcon icon={IconTrash} />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    </Group>
                                 </Group>
-                            </Group>
-                        </Paper>
-                    ))}
-                </Stack>
+                            </Paper>
+                        ))}
+
+                        {isFetchingNextPage && (
+                            <Stack align="center" mt="md">
+                                <Loader size="sm" />
+                            </Stack>
+                        )}
+                    </Stack>
+                </Box>
             ) : (
                 <Group justify="center" ta="center" gap="xs" my="sm" pt="md">
                     <Text fz="sm" fw={450} c="ldGray.7">

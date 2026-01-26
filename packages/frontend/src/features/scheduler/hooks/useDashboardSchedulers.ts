@@ -1,24 +1,75 @@
 import {
     type ApiCreateDashboardSchedulerResponse,
-    type ApiDashboardSchedulersResponse,
+    type ApiDashboardPaginatedSchedulersResponse,
     type ApiError,
     type CreateSchedulerAndTargetsWithoutIds,
+    type KnexPaginateArgs,
 } from '@lightdash/common';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+    useInfiniteQuery,
+    useMutation,
+    useQueryClient,
+} from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
-const getDashboardSchedulers = async (uuid: string) =>
-    lightdashApi<ApiDashboardSchedulersResponse['results']>({
-        url: `/dashboards/${uuid}/schedulers`,
-        method: 'GET',
-        body: undefined,
+type DashboardSchedulersResponse =
+    ApiDashboardPaginatedSchedulersResponse['results'];
+
+const getDashboardSchedulers = async (
+    uuid: string,
+    paginateArgs: KnexPaginateArgs,
+    searchQuery?: string,
+) => {
+    const params = new URLSearchParams({
+        page: paginateArgs.page.toString(),
+        pageSize: paginateArgs.pageSize.toString(),
     });
 
-export const useDashboardSchedulers = (dashboardUuid: string) =>
-    useQuery<ApiDashboardSchedulersResponse['results'], ApiError>({
-        queryKey: ['dashboard_schedulers', dashboardUuid],
-        queryFn: () => getDashboardSchedulers(dashboardUuid),
+    if (searchQuery) {
+        params.set('searchQuery', searchQuery);
+    }
+
+    return lightdashApi<DashboardSchedulersResponse>({
+        url: `/dashboards/${uuid}/schedulers?${params.toString()}`,
+        method: 'GET',
+        body: undefined,
+        version: 'v2',
+    });
+};
+
+export type UseDashboardSchedulersParams = {
+    dashboardUuid: string;
+    searchQuery?: string;
+    pageSize?: number;
+};
+
+export const useDashboardSchedulers = ({
+    dashboardUuid,
+    searchQuery,
+    pageSize = 25,
+}: UseDashboardSchedulersParams) =>
+    useInfiniteQuery<DashboardSchedulersResponse, ApiError>({
+        queryKey: [
+            'dashboard_schedulers',
+            dashboardUuid,
+            searchQuery,
+            pageSize,
+        ],
+        queryFn: ({ pageParam = 1 }) =>
+            getDashboardSchedulers(
+                dashboardUuid,
+                { page: pageParam as number, pageSize },
+                searchQuery,
+            ),
+        getNextPageParam: (lastPage) => {
+            const currentPage = lastPage.pagination?.page ?? 1;
+            const totalPages = lastPage.pagination?.totalPageCount ?? 0;
+            return currentPage < totalPages ? currentPage + 1 : undefined;
+        },
+        keepPreviousData: true,
+        refetchOnWindowFocus: false,
+        enabled: !!dashboardUuid,
     });
 
 const createDashboardScheduler = async (
