@@ -1221,8 +1221,12 @@ export class AsyncQueryService extends ProjectService {
                                       },
                                       {},
                                   );
-                              currentRowIndex = row.row_index;
+                          } else {
+                              // When there are no index columns, initialize to empty object
+                              // All rows will have the same row_index and should be combined into one row
+                              currentTransformedRow = {};
                           }
+                          currentRowIndex = row.row_index;
                       }
 
                       const pivotValues =

@@ -286,9 +286,6 @@ function isValid(pivotConfiguration: PivotConfiguration): boolean {
     const { groupByColumns, valuesColumns, indexColumn } = pivotConfiguration;
 
     const indexColumns = normalizeIndexColumns(indexColumn);
-    if (indexColumns.length === 0) {
-        return false;
-    }
 
     if (valuesColumns.length === 0) {
         return false;

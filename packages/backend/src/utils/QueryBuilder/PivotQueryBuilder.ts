@@ -133,14 +133,17 @@ export class PivotQueryBuilder {
     /**
      * Calculates the maximum number of columns allowed per value column.
      * @param valuesColumns - The value columns configuration
+     * @param columnLimit - Maximum total columns allowed
+     * @param indexColumnsCount - Number of index columns (can be multiple)
      * @returns Maximum columns per value to stay within pivot column limits
      */
     private static calculateMaxColumnsPerValueColumn(
         valuesColumns: PivotConfiguration['valuesColumns'],
         columnLimit: number,
+        indexColumnsCount: number,
     ): number {
         const valueColumnsCount = valuesColumns?.length || 1;
-        const remainingColumns = columnLimit - 1; // Account for the index column
+        const remainingColumns = columnLimit - indexColumnsCount; // Account for all index columns
         return Math.floor(remainingColumns / valueColumnsCount);
     }
 
@@ -599,7 +602,7 @@ export class PivotQueryBuilder {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const result: Record<string, { cteName: string; sql: string }> = {};
 
-        if (!valuesColumns || !sortBy) {
+        if (!valuesColumns || !sortBy || indexColumns.length === 0) {
             return result;
         }
 
@@ -769,13 +772,16 @@ export class PivotQueryBuilder {
         Object.values(metricFirstValueQueries).forEach(({ cteName }) => {
             if (cteName.endsWith('_row_anchor')) {
                 // Join on index columns for row anchor CTEs
-                const joinConditions = indexColumns
-                    .map(
-                        (col) =>
-                            `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
-                    )
-                    .join(' AND ');
-                joins.push(`LEFT JOIN ${cteName} ON ${joinConditions}`);
+                // Skip if no index columns (row anchor CTEs shouldn't exist in this case)
+                if (indexColumns.length > 0) {
+                    const joinConditions = indexColumns
+                        .map(
+                            (col) =>
+                                `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
+                        )
+                        .join(' AND ');
+                    joins.push(`LEFT JOIN ${cteName} ON ${joinConditions}`);
+                }
             } else if (cteName.endsWith('_column_anchor')) {
                 // Join on group columns for column anchor CTEs
                 const joinConditions = groupByColumns
@@ -821,9 +827,14 @@ export class PivotQueryBuilder {
             q,
         );
 
+        // If there are no index columns, use a constant for row_index (all rows have same index)
+        const rowIndexExpression = rowIndexOrderBy
+            ? `DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy})`
+            : `1`;
+
         return `SELECT ${selectReferences.join(
             ', ',
-        )}, DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy}) AS ${q}row_index${q}, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${q}column_index${q} FROM ${fromClause}`;
+        )}, ${rowIndexExpression} AS ${q}row_index${q}, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${q}column_index${q} FROM ${fromClause}`;
     }
 
     /**
@@ -877,6 +888,7 @@ export class PivotQueryBuilder {
                 PivotQueryBuilder.calculateMaxColumnsPerValueColumn(
                     valuesColumns,
                     columnLimit,
+                    indexColumns.length,
                 );
 
             // Keep leading space to avoid SQL syntax errors
@@ -959,11 +971,7 @@ export class PivotQueryBuilder {
         const indexColumns = normalizeIndexColumns(
             this.pivotConfiguration.indexColumn,
         );
-        if (indexColumns.length === 0) {
-            throw new ParameterError(
-                'At least one valid index column is required',
-            );
-        }
+
         const { valuesColumns, groupByColumns, sortBy } =
             this.pivotConfiguration;
 
