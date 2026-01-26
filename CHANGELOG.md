@@ -1,3 +1,10 @@
+## [0.2374.2](https://github.com/lightdash/lightdash/compare/0.2374.1...0.2374.2) (2026-01-26)
+
+
+### Bug Fixes
+
+* move rudderstack props from base to custom props ([#19713](https://github.com/lightdash/lightdash/issues/19713)) ([a8bd3b3](https://github.com/lightdash/lightdash/commit/a8bd3b3b9500033976d87c7c0269c06e89d131f2))
+
 ## [0.2374.1](https://github.com/lightdash/lightdash/compare/0.2374.0...0.2374.1) (2026-01-26)
 
 
