@@ -392,6 +392,11 @@ export class CsvService extends BaseService {
             let lineBuffer = '';
             let rowCount = 0;
 
+            // Handle backpressure: resume reading when write buffer drains
+            writeStream.on('drain', () => {
+                readStream.resume();
+            });
+
             readStream.on('data', (chunk: Buffer) => {
                 lineBuffer += decoder.write(chunk);
                 const lines = lineBuffer.split('\n');
@@ -399,7 +404,7 @@ export class CsvService extends BaseService {
                 // Keep last incomplete line in buffer
                 lineBuffer = lines.pop() || '';
 
-                // Process complete lines
+                // Process complete lines with backpressure handling
                 for (const line of lines) {
                     const csvString = CsvService.processJsonLineToCsv(
                         line,
@@ -409,8 +414,13 @@ export class CsvService extends BaseService {
                     );
 
                     if (csvString) {
-                        writeStream.write(`${csvString}\n`);
+                        const canContinue = writeStream.write(`${csvString}\n`);
                         rowCount += 1;
+
+                        // If write buffer is full, pause reading until it drains
+                        if (!canContinue) {
+                            readStream.pause();
+                        }
                     }
                 }
             });
