@@ -1,3 +1,11 @@
+## [0.2374.1](https://github.com/lightdash/lightdash/compare/0.2374.0...0.2374.1) (2026-01-26)
+
+
+### Bug Fixes
+
+* implement stream backpressure handling for file uploads ([#19631](https://github.com/lightdash/lightdash/issues/19631)) ([0510043](https://github.com/lightdash/lightdash/commit/05100432b48042a041dc3649f317c2f95f545e9e))
+* prevent deadlocks in S3 file uploads with proper backpressure handling ([#19261](https://github.com/lightdash/lightdash/issues/19261)) ([977699d](https://github.com/lightdash/lightdash/commit/977699d20b9d02b0553a9cfbdb497332faab08fc)), closes [snowflake-connector-nodejs#790](https://github.com/snowflake-connector-nodejs/issues/790)
+
 # [0.2374.0](https://github.com/lightdash/lightdash/compare/0.2373.0...0.2374.0) (2026-01-23)
 
 
