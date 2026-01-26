@@ -6,8 +6,10 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
     List,
+    Loader,
     Radio,
     Select,
     Stack,
@@ -15,7 +17,14 @@ import {
     type ModalProps,
 } from '@mantine-8/core';
 import { IconTrash } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import Callout from '../../components/common/Callout';
 import MantineModal from '../../components/common/MantineModal';
 import { useDashboardSchedulers } from '../../features/scheduler/hooks/useDashboardSchedulers';
@@ -51,7 +60,43 @@ export const TabDeleteModal: FC<DeleteProps> = ({
     >();
 
     // Fetch schedulers for this dashboard
-    const { data: schedulers } = useDashboardSchedulers(dashboardUuid);
+    const {
+        data: schedulersData,
+        hasNextPage,
+        fetchNextPage,
+        isFetchingNextPage,
+    } = useDashboardSchedulers({ dashboardUuid });
+
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Callback to fetch more data when scrolling near the bottom
+    const fetchMoreOnBottomReached = useCallback(
+        (containerRefElement?: HTMLDivElement | null) => {
+            if (containerRefElement) {
+                const { scrollHeight, scrollTop, clientHeight } =
+                    containerRefElement;
+                // Load more when within 200px of the bottom
+                if (
+                    scrollHeight - scrollTop - clientHeight < 200 &&
+                    !isFetchingNextPage &&
+                    hasNextPage
+                ) {
+                    void fetchNextPage();
+                }
+            }
+        },
+        [fetchNextPage, isFetchingNextPage, hasNextPage],
+    );
+
+    // Flatten all pages into a single array of schedulers
+    const schedulers = useMemo(
+        () => schedulersData?.pages.flatMap((page) => page.data) ?? [],
+        [schedulersData],
+    );
+
+    // Get total count from pagination
+    const totalSchedulersCount =
+        schedulersData?.pages[0]?.pagination?.totalResults ?? 0;
 
     // Find schedulers that use this tab
     const affectedSchedulers = useMemo(() => {
@@ -220,7 +265,7 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                             <Text size="sm">
                                 This tab is currently used by{' '}
                                 <Text fw={600} span>
-                                    {affectedSchedulers.length}
+                                    {totalSchedulersCount}
                                 </Text>{' '}
                                 scheduled{' '}
                                 {affectedSchedulers.length === 1
@@ -228,13 +273,33 @@ export const TabDeleteModal: FC<DeleteProps> = ({
                                     : 'deliveries'}
                                 :
                             </Text>
-                            <List size="sm">
-                                {affectedSchedulers.map((scheduler) => (
-                                    <List.Item key={scheduler.schedulerUuid}>
-                                        <Text size="sm">{scheduler.name}</Text>
-                                    </List.Item>
-                                ))}
-                            </List>
+                            <Box
+                                ref={scrollContainerRef}
+                                mah={150}
+                                style={{ overflowY: 'auto' }}
+                                onScroll={(e) =>
+                                    fetchMoreOnBottomReached(
+                                        e.target as HTMLDivElement,
+                                    )
+                                }
+                            >
+                                <List size="sm">
+                                    {affectedSchedulers.map((scheduler) => (
+                                        <List.Item
+                                            key={scheduler.schedulerUuid}
+                                        >
+                                            <Text size="sm">
+                                                {scheduler.name}
+                                            </Text>
+                                        </List.Item>
+                                    ))}
+                                </List>
+                                {isFetchingNextPage && (
+                                    <Stack align="center" mt="xs">
+                                        <Loader size="xs" />
+                                    </Stack>
+                                )}
+                            </Box>
                         </Stack>
                     </Callout>
                 )}
