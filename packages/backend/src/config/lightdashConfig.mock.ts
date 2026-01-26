@@ -302,4 +302,7 @@ export const lightdashConfigMock: LightdashConfig = {
     metricsCatalog: {
         echartsVisualizationEnabled: false,
     },
+    maps: {
+        enabled: false,
+    },
 };
