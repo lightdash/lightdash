@@ -78,9 +78,8 @@ export type UpdateProgressFn = (progress: string) => Promise<void>;
 
 export type GetPromptFn = () => Promise<SlackPrompt | AiWebAppPrompt>;
 
-export type RunMiniMetricQueryFn = (
+export type RunAsyncQueryFn = (
     metricQuery: AiMetricQueryWithFilters,
-    maxLimit: number,
     additionalMetrics?: AdditionalMetric[],
 ) => Promise<{
     rows: Record<string, AnyType>[];

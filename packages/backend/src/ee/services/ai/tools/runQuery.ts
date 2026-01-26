@@ -17,7 +17,7 @@ import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
     GetPromptFn,
-    RunMiniMetricQueryFn,
+    RunAsyncQueryFn,
     SendFileFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
@@ -43,7 +43,7 @@ import {
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;
-    runMiniMetricQuery: RunMiniMetricQueryFn;
+    runAsyncQuery: RunAsyncQueryFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
@@ -148,7 +148,7 @@ export const validateRunQueryTool = (
 
 export const getRunQuery = ({
     updateProgress,
-    runMiniMetricQuery,
+    runAsyncQuery,
     getPrompt,
     sendFile,
     createOrUpdateArtifact,
@@ -221,9 +221,8 @@ export const getRunQuery = ({
                     ),
                 };
 
-                const queryResults = await runMiniMetricQuery(
+                const queryResults = await runAsyncQuery(
                     metricQuery,
-                    maxLimit,
                     populateCustomMetricsSQL(queryTool.customMetrics, explore),
                 );
 
