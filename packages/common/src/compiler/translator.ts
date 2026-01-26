@@ -723,7 +723,7 @@ export const convertTable = (
                                     spotlightConfig.default_visibility,
                             },
                             modelCategories: meta.spotlight?.categories,
-                            modelOwner: meta.spotlight?.owner,
+                            modelOwner: meta.spotlight?.owner ?? meta.owner,
                             defaultShowUnderlyingValues:
                                 meta.default_show_underlying_values,
                         }),
@@ -758,7 +758,7 @@ export const convertTable = (
                         spotlightConfig.default_visibility,
                 },
                 modelCategories: meta.spotlight?.categories,
-                modelOwner: meta.spotlight?.owner,
+                modelOwner: meta.spotlight?.owner ?? meta.owner,
                 defaultShowUnderlyingValues:
                     meta.default_show_underlying_values,
             }),
