@@ -329,6 +329,16 @@ const InfiniteResourceTable = ({
         setTableData(flatData);
     }, [flatData]);
 
+    // Force virtualizer to re-measure when data changes, fixing rendering issues
+    // with single items after browser back navigation
+    useEffect(() => {
+        if (tableData.length > 0 && rowVirtualizerInstanceRef.current) {
+            requestAnimationFrame(() => {
+                rowVirtualizerInstanceRef.current?.measure();
+            });
+        }
+    }, [tableData.length]);
+
     const totalResults = useMemo(() => {
         if (!data) return 0;
         // Return total results from the last page, this should be the same but still we want to have the latest value
