@@ -1,7 +1,8 @@
 import {
+    type ApiDashboardSchedulersResponse,
     type ApiError,
+    type ApiSavedChartSchedulersResponse,
     type ItemsMap,
-    type SchedulerAndTargets,
 } from '@lightdash/common';
 import { Box, Button, Group } from '@mantine-8/core';
 import { IconBell, IconSend } from '@tabler/icons-react';
@@ -27,7 +28,11 @@ const SchedulersModal: FC<
         isOpen?: boolean;
         isThresholdAlert?: boolean;
         itemsMap?: ItemsMap;
-        schedulersQuery: UseQueryResult<SchedulerAndTargets[], ApiError>;
+        schedulersQuery: UseQueryResult<
+            | ApiSavedChartSchedulersResponse['results']
+            | ApiDashboardSchedulersResponse['results'],
+            ApiError
+        >;
         /** If provided, opens directly in edit mode for this scheduler */
         initialSchedulerUuid?: string;
     }

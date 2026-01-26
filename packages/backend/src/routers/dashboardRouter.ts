@@ -105,47 +105,6 @@ dashboardRouter.delete(
     },
 );
 
-dashboardRouter.get(
-    '/:dashboardUuid/schedulers',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    async (req, res, next) => {
-        try {
-            res.json({
-                status: 'ok',
-                results: await req.services
-                    .getDashboardService()
-                    .getSchedulers(req.user!, req.params.dashboardUuid),
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
-dashboardRouter.post(
-    '/:dashboardUuid/schedulers',
-    allowApiKeyAuthentication,
-    isAuthenticated,
-    unauthorisedInDemo,
-    async (req, res, next) => {
-        try {
-            res.json({
-                status: 'ok',
-                results: await req.services
-                    .getDashboardService()
-                    .createScheduler(
-                        req.user!,
-                        req.params.dashboardUuid,
-                        req.body,
-                    ),
-            });
-        } catch (e) {
-            next(e);
-        }
-    },
-);
-
 dashboardRouter.post(
     '/availableFilters',
     allowApiKeyAuthentication,

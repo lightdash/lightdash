@@ -8214,6 +8214,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -8229,12 +8242,12 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -8242,10 +8255,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -8254,8 +8267,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -8349,12 +8362,12 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "searchRank": {
+                                                                                    "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -8362,10 +8375,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -8374,8 +8387,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -14943,6 +14956,10 @@
             },
             "SchedulerBase": {
                 "properties": {
+                    "projectName": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "projectUuid": {
                         "type": "string",
                         "nullable": true
@@ -16521,6 +16538,37 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/PromotionChanges"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiSavedChartSchedulersResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/SchedulerAndTargets"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCreateSavedChartSchedulerResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SchedulerAndTargets"
                     },
                     "status": {
                         "type": "string",
@@ -21673,6 +21721,37 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiDashboardSchedulersResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/SchedulerAndTargets"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiCreateDashboardSchedulerResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SchedulerAndTargets"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiCsvUrlResponse": {
                 "properties": {
                     "results": {
@@ -24395,7 +24474,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2372.1",
+        "version": "0.2374.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -31391,6 +31470,82 @@
                 }
             }
         },
+        "/api/v1/saved/{chartUuid}/schedulers": {
+            "get": {
+                "operationId": "getSavedChartSchedulers",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSavedChartSchedulersResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "createSavedChartScheduler",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateSavedChartSchedulerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Charts"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "chartUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/rename": {
             "post": {
                 "operationId": "rename",
@@ -36656,6 +36811,82 @@
                 "parameters": [
                     {
                         "description": "dashboardUuid for the dashboard to check diff",
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/dashboards/{dashboardUuid}/schedulers": {
+            "get": {
+                "operationId": "getDashboardSchedulers",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDashboardSchedulersResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "dashboardUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "createDashboardScheduler",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCreateDashboardSchedulerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Dashboards"],
+                "security": [],
+                "parameters": [
+                    {
                         "in": "path",
                         "name": "dashboardUuid",
                         "required": true,

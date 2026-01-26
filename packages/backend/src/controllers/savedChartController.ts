@@ -10,6 +10,8 @@ import {
     DateZoom,
     QueryExecutionContext,
     SortField,
+    type ApiCreateSavedChartSchedulerResponse,
+    type ApiSavedChartSchedulersResponse,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import {
@@ -389,6 +391,44 @@ export class SavedChartController extends BaseController {
             results: {
                 jobId,
             },
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/schedulers')
+    @OperationId('getSavedChartSchedulers')
+    async getSavedChartSchedulers(
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSavedChartSchedulersResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedChartService()
+                .getSchedulers(req.user!, chartUuid),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/schedulers')
+    @OperationId('createSavedChartScheduler')
+    async createSavedChartScheduler(
+        @Path() chartUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiCreateSavedChartSchedulerResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSavedChartService()
+                .createScheduler(req.user!, chartUuid, req.body),
         };
     }
 }

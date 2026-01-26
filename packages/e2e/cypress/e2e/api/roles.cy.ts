@@ -556,6 +556,16 @@ describe('Roles API Tests', () => {
     });
 
     describe('Project Access Management', () => {
+        afterEach(() => {
+            // Clean up project access for SEED_ORG_1_ADMIN to avoid polluting other tests
+            cy.login();
+            cy.request({
+                url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments/user/${SEED_ORG_1_ADMIN.user_uuid}`,
+                method: 'DELETE',
+                failOnStatusCode: false,
+            });
+        });
+
         it('should get project access information', () => {
             cy.request({
                 url: `${projectRolesApiUrl}/${SEED_PROJECT.project_uuid}/roles/assignments`,
