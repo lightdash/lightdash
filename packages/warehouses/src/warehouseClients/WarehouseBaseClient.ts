@@ -66,7 +66,7 @@ export default abstract class WarehouseBaseClient<
 
     abstract streamQuery(
         query: string,
-        streamCallback: (data: WarehouseResults) => void,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
         options: {
             values?: AnyType[];
             queryParams?: Record<string, AnyType>;
@@ -83,19 +83,19 @@ export default abstract class WarehouseBaseClient<
             tags,
             timezone,
         }: WarehouseExecuteAsyncQueryArgs,
-        resultsStreamCallback: (
+        resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
-        ) => void,
+        ) => void | Promise<void>,
     ): Promise<WarehouseExecuteAsyncQuery> {
         let rowCount = 0;
 
         const startTime = performance.now();
         await this.streamQuery(
             sql,
-            ({ rows, fields }) => {
+            async ({ rows, fields }) => {
                 rowCount = (rowCount ?? 0) + rows.length;
-                resultsStreamCallback(rows, fields);
+                await resultsStreamCallback?.(rows, fields);
             },
             {
                 values,

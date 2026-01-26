@@ -131,7 +131,7 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
 
     streamQuery(
         query: string,
-        streamCallback: (data: WarehouseResults) => void,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
         options: {
             values?: AnyType[];
             tags: Record<string, string>;
@@ -144,7 +144,7 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
         resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
-        ) => void,
+        ) => void | Promise<void>,
     ): Promise<WarehouseExecuteAsyncQuery>;
 
     /**

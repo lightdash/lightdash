@@ -1168,7 +1168,7 @@ export class AsyncQueryService extends ProjectService {
         warehouseClient: WarehouseClient;
         query: string;
         queryTags: RunQueryTags;
-        write?: (rows: Record<string, unknown>[]) => void;
+        write?: (rows: Record<string, unknown>[]) => void | Promise<void>;
         pivotConfiguration?: PivotConfiguration;
         itemsMap: ItemsMap;
         /**
@@ -1195,10 +1195,10 @@ export class AsyncQueryService extends ProjectService {
         let unpivotedColumns: ResultColumns = {};
 
         const writeAndTransformRowsIfPivot = pivotConfiguration
-            ? (
+            ? async (
                   rows: WarehouseResults['rows'],
                   fields: WarehouseResults['fields'],
-              ) => {
+              ): Promise<void> => {
                   if (!rows[0]) {
                       // skip if empty
                       return;
@@ -1236,16 +1236,18 @@ export class AsyncQueryService extends ProjectService {
                               // columnIndex is omitted when no groupBy columns
                           });
                       });
-                      write?.(rows);
+                      await write?.(rows);
                       return;
                   }
 
-                  rows.forEach((row) => {
+                  // Process rows sequentially to handle backpressure properly
+                  for (const row of rows) {
                       // Write rows to file in order of row_index. This is so that we can pivot the data later
                       if (currentRowIndex !== row.row_index) {
                           if (currentTransformedRow) {
                               pivotTotalRows += 1;
-                              write?.([currentTransformedRow]);
+                              // eslint-disable-next-line no-await-in-loop
+                              await write?.([currentTransformedRow]);
                           }
 
                           const indexColumns =
@@ -1295,6 +1297,7 @@ export class AsyncQueryService extends ProjectService {
                               ? pivotValues.map((p) => p.value).join('_')
                               : '';
 
+                      // eslint-disable-next-line @typescript-eslint/no-loop-func -- forEach is synchronous, executes within current loop iteration
                       valuesColumns.forEach((col) => {
                           const valueColumnField =
                               PivotQueryBuilder.getValueColumnFieldName(
@@ -1317,19 +1320,19 @@ export class AsyncQueryService extends ProjectService {
                           currentTransformedRow[valueColumnReference] =
                               row[valueColumnField];
                       });
-                  });
+                  }
               }
-            : (
+            : async (
                   rows: WarehouseResults['rows'],
                   fields: WarehouseResults['fields'],
-              ) => {
+              ): Promise<void> => {
                   // Capture columns from the first batch if available
                   unpivotedColumns = getUnpivotedColumns(
                       unpivotedColumns,
                       fields,
                       { popEnabledMetrics },
                   );
-                  write?.(rows);
+                  await write?.(rows);
               };
 
         const warehouseResults = await warehouseClient.executeAsyncQuery(
@@ -1337,7 +1340,7 @@ export class AsyncQueryService extends ProjectService {
                 sql: query,
                 tags: queryTags,
             },
-            writeAndTransformRowsIfPivot,
+            write ? writeAndTransformRowsIfPivot : undefined,
         );
 
         const columns = pivotConfiguration?.groupByColumns?.length
@@ -1351,7 +1354,7 @@ export class AsyncQueryService extends ProjectService {
         // Write the last row
         if (currentTransformedRow) {
             pivotTotalRows += 1;
-            write?.([currentTransformedRow]);
+            await write?.([currentTransformedRow]);
         }
 
         return {

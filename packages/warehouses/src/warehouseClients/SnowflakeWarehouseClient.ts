@@ -643,10 +643,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     async executeAsyncQuery(
         { sql, values, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
-        resultsStreamCallback: (
+        resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
-        ) => void,
+        ) => void | Promise<void>,
     ): Promise<WarehouseExecuteAsyncQuery> {
         const connection = await this.getConnection();
         await this.prepareWarehouse(connection, {
@@ -678,17 +678,87 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
-        ) => void,
+        ) => void | Promise<void>,
         options?: {
             values?: AnyType[];
         },
     ) {
         const startTime = performance.now();
-        const { queryId, totalRows, durationMs, fields } = await new Promise<{
+
+        if (resultsStreamCallback) {
+            return new Promise<{
+                queryId: string;
+                queryMetadata: null;
+                totalRows: number;
+                durationMs: number;
+            }>((resolve, reject) => {
+                connection.execute({
+                    sqlText: sql,
+                    binds: options?.values,
+                    streamResult: true,
+                    complete: (err, stmt) => {
+                        if (err) {
+                            reject(this.parseError(err, sql));
+                            return;
+                        }
+
+                        const fields = this.getFieldsFromStatement(stmt);
+                        let rowCount = 0;
+
+                        pipeline(
+                            stmt.streamRows(),
+                            new Transform({
+                                objectMode: true,
+                                highWaterMark: 1,
+                                transform(chunk, encoding, callback) {
+                                    callback(null, parseRow(chunk));
+                                },
+                            }),
+                            new Writable({
+                                objectMode: true,
+                                highWaterMark: 1,
+                                async write(chunk, encoding, callback) {
+                                    try {
+                                        rowCount += 1;
+                                        await resultsStreamCallback(
+                                            [chunk],
+                                            fields,
+                                        );
+                                        callback();
+                                    } catch (writeError) {
+                                        if (writeError instanceof Error) {
+                                            callback(writeError);
+                                        } else {
+                                            callback(
+                                                new Error(String(writeError)),
+                                            );
+                                        }
+                                    }
+                                },
+                            }),
+                            (error) => {
+                                if (error) {
+                                    reject(error);
+                                } else {
+                                    resolve({
+                                        queryId: stmt.getQueryId(),
+                                        queryMetadata: null,
+                                        totalRows: rowCount,
+                                        durationMs:
+                                            performance.now() - startTime,
+                                    });
+                                }
+                            },
+                        );
+                    },
+                });
+            });
+        }
+
+        const { queryId, totalRows, durationMs } = await new Promise<{
             queryId: string;
             totalRows: number;
             durationMs: number;
-            fields: WarehouseResults['fields'];
         }>((resolve, reject) => {
             connection.execute({
                 sqlText: sql,
@@ -715,7 +785,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                                     queryId: stmt.getQueryId(),
                                     totalRows: stmt2.getNumRows(),
                                     durationMs: performance.now() - startTime,
-                                    fields: this.getFieldsFromStatement(stmt2),
                                 });
                             },
                         })
@@ -725,28 +794,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 },
             });
         });
-
-        // If we have a callback, stream the rows to the callback.
-        // This is used when writing to the results cache.
-        if (resultsStreamCallback) {
-            const completedStatement = await connection.getResultsFromQueryId({
-                sqlText: '',
-                queryId,
-            });
-            await new Promise<void>((resolve, reject) => {
-                completedStatement
-                    .streamRows()
-                    .on('error', (e) => {
-                        reject(e);
-                    })
-                    .on('data', (row) => {
-                        resultsStreamCallback([row], fields);
-                    })
-                    .on('end', () => {
-                        resolve();
-                    });
-            });
-        }
 
         return {
             queryId,
@@ -758,7 +805,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     async streamQuery(
         sql: string,
-        streamCallback: (data: WarehouseResults) => void,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
         options: {
             values?: AnyType[];
             tags?: Record<string, string>;
@@ -790,7 +837,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private async executeStreamStatement(
         connection: Connection,
         sqlText: string,
-        streamCallback: (data: WarehouseResults) => void,
+        streamCallback: (data: WarehouseResults) => void | Promise<void>,
         options?: {
             values?: AnyType[];
         },
@@ -817,9 +864,21 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                         }),
                         new Writable({
                             objectMode: true,
-                            write(chunk, encoding, callback) {
-                                streamCallback({ fields, rows: [chunk] });
-                                callback();
+                            async write(chunk, encoding, callback) {
+                                try {
+                                    await streamCallback({
+                                        fields,
+                                        rows: [chunk],
+                                    });
+                                    callback();
+                                } catch (writeError) {
+                                    // Pass error to pipeline which will reject the promise
+                                    if (writeError instanceof Error) {
+                                        callback(writeError);
+                                    } else {
+                                        callback(new Error(String(writeError)));
+                                    }
+                                }
                             },
                         }),
                         (error) => {
