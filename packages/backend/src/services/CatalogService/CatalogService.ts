@@ -1316,6 +1316,7 @@ export class CatalogService<
         user: SessionUser,
         projectUuid: string,
         context: CatalogSearchContext,
+        tableName?: string,
     ): Promise<MetricWithAssociatedTimeDimension[]> {
         const { organizationUuid } = await this.projectModel.getSummary(
             projectUuid,
@@ -1338,6 +1339,7 @@ export class CatalogService<
         const allCatalogMetrics = await this.catalogModel.search({
             projectUuid,
             userAttributes,
+            ...(tableName ? { exploreName: tableName } : {}),
             context,
             catalogSearch: {
                 type: CatalogType.Field,

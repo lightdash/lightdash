@@ -149,6 +149,7 @@ export const MetricExploreModalV1: FC<Props> = ({
 
     const metricsWithTimeDimensionsQuery = useCatalogMetricsWithTimeDimensions({
         projectUuid,
+        tableName,
         options: {
             enabled:
                 query.comparison === MetricExplorerComparison.DIFFERENT_METRIC,

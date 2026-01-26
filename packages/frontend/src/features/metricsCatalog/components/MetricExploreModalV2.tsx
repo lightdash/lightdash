@@ -191,14 +191,10 @@ export const MetricExploreModalV2: FC<Props> = ({
         filterRule,
         dateRange,
         comparison: query.comparison,
-    });
-
-    const metricsWithTimeDimensionsQuery = useCatalogMetricsWithTimeDimensions({
-        projectUuid,
-        options: {
-            enabled:
-                query.comparison === MetricExplorerComparison.DIFFERENT_METRIC,
-        },
+        compareMetric:
+            query.comparison === MetricExplorerComparison.DIFFERENT_METRIC
+                ? query.metric
+                : null,
     });
 
     const filterDimensionsQuery = useCatalogFilterDimensions({
@@ -214,6 +210,15 @@ export const MetricExploreModalV2: FC<Props> = ({
         tableName,
         options: {
             enabled: !!projectUuid && !!tableName,
+        },
+    });
+
+    const metricsWithTimeDimensionsQuery = useCatalogMetricsWithTimeDimensions({
+        projectUuid,
+        tableName,
+        options: {
+            enabled:
+                query.comparison === MetricExplorerComparison.DIFFERENT_METRIC,
         },
     });
 
@@ -461,8 +466,6 @@ export const MetricExploreModalV2: FC<Props> = ({
                                         metricsWithTimeDimensionsQuery={
                                             metricsWithTimeDimensionsQuery
                                         }
-                                        // TODO: enable this when it's implemented
-                                        canCompareToAnotherMetric={false}
                                     />
                                 </Stack>
                             </Stack>

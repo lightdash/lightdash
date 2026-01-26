@@ -37598,6 +37598,14 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "tableName",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
                     }
                 ]
             }
