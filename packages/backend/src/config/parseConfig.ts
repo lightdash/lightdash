@@ -1006,7 +1006,7 @@ export type LightdashConfig = {
         echartsVisualizationEnabled: boolean | undefined;
     };
     maps: {
-        enabled: boolean;
+        enabled: boolean | undefined;
     };
 };
 
@@ -1814,7 +1814,10 @@ export const parseConfig = (): LightdashConfig => {
                     : undefined,
         },
         maps: {
-            enabled: process.env.LIGHTDASH_MAPS_ENABLED === 'true',
+            enabled:
+                process.env.LIGHTDASH_MAPS_ENABLED === 'true'
+                    ? true
+                    : undefined,
         },
     };
 };
