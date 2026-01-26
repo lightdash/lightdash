@@ -1,3 +1,5 @@
+// NOTE: RudderStack drops any non-standard properties declared at the top level of an event.
+// https://www.rudderstack.com/docs/destinations/warehouse-destinations/warehouse-schema/
 declare module '@rudderstack/rudder-sdk-node' {
     import { AnyType } from '@lightdash/common';
 
@@ -22,8 +24,6 @@ declare module '@rudderstack/rudder-sdk-node' {
     }
     export interface Track {
         userId?: string;
-        organizationId?: string;
-        projectId?: string;
         anonymousId?: string;
         event: string;
         properties?: Record<string, AnyType>;

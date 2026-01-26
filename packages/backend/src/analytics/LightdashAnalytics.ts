@@ -988,6 +988,8 @@ export type SchedulerJobEvent = BaseTrack & {
     anonymousId: string;
     properties: {
         jobId: string;
+        organizationId: string;
+        projectId: string;
         schedulerId: string | undefined;
         groupId: string | undefined;
         sendNow?: boolean;
@@ -1005,6 +1007,8 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     anonymousId: string;
     properties: {
         jobId: string;
+        organizationId: string;
+        projectId: string;
         schedulerId?: string;
         schedulerTargetId?: string;
         groupId: string | undefined;

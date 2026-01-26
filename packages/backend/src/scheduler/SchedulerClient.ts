@@ -302,11 +302,11 @@ export class SchedulerClient {
             this.analytics.track({
                 event: 'scheduler_job.deleted',
                 anonymousId: LightdashAnalytics.anonymousId,
-                organizationId: context.organizationUuid,
-                projectId: context.projectUuid,
                 userId: context.userUuid,
                 properties: {
                     jobId: id,
+                    organizationId: context.organizationUuid,
+                    projectId: context.projectUuid,
                     schedulerId: schedulerUuid,
                     groupId: id,
                 },
@@ -367,11 +367,11 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
-            organizationId: scheduler.organizationUuid,
-            projectId: scheduler.projectUuid,
             userId: scheduler.userUuid,
             properties: {
                 jobId: id,
+                organizationId: scheduler.organizationUuid,
+                projectId: scheduler.projectUuid,
                 schedulerId: schedulerUuid,
                 groupId: id,
             },
@@ -406,11 +406,11 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
-            organizationId: traceProperties.organizationUuid,
-            projectId: traceProperties.projectUuid,
             userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
+                organizationId: traceProperties.organizationUuid,
+                projectId: traceProperties.projectUuid,
                 schedulerId: scheduler.schedulerUuid,
                 schedulerTargetId: undefined,
                 groupId: jobGroup,
@@ -516,11 +516,11 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
-            organizationId: traceProperties.organizationUuid,
-            projectId: traceProperties.projectUuid,
             userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
+                organizationId: traceProperties.organizationUuid,
+                projectId: traceProperties.projectUuid,
                 schedulerId: schedulerUuid,
                 schedulerTargetId: targetUuid,
                 groupId: jobGroup,
@@ -565,11 +565,11 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
-            organizationId: traceProperties.organizationUuid,
-            projectId: traceProperties.projectUuid,
             userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
+                organizationId: traceProperties.organizationUuid,
+                projectId: traceProperties.projectUuid,
                 schedulerId: scheduler.schedulerUuid,
                 groupId: jobGroup,
                 type: 'slack',
@@ -617,11 +617,11 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
-            organizationId: traceProperties.organizationUuid,
-            projectId: traceProperties.projectUuid,
             userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
+                organizationId: traceProperties.organizationUuid,
+                projectId: traceProperties.projectUuid,
                 schedulerId: scheduler.schedulerUuid,
                 groupId: jobGroup,
                 type: 'email',
@@ -669,11 +669,11 @@ export class SchedulerClient {
         this.analytics.track({
             event: 'scheduler_notification_job.created',
             anonymousId: LightdashAnalytics.anonymousId,
-            organizationId: traceProperties.organizationUuid,
-            projectId: traceProperties.projectUuid,
             userId: traceProperties.userUuid,
             properties: {
                 jobId: id,
+                organizationId: traceProperties.organizationUuid,
+                projectId: traceProperties.projectUuid,
                 schedulerId: scheduler.schedulerUuid,
                 groupId: jobGroup,
                 type: 'msteams',
