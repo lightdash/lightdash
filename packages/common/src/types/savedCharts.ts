@@ -4,6 +4,7 @@ import { type DateZoom } from './api/paginatedQuery';
 import { type ConditionalFormattingConfig } from './conditionalFormatting';
 import { type ChartSourceType } from './content';
 import { type CompactOrAlias, type FieldId } from './field';
+import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
 import { type ParametersValuesMap } from './parameters';
 import type { SchedulerAndTargets } from './scheduler';
@@ -959,6 +960,11 @@ export type SkippedReplaceCustomFields = {
 export type ApiSavedChartSchedulersResponse = {
     status: 'ok';
     results: SchedulerAndTargets[];
+};
+
+export type ApiSavedChartPaginatedSchedulersResponse = {
+    status: 'ok';
+    results: KnexPaginatedData<SchedulerAndTargets[]>;
 };
 
 export type ApiCreateSavedChartSchedulerResponse = {
