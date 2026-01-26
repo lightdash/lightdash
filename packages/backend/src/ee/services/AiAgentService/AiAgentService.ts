@@ -2669,37 +2669,20 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     );
 
                     const account = fromSession(user);
-                    const result =
-                        await this.asyncQueryService.executeMetricQueryAndGetResults(
-                            {
-                                account,
-                                projectUuid,
-                                metricQuery: {
-                                    ...metricQuery,
-                                    additionalMetrics: populateCustomMetricsSQL(
-                                        metricQuery.additionalMetrics,
-                                        explore,
-                                    ),
-                                },
-                                context: QueryExecutionContext.AI,
+                    return this.asyncQueryService.executeMetricQueryAndGetResults(
+                        {
+                            account,
+                            projectUuid,
+                            metricQuery: {
+                                ...metricQuery,
+                                additionalMetrics: populateCustomMetricsSQL(
+                                    metricQuery.additionalMetrics,
+                                    explore,
+                                ),
                             },
-                        );
-
-                    // Extract raw values from ResultRow format
-                    const rawRows = result.rows.map((row) =>
-                        Object.fromEntries(
-                            Object.entries(row).map(([key, cell]) => [
-                                key,
-                                cell.value.raw,
-                            ]),
-                        ),
+                            context: QueryExecutionContext.AI,
+                        },
                     );
-
-                    return {
-                        rows: rawRows,
-                        cacheMetadata: result.cacheMetadata,
-                        fields: result.fields,
-                    };
                 },
             );
 

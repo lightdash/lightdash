@@ -3431,12 +3431,12 @@ export class AsyncQueryService extends ProjectService {
 
     /**
      * Execute metric query and wait for all results.
-     * Returns ResultRow[] (formatted values).
+     * Returns raw rows from warehouse
      */
     async executeMetricQueryAndGetResults(
         args: ExecuteAsyncMetricQueryArgs,
     ): Promise<{
-        rows: ResultRow[];
+        rows: Record<string, unknown>[];
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
     }> {
@@ -3457,17 +3457,11 @@ export class AsyncQueryService extends ProjectService {
             queryHistory.resultsFileName!,
         );
 
-        const rows: ResultRow[] = [];
+        const rows: Record<string, unknown>[] = [];
         await streamJsonlData<void>({
             readStream: resultsStream,
             onRow: (rawRow) => {
-                rows.push(
-                    formatRow(
-                        rawRow,
-                        queryHistory.fields,
-                        queryHistory.pivotValuesColumns,
-                    ),
-                );
+                rows.push(rawRow);
             },
         });
 

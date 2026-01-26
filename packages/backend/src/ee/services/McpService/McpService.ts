@@ -48,6 +48,7 @@ import { McpContextModel } from '../../../models/McpContextModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
@@ -93,6 +94,7 @@ export enum McpToolName {
 type McpServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
+    asyncQueryService: AsyncQueryService;
     catalogService: CatalogService;
     projectModel: ProjectModel;
     projectService: ProjectService;
@@ -120,6 +122,8 @@ export class McpService extends BaseService {
 
     private analytics: LightdashAnalytics;
 
+    private asyncQueryService: AsyncQueryService;
+
     private catalogService: CatalogService;
 
     private projectService: ProjectService;
@@ -143,6 +147,7 @@ export class McpService extends BaseService {
     constructor({
         lightdashConfig,
         analytics,
+        asyncQueryService,
         catalogService,
         projectService,
         userAttributesModel,
@@ -155,6 +160,7 @@ export class McpService extends BaseService {
         super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
+        this.asyncQueryService = asyncQueryService;
         this.catalogService = catalogService;
         this.projectService = projectService;
         this.userAttributesModel = userAttributesModel;
@@ -1294,23 +1300,14 @@ export class McpService extends BaseService {
             maxLimit,
             additionalMetrics,
         ) =>
-            this.projectService.runMetricQuery({
+            this.asyncQueryService.executeMetricQueryAndGetResults({
                 account,
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
                     additionalMetrics: additionalMetrics ?? [],
                 },
-                exploreName: metricQuery.exploreName,
-                csvLimit: maxLimit,
                 context: QueryExecutionContext.MCP,
-                chartUuid: undefined,
-                queryTags: {
-                    project_uuid: projectUuid,
-                    user_uuid: user.userUuid,
-                    organization_uuid: organizationUuid,
-                },
-                userAttributeOverrides,
             });
 
         return { agentContext, runMiniMetricQuery };
