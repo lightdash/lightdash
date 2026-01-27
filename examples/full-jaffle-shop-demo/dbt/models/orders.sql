@@ -32,7 +32,12 @@ order_payments as (
 final as (
 
     select
+        -- Athena/Trino: USING joins create unqualified columns, can't reference as table.col
+        {% if target.type == 'trino' or target.type == 'athena' %}
+        order_id,
+        {% else %}
         orders.order_id,
+        {% endif %}
         orders.customer_id,
         orders.order_date,
         orders.status,
