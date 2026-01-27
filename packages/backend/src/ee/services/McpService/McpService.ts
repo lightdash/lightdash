@@ -16,6 +16,7 @@ import {
     OauthAccount,
     ParameterError,
     QueryExecutionContext,
+    ServiceAcctAccount,
     SessionUser,
     ToolFindContentArgs,
     toolFindContentArgsSchema,
@@ -107,7 +108,7 @@ type McpServiceArguments = {
 
 export type ExtraContext = {
     user: SessionUser;
-    account: OauthAccount | ApiKeyAccount;
+    account: OauthAccount | ApiKeyAccount | ServiceAcctAccount;
     /** User attribute overrides passed via X-Lightdash-User-Attributes header */
     headerUserAttributes?: UserAttributeValueMap;
 };

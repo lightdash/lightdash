@@ -12,6 +12,7 @@ import {
     LightdashError,
     MissingConfigError,
     OauthAccount,
+    ServiceAcctAccount,
     UserAttributeValueMap,
 } from '@lightdash/common';
 import {
@@ -182,6 +183,22 @@ mcpRouter.all(
                     authReq.auth = {
                         token: apiKeyAuth.authentication.source,
                         clientId: 'API key', // hardcoded client and scopes for PAT authentication
+                        scopes: ['mcp:read', 'mcp:write'],
+                        extra,
+                    };
+                }
+
+                if (req.user && req.account?.isServiceAccount()) {
+                    const serviceAccountAuth =
+                        req.account as ServiceAcctAccount;
+                    const extra: ExtraContext = {
+                        user: req.user,
+                        account: serviceAccountAuth,
+                        headerUserAttributes,
+                    };
+                    authReq.auth = {
+                        token: serviceAccountAuth.authentication.source,
+                        clientId: 'Service account', // hardcoded client and scopes for Service Account authentication
                         scopes: ['mcp:read', 'mcp:write'],
                         extra,
                     };
