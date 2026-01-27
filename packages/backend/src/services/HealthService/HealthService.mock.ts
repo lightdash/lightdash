@@ -15,6 +15,7 @@ export const BaseResponse: HealthState = {
     siteUrl: 'https://test.lightdash.cloud',
     staticIp: '',
     signupUrl: undefined,
+    helpMenuUrl: undefined,
     hasEmailClient: false,
     hasExtendedUsageAnalytics: false,
     hasMicrosoftTeams: false,

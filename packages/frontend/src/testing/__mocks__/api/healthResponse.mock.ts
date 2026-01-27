@@ -39,6 +39,7 @@ export default function mockHealthResponse(
         siteUrl: 'http://localhost:3000',
         staticIp: '',
         signupUrl: undefined,
+        helpMenuUrl: undefined,
         posthog: undefined,
         query: {
             maxPageSize: 2500,

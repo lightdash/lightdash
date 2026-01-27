@@ -23,6 +23,25 @@ const HelpMenu: FC = () => {
 
     const { show: showIntercom } = useIntercom();
 
+    const helpMenuUrl = health.data?.helpMenuUrl;
+
+    // If helpMenuUrl is set, render a button that opens the URL in a new tab
+    if (helpMenuUrl) {
+        return (
+            <Button
+                aria-label="Help"
+                variant="default"
+                size="xs"
+                component="a"
+                href={helpMenuUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                <MantineIcon icon={IconHelp} />
+            </Button>
+        );
+    }
+
     return (
         <Menu
             withArrow
