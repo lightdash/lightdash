@@ -136,7 +136,7 @@ import {
     FindFieldFn,
     GetPromptFn,
     ListExploresFn,
-    RunMiniMetricQueryFn,
+    RunAsyncQueryFn,
     SearchFieldValuesFn,
     SendFileFn,
     StoreReasoningFn,
@@ -2641,9 +2641,9 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             return webOrSlackPrompt;
         };
 
-        const runMiniMetricQuery: RunMiniMetricQueryFn = (metricQuery) =>
+        const runAsyncQuery: RunAsyncQueryFn = (metricQuery) =>
             wrapSentryTransaction(
-                'AiAgent.runMiniMetricQuery',
+                'AiAgent.runAsyncQuery',
                 metricQuery,
                 async () => {
                     const agentSettings = await this.getAgentSettings(
@@ -2866,7 +2866,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             findExplores,
             updateProgress,
             getPrompt,
-            runMiniMetricQuery,
+            runAsyncQuery,
             sendFile,
             storeToolCall,
             storeToolResults,
@@ -2941,7 +2941,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             findExplores,
             updateProgress,
             getPrompt,
-            runMiniMetricQuery,
+            runAsyncQuery,
             sendFile,
             storeToolCall,
             storeToolResults,
@@ -2991,7 +2991,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             findContent,
             findFields,
             findExplores,
-            runMiniMetricQuery,
+            runAsyncQuery,
             getPrompt,
             sendFile,
             storeToolCall,

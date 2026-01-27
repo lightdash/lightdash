@@ -90,7 +90,7 @@ const getAgentTools = (
 
     const runQuery = getRunQuery({
         updateProgress: dependencies.updateProgress,
-        runMiniMetricQuery: dependencies.runMiniMetricQuery,
+        runAsyncQuery: dependencies.runAsyncQuery,
         getPrompt: dependencies.getPrompt,
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
