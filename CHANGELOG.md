@@ -1,3 +1,10 @@
+# [0.2379.0](https://github.com/lightdash/lightdash/compare/0.2378.2...0.2379.0) (2026-01-27)
+
+
+### Features
+
+* support service account authentication for MCP ([#19738](https://github.com/lightdash/lightdash/issues/19738)) ([b1291b2](https://github.com/lightdash/lightdash/commit/b1291b28b70e7c9674b455c79c33271225002c34))
+
 ## [0.2378.2](https://github.com/lightdash/lightdash/compare/0.2378.1...0.2378.2) (2026-01-27)
 
 
