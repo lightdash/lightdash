@@ -259,53 +259,75 @@ const AiAgentAdminAgentsTable = () => {
                     }
                     return (
                         <Group gap="xs">
-                            {agent.integrations.map((integration, idx) => (
-                                <Box key={idx}>
-                                    <Tooltip
-                                        withinPortal
-                                        variant="xs"
-                                        label={
-                                            integration.type ||
-                                            'Untitled Integration'
-                                        }
-                                        disabled={!isTruncated.isTruncated}
-                                        multiline
-                                        maw={300}
-                                    >
-                                        <Paper w="fit-content">
-                                            {integration.type === 'slack' && (
-                                                <Group
-                                                    gap="two"
-                                                    px="xs"
-                                                    wrap="nowrap"
+                            {agent.integrations.map((integration, idx) => {
+                                if (integration.type === 'slack') {
+                                    const resolvedChannel = slackChannels?.find(
+                                        (channel) =>
+                                            channel.id ===
+                                            integration.channelId,
+                                    );
+                                    const channelName =
+                                        resolvedChannel?.name ||
+                                        `#${integration.channelId}`;
+                                    const isResolved = !!resolvedChannel;
+
+                                    return (
+                                        <Box key={idx}>
+                                            <Tooltip
+                                                withinPortal
+                                                variant="xs"
+                                                label={
+                                                    isResolved
+                                                        ? channelName
+                                                        : 'Channel not cached yet. If this is a private channel, add the integration to the channel manually'
+                                                }
+                                                disabled={
+                                                    isResolved &&
+                                                    !isTruncated.isTruncated
+                                                }
+                                                multiline
+                                                maw={300}
+                                            >
+                                                <Paper
+                                                    w="fit-content"
+                                                    style={(t) =>
+                                                        isResolved
+                                                            ? undefined
+                                                            : {
+                                                                  border: `1px dashed ${t.colors.ldGray[4]}`,
+                                                              }
+                                                    }
                                                 >
-                                                    <SlackSvg
-                                                        style={{
-                                                            width: '12px',
-                                                            height: '12px',
-                                                        }}
-                                                    />
-                                                    <Text
-                                                        fz="xs"
-                                                        c="ldGray.7"
-                                                        fw={500}
-                                                        truncate
-                                                        ref={isTruncated.ref}
+                                                    <Group
+                                                        gap="two"
+                                                        px="xs"
+                                                        wrap="nowrap"
                                                     >
-                                                        {
-                                                            slackChannels?.find(
-                                                                (channel) =>
-                                                                    channel.id ===
-                                                                    integration.channelId,
-                                                            )?.name
-                                                        }
-                                                    </Text>
-                                                </Group>
-                                            )}
-                                        </Paper>
-                                    </Tooltip>
-                                </Box>
-                            ))}
+                                                        <SlackSvg
+                                                            style={{
+                                                                width: '12px',
+                                                                height: '12px',
+                                                            }}
+                                                        />
+                                                        <Text
+                                                            fz="xs"
+                                                            c="ldGray.7"
+                                                            fw={500}
+                                                            truncate
+                                                            ref={
+                                                                isTruncated.ref
+                                                            }
+                                                        >
+                                                            {channelName}
+                                                        </Text>
+                                                    </Group>
+                                                </Paper>
+                                            </Tooltip>
+                                        </Box>
+                                    );
+                                }
+                                return null;
+                            })}
                         </Group>
                     );
                 },

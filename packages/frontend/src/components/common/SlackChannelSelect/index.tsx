@@ -1,27 +1,36 @@
 import { SLACK_ID_REGEX } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
+    Combobox,
     Loader,
-    MultiSelect,
-    Select,
+    Pill,
+    PillsInput,
+    ScrollArea,
+    Stack,
+    Text,
     Tooltip,
-    type MultiSelectProps,
-    type SelectProps,
-} from '@mantine/core';
+    useCombobox,
+    type PillsInputProps,
+} from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconRefresh } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import { IconRefresh, IconX } from '@tabler/icons-react';
+import compact from 'lodash/compact';
+import uniq from 'lodash/uniq';
+import { useMemo, useState, type FC } from 'react';
 import {
     useSlackChannelLookup,
     useSlackChannels,
 } from '../../../hooks/slack/useSlack';
+import useToaster from '../../../hooks/toaster/useToaster';
 import MantineIcon from '../MantineIcon';
+import classes from './SlackChannelSelect.module.css';
 
-type CommonProps = {
-    disabled?: SelectProps['disabled'];
-    placeholder?: SelectProps['placeholder'];
-    label?: SelectProps['label'];
-    size?: SelectProps['size'];
+type CommonProps = Pick<
+    PillsInputProps,
+    'disabled' | 'label' | 'size' | 'variant' | 'radius'
+> & {
+    placeholder?: string;
     /** Show refresh button to force re-fetch channels from Slack */
     withRefresh?: boolean;
     /** Include direct messages in the channel list */
@@ -42,6 +51,14 @@ type MultiSelectComponentProps = CommonProps & {
     onChange: (value: string[]) => void;
 };
 
+// Helper to normalize single/multiple values to array
+const normalizeValues = (
+    multiple: boolean | undefined,
+    value: string | null | undefined | string[],
+): string[] => {
+    return compact(multiple ? (value as string[]) : [value as string | null]);
+};
+
 export const SlackChannelSelect: FC<
     SingleSelectProps | MultiSelectComponentProps
 > = (props) => {
@@ -50,43 +67,35 @@ export const SlackChannelSelect: FC<
         placeholder = 'Select a channel',
         label,
         size = 'xs',
+        radius = 'md',
         withRefresh = false,
         includeDms = false,
         includeGroups = false,
     } = props;
 
-    const [search, setSearch] = useState<string | undefined>(undefined);
+    const values = normalizeValues(props.multiple, props.value);
+
+    const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
 
+    const combobox = useCombobox({
+        onDropdownClose: () => {
+            combobox.resetSelectedOption();
+            setSearch('');
+        },
+        onDropdownOpen: () => combobox.updateSelectedOptionIndex('active'),
+    });
+
     // Track looked-up channels (ID -> name) that aren't in the cached list yet
-    // Initialize with any existing channel names (not Slack IDs) so they display when editing
     const [lookedUpChannels, setLookedUpChannels] = useState<
         Map<string, string>
-    >(() => {
-        const initial = new Map<string, string>();
-        const values = props.multiple
-            ? props.value
-            : props.value
-            ? [props.value]
-            : [];
-        values
-            .filter((v) => !SLACK_ID_REGEX.test(v))
-            .forEach((name) => {
-                initial.set(name, `#${name}`);
-            });
-        return initial;
-    });
+    >(() => new Map());
 
     // On-demand lookup for pasted channel IDs not in DB cache
     const { mutate: lookupChannel, isLoading: isLookingUp } =
         useSlackChannelLookup();
 
-    const includeChannelIds = useMemo(() => {
-        if (props.multiple) {
-            return props.value.length > 0 ? props.value : undefined;
-        }
-        return props.value ? [props.value] : undefined;
-    }, [props.multiple, props.value]);
+    const { showToastInfo } = useToaster();
 
     const {
         data: slackChannels,
@@ -94,150 +103,255 @@ export const SlackChannelSelect: FC<
         refresh,
         isRefreshing,
     } = useSlackChannels(
-        search || '',
+        debouncedSearch || '',
         {
             excludeArchived: true,
             excludeDms: !includeDms,
             excludeGroups: !includeGroups,
-            includeChannelIds,
+            includeChannelIds: values.length > 0 ? values : undefined,
         },
-        { enabled: !disabled },
+        { enabled: !disabled, keepPreviousData: true },
     );
 
-    // On-demand lookup when user pastes a Slack channel ID
-    useEffect(() => {
-        if (!debouncedSearch || !SLACK_ID_REGEX.test(debouncedSearch)) return;
+    const allOptions = useMemo(() => {
+        const channelsById = new Map([
+            ...lookedUpChannels,
+            ...(slackChannels?.map((c) => [c.id, c.name] as const) ?? []),
+        ]);
 
-        // Check if already in fetched channels
-        const alreadyHaveChannel = slackChannels?.some(
-            (c) => c.id === debouncedSearch,
-        );
-        if (alreadyHaveChannel) return;
-
-        // Lookup the channel by ID
-        lookupChannel(debouncedSearch);
-    }, [debouncedSearch, slackChannels, lookupChannel]);
-
-    const options = useMemo(() => {
-        const optionsMap = new Map<string, string>();
-
-        // Add looked-up channels first
-        lookedUpChannels.forEach((name, id) => {
-            optionsMap.set(id, name);
-        });
-
-        // Add channels from API (will override looked-up if same ID)
-        slackChannels?.forEach((channel) => {
-            optionsMap.set(channel.id, channel.name);
-        });
-
-        return Array.from(optionsMap.entries()).map(([id, name]) => ({
+        return Array.from(channelsById, ([id, name]) => ({
             value: id,
             label: name,
         }));
     }, [slackChannels, lookedUpChannels]);
 
+    const filteredOptions = useMemo(() => {
+        const trimmedSearch = search.trim();
+        if (!trimmedSearch) {
+            return allOptions.filter((opt) => !values.includes(opt.value));
+        }
+
+        const searchLower = trimmedSearch.toLowerCase();
+        return allOptions.filter(
+            (opt) =>
+                !values.includes(opt.value) &&
+                (opt.label.toLowerCase().includes(searchLower) ||
+                    opt.value.toLowerCase().includes(searchLower)),
+        );
+    }, [allOptions, values, search]);
+
     const isBusy = isLoading || isRefreshing || isLookingUp;
+
+    const getLabel = (value: string) => {
+        const option = allOptions.find((opt) => opt.value === value);
+        return option?.label ?? value;
+    };
+
+    const handleValueSelect = (val: string) => {
+        if (props.multiple) {
+            props.onChange(uniq([...props.value, val]));
+        } else {
+            props.onChange(val);
+            combobox.closeDropdown();
+        }
+    };
+
+    const handleValueRemove = (val: string) => {
+        if (props.multiple) {
+            props.onChange(props.value.filter((v) => v !== val));
+        } else {
+            props.onChange(null);
+        }
+    };
+
+    const addLookedUpChannel = (id: string, name: string) => {
+        setLookedUpChannels((prev) => {
+            const next = new Map(prev);
+            next.set(id, name);
+            return next;
+        });
+    };
+
+    const trimmedSearch = search.trim();
+    const showLookup =
+        trimmedSearch !== '' && SLACK_ID_REGEX.test(trimmedSearch);
 
     const rightSection = withRefresh ? (
         isBusy ? (
-            <Loader size="xs" />
+            <Loader size="xs" color="gray" />
         ) : (
             <Tooltip label="Refresh Slack channels" withArrow withinPortal>
                 <ActionIcon variant="transparent" onClick={refresh}>
-                    <MantineIcon icon={IconRefresh} />
+                    <MantineIcon icon={IconRefresh} color="gray" />
                 </ActionIcon>
             </Tooltip>
         )
     ) : isBusy ? (
         <Loader size="xs" />
+    ) : !props.multiple && values.length > 0 ? (
+        <ActionIcon
+            onClick={(event) => {
+                event.stopPropagation();
+                handleValueRemove(values[0]);
+            }}
+            variant="transparent"
+            color="gray"
+        >
+            <MantineIcon icon={IconX} size="sm" />
+        </ActionIcon>
     ) : undefined;
 
-    const commonProps = {
-        label,
-        size,
-        rightSection,
-        placeholder: isBusy ? 'Loading channels...' : placeholder,
-        nothingFound: 'No channels found',
-        data: options,
-        searchable: true,
-        clearable: true,
-        disabled,
-        onSearchChange: setSearch,
-    };
+    const pills = values.map((value) => {
+        const isIdValue = SLACK_ID_REGEX.test(value);
+        const pillLabel = getLabel(value);
+        /**
+         * NOTE: we used to support adding channels by name because we performed a full channel lookup.
+         * This is now deprecated and the new system has smart lookup support by ID.
+         * To handle the transition, we display a special pill to notify users. This is still supported by backend, but
+         * we plan to remove it eventually.
+         */
+        const isUncached = !isBusy && !isIdValue;
 
-    // Allow creating items that look like Slack channel IDs or channel names
-    const shouldAllowCreate = (query: string) => {
-        // Allow Slack IDs (C01234567, G01234567, etc.)
-        if (SLACK_ID_REGEX.test(query)) return true;
-        // Allow channel names (at least 1 character, no spaces at start/end)
-        const trimmed = query.trim();
-        return trimmed.length > 0 && trimmed === query;
-    };
-
-    // Normalize channel name (remove # prefix if present)
-    const normalizeChannelName = (name: string) => {
-        const trimmed = name.trim();
-        return trimmed.startsWith('#') ? trimmed.slice(1) : trimmed;
-    };
-
-    return props.multiple ? (
-        <MultiSelect
-            radius="md"
-            {...(commonProps as MultiSelectProps)}
-            creatable
-            shouldCreate={shouldAllowCreate}
-            getCreateLabel={(query) => {
-                if (SLACK_ID_REGEX.test(query)) {
-                    return `Look up channel ID: ${query}`;
+        return (
+            <Tooltip
+                key={value}
+                label={
+                    "We couldn't find this channel and the integration may not be installed correctly. Please use the channel ID instead."
                 }
-                const normalized = normalizeChannelName(query);
-                return `Send to private channel: #${normalized}`;
-            }}
-            onCreate={(newItem) => {
-                if (SLACK_ID_REGEX.test(newItem)) {
-                    // Trigger lookup to get channel info
-                    lookupChannel(newItem, {
-                        onSuccess: (channel) => {
-                            if (channel) {
-                                // Add to looked-up channels so it appears in options
-                                setLookedUpChannels((prev) => {
-                                    const next = new Map(prev);
-                                    next.set(channel.id, channel.name);
-                                    return next;
-                                });
-                                // Add the channel ID to the selection
-                                props.onChange([...props.value, channel.id]);
-                            }
-                        },
-                    });
-                    // Don't add anything yet - wait for lookup to complete
-                    return undefined;
-                }
-                // For channel names, normalize and add directly
-                // The backend will resolve the name to an ID when posting
-                const normalized = normalizeChannelName(newItem);
-                setLookedUpChannels((prev) => {
-                    const next = new Map(prev);
-                    next.set(normalized, `#${normalized}`);
-                    return next;
-                });
-                return normalized;
-            }}
-            value={props.value}
-            onChange={(newValue) => {
-                props.onChange(newValue);
-                setSearch(undefined);
-            }}
-        />
-    ) : (
-        <Select
-            {...(commonProps as SelectProps)}
-            value={props.value ?? null}
-            onChange={(newValue) => {
-                props.onChange(newValue);
-                setSearch(undefined);
-            }}
-        />
+                withArrow
+                withinPortal
+                disabled={!isUncached}
+            >
+                <Pill
+                    className={classes.pill}
+                    data-uncached={isUncached}
+                    data-single-mode={!props.multiple}
+                    key={value}
+                    withRemoveButton={props.multiple}
+                    onRemove={() => handleValueRemove(value)}
+                >
+                    {pillLabel}
+                </Pill>
+            </Tooltip>
+        );
+    });
+
+    const handleOptionSubmit = (val: string) => {
+        if (val === '__lookup__') {
+            lookupChannel(trimmedSearch, {
+                onSuccess: (channel) => {
+                    if (channel) {
+                        addLookedUpChannel(channel.id, channel.name);
+                        handleValueSelect(channel.id);
+                    } else {
+                        showToastInfo({
+                            title: 'Channel not found',
+                            subtitle: `Could not find channel with ID "${trimmedSearch}". If it's a private channel, make sure the Lightdash integration is added first.`,
+                        });
+                    }
+                },
+            });
+        } else {
+            handleValueSelect(val);
+        }
+        setSearch('');
+    };
+
+    return (
+        <Stack gap="xs">
+            <Combobox
+                store={combobox}
+                onOptionSubmit={handleOptionSubmit}
+                disabled={disabled}
+            >
+                <Combobox.DropdownTarget>
+                    <PillsInput
+                        radius={radius}
+                        size={size}
+                        label={label}
+                        rightSection={rightSection}
+                        onClick={() => !disabled && combobox.openDropdown()}
+                        disabled={disabled}
+                        variant={props.variant}
+                    >
+                        <Pill.Group>
+                            {pills}
+                            <Combobox.EventsTarget>
+                                <PillsInput.Field
+                                    onFocus={() =>
+                                        !disabled && combobox.openDropdown()
+                                    }
+                                    value={search}
+                                    placeholder={
+                                        values.length === 0
+                                            ? isBusy
+                                                ? 'Loading channels...'
+                                                : placeholder
+                                            : undefined
+                                    }
+                                    onChange={(event) => {
+                                        combobox.updateSelectedOptionIndex();
+                                        setSearch(event.currentTarget.value);
+                                    }}
+                                    onKeyDown={(event) => {
+                                        if (
+                                            event.key === 'Backspace' &&
+                                            search.length === 0 &&
+                                            values.length > 0
+                                        ) {
+                                            event.preventDefault();
+                                            handleValueRemove(
+                                                values[values.length - 1],
+                                            );
+                                        }
+                                    }}
+                                    disabled={disabled}
+                                />
+                            </Combobox.EventsTarget>
+                        </Pill.Group>
+                    </PillsInput>
+                </Combobox.DropdownTarget>
+
+                <Combobox.Dropdown>
+                    <ScrollArea.Autosize mah={220} type="scroll">
+                        <Combobox.Options>
+                            {filteredOptions.length > 0 ? (
+                                filteredOptions.map((option) => (
+                                    <Combobox.Option
+                                        value={option.value}
+                                        key={option.value}
+                                        active={values.includes(option.value)}
+                                    >
+                                        {option.label}
+                                    </Combobox.Option>
+                                ))
+                            ) : showLookup ? null : (
+                                <Combobox.Empty>
+                                    No channels found, try using Channel ID
+                                    instead?
+                                </Combobox.Empty>
+                            )}
+                            {showLookup && (
+                                <Combobox.Option value="__lookup__">
+                                    Look up channel ID: {search}
+                                </Combobox.Option>
+                            )}
+                        </Combobox.Options>
+                    </ScrollArea.Autosize>
+                </Combobox.Dropdown>
+            </Combobox>
+            {includeGroups && (
+                <Text size="xs" c="dimmed">
+                    To add a private channel, first add the Lightdash
+                    integration to that channel and use the Channel ID.{' '}
+                    <Anchor
+                        href="https://docs.lightdash.com/references/integrations/slack-integration#using-lightdash-in-private-channels"
+                        target="_blank"
+                    >
+                        Learn more
+                    </Anchor>
+                </Text>
+            )}
+        </Stack>
     );
 };
