@@ -26,6 +26,7 @@ import {
     LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
     LIGHTDASH_TABLE_WITH_DBT_METRICS,
     LIGHTDASH_TABLE_WITH_DBT_V9_METRICS,
+    LIGHTDASH_TABLE_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
     LIGHTDASH_TABLE_WITH_DIMENSION_AI_HINT,
@@ -47,6 +48,7 @@ import {
     MODEL_WITH_AI_HINT_IN_CONFIG,
     MODEL_WITH_COMPOSITE_PRIMARY_KEY,
     MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
+    MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
     MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
     MODEL_WITH_DIMENSION_AI_HINT,
     MODEL_WITH_DIMENSION_AI_HINT_ARRAY,
@@ -1173,5 +1175,29 @@ describe('explore-scoped additional dimensions', () => {
         expect(
             baseTable.dimensions.custom_date_day.timeIntervalBaseDimensionName,
         ).toBe('custom_date');
+    });
+
+    it('should apply default show underlying values to metrics', () => {
+        const table = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(table).toMatchObject(
+            LIGHTDASH_TABLE_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
+        );
+
+        // Verify the metric without explicit show_underlying_values uses the default
+        expect(table.metrics.total_revenue.showUnderlyingValues).toEqual([
+            'user_id',
+            'user_name',
+        ]);
+
+        // Verify the metric with explicit show_underlying_values overrides the default
+        expect(table.metrics.average_revenue.showUnderlyingValues).toEqual([
+            'custom_field',
+        ]);
     });
 });

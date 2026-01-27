@@ -132,6 +132,7 @@ export type DbtModelLightdashConfig = ExploreConfig &
             field: string;
             interval: TimeFrames;
         };
+        default_show_underlying_values?: string[];
         spotlight?: {
             visibility?: NonNullable<
                 LightdashProjectConfig['spotlight']
@@ -533,6 +534,7 @@ type ConvertModelMetricArgs = {
     spotlightConfig?: LightdashProjectConfig['spotlight'];
     modelCategories?: string[];
     modelOwner?: string;
+    defaultShowUnderlyingValues?: string[];
 };
 export const convertModelMetric = ({
     modelName,
@@ -545,6 +547,7 @@ export const convertModelMetric = ({
     spotlightConfig,
     modelCategories = [],
     modelOwner,
+    defaultShowUnderlyingValues,
 }: ConvertModelMetricArgs): Metric => {
     const groups = convertToGroups(metric.groups, metric.group_label);
     const spotlightVisibility =
@@ -578,7 +581,8 @@ export const convertModelMetric = ({
         compact: metric.compact,
         format: metric.format,
         groups,
-        showUnderlyingValues: metric.show_underlying_values,
+        showUnderlyingValues:
+            metric.show_underlying_values ?? defaultShowUnderlyingValues,
         filters: parseFilters(metric.filters),
         percentile: metric.percentile,
         dimensionReference,
@@ -630,6 +634,7 @@ export const convertColumnMetric = ({
     spotlightConfig,
     modelCategories = [],
     modelOwner,
+    defaultShowUnderlyingValues,
 }: ConvertColumnMetricArgs): Metric =>
     convertModelMetric({
         modelName,
@@ -662,6 +667,7 @@ export const convertColumnMetric = ({
         spotlightConfig,
         modelCategories,
         modelOwner,
+        defaultShowUnderlyingValues,
     });
 
 export enum DbtManifestVersion {
