@@ -1,5 +1,5 @@
 import { getDefaultZIndex, Loader, Stack, Text } from '@mantine-8/core';
-import { useCallback, useEffect, type FC } from 'react';
+import { useCallback, type FC } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
 import MantineModal, {
     type MantineModalProps,
@@ -22,15 +22,10 @@ export const SchedulerDeleteModal: FC<SchedulerDeleteModalProps> = ({
     const scheduler = useScheduler(schedulerUuid);
     const mutation = useSchedulersDeleteMutation();
 
-    useEffect(() => {
-        if (mutation.isSuccess) {
-            onConfirm();
-        }
-    }, [mutation.isSuccess, onConfirm]);
-
-    const handleConfirm = useCallback(() => {
-        mutation.mutate(schedulerUuid);
-    }, [mutation, schedulerUuid]);
+    const handleConfirm = useCallback(async () => {
+        await mutation.mutateAsync(schedulerUuid);
+        onConfirm();
+    }, [mutation, schedulerUuid, onConfirm]);
 
     return (
         <MantineModal

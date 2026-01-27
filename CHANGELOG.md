@@ -1,3 +1,11 @@
+## [0.2378.1](https://github.com/lightdash/lightdash/compare/0.2378.0...0.2378.1) (2026-01-27)
+
+
+### Bug Fixes
+
+* Force virtualizer to re-measure when data changes ([#19726](https://github.com/lightdash/lightdash/issues/19726)) ([4566bdb](https://github.com/lightdash/lightdash/commit/4566bdb311ee8c4a6e98214cf3b7f5dcf75d2cfd))
+* schedulerUuid not being cleared after delete modal confirm ([#19730](https://github.com/lightdash/lightdash/issues/19730)) ([b3b88fd](https://github.com/lightdash/lightdash/commit/b3b88fd005ab2fb452c651063a7f4a3cfd823845))
+
 # [0.2378.0](https://github.com/lightdash/lightdash/compare/0.2377.0...0.2378.0) (2026-01-26)
 
 
