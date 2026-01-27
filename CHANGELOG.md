@@ -1,3 +1,10 @@
+## [0.2380.1](https://github.com/lightdash/lightdash/compare/0.2380.0...0.2380.1) (2026-01-27)
+
+
+### Bug Fixes
+
+* **perf:** virtualize explore sidebar list ([#19741](https://github.com/lightdash/lightdash/issues/19741)) ([b9a221e](https://github.com/lightdash/lightdash/commit/b9a221e2bf4ce255b033c0f859b22d5555348e02))
+
 # [0.2380.0](https://github.com/lightdash/lightdash/compare/0.2379.0...0.2380.0) (2026-01-27)
 
 
