@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { type SummaryExplore, ExploreType } from '@lightdash/common';
-import { ActionIcon, Divider, Stack, Text, TextInput } from '@mantine/core';
+import { ActionIcon, Stack, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertCircle,
@@ -9,7 +9,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
-import { useMemo, useState, useTransition } from 'react';
+import { useCallback, useMemo, useState, useTransition } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplores } from '../../../hooks/useExplores';
@@ -20,8 +20,7 @@ import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
-import ExploreGroup from './ExploreGroup';
-import ExploreNavLink from './ExploreNavLink';
+import VirtualizedExploreList from './VirtualizedExploreList';
 
 const BasePanel = () => {
     const navigate = useNavigate();
@@ -137,71 +136,16 @@ const BasePanel = () => {
         return [[], {}, [], []];
     }, [filteredExplores]);
 
-    const groupedExploreLinks = useMemo(
-        () =>
-            sortedGroupLabels.map((groupLabel) => (
-                <ExploreGroup
-                    label={groupLabel}
-                    key={groupLabel}
-                    explores={exploreGroupMap[groupLabel] || []}
-                    searchQuery={debouncedSearch}
-                />
-            )),
-        [sortedGroupLabels, exploreGroupMap, debouncedSearch],
-    );
-
-    const ungroupedExploreLinks = useMemo(
-        () =>
-            defaultUngroupedExplores.map((explore) => (
-                <ExploreNavLink
-                    key={explore.name}
-                    explore={explore}
-                    query={debouncedSearch}
-                    onClick={() => {
-                        startTransition(() => {
-                            void navigate({
-                                pathname: `/projects/${projectUuid}/tables/${explore.name}`,
-                                search: location.search,
-                            });
-                        });
-                    }}
-                />
-            )),
-        [
-            defaultUngroupedExplores,
-            navigate,
-            projectUuid,
-            debouncedSearch,
-            startTransition,
-            location.search,
-        ],
-    );
-
-    const customExploreLinks = useMemo(
-        () =>
-            customUngroupedExplores.map((explore) => (
-                <ExploreNavLink
-                    key={explore.name}
-                    explore={explore}
-                    query={debouncedSearch}
-                    onClick={() => {
-                        startTransition(() => {
-                            void navigate({
-                                pathname: `/projects/${projectUuid}/tables/${explore.name}`,
-                                search: location.search,
-                            });
-                        });
-                    }}
-                />
-            )),
-        [
-            customUngroupedExplores,
-            navigate,
-            projectUuid,
-            debouncedSearch,
-            startTransition,
-            location.search,
-        ],
+    const handleExploreClick = useCallback(
+        (explore: SummaryExplore) => {
+            startTransition(() => {
+                void navigate({
+                    pathname: `/projects/${projectUuid}/tables/${explore.name}`,
+                    search: location.search,
+                });
+            });
+        },
+        [navigate, projectUuid, location.search, startTransition],
     );
 
     if (exploresResult.status === 'loading') {
@@ -249,23 +193,14 @@ const BasePanel = () => {
                             onChange={(e) => setSearch(e.target.value)}
                         />
 
-                        <Stack
-                            spacing="xxs"
-                            sx={{ flexGrow: 1, overflowY: 'auto' }}
-                        >
-                            {groupedExploreLinks}
-                            {ungroupedExploreLinks}
-                            {customUngroupedExplores.length ? (
-                                <>
-                                    <Divider size={0.5} c="ldGray.5" my="xs" />
-
-                                    <Text fw={500} fz="xs" c="ldGray.6" mb="xs">
-                                        Virtual Views
-                                    </Text>
-                                </>
-                            ) : null}
-                            {customExploreLinks}
-                        </Stack>
+                        <VirtualizedExploreList
+                            sortedGroupLabels={sortedGroupLabels}
+                            exploreGroupMap={exploreGroupMap}
+                            defaultUngroupedExplores={defaultUngroupedExplores}
+                            customUngroupedExplores={customUngroupedExplores}
+                            searchQuery={debouncedSearch}
+                            onExploreClick={handleExploreClick}
+                        />
                     </Stack>
                 </ItemDetailProvider>
             </>
