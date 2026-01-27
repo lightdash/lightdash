@@ -46,6 +46,20 @@ jobs:
           pnpm typecheck &
           pnpm build &
           wait
+      - name: Check generated API spec is up to date
+        run: |
+          # Save current swagger.json with sorted keys for comparison
+          jq --sort-keys . packages/backend/src/generated/swagger.json > /tmp/swagger-before.json
+
+          pnpm generate-api
+
+          # Compare swagger.json with sorted keys (ignores non-deterministic property ordering)
+          jq --sort-keys . packages/backend/src/generated/swagger.json > /tmp/swagger-after.json
+          if ! diff /tmp/swagger-before.json /tmp/swagger-after.json; then
+            echo "::error::Generated API spec is out of date. Run 'pnpm generate-api' and commit the changes."
+            exit 1
+          fi
+          echo "Generated API spec is up to date."
       - name: Run unit tests
         run: pnpm test
 
