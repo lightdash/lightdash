@@ -163,7 +163,50 @@ describe('derivePivotConfigurationFromChart', () => {
                     direction: SortByDirection.ASC,
                 },
             ],
+            metricsAsRows: undefined,
         });
+    });
+
+    it('passes metricsAsRows from Table chart config to pivot configuration', () => {
+        const tableChartConfig = {
+            type: ChartType.TABLE,
+            config: {
+                metricsAsRows: true,
+            },
+        } as const;
+
+        const savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'> = {
+            chartConfig: tableChartConfig,
+            pivotConfig: {
+                columns: ['payments_payment_method'],
+            },
+        };
+
+        const result = derivePivotConfigurationFromChart(
+            savedChart,
+            mockMetricQuery,
+            mockItems,
+        );
+
+        expect(result?.metricsAsRows).toBe(true);
+    });
+
+    it('does not include metricsAsRows for Cartesian charts', () => {
+        const savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'> = {
+            chartConfig: mockCartesianChartConfig,
+            pivotConfig: {
+                columns: ['orders_status'],
+            },
+        };
+
+        const result = derivePivotConfigurationFromChart(
+            savedChart,
+            mockMetricQuery,
+            mockItems,
+        );
+
+        // Cartesian charts don't have metricsAsRows, so it should be undefined
+        expect(result?.metricsAsRows).toBeUndefined();
     });
 
     it('returns undefined for unsupported chart types (PIE)', () => {

@@ -259,6 +259,79 @@ describe('PivotQueryBuilder', () => {
             // Should still contain row_index filtering
             expect(result).toContain('"row_index" <= 100');
         });
+
+        test('Should use full column limit when metricsAsRows is true', () => {
+            // When metricsAsRows is true, metrics become rows instead of columns,
+            // so we don't divide the column limit by the number of value columns
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'user_id',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.AVERAGE,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: undefined,
+                metricsAsRows: true, // Metrics are rows, not columns
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+
+            // With metricsAsRows=true, should use full column limit (100)
+            // Without metricsAsRows, it would be 100/3 = 33
+            expect(result).toContain('"column_index" <= 100');
+        });
+
+        test('Should divide column limit by value columns when metricsAsRows is false or undefined', () => {
+            // When metricsAsRows is false/undefined, metrics become columns,
+            // so we divide the column limit by the number of value columns
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'user_id',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.AVERAGE,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: undefined,
+                metricsAsRows: false, // Metrics are columns (default behavior)
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+
+            // With 3 value columns: 100/3 = 33 max columns per value column
+            expect(result).toContain('"column_index" <= 33');
+        });
     });
 
     describe('Sorting strategies', () => {

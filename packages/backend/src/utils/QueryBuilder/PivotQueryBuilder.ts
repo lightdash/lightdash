@@ -134,12 +134,22 @@ export class PivotQueryBuilder {
      * Calculates the maximum number of columns allowed per value column.
      * @param valuesColumns - The value columns configuration
      * @param columnLimit - Maximum total columns allowed
+     * @param metricsAsRows - When true, metrics are rows (not columns), so don't divide by valueColumnsCount
      * @returns Maximum columns per value to stay within pivot column limits
      */
     private static calculateMaxColumnsPerValueColumn(
         valuesColumns: PivotConfiguration['valuesColumns'],
         columnLimit: number,
+        metricsAsRows?: boolean,
     ): number {
+        // When metricsAsRows is true, metrics become rows instead of columns,
+        // so we don't need to divide by valueColumnsCount.
+        // This matches the frontend legacy pivot calculation behavior.
+        if (metricsAsRows) {
+            return columnLimit;
+        }
+
+        // Default: divide by value columns count (SQL runner and Explorer without metricsAsRows)
         const valueColumnsCount = valuesColumns?.length || 1;
         return Math.floor(columnLimit / valueColumnsCount);
     }
@@ -167,7 +177,7 @@ export class PivotQueryBuilder {
      * Generates query that counts total distinct column combinations for pivot.
      * Uses a subquery with SELECT DISTINCT for warehouse-agnostic counting.
      * @param groupByColumns - Columns that are being pivoted
-     * @param valuesColumns - Value columns to multiply count by
+     * @param valuesColumns - Value columns to multiply count by (only when metricsAsRows is false)
      * @param filteredRowsTable - Name of the CTE containing filtered rows
      * @returns SQL query for counting total columns
      */
@@ -187,7 +197,13 @@ export class PivotQueryBuilder {
             .map((col) => `${q}${col.reference}${q}`)
             .join(', ');
 
-        return `SELECT COUNT(*) * ${valuesCount} AS total_columns FROM (SELECT DISTINCT ${columnRefs} FROM ${filteredRowsTable}) AS distinct_groups`;
+        // When metricsAsRows is true, metrics become rows (not columns),
+        // so we don't multiply by valuesCount
+        const shouldMultiplyByValues =
+            !this.pivotConfiguration.metricsAsRows && valuesCount > 1;
+        const multiplier = shouldMultiplyByValues ? ` * ${valuesCount}` : '';
+
+        return `SELECT COUNT(*)${multiplier} AS total_columns FROM (SELECT DISTINCT ${columnRefs} FROM ${filteredRowsTable}) AS distinct_groups`;
     }
 
     /**
@@ -887,6 +903,7 @@ export class PivotQueryBuilder {
                 PivotQueryBuilder.calculateMaxColumnsPerValueColumn(
                     valuesColumns,
                     columnLimit,
+                    this.pivotConfiguration.metricsAsRows,
                 );
 
             // Keep leading space to avoid SQL syntax errors
