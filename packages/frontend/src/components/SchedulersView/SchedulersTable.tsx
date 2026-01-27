@@ -698,9 +698,9 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                     <Text fz="xs" c="ldGray.6">
                         {getHumanReadableCronExpression(
                             item.cron,
-                            item.timezone ??
-                                item.projectSchedulerTimezone ??
-                                project?.schedulerTimezone ??
+                            item.timezone ||
+                                item.projectSchedulerTimezone ||
+                                project?.schedulerTimezone ||
                                 'UTC',
                         )}
                     </Text>
