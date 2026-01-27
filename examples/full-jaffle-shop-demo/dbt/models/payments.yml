@@ -7,6 +7,9 @@ models:
       meta:
         spotlight:
           owner: demo@lightdash.com
+        default_show_underlying_values:
+          - orders.customer_id
+          - unique_payment_count
         sets:
           base_set:
             fields:

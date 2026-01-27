@@ -150,6 +150,13 @@
                     },
                     "description": "Default time dimension for time-series queries"
                 },
+                "default_show_underlying_values": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Default show underlying values configuration for all metrics in this model"
+                },
                 "joins": {
                     "type": "array",
                     "items": {
