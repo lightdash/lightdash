@@ -1,3 +1,10 @@
+## [0.2378.2](https://github.com/lightdash/lightdash/compare/0.2378.1...0.2378.2) (2026-01-27)
+
+
+### Bug Fixes
+
+* use fallback logic for empty string timezone ([#19735](https://github.com/lightdash/lightdash/issues/19735)) ([33a7216](https://github.com/lightdash/lightdash/commit/33a721621c5597ed6dae0bee09b2f6c246b56c26))
+
 ## [0.2378.1](https://github.com/lightdash/lightdash/compare/0.2378.0...0.2378.1) (2026-01-27)
 
 
