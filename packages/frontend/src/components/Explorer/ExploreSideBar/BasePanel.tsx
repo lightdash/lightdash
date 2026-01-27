@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { type SummaryExplore, ExploreType } from '@lightdash/common';
 import { ActionIcon, Divider, Stack, Text, TextInput } from '@mantine/core';
+import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconAlertTriangle,
@@ -27,120 +28,150 @@ const BasePanel = () => {
     const location = useLocation();
     const projectUuid = useProjectUuid();
     const [search, setSearch] = useState<string>('');
+    const [debouncedSearch] = useDebouncedValue(search, 300);
     const [, startTransition] = useTransition();
     const exploresResult = useExplores(projectUuid, true);
     const { data: org } = useOrganization();
 
-    const [exploreGroupMap, defaultUngroupedExplores, customUngroupedExplores] =
-        useMemo(() => {
-            const validSearch = search ? search.toLowerCase() : '';
-            if (exploresResult.data) {
-                let explores = Object.values(exploresResult.data);
-                if (validSearch !== '') {
-                    explores = new Fuse(Object.values(exploresResult.data), {
-                        keys: ['label'],
-                        ignoreLocation: true,
-                        threshold: 0.3,
-                    })
-                        .search(validSearch)
-                        .map((res) => res.item);
-                }
+    const filteredExplores = useMemo(() => {
+        const searchStart = performance.now();
+        const validSearch = debouncedSearch
+            ? debouncedSearch.toLowerCase()
+            : '';
+        if (exploresResult.data) {
+            console.log(
+                `🔍 Processing ${Object.values(exploresResult.data).length} explores with search: "${debouncedSearch}"`,
+            );
+            let explores = Object.values(exploresResult.data);
+            if (validSearch !== '') {
+                const fuseStart = performance.now();
+                explores = new Fuse(Object.values(exploresResult.data), {
+                    keys: ['label'],
+                    ignoreLocation: true,
+                    threshold: 0.3,
+                })
+                    .search(validSearch)
+                    .map((res) => res.item);
+                console.log(
+                    `🔍 Fuse.js search took ${((performance.now() - fuseStart) / 1000).toFixed(3)}s`,
+                );
+                console.log(`🔍 Search returned ${explores.length} results`);
+            }
+            console.log(
+                `🔍 Search/Filter computation took ${((performance.now() - searchStart) / 1000).toFixed(3)}s`,
+            );
+            return explores;
+        }
+        console.log(
+            `🔍 Search/Filter computation took ${((performance.now() - searchStart) / 1000).toFixed(3)}s`,
+        );
+        return undefined;
+    }, [exploresResult.data, debouncedSearch]);
 
-                return explores.reduce<
-                    [
-                        Record<string, SummaryExplore[]>,
-                        SummaryExplore[],
-                        SummaryExplore[],
-                    ]
-                >(
-                    (acc, explore) => {
-                        if (explore.groupLabel) {
-                            return [
-                                {
-                                    ...acc[0],
-                                    [explore.groupLabel]: acc[0][
-                                        explore.groupLabel
-                                    ]
-                                        ? [
-                                              ...acc[0][explore.groupLabel],
-                                              explore,
-                                          ]
-                                        : [explore],
-                                },
-                                acc[1],
-                                acc[2],
-                            ];
-                        }
-                        if (explore.type === ExploreType.VIRTUAL) {
-                            return [acc[0], acc[1], [...acc[2], explore]];
-                        }
-                        return [acc[0], [...acc[1], explore], acc[2]];
-                    },
-                    [{}, [], []],
+    const [
+        sortedGroupLabels,
+        exploreGroupMap,
+        defaultUngroupedExplores,
+        customUngroupedExplores,
+    ] = useMemo<
+        [
+            string[],
+            Record<string, SummaryExplore[]>,
+            SummaryExplore[],
+            SummaryExplore[],
+        ]
+    >(() => {
+        const categorizationStart = performance.now();
+        if (filteredExplores) {
+            console.log(
+                `📋 Categorizing ${filteredExplores.length} explores into groups`,
+            );
+
+            // Pre-allocate collections for better performance
+            const groupMap: Record<string, SummaryExplore[]> = {};
+            const defaultExplores: SummaryExplore[] = [];
+            const customExplores: SummaryExplore[] = [];
+
+            // Single-pass categorization without object spreads
+            for (const explore of filteredExplores) {
+                if (explore.groupLabel) {
+                    if (groupMap[explore.groupLabel]) {
+                        groupMap[explore.groupLabel].push(explore);
+                    } else {
+                        groupMap[explore.groupLabel] = [explore];
+                    }
+                } else if (explore.type === ExploreType.VIRTUAL) {
+                    customExplores.push(explore);
+                } else {
+                    defaultExplores.push(explore);
+                }
+            }
+
+            // Pre-sort group labels once
+            const sortedLabels = Object.keys(groupMap).sort((a, b) =>
+                a.localeCompare(b),
+            );
+
+            // Sort explores within each group
+            for (const groupLabel of sortedLabels) {
+                groupMap[groupLabel].sort((a, b) =>
+                    a.label.localeCompare(b.label),
                 );
             }
-            return [{}, [], []];
-        }, [exploresResult.data, search]);
+
+            // Sort ungrouped explores
+            defaultExplores.sort((a, b) => a.label.localeCompare(b.label));
+            customExplores.sort((a, b) => a.label.localeCompare(b.label));
+
+            console.log(
+                `📋 Created ${sortedLabels.length} groups, ${defaultExplores.length} default explores, ${customExplores.length} virtual explores`,
+            );
+            console.log(
+                `📋 Group categorization took ${((performance.now() - categorizationStart) / 1000).toFixed(3)}s`,
+            );
+            return [sortedLabels, groupMap, defaultExplores, customExplores];
+        }
+        console.log(
+            `📋 Group categorization took ${((performance.now() - categorizationStart) / 1000).toFixed(3)}s`,
+        );
+        return [[], {}, [], []];
+    }, [filteredExplores]);
 
     const groupedExploreLinks = useMemo(
         () =>
-            Object.keys(exploreGroupMap)
-                .sort((a, b) => a.localeCompare(b))
-                .map((groupLabel) => (
-                    <ExploreGroup label={groupLabel} key={groupLabel}>
-                        {exploreGroupMap[groupLabel]
-                            .sort((a, b) => a.label.localeCompare(b.label))
-                            .map((explore) => (
-                                <ExploreNavLink
-                                    key={explore.name}
-                                    explore={explore}
-                                    query={search}
-                                    onClick={() => {
-                                        startTransition(() => {
-                                            void navigate({
-                                                pathname: `/projects/${projectUuid}/tables/${explore.name}`,
-                                                search: location.search,
-                                            });
-                                        });
-                                    }}
-                                />
-                            ))}
-                    </ExploreGroup>
-                )),
-        [
-            exploreGroupMap,
-            navigate,
-            projectUuid,
-            search,
-            startTransition,
-            location.search,
-        ],
+            sortedGroupLabels.map((groupLabel) => (
+                <ExploreGroup
+                    label={groupLabel}
+                    key={groupLabel}
+                    explores={exploreGroupMap[groupLabel] || []}
+                    searchQuery={debouncedSearch}
+                />
+            )),
+        [sortedGroupLabels, exploreGroupMap, debouncedSearch],
     );
 
     const ungroupedExploreLinks = useMemo(
         () =>
-            defaultUngroupedExplores
-                .sort((a, b) => a.label.localeCompare(b.label))
-                .map((explore) => (
-                    <ExploreNavLink
-                        key={explore.name}
-                        explore={explore}
-                        query={search}
-                        onClick={() => {
-                            startTransition(() => {
-                                void navigate({
-                                    pathname: `/projects/${projectUuid}/tables/${explore.name}`,
-                                    search: location.search,
-                                });
+            defaultUngroupedExplores.map((explore) => (
+                <ExploreNavLink
+                    key={explore.name}
+                    explore={explore}
+                    query={debouncedSearch}
+                    onClick={() => {
+                        startTransition(() => {
+                            void navigate({
+                                pathname: `/projects/${projectUuid}/tables/${explore.name}`,
+                                search: location.search,
                             });
-                        }}
-                    />
-                )),
+                        });
+                    }}
+                />
+            )),
         [
             defaultUngroupedExplores,
             navigate,
             projectUuid,
-            search,
+            debouncedSearch,
             startTransition,
             location.search,
         ],
@@ -148,28 +179,26 @@ const BasePanel = () => {
 
     const customExploreLinks = useMemo(
         () =>
-            customUngroupedExplores
-                .sort((a, b) => a.label.localeCompare(b.label))
-                .map((explore) => (
-                    <ExploreNavLink
-                        key={explore.name}
-                        explore={explore}
-                        query={search}
-                        onClick={() => {
-                            startTransition(() => {
-                                void navigate({
-                                    pathname: `/projects/${projectUuid}/tables/${explore.name}`,
-                                    search: location.search,
-                                });
+            customUngroupedExplores.map((explore) => (
+                <ExploreNavLink
+                    key={explore.name}
+                    explore={explore}
+                    query={debouncedSearch}
+                    onClick={() => {
+                        startTransition(() => {
+                            void navigate({
+                                pathname: `/projects/${projectUuid}/tables/${explore.name}`,
+                                search: location.search,
                             });
-                        }}
-                    />
-                )),
+                        });
+                    }}
+                />
+            )),
         [
             customUngroupedExplores,
             navigate,
             projectUuid,
-            search,
+            debouncedSearch,
             startTransition,
             location.search,
         ],
