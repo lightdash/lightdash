@@ -1,3 +1,11 @@
+# [0.2382.0](https://github.com/lightdash/lightdash/compare/0.2381.0...0.2382.0) (2026-01-27)
+
+
+### Features
+
+* add error message to ai prompts ([#19692](https://github.com/lightdash/lightdash/issues/19692)) ([6d4423c](https://github.com/lightdash/lightdash/commit/6d4423c05e0fc8f46e3c736e1d6fcd3b39a1e087))
+* improve user-facing error messages for AI agent responses ([#19672](https://github.com/lightdash/lightdash/issues/19672)) ([00c8410](https://github.com/lightdash/lightdash/commit/00c8410640eed07ac1d7b0bd66c5dee6180f558b))
+
 # [0.2381.0](https://github.com/lightdash/lightdash/compare/0.2380.1...0.2381.0) (2026-01-27)
 
 
