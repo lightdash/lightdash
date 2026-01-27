@@ -23,6 +23,7 @@ import type {
     AiStreamAgentResponseArgs,
 } from '../types/aiAgent';
 import { AgentContext } from '../utils/AgentContext';
+import { getUserFacingErrorMessage } from '../utils/errorMessages';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -328,12 +329,24 @@ export const generateAgentResponse = async ({
 
         return result.text;
     } catch (error) {
+        const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+
         Logger.error(
-            `[AiAgent][Generate Agent Response] Error during agent response generation: ${
-                error instanceof Error ? error.message : 'Unknown error'
-            }`,
+            `[AiAgent][Generate Agent Response] Error during agent response generation: ${errorMessage}`,
         );
         Sentry.captureException(error);
+
+        const userFacingMessage = getUserFacingErrorMessage(
+            error,
+            'Something went wrong while generating the response. Please try again.',
+        );
+
+        await dependencies.updatePrompt({
+            promptUuid: args.promptUuid,
+            errorMessage: userFacingMessage,
+        });
+
         throw error;
     }
 };
@@ -574,23 +587,27 @@ export const streamAgentResponse = async ({
             }),
             onError: ({ error }) => {
                 console.error(error);
+                const errorMessage =
+                    error instanceof Error ? error.message : 'Unknown error';
+
                 Logger.error(
-                    `[AiAgent][Stream Agent Response] Error during streaming: ${
-                        error instanceof Error ? error.message : 'Unknown error'
-                    }`,
+                    `[AiAgent][Stream Agent Response] Error during streaming: ${errorMessage}`,
                 );
                 Sentry.captureException(error, {
                     tags: {
                         errorType: 'AiAgentStreamError',
                     },
                 });
-                if (APICallError.isInstance(error)) {
-                    void dependencies.updatePrompt({
-                        promptUuid: args.promptUuid,
-                        response:
-                            'Something went wrong while streaming the response. Please try again.',
-                    });
-                }
+
+                const userFacingMessage = getUserFacingErrorMessage(
+                    error,
+                    'Something went wrong while streaming the response. Please try again.',
+                );
+
+                void dependencies.updatePrompt({
+                    promptUuid: args.promptUuid,
+                    errorMessage: userFacingMessage,
+                });
             },
             experimental_telemetry: getAgentTelemetryConfig(
                 'streamAgentResponse',
@@ -601,16 +618,28 @@ export const streamAgentResponse = async ({
         logger('Stream Agent Response', 'Returning stream result.');
         return result;
     } catch (error) {
+        const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+
         Logger.error(
-            `[AiAgent][Stream Agent Response] Fatal error before stream could start: ${
-                error instanceof Error ? error.message : 'Unknown error'
-            }`,
+            `[AiAgent][Stream Agent Response] Fatal error before stream could start: ${errorMessage}`,
         );
         Sentry.captureException(error, {
             tags: {
                 errorType: 'AiAgentStreamError',
             },
         });
+
+        const userFacingMessage = getUserFacingErrorMessage(
+            error,
+            'Something went wrong while processing your request. Please try again.',
+        );
+
+        await dependencies.updatePrompt({
+            promptUuid: args.promptUuid,
+            errorMessage: userFacingMessage,
+        });
+
         throw error;
     }
 };
