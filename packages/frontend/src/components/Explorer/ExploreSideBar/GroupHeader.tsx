@@ -1,23 +1,19 @@
 import { Group, NavLink } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useToggle } from 'react-use';
 import MantineIcon from '../../common/MantineIcon';
 
-type Props = {
+type GroupHeaderProps = {
     label: string;
+    isExpanded: boolean;
+    onToggle: () => void;
 };
 
-const ExploreGroup: FC<React.PropsWithChildren<Props>> = ({
-    label,
-    children,
-}) => {
-    const [isOpen, toggleOpen] = useToggle(false);
-
+const GroupHeader: FC<GroupHeaderProps> = ({ label, isExpanded, onToggle }) => {
     return (
         <NavLink
-            opened={isOpen}
-            onClick={toggleOpen}
+            opened={isExpanded}
+            onClick={onToggle}
             // --start moves chevron to the left
             // mostly hardcoded, to match mantine's internal sizes
             disableRightSectionRotation
@@ -29,16 +25,14 @@ const ExploreGroup: FC<React.PropsWithChildren<Props>> = ({
                     style={{
                         margin: 1,
                         transition: 'transform 200ms ease',
-                        transform: isOpen ? 'rotate(90deg)' : undefined,
+                        transform: isExpanded ? 'rotate(90deg)' : undefined,
                     }}
                 />
             }
             // --end
             label={<Group>{label}</Group>}
-        >
-            {children}
-        </NavLink>
+        />
     );
 };
 
-export default ExploreGroup;
+export default GroupHeader;
