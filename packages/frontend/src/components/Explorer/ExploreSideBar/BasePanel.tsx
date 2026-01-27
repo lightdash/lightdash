@@ -33,17 +33,12 @@ const BasePanel = () => {
     const { data: org } = useOrganization();
 
     const filteredExplores = useMemo(() => {
-        const searchStart = performance.now();
         const validSearch = debouncedSearch
             ? debouncedSearch.toLowerCase()
             : '';
         if (exploresResult.data) {
-            console.log(
-                `🔍 Processing ${Object.values(exploresResult.data).length} explores with search: "${debouncedSearch}"`,
-            );
             let explores = Object.values(exploresResult.data);
             if (validSearch !== '') {
-                const fuseStart = performance.now();
                 explores = new Fuse(Object.values(exploresResult.data), {
                     keys: ['label'],
                     ignoreLocation: true,
@@ -51,19 +46,9 @@ const BasePanel = () => {
                 })
                     .search(validSearch)
                     .map((res) => res.item);
-                console.log(
-                    `🔍 Fuse.js search took ${((performance.now() - fuseStart) / 1000).toFixed(3)}s`,
-                );
-                console.log(`🔍 Search returned ${explores.length} results`);
             }
-            console.log(
-                `🔍 Search/Filter computation took ${((performance.now() - searchStart) / 1000).toFixed(3)}s`,
-            );
             return explores;
         }
-        console.log(
-            `🔍 Search/Filter computation took ${((performance.now() - searchStart) / 1000).toFixed(3)}s`,
-        );
         return undefined;
     }, [exploresResult.data, debouncedSearch]);
 
@@ -80,12 +65,7 @@ const BasePanel = () => {
             SummaryExplore[],
         ]
     >(() => {
-        const categorizationStart = performance.now();
         if (filteredExplores) {
-            console.log(
-                `📋 Categorizing ${filteredExplores.length} explores into groups`,
-            );
-
             // Pre-allocate collections for better performance
             const groupMap: Record<string, SummaryExplore[]> = {};
             const defaultExplores: SummaryExplore[] = [];
@@ -121,18 +101,8 @@ const BasePanel = () => {
             // Sort ungrouped explores
             defaultExplores.sort((a, b) => a.label.localeCompare(b.label));
             customExplores.sort((a, b) => a.label.localeCompare(b.label));
-
-            console.log(
-                `📋 Created ${sortedLabels.length} groups, ${defaultExplores.length} default explores, ${customExplores.length} virtual explores`,
-            );
-            console.log(
-                `📋 Group categorization took ${((performance.now() - categorizationStart) / 1000).toFixed(3)}s`,
-            );
             return [sortedLabels, groupMap, defaultExplores, customExplores];
         }
-        console.log(
-            `📋 Group categorization took ${((performance.now() - categorizationStart) / 1000).toFixed(3)}s`,
-        );
         return [[], {}, [], []];
     }, [filteredExplores]);
 
