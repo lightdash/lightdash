@@ -684,12 +684,14 @@ export class PivotQueryBuilder {
             ({ cteName, sql }) => `${cteName} AS (${sql})`,
         );
 
-        // Check if we need row anchor CTEs (only when sorting by a metric value)
+        // Check if we need row anchor CTEs (only when sorting by a metric value AND have index columns)
         // When sorting by a metric, we need additional CTEs to identify the "first pivot column"
-        // and compute row anchor values from that specific column only
+        // and compute row anchor values from that specific column only.
+        // When there are no index columns, row sorting is not needed (all rows have row_index = 1)
         const hasMetricSort = valuesColumns?.some((valCol) =>
             sortBy?.some((sort) => sort.reference === valCol.reference),
         );
+        const needsRowAnchor = hasMetricSort && indexColumns.length > 0;
 
         let columnRankingCTE: string | null = null;
         let anchorColumnCTE: string | null = null;
@@ -697,7 +699,7 @@ export class PivotQueryBuilder {
         let rowAnchorQueries: Record<string, { cteName: string; sql: string }> =
             {};
 
-        if (hasMetricSort) {
+        if (needsRowAnchor) {
             // Generate column_ranking CTE
             const columnRankingSQL = this.getColumnRankingSQL(
                 groupByColumns,

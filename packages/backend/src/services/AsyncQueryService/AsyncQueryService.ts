@@ -1222,8 +1222,8 @@ export class AsyncQueryService extends ProjectService {
                                       {},
                                   );
                           } else {
-                              // When there are no index columns, initialize to empty object
-                              // All rows will have the same row_index and should be combined into one row
+                              // No index columns - initialize empty row object
+                              // All rows have row_index = 1 in this case
                               currentTransformedRow = {};
                           }
                           currentRowIndex = row.row_index;
