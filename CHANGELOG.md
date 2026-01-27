@@ -1,3 +1,10 @@
+## [0.2382.1](https://github.com/lightdash/lightdash/compare/0.2382.0...0.2382.1) (2026-01-27)
+
+
+### Bug Fixes
+
+* google sheets export spinner ([#19748](https://github.com/lightdash/lightdash/issues/19748)) ([08358c3](https://github.com/lightdash/lightdash/commit/08358c35b79055e6940c7555b9fb10c6d268ece1))
+
 # [0.2382.0](https://github.com/lightdash/lightdash/compare/0.2381.0...0.2382.0) (2026-01-27)
 
 
