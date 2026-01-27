@@ -1,4 +1,5 @@
 module.exports = {
+    ignorePatterns: ['src/ee/services/McpService/mcp-chart-app/**'],
     parserOptions: {
         project: './tsconfig.json',
         createDefaultProgram: true,

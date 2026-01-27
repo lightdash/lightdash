@@ -2,6 +2,7 @@ import { type EChartsOption } from 'echarts';
 import { type ItemsMap } from '../../../../../types/field';
 import { type MetricQuery } from '../../../../../types/metricQuery';
 import { type ToolVerticalBarArgsTransformed } from '../../../schemas';
+import { getCommonEChartsConfig } from '../shared/getCommonEChartsConfig';
 import { type GetPivotedResultsFn } from '../types';
 
 /**
@@ -27,27 +28,15 @@ export const getVerticalBarChartEchartsConfig = async (
         chartData = pivoted.results;
         metrics = pivoted.metrics;
     }
-    const fields = Object.keys(chartData[0] || {});
+
     return {
-        dataset: {
-            source: chartData,
-            dimensions: fields,
-        },
-        ...(vizTool.title ? { title: { text: vizTool.title } } : {}),
-        animation: false,
-        backgroundColor: '#fff',
-        ...(metrics.length > 1
-            ? {
-                  // This is needed so we don't have overlapping legend and grid
-                  legend: {
-                      top: 40,
-                      left: 'left',
-                  },
-                  grid: {
-                      top: 100,
-                  },
-              }
-            : {}),
+        ...getCommonEChartsConfig({
+            title: vizTool.title,
+            showLegend: metrics.length > 1,
+            chartData,
+            xAxisLabel: vizTool.vizConfig.xAxisLabel,
+            yAxisLabel: vizTool.vizConfig.yAxisLabel,
+        }),
         xAxis: [
             {
                 type: vizTool.vizConfig.xAxisType,
