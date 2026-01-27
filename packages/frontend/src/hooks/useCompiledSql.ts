@@ -1,18 +1,24 @@
 import {
+    derivePivotConfigurationFromChart,
+    FeatureFlags,
+    getFieldsFromMetricQuery,
     type ApiCompiledQueryResults,
     type ApiError,
     type MetricQuery,
     type ParametersValuesMap,
+    type PivotConfiguration,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 import {
     selectAdditionalMetrics,
+    selectChartConfig,
     selectCustomDimensions,
     selectDimensions,
     selectFilters,
     selectMetrics,
     selectParameters,
+    selectPivotConfig,
     selectQueryLimit,
     selectSorts,
     selectTableCalculations,
@@ -21,19 +27,23 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import { convertDateFilters } from '../utils/dateFilter';
+import { useExplore } from './useExplore';
 import { useProjectUuid } from './useProjectUuid';
 import useQueryError from './useQueryError';
+import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 const getCompiledQuery = async (
     projectUuid: string,
     tableId: string,
     query: MetricQuery,
     queryParameters?: ParametersValuesMap,
+    pivotConfiguration?: PivotConfiguration,
 ) => {
     const timezoneFixQuery = {
         ...query,
         filters: convertDateFilters(query.filters),
         parameters: queryParameters,
+        ...(pivotConfiguration && { pivotConfiguration }),
     };
 
     return lightdashApi<ApiCompiledQueryResults>({
@@ -59,6 +69,13 @@ export const useCompiledSql = (
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const timezone = useExplorerSelector(selectTimezone);
     const queryParameters = useExplorerSelector(selectParameters);
+    const chartConfig = useExplorerSelector(selectChartConfig);
+    const pivotConfig = useExplorerSelector(selectPivotConfig);
+
+    const { data: explore } = useExplore(tableId);
+    const { data: useSqlPivotResults } = useServerFeatureFlag(
+        FeatureFlags.UseSqlPivotResults,
+    );
 
     const setErrorResponse = useQueryError();
     const metricQuery: MetricQuery = {
@@ -74,6 +91,17 @@ export const useCompiledSql = (
         timezone: timezone ?? undefined,
     };
 
+    // Derive pivot configuration when SQL pivot results are enabled
+    let pivotConfiguration: PivotConfiguration | undefined;
+    if (useSqlPivotResults?.enabled && explore) {
+        const items = getFieldsFromMetricQuery(metricQuery, explore);
+        pivotConfiguration = derivePivotConfigurationFromChart(
+            { chartConfig, pivotConfig },
+            metricQuery,
+            items,
+        );
+    }
+
     const queryKey = [
         'compiledQuery',
         tableId,
@@ -81,6 +109,7 @@ export const useCompiledSql = (
         projectUuid,
         timezone,
         queryParameters,
+        pivotConfiguration,
     ];
     return useQuery<ApiCompiledQueryResults, ApiError>({
         queryKey,
@@ -90,6 +119,7 @@ export const useCompiledSql = (
                 tableId || '',
                 metricQuery,
                 queryParameters,
+                pivotConfiguration,
             ),
         onError: (result) => setErrorResponse(result),
         keepPreviousData: true,

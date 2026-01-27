@@ -1,8 +1,15 @@
 import { subject } from '@casl/ability';
-import { ActionIcon, CopyButton, Skeleton, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    CopyButton,
+    Group,
+    SegmentedControl,
+    Skeleton,
+    Tooltip,
+} from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconCheck, IconClipboard } from '@tabler/icons-react';
-import { lazy, memo, Suspense, useCallback, type FC } from 'react';
+import { lazy, memo, Suspense, useCallback, useState, type FC } from 'react';
 import {
     explorerActions,
     selectIsSqlExpanded,
@@ -16,6 +23,7 @@ import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
+import { type SqlViewType } from '../../RenderedSql';
 import OpenInSqlRunnerButton from './OpenInSqlRunnerButton';
 
 interface SqlCardProps {
@@ -31,6 +39,7 @@ const LazyRenderedSql = lazy(() =>
 
 const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const { hovered, ref: headingRef } = useHover();
+    const [selectedView, setSelectedView] = useState<SqlViewType>('query');
 
     const sqlIsOpen = useExplorerSelector(selectIsSqlExpanded);
     const dispatch = useExplorerDispatch();
@@ -45,9 +54,14 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     );
     const { user } = useApp();
 
-    const { data, isSuccess } = useCompiledSql({
+    const { data, isSuccess, isInitialLoading, error } = useCompiledSql({
         enabled: !!unsavedChartVersionTableName,
     });
+
+    const hasPivotQuery = !!data?.pivotQuery;
+    const selectedSql =
+        selectedView === 'pivotQuery' ? data?.pivotQuery : data?.query;
+
     return (
         <CollapsableCard
             isVisualizationCard
@@ -58,7 +72,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             disabled={!unsavedChartVersionTableName}
             headerElement={
                 (hovered || sqlIsOpen) && data && isSuccess ? (
-                    <CopyButton value={data.query} timeout={2000}>
+                    <CopyButton value={selectedSql ?? ''} timeout={2000}>
                         {({ copied, copy }) => (
                             <Tooltip
                                 variant="xs"
@@ -91,20 +105,42 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             }
             rightHeaderElement={
                 sqlIsOpen && (
-                    <Can
-                        I="manage"
-                        this={subject('SqlRunner', {
-                            organizationUuid: user.data?.organizationUuid,
-                            projectUuid,
-                        })}
-                    >
-                        <OpenInSqlRunnerButton projectUuid={projectUuid} />
-                    </Can>
+                    <Group spacing="xs">
+                        {hasPivotQuery && (
+                            <SegmentedControl
+                                size="xs"
+                                data={[
+                                    { label: 'Base Query', value: 'query' },
+                                    {
+                                        label: 'Pivot Query',
+                                        value: 'pivotQuery',
+                                    },
+                                ]}
+                                value={selectedView}
+                                onChange={(value) =>
+                                    setSelectedView(value as SqlViewType)
+                                }
+                            />
+                        )}
+                        <Can
+                            I="manage"
+                            this={subject('SqlRunner', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <OpenInSqlRunnerButton
+                                projectUuid={projectUuid}
+                                sql={selectedSql}
+                                disabled={isInitialLoading || !!error}
+                            />
+                        </Can>
+                    </Group>
                 )
             }
         >
             <Suspense fallback={<Skeleton height={60} radius="sm" />}>
-                <LazyRenderedSql />
+                <LazyRenderedSql selectedView={selectedView} />
             </Suspense>
         </CollapsableCard>
     );
