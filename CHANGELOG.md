@@ -1,3 +1,10 @@
+# [0.2381.0](https://github.com/lightdash/lightdash/compare/0.2380.1...0.2381.0) (2026-01-27)
+
+
+### Features
+
+* add default_show_underlying_values to model configuration ([#19686](https://github.com/lightdash/lightdash/issues/19686)) ([c6d422a](https://github.com/lightdash/lightdash/commit/c6d422a993cb270c0f8dc04995e1dee5d4452bed))
+
 ## [0.2380.1](https://github.com/lightdash/lightdash/compare/0.2380.0...0.2380.1) (2026-01-27)
 
 
