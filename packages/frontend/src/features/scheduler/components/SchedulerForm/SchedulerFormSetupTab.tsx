@@ -607,14 +607,16 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                         gap="xs"
                         mb={health.data?.hasMicrosoftTeams ? '0' : 'sm'}
                     >
-                        <Group wrap="nowrap">
-                            <SlackSvg
-                                style={{
-                                    margin: '5px 2px',
-                                    width: '20px',
-                                    height: '20px',
-                                }}
-                            />
+                        <Group wrap="nowrap" align="flex-start">
+                            <Box pt="xxs">
+                                <SlackSvg
+                                    style={{
+                                        margin: '5px 2px',
+                                        width: '20px',
+                                        height: '20px',
+                                    }}
+                                />
+                            </Box>
                             <HoverCard
                                 disabled={!isAddSlackDisabled}
                                 width={300}
@@ -630,6 +632,7 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                                             value={form.values.slackTargets}
                                             disabled={isAddSlackDisabled}
                                             includeDms
+                                            includeGroups
                                             onChange={(val) => {
                                                 form.setFieldValue(
                                                     'slackTargets',
@@ -646,14 +649,6 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                                 </HoverCard.Dropdown>
                             </HoverCard>
                         </Group>
-                        {!isAddSlackDisabled && (
-                            <Text size="xs" color="ldGray.6" ml="3xl">
-                                If delivering to a private Slack channel, please
-                                type the name of the channel in the input box
-                                exactly as it appears in Slack. Also ensure you
-                                invite the Lightdash Slackbot into that channel.
-                            </Text>
-                        )}
                     </Stack>
                     {health.data?.hasMicrosoftTeams && (
                         <SchedulerFormMicrosoftTeamsInput
