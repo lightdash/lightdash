@@ -239,10 +239,21 @@ const getAxisType = ({
     };
 
     const topAxisType = inferAxisType(topAxisXId, true);
-    const bottomAxisType =
+
+    // Vertical bar chart needs the type 'category' in the bottom X axis when using numeric data
+    // Without this, bars are positioned at exact numeric values causing overlap with Y-axis
+    const defaultBottomAxisType =
         bottomAxisXId === EMPTY_X_AXIS
             ? 'category'
             : inferAxisType(bottomAxisXId, true);
+    const bottomAxisType =
+        !validCartesianConfig.layout.flipAxes &&
+        defaultBottomAxisType === 'value' &&
+        validCartesianConfig.eChartsConfig.series?.some(
+            (serie) => serie.type === CartesianSeriesType.BAR,
+        )
+            ? 'category'
+            : defaultBottomAxisType;
 
     // horizontal bar chart needs the type 'category' in the left/right axis
     const defaultRightAxisType = inferAxisType(rightAxisYId, false);
