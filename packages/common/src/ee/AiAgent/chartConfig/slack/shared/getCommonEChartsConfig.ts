@@ -1,24 +1,35 @@
 import { type EChartsOption } from 'echarts';
+import { getAxisPointerStyle } from '../../../../../visualizations/helpers/styles/axisStyles';
+import { getLegendStyle } from '../../../../../visualizations/helpers/styles/legendStyles';
+import { getTooltipStyle } from '../../../../../visualizations/helpers/styles/tooltipStyles';
 
 type GetCommonEChartsConfigParams = {
     title?: string;
-    metricsCount: number;
+    showLegend: boolean;
     chartData: Record<string, unknown>[];
     xAxisLabel?: string | null;
     yAxisLabel?: string | null;
     secondaryYAxisLabel?: string | null;
+    /** Use line pointer (for line/area/scatter) instead of shadow (for bar charts) */
+    useLinePointer?: boolean;
+    /** Whether to show tooltip on hover. Defaults to false (hidden for Slack static images) */
+    showTooltip?: boolean;
 };
+
+const FONT_FAMILY = 'Inter, sans-serif';
 
 /**
  * Generates common echarts config for all chart types
  */
 export const getCommonEChartsConfig = ({
     title,
-    metricsCount,
+    showLegend,
     chartData,
     xAxisLabel,
     yAxisLabel,
     secondaryYAxisLabel,
+    useLinePointer = false,
+    showTooltip = false,
 }: GetCommonEChartsConfigParams): Pick<
     EChartsOption,
     | 'title'
@@ -28,6 +39,8 @@ export const getCommonEChartsConfig = ({
     | 'backgroundColor'
     | 'dataset'
     | 'graphic'
+    | 'tooltip'
+    | 'textStyle'
 > => {
     const graphicElements = [];
 
@@ -41,6 +54,7 @@ export const getCommonEChartsConfig = ({
                 text: xAxisLabel,
                 fontSize: 12,
                 fontWeight: 500,
+                fontFamily: FONT_FAMILY,
             },
         });
     }
@@ -56,6 +70,7 @@ export const getCommonEChartsConfig = ({
                 text: yAxisLabel,
                 fontSize: 12,
                 fontWeight: 500,
+                fontFamily: FONT_FAMILY,
             },
         });
     }
@@ -71,11 +86,17 @@ export const getCommonEChartsConfig = ({
                 text: secondaryYAxisLabel,
                 fontSize: 12,
                 fontWeight: 500,
+                fontFamily: FONT_FAMILY,
             },
         });
     }
 
+    const legendBase = getLegendStyle('square');
+
     return {
+        textStyle: {
+            fontFamily: FONT_FAMILY,
+        },
         ...(title
             ? {
                   title: {
@@ -85,27 +106,32 @@ export const getCommonEChartsConfig = ({
                       textStyle: {
                           fontSize: 16,
                           fontWeight: 'bold' as const,
+                          fontFamily: FONT_FAMILY,
                       },
                   },
               }
             : {}),
+        tooltip: {
+            show: showTooltip,
+            trigger: 'axis' as const,
+            ...getTooltipStyle({ appendToBody: false }),
+            axisPointer: {
+                ...getAxisPointerStyle(useLinePointer),
+                label: {
+                    show: true,
+                    fontWeight: 500,
+                    fontSize: 11,
+                },
+            },
+        },
         legend: {
-            show: metricsCount > 1,
+            show: showLegend,
             type: 'scroll' as const,
             orient: 'horizontal' as const,
             top: title ? 40 : 10, // Position below title if exists, otherwise at top
             left: 'center' as const,
             padding: [5, 10],
-            itemGap: 15,
-            itemWidth: 25,
-            itemHeight: 14,
-            textStyle: {
-                fontSize: 11,
-            },
-            pageIconSize: 12,
-            pageTextStyle: {
-                fontSize: 11,
-            },
+            ...legendBase,
         },
         grid: {
             containLabel: true, // Ensures labels are within grid bounds to prevent cutoff
@@ -113,9 +139,9 @@ export const getCommonEChartsConfig = ({
             right: '5%', // Increased from 3% to give more space for labels on right
             // Account for title + legend at top
             top: (() => {
-                if (title && metricsCount > 1) return 90; // Title + legend both present
+                if (title && showLegend) return 90; // Title + legend both present
                 if (title) return 60; // Only title
-                if (metricsCount > 1) return 50; // Only legend
+                if (showLegend) return 50; // Only legend
                 return 30; // Neither
             })(),
             bottom: 60, // Fixed bottom spacing for x-axis labels

@@ -157,6 +157,7 @@
         "generate-api-dev": "chokidar './src/**/controllers/**/*.ts' -c 'pnpm run generate-api'",
         "dev": "LIGHTDASH_MODE=development HEADLESS=true tsx watch --clear-screen=false --inspect=0.0.0.0:9229 src/index.ts",
         "build": "tsc --build tsconfig.json",
+        "build:mcp-app": "cd src/ee/services/McpService/mcp-chart-app && npm install && npm run build",
         "build-sourcemaps": "tsc --build tsconfig.sentry.json",
         "typecheck": "tsc --project tsconfig.json --noEmit",
         "postbuild": "copyfiles --error --up 1 src/**/*.html dist",

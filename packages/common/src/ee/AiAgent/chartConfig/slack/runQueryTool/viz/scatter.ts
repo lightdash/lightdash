@@ -47,10 +47,11 @@ export const getScatterChartEchartsConfig = async (
     return {
         ...getCommonEChartsConfig({
             title: queryTool.title,
-            metricsCount: metrics.length,
+            showLegend: metrics.length > 1,
             chartData,
             xAxisLabel: chartConfig?.xAxisLabel,
             yAxisLabel: chartConfig?.yAxisLabel,
+            useLinePointer: true,
         }),
         xAxis: [
             {

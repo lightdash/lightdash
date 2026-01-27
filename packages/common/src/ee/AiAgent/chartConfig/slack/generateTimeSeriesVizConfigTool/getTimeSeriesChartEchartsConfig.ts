@@ -2,6 +2,7 @@ import { type EChartsOption } from 'echarts';
 import { type ItemsMap } from '../../../../../types/field';
 import { type MetricQuery } from '../../../../../types/metricQuery';
 import { type ToolTimeSeriesArgsTransformed } from '../../../schemas';
+import { getCommonEChartsConfig } from '../shared/getCommonEChartsConfig';
 import { type GetPivotedResultsFn } from '../types';
 
 /**
@@ -30,25 +31,14 @@ export const getTimeSeriesChartEchartsConfig = async (
     }
 
     return {
-        ...(vizTool.title ? { title: { text: vizTool.title } } : {}),
-        ...(metrics.length > 1
-            ? {
-                  // This is needed so we don't have overlapping legend and grid
-                  legend: {
-                      top: 40,
-                      left: 'left',
-                  },
-                  grid: {
-                      top: 100,
-                  },
-              }
-            : {}),
-        dataset: {
-            source: chartData,
-            dimensions: Object.keys(chartData[0] || {}),
-        },
-        animation: false,
-        backgroundColor: '#fff',
+        ...getCommonEChartsConfig({
+            title: vizTool.title,
+            showLegend: metrics.length > 1,
+            chartData,
+            xAxisLabel: vizTool.vizConfig.xAxisLabel,
+            yAxisLabel: vizTool.vizConfig.yAxisLabel,
+            useLinePointer: true,
+        }),
         xAxis: [
             {
                 type: 'time',

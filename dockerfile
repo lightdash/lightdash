@@ -221,6 +221,12 @@ COPY packages/backend/tsconfig.json ./packages/backend/
 COPY packages/backend/tsconfig.sentry.json ./packages/backend/
 COPY packages/backend/src/ ./packages/backend/src/
 
+# Build MCP chart app (standalone Vite project, not in pnpm workspace)
+RUN cd packages/backend/src/ee/services/McpService/mcp-chart-app \
+    && npm install --ignore-scripts \
+    && npm run build \
+    && rm -rf node_modules
+
 ARG SENTRY_AUTH_TOKEN=""
 ARG SENTRY_ORG=""
 ARG SENTRY_RELEASE_VERSION=""
