@@ -61,14 +61,25 @@ touchpoint_metrics as (
         
         t.session_duration_seconds / 60.0 as session_duration_minutes,
         
+        -- Athena/Trino: can't add integer to date, use DATE_ADD or INTERVAL instead
         case
             when t.touchpoint_date < cust.first_order then 'Pre-customer'
+            {% if target.type == 'trino' or target.type == 'athena' %}
+            when t.touchpoint_date between cust.first_order and DATE_ADD('day', 30, cust.first_order) then 'New customer'
+            when t.touchpoint_date > DATE_ADD('day', 30, cust.first_order) then 'Existing customer'
+            {% else %}
             when t.touchpoint_date between cust.first_order and cust.first_order + 30 then 'New customer'
             when t.touchpoint_date > cust.first_order + 30 then 'Existing customer'
+            {% endif %}
             else 'Unknown'
         end as customer_lifecycle_stage,
         
+        -- Athena/Trino: date subtraction returns INTERVAL not integer, use DATE_DIFF instead
+        {% if target.type == 'trino' or target.type == 'athena' %}
+        DATE_DIFF('day', c.start_date, t.touchpoint_date) + 1 as days_since_campaign_start
+        {% else %}
         (t.touchpoint_date - c.start_date) + 1 as days_since_campaign_start
+        {% endif %}
 
     from raw_touchpoints t
     left join campaigns c on t.campaign_id = c.campaign_id

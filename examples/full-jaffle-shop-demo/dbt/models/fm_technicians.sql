@@ -29,7 +29,7 @@ final as (
         
         case 
             when total_work_orders > 0 
-            then completed_work_orders::float / total_work_orders 
+            then {{ cast_float('completed_work_orders') }} / total_work_orders 
             else 0 
         end as completion_rate
 

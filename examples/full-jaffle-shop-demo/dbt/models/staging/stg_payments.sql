@@ -1,5 +1,5 @@
 with source as (
-    
+
     {#-
     Normally we would select from the table here, but we are using seeds to load
     our data in this project
@@ -16,7 +16,7 @@ renamed as (
         payment_method,
 
         --`amount` is currently stored in cents, so we convert it to dollars
-        amount::decimal  / 100 as amount 
+        {{ cast_decimal('amount') }}  / 100 as amount
 
     from source
 

@@ -13,7 +13,7 @@ renamed as (
     select
         id as order_id,
         user_id as customer_id,
-        order_date::date as order_date,
+        {{ cast_date('order_date') }} as order_date,
         status,
         order_source,
         shipping_method,
