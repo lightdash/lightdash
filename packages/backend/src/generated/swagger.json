@@ -21671,6 +21671,9 @@
                         },
                         "type": "array"
                     },
+                    "pivotQuery": {
+                        "type": "string"
+                    },
                     "query": {
                         "type": "string"
                     }
@@ -36587,6 +36590,9 @@
                                     },
                                     {
                                         "properties": {
+                                            "pivotConfiguration": {
+                                                "$ref": "#/components/schemas/PivotConfiguration"
+                                            },
                                             "parameters": {
                                                 "$ref": "#/components/schemas/ParametersValuesMap"
                                             }
