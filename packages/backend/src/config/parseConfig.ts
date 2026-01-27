@@ -823,6 +823,7 @@ export type LightdashConfig = {
         timezone: string | undefined;
         maxPageSize: number;
         useSqlPivotResults: boolean | undefined;
+        showExecutionTime: boolean | undefined;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -1559,6 +1560,9 @@ export const parseConfig = (): LightdashConfig => {
                 ) || 2500, // Defaults to default limit * 5
             useSqlPivotResults: process.env.USE_SQL_PIVOT_RESULTS
                 ? process.env.USE_SQL_PIVOT_RESULTS === 'true'
+                : undefined,
+            showExecutionTime: process.env.SHOW_EXECUTION_TIME
+                ? process.env.SHOW_EXECUTION_TIME === 'true'
                 : undefined,
         },
         chart: {

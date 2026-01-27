@@ -106,7 +106,7 @@ import {
     type InfiniteQueryResults,
 } from '../../hooks/useQueryResults';
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
-import { useClientFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import { useAccount } from '../../hooks/user/useAccount';
 import { Can } from '../../providers/Ability';
@@ -503,9 +503,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { data: account } = useAccount();
     const { organizationUuid } = account?.organization || {};
 
-    const showExecutionTime = useClientFeatureFlag(
+    const { data: showExecutionTimeFlag } = useServerFeatureFlag(
         FeatureFlags.ShowExecutionTime,
     );
+    const showExecutionTime = showExecutionTimeFlag?.enabled;
 
     const {
         tile: {
