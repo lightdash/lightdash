@@ -13,7 +13,7 @@ import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
-import type { RunMiniMetricQueryFn } from '../types/aiAgentDependencies';
+import type { RunAsyncQueryFn } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
 import { serializeData } from '../utils/serializeData';
@@ -29,12 +29,12 @@ import {
 } from '../utils/validators';
 
 type Dependencies = {
-    runMiniMetricQuery: RunMiniMetricQueryFn;
+    runAsyncQuery: RunAsyncQueryFn;
     maxLimit: number;
 };
 
 export const getRunMetricQuery = ({
-    runMiniMetricQuery,
+    runAsyncQuery,
     maxLimit,
 }: Dependencies) => {
     const validateVizTool = (
@@ -105,9 +105,8 @@ export const getRunMetricQuery = ({
                     ),
                 });
 
-                const results = await runMiniMetricQuery(
+                const results = await runAsyncQuery(
                     query,
-                    maxLimit,
                     populateCustomMetricsSQL(vizTool.customMetrics, explore),
                 );
 

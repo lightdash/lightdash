@@ -72,7 +72,7 @@ import {
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
-    RunMiniMetricQueryFn,
+    RunAsyncQueryFn,
     SearchFieldValuesFn,
 } from '../ai/types/aiAgentDependencies';
 import { AgentContext } from '../ai/utils/AgentContext';
@@ -735,14 +735,14 @@ export class McpService extends BaseService {
                     projectUuid,
                 );
 
-                const { agentContext, runMiniMetricQuery } =
+                const { agentContext, runAsyncQuery } =
                     await this.getRunMetricQueryDependencies(
                         argsWithProject,
                         extra as McpProtocolContext,
                     );
 
                 const runMetricQueryTool = getRunMetricQuery({
-                    runMiniMetricQuery,
+                    runAsyncQuery,
                     maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
                 });
 
@@ -1256,7 +1256,7 @@ export class McpService extends BaseService {
         context: McpProtocolContext,
     ): Promise<{
         agentContext: AgentContext;
-        runMiniMetricQuery: RunMiniMetricQueryFn;
+        runAsyncQuery: RunAsyncQueryFn;
     }> {
         const { user, account } = context.authInfo!.extra;
         const { organizationUuid } = user;
@@ -1295,9 +1295,8 @@ export class McpService extends BaseService {
         );
         const agentContext = new AgentContext(explores);
 
-        const runMiniMetricQuery: RunMiniMetricQueryFn = async (
+        const runAsyncQuery: RunAsyncQueryFn = async (
             metricQuery,
-            maxLimit,
             additionalMetrics,
         ) =>
             this.asyncQueryService.executeMetricQueryAndGetResults({
@@ -1310,7 +1309,7 @@ export class McpService extends BaseService {
                 context: QueryExecutionContext.MCP,
             });
 
-        return { agentContext, runMiniMetricQuery };
+        return { agentContext, runAsyncQuery };
     }
 
     async getSearchFieldValuesFunction(
