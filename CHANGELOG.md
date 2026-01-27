@@ -1,3 +1,11 @@
+# [0.2380.0](https://github.com/lightdash/lightdash/compare/0.2379.0...0.2380.0) (2026-01-27)
+
+
+### Features
+
+* improve Slack channel selection UI and private channel support ([#19737](https://github.com/lightdash/lightdash/issues/19737)) ([72ad562](https://github.com/lightdash/lightdash/commit/72ad5624a97ddb21fd0ebc48b7ebe213cd2c9323))
+* improve ux for private slack channels ([#19714](https://github.com/lightdash/lightdash/issues/19714)) ([951ef39](https://github.com/lightdash/lightdash/commit/951ef39d0768b101abba0d71e8e394725eda7b77)), closes [#19411](https://github.com/lightdash/lightdash/issues/19411)
+
 # [0.2379.0](https://github.com/lightdash/lightdash/compare/0.2378.2...0.2379.0) (2026-01-27)
 
 
