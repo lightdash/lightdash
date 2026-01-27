@@ -1,11 +1,14 @@
 import { SLACK_ID_REGEX } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Combobox,
     Loader,
     Pill,
     PillsInput,
     ScrollArea,
+    Stack,
+    Text,
     Tooltip,
     useCombobox,
     type PillsInputProps,
@@ -255,90 +258,100 @@ export const SlackChannelSelect: FC<
     };
 
     return (
-        <Combobox
-            store={combobox}
-            onOptionSubmit={handleOptionSubmit}
-            disabled={disabled}
-        >
-            <Combobox.DropdownTarget>
-                <PillsInput
-                    radius={radius}
-                    size={size}
-                    label={label}
-                    description={
-                        includeGroups
-                            ? 'To add a private channel, first add the Lightdash integration to that channel and use the Channel ID here.'
-                            : undefined
-                    }
-                    rightSection={rightSection}
-                    onClick={() => !disabled && combobox.openDropdown()}
-                    disabled={disabled}
-                    variant={props.variant}
-                >
-                    <Pill.Group>
-                        {pills}
-                        <Combobox.EventsTarget>
-                            <PillsInput.Field
-                                onFocus={() =>
-                                    !disabled && combobox.openDropdown()
-                                }
-                                value={search}
-                                placeholder={
-                                    values.length === 0
-                                        ? isBusy
-                                            ? 'Loading channels...'
-                                            : placeholder
-                                        : undefined
-                                }
-                                onChange={(event) => {
-                                    combobox.updateSelectedOptionIndex();
-                                    setSearch(event.currentTarget.value);
-                                }}
-                                onKeyDown={(event) => {
-                                    if (
-                                        event.key === 'Backspace' &&
-                                        search.length === 0 &&
-                                        values.length > 0
-                                    ) {
-                                        event.preventDefault();
-                                        handleValueRemove(
-                                            values[values.length - 1],
-                                        );
+        <Stack gap="xs">
+            <Combobox
+                store={combobox}
+                onOptionSubmit={handleOptionSubmit}
+                disabled={disabled}
+            >
+                <Combobox.DropdownTarget>
+                    <PillsInput
+                        radius={radius}
+                        size={size}
+                        label={label}
+                        rightSection={rightSection}
+                        onClick={() => !disabled && combobox.openDropdown()}
+                        disabled={disabled}
+                        variant={props.variant}
+                    >
+                        <Pill.Group>
+                            {pills}
+                            <Combobox.EventsTarget>
+                                <PillsInput.Field
+                                    onFocus={() =>
+                                        !disabled && combobox.openDropdown()
                                     }
-                                }}
-                                disabled={disabled}
-                            />
-                        </Combobox.EventsTarget>
-                    </Pill.Group>
-                </PillsInput>
-            </Combobox.DropdownTarget>
+                                    value={search}
+                                    placeholder={
+                                        values.length === 0
+                                            ? isBusy
+                                                ? 'Loading channels...'
+                                                : placeholder
+                                            : undefined
+                                    }
+                                    onChange={(event) => {
+                                        combobox.updateSelectedOptionIndex();
+                                        setSearch(event.currentTarget.value);
+                                    }}
+                                    onKeyDown={(event) => {
+                                        if (
+                                            event.key === 'Backspace' &&
+                                            search.length === 0 &&
+                                            values.length > 0
+                                        ) {
+                                            event.preventDefault();
+                                            handleValueRemove(
+                                                values[values.length - 1],
+                                            );
+                                        }
+                                    }}
+                                    disabled={disabled}
+                                />
+                            </Combobox.EventsTarget>
+                        </Pill.Group>
+                    </PillsInput>
+                </Combobox.DropdownTarget>
 
-            <Combobox.Dropdown>
-                <ScrollArea.Autosize mah={220} type="scroll">
-                    <Combobox.Options>
-                        {filteredOptions.length > 0 ? (
-                            filteredOptions.map((option) => (
-                                <Combobox.Option
-                                    value={option.value}
-                                    key={option.value}
-                                    active={values.includes(option.value)}
-                                >
-                                    {option.label}
+                <Combobox.Dropdown>
+                    <ScrollArea.Autosize mah={220} type="scroll">
+                        <Combobox.Options>
+                            {filteredOptions.length > 0 ? (
+                                filteredOptions.map((option) => (
+                                    <Combobox.Option
+                                        value={option.value}
+                                        key={option.value}
+                                        active={values.includes(option.value)}
+                                    >
+                                        {option.label}
+                                    </Combobox.Option>
+                                ))
+                            ) : showLookup ? null : (
+                                <Combobox.Empty>
+                                    No channels found, try using Channel ID
+                                    instead?
+                                </Combobox.Empty>
+                            )}
+                            {showLookup && (
+                                <Combobox.Option value="__lookup__">
+                                    Look up channel ID: {search}
                                 </Combobox.Option>
-                            ))
-                        ) : showLookup ? null : (
-                            <Combobox.Empty>
-                                No channels found, try using Channel ID instead?
-                            </Combobox.Empty>
-                        )}
-                        {showLookup && (
-                            <Combobox.Option value="__lookup__">
-                                Look up channel ID: {search}
-                            </Combobox.Option>
-                        )}
-                    </Combobox.Options>
-                </ScrollArea.Autosize>
-            </Combobox.Dropdown>
-        </Combobox>
+                            )}
+                        </Combobox.Options>
+                    </ScrollArea.Autosize>
+                </Combobox.Dropdown>
+            </Combobox>
+            {includeGroups && (
+                <Text size="xs" c="dimmed">
+                    To add a private channel, first add the Lightdash
+                    integration to that channel and use the Channel ID.{' '}
+                    <Anchor
+                        href="https://docs.lightdash.com/references/integrations/slack-integration#using-lightdash-in-private-channels"
+                        target="_blank"
+                    >
+                        Learn more
+                    </Anchor>
+                </Text>
+            )}
+        </Stack>
     );
 };
