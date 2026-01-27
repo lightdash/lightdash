@@ -62,7 +62,7 @@ export const ExportToGoogleSheet: FC<ExportToGoogleSheetProps> = memo(
                 <Menu.Item
                     icon={
                         isExporting ? (
-                            <Loader />
+                            <Loader size="xs" />
                         ) : (
                             <MantineIcon icon={IconShare2} />
                         )

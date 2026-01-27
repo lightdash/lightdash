@@ -1371,6 +1371,7 @@ export class AiAgentModel {
                     | 'prompt'
                     | 'created_at'
                     | 'response'
+                    | 'error_message'
                     | 'responded_at'
                     | 'filters_output'
                     | 'viz_config_output'
@@ -1391,6 +1392,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.prompt`,
                 `${AiPromptTableName}.created_at`,
                 `${AiPromptTableName}.response`,
+                `${AiPromptTableName}.error_message`,
                 `${AiPromptTableName}.responded_at`,
                 `${AiPromptTableName}.filters_output`,
                 `${AiPromptTableName}.viz_config_output`,
@@ -1473,11 +1475,13 @@ export class AiAgentModel {
                 status: AiAgentModel.getThreadMessageStatus({
                     responded_at: row.responded_at,
                     response: row.response,
+                    error_message: row.error_message,
                     created_at: row.created_at,
                 }),
                 uuid: row.ai_prompt_uuid,
                 threadUuid: row.ai_thread_uuid,
                 message: row.response,
+                errorMessage: row.error_message,
                 createdAt:
                     row.responded_at?.toISOString() ??
                     row.created_at.toISOString(),
@@ -1929,8 +1933,15 @@ export class AiAgentModel {
     }
 
     static getThreadMessageStatus(
-        row: Pick<DbAiPrompt, 'responded_at' | 'response' | 'created_at'>,
+        row: Pick<
+            DbAiPrompt,
+            'responded_at' | 'response' | 'error_message' | 'created_at'
+        >,
     ): 'idle' | 'pending' | 'error' {
+        if (row.error_message != null) {
+            return 'error';
+        }
+
         if (row.responded_at == null || row.response == null) {
             // if the message was created more than 5 minutes ago, return error
             if (moment(row.created_at).add(5, 'minutes').isBefore(moment())) {
@@ -1984,6 +1995,7 @@ export class AiAgentModel {
                     | 'ai_prompt_uuid'
                     | 'prompt'
                     | 'response'
+                    | 'error_message'
                     | 'created_at'
                     | 'responded_at'
                     | 'filters_output'
@@ -2004,6 +2016,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${AiPromptTableName}.prompt`,
                 `${AiPromptTableName}.response`,
+                `${AiPromptTableName}.error_message`,
                 `${AiPromptTableName}.created_at`,
                 `${AiPromptTableName}.responded_at`,
                 `${AiPromptTableName}.filters_output`,
@@ -2122,11 +2135,13 @@ export class AiAgentModel {
                     status: AiAgentModel.getThreadMessageStatus({
                         responded_at: row.responded_at,
                         response: row.response,
+                        error_message: row.error_message,
                         created_at: row.created_at,
                     }),
                     uuid: row.ai_prompt_uuid,
                     threadUuid: row.ai_thread_uuid,
                     message: row.response ?? '',
+                    errorMessage: row.error_message,
                     createdAt: row.responded_at?.toString() ?? '',
                     humanScore: row.human_score,
                     humanFeedback: row.human_feedback,
@@ -2282,6 +2297,7 @@ export class AiAgentModel {
                 'ai_prompt_uuid',
                 'prompt',
                 'response',
+                'error_message',
                 'responded_at',
                 'filters_output',
                 'viz_config_output',
@@ -2334,6 +2350,7 @@ export class AiAgentModel {
                 prompt: `${AiPromptTableName}.prompt`,
                 createdAt: `${AiPromptTableName}.created_at`,
                 response: `${AiPromptTableName}.response`,
+                errorMessage: `${AiPromptTableName}.error_message`,
                 response_slack_ts: `${AiSlackPromptTableName}.response_slack_ts`,
                 slackUserId: `${AiSlackPromptTableName}.slack_user_id`,
                 slackChannelId: `${AiSlackPromptTableName}.slack_channel_id`,
@@ -2413,6 +2430,9 @@ export class AiAgentModel {
             .update({
                 responded_at: this.database.fn.now(),
                 ...(data.response ? { response: data.response } : {}),
+                ...(data.errorMessage
+                    ? { error_message: data.errorMessage }
+                    : {}),
                 ...(data.humanScore ? { human_score: data.humanScore } : {}),
             })
             .where({

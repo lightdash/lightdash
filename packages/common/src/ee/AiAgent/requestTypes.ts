@@ -37,6 +37,7 @@ export type AiPrompt = {
     prompt: string;
     createdAt: Date;
     response: string | null;
+    errorMessage: string | null;
     humanScore: number | null;
     modelConfig: {
         modelName: string;
@@ -83,12 +84,14 @@ export type CreateWebAppPrompt = {
 export type UpdateSlackResponse = {
     promptUuid: string;
     response?: string;
+    errorMessage?: string;
     humanScore?: number | null;
 };
 
 export type UpdateWebAppResponse = {
     promptUuid: string;
-    response: string;
+    response?: string;
+    errorMessage?: string;
     humanScore?: number | null;
 };
 
