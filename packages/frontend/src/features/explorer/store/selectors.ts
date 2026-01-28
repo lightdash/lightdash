@@ -204,11 +204,8 @@ export const selectSorts = createSelector(
 );
 
 export const selectColumnOrder = createSelector(
-    [selectUnsavedChartVersion, selectQueryExecution],
-    (unsavedChartVersion, queryExecution) =>
-        queryExecution.completeColumnOrder.length > 0
-            ? queryExecution.completeColumnOrder
-            : unsavedChartVersion.tableConfig.columnOrder,
+    [selectUnsavedChartVersion],
+    (unsavedChartVersion) => unsavedChartVersion.tableConfig.columnOrder,
 );
 
 // Query limit selector
@@ -221,12 +218,6 @@ export const selectQueryLimit = createSelector(
 export const selectTimezone = createSelector(
     [selectMetricQuery],
     (metricQuery) => metricQuery.timezone,
-);
-
-// Period over period selector
-export const selectPeriodOverPeriod = createSelector(
-    [selectMetricQuery],
-    (_metricQuery) => undefined, // no-op,
 );
 
 // Chart config selector
@@ -425,6 +416,11 @@ export const selectFormatModal = createSelector(
 export const selectAdditionalMetricModal = createSelector(
     [selectModals],
     (modals) => modals?.additionalMetric ?? { isOpen: false },
+);
+
+export const selectPeriodOverPeriodComparisonModal = createSelector(
+    [selectModals],
+    (modals) => modals?.periodOverPeriodComparison ?? { isOpen: false },
 );
 
 // Map extent selector - used at save time to capture current map position
