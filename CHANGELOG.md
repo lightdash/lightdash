@@ -1,3 +1,10 @@
+# [0.2383.0](https://github.com/lightdash/lightdash/compare/0.2382.1...0.2383.0) (2026-01-28)
+
+
+### Features
+
+* include sort in underlying data CSV export ([#19755](https://github.com/lightdash/lightdash/issues/19755)) ([6d8181f](https://github.com/lightdash/lightdash/commit/6d8181f17e38a3723ca2b8d95f98501314cdff7c))
+
 ## [0.2382.1](https://github.com/lightdash/lightdash/compare/0.2382.0...0.2382.1) (2026-01-27)
 
 
