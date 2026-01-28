@@ -14,6 +14,7 @@ import {
     TimeFrames,
     type ApiError,
     type ChartConfig,
+    type CreateSavedChartVersion,
     type FilterRule,
     type Filters,
     type MetricExplorerDateRange,
@@ -227,6 +228,12 @@ export type MetricVisualizationResult = {
      */
     computedSeries: Series[];
 
+    /**
+     * The unsaved chart version ready for saving or "Explore from here".
+     * Undefined when required data (metricQuery, chartConfig, tableName) is not available.
+     */
+    unsavedChartVersion: CreateSavedChartVersion | undefined;
+
     hasData: boolean;
     isLoading: VisualizationProviderProps['isLoading'];
     error: ApiError | null;
@@ -436,6 +443,24 @@ export function useMetricVisualization({
         createQuery.data?.fields,
     ]);
 
+    const unsavedChartVersion = useMemo<
+        CreateSavedChartVersion | undefined
+    >(() => {
+        if (!metricQuery || !chartConfig || !tableName) return undefined;
+
+        return {
+            tableName,
+            metricQuery,
+            chartConfig,
+            tableConfig: {
+                columnOrder,
+            },
+            pivotConfig: segmentDimensionId
+                ? { columns: [segmentDimensionId] }
+                : undefined,
+        };
+    }, [metricQuery, chartConfig, tableName, columnOrder, segmentDimensionId]);
+
     const isLoading =
         metricFieldQuery.isLoading ||
         exploreQuery.isLoading ||
@@ -468,6 +493,7 @@ export function useMetricVisualization({
             resultsData,
             columnOrder,
             computedSeries,
+            unsavedChartVersion,
             isLoading,
             hasData,
             error,
@@ -482,6 +508,7 @@ export function useMetricVisualization({
         resultsData,
         columnOrder,
         computedSeries,
+        unsavedChartVersion,
         isLoading,
         hasData,
         error,

@@ -29,28 +29,28 @@ import { useHotkeys } from '@mantine/hooks';
 import {
     IconChevronDown,
     IconChevronUp,
-    IconExternalLink,
     IconInfoCircle,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import MantineIcon from '../../../components/common/MantineIcon';
-import LightdashVisualization from '../../../components/LightdashVisualization';
-import VisualizationProvider from '../../../components/LightdashVisualization/VisualizationProvider';
-import MetricQueryDataProvider from '../../../components/MetricQueryData/MetricQueryDataProvider';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
-import { getOpenInExploreUrl } from '../../../utils/getOpenInExploreUrl';
-import { useAppSelector } from '../../sqlRunner/store/hooks';
-import { useCatalogFilterDimensions } from '../hooks/useCatalogFilterDimensions';
-import { useCatalogMetricsWithTimeDimensions } from '../hooks/useCatalogMetricsWithTimeDimensions';
-import { useCatalogSegmentDimensions } from '../hooks/useCatalogSegmentDimensions';
-import { useMetricVisualization } from '../hooks/useMetricVisualization';
+import { useLocation, useNavigate, useParams } from 'react-router';
+import MantineIcon from '../../../../components/common/MantineIcon';
+import LightdashVisualization from '../../../../components/LightdashVisualization';
+import VisualizationProvider from '../../../../components/LightdashVisualization/VisualizationProvider';
+import MetricQueryDataProvider from '../../../../components/MetricQueryData/MetricQueryDataProvider';
+import { useOrganization } from '../../../../hooks/organization/useOrganization';
+import { useAppSelector } from '../../../sqlRunner/store/hooks';
+import { useCatalogFilterDimensions } from '../../hooks/useCatalogFilterDimensions';
+import { useCatalogMetricsWithTimeDimensions } from '../../hooks/useCatalogMetricsWithTimeDimensions';
+import { useCatalogSegmentDimensions } from '../../hooks/useCatalogSegmentDimensions';
+import { useMetricVisualization } from '../../hooks/useMetricVisualization';
+import { MetricsVisualizationEmptyState } from '../MetricsVisualizationEmptyState';
+import { MetricExploreComparison as MetricExploreComparisonSection } from '../visualization/MetricExploreComparison';
+import { MetricExploreDatePicker } from '../visualization/MetricExploreDatePicker';
+import { MetricExploreFilter } from '../visualization/MetricExploreFilter';
+import { MetricExploreSegmentationPicker } from '../visualization/MetricExploreSegmentationPicker';
+import { ExploreFromHereButton } from './ExploreFromHereButton';
 import styles from './MetricExploreModalV2.module.css';
-import { MetricsVisualizationEmptyState } from './MetricsVisualizationEmptyState';
-import { MetricExploreComparison as MetricExploreComparisonSection } from './visualization/MetricExploreComparison';
-import { MetricExploreDatePicker } from './visualization/MetricExploreDatePicker';
-import { MetricExploreFilter } from './visualization/MetricExploreFilter';
-import { MetricExploreSegmentationPicker } from './visualization/MetricExploreSegmentationPicker';
+import { SaveChartButton } from './SaveChartButton';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     metrics: CatalogField[];
@@ -180,6 +180,7 @@ export const MetricExploreModalV2: FC<Props> = ({
         resultsData,
         columnOrder,
         computedSeries,
+        unsavedChartVersion,
         isLoading,
         hasData,
     } = useMetricVisualization({
@@ -241,23 +242,6 @@ export const MetricExploreModalV2: FC<Props> = ({
             ),
         [segmentDimensionsQuery.data, currentMetric],
     );
-
-    const openInExploreUrl = useMemo(() => {
-        if (!metricQuery || !chartConfig) return undefined;
-        return getOpenInExploreUrl({
-            metricQuery,
-            projectUuid,
-            columnOrder,
-            pivotColumns: segmentDimensionId ? [segmentDimensionId] : undefined,
-            chartConfig,
-        });
-    }, [
-        metricQuery,
-        projectUuid,
-        columnOrder,
-        segmentDimensionId,
-        chartConfig,
-    ]);
 
     // Keyboard navigation
     useHotkeys([
@@ -358,42 +342,18 @@ export const MetricExploreModalV2: FC<Props> = ({
                         </Tooltip>
                     </Group>
                     <Group gap="xs">
-                        <Tooltip
-                            label="Continue exploring this metric further"
-                            position="bottom"
-                            disabled={!openInExploreUrl || !canExploreFromHere}
-                        >
-                            {openInExploreUrl && canExploreFromHere ? (
-                                <Button
-                                    component={Link}
-                                    to={openInExploreUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    variant="default"
-                                    size="xs"
-                                    radius="md"
-                                    leftSection={
-                                        <MantineIcon icon={IconExternalLink} />
-                                    }
-                                >
-                                    Explore from here
-                                </Button>
-                            ) : (
-                                <Button
-                                    component="button"
-                                    type="button"
-                                    variant="default"
-                                    size="xs"
-                                    radius="md"
-                                    leftSection={
-                                        <MantineIcon icon={IconExternalLink} />
-                                    }
-                                    disabled
-                                >
-                                    Explore from here
-                                </Button>
-                            )}
-                        </Tooltip>
+                        <SaveChartButton
+                            projectUuid={projectUuid}
+                            unsavedChartVersion={unsavedChartVersion}
+                            explore={explore}
+                            hasData={hasData}
+                            canSave={canExploreFromHere}
+                        />
+                        <ExploreFromHereButton
+                            projectUuid={projectUuid}
+                            unsavedChartVersion={unsavedChartVersion}
+                            canExplore={canExploreFromHere}
+                        />
                         <Modal.CloseButton />
                     </Group>
                 </Modal.Header>
