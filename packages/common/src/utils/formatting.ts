@@ -444,6 +444,7 @@ export function formatValueWithExpression(expression: string, value: unknown) {
             return formatWithExpression(
                 expression,
                 moment(sanitizedValue).toDate(),
+                { ignoreTimezone: true },
             );
         }
 
