@@ -6,7 +6,6 @@ import {
     ChartType,
     DashboardTileTypes,
     DownloadFileType,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     HealthState,
@@ -32,7 +31,6 @@ import {
 import * as Sentry from '@sentry/node';
 import {
     AllMiddlewareArgs,
-    App,
     LinkSharedEvent,
     SlackEventMiddlewareArgs,
 } from '@slack/bolt';
@@ -56,7 +54,6 @@ import { slackErrorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
@@ -162,7 +159,6 @@ type UnfurlServiceArguments = {
     downloadFileModel: DownloadFileModel;
     analytics: LightdashAnalytics;
     slackAuthenticationModel: SlackAuthenticationModel;
-    featureFlagModel: FeatureFlagModel;
 };
 
 export class UnfurlService extends BaseService {
@@ -188,8 +184,6 @@ export class UnfurlService extends BaseService {
 
     slackAuthenticationModel: SlackAuthenticationModel;
 
-    featureFlagModel: FeatureFlagModel;
-
     constructor({
         lightdashConfig,
         dashboardModel,
@@ -202,7 +196,6 @@ export class UnfurlService extends BaseService {
         slackClient,
         analytics,
         slackAuthenticationModel,
-        featureFlagModel,
     }: UnfurlServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -216,7 +209,6 @@ export class UnfurlService extends BaseService {
         this.downloadFileModel = downloadFileModel;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
-        this.featureFlagModel = featureFlagModel;
     }
 
     async getTitleAndDescription(
@@ -1032,9 +1024,7 @@ export class UnfurlService extends BaseService {
                         );
                     }
 
-                    this.logger.info(
-                        'Waiting for screenshot ready indicator (feature flag enabled)',
-                    );
+                    this.logger.info('Waiting for screenshot ready indicator');
                     await page.waitForSelector(
                         SCREENSHOT_SELECTORS.READY_INDICATOR,
                         {
