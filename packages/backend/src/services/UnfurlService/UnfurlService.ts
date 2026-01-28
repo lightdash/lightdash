@@ -6,7 +6,6 @@ import {
     ChartType,
     DashboardTileTypes,
     DownloadFileType,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     HealthState,
@@ -32,7 +31,6 @@ import {
 import * as Sentry from '@sentry/node';
 import {
     AllMiddlewareArgs,
-    App,
     LinkSharedEvent,
     SlackEventMiddlewareArgs,
 } from '@slack/bolt';
@@ -56,7 +54,6 @@ import { slackErrorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
@@ -162,7 +159,6 @@ type UnfurlServiceArguments = {
     downloadFileModel: DownloadFileModel;
     analytics: LightdashAnalytics;
     slackAuthenticationModel: SlackAuthenticationModel;
-    featureFlagModel: FeatureFlagModel;
 };
 
 export class UnfurlService extends BaseService {
@@ -188,8 +184,6 @@ export class UnfurlService extends BaseService {
 
     slackAuthenticationModel: SlackAuthenticationModel;
 
-    featureFlagModel: FeatureFlagModel;
-
     constructor({
         lightdashConfig,
         dashboardModel,
@@ -202,7 +196,6 @@ export class UnfurlService extends BaseService {
         slackClient,
         analytics,
         slackAuthenticationModel,
-        featureFlagModel,
     }: UnfurlServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -216,228 +209,6 @@ export class UnfurlService extends BaseService {
         this.downloadFileModel = downloadFileModel;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
-        this.featureFlagModel = featureFlagModel;
-    }
-
-    private async waitForAllPaginatedResultsResponse(
-        page: playwright.Page,
-        expectedResponses: number,
-        timeout: number,
-        useScreenshotReadyIndicator: boolean,
-    ) {
-        if (expectedResponses === 0) {
-            return undefined;
-        }
-
-        let responseCount = 0;
-
-        this.logger.info(
-            `Waiting for ${expectedResponses} paginated responses with timeout ${timeout}ms`,
-        );
-
-        const responsePromise = new Promise<void>((resolve) => {
-            const responseHandler = async (response: playwright.Response) => {
-                if (response.url().match(paginatedQueryEndpointRegex)) {
-                    this.logger.debug(
-                        `Received paginated response: ${response.url()}`,
-                    );
-
-                    if (!response.ok()) {
-                        this.logger.warn(
-                            `Paginated response returned non-OK status ${response.status()} for ${response.url()}`,
-                        );
-                        return;
-                    }
-
-                    let body: Buffer;
-                    try {
-                        body = await response.body();
-                    } catch (error) {
-                        this.logger.debug(
-                            `Failed to get response body for ${response.url()}, skipping`,
-                        );
-                        return;
-                    }
-                    let json: Partial<{
-                        status: 'ok';
-                        results: ApiGetAsyncQueryResults;
-                    }>;
-                    try {
-                        json = JSON.parse(body.toString());
-                    } catch (parseError) {
-                        this.logger.warn(
-                            `Failed to parse paginated response as JSON from ${response.url()}: ${body
-                                .toString()
-                                .slice(0, 100)}`,
-                        );
-                        return;
-                    }
-
-                    // Check if is last page (aka has no next page)
-                    if (
-                        json.results?.status === QueryHistoryStatus.READY &&
-                        !json.results?.nextPage
-                    ) {
-                        responseCount += 1;
-                        this.logger.info(
-                            `Paginated response is complete. Count: ${responseCount}/${expectedResponses}`,
-                        );
-                        if (responseCount === expectedResponses) {
-                            this.logger.info(
-                                `All ${expectedResponses} paginated responses received, resolving promise`,
-                            );
-                            page.off('response', responseHandler); // Clean up the listener
-                            resolve();
-                        }
-                    } else {
-                        this.logger.debug(
-                            `Paginated response is not complete. Status: ${
-                                json.results?.status
-                            }, hasNextPage: ${
-                                json.results && 'nextPage' in json.results
-                                    ? !!json.results?.nextPage
-                                    : 'N/A'
-                            }`,
-                        );
-                    }
-                }
-            };
-            page.on('response', responseHandler);
-        });
-
-        // Wait for dashboard/chart to be ready for screenshot
-        const self = this;
-        async function waitForAllLoaded() {
-            if (useScreenshotReadyIndicator) {
-                self.logger.info(
-                    'Waiting for screenshot ready indicator (feature flag enabled)',
-                );
-                await page.waitForSelector(
-                    SCREENSHOT_SELECTORS.READY_INDICATOR,
-                    {
-                        state: 'attached',
-                        timeout,
-                    },
-                );
-                self.logger.info(
-                    'Screenshot ready indicator found - dashboard is ready',
-                );
-                return;
-            }
-
-            // Legacy approach: wait for loading overlays
-            // Wait for all the loading overlays to be in the DOM
-            await page.waitForSelector(SCREENSHOT_SELECTORS.LOADING_OVERLAY, {
-                state: 'attached',
-            });
-
-            // Wait for the loading overlay to be hidden (loading is complete)
-            await page.waitForSelector(SCREENSHOT_SELECTORS.LOADING_OVERLAY, {
-                state: 'hidden',
-            });
-        }
-
-        const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(() => {
-                reject(
-                    new Error(
-                        `Timeout after ${timeout}ms. Expected ${expectedResponses} but only received ${responseCount} responses.`,
-                    ),
-                );
-            }, timeout);
-        });
-
-        return Promise.race([
-            responsePromise,
-            waitForAllLoaded(),
-            timeoutPromise,
-        ]);
-    }
-
-    private async waitForPaginatedResultsResponse(
-        page: playwright.Page,
-        useScreenshotReadyIndicator: boolean,
-    ) {
-        return this.waitForAllPaginatedResultsResponse(
-            page,
-            1,
-            RESPONSE_TIMEOUT_MS,
-            useScreenshotReadyIndicator,
-        );
-    }
-
-    /**
-     * Waits for SQL chart /results responses.
-     * SQL charts use /query/{uuid}/results endpoint with chunked encoding.
-     * Uses a single listener that counts unique responses to avoid the issue
-     * where multiple waitForResponse with same predicate resolve with same response.
-     */
-    private async waitForSqlChartResultsResponses(
-        page: playwright.Page,
-        expectedResponses: number,
-        timeout: number,
-    ): Promise<void> {
-        if (expectedResponses === 0) {
-            return;
-        }
-
-        const sqlQueryResultsRegex = new RegExp(`/query/${uuid}/results`);
-        let responseCount = 0;
-        const seenQueryUuids = new Set<string>();
-
-        this.logger.debug(
-            `Waiting for ${expectedResponses} SQL chart /results responses`,
-        );
-
-        // Define handler outside promise scope so it can be cleaned up from both success and timeout paths
-        let resolvePromise: () => void;
-        let timeoutId: NodeJS.Timeout | undefined;
-        const responseHandler = (response: playwright.Response) => {
-            const responseUrl = response.url();
-
-            if (sqlQueryResultsRegex.test(responseUrl)) {
-                // Extract queryUuid to avoid counting same response twice
-                const match = responseUrl.match(uuidRegex);
-                const queryUuid = match ? match[match.length - 1] : responseUrl;
-
-                if (!seenQueryUuids.has(queryUuid)) {
-                    seenQueryUuids.add(queryUuid);
-                    responseCount += 1;
-
-                    if (responseCount === expectedResponses) {
-                        this.logger.info(
-                            `SQL chart results complete: ${responseCount}/${expectedResponses}`,
-                        );
-                        page.off('response', responseHandler);
-                        if (timeoutId) {
-                            clearTimeout(timeoutId);
-                        }
-                        resolvePromise();
-                    }
-                }
-            }
-        };
-
-        const responsePromise = new Promise<void>((resolve) => {
-            resolvePromise = resolve;
-            page.on('response', responseHandler);
-        });
-
-        const timeoutPromise = new Promise<void>((_, reject) => {
-            timeoutId = setTimeout(() => {
-                page.off('response', responseHandler); // Clean up handler on timeout
-                this.logger.warn(
-                    `SQL chart results timeout: ${responseCount}/${expectedResponses} received`,
-                );
-                reject(
-                    new Error(
-                        `SQL chart results timeout after ${timeout}ms. Expected ${expectedResponses} but received ${responseCount}.`,
-                    ),
-                );
-            }, timeout);
-        });
-
-        await Promise.race([responsePromise, timeoutPromise]);
     }
 
     async getTitleAndDescription(
@@ -859,20 +630,6 @@ export class UnfurlService extends BaseService {
                     'page.userUuid': authUserUuid ?? 'undefined',
                 });
 
-                const screenshotReadyIndicatorFlag =
-                    await this.featureFlagModel.get({
-                        featureFlagId: FeatureFlags.ScreenshotReadyIndicator,
-                        user: organizationUuid
-                            ? {
-                                  userUuid: authUserUuid,
-                                  organizationUuid,
-                                  organizationName: '', // Not used by this feature flag
-                              }
-                            : undefined,
-                    });
-                const useScreenshotReadyIndicator =
-                    screenshotReadyIndicatorFlag.enabled;
-
                 let browser: playwright.Browser | undefined;
                 let page: playwright.Page | undefined;
 
@@ -1131,39 +888,6 @@ export class UnfurlService extends BaseService {
                             let exploreChartResultsPromise:
                                 | Promise<unknown>
                                 | undefined;
-                            if (
-                                chartTileUuids &&
-                                !useScreenshotReadyIndicator
-                            ) {
-                                this.logger.info(
-                                    `Dashboard screenshot: Found ${
-                                        chartTileUuids.length
-                                    } chart tiles, with values: ${JSON.stringify(
-                                        chartTileUuids,
-                                    )}`,
-                                );
-
-                                const nonNullChartTileUuids =
-                                    chartTileUuids.filter((id) => id !== null);
-                                this.logger.info(
-                                    `Dashboard screenshot: ${nonNullChartTileUuids.length} non-null chart tiles out of ${chartTileUuids.length} total tiles`,
-                                );
-
-                                const expectedPaginatedResponses =
-                                    nonNullChartTileUuids.length;
-                                this.logger.info(
-                                    `Dashboard screenshot: Expecting ${expectedPaginatedResponses} paginated responses`,
-                                );
-
-                                exploreChartResultsPromise =
-                                    this.waitForAllPaginatedResultsResponse(
-                                        page,
-                                        expectedPaginatedResponses,
-                                        expectedPaginatedResponses *
-                                            RESPONSE_TIMEOUT_MS,
-                                        useScreenshotReadyIndicator,
-                                    ); // NOTE: No await here
-                            }
 
                             // Create separate arrays for each type of SQL response
                             let sqlInitialLoadPromises:
@@ -1191,38 +915,6 @@ export class UnfurlService extends BaseService {
                                     filteredSqlChartTileUuids?.length || 0
                                 }`,
                             );
-
-                            const hasSqlCharts =
-                                filteredSqlChartTileUuids &&
-                                filteredSqlChartTileUuids.length > 0;
-                            if (
-                                hasSqlCharts &&
-                                page &&
-                                !useScreenshotReadyIndicator
-                            ) {
-                                sqlInitialLoadPromises =
-                                    filteredSqlChartTileUuids.map((id) => {
-                                        const responsePattern = new RegExp(
-                                            `/sqlRunner/saved/${id}`,
-                                        );
-                                        return page?.waitForResponse(
-                                            responsePattern,
-                                            { timeout: RESPONSE_TIMEOUT_MS },
-                                        );
-                                    });
-
-                                // Wait for SQL chart /results responses using dedicated method
-                                const sqlResultsPromise =
-                                    this.waitForSqlChartResultsResponses(
-                                        page,
-                                        filteredSqlChartTileUuids.length,
-                                        filteredSqlChartTileUuids.length *
-                                            RESPONSE_TIMEOUT_MS,
-                                    );
-
-                                // Wrap in array to match expected type
-                                sqlResultsPromises = [sqlResultsPromise];
-                            }
 
                             let loomTileResultsPromises:
                                 | (Promise<ElementHandle | null> | undefined)[]
@@ -1252,18 +944,6 @@ export class UnfurlService extends BaseService {
                                 ...(sqlResultsPromises || []),
                                 ...(sqlPivotPromises || []),
                             ];
-                        } else if (
-                            !useScreenshotReadyIndicator &&
-                            (lightdashPage === LightdashPage.CHART ||
-                                lightdashPage === LightdashPage.EXPLORE)
-                        ) {
-                            // Legacy behavior: wait for API response
-                            chartResultsPromises = [
-                                this.waitForPaginatedResultsResponse(
-                                    page,
-                                    false,
-                                ),
-                            ]; // NOTE: No await here
                         }
 
                         await page.goto(url, {
@@ -1344,59 +1024,17 @@ export class UnfurlService extends BaseService {
                         );
                     }
 
-                    if (useScreenshotReadyIndicator) {
-                        this.logger.info(
-                            'Waiting for screenshot ready indicator (feature flag enabled)',
-                        );
-                        await page.waitForSelector(
-                            SCREENSHOT_SELECTORS.READY_INDICATOR,
-                            {
-                                state: 'attached',
-                                timeout: RESPONSE_TIMEOUT_MS,
-                            },
-                        );
-                        this.logger.info(
-                            'Screenshot ready indicator found - page is ready',
-                        );
-                    } else {
-                        if (lightdashPage === LightdashPage.DASHBOARD) {
-                            // Wait for markdown tiles specifically
-                            const markdownTiles = await page
-                                .locator(SCREENSHOT_SELECTORS.MARKDOWN_TILE)
-                                .all();
-                            await Promise.all(
-                                markdownTiles.map((tile) =>
-                                    tile.waitFor({ state: 'attached' }),
-                                ),
-                            );
-                            const loadingChartOverlays = await page
-                                .locator(SCREENSHOT_SELECTORS.LOADING_OVERLAY)
-                                .all();
-                            await Promise.all(
-                                loadingChartOverlays.map(
-                                    (loadingChartOverlay) =>
-                                        loadingChartOverlay.waitFor({
-                                            state: 'hidden',
-                                            timeout: RESPONSE_TIMEOUT_MS,
-                                        }),
-                                ),
-                            );
-                        }
-
-                        // If some charts are still loading even though their API requests have finished(or past the timeout), we wait for them to finish
-                        // Reference: https://playwright.dev/docs/api/class-locator#locator-all
-                        const loadingCharts = await page
-                            .locator(SCREENSHOT_SELECTORS.LOADING_CHART)
-                            .all();
-                        await Promise.all(
-                            loadingCharts.map((loadingChart) =>
-                                loadingChart.waitFor({
-                                    state: 'hidden',
-                                    timeout: RESPONSE_TIMEOUT_MS,
-                                }),
-                            ),
-                        );
-                    }
+                    this.logger.info('Waiting for screenshot ready indicator');
+                    await page.waitForSelector(
+                        SCREENSHOT_SELECTORS.READY_INDICATOR,
+                        {
+                            state: 'attached',
+                            timeout: RESPONSE_TIMEOUT_MS,
+                        },
+                    );
+                    this.logger.info(
+                        'Screenshot ready indicator found - page is ready',
+                    );
 
                     const path = `/tmp/${imageId}.png`;
 

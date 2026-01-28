@@ -150,7 +150,6 @@ export const lightdashConfigMock: LightdashConfig = {
         concurrency: 0,
         enabled: false,
         jobTimeout: 0,
-        useScreenshotReadyIndicator: false,
         tasks: ALL_TASK_NAMES,
         queryHistory: {
             cleanup: {
