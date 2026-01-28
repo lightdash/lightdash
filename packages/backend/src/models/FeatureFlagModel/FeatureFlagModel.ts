@@ -44,6 +44,8 @@ export class FeatureFlagModel {
             [FeatureFlags.MetricsCatalogEchartsVisualization]:
                 this.getMetricsCatalogEchartsVisualizationEnabled.bind(this),
             [FeatureFlags.Maps]: this.getMapsEnabled.bind(this),
+            [FeatureFlags.ShowExecutionTime]:
+                this.getShowExecutionTimeEnabled.bind(this),
         };
     }
 
@@ -224,6 +226,32 @@ export class FeatureFlagModel {
             (user
                 ? await isFeatureFlagEnabled(
                       FeatureFlags.MetricsCatalogEchartsVisualization,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getShowExecutionTimeEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.query.showExecutionTime ??
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.ShowExecutionTime,
                       {
                           userUuid: user.userUuid,
                           organizationUuid: user.organizationUuid,

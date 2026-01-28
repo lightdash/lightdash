@@ -203,6 +203,7 @@ export const lightdashConfigMock: LightdashConfig = {
         csvCellsLimit: 100000,
         timezone: undefined,
         useSqlPivotResults: false,
+        showExecutionTime: false,
     },
     ai: {
         copilot: {

@@ -22,6 +22,7 @@ export const lightdashConfigWithNoSMTP: Pick<
         csvCellsLimit: 100,
         timezone: undefined,
         useSqlPivotResults: false,
+        showExecutionTime: false,
     },
 };
 
@@ -57,6 +58,7 @@ export const lightdashConfigWithBasicSMTP: Pick<
         csvCellsLimit: 100,
         timezone: undefined,
         useSqlPivotResults: false,
+        showExecutionTime: false,
     },
 };
 
@@ -80,6 +82,7 @@ export const lightdashConfigWithOauth2SMTP: Pick<
         csvCellsLimit: 100,
         timezone: undefined,
         useSqlPivotResults: false,
+        showExecutionTime: false,
     },
 };
 
@@ -99,6 +102,7 @@ export const lightdashConfigWithSecurePortSMTP: Pick<
         csvCellsLimit: 100,
         timezone: undefined,
         useSqlPivotResults: false,
+        showExecutionTime: false,
     },
 };
 

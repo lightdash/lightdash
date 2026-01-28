@@ -458,6 +458,7 @@ export const lightdashConfigWithNoSMTP: Pick<
         csvCellsLimit: 100,
         timezone: undefined,
         useSqlPivotResults: false,
+        showExecutionTime: false,
     },
 };
 
