@@ -211,6 +211,9 @@ export class ValidationModel {
         projectUuid: string,
         jobId?: string,
     ): Promise<ValidationResponse[]> {
+        // Alias for dashboard space to distinguish from chart's direct space
+        const dashboardSpaceAlias = 'dashboard_space';
+
         const chartValidationErrorsRows = await this.database(
             ValidationTableName,
         )
@@ -219,12 +222,24 @@ export class ValidationModel {
                 `${SavedChartsTableName}.saved_query_uuid`,
                 `${ValidationTableName}.saved_chart_uuid`,
             )
+            // Join to chart's direct space (for charts saved directly in a space)
             .leftJoin(
                 SpaceTableName,
                 `${SpaceTableName}.space_id`,
                 `${SavedChartsTableName}.space_id`,
             )
-
+            // Join to dashboard's space for charts saved in dashboards (space_id is NULL)
+            // Uses saved_charts.dashboard_uuid which directly references the dashboard
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .leftJoin(
+                `${SpaceTableName} as ${dashboardSpaceAlias}`,
+                `${dashboardSpaceAlias}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
             .leftJoin(
                 UserTableName,
                 `${SavedChartsTableName}.last_version_updated_by_user_uuid`,
@@ -262,7 +277,10 @@ export class ValidationModel {
                 `${SavedChartsTableName}.last_version_chart_kind`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
-                `${SpaceTableName}.space_uuid`,
+                // Use chart's direct space if available, otherwise use dashboard's space
+                this.database.raw(
+                    `COALESCE(${SpaceTableName}.space_uuid, ${dashboardSpaceAlias}.space_uuid) as space_uuid`,
+                ),
                 `${SavedChartsTableName}.views_count`,
             ])
             .orderBy([

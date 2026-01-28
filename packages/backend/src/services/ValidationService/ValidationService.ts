@@ -22,6 +22,7 @@ import {
     isDashboardValidationError,
     isExploreError,
     isSqlTableCalculation,
+    isTableValidationError,
     isTemplateTableCalculation,
     isValidationTargetValid,
     OrganizationMemberRole,
@@ -923,6 +924,16 @@ export class ValidationService extends BaseService {
         // Filter private content to developers
         return Promise.all(
             validations.map(async (validation) => {
+                // Table validations are project-level, not space-specific
+                // Anyone with project access can see them
+                if (
+                    !isDashboardValidationError(validation) &&
+                    !isChartValidationError(validation) &&
+                    isTableValidationError(validation)
+                ) {
+                    return validation;
+                }
+
                 const isDeleted =
                     (isDashboardValidationError(validation) &&
                         !validation.dashboardUuid) ||
