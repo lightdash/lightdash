@@ -1,3 +1,10 @@
+# [0.2384.0](https://github.com/lightdash/lightdash/compare/0.2383.0...0.2384.0) (2026-01-28)
+
+
+### Features
+
+* add GitHub App installation authentication support to GitHub and GitLab client functions ([#19716](https://github.com/lightdash/lightdash/issues/19716)) ([7a082cd](https://github.com/lightdash/lightdash/commit/7a082cd0acbec8dec164d0fda066ef78c756ef27))
+
 # [0.2383.0](https://github.com/lightdash/lightdash/compare/0.2382.1...0.2383.0) (2026-01-28)
 
 
