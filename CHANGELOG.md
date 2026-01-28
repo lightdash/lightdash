@@ -1,3 +1,10 @@
+## [0.2389.2](https://github.com/lightdash/lightdash/compare/0.2389.1...0.2389.2) (2026-01-28)
+
+
+### Bug Fixes
+
+* conditional formatting range input re-rendering on every change ([#19778](https://github.com/lightdash/lightdash/issues/19778)) ([0309db2](https://github.com/lightdash/lightdash/commit/0309db2c2b9a8b20df5a9ab5d65c5f7743477cb9))
+
 ## [0.2389.1](https://github.com/lightdash/lightdash/compare/0.2389.0...0.2389.1) (2026-01-28)
 
 
