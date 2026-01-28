@@ -116,7 +116,7 @@ const VerifyEmailForm: FC<{
                                 gap="xs"
                                 mt="md"
                                 w="200"
-                                justify="center"
+                                align="center"
                                 ml="auto"
                                 mr="auto"
                             >
