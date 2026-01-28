@@ -165,7 +165,7 @@ export class PivotQueryBuilder {
 
     /**
      * Generates query that counts total distinct column combinations for pivot.
-     * Uses COUNT(DISTINCT ...) for cleaner SQL generation.
+     * Uses a subquery with SELECT DISTINCT for warehouse-agnostic counting.
      * @param groupByColumns - Columns that are being pivoted
      * @param valuesColumns - Value columns to multiply count by
      * @param filteredRowsTable - Name of the CTE containing filtered rows
@@ -181,28 +181,13 @@ export class PivotQueryBuilder {
         // This maintains consistent pivot behavior even when only grouping without aggregations
         const valuesCount = valuesColumns?.length || 1;
 
-        let countExpression: string;
-        if (groupByColumns.length === 1) {
-            countExpression = `COUNT(DISTINCT ${q}${groupByColumns[0]?.reference}${q})`;
-        } else {
-            // Use CONCAT for multiple columns - warehouse-agnostic way to count distinct combinations
-            // Include column names as prefixes to prevent hash collisions
-            // e.g., CONCAT('col1Name', col1_value, '-', 'col2Name', col2_value)
-            const concatParts = groupByColumns
-                .map(
-                    (col, i) =>
-                        `'${col.reference}', ${q}${col.reference}${q}${
-                            i < groupByColumns.length - 1 ? ", '-'" : ''
-                        }`,
-                )
-                .join(', ');
-            countExpression = `COUNT(DISTINCT CONCAT(${concatParts}))`;
-        }
+        // Use subquery with SELECT DISTINCT to count unique column combinations
+        // This approach works across all warehouses without type casting issues
+        const columnRefs = groupByColumns
+            .map((col) => `${q}${col.reference}${q}`)
+            .join(', ');
 
-        // Multiply by valuesCount since each distinct group produces one column per value
-        const multiplier = valuesCount > 1 ? ` * ${valuesCount}` : '';
-
-        return `SELECT ${countExpression}${multiplier} AS total_columns FROM ${filteredRowsTable}`;
+        return `SELECT COUNT(*) * ${valuesCount} AS total_columns FROM (SELECT DISTINCT ${columnRefs} FROM ${filteredRowsTable}) AS distinct_groups`;
     }
 
     /**
