@@ -1,3 +1,17 @@
+## [0.2389.2](https://github.com/lightdash/lightdash/compare/0.2389.1...0.2389.2) (2026-01-28)
+
+
+### Bug Fixes
+
+* conditional formatting range input re-rendering on every change ([#19778](https://github.com/lightdash/lightdash/issues/19778)) ([0309db2](https://github.com/lightdash/lightdash/commit/0309db2c2b9a8b20df5a9ab5d65c5f7743477cb9))
+
+## [0.2389.1](https://github.com/lightdash/lightdash/compare/0.2389.0...0.2389.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* pivot sorting with mix column types ([#19779](https://github.com/lightdash/lightdash/issues/19779)) ([42b7c65](https://github.com/lightdash/lightdash/commit/42b7c657be1ff6bfef1d5c692d6a11981eafd144))
+
 # [0.2389.0](https://github.com/lightdash/lightdash/compare/0.2388.1...0.2389.0) (2026-01-28)
 
 
