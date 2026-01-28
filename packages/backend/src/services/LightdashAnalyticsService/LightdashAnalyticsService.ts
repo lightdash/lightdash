@@ -51,9 +51,8 @@ export class LightdashAnalyticsService extends BaseService {
         }
 
         if (projectId) {
-            const { organizationUuid } = await this.projectModel.getSummary(
-                projectId,
-            );
+            const { organizationUuid } =
+                await this.projectModel.getSummary(projectId);
 
             this.analytics.track({
                 ...event,

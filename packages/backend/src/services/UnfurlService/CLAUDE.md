@@ -56,8 +56,8 @@ For EXPLORE pages, the indicator is rendered in the regular `Explorer` component
 
 Deleted charts are handled as errors:
 
--   **Regular charts**: When `savedChartUuid === null`, `orphanedChartError` is created and `markTileScreenshotErrored` is called
--   **SQL charts**: When `savedSqlUuid` is falsy, `markTileScreenshotErrored` is called
+- **Regular charts**: When `savedChartUuid === null`, `orphanedChartError` is created and `markTileScreenshotErrored` is called
+- **SQL charts**: When `savedSqlUuid` is falsy, `markTileScreenshotErrored` is called
 
 The indicator shows `data-status="completed-with-errors"` when any tile has errored, but the screenshot is still taken showing the error state.
 
@@ -65,22 +65,22 @@ The indicator shows `data-status="completed-with-errors"` when any tile has erro
 
 **Backend:**
 
--   `UnfurlService.ts` - Main service, calls `page.waitForSelector(SCREENSHOT_SELECTORS.READY_INDICATOR)`
+- `UnfurlService.ts` - Main service, calls `page.waitForSelector(SCREENSHOT_SELECTORS.READY_INDICATOR)`
 
 **Frontend:**
 
--   `packages/frontend/src/components/common/ScreenshotReadyIndicator.tsx` - Hidden DOM element
--   `packages/frontend/src/providers/Dashboard/DashboardProvider.tsx` - Tracks tile counts for dashboards
--   `packages/frontend/src/components/DashboardTiles/DashboardChartTile.tsx` - Saved chart tiles
--   `packages/frontend/src/components/DashboardTiles/DashboardSqlChartTile.tsx` - SQL chart tiles
--   `packages/frontend/src/pages/MinimalDashboard.tsx` - Dashboard page (minimal)
--   `packages/frontend/src/pages/MinimalSavedExplorer.tsx` - Single chart page (minimal)
--   `packages/frontend/src/components/Explorer/index.tsx` - Explore page (full page, indicator for Slack unfurls)
+- `packages/frontend/src/components/common/ScreenshotReadyIndicator.tsx` - Hidden DOM element
+- `packages/frontend/src/providers/Dashboard/DashboardProvider.tsx` - Tracks tile counts for dashboards
+- `packages/frontend/src/components/DashboardTiles/DashboardChartTile.tsx` - Saved chart tiles
+- `packages/frontend/src/components/DashboardTiles/DashboardSqlChartTile.tsx` - SQL chart tiles
+- `packages/frontend/src/pages/MinimalDashboard.tsx` - Dashboard page (minimal)
+- `packages/frontend/src/pages/MinimalSavedExplorer.tsx` - Single chart page (minimal)
+- `packages/frontend/src/components/Explorer/index.tsx` - Explore page (full page, indicator for Slack unfurls)
 
 **Common:**
 
--   `packages/common/src/constants/screenshot.ts` - `SCREENSHOT_READY_INDICATOR_ID`, `SCREENSHOT_SELECTORS`
--   `packages/common/src/types/featureFlags.ts` - `FeatureFlags.ScreenshotReadyIndicator`
+- `packages/common/src/constants/screenshot.ts` - `SCREENSHOT_READY_INDICATOR_ID`, `SCREENSHOT_SELECTORS`
+- `packages/common/src/types/featureFlags.ts` - `FeatureFlags.ScreenshotReadyIndicator`
 
 ### Known Issues / Race Conditions
 
@@ -103,21 +103,20 @@ The UnfurlService handles screenshots for two different use cases with different
 
 Used for dashboard/chart schedulers that send emails or Slack messages on a schedule.
 
--   Triggered by `SchedulerService` → `SlackClient.postImageToSlack()` or email delivery
--   Image is uploaded directly to Slack via `files.uploadV2` API (for Slack deliveries)
--   For email, images are attached to the email or hosted temporarily
+- Triggered by `SchedulerService` → `SlackClient.postImageToSlack()` or email delivery
+- Image is uploaded directly to Slack via `files.uploadV2` API (for Slack deliveries)
+- For email, images are attached to the email or hosted temporarily
 
 ### Slack Unfurls (Link Previews)
 
 When a user shares a Lightdash URL in Slack, Slack requests a preview image.
 
--   Triggered by `SlackController.getUnfurl()` → `UnfurlService.unfurlImage()`
--   Slack needs a publicly accessible URL to fetch the image
+- Triggered by `SlackController.getUnfurl()` → `UnfurlService.unfurlImage()`
+- Slack needs a publicly accessible URL to fetch the image
 
 **Image Storage:**
 
 1. **With S3 enabled** (`S3Service` configured):
-
     - Image uploaded to S3: `s3Client.uploadImage(buffer, imageId)`
     - Returns S3 URL for Slack to fetch
 
@@ -129,11 +128,11 @@ When a user shares a Lightdash URL in Slack, Slack requests a preview image.
 
 **Key Methods:**
 
--   `unfurlImage()` - Creates screenshot and returns image URL for Slack unfurls
--   `unfurlDetails()` - Returns metadata (title, description) without screenshot
+- `unfurlImage()` - Creates screenshot and returns image URL for Slack unfurls
+- `unfurlDetails()` - Returns metadata (title, description) without screenshot
 
 **Files:**
 
--   `SlackController.ts` - `/api/v1/slack/image/:nanoId` endpoint serves local images
--   `S3Service.ts` - Handles S3 uploads when configured
--   `DownloadFileModel.ts` - Manages temporary download tokens for local images
+- `SlackController.ts` - `/api/v1/slack/image/:nanoId` endpoint serves local images
+- `S3Service.ts` - Handles S3 uploads when configured
+- `DownloadFileModel.ts` - Manages temporary download tokens for local images

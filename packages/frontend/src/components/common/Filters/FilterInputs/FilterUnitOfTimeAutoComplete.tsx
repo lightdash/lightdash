@@ -28,8 +28,8 @@ const getUnitOfTimeOptions = ({
     const unitsOfTime = minUnitOfTime
         ? getUnitsOfTimeGreaterOrEqual(minUnitOfTime)
         : isTimestamp
-        ? Object.values(UnitOfTime)
-        : Object.values(UnitOfTime).slice(dateIndex);
+          ? Object.values(UnitOfTime)
+          : Object.values(UnitOfTime).slice(dateIndex);
 
     return unitsOfTime
         .reverse()

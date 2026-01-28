@@ -6,23 +6,23 @@ This document describes the process of extracting an existing dashboard from a L
 
 ## Prerequisites
 
--   Access to PostgreSQL database with existing dashboard data
--   Understanding of Lightdash database schema
--   Node.js/TypeScript development environment
+- Access to PostgreSQL database with existing dashboard data
+- Understanding of Lightdash database schema
+- Node.js/TypeScript development environment
 
 ## Database Schema Overview
 
 Key tables for dashboard extraction:
 
--   `dashboards` - Main dashboard metadata
--   `dashboard_versions` - Dashboard version history
--   `dashboard_tiles` - Tile positioning and types
--   `dashboard_tile_charts` - Chart tile references
--   `dashboard_tile_markdowns` - Markdown tile content
--   `saved_queries` - Chart definitions
--   `saved_queries_versions` - Chart version details
--   `saved_queries_version_fields` - Chart dimensions/metrics
--   `saved_queries_version_sorts` - Chart sorting
+- `dashboards` - Main dashboard metadata
+- `dashboard_versions` - Dashboard version history
+- `dashboard_tiles` - Tile positioning and types
+- `dashboard_tile_charts` - Chart tile references
+- `dashboard_tile_markdowns` - Markdown tile content
+- `saved_queries` - Chart definitions
+- `saved_queries_versions` - Chart version details
+- `saved_queries_version_fields` - Chart dimensions/metrics
+- `saved_queries_version_sorts` - Chart sorting
 
 ## Step-by-Step Extraction Process
 
@@ -245,14 +245,14 @@ WHERE sq.saved_query_id IN (
 
 ## Notes
 
--   Always extract from latest dashboard version
--   Preserve exact conditional formatting rules with new UUIDs
--   Maintain tile positioning for consistent layout
--   Use existing seed data references (SEED_PROJECT, SEED_ORG_1_ADMIN)
--   Consider data dependencies when ordering seed files
+- Always extract from latest dashboard version
+- Preserve exact conditional formatting rules with new UUIDs
+- Maintain tile positioning for consistent layout
+- Use existing seed data references (SEED_PROJECT, SEED_ORG_1_ADMIN)
+- Consider data dependencies when ordering seed files
 
 Do not run the created seed file until prompted by the user
 
 Reference:
 
--   @/packages/backend/src/database/seeds/development/07_cartesian_charts_dashboard.ts
+- @/packages/backend/src/database/seeds/development/07_cartesian_charts_dashboard.ts

@@ -204,9 +204,9 @@ export class CatalogModel {
                                             }) => ({
                                                 ...catalogInsert,
                                                 owner_user_uuid: ownerEmail
-                                                    ? emailToUserUuidMap.get(
+                                                    ? (emailToUserUuidMap.get(
                                                           ownerEmail.toLowerCase(),
-                                                      ) ?? null
+                                                      ) ?? null)
                                                     : null,
                                             }),
                                         ),

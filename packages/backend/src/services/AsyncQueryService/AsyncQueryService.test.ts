@@ -229,7 +229,7 @@ describe('AsyncQueryService', () => {
                         cacheHit: false,
                         updatedAt: undefined,
                         expiresAt: undefined,
-                    } satisfies MissCacheResult),
+                    }) satisfies MissCacheResult,
             );
         });
 

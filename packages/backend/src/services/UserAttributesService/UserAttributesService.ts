@@ -114,9 +114,8 @@ export class UserAttributesService extends BaseService {
         orgAttributeUuid: string,
         orgAttribute: CreateUserAttribute,
     ): Promise<UserAttribute> {
-        const savedAttribute = await this.userAttributesModel.get(
-            orgAttributeUuid,
-        );
+        const savedAttribute =
+            await this.userAttributesModel.get(orgAttributeUuid);
 
         if (
             user.ability.cannot(
@@ -147,9 +146,8 @@ export class UserAttributesService extends BaseService {
     }
 
     async delete(user: SessionUser, orgAttributeUuid: string): Promise<void> {
-        const orgAttribute = await this.userAttributesModel.get(
-            orgAttributeUuid,
-        );
+        const orgAttribute =
+            await this.userAttributesModel.get(orgAttributeUuid);
         if (
             user.ability.cannot(
                 'manage',

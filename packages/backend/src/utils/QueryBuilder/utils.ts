@@ -613,11 +613,11 @@ export const getCustomBinDimensionSql = ({
                         FLOOR(MIN(${dimension.compiledSql})) AS min_id,
                         CEIL(MAX(${dimension.compiledSql})) AS max_id,
                         FLOOR((MAX(${dimension.compiledSql}) - MIN(${
-                    dimension.compiledSql
-                })) / ${customDimension.binNumber}) AS bin_width
+                            dimension.compiledSql
+                        })) / ${customDimension.binNumber}) AS bin_width
                     FROM ${baseTable} AS ${fieldQuoteChar}${
-                    customDimension.table
-                }${fieldQuoteChar}
+                        customDimension.table
+                    }${fieldQuoteChar}
                 )`;
 
                 return [...acc, cte];
@@ -702,9 +702,8 @@ export const getCustomBinDimensionSql = ({
                 selects[dimensionId] = widthSql;
 
                 if (isSorted) {
-                    selects[
-                        orderDimensionId
-                    ] = `FLOOR(${dimension.compiledSql} / ${width}) * ${width} AS ${quotedDimensionOrder}`;
+                    selects[orderDimensionId] =
+                        `FLOOR(${dimension.compiledSql} / ${width}) * ${width} AS ${quotedDimensionOrder}`;
                 }
                 break;
             case BinType.FIXED_NUMBER:

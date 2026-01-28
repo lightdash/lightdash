@@ -4,11 +4,11 @@
 
 ### Organization Settings (Integrations → Slack)
 
-| Setting | Description |
-| ------- | ----------- |
+| Setting                                                       | Description                                                                                                         |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | **AI Agents thread access consent** (`aiThreadAccessConsent`) | When enabled, AI can read previous messages in a thread when user @mentions the bot. Provides conversation context. |
-| **AI Agents OAuth requirement** (`aiRequireOAuth`) | Require users to authenticate via OAuth before using AI agents. |
-| **Multi-agent channel** (`aiMultiAgentChannelId`) | Designated channel where users can access multiple AI agents. |
+| **AI Agents OAuth requirement** (`aiRequireOAuth`)            | Require users to authenticate via OAuth before using AI agents.                                                     |
+| **Multi-agent channel** (`aiMultiAgentChannelId`)             | Designated channel where users can access multiple AI agents.                                                       |
 
 ### Agent Settings (AI Agent → Integrations → Slack)
 

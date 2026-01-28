@@ -248,9 +248,8 @@ export class SavedSqlService
         projectUuid: string,
         sqlChart: CreateSqlChart,
     ): Promise<ApiCreateSqlChart['results']> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -308,9 +307,8 @@ export class SavedSqlService
         savedSqlUuid: string,
         sqlChart: UpdateSqlChart,
     ): Promise<{ savedSqlUuid: string; savedSqlVersionUuid: string | null }> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -405,9 +403,8 @@ export class SavedSqlService
         sql: string,
         limit?: number,
     ): Promise<{ jobId: string }> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'create',
@@ -443,9 +440,8 @@ export class SavedSqlService
         context?: QueryExecutionContext,
     ): Promise<{ jobId: string }> {
         const { savedSqlUuid } = body;
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         let savedChart;
 

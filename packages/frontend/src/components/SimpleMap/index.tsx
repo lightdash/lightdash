@@ -656,8 +656,8 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     point.value === null
                         ? 0.5
                         : max === min
-                        ? 0.5
-                        : (point.value - min) / (max - min);
+                          ? 0.5
+                          : (point.value - min) / (max - min);
                 return [point.lat, point.lon, scale];
             });
         }, [scatterData, scatterValueRange]);

@@ -469,8 +469,8 @@ export const FormatForm: FC<Props> = ({
                             formatType === CustomFormatType.BYTES_SI
                                 ? 'e.g. kilobytes (KB)'
                                 : formatType === CustomFormatType.BYTES_IEC
-                                ? 'e.g. kibibytes (KiB)'
-                                : 'e.g. thousands (K)'
+                                  ? 'e.g. kibibytes (KiB)'
+                                  : 'e.g. thousands (K)'
                         }
                         data={getCompactOptionsForFormatType(formatType).map(
                             (c) => ({

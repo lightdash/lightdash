@@ -122,9 +122,8 @@ export const compile = async (options: CompileHandlerOptions) => {
 
     GlobalState.debug(`> Compiling with project dir ${absoluteProjectPath}`);
 
-    const lightdashProjectConfig = await readAndLoadLightdashProjectConfig(
-        absoluteProjectPath,
-    );
+    const lightdashProjectConfig =
+        await readAndLoadLightdashProjectConfig(absoluteProjectPath);
     GlobalState.debug(`> Loaded lightdash project config`);
 
     // Try lightdash project compile

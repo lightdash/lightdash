@@ -129,10 +129,10 @@ export class MyNewService extends BaseService {
 
 Common service dependencies:
 
--   Models: For data persistence (UserModel, ProjectModel, etc.)
--   Config: Application configuration (lightdashConfig)
--   Analytics: For tracking events (analytics)
--   Other services: For complex operations that span multiple domains
+- Models: For data persistence (UserModel, ProjectModel, etc.)
+- Config: Application configuration (lightdashConfig)
+- Analytics: For tracking events (analytics)
+- Other services: For complex operations that span multiple domains
 
 </importantToKnow>
 

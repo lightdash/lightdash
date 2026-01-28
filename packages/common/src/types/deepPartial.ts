@@ -8,8 +8,8 @@ export type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends (infer U)[]
         ? DeepPartial<U>[] // Handle arrays
         : T[P] extends object
-        ? DeepPartial<T[P]> // Handle nested objects
-        : T[P]; // Handle primitive types
+          ? DeepPartial<T[P]> // Handle nested objects
+          : T[P]; // Handle primitive types
 };
 
 /**
@@ -21,6 +21,6 @@ export type DeepPartialNullable<T> = {
     [P in keyof T]?: T[P] extends (infer U)[]
         ? DeepPartial<U>[] | null // Handle arrays and allow null
         : T[P] extends object
-        ? DeepPartial<T[P]> | null // Handle nested objects and allow null
-        : T[P] | null; // Handle primitive types and allow null
+          ? DeepPartial<T[P]> | null // Handle nested objects and allow null
+          : T[P] | null; // Handle primitive types and allow null
 };

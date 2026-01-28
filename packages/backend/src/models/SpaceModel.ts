@@ -1540,11 +1540,9 @@ export class SpaceModel {
                 space.path,
                 space.path,
             ])
-            .select<DbSpace[]>(
-                `${SpaceTableName}.name`,
-                `${SpaceTableName}.space_uuid`,
-                this.database.raw('nlevel(path) as level'),
-            )
+            .select<
+                DbSpace[]
+            >(`${SpaceTableName}.name`, `${SpaceTableName}.space_uuid`, this.database.raw('nlevel(path) as level'))
             .orderBy('level', 'asc');
 
         const breadcrumbs = ancestorsNamesOrderByLevel

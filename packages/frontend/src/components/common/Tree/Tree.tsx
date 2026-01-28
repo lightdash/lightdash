@@ -18,24 +18,23 @@ import classes from './Tree.module.css';
 
 type Data<T> = T | FuzzyFilteredItem<T> | FuzzyFilteredItem<FuzzyMatches<T>>;
 
-type Props =
+type Props = {
+    withRootSelectable?: boolean;
+    topLevelLabel: string;
+    isExpanded: boolean;
+    data: Data<NestableItem>[];
+} & (
     | {
-          withRootSelectable?: boolean;
-          topLevelLabel: string;
-          isExpanded: boolean;
-          data: Data<NestableItem>[];
-      } & (
-          | {
-                type: 'single';
-                value: string | null;
-                onChange: (selectedUuid: string | null) => void;
-            }
-          | {
-                type: 'multiple';
-                values: string[];
-                onChangeMultiple: (selectedUuids: string[]) => void;
-            }
-      );
+          type: 'single';
+          value: string | null;
+          onChange: (selectedUuid: string | null) => void;
+      }
+    | {
+          type: 'multiple';
+          values: string[];
+          onChangeMultiple: (selectedUuids: string[]) => void;
+      }
+);
 
 type TreeController = ReturnType<typeof useTree>;
 
@@ -73,8 +72,8 @@ const Tree: React.FC<Props> = (props) => {
             props.type === 'multiple'
                 ? props.values
                 : props.value
-                ? [props.value]
-                : [],
+                  ? [props.value]
+                  : [],
         [
             props.type,
             // @ts-expect-error - props.values and props.value are only defined if type is 'multiple' or 'single'

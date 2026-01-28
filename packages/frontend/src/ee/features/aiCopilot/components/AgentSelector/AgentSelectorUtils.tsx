@@ -38,5 +38,5 @@ export const getAgentOptions = (agents: Agent[]) =>
                 label: name,
                 value: uuid,
                 imageUrl: imageUrl,
-            } satisfies AgentSelectOption),
+            }) satisfies AgentSelectOption,
     );

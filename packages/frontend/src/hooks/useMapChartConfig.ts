@@ -150,10 +150,10 @@ const useMapChartConfig = (
                         'label' in item
                             ? item.label
                             : 'displayName' in item
-                            ? item.displayName
-                            : 'name' in item
-                            ? item.name
-                            : ''
+                              ? item.displayName
+                              : 'name' in item
+                                ? item.name
+                                : ''
                     ).toLowerCase();
                     return name === 'latitude' || name === 'lat';
                 });
@@ -169,10 +169,10 @@ const useMapChartConfig = (
                         'label' in item
                             ? item.label
                             : 'displayName' in item
-                            ? item.displayName
-                            : 'name' in item
-                            ? item.name
-                            : ''
+                              ? item.displayName
+                              : 'name' in item
+                                ? item.name
+                                : ''
                     ).toLowerCase();
                     return (
                         name === 'longitude' ||

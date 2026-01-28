@@ -130,8 +130,8 @@ const DatabricksForm: FC<{
     const defaultAuthType = savedAuthType
         ? savedAuthType
         : isSsoEnabled
-        ? DatabricksAuthenticationType.OAUTH_U2M
-        : DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN;
+          ? DatabricksAuthenticationType.OAUTH_U2M
+          : DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN;
 
     if (!form.isTouched()) {
         form.setFieldValue('warehouse.authenticationType', defaultAuthType);

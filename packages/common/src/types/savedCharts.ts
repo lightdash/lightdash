@@ -383,7 +383,7 @@ export const TooltipSortByOptions = {
 } as const;
 
 export type TooltipSortBy =
-    typeof TooltipSortByOptions[keyof typeof TooltipSortByOptions];
+    (typeof TooltipSortByOptions)[keyof typeof TooltipSortByOptions];
 
 export type CompleteEChartsConfig = {
     legend?: EchartsLegend;

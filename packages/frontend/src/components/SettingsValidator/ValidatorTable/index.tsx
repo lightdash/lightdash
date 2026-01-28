@@ -212,11 +212,14 @@ export const ValidatorTable: FC<{
     const validationId = searchParams.get('validationId');
     const refs = useMemo(
         () =>
-            data.reduce((acc, value) => {
-                acc[value.validationId.toString()] =
-                    createRef<HTMLTableRowElement | null>();
-                return acc;
-            }, {} as { [key: string]: RefObject<HTMLTableRowElement | null> }),
+            data.reduce(
+                (acc, value) => {
+                    acc[value.validationId.toString()] =
+                        createRef<HTMLTableRowElement | null>();
+                    return acc;
+                },
+                {} as { [key: string]: RefObject<HTMLTableRowElement | null> },
+            ),
         [data],
     );
 

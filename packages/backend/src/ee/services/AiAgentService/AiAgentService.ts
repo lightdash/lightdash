@@ -1893,9 +1893,8 @@ export class AiAgentService {
             return;
         }
 
-        const embedding = await this.aiAgentModel.getArtifactEmbedding(
-            versionUuid,
-        );
+        const embedding =
+            await this.aiAgentModel.getArtifactEmbedding(versionUuid);
         if (embedding === null) {
             void this.schedulerClient
                 .embedArtifactVersion({
@@ -1916,9 +1915,8 @@ export class AiAgentService {
         }
 
         // Generate question if not already generated
-        const existingQuestion = await this.aiAgentModel.getArtifactQuestion(
-            versionUuid,
-        );
+        const existingQuestion =
+            await this.aiAgentModel.getArtifactQuestion(versionUuid);
         if (!existingQuestion) {
             void this.schedulerClient
                 .generateArtifactQuestion({
@@ -2166,9 +2164,8 @@ export class AiAgentService {
             originalChangeset,
             originalExplores,
         });
-        const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
-            promptUuid,
-        );
+        const toolResults =
+            await this.aiAgentModel.getToolResultsForPrompt(promptUuid);
 
         // Find the tool result for the propose_change that created this change
         const proposeChangeResult = toolResults.find(
@@ -2908,21 +2905,20 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         user: SessionUser,
 
         messageHistory: ModelMessage[],
-        options:
-            | { canManageAgent: boolean } & (
-                  | {
-                        prompt: AiWebAppPrompt;
-                        stream: true;
-                    }
-                  | {
-                        prompt: SlackPrompt;
-                        stream: false;
-                    }
-                  | {
-                        prompt: AiWebAppPrompt;
-                        stream: false;
-                    }
-              ),
+        options: { canManageAgent: boolean } & (
+            | {
+                  prompt: AiWebAppPrompt;
+                  stream: true;
+              }
+            | {
+                  prompt: SlackPrompt;
+                  stream: false;
+              }
+            | {
+                  prompt: AiWebAppPrompt;
+                  stream: false;
+              }
+        ),
     ): Promise<string | ReturnType<typeof streamAgentResponse>> {
         if (!user.organizationUuid) {
             throw new Error('Organization not found');
@@ -3009,9 +3005,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             ) => this.analytics.track(event),
 
             createOrUpdateArtifact: async (data) => {
-                const artifact = await this.aiAgentModel.createOrUpdateArtifact(
-                    data,
-                );
+                const artifact =
+                    await this.aiAgentModel.createOrUpdateArtifact(data);
 
                 return artifact;
             },
@@ -4043,9 +4038,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         await Promise.all(
             uniqueProjectUuids.map(async (projectUuid) => {
                 try {
-                    const project = await this.projectModel.getSummary(
-                        projectUuid,
-                    );
+                    const project =
+                        await this.projectModel.getSummary(projectUuid);
                     projectMap.set(projectUuid, project.name);
                 } catch {
                     // If project fetch fails, use UUID as fallback
@@ -4783,9 +4777,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         const aiRequireOAuth = slackSettings?.aiRequireOAuth;
         if (!aiRequireOAuth) {
             return {
-                userUuid: await this.slackAuthenticationModel.getUserUuid(
-                    teamId,
-                ),
+                userUuid:
+                    await this.slackAuthenticationModel.getUserUuid(teamId),
             };
         }
 
@@ -5166,9 +5159,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     );
 
                 if (threadUuid) {
-                    const thread = await this.aiAgentModel.findThread(
-                        threadUuid,
-                    );
+                    const thread =
+                        await this.aiAgentModel.findThread(threadUuid);
                     if (thread?.agentUuid) {
                         agentConfig = await this.aiAgentModel.getAgent({
                             organizationUuid,
@@ -5699,9 +5691,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         agentUuid,
         threadUuid,
     }: AiAgentEvalRunJobPayload): Promise<void> {
-        const result = await this.aiAgentModel.getEvalRunResult(
-            evalRunResultUuid,
-        );
+        const result =
+            await this.aiAgentModel.getEvalRunResult(evalRunResultUuid);
 
         try {
             await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {

@@ -398,7 +398,7 @@ export const ContentPanel: FC = () => {
                     sql,
                     downloadLimit === null
                         ? MAX_SAFE_INTEGER
-                        : downloadLimit ?? limit,
+                        : (downloadLimit ?? limit),
                 );
                 return newQuery.queryUuid;
             }

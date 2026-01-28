@@ -148,8 +148,8 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 artifactType === 'chart'
                     ? IconChartBar
                     : artifactType === 'dashboard'
-                    ? IconLayoutDashboard
-                    : IconChartBar;
+                      ? IconLayoutDashboard
+                      : IconChartBar;
 
             const isActive =
                 currentArtifact &&

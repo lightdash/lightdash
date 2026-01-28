@@ -69,8 +69,8 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                     backgroundColor: hovered
                         ? theme.colors.ldGray[1]
                         : hovered
-                        ? theme.colors.ldGray[2]
-                        : 'transparent',
+                          ? theme.colors.ldGray[2]
+                          : 'transparent',
                     border: `2px solid ${
                         isSelected ? theme.colors.blue[6] : 'transparent'
                     }`,

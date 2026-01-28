@@ -454,9 +454,8 @@ export class CoderService extends BaseService {
                     await this.dashboardModel.getSlugsForUuids(uuids);
                 uuidsToSlugs = Object.values(dashboardSlugs);
             } else if (type === 'chart') {
-                uuidsToSlugs = await this.savedChartModel.getSlugsForUuids(
-                    uuids,
-                );
+                uuidsToSlugs =
+                    await this.savedChartModel.getSlugsForUuids(uuids);
             }
         }
         const slugs = ids?.filter((id) => !CoderService.isUuid(id)) ?? [];
@@ -726,9 +725,8 @@ export class CoderService extends BaseService {
             }
             return acc;
         }, []);
-        const dashboards = await this.dashboardModel.getSlugsForUuids(
-            dashboardUuids,
-        );
+        const dashboards =
+            await this.dashboardModel.getSlugsForUuids(dashboardUuids);
 
         const transformedCharts = charts.map((chart) =>
             CoderService.transformChart(chart, spaces, dashboards),

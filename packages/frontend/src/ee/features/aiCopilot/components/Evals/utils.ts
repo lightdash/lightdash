@@ -28,5 +28,5 @@ export const getAssessmentConfig = (passed?: boolean): Config =>
     passed === undefined
         ? { label: 'N/A', color: 'gray' }
         : passed
-        ? { label: 'Passed', color: 'green.8' }
-        : { label: 'Failed', color: 'red.8' };
+          ? { label: 'Passed', color: 'green.8' }
+          : { label: 'Failed', color: 'red.8' };

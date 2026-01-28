@@ -148,9 +148,8 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         user: SessionUser,
         space: CreateSpace,
     ): Promise<Space> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(

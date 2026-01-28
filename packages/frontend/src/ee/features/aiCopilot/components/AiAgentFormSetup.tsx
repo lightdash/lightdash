@@ -507,8 +507,8 @@ export const AiAgentFormSetup = ({
                                             isLoadingGroups
                                                 ? 'Loading groups...'
                                                 : groupOptions.length === 0
-                                                ? 'No groups available'
-                                                : 'Select groups or leave empty for all users'
+                                                  ? 'No groups available'
+                                                  : 'Select groups or leave empty for all users'
                                         }
                                         data={groupOptions}
                                         disabled={
@@ -681,8 +681,8 @@ export const AiAgentFormSetup = ({
                                         {!slackInstallation?.organizationUuid
                                             ? 'Disabled'
                                             : !slackChannelsConfigured
-                                            ? 'Channels not configured'
-                                            : 'Enabled'}
+                                              ? 'Channels not configured'
+                                              : 'Enabled'}
                                     </Text>
                                 </Group>
                             </Group>
@@ -755,7 +755,7 @@ export const AiAgentFormSetup = ({
                                                             ({
                                                                 type: 'slack',
                                                                 channelId: v,
-                                                            } as const),
+                                                            }) as const,
                                                     ),
                                                 );
                                             }}

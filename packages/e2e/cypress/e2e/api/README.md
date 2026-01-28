@@ -2,15 +2,15 @@
 
 ### From apiV1Router
 
--   GET /livez
--   GET /health
--   GET /flash
--   POST /register
--   POST /login
+- GET /livez
+- GET /health
+- GET /flash
+- POST /register
+- POST /login
 
 Google auth endpoints
 
--   GET /logout
+- GET /logout
 
 ### From savedChartRouter:
 

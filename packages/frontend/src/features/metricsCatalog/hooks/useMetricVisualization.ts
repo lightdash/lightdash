@@ -135,8 +135,8 @@ const buildMetricQueryFromField = (
             popMetricId !== undefined
                 ? [baseMetricId, popMetricId]
                 : compareMetricId !== undefined
-                ? [baseMetricId, compareMetricId]
-                : [baseMetricId],
+                  ? [baseMetricId, compareMetricId]
+                  : [baseMetricId],
         filters,
         sorts: [],
         limit: 5000,
@@ -167,8 +167,8 @@ const buildLineChartConfig = (
                   METRICS_EXPLORER_PREVIOUS_PERIOD_OFFSET_DEFAULT,
               )})`
             : comparison === MetricExplorerComparison.DIFFERENT_METRIC
-            ? compareMetricLabel ?? 'Comparison'
-            : undefined;
+              ? (compareMetricLabel ?? 'Comparison')
+              : undefined;
 
     return {
         type: ChartType.CARTESIAN,

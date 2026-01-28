@@ -423,8 +423,8 @@ export default class EmailClient {
 
         const message = `
             <p>Your scheduled delivery <strong>"${schedulerName}"</strong> failed to deliver to ${failedCount} of ${totalTargets} ${deliveryTypeLabel} target${
-            totalTargets > 1 ? 's' : ''
-        }.</p>
+                totalTargets > 1 ? 's' : ''
+            }.</p>
             <br />
             <br />
             <p><strong>Failed targets:</strong></p> 

@@ -53,7 +53,9 @@
     position: absolute;
     right: var(--mantine-spacing-xs);
     bottom: var(--mantine-spacing-xs);
-    transition: transform 150ms ease, opacity 150ms ease;
+    transition:
+        transform 150ms ease,
+        opacity 150ms ease;
 
     background-color: var(--mantine-color-foreground-0);
 

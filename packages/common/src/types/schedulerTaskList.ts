@@ -118,7 +118,7 @@ export interface EETaskPayloadMap {
 }
 
 export type SchedulerTaskName =
-    typeof SCHEDULER_TASKS[keyof typeof SCHEDULER_TASKS];
+    (typeof SCHEDULER_TASKS)[keyof typeof SCHEDULER_TASKS];
 
 export const isSchedulerTaskName = (task: string): task is SchedulerTaskName =>
     includes(ALL_TASK_NAMES, task); // Had to use includes to avoid type error from Object.values().includes(string) related to union types https://github.com/microsoft/TypeScript/issues/46186

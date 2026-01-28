@@ -159,8 +159,8 @@ export const useGenerateChartMetadata = ({
                 label: isField(item)
                     ? item.label
                     : 'displayName' in item
-                    ? item.displayName ?? item.name
-                    : item.name,
+                      ? (item.displayName ?? item.name)
+                      : item.name,
                 description: isField(item) ? item.description : undefined,
                 type: item.type ?? 'unknown',
             }));
