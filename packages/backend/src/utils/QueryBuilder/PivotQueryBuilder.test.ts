@@ -1254,9 +1254,9 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain(
                 'SELECT "category", "date" FROM original_query group by "category", "date"',
             );
-            // Should calculate total_columns correctly (no multiplier when 1 value column)
+            // Should calculate total_columns correctly using subquery approach
             expect(result).toContain(
-                'COUNT(DISTINCT "category") AS total_columns',
+                'SELECT COUNT(*) * 1 AS total_columns FROM (SELECT DISTINCT "category" FROM filtered_rows) AS distinct_groups',
             );
         });
 
