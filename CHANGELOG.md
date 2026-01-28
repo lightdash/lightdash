@@ -1,3 +1,10 @@
+## [0.2388.1](https://github.com/lightdash/lightdash/compare/0.2388.0...0.2388.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* map hover opacity ([#19750](https://github.com/lightdash/lightdash/issues/19750)) ([f236d99](https://github.com/lightdash/lightdash/commit/f236d998ffdbbc1841eaf25f3f95ed56a8623928))
+
 # [0.2388.0](https://github.com/lightdash/lightdash/compare/0.2387.1...0.2388.0) (2026-01-28)
 
 
