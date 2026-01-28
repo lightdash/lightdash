@@ -1,3 +1,10 @@
+## [0.2387.1](https://github.com/lightdash/lightdash/compare/0.2387.0...0.2387.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* ignore timezone when formatting date values with expressions ([#19759](https://github.com/lightdash/lightdash/issues/19759)) ([f6d0855](https://github.com/lightdash/lightdash/commit/f6d08556ea84845dd4c522e13a859725381d6084))
+
 # [0.2387.0](https://github.com/lightdash/lightdash/compare/0.2386.0...0.2387.0) (2026-01-28)
 
 
