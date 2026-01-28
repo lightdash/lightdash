@@ -1,3 +1,10 @@
+# [0.2389.0](https://github.com/lightdash/lightdash/compare/0.2388.1...0.2389.0) (2026-01-28)
+
+
+### Features
+
+* add custom error messages for Snowflake warehouse access errors ([#19776](https://github.com/lightdash/lightdash/issues/19776)) ([49b8170](https://github.com/lightdash/lightdash/commit/49b8170b4d6ce6c558baed0e2d61eaad5991f70a))
+
 ## [0.2388.1](https://github.com/lightdash/lightdash/compare/0.2388.0...0.2388.1) (2026-01-28)
 
 
