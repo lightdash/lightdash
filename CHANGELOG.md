@@ -1,3 +1,10 @@
+# [0.2385.0](https://github.com/lightdash/lightdash/compare/0.2384.0...0.2385.0) (2026-01-28)
+
+
+### Features
+
+* add showExecutionTime feature flag and config ([#19745](https://github.com/lightdash/lightdash/issues/19745)) ([cc3ce82](https://github.com/lightdash/lightdash/commit/cc3ce8233319f16a0a690c2c836ca8ea0f3c482e))
+
 # [0.2384.0](https://github.com/lightdash/lightdash/compare/0.2383.0...0.2384.0) (2026-01-28)
 
 
