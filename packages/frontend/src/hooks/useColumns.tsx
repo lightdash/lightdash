@@ -426,21 +426,6 @@ export const useColumns = (): TableColumn[] => {
             { fieldId: string; item: ItemsMap[string] }
         >();
 
-        // Find PoP fields using popMetadata from API response
-        for (const [fieldId, column] of Object.entries(resultsColumns)) {
-            if (column.popMetadata) {
-                const { baseFieldId } = column.popMetadata;
-                const baseItem = itemsMap[baseFieldId];
-                if (baseItem) {
-                    // Use the base item's metadata for formatting
-                    previousFieldsMap.set(baseFieldId, {
-                        fieldId,
-                        item: baseItem,
-                    });
-                }
-            }
-        }
-
         return previousFieldsMap;
     }, [periodOverPeriod, resultsColumns, itemsMap]);
 

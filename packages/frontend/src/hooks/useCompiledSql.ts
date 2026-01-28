@@ -13,7 +13,6 @@ import {
     selectFilters,
     selectMetrics,
     selectParameters,
-    selectPeriodOverPeriod,
     selectQueryLimit,
     selectSorts,
     selectTableCalculations,
@@ -60,7 +59,6 @@ export const useCompiledSql = (
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const timezone = useExplorerSelector(selectTimezone);
     const queryParameters = useExplorerSelector(selectParameters);
-    const periodOverPeriod = useExplorerSelector(selectPeriodOverPeriod);
 
     const setErrorResponse = useQueryError();
     const metricQuery: MetricQuery = {
@@ -74,7 +72,6 @@ export const useCompiledSql = (
         additionalMetrics,
         customDimensions,
         timezone: timezone ?? undefined,
-        periodOverPeriod,
     };
 
     const queryKey = [
@@ -84,7 +81,6 @@ export const useCompiledSql = (
         projectUuid,
         timezone,
         queryParameters,
-        periodOverPeriod,
     ];
     return useQuery<ApiCompiledQueryResults, ApiError>({
         queryKey,

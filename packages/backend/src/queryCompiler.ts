@@ -11,6 +11,8 @@ import {
     detectCircularDependencies,
     Explore,
     ExploreCompiler,
+    getItemId,
+    isPeriodOverPeriodAdditionalMetric,
     isPostCalculationMetricType,
     isSqlTableCalculation,
     isTemplateTableCalculation,
@@ -18,7 +20,6 @@ import {
     MetricQuery,
     MetricType,
     PivotConfiguration,
-    POP_PREVIOUS_PERIOD_SUFFIX,
     TableCalculation,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
@@ -292,15 +293,14 @@ export const compileMetricQuery = ({
 }: CompileMetricQueryArgs): CompiledMetricQuery => {
     const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
 
+    const popMetricIds = (metricQuery.additionalMetrics ?? [])
+        .filter(isPeriodOverPeriodAdditionalMetric)
+        .map(getItemId);
+
     const validFieldIds = [
         ...metricQuery.dimensions,
-        ...metricQuery.metrics.reduce<string[]>((acc2, metric) => {
-            acc2.push(metric);
-            if (metricQuery.periodOverPeriod) {
-                acc2.push(`${metric}${POP_PREVIOUS_PERIOD_SUFFIX}`);
-            }
-            return acc2;
-        }, []),
+        ...metricQuery.metrics,
+        ...popMetricIds,
     ];
 
     const compiledAdditionalMetrics = (metricQuery.additionalMetrics || []).map(

@@ -226,7 +226,7 @@ export const selectTimezone = createSelector(
 // Period over period selector
 export const selectPeriodOverPeriod = createSelector(
     [selectMetricQuery],
-    (metricQuery) => metricQuery.periodOverPeriod,
+    (_metricQuery) => undefined, // no-op,
 );
 
 // Chart config selector
