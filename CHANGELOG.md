@@ -1,3 +1,11 @@
+# [0.2386.0](https://github.com/lightdash/lightdash/compare/0.2385.1...0.2386.0) (2026-01-28)
+
+
+### Features
+
+* allow new pop comparison on metric explore modal v2 ([#19701](https://github.com/lightdash/lightdash/issues/19701)) ([1d44f01](https://github.com/lightdash/lightdash/commit/1d44f01f2b7eb7d9e38367cb83652c7fdc78e682))
+* support compare to another metric in metric explore modal v2 ([#19727](https://github.com/lightdash/lightdash/issues/19727)) ([fc1d0b9](https://github.com/lightdash/lightdash/commit/fc1d0b9938fa2ddf2dc76707e29b94ded39abb53))
+
 ## [0.2385.1](https://github.com/lightdash/lightdash/compare/0.2385.0...0.2385.1) (2026-01-28)
 
 
