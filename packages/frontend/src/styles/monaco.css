@@ -44,7 +44,9 @@
         background-color: var(--mantine-color-ldDark-9);
         border: 1px solid var(--mantine-color-ldDark-4);
     }
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    box-shadow:
+        0 4px 6px -1px rgb(0 0 0 / 0.1),
+        0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 #monaco-overflow-container .suggest-widget .monaco-list .monaco-list-row {

@@ -41,17 +41,17 @@ export default createStyles(
                     ? theme.colors.ldDark[5]
                     : theme.colors.ldGray[3]
                 : theme.colorScheme === 'dark'
-                ? theme.colors.ldDark[7]
-                : variant === 'filled'
-                ? theme.white
-                : theme.colors.ldGray[1],
+                  ? theme.colors.ldDark[7]
+                  : variant === 'filled'
+                    ? theme.white
+                    : theme.colors.ldGray[1],
             color: disabled
                 ? theme.colorScheme === 'dark'
                     ? theme.colors.ldDark[1]
                     : theme.colors.ldGray[7]
                 : theme.colorScheme === 'dark'
-                ? theme.colors.ldDark[0]
-                : theme.colors.ldGray[7],
+                  ? theme.colors.ldDark[0]
+                  : theme.colors.ldGray[7],
             height: getSize({ size, sizes }),
             paddingLeft: `calc(${getSize({
                 size,

@@ -416,9 +416,8 @@ export default class SchedulerTask {
                 throw new Error("Don't fetch csv for gsheets");
             case SchedulerFormat.CSV:
             case SchedulerFormat.XLSX:
-                const sessionUser = await this.userService.getSessionByUserUuid(
-                    userUuid,
-                );
+                const sessionUser =
+                    await this.userService.getSessionByUserUuid(userUuid);
                 const account = Account.fromSession(sessionUser);
                 const csvOptions = isSchedulerCsvOptions(options)
                     ? options
@@ -2441,9 +2440,10 @@ export default class SchedulerTask {
                     `Unable to process format ${format} on sendGdriveNotification`,
                 );
             } else if (savedChartUuid) {
-                const chart = await this.schedulerService.savedChartModel.get(
-                    savedChartUuid,
-                );
+                const chart =
+                    await this.schedulerService.savedChartModel.get(
+                        savedChartUuid,
+                    );
                 deliveryUrl = `${this.lightdashConfig.siteUrl}/projects/${chart.projectUuid}/saved/${savedChartUuid}/view?${schedulerUuidParam}&isSync=true`;
 
                 const defaultSchedulerTimezone =
@@ -2476,7 +2476,7 @@ export default class SchedulerTask {
                 const showTableNames = isTableChartConfig(
                     chart.chartConfig.config,
                 )
-                    ? chart.chartConfig.config.showTableNames ?? false
+                    ? (chart.chartConfig.config.showTableNames ?? false)
                     : true;
                 const customLabels = getCustomLabelsFromTableConfig(
                     chart.chartConfig.config,
@@ -2633,7 +2633,7 @@ export default class SchedulerTask {
                         const showTableNames = isTableChartConfig(
                             chart.chartConfig.config,
                         )
-                            ? chart.chartConfig.config.showTableNames ?? false
+                            ? (chart.chartConfig.config.showTableNames ?? false)
                             : true;
                         const customLabels = getCustomLabelsFromTableConfig(
                             chart.chartConfig.config,
@@ -2934,9 +2934,8 @@ export default class SchedulerTask {
             targets,
         } = scheduler;
 
-        const sessionUser = await this.userService.getSessionByUserUuid(
-            userUuid,
-        );
+        const sessionUser =
+            await this.userService.getSessionByUserUuid(userUuid);
         const account = Account.fromSession(sessionUser);
 
         // If the scheduler is not a gsheets and has no targets, we skip the delivery

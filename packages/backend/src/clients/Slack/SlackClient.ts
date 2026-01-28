@@ -314,9 +314,8 @@ export class SlackClient {
             });
 
         // Check if we have any cached channels
-        const hasChannels = await this.slackChannelCacheModel.hasAnyChannels(
-            organizationId,
-        );
+        const hasChannels =
+            await this.slackChannelCacheModel.hasAnyChannels(organizationId);
 
         // Check if cache is stale
         const isStale =
@@ -564,9 +563,8 @@ export class SlackClient {
 
         try {
             // Fetch all channels from Slack (handles rate limiting and pagination)
-            const allChannels = await this.fetchAllChannelsForCache(
-                organizationUuid,
-            );
+            const allChannels =
+                await this.fetchAllChannelsForCache(organizationUuid);
 
             // Upsert all channels to database
             await this.slackChannelCacheModel.upsertChannels(
@@ -928,9 +926,8 @@ export class SlackClient {
     ) {
         const webClient = await this.getWebClient(organizationUuid);
         const { notificationChannel: channelId, appProfilePhotoUrl } = opts;
-        const currentChannelId = await this.getNotificationChannel(
-            organizationUuid,
-        );
+        const currentChannelId =
+            await this.getNotificationChannel(organizationUuid);
 
         await this.slackAuthenticationModel.updateAppCustomSettings(
             organizationUuid,
@@ -980,9 +977,8 @@ export class SlackClient {
         blocks?: Block[];
     }): Promise<void> {
         try {
-            const channelId = await this.getNotificationChannel(
-                organizationUuid,
-            );
+            const channelId =
+                await this.getNotificationChannel(organizationUuid);
             if (!channelId) {
                 Logger.warn(
                     `Unable to send slack notification for organization ${organizationUuid}. No notification channel set.`,

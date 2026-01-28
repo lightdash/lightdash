@@ -75,10 +75,10 @@ const findLocationField = (
                 'label' in item
                     ? item.label
                     : 'displayName' in item
-                    ? item.displayName
-                    : 'name' in item
-                    ? item.name
-                    : ''
+                      ? item.displayName
+                      : 'name' in item
+                        ? item.name
+                        : ''
             ).toLowerCase();
             return name.includes(pattern);
         });
@@ -189,10 +189,10 @@ export const Layout: FC = memo(() => {
         return 'label' in item
             ? item.label
             : 'displayName' in item
-            ? item.displayName
-            : 'name' in item
-            ? (item as { name: string }).name
-            : undefined;
+              ? item.displayName
+              : 'name' in item
+                ? (item as { name: string }).name
+                : undefined;
     }, [validConfig?.locationFieldId, itemsMap]);
 
     // Auto-fill geoJsonPropertyKey when custom GeoJSON properties are loaded
@@ -404,10 +404,10 @@ export const Layout: FC = memo(() => {
                                             !config.customGeoJsonUrl
                                                 ? 'Enter URL first'
                                                 : isLoadingProperties
-                                                ? 'Loading...'
-                                                : propertyOptions.length === 0
-                                                ? 'No properties found'
-                                                : 'Select property'
+                                                  ? 'Loading...'
+                                                  : propertyOptions.length === 0
+                                                    ? 'No properties found'
+                                                    : 'Select property'
                                         }
                                         data={propertyOptions}
                                         value={

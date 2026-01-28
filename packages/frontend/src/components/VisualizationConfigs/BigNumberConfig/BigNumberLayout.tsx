@@ -93,8 +93,8 @@ export const Layout: FC = () => {
                                     bigNumberLabel
                                         ? 'Clear custom label to toggle table names'
                                         : showTableNamesInLabel
-                                        ? 'Hide table names in label'
-                                        : 'Show table names in label'
+                                          ? 'Hide table names in label'
+                                          : 'Show table names in label'
                                 }
                             >
                                 <ActionIcon

@@ -26,7 +26,7 @@ export const SchedulerFormPreviewTab: FC<Props> = ({
     onChange,
 }) => {
     const [previewChoice, setPreviewChoice] = useState<
-        typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined
+        (typeof CUSTOM_WIDTH_OPTIONS)[number]['value'] | undefined
     >(customViewportWidth?.toString() ?? CUSTOM_WIDTH_OPTIONS[1].value);
     const [currentPreview, setCurrentPreview] = useState<string | undefined>();
     const exportDashboardMutation = useExportDashboard();

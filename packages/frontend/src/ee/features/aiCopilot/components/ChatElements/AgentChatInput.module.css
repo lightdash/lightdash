@@ -6,7 +6,9 @@
 .inputCard {
     border-radius: var(--mantine-radius-lg);
     overflow: hidden;
-    transition: box-shadow 150ms ease, border-color 150ms ease;
+    transition:
+        box-shadow 150ms ease,
+        border-color 150ms ease;
 
     @mixin light {
         background-color: var(--mantine-color-white);
@@ -76,7 +78,9 @@
 
 .submitButton {
     border-radius: var(--mantine-radius-xl);
-    transition: transform 150ms ease, opacity 150ms ease;
+    transition:
+        transform 150ms ease,
+        opacity 150ms ease;
 
     background-color: var(--mantine-color-foreground-0);
 
@@ -149,7 +153,9 @@
     border-radius: var(--mantine-radius-lg);
     padding: var(--mantine-spacing-md) var(--mantine-spacing-md);
     padding-top: var(--mantine-spacing-sm);
-    transition: background-color 150ms ease, border-color 150ms ease;
+    transition:
+        background-color 150ms ease,
+        border-color 150ms ease;
 
     @mixin light {
         background-color: var(--mantine-color-white);
@@ -202,7 +208,9 @@
     flex-shrink: 0;
     align-self: flex-end;
     border-radius: var(--mantine-radius-xl);
-    transition: transform 150ms ease, opacity 150ms ease;
+    transition:
+        transform 150ms ease,
+        opacity 150ms ease;
 
     @mixin light {
         background-color: var(--mantine-color-gray-8);

@@ -473,9 +473,8 @@ Affected charts:
                 installationId = await this.getInstallationId(user);
                 token = await this.getOrUpdateToken(user.organizationUuid!);
             } catch {
-                const project = await this.projectModel.getWithSensitiveFields(
-                    projectUuid,
-                );
+                const project =
+                    await this.projectModel.getWithSensitiveFields(projectUuid);
                 const connection =
                     project.dbtConnection as DbtGithubProjectConfig;
                 token = connection.personal_access_token || '';
@@ -487,9 +486,8 @@ Affected charts:
             }
         } else if (type === DbtProjectType.GITLAB) {
             // GitLab logic - only personal access tokens supported
-            const project = await this.projectModel.getWithSensitiveFields(
-                projectUuid,
-            );
+            const project =
+                await this.projectModel.getWithSensitiveFields(projectUuid);
             const connection = project.dbtConnection as DbtGitlabProjectConfig;
             token = connection.personal_access_token || '';
             if (!token) {

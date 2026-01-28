@@ -29,13 +29,13 @@ import { lightdashConfig } from './lightdashConfig';
 
 Key configuration sections:
 
--   `database` - Database connection and pooling settings
--   `auth` - Authentication providers and security settings
--   `scheduler` - Background job configuration with task filtering
--   `ai.copilot` - AI features with provider-specific settings
--   `prometheus` - Metrics and monitoring configuration
--   `initialSetup`/`updateSetup` - Automated deployment configuration
-    </howToUse>
+- `database` - Database connection and pooling settings
+- `auth` - Authentication providers and security settings
+- `scheduler` - Background job configuration with task filtering
+- `ai.copilot` - AI features with provider-specific settings
+- `prometheus` - Metrics and monitoring configuration
+- `initialSetup`/`updateSetup` - Automated deployment configuration
+  </howToUse>
 
 <codeExample>
 
@@ -84,14 +84,14 @@ const testConfig = parseConfig({
 
 **Critical environment variables** that will throw ParseError if missing:
 
--   `LIGHTDASH_SECRET` - Required for session management
--   Database connection URI - Required for production operation
+- `LIGHTDASH_SECRET` - Required for session management
+- Database connection URI - Required for production operation
 
 **Security constraints**:
 
--   iframe embedding requires `SECURE_COOKIES=true`
--   JWT certificates support both file paths and base64-encoded PEM content
--   Content Security Policy configurable for embedding scenarios
+- iframe embedding requires `SECURE_COOKIES=true`
+- JWT certificates support both file paths and base64-encoded PEM content
+- Content Security Policy configurable for embedding scenarios
 
 **Scheduler task filtering** - cannot set both include AND exclude task lists simultaneously.
 

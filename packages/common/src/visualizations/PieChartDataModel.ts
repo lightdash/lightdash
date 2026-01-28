@@ -164,9 +164,9 @@ export class PieChartDataModel {
 
         const indexFieldError = Boolean(
             config?.x?.reference &&
-                groupFieldOptions.find(
-                    (x) => x.reference === config?.x?.reference,
-                ) === undefined,
+            groupFieldOptions.find(
+                (x) => x.reference === config?.x?.reference,
+            ) === undefined,
         );
 
         const metricFieldError = Boolean(
@@ -346,7 +346,7 @@ export class PieChartDataModel {
 
     getPivotedTableData(): // TODO: pass display options and use them
 
-    | {
+        | {
               columns: string[];
               rows: RawResultRow[];
           }

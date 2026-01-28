@@ -40,9 +40,9 @@ UnfurlService.waitForSelector()
 
 ### Key Files
 
--   `ScreenshotReadyIndicator.tsx` - Hidden DOM element signaling readiness
--   `DashboardProvider.tsx` - Tracks tile ready/error counts
--   `DashboardChartTile.tsx` - Calls `markTileScreenshotReady`/`markTileScreenshotErrored`
--   `MinimalDashboard.tsx` - Renders indicator when ready
--   `@lightdash/common` - `SCREENSHOT_READY_INDICATOR_ID`, `SCREENSHOT_SELECTORS`
--   `UnfurlService.ts` - `waitForSelector()` waits for the indicator
+- `ScreenshotReadyIndicator.tsx` - Hidden DOM element signaling readiness
+- `DashboardProvider.tsx` - Tracks tile ready/error counts
+- `DashboardChartTile.tsx` - Calls `markTileScreenshotReady`/`markTileScreenshotErrored`
+- `MinimalDashboard.tsx` - Renders indicator when ready
+- `@lightdash/common` - `SCREENSHOT_READY_INDICATOR_ID`, `SCREENSHOT_SELECTORS`
+- `UnfurlService.ts` - `waitForSelector()` waits for the indicator

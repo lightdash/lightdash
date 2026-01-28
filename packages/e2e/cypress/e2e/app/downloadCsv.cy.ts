@@ -211,17 +211,23 @@ describe('Download CSV on Explore', () => {
         cy.get('[data-testid=chart-export-results-button]').click();
 
         // Wait for schedule request
-        cy.wait('@exploreCsvDownload', { timeout: 10000 }).then((interception) => {
-            expect(interception?.response?.statusCode).to.eq(200);
-            expect(interception?.response?.body.results).to.have.property('jobId');
-        });
+        cy.wait('@exploreCsvDownload', { timeout: 10000 }).then(
+            (interception) => {
+                expect(interception?.response?.statusCode).to.eq(200);
+                expect(interception?.response?.body.results).to.have.property(
+                    'jobId',
+                );
+            },
+        );
 
         // Poll for job completion
         const maxPolls = 10;
         const pollInterval = 1000;
         const pollForJob = (attempt = 1): void => {
             if (attempt > maxPolls) {
-                throw new Error(`Job did not complete after ${maxPolls} attempts`);
+                throw new Error(
+                    `Job did not complete after ${maxPolls} attempts`,
+                );
             }
 
             cy.wait('@exploreCsvPoll', { timeout: pollInterval * 2 }).then(

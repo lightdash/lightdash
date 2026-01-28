@@ -99,23 +99,23 @@ app.get(
 
 **API Key Authentication:**
 
--   Supports both service accounts (Bearer tokens) and Personal Access Tokens (ApiKey header)
--   Service accounts are checked first, then PATs
--   PATs can be disabled via configuration
+- Supports both service accounts (Bearer tokens) and Personal Access Tokens (ApiKey header)
+- Service accounts are checked first, then PATs
+- PATs can be disabled via configuration
 
 **OAuth Security:**
 
--   Redirects are validated against site URL for security
--   PKCE and state parameters used for OAuth flows
--   Popup mode supported for embedded authentication
+- Redirects are validated against site URL for security
+- PKCE and state parameters used for OAuth flows
+- Popup mode supported for embedded authentication
 
 **Critical Constraints:**
 
--   Deactivated users have sessions destroyed automatically
--   Demo mode blocks certain operations via `unauthorisedInDemo`
--   Invalid users are redirected to login or invite links
--   OAuth redirects must match the configured site URL host
-    </importantToKnow>
+- Deactivated users have sessions destroyed automatically
+- Demo mode blocks certain operations via `unauthorisedInDemo`
+- Invalid users are redirected to login or invite links
+- OAuth redirects must match the configured site URL host
+  </importantToKnow>
 
 <links>
 Main entry point: @/packages/backend/src/controllers/authentication/index.ts

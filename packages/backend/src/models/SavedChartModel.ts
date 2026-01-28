@@ -562,14 +562,9 @@ export class SavedChartModel {
                 `${SavedChartVersionsTableName}.updated_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
-            .select<VersionSummaryRow[]>(
-                `${SavedChartsTableName}.saved_query_uuid`,
-                `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
-                `${SavedChartVersionsTableName}.created_at`,
-                `${UserTableName}.user_uuid`,
-                `${UserTableName}.first_name`,
-                `${UserTableName}.last_name`,
-            )
+            .select<
+                VersionSummaryRow[]
+            >(`${SavedChartsTableName}.saved_query_uuid`, `${SavedChartVersionsTableName}.saved_queries_version_uuid`, `${SavedChartVersionsTableName}.created_at`, `${UserTableName}.user_uuid`, `${UserTableName}.first_name`, `${UserTableName}.last_name`)
             .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc');
     }
 
@@ -1125,7 +1120,7 @@ export class SavedChartModel {
                                     type: tableCalculation.type || undefined,
                                     template:
                                         tableCalculation.template || undefined,
-                                } as TableCalculation),
+                                }) as TableCalculation,
                         ),
                         additionalMetrics,
                         customDimensions: [
@@ -1408,9 +1403,8 @@ export class SavedChartModel {
             .groupBy(1, 2, 3, 4, 5, 6, 7, 8, 9);
 
         // Filter out charts that are saved in a dashboard and don't belong to any tile in their dashboard last version
-        const chartsNotInTilesUuids = await this.getChartsNotInTilesUuids(
-            savedCharts,
-        );
+        const chartsNotInTilesUuids =
+            await this.getChartsNotInTilesUuids(savedCharts);
         return savedCharts
             .map((chart) => ({
                 ...chart,
@@ -1762,9 +1756,8 @@ export class SavedChartModel {
             );
 
         // Filter out charts that are saved in a dashboard and don't belong to any tile in their dashboard last version
-        const chartsNotInTilesUuids = await this.getChartsNotInTilesUuids(
-            savedCharts,
-        );
+        const chartsNotInTilesUuids =
+            await this.getChartsNotInTilesUuids(savedCharts);
         return savedCharts
             .filter((chart) => !chartsNotInTilesUuids.includes(chart.uuid))
             .map((chart) => ({

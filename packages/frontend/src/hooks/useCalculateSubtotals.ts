@@ -158,32 +158,32 @@ export const useCalculateSubtotals = ({
                       dateZoom,
                   )
                 : // Embed mode with raw query (Explore)
-                embedToken &&
-                  projectUuid &&
-                  metricQuery &&
-                  explore &&
-                  columnOrder
-                ? postCalculateSubtotalsFromQueryForEmbed(
-                      projectUuid,
-                      explore,
-                      metricQuery,
-                      columnOrder,
-                      pivotDimensions,
-                      parameters,
-                      dateZoom,
-                  )
-                : // Regular mode with raw query
-                projectUuid && metricQuery && explore && columnOrder
-                ? calculateSubtotalsFromQuery(
-                      projectUuid,
-                      explore,
-                      metricQuery,
-                      columnOrder,
-                      pivotDimensions,
-                      parameters,
-                      dateZoom,
-                  )
-                : Promise.reject(),
+                  embedToken &&
+                    projectUuid &&
+                    metricQuery &&
+                    explore &&
+                    columnOrder
+                  ? postCalculateSubtotalsFromQueryForEmbed(
+                        projectUuid,
+                        explore,
+                        metricQuery,
+                        columnOrder,
+                        pivotDimensions,
+                        parameters,
+                        dateZoom,
+                    )
+                  : // Regular mode with raw query
+                    projectUuid && metricQuery && explore && columnOrder
+                    ? calculateSubtotalsFromQuery(
+                          projectUuid,
+                          explore,
+                          metricQuery,
+                          columnOrder,
+                          pivotDimensions,
+                          parameters,
+                          dateZoom,
+                      )
+                    : Promise.reject(),
         {
             retry: false,
             enabled:

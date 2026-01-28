@@ -20,7 +20,7 @@ export type WarehouseLabel =
           Icon: Icon;
       };
 
-export type SelectedWarehouse = typeof WarehouseTypeLabels[number]['key'];
+export type SelectedWarehouse = (typeof WarehouseTypeLabels)[number]['key'];
 
 export enum ConnectMethod {
     CLI = 'cli',

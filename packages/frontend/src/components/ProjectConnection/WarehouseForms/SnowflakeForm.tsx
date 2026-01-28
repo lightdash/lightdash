@@ -130,10 +130,10 @@ const SnowflakeForm: FC<{
     const defaultAuthType = savedAuthType
         ? savedAuthType
         : isSsoEnabled
-        ? SnowflakeAuthenticationType.SSO
-        : hasPrivateKey
-        ? SnowflakeAuthenticationType.PRIVATE_KEY
-        : SnowflakeAuthenticationType.PASSWORD;
+          ? SnowflakeAuthenticationType.SSO
+          : hasPrivateKey
+            ? SnowflakeAuthenticationType.PRIVATE_KEY
+            : SnowflakeAuthenticationType.PASSWORD;
 
     if (!form.isTouched()) {
         form.setFieldValue('warehouse.authenticationType', defaultAuthType);

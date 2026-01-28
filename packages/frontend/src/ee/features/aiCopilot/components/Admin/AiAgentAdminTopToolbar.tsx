@@ -171,8 +171,8 @@ export const AiAgentAdminTopToolbar: FC<AiAgentAdminTopToolbarProps> = memo(
                                 {isFetching
                                     ? 'Loading...'
                                     : hasNextPage
-                                    ? `${currentResultsCount} of ${totalResults} threads`
-                                    : `${totalResults} threads`}
+                                      ? `${currentResultsCount} of ${totalResults} threads`
+                                      : `${totalResults} threads`}
                             </Text>
                         </Box>
                     </Group>

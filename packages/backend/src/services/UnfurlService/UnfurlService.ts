@@ -459,9 +459,8 @@ export class UnfurlService extends BaseService {
         user: SessionUser,
         selectedTabs: string[] | null,
     ): Promise<string> {
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
         const access = await this.spaceModel.getUserSpaceAccess(
             user.userUuid,
@@ -493,7 +492,7 @@ export class UnfurlService extends BaseService {
             queryFilters &&
             !(queryFilters.startsWith('?') || queryFilters.startsWith('&'))
                 ? `?${queryFilters}`
-                : queryFilters ?? '';
+                : (queryFilters ?? '');
 
         const url = new URL(
             urlBase + suffix,
@@ -956,9 +955,10 @@ export class UnfurlService extends BaseService {
                                 getError: async (
                                     el: playwright.ElementHandle,
                                 ) => {
-                                    const errorMessage = await el.getAttribute(
-                                        'data-error-message',
-                                    );
+                                    const errorMessage =
+                                        await el.getAttribute(
+                                            'data-error-message',
+                                        );
                                     const sentryEventId = await el.getAttribute(
                                         'data-sentry-event-id',
                                     );

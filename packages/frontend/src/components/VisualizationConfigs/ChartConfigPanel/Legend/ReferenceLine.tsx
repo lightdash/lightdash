@@ -388,8 +388,8 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             value={label}
                             placeholder={
                                 useAverage && averageAvailable
-                                    ? value ?? 'Average'
-                                    : value ?? ''
+                                    ? (value ?? 'Average')
+                                    : (value ?? '')
                             }
                             onChange={(e) => {
                                 setLabel(e.target.value);

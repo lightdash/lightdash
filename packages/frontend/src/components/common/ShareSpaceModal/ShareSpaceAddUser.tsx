@@ -157,9 +157,9 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 (access) => access.userUuid === user.userUuid,
             );
             const currentSpaceRoleTitle = spaceAccess
-                ? UserAccessOptions.find(
+                ? (UserAccessOptions.find(
                       (option) => option.value === spaceAccess.role,
-                  )?.title ?? 'No access'
+                  )?.title ?? 'No access')
                 : 'No access';
 
             const spaceRoleInheritanceInfo = `Access inherited from their ${spaceAccess?.inheritedFrom} role`;

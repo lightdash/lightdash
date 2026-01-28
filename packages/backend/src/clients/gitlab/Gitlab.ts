@@ -177,7 +177,11 @@ export const checkFileDoesNotExist = async ({
     installationId,
     token,
     hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
-}: GitlabApiParams & { path: string; branch: string; installationId?: string }) => {
+}: GitlabApiParams & {
+    path: string;
+    branch: string;
+    installationId?: string;
+}) => {
     try {
         await getFileContent({
             fileName: path,

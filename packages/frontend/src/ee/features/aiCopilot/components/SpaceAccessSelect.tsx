@@ -77,10 +77,10 @@ export const SpaceAccessSelect: FC<SpaceAccessSelectProps> = ({
                             {isLoadingSpaces
                                 ? 'Loading spaces...'
                                 : value.length === 0
-                                ? 'All spaces (click to restrict)'
-                                : `${value.length} of ${spaces.length} space${
-                                      spaces.length !== 1 ? 's' : ''
-                                  } selected`}
+                                  ? 'All spaces (click to restrict)'
+                                  : `${value.length} of ${spaces.length} space${
+                                        spaces.length !== 1 ? 's' : ''
+                                    } selected`}
                         </Text>
                         <MantineIcon
                             icon={IconChevronDown}

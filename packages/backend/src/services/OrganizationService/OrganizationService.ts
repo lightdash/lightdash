@@ -418,9 +418,8 @@ export class OrganizationService extends BaseService {
             );
         }
         if (data.role !== undefined) {
-            const organization = await this.organizationModel.get(
-                organizationUuid,
-            );
+            const organization =
+                await this.organizationModel.get(organizationUuid);
             this.analytics.track({
                 userId: authenticatedUser.userUuid,
                 event: 'permission.updated',

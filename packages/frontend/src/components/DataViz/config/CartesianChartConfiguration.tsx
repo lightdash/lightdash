@@ -17,8 +17,8 @@ export const CartesianChartConfig = ({
         selectedChartType === ChartKind.LINE
             ? lineChartConfigSlice.actions
             : selectedChartType === ChartKind.VERTICAL_BAR
-            ? barChartConfigSlice.actions
-            : null;
+              ? barChartConfigSlice.actions
+              : null;
 
     if (!actions) {
         return null;

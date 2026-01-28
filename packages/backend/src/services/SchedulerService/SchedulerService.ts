@@ -419,9 +419,8 @@ export class SchedulerService extends BaseService {
     async getSchedulerDefaultTimezone(schedulerUuid: string | undefined) {
         if (!schedulerUuid) return 'UTC'; // When it is sendNow there is not schedulerUuid
 
-        const scheduler = await this.schedulerModel.getSchedulerAndTargets(
-            schedulerUuid,
-        );
+        const scheduler =
+            await this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
         const { projectUuid } = await this.getSchedulerResource(scheduler);
         const project = await this.projectModel.get(projectUuid);
         return project.schedulerTimezone;
@@ -584,9 +583,8 @@ export class SchedulerService extends BaseService {
         );
 
         if (enabled) {
-            const defaultTimezone = await this.getSchedulerDefaultTimezone(
-                schedulerUuid,
-            );
+            const defaultTimezone =
+                await this.getSchedulerDefaultTimezone(schedulerUuid);
 
             // If the scheduler is enabled, we need to generate the daily jobs
             await this.schedulerClient.generateDailyJobsForScheduler(
@@ -958,9 +956,8 @@ export class SchedulerService extends BaseService {
             newDefaultProjectTimezone: string;
         },
     ) {
-        const schedulers = await this.schedulerModel.getSchedulerForProject(
-            projectUuid,
-        );
+        const schedulers =
+            await this.schedulerModel.getSchedulerForProject(projectUuid);
 
         const schedulerUpdatePromises = schedulers.reduce<
             Promise<SchedulerCronUpdate>[]
@@ -1165,9 +1162,10 @@ export class SchedulerService extends BaseService {
             throw error;
         }
 
-        const summary = await this.schedulerModel.getSchedulersSummaryByOwner(
-            targetUserUuid,
-        );
+        const summary =
+            await this.schedulerModel.getSchedulersSummaryByOwner(
+                targetUserUuid,
+            );
 
         // Check user can manage scheduled deliveries in all projects
         const projectsWithoutPermission = summary.byProject
@@ -1224,9 +1222,8 @@ export class SchedulerService extends BaseService {
         }
 
         // Get scheduler summary to find which projects have schedulers
-        const summary = await this.schedulerModel.getSchedulersSummaryByOwner(
-            fromUserUuid,
-        );
+        const summary =
+            await this.schedulerModel.getSchedulersSummaryByOwner(fromUserUuid);
 
         if (summary.totalCount === 0) {
             return { reassignedCount: 0 };
@@ -1361,7 +1358,7 @@ export class SchedulerService extends BaseService {
 
         // Categorize jobs by duration
         const jobsToLog: Array<{
-            job: typeof runningJobs[number];
+            job: (typeof runningJobs)[number];
             durationMinutes: number;
         }> = [];
         let warningCount = 0;

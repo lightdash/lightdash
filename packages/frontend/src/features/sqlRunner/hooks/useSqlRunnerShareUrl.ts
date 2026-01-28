@@ -22,7 +22,8 @@ const EXCLUDED_KEYS_FROM_SHARE_STATE = [
     'fetchResultsOnLoad',
 ] as const;
 
-type ExcludedKeysFromShareState = typeof EXCLUDED_KEYS_FROM_SHARE_STATE[number];
+type ExcludedKeysFromShareState =
+    (typeof EXCLUDED_KEYS_FROM_SHARE_STATE)[number];
 
 type SqlRunnerStateWithoutExcludedKeys = Omit<
     SqlRunnerState,

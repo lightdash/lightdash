@@ -28,9 +28,9 @@ tileTargets?: Record<string, DashboardTileTarget>
 
 From `getFilterTileRelation()`:
 
--   **`auto`**: Filter automatically applies to tiles that have the matching field
--   **`disabled`**: Tile is explicitly excluded from this filter
--   **`mapped`**: Tile is explicitly included with a specific field mapping
+- **`auto`**: Filter automatically applies to tiles that have the matching field
+- **`disabled`**: Tile is explicitly excluded from this filter
+- **`mapped`**: Tile is explicitly included with a specific field mapping
 
 ### Autocomplete Filtering
 
@@ -60,17 +60,16 @@ Same-field filters are always excluded because they would over-restrict the auto
 
 ## Key Files
 
--   `FilterConfiguration/utils/index.ts` - Core utilities for filter-tile relationships
+- `FilterConfiguration/utils/index.ts` - Core utilities for filter-tile relationships
+    - `getFilterTileRelation()` - Determines relationship between filter and tile
+    - `doesFilterApplyToTile()` - Checks if filter applies to a specific tile
+    - `getTabsForFilterRule()` - Gets which tabs a filter applies to
 
-    -   `getFilterTileRelation()` - Determines relationship between filter and tile
-    -   `doesFilterApplyToTile()` - Checks if filter applies to a specific tile
-    -   `getTabsForFilterRule()` - Gets which tabs a filter applies to
+- `FiltersProvider.tsx` (in `components/common/Filters/`) - Provides filter context including `getAutocompleteFilterGroup()` for autocomplete filtering
 
--   `FiltersProvider.tsx` (in `components/common/Filters/`) - Provides filter context including `getAutocompleteFilterGroup()` for autocomplete filtering
+- `ActiveFilters/index.tsx` - Renders active filters, handles tab-based visibility
 
--   `ActiveFilters/index.tsx` - Renders active filters, handles tab-based visibility
-
--   `FilterConfiguration/index.tsx` - Filter configuration UI (value selection, tile targeting)
+- `FilterConfiguration/index.tsx` - Filter configuration UI (value selection, tile targeting)
 
 ## Common Patterns
 

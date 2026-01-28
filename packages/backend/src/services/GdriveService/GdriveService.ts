@@ -118,9 +118,8 @@ export class GdriveService extends BaseService {
             organizationUuid,
         };
 
-        const { jobId } = await this.schedulerClient.uploadGsheetFromQueryJob(
-            payload,
-        );
+        const { jobId } =
+            await this.schedulerClient.uploadGsheetFromQueryJob(payload);
 
         return { jobId };
     }

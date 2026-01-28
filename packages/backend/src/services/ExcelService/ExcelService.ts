@@ -219,9 +219,8 @@ export class ExcelService {
 
         // Load rows from the results file using shared streaming utility
         // For pivot tables, we need to use csvCellsLimit to prevent memory issues
-        const readStream = await resultsStorageClient.getDownloadStream(
-            resultsFileName,
-        );
+        const readStream =
+            await resultsStorageClient.getDownloadStream(resultsFileName);
 
         const fieldCount = Object.keys(fields).length;
         const cellsLimit = lightdashConfig.query?.csvCellsLimit || 100000;
@@ -438,9 +437,8 @@ export class ExcelService {
 
         try {
             // Step 1: Get source stream
-            const resultsStream = await resultsStorageClient.getDownloadStream(
-                resultsFileName,
-            );
+            const resultsStream =
+                await resultsStorageClient.getDownloadStream(resultsFileName);
 
             // Step 2: Stream JSONL data to Excel temp file
             const { truncated } = await ExcelService.streamJsonlToExcelFile(

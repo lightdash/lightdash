@@ -14,7 +14,7 @@ export const FUNNEL_DATE_PRESETS = [
     { value: 'custom', label: 'Custom range', days: null },
 ] as const;
 
-export type FunnelDatePreset = typeof FUNNEL_DATE_PRESETS[number]['value'];
+export type FunnelDatePreset = (typeof FUNNEL_DATE_PRESETS)[number]['value'];
 
 export type FunnelDateRange =
     | { type: 'preset'; preset: Exclude<FunnelDatePreset, 'custom'> }

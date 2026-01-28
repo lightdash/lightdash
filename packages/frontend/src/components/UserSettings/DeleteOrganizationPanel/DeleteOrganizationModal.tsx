@@ -42,8 +42,8 @@ export const OrganizationDeleteModal: FC<
             confirmLoading={isDeleting}
         >
             <Text fz="sm" c="dimmed">
-                Type the name of this organization to confirm. This action
-                will delete all users and is not reversible.
+                Type the name of this organization to confirm. This action will
+                delete all users and is not reversible.
             </Text>
 
             <TextInput

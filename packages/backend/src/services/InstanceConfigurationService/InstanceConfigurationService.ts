@@ -392,9 +392,8 @@ export class InstanceConfigurationService extends BaseService {
                 `Update instance: Updating configuration for project ${projectUuid}`,
             );
 
-            const project = await this.projectModel.getWithSensitiveFields(
-                projectUuid,
-            );
+            const project =
+                await this.projectModel.getWithSensitiveFields(projectUuid);
 
             const { warehouseConnection, dbtConnection } = project;
 

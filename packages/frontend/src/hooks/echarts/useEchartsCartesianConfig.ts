@@ -1792,8 +1792,8 @@ const getEchartAxes = ({
                         ? gridStyle
                         : { show: false }
                     : showGridX
-                    ? gridStyle
-                    : { show: false },
+                      ? gridStyle
+                      : { show: false },
                 axisLine: getAxisLineStyle(),
                 axisTick: getAxisTickStyle(
                     validCartesianConfig?.eChartsConfig?.showAxisTicks,
@@ -1930,8 +1930,8 @@ const getEchartAxes = ({
                         ? gridStyle
                         : { show: false }
                     : showGridY
-                    ? gridStyle
-                    : { show: false },
+                      ? gridStyle
+                      : { show: false },
                 axisLine: getAxisLineStyle(),
                 axisTick: getAxisTickStyle(
                     validCartesianConfig?.eChartsConfig?.showAxisTicks,
@@ -2872,14 +2872,14 @@ const useEchartsCartesianConfig = (
                               stackLabelPaddingCalc.right,
                       )
                     : isPxValue(gridRight) && enableDataZoom && flipAxes
-                    ? addPx(
-                          gridRight,
-                          defaultAxisLabelGap +
-                              extraRightPadding +
-                              stackLabelPaddingCalc.right +
-                              30,
-                      )
-                    : grid.right,
+                      ? addPx(
+                            gridRight,
+                            defaultAxisLabelGap +
+                                extraRightPadding +
+                                stackLabelPaddingCalc.right +
+                                30,
+                        )
+                      : grid.right,
             // Add extra top spacing for 100% stacking labels when not flipped (vertical bars)
             top:
                 stackLabelPaddingCalc.top > 0 && isPxValue(grid.top)

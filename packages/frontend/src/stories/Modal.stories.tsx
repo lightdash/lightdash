@@ -27,9 +27,9 @@ import {
     IconUsers,
 } from '@tabler/icons-react';
 import { useState } from 'react';
+import Callout from '../components/common/Callout';
 import MantineIcon from '../components/common/MantineIcon';
 import MantineModal from '../components/common/MantineModal';
-import Callout from '../components/common/Callout';
 
 const meta: Meta<typeof MantineModal> = {
     component: MantineModal,
@@ -77,10 +77,7 @@ export const DeleteWithWarning: Story = {
         resourceType: 'space',
         resourceLabel: 'Jaffle Shop',
         children: (
-            <Callout
-                variant="danger"
-                title="This will permanently delete:"
-            >
+            <Callout variant="danger" title="This will permanently delete:">
                 <List size="sm">
                     <List.Item>12 charts</List.Item>
                     <List.Item>3 dashboards</List.Item>

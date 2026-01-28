@@ -629,13 +629,11 @@ export class PromoteService extends BaseService {
     }
 
     async promoteChart(user: SessionUser, chartUuid: string) {
-        const { projectUuid } = await this.savedChartModel.getSummary(
-            chartUuid,
-        );
+        const { projectUuid } =
+            await this.savedChartModel.getSummary(chartUuid);
 
-        const { upstreamProjectUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { upstreamProjectUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (!upstreamProjectUuid) {
             throw new NotFoundError(
                 'This chart does not have an upstream project',
@@ -694,13 +692,11 @@ export class PromoteService extends BaseService {
     }
 
     async getPromoteChartDiff(user: SessionUser, chartUuid: string) {
-        const { projectUuid } = await this.savedChartModel.getSummary(
-            chartUuid,
-        );
+        const { projectUuid } =
+            await this.savedChartModel.getSummary(chartUuid);
 
-        const { upstreamProjectUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { upstreamProjectUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (!upstreamProjectUuid) {
             throw new NotFoundError(
                 'This chart does not have an upstream project',
@@ -724,9 +720,8 @@ export class PromoteService extends BaseService {
     }
 
     async getPromoteDashboardDiff(user: SessionUser, dashboardUuid: string) {
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         const { upstreamProjectUuid } = await this.projectModel.getSummary(
             dashboard.projectUuid,
@@ -1417,9 +1412,8 @@ export class PromoteService extends BaseService {
     }
 
     async promoteDashboard(user: SessionUser, dashboardUuid: string) {
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         const { upstreamProjectUuid } = await this.projectModel.getSummary(
             dashboard.projectUuid,

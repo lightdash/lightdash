@@ -18,8 +18,8 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
 import { useGdriveAccessToken } from '../../../hooks/gdrive/useGdrive';
 import useHealth from '../../../hooks/health/useHealth';
-import { useSyncModalFormContext } from './syncModalFormContext';
 import classes from './SelectGoogleSheetButton.module.css';
+import { useSyncModalFormContext } from './syncModalFormContext';
 
 export const SelectGoogleSheetButton: FC = () => {
     const form = useSyncModalFormContext();
@@ -124,7 +124,10 @@ export const SelectGoogleSheetButton: FC = () => {
                                 c="ldGray.6"
                                 onClick={() => {
                                     form.setFieldValue('options.gdriveId', '');
-                                    form.setFieldValue('options.gdriveName', '');
+                                    form.setFieldValue(
+                                        'options.gdriveName',
+                                        '',
+                                    );
                                     form.setFieldValue('options.url', '');
                                     form.setFieldValue(
                                         'options.gdriveOrganizationName',
@@ -162,4 +165,3 @@ export const SelectGoogleSheetButton: FC = () => {
         </Tooltip>
     );
 };
-

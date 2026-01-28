@@ -657,8 +657,8 @@ export default class EvalHtmlReporter implements Reporter {
                                     <summary style="cursor: pointer; color: #495057; font-weight: 600;">${
                                         idx + 1
                                     }. ${EvalHtmlReporter.escapeHtml(
-                                    tc.tool_name,
-                                )}</summary>
+                                        tc.tool_name,
+                                    )}</summary>
                                     <div style="margin-top: 8px; padding: 8px; background: white; border-radius: 4px;">
                                         <div style="margin-bottom: 8px;">
                                             <strong>Arguments:</strong>
