@@ -1,3 +1,10 @@
+# [0.2388.0](https://github.com/lightdash/lightdash/compare/0.2387.1...0.2388.0) (2026-01-28)
+
+
+### Features
+
+* add model.meta.owner key support ([#19719](https://github.com/lightdash/lightdash/issues/19719)) ([2ed0dcc](https://github.com/lightdash/lightdash/commit/2ed0dcc442b916a197755352f7a345ec9fb09068))
+
 ## [0.2387.1](https://github.com/lightdash/lightdash/compare/0.2387.0...0.2387.1) (2026-01-28)
 
 
