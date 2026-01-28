@@ -1,3 +1,11 @@
+## [0.2385.1](https://github.com/lightdash/lightdash/compare/0.2385.0...0.2385.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* center verification form buttons and fix indentation ([#19766](https://github.com/lightdash/lightdash/issues/19766)) ([f289188](https://github.com/lightdash/lightdash/commit/f2891882a54b4ce87c2581affb06d5165df32b02))
+* include charts from dashboards in validation error queries ([#19758](https://github.com/lightdash/lightdash/issues/19758)) ([9e8bde9](https://github.com/lightdash/lightdash/commit/9e8bde9efbfbbf963065b637f9cdb35faa599f63))
+
 # [0.2385.0](https://github.com/lightdash/lightdash/compare/0.2384.0...0.2385.0) (2026-01-28)
 
 
