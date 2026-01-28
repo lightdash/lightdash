@@ -9,7 +9,8 @@ import {
 } from '@lightdash/common';
 import { Accordion } from '@mantine/core';
 import { produce } from 'immer';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { AddButton } from '../common/AddButton';
@@ -63,6 +64,15 @@ const ConditionalFormattingList = ({}) => {
         });
     }, [chartConfig, fieldsForConditionalFormatting]);
 
+    const configIdsRef = useRef<string[]>([]);
+    // Ensure we have best effort stable IDs for each config (generates new IDs for new configs)
+    // This prevents focus loss when editing and ensures correct item deletion.
+    useEffect(() => {
+        while (configIdsRef.current.length < activeConfigs.length) {
+            configIdsRef.current.push(uuidv4());
+        }
+    }, [activeConfigs.length]);
+
     const handleAdd = useCallback(() => {
         if (!chartConfig) return;
 
@@ -83,6 +93,8 @@ const ConditionalFormattingList = ({}) => {
     const handleRemove = useCallback(
         (index: number) => {
             if (!chartConfig) return;
+
+            configIdsRef.current.splice(index, 1);
 
             const { onSetConditionalFormattings } = chartConfig;
 
@@ -136,7 +148,7 @@ const ConditionalFormattingList = ({}) => {
                 >
                     {activeConfigs.map((conditionalFormatting, index) => (
                         <ConditionalFormattingItem
-                            key={JSON.stringify(conditionalFormatting)}
+                            key={configIdsRef.current[index] ?? index}
                             isOpen={openItems.includes(`${index}`)}
                             addNewItem={addNewItem}
                             removeItem={removeItem}
