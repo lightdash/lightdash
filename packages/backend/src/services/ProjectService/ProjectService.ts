@@ -1216,7 +1216,7 @@ export class ProjectService extends BaseService {
         }`;
         // Check cache for existing client (always false if ssh tunnel was connected)
         const existingClient = this.warehouseClients[cacheKey] as
-            | typeof this.warehouseClients[string]
+            | (typeof this.warehouseClients)[string]
             | undefined;
         if (
             existingClient &&
@@ -1312,9 +1312,8 @@ export class ProjectService extends BaseService {
 
         const { cachedExploreUuids } =
             await this.projectModel.saveExploresToCache(projectUuid, explores);
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         this.logger.info(
             `Saved ${cachedExploreUuids.length} explores to cache for project ${projectUuid}`,
@@ -1742,9 +1741,8 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         explores: (Explore | ExploreError)[],
     ): Promise<void> {
-        const project = await this.projectModel.getWithSensitiveFields(
-            projectUuid,
-        );
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
         if (
             user.ability.cannot(
                 'update',
@@ -1838,9 +1836,8 @@ export class ProjectService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const savedProject = await this.projectModel.getWithSensitiveFields(
-            projectUuid,
-        );
+        const savedProject =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
         if (
             user.ability.cannot(
                 'update',
@@ -1917,9 +1914,8 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
 
-        const updatedProject = await this.projectModel.getWithSensitiveFields(
-            projectUuid,
-        );
+        const updatedProject =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
 
         if (user.ability.cannot('update', subject('Project', updatedProject))) {
             throw new ForbiddenError();
@@ -2125,9 +2121,8 @@ export class ProjectService extends BaseService {
     }
 
     async delete(projectUuid: string, user: SessionUser): Promise<void> {
-        const project = await this.projectModel.getWithSensitiveFields(
-            projectUuid,
-        );
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
 
         if (
             user.ability.cannot(
@@ -2164,9 +2159,8 @@ export class ProjectService extends BaseService {
         sshTunnel: SshTunnel<CreateWarehouseCredentials>;
         adapter: ProjectAdapter;
     }> {
-        const project = await this.projectModel.getWithSensitiveFields(
-            projectUuid,
-        );
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
         if (!project.warehouseConnection) {
             throw new MissingWarehouseCredentialsError(
                 'Warehouse credentials must be provided to connect to your dbt project',
@@ -2405,9 +2399,8 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         explore: Explore,
     ): Promise<ParameterDefinitions> {
-        const projectParameters = await this.projectParametersModel.find(
-            projectUuid,
-        );
+        const projectParameters =
+            await this.projectParametersModel.find(projectUuid);
 
         return getAvailableParameterDefinitions(projectParameters, explore);
     }
@@ -2426,9 +2419,8 @@ export class ProjectService extends BaseService {
             projectUuid,
         } = args;
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             account.user.ability.cannot(
@@ -2508,9 +2500,8 @@ export class ProjectService extends BaseService {
         context: QueryExecutionContext = QueryExecutionContext.VIEW_UNDERLYING_DATA,
     ): Promise<ApiQueryResults> {
         assertIsAccountWithOrg(account);
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             account.user.ability.cannot(
@@ -2816,9 +2807,8 @@ export class ProjectService extends BaseService {
     ): Promise<ApiQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             account.user.ability.cannot(
@@ -3430,9 +3420,8 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         sql: string,
     ): Promise<ApiSqlQueryResults> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(
@@ -3492,9 +3481,8 @@ export class ProjectService extends BaseService {
         fileUrl: string;
         columns: VizColumn[];
     }> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         const query = applyLimitToSqlQuery({ sqlQuery: sql, limit });
 
@@ -3577,9 +3565,8 @@ export class ProjectService extends BaseService {
         if (indexColumns.length === 0) {
             throw new ParameterError('Index column is required');
         }
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
@@ -3758,9 +3745,8 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         fileId: string,
     ): Promise<Readable> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'view',
@@ -3770,9 +3756,8 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const downloadFile = await this.downloadFileModel.getDownloadFile(
-            fileId,
-        );
+        const downloadFile =
+            await this.downloadFileModel.getDownloadFile(fileId);
         switch (downloadFile.type) {
             case DownloadFileType.JSONL:
                 return fs.createReadStream(downloadFile.path);
@@ -3901,9 +3886,8 @@ export class ProjectService extends BaseService {
         parameters?: ParametersValuesMap,
         userAttributeOverrides?: UserAttributeValueMap, // EXPERIMENTAL: used to override user attributes for MCP
     ) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(
@@ -3980,14 +3964,12 @@ export class ProjectService extends BaseService {
         const isCacheEnabled = this.lightdashConfig.results.autocompleteEnabled;
 
         if (!forceRefresh && isCacheEnabled) {
-            const isCached = await this.s3CacheClient.getResultsMetadata(
-                queryHash,
-            );
+            const isCached =
+                await this.s3CacheClient.getResultsMetadata(queryHash);
 
             if (isCached !== undefined) {
-                const cacheEntry = await this.s3CacheClient.getResults(
-                    queryHash,
-                );
+                const cacheEntry =
+                    await this.s3CacheClient.getResults(queryHash);
                 const stringResults =
                     await cacheEntry.Body?.transformToString();
                 if (stringResults) {
@@ -4284,9 +4266,8 @@ export class ProjectService extends BaseService {
         requestMethod: RequestMethod,
         skipPermissionCheck: boolean = false,
     ): Promise<{ jobUuid: string }> {
-        const { organizationUuid, type } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid, type } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             !skipPermissionCheck &&
             (user.ability.cannot(
@@ -4340,9 +4321,8 @@ export class ProjectService extends BaseService {
     ) {
         const totalStartTime = performance.now();
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'create',
@@ -4479,9 +4459,8 @@ export class ProjectService extends BaseService {
         includeErrors: boolean = true,
     ) {
         // Use optimized query that only fetches summary fields instead of full explore JSON
-        const exploreSummaries = await this.projectModel.getAllExploreSummaries(
-            projectUuid,
-        );
+        const exploreSummaries =
+            await this.projectModel.getAllExploreSummaries(projectUuid);
 
         if (!exploreSummaries || exploreSummaries.length === 0) {
             return [];
@@ -4517,9 +4496,8 @@ export class ProjectService extends BaseService {
         filtered: boolean,
         includeErrors: boolean = true,
     ): Promise<SummaryExplore[]> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             ProjectService.isChartEmbed(account) ||
@@ -4683,9 +4661,8 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectCatalog> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'view',
@@ -4755,9 +4732,8 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<WarehouseTablesCatalog> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -4808,9 +4784,8 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<WarehouseTablesCatalog> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -4862,9 +4837,8 @@ export class ProjectService extends BaseService {
         schemaName?: string,
         databaseName?: string,
     ): Promise<WarehouseTableSchema> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -4932,9 +4906,8 @@ export class ProjectService extends BaseService {
         account: Account,
         projectUuid: string,
     ): Promise<TablesConfiguration> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             ProjectService.isChartEmbed(account) ||
@@ -4954,9 +4927,8 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         data: TablesConfiguration,
     ): Promise<TablesConfiguration> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'update',
@@ -5157,9 +5129,8 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<boolean> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'view',
@@ -5194,9 +5165,8 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         userUuid: string,
     ): Promise<ProjectMemberProfile> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'view',
@@ -5226,9 +5196,8 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectMemberProfile[]> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'view',
@@ -5248,9 +5217,8 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         data: CreateProjectMember,
     ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -5289,9 +5257,8 @@ export class ProjectService extends BaseService {
         userUuid: string,
         data: UpdateProjectMember,
     ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -5316,9 +5283,8 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         data: UpdateMetadata,
     ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -5339,9 +5305,8 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         userUuid: string,
     ): Promise<void> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'manage',
@@ -5361,9 +5326,8 @@ export class ProjectService extends BaseService {
         actor: SessionUser,
         projectUuid: string,
     ): Promise<ProjectGroupAccess[]> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             actor.ability.cannot(
@@ -5383,9 +5347,8 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<SpaceQuery[]> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'view',
@@ -5413,12 +5376,10 @@ export class ProjectService extends BaseService {
             )
             .map(({ uuid }) => uuid);
 
-        const savedQueries = await this.spaceModel.getSpaceQueries(
-            allowedSpaceUuids,
-        );
-        const savedSqlCharts = await this.spaceModel.getSpaceSqlCharts(
-            allowedSpaceUuids,
-        );
+        const savedQueries =
+            await this.spaceModel.getSpaceQueries(allowedSpaceUuids);
+        const savedSqlCharts =
+            await this.spaceModel.getSpaceSqlCharts(allowedSpaceUuids);
 
         return [...savedQueries, ...savedSqlCharts];
     }
@@ -5428,9 +5389,8 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         excludeChartsSavedInDashboard: boolean = false,
     ): Promise<ChartSummary[]> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'view',
@@ -5580,9 +5540,8 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<SpaceSummary[]> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'view',
@@ -5626,9 +5585,8 @@ export class ProjectService extends BaseService {
         context: RequestMethod,
     ): Promise<ApiCreatePreviewResults> {
         // create preview project permissions are checked in `createWithoutCompile`
-        const project = await this.projectModel.getWithSensitiveFields(
-            projectUuid,
-        );
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
 
         if (!project.warehouseConnection) {
             throw new ParameterError(
@@ -6044,9 +6002,8 @@ export class ProjectService extends BaseService {
     ) {
         assertIsAccountWithOrg(account);
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             account.user.ability.cannot(
@@ -6195,9 +6152,8 @@ export class ProjectService extends BaseService {
     ) {
         assertIsAccountWithOrg(account);
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             account.user.ability.cannot(
@@ -6264,9 +6220,8 @@ export class ProjectService extends BaseService {
             throw new NotFoundError('No explores found');
         }
 
-        const charts = await this.savedChartModel.findInfoForDbtExposures(
-            projectUuid,
-        );
+        const charts =
+            await this.savedChartModel.findInfoForDbtExposures(projectUuid);
 
         const chartExposures = charts.reduce<DbtExposure[]>((acc, chart) => {
             const dependsOn = Object.values(
@@ -6292,9 +6247,8 @@ export class ProjectService extends BaseService {
             }
             return acc;
         }, []);
-        const dashboards = await this.dashboardModel.findInfoForDbtExposures(
-            projectUuid,
-        );
+        const dashboards =
+            await this.dashboardModel.findInfoForDbtExposures(projectUuid);
 
         const dashboardExposures = dashboards.reduce<DbtExposure[]>(
             (acc, dashboard) => {
@@ -6451,9 +6405,8 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         payload: CreateVirtualViewPayload,
     ) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             account.user.ability.cannot(
@@ -6518,9 +6471,8 @@ export class ProjectService extends BaseService {
             throw new NotFoundError('Virtual view not found');
         }
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             account.user.ability.cannot(
@@ -6566,9 +6518,8 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         name: string,
     ) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(
@@ -6630,9 +6581,8 @@ export class ProjectService extends BaseService {
             color,
         }: Pick<Tag, 'projectUuid' | 'name' | 'color'>,
     ): Promise<Pick<Tag, 'tagUuid'>> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(
@@ -6725,9 +6675,8 @@ export class ProjectService extends BaseService {
     }
 
     async getTags(user: SessionUser, projectUuid: string) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(
@@ -6782,9 +6731,8 @@ export class ProjectService extends BaseService {
             yamlReference: NonNullable<Tag['yamlReference']>;
         })[],
     ) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(
@@ -6828,9 +6776,8 @@ export class ProjectService extends BaseService {
     async findReplaceableCustomFields({
         projectUuid,
     }: ReplaceCustomFieldsPayload): Promise<ReplaceableCustomFields> {
-        const charts = await this.savedChartModel.findChartsWithCustomFields(
-            projectUuid,
-        );
+        const charts =
+            await this.savedChartModel.findChartsWithCustomFields(projectUuid);
         const explores = await this.projectModel.findExploresFromCache(
             projectUuid,
             'name',
@@ -6939,9 +6886,8 @@ export class ProjectService extends BaseService {
         runId: string,
     ): Promise<string> {
         // create preview project permissions are checked in `createWithoutCompile`
-        const project = await this.projectModel.getWithSensitiveFields(
-            projectUuid,
-        );
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
 
         if (!project.warehouseConnection) {
             throw new ParameterError(
@@ -7151,9 +7097,8 @@ export class ProjectService extends BaseService {
         const projectDefaultParameterValues: ParametersValuesMap = {};
 
         // Fetch all parameters
-        const parameterConfigs = await this.projectParametersModel.find(
-            projectUuid,
-        );
+        const parameterConfigs =
+            await this.projectParametersModel.find(projectUuid);
 
         for (const paramConfig of parameterConfigs) {
             if (paramConfig.config.default !== undefined) {

@@ -1880,10 +1880,9 @@ export class SchedulerModel {
         // Query schedulers for dashboards
         const dashboardSchedulersQuery = this.database(SchedulerTableName)
             .count('*')
-            .select<ProjectCountRow[]>(
-                `${ProjectTableName}.project_uuid`,
-                `${ProjectTableName}.name as project_name`,
-            )
+            .select<
+                ProjectCountRow[]
+            >(`${ProjectTableName}.project_uuid`, `${ProjectTableName}.name as project_name`)
             .innerJoin(
                 DashboardsTableName,
                 `${DashboardsTableName}.dashboard_uuid`,
@@ -1998,9 +1997,9 @@ export class SchedulerModel {
 
         // Dashboard schedulers
         const dashboardSchedulerUuids = await this.database(SchedulerTableName)
-            .select<{ scheduler_uuid: string }[]>(
-                `${SchedulerTableName}.scheduler_uuid`,
-            )
+            .select<
+                { scheduler_uuid: string }[]
+            >(`${SchedulerTableName}.scheduler_uuid`)
             .innerJoin(
                 DashboardsTableName,
                 `${DashboardsTableName}.dashboard_uuid`,

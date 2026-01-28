@@ -147,6 +147,7 @@ export type DbtModelLightdashConfig = ExploreConfig &
         ai_hint?: string | string[];
         parameters?: LightdashProjectConfig['parameters'];
         primary_key?: string | string[];
+        owner?: string; // model owner email
     };
 
 export type DbtModelGroup = {

@@ -656,8 +656,8 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     point.value === null
                         ? 0.5
                         : max === min
-                        ? 0.5
-                        : (point.value - min) / (max - min);
+                          ? 0.5
+                          : (point.value - min) / (max - min);
                 return [point.lat, point.lon, scale];
             });
         }, [scatterData, scatterValueRange]);
@@ -843,17 +843,23 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     layer.bindTooltip(tooltipHtml);
                     layer.bindPopup(popupHtml);
 
+                    // Determine the correct base and hover opacity for this region
+                    const baseOpacity = regionEntry
+                        ? fillOpacityWithData
+                        : fillOpacityNoData;
+                    const hoverOpacity = hasBaseMap ? 0.9 : 1;
+
                     layer.on({
                         mouseover: () => {
                             layer.setStyle({
                                 weight: 2,
-                                fillOpacity: hasBaseMap ? 0.9 : 1,
+                                fillOpacity: hoverOpacity,
                             });
                         },
                         mouseout: () => {
                             layer.setStyle({
                                 weight: 1,
-                                fillOpacity: fillOpacityWithData,
+                                fillOpacity: baseOpacity,
                             });
                         },
                         popupopen: (e) => {
@@ -888,6 +894,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 handlePopupCopyClick,
                 hasBaseMap,
                 fillOpacityWithData,
+                fillOpacityNoData,
             ],
         );
 

@@ -310,9 +310,8 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const cacheStream = await this.resultsStorageClient.getDownloadStream(
-            fileName,
-        );
+        const cacheStream =
+            await this.resultsStorageClient.getDownloadStream(fileName);
 
         const rows: ResultRow[] = [];
         const rl = createInterface({
@@ -382,9 +381,8 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string;
         queryUuid: string;
     }): Promise<void> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             account.user.ability.cannot(
                 'view',
@@ -466,9 +464,8 @@ export class AsyncQueryService extends ProjectService {
     }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -679,9 +676,8 @@ export class AsyncQueryService extends ProjectService {
     }): Promise<Readable> {
         assertIsAccountWithOrg(account);
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -818,9 +814,8 @@ export class AsyncQueryService extends ProjectService {
     > {
         assertIsAccountWithOrg(account);
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -868,9 +863,10 @@ export class AsyncQueryService extends ProjectService {
         let validColumnOrder: string[] = columnOrder;
         if (columnOrder.length === 0) {
             try {
-                const firstLine = await this.resultsStorageClient.getFirstLine(
-                    resultsFileName,
-                );
+                const firstLine =
+                    await this.resultsStorageClient.getFirstLine(
+                        resultsFileName,
+                    );
                 if (firstLine) {
                     const firstRow = JSON.parse(firstLine);
                     validColumnOrder = Object.keys(firstRow);
@@ -1117,9 +1113,8 @@ export class AsyncQueryService extends ProjectService {
         resultsFileName: string,
     ): Promise<ApiDownloadAsyncQueryResults> {
         return {
-            fileUrl: await this.resultsStorageClient.getFileUrl(
-                resultsFileName,
-            ),
+            fileUrl:
+                await this.resultsStorageClient.getFileUrl(resultsFileName),
         };
     }
 
@@ -1134,7 +1129,6 @@ export class AsyncQueryService extends ProjectService {
         write,
         pivotConfiguration,
         itemsMap,
-        popEnabledMetrics,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -1142,11 +1136,6 @@ export class AsyncQueryService extends ProjectService {
         write?: (rows: Record<string, unknown>[]) => void | Promise<void>;
         pivotConfiguration?: PivotConfiguration;
         itemsMap: ItemsMap;
-        /**
-         * Set of metric field IDs that have period-over-period comparison enabled.
-         * Used to add popMetadata to the corresponding ResultColumns.
-         */
-        popEnabledMetrics?: Set<string>;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1184,7 +1173,6 @@ export class AsyncQueryService extends ProjectService {
                   unpivotedColumns = getUnpivotedColumns(
                       unpivotedColumns,
                       fields,
-                      { popEnabledMetrics },
                   );
 
                   const { indexColumn, valuesColumns, groupByColumns } =
@@ -1301,7 +1289,6 @@ export class AsyncQueryService extends ProjectService {
                   unpivotedColumns = getUnpivotedColumns(
                       unpivotedColumns,
                       fields,
-                      { popEnabledMetrics },
                   );
                   await write?.(rows);
               };
@@ -1357,7 +1344,6 @@ export class AsyncQueryService extends ProjectService {
         cacheKey,
         pivotConfiguration,
         originalColumns,
-        popEnabledMetrics,
     }: RunAsyncWarehouseQueryArgs) {
         let stream:
             | {
@@ -1447,7 +1433,6 @@ export class AsyncQueryService extends ProjectService {
                 write: stream?.write,
                 pivotConfiguration,
                 itemsMap: fieldsMap,
-                popEnabledMetrics,
             });
 
             this.analytics.track({
@@ -1604,10 +1589,12 @@ export class AsyncQueryService extends ProjectService {
             availableParameters,
         });
 
-        return getFieldsFromMetricQuery(
+        const fields = getFieldsFromMetricQuery(
             compiledMetricQuery,
             exploreWithOverride,
         );
+
+        return fields;
     }
 
     private async prepareMetricQueryAsyncQueryArgs({
@@ -1678,6 +1665,8 @@ export class AsyncQueryService extends ProjectService {
             }),
         );
 
+        const responseMetricQuery = metricQuery;
+
         return {
             sql: fullQuery.query,
             fields: fieldsWithOverrides,
@@ -1687,6 +1676,7 @@ export class AsyncQueryService extends ProjectService {
                 fullQuery.missingParameterReferences,
             ),
             usedParameters: fullQuery.usedParameters,
+            responseMetricQuery,
         };
     }
 
@@ -1933,11 +1923,6 @@ export class AsyncQueryService extends ProjectService {
                         `Executing query ${queryHistoryUuid} in the main loop`,
                     );
 
-                    // Build set of metrics with PoP enabled for ResultColumn metadata
-                    const popEnabledMetrics = metricQuery.periodOverPeriod
-                        ? new Set(metricQuery.metrics)
-                        : undefined;
-
                     void this.runAsyncWarehouseQuery({
                         userId: account.user.id,
                         isRegisteredUser: account.isRegisteredUser(),
@@ -1950,7 +1935,6 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfiguration,
                         cacheKey,
                         originalColumns,
-                        popEnabledMetrics,
                     }).catch((e) => {
                         const errorMessage = getErrorMessage(e);
 
@@ -1994,9 +1978,8 @@ export class AsyncQueryService extends ProjectService {
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         // We only check `exploreName` for chart embeds. Otherwise, CASL doesn't match
         // on condition checks that aren't set. If no `exploreName` is set in conditions,
@@ -2069,6 +2052,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
             usedParameters,
+            responseMetricQuery,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -2102,7 +2086,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
-            metricQuery,
+            metricQuery: responseMetricQuery,
             fields,
             warnings,
             parameterReferences,
@@ -2143,9 +2127,8 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError('Chart does not belong to project');
         }
 
-        const space = await this.spaceModel.getSpaceSummary(
-            savedChartSpaceUuid,
-        );
+        const space =
+            await this.spaceModel.getSpaceSummary(savedChartSpaceUuid);
         let access;
         if (isJwtUser(account)) {
             if (!ProjectService.isChartEmbed(account)) {
@@ -2267,6 +2250,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
             usedParameters,
+            responseMetricQuery,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -2298,7 +2282,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
-            metricQuery: metricQueryWithLimit,
+            metricQuery: responseMetricQuery,
             fields: fieldsWithOverrides,
             warnings,
             parameterReferences,
@@ -2488,9 +2472,8 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.startOfWeek,
         );
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // Combine default parameter values, dashboard parameters, and request parameters first
@@ -2523,6 +2506,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
             usedParameters,
+            responseMetricQuery,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -2557,7 +2541,7 @@ export class AsyncQueryService extends ProjectService {
             queryUuid,
             cacheMetadata,
             appliedDashboardFilters,
-            metricQuery: metricQueryWithLimit,
+            metricQuery: responseMetricQuery,
             fields: fieldsWithOverrides,
             parameterReferences,
             usedParametersValues: usedParameters,
@@ -2575,12 +2559,12 @@ export class AsyncQueryService extends ProjectService {
         dateZoom,
         limit,
         parameters,
+        sorts,
     }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             account.user.ability.cannot(
@@ -2751,6 +2735,7 @@ export class AsyncQueryService extends ProjectService {
             underlyingDataSourceQueryUuid,
             filters,
             underlyingDataItemId,
+            sorts,
         };
 
         const queryTags: RunQueryTags = {
@@ -2767,7 +2752,7 @@ export class AsyncQueryService extends ProjectService {
             customDimensions: availableCustomDimensions,
             filters,
             metrics: availableMetrics.map(getItemId),
-            sorts: [],
+            sorts: sorts ?? [],
             limit: 500,
             tableCalculations: [],
             additionalMetrics: [],
@@ -2787,6 +2772,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             missingParameterReferences,
             usedParameters,
+            responseMetricQuery,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: underlyingDataMetricQueryWithLimit,
@@ -2819,7 +2805,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid: underlyingDataQueryUuid,
             cacheMetadata,
-            metricQuery: underlyingDataMetricQueryWithLimit,
+            metricQuery: responseMetricQuery,
             fields,
             warnings,
             parameterReferences,
@@ -2837,9 +2823,8 @@ export class AsyncQueryService extends ProjectService {
         limit,
         parameters,
     }: ExecuteAsyncSqlQueryArgs): Promise<ApiExecuteAsyncSqlQueryResults> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             account.user.ability.cannot(
@@ -3299,9 +3284,8 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError("You don't have access to this chart");
         }
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // Combine default parameter values, dashboard parameters, and request parameters first

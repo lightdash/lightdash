@@ -321,9 +321,8 @@ export class MetricsExplorerService<
         timeDimensionOverride: TimeDimensionConfig | undefined,
         filter: FilterRule | undefined,
     ): Promise<MetricsExplorerQueryResults> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(

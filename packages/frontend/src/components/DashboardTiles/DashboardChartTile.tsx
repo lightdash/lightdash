@@ -106,7 +106,7 @@ import {
     type InfiniteQueryResults,
 } from '../../hooks/useQueryResults';
 import { useDuplicateChartMutation } from '../../hooks/useSavedQuery';
-import { useClientFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import { useAccount } from '../../hooks/user/useAccount';
 import { Can } from '../../providers/Ability';
@@ -151,7 +151,7 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
             metricQuery: savedChart.metricQuery,
             columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
-                ? savedChart.chartConfig.config.showTableNames ?? false
+                ? (savedChart.chartConfig.config.showTableNames ?? false)
                 : true,
             customLabels: getCustomLabelsFromTableConfig(
                 savedChart.chartConfig.config,
@@ -503,9 +503,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
     const { data: account } = useAccount();
     const { organizationUuid } = account?.organization || {};
 
-    const showExecutionTime = useClientFeatureFlag(
+    const { data: showExecutionTimeFlag } = useServerFeatureFlag(
         FeatureFlags.ShowExecutionTime,
     );
+    const showExecutionTime = showExecutionTimeFlag?.enabled;
 
     const {
         tile: {
@@ -1465,7 +1466,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 getDownloadQueryUuid={getDownloadQueryUuid}
                 showTableNames={
                     isTableChartConfig(chart.chartConfig.config)
-                        ? chart.chartConfig.config.showTableNames ?? false
+                        ? (chart.chartConfig.config.showTableNames ?? false)
                         : true
                 }
                 chartName={title || chart.name}
@@ -1744,7 +1745,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     getDownloadQueryUuid={getDownloadQueryUuid}
                     showTableNames={
                         isTableChartConfig(chart.chartConfig.config)
-                            ? chart.chartConfig.config.showTableNames ?? false
+                            ? (chart.chartConfig.config.showTableNames ?? false)
                             : true
                     }
                     chartName={title || chart.name}

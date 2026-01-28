@@ -22,6 +22,7 @@ import {
     isDashboardValidationError,
     isExploreError,
     isSqlTableCalculation,
+    isTableValidationError,
     isTemplateTableCalculation,
     isValidationTargetValid,
     OrganizationMemberRole,
@@ -252,9 +253,8 @@ export class ValidationService extends BaseService {
         >,
         selectedExplores?: (Explore | ExploreError)[],
     ): Promise<CreateChartValidation[]> {
-        const charts = await this.savedChartModel.findChartsForValidation(
-            projectUuid,
-        );
+        const charts =
+            await this.savedChartModel.findChartsForValidation(projectUuid);
 
         // Only validate charts that are using selected explores
         const results = charts
@@ -847,9 +847,8 @@ export class ValidationService extends BaseService {
         validationTargets?: ValidationTarget[],
         onlyValidateExploresInArgs?: boolean,
     ): Promise<string> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(
@@ -923,6 +922,16 @@ export class ValidationService extends BaseService {
         // Filter private content to developers
         return Promise.all(
             validations.map(async (validation) => {
+                // Table validations are project-level, not space-specific
+                // Anyone with project access can see them
+                if (
+                    !isDashboardValidationError(validation) &&
+                    !isChartValidationError(validation) &&
+                    isTableValidationError(validation)
+                ) {
+                    return validation;
+                }
+
                 const isDeleted =
                     (isDashboardValidationError(validation) &&
                         !validation.dashboardUuid) ||
@@ -1033,9 +1042,8 @@ export class ValidationService extends BaseService {
     }
 
     async delete(user: SessionUser, validationId: number): Promise<void> {
-        const validation = await this.validationModel.getByValidationId(
-            validationId,
-        );
+        const validation =
+            await this.validationModel.getByValidationId(validationId);
         const projectSummary = await this.projectModel.getSummary(
             validation.projectUuid,
         );

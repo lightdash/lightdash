@@ -1914,11 +1914,7 @@ export class AiAgentModel {
                     'ai_artifact_version_uuid' | 'chart_config'
                 > &
                     Pick<DbAiArtifact, 'artifact_type'>)[]
-            >(
-                `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
-                `${AiArtifactVersionsTableName}.chart_config`,
-                `${AiArtifactsTableName}.artifact_type`,
-            )
+            >(`${AiArtifactVersionsTableName}.ai_artifact_version_uuid`, `${AiArtifactVersionsTableName}.chart_config`, `${AiArtifactsTableName}.artifact_type`)
             .whereIn(
                 `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
                 artifactVersionUuids,
@@ -2450,7 +2446,9 @@ export class AiAgentModel {
             .update({
                 human_score: data.humanScore,
                 human_feedback:
-                    data.humanScore === -1 ? data.humanFeedback ?? null : null,
+                    data.humanScore === -1
+                        ? (data.humanFeedback ?? null)
+                        : null,
             })
             .where({
                 ai_prompt_uuid: data.promptUuid,
@@ -2938,15 +2936,9 @@ export class AiAgentModel {
         promptUuid: string,
     ): Promise<AiAgentToolResult[]> {
         const rows = await this.database(AiAgentToolResultTableName)
-            .select<DbAiAgentToolResult[]>(
-                'ai_agent_tool_result_uuid',
-                'ai_prompt_uuid',
-                'tool_call_id',
-                'tool_name',
-                'result',
-                'metadata',
-                'created_at',
-            )
+            .select<
+                DbAiAgentToolResult[]
+            >('ai_agent_tool_result_uuid', 'ai_prompt_uuid', 'tool_call_id', 'tool_name', 'result', 'metadata', 'created_at')
             .where('ai_prompt_uuid', promptUuid)
             .orderBy('created_at', 'asc');
 

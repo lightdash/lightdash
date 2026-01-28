@@ -446,6 +446,10 @@
                                     }
                                 ]
                             },
+                            "owner": {
+                                "type": "string",
+                                "description": "Email of the model owner (inherited by all metrics). spotlight.owner takes precedence."
+                            },
                             "sql_where": {
                                 "type": "string"
                             },

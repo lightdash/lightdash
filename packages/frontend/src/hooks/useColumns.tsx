@@ -49,7 +49,6 @@ import {
     selectCustomDimensions,
     selectMetricOverrides,
     selectParameters,
-    selectPeriodOverPeriod,
     selectSorts,
     selectTableCalculations,
     selectTableName,
@@ -200,27 +199,26 @@ const formatImageCell = (
     const row = needsRowContext
         ? info.row
               .getAllCells()
-              .reduce<Record<string, Record<string, ResultValue>>>(
-                  (acc, rowCell) => {
-                      const cellItem = rowCell.column.columnDef.meta?.item;
-                      const rowCellValue = rowCell.getValue();
+              .reduce<
+                  Record<string, Record<string, ResultValue>>
+              >((acc, rowCell) => {
+                  const cellItem = rowCell.column.columnDef.meta?.item;
+                  const rowCellValue = rowCell.getValue();
 
-                      // Handle both ResultRow and RawResultRow formats
-                      const cellResultValue = isResultValue(rowCellValue)
-                          ? (rowCellValue as { value: ResultValue }).value
-                          : {
-                                raw: rowCellValue,
-                                formatted: String(rowCellValue),
-                            };
+                  // Handle both ResultRow and RawResultRow formats
+                  const cellResultValue = isResultValue(rowCellValue)
+                      ? (rowCellValue as { value: ResultValue }).value
+                      : {
+                            raw: rowCellValue,
+                            formatted: String(rowCellValue),
+                        };
 
-                      if (cellItem && isField(cellItem) && cellResultValue) {
-                          acc[cellItem.table] = acc[cellItem.table] || {};
-                          acc[cellItem.table][cellItem.name] = cellResultValue;
-                      }
-                      return acc;
-                  },
-                  {},
-              )
+                  if (cellItem && isField(cellItem) && cellResultValue) {
+                      acc[cellItem.table] = acc[cellItem.table] || {};
+                      acc[cellItem.table][cellItem.name] = cellResultValue;
+                  }
+                  return acc;
+              }, {})
         : {};
 
     try {
@@ -308,12 +306,10 @@ export const useColumns = (): TableColumn[] => {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const sorts = useExplorerSelector(selectSorts);
     const metricOverrides = useExplorerSelector(selectMetricOverrides);
-    const periodOverPeriod = useExplorerSelector(selectPeriodOverPeriod);
 
-    const { activeFields, query, queryResults } = useExplorerQuery();
+    const { activeFields, query } = useExplorerQuery();
     const resultsMetricQuery = query.data?.metricQuery;
     const resultsFields = query.data?.fields;
-    const resultsColumns = queryResults.columns;
 
     const parameters = useExplorerSelector(selectParameters);
 
@@ -400,49 +396,18 @@ export const useColumns = (): TableColumn[] => {
             invalidActiveItems: [],
         };
 
-        // Filter itemsMap to only include active fields
-        // This is more efficient than spreading objects in a reduce
-        for (const key of activeFields) {
-            const item = itemsMap[key];
+        // Filter itemsMap to only include fields to be rendered (preserves order via Set insertion)
+        for (const fieldId of activeFields) {
+            const item = itemsMap[fieldId];
             if (item) {
-                result.activeItemsMap[key] = item;
+                result.activeItemsMap[fieldId] = item;
             } else {
-                result.invalidActiveItems.push(key);
+                result.invalidActiveItems.push(fieldId);
             }
         }
 
         return result;
     }, [itemsMap, activeFields]);
-
-    // Find period-over-period fields from resultsColumns using popMetadata
-    // This uses backend-provided metadata instead of string matching
-    const popPreviousFields = useMemo<
-        Map<string, { fieldId: string; item: ItemsMap[string] }>
-    >(() => {
-        if (!periodOverPeriod || !resultsColumns || !itemsMap) return new Map();
-
-        const previousFieldsMap = new Map<
-            string,
-            { fieldId: string; item: ItemsMap[string] }
-        >();
-
-        // Find PoP fields using popMetadata from API response
-        for (const [fieldId, column] of Object.entries(resultsColumns)) {
-            if (column.popMetadata) {
-                const { baseFieldId } = column.popMetadata;
-                const baseItem = itemsMap[baseFieldId];
-                if (baseItem) {
-                    // Use the base item's metadata for formatting
-                    previousFieldsMap.set(baseFieldId, {
-                        fieldId,
-                        item: baseItem,
-                    });
-                }
-            }
-        }
-
-        return previousFieldsMap;
-    }, [periodOverPeriod, resultsColumns, itemsMap]);
 
     const { data: totals } = useCalculateTotal({
         metricQuery: resultsMetricQuery,
@@ -554,67 +519,7 @@ export const useColumns = (): TableColumn[] => {
                 },
             );
 
-            // Add main column
-            const result = [...acc, column];
-
-            // If this field has a corresponding _previous PoP column, add it right after
-            const popField = popPreviousFields.get(fieldId);
-            if (popField) {
-                const { fieldId: popFieldId, item: popItem } = popField;
-
-                // Use the base item's label with "(previous period)" suffix
-                const baseLabel = isField(popItem) ? popItem.label : popFieldId;
-                const popLabel = `${baseLabel} (previous period)`;
-                const popColors = getFieldColors(popItem);
-                const popColumn: TableColumn = columnHelper.accessor(
-                    (row) => row[popFieldId],
-                    {
-                        id: popFieldId,
-                        header: () => (
-                            <TableHeaderLabelContainer
-                                color={popColors.columnHeaderColor}
-                            >
-                                {isField(popItem) && hasJoins && (
-                                    <TableHeaderRegularLabel>
-                                        {popItem.tableLabel}{' '}
-                                    </TableHeaderRegularLabel>
-                                )}
-                                <TableHeaderBoldLabel>
-                                    {popLabel}
-                                </TableHeaderBoldLabel>
-                            </TableHeaderLabelContainer>
-                        ),
-                        cell: (
-                            info: CellContext<
-                                ResultRow,
-                                { value: ResultValue }
-                            >,
-                        ) => {
-                            const cellValue = info.getValue();
-                            if (!cellValue) return '-';
-
-                            // Use the PoP item's formatting (inherits from base metric)
-                            return formatItemValue(
-                                popItem,
-                                cellValue.value.raw,
-                                false,
-                                parameters,
-                            );
-                        },
-                        footer: () => null, // No totals for PoP columns
-                        meta: {
-                            item: popItem,
-                            draggable: false,
-                            frozen: false,
-                            bgColor: popColors.bg,
-                            isReadOnly: true, // Computed column, not editable
-                        },
-                    },
-                );
-                result.push(popColumn);
-            }
-
-            return result;
+            return [...acc, column];
         }, []);
 
         const invalidColumns = invalidActiveItems.reduce<TableColumn[]>(
@@ -664,6 +569,5 @@ export const useColumns = (): TableColumn[] => {
         totals,
         exploreData,
         parameters,
-        popPreviousFields,
     ]);
 };

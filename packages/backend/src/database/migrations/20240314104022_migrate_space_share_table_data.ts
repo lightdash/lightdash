@@ -50,7 +50,7 @@ type InheritedRoles = [OrganizationRole, GroupRole, ProjectRole];
 
 const RoleTypes = ['organization', 'project', 'group'] as const;
 
-type RoleType = typeof RoleTypes[number];
+type RoleType = (typeof RoleTypes)[number];
 
 type InheritedProjectRole = {
     type: RoleType;

@@ -303,9 +303,8 @@ export class UserService extends BaseService {
     }
 
     async delete(user: SessionUser, userUuidToDelete: string): Promise<void> {
-        const userToDelete = await this.userModel.getUserDetailsByUuid(
-            userUuidToDelete,
-        );
+        const userToDelete =
+            await this.userModel.getUserDetailsByUuid(userUuidToDelete);
         // The user might not have an org yet
         // This is expected on the "Cancel registration" flow on single org instances.
         if (userToDelete?.organizationUuid) {
@@ -378,9 +377,8 @@ export class UserService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
-        const existingUserWithEmail = await this.userModel.findUserByEmail(
-            email,
-        );
+        const existingUserWithEmail =
+            await this.userModel.findUserByEmail(email);
         if (existingUserWithEmail && existingUserWithEmail.organizationUuid) {
             if (existingUserWithEmail.organizationUuid !== organizationUuid) {
                 throw new ParameterError(
@@ -602,9 +600,8 @@ export class UserService extends BaseService {
             };
 
             if (inviteCode) {
-                const inviteLink = await this.inviteLinkModel.getByCode(
-                    inviteCode,
-                );
+                const inviteLink =
+                    await this.inviteLinkModel.getByCode(inviteCode);
                 this.logger.info(
                     `Checking invite code - Invite email: ${inviteLink.email}, User email: ${loginUser.email}`,
                 );
@@ -1501,9 +1498,8 @@ export class UserService extends BaseService {
             'organizationUuid' | 'organizationCreatedAt' | 'organizationName'
         >
     > {
-        const organizations = await this.userModel.getOrganizationsForUser(
-            userUuid,
-        );
+        const organizations =
+            await this.userModel.getOrganizationsForUser(userUuid);
         if (organizations.length === 0) {
             throw new NotFoundError('User not part of any organization');
         } else if (organizations.length > 1) {
@@ -1625,9 +1621,8 @@ export class UserService extends BaseService {
                 user.userUuid,
                 OpenIdIdentityIssuerType.SNOWFLAKE,
             );
-            const accessToken = await UserService.generateSnowflakeAccessToken(
-                refreshToken,
-            );
+            const accessToken =
+                await UserService.generateSnowflakeAccessToken(refreshToken);
             return accessToken;
         }
         if (type === 'databricks') {
@@ -1641,9 +1636,8 @@ export class UserService extends BaseService {
                 user.userUuid,
                 OpenIdIdentityIssuerType.DATABRICKS,
             );
-            const accessToken = await UserService.generateDatabricksAccessToken(
-                refreshToken,
-            );
+            const accessToken =
+                await UserService.generateDatabricksAccessToken(refreshToken);
             return accessToken;
         }
         const refreshToken: string = await this.userModel.getRefreshToken(

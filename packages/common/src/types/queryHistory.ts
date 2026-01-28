@@ -10,8 +10,7 @@ export interface IWarehouseQueryMetadata {
     type: WarehouseTypes;
 }
 
-export interface BigQueryWarehouseQueryMetadata
-    extends IWarehouseQueryMetadata {
+export interface BigQueryWarehouseQueryMetadata extends IWarehouseQueryMetadata {
     type: WarehouseTypes.BIGQUERY;
     jobLocation: string;
 }

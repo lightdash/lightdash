@@ -3058,6 +3058,11 @@ const models: TsoaRoute.Models = {
             },
             percentile: { dataType: 'double' },
             formatOptions: { ref: 'CustomFormat' },
+            generatedBy: { dataType: 'enum', enums: ['periodOverPeriod'] },
+            baseMetricId: { ref: 'FieldId' },
+            timeDimensionId: { ref: 'FieldId' },
+            granularity: { ref: 'TimeFrames' },
+            periodOffset: { dataType: 'double' },
         },
         additionalProperties: true,
     },
@@ -3219,53 +3224,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PreviousPeriod: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                periodOffset: { dataType: 'double' },
-                granularity: { ref: 'TimeFrames', required: true },
-                type: {
-                    dataType: 'enum',
-                    enums: ['previousPeriod'],
-                    required: true,
-                },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PeriodOverPeriodComparison: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'intersection',
-            subSchemas: [
-                { ref: 'PreviousPeriod' },
-                {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {
-                        field: {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                table: { dataType: 'string', required: true },
-                                name: { dataType: 'string', required: true },
-                            },
-                            required: true,
-                        },
-                    },
-                },
-            ],
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricQuery: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                periodOverPeriod: { ref: 'PeriodOverPeriodComparison' },
                 metadata: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -5776,7 +5739,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                periodOverPeriod: { ref: 'PeriodOverPeriodComparison' },
                 dimensionOverrides: { ref: 'DimensionOverrides' },
                 metricOverrides: { ref: 'MetricOverrides' },
                 timezone: { dataType: 'string' },
@@ -7462,27 +7424,23 @@ const models: TsoaRoute.Models = {
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'string',
-                                                                                                        required:
-                                                                                                            true,
+                                                                                                        required: true,
                                                                                                     },
                                                                                                 tableName:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'string',
-                                                                                                        required:
-                                                                                                            true,
+                                                                                                        required: true,
                                                                                                     },
                                                                                                 label: {
                                                                                                     dataType:
                                                                                                         'string',
-                                                                                                    required:
-                                                                                                        true,
+                                                                                                    required: true,
                                                                                                 },
                                                                                                 name: {
                                                                                                     dataType:
                                                                                                         'string',
-                                                                                                    required:
-                                                                                                        true,
+                                                                                                    required: true,
                                                                                                 },
                                                                                             },
                                                                                     },
@@ -7560,14 +7518,12 @@ const models: TsoaRoute.Models = {
                                                                                                 label: {
                                                                                                     dataType:
                                                                                                         'string',
-                                                                                                    required:
-                                                                                                        true,
+                                                                                                    required: true,
                                                                                                 },
                                                                                                 name: {
                                                                                                     dataType:
                                                                                                         'string',
-                                                                                                    required:
-                                                                                                        true,
+                                                                                                    required: true,
                                                                                                 },
                                                                                             },
                                                                                     },
@@ -7581,8 +7537,7 @@ const models: TsoaRoute.Models = {
                                                                 searchQuery: {
                                                                     dataType:
                                                                         'string',
-                                                                    required:
-                                                                        true,
+                                                                    required: true,
                                                                 },
                                                             },
                                                         },
@@ -7641,28 +7596,24 @@ const models: TsoaRoute.Models = {
                                                                                                                 {
                                                                                                                     dataType:
                                                                                                                         'double',
-                                                                                                                    required:
-                                                                                                                        true,
+                                                                                                                    required: true,
                                                                                                                 },
                                                                                                             totalResults:
                                                                                                                 {
                                                                                                                     dataType:
                                                                                                                         'double',
-                                                                                                                    required:
-                                                                                                                        true,
+                                                                                                                    required: true,
                                                                                                                 },
                                                                                                             pageSize:
                                                                                                                 {
                                                                                                                     dataType:
                                                                                                                         'double',
-                                                                                                                    required:
-                                                                                                                        true,
+                                                                                                                    required: true,
                                                                                                                 },
                                                                                                             page: {
                                                                                                                 dataType:
                                                                                                                     'double',
-                                                                                                                required:
-                                                                                                                    true,
+                                                                                                                required: true,
                                                                                                             },
                                                                                                         },
                                                                                                 },
@@ -7731,43 +7682,36 @@ const models: TsoaRoute.Models = {
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'string',
-                                                                                                            required:
-                                                                                                                true,
+                                                                                                            required: true,
                                                                                                         },
                                                                                                     tableName:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'string',
-                                                                                                            required:
-                                                                                                                true,
+                                                                                                            required: true,
                                                                                                         },
                                                                                                     label: {
                                                                                                         dataType:
                                                                                                             'string',
-                                                                                                        required:
-                                                                                                            true,
+                                                                                                        required: true,
                                                                                                     },
                                                                                                     name: {
                                                                                                         dataType:
                                                                                                             'string',
-                                                                                                        required:
-                                                                                                            true,
+                                                                                                        required: true,
                                                                                                     },
                                                                                                 },
                                                                                         },
-                                                                                        required:
-                                                                                            true,
+                                                                                        required: true,
                                                                                     },
                                                                                 label: {
                                                                                     dataType:
                                                                                         'string',
-                                                                                    required:
-                                                                                        true,
+                                                                                    required: true,
                                                                                 },
                                                                             },
                                                                     },
-                                                                    required:
-                                                                        true,
+                                                                    required: true,
                                                                 },
                                                             },
                                                         },
@@ -22117,23 +22061,11 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    PopColumnMetadata: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                baseFieldId: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ResultColumn: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                popMetadata: { ref: 'PopColumnMetadata' },
                 type: { ref: 'DimensionType', required: true },
                 reference: { dataType: 'string', required: true },
             },
@@ -22584,13 +22516,6 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
-                periodOverPeriod: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'PeriodOverPeriodComparison' },
-                        { dataType: 'undefined' },
-                    ],
-                },
             },
             validators: {},
         },
@@ -22613,7 +22538,6 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
-                        periodOverPeriod: { ref: 'PeriodOverPeriodComparison' },
                         pivotConfiguration: { ref: 'PivotConfiguration' },
                         dateZoom: { ref: 'DateZoom' },
                         query: {
@@ -22716,6 +22640,10 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        sorts: {
+                            dataType: 'array',
+                            array: { dataType: 'refAlias', ref: 'SortField' },
+                        },
                         limit: {
                             dataType: 'union',
                             subSchemas: [
@@ -23825,9 +23753,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SupportController>(
-                    SupportController,
-                );
+                const controller: any =
+                    await container.get<SupportController>(SupportController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24114,9 +24041,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimUserController>(
-                    ScimUserController,
-                );
+                const controller: any =
+                    await container.get<ScimUserController>(ScimUserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24174,9 +24100,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimUserController>(
-                    ScimUserController,
-                );
+                const controller: any =
+                    await container.get<ScimUserController>(ScimUserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24234,9 +24159,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimUserController>(
-                    ScimUserController,
-                );
+                const controller: any =
+                    await container.get<ScimUserController>(ScimUserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24300,9 +24224,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimUserController>(
-                    ScimUserController,
-                );
+                const controller: any =
+                    await container.get<ScimUserController>(ScimUserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24361,9 +24284,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimUserController>(
-                    ScimUserController,
-                );
+                const controller: any =
+                    await container.get<ScimUserController>(ScimUserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24421,9 +24343,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimUserController>(
-                    ScimUserController,
-                );
+                const controller: any =
+                    await container.get<ScimUserController>(ScimUserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24475,9 +24396,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimRootController>(
-                    ScimRootController,
-                );
+                const controller: any =
+                    await container.get<ScimRootController>(ScimRootController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24529,9 +24449,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimRootController>(
-                    ScimRootController,
-                );
+                const controller: any =
+                    await container.get<ScimRootController>(ScimRootController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24583,9 +24502,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimRootController>(
-                    ScimRootController,
-                );
+                const controller: any =
+                    await container.get<ScimRootController>(ScimRootController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24643,9 +24561,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimRootController>(
-                    ScimRootController,
-                );
+                const controller: any =
+                    await container.get<ScimRootController>(ScimRootController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24697,9 +24614,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimRootController>(
-                    ScimRootController,
-                );
+                const controller: any =
+                    await container.get<ScimRootController>(ScimRootController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24757,9 +24673,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimRootController>(
-                    ScimRootController,
-                );
+                const controller: any =
+                    await container.get<ScimRootController>(ScimRootController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24814,9 +24729,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimRoleController>(
-                    ScimRoleController,
-                );
+                const controller: any =
+                    await container.get<ScimRoleController>(ScimRoleController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -24874,9 +24788,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ScimRoleController>(
-                    ScimRoleController,
-                );
+                const controller: any =
+                    await container.get<ScimRoleController>(ScimRoleController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -25607,9 +25520,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -25673,9 +25585,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -25734,9 +25645,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -25795,9 +25705,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -25861,9 +25770,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -25921,9 +25829,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -25987,9 +25894,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -26063,9 +25969,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -26140,9 +26045,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -26217,9 +26121,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -26304,9 +26207,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -26370,9 +26272,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -26436,9 +26337,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -26521,9 +26421,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<EmbedController>(
-                    EmbedController,
-                );
+                const controller: any =
+                    await container.get<EmbedController>(EmbedController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -26648,9 +26547,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiController>(
-                    AiController,
-                );
+                const controller: any =
+                    await container.get<AiController>(AiController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -26714,9 +26612,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiController>(
-                    AiController,
-                );
+                const controller: any =
+                    await container.get<AiController>(AiController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -26794,9 +26691,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiController>(
-                    AiController,
-                );
+                const controller: any =
+                    await container.get<AiController>(AiController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -26860,9 +26756,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiController>(
-                    AiController,
-                );
+                const controller: any =
+                    await container.get<AiController>(AiController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -26926,9 +26821,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiController>(
-                    AiController,
-                );
+                const controller: any =
+                    await container.get<AiController>(AiController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -26992,9 +26886,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiController>(
-                    AiController,
-                );
+                const controller: any =
+                    await container.get<AiController>(AiController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27052,9 +26945,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27112,9 +27004,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27178,9 +27069,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27238,9 +27128,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27304,9 +27193,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27370,9 +27258,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27436,9 +27323,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27504,9 +27390,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27570,9 +27455,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27636,9 +27520,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27708,9 +27591,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27774,9 +27656,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27841,9 +27722,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27913,9 +27793,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -27985,9 +27864,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -28063,9 +27941,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -28135,9 +28012,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -28207,9 +28083,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -28279,9 +28154,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -28366,9 +28240,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -28460,9 +28333,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -28554,9 +28426,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -28630,9 +28501,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -28702,9 +28572,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -28780,9 +28649,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -28858,9 +28726,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -28942,9 +28809,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -29036,9 +28902,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -29123,9 +28988,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -29195,9 +29059,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -29267,9 +29130,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -29333,9 +29195,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -29405,9 +29266,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -29479,9 +29339,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -29557,9 +29416,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -29635,9 +29493,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -29713,9 +29570,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -29785,9 +29641,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -29857,9 +29712,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -29941,9 +29795,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<AiAgentController>(
-                    AiAgentController,
-                );
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31192,9 +31045,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31252,9 +31104,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31306,9 +31157,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31361,9 +31211,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31415,9 +31264,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31475,9 +31323,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31529,9 +31376,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31583,9 +31429,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31643,9 +31488,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31704,9 +31548,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31759,9 +31602,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31814,9 +31656,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31868,9 +31709,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31928,9 +31768,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -31988,9 +31827,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -32057,9 +31895,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -32111,9 +31948,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<UserController>(
-                    UserController,
-                );
+                const controller: any =
+                    await container.get<UserController>(UserController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -32592,9 +32428,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SshController>(
-                    SshController,
-                );
+                const controller: any =
+                    await container.get<SshController>(SshController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34008,9 +33843,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SpaceController>(
-                    SpaceController,
-                );
+                const controller: any =
+                    await container.get<SpaceController>(SpaceController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34069,9 +33903,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SpaceController>(
-                    SpaceController,
-                );
+                const controller: any =
+                    await container.get<SpaceController>(SpaceController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34135,9 +33968,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SpaceController>(
-                    SpaceController,
-                );
+                const controller: any =
+                    await container.get<SpaceController>(SpaceController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34202,9 +34034,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SpaceController>(
-                    SpaceController,
-                );
+                const controller: any =
+                    await container.get<SpaceController>(SpaceController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34274,9 +34105,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SpaceController>(
-                    SpaceController,
-                );
+                const controller: any =
+                    await container.get<SpaceController>(SpaceController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34346,9 +34176,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SpaceController>(
-                    SpaceController,
-                );
+                const controller: any =
+                    await container.get<SpaceController>(SpaceController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34418,9 +34247,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SpaceController>(
-                    SpaceController,
-                );
+                const controller: any =
+                    await container.get<SpaceController>(SpaceController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34490,9 +34318,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SpaceController>(
-                    SpaceController,
-                );
+                const controller: any =
+                    await container.get<SpaceController>(SpaceController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34561,9 +34388,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SlackController>(
-                    SlackController,
-                );
+                const controller: any =
+                    await container.get<SlackController>(SlackController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34621,9 +34447,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SlackController>(
-                    SlackController,
-                );
+                const controller: any =
+                    await container.get<SlackController>(SlackController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34681,9 +34506,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SlackController>(
-                    SlackController,
-                );
+                const controller: any =
+                    await container.get<SlackController>(SlackController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34735,9 +34559,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SlackController>(
-                    SlackController,
-                );
+                const controller: any =
+                    await container.get<SlackController>(SlackController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34789,9 +34612,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SlackController>(
-                    SlackController,
-                );
+                const controller: any =
+                    await container.get<SlackController>(SlackController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34841,9 +34663,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SlackController>(
-                    SlackController,
-                );
+                const controller: any =
+                    await container.get<SlackController>(SlackController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34895,9 +34716,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SlackController>(
-                    SlackController,
-                );
+                const controller: any =
+                    await container.get<SlackController>(SlackController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -34949,9 +34769,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<SlackController>(
-                    SlackController,
-                );
+                const controller: any =
+                    await container.get<SlackController>(SlackController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -35004,9 +34823,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ShareController>(
-                    ShareController,
-                );
+                const controller: any =
+                    await container.get<ShareController>(ShareController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -35062,9 +34880,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ShareController>(
-                    ShareController,
-                );
+                const controller: any =
+                    await container.get<ShareController>(ShareController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37079,9 +36896,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<RenameController>(
-                    RenameController,
-                );
+                const controller: any =
+                    await container.get<RenameController>(RenameController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37151,9 +36967,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<RenameController>(
-                    RenameController,
-                );
+                const controller: any =
+                    await container.get<RenameController>(RenameController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37217,9 +37032,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<RenameController>(
-                    RenameController,
-                );
+                const controller: any =
+                    await container.get<RenameController>(RenameController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37277,9 +37091,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37337,9 +37150,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37402,9 +37214,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37462,9 +37273,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37522,9 +37332,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37588,9 +37397,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37654,9 +37462,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37726,9 +37533,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37792,9 +37598,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37852,9 +37657,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37919,9 +37723,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -37985,9 +37788,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38051,9 +37853,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38111,9 +37912,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38171,9 +37971,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38238,9 +38037,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38298,9 +38096,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38364,9 +38161,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38424,9 +38220,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38499,9 +38294,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38565,9 +38359,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38632,9 +38425,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38720,9 +38512,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38786,9 +38577,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38852,9 +38642,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38912,9 +38701,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -38973,9 +38761,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -39054,9 +38841,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -39114,9 +38900,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -39182,9 +38967,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -39250,9 +39034,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -39335,9 +39118,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -39402,9 +39184,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -39487,9 +39268,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -39572,9 +39352,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -39633,9 +39412,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -39693,9 +39471,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ProjectController>(
-                    ProjectController,
-                );
+                const controller: any =
+                    await container.get<ProjectController>(ProjectController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -39923,9 +39700,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<PinningController>(
-                    PinningController,
-                );
+                const controller: any =
+                    await container.get<PinningController>(PinningController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -39994,9 +39770,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<PinningController>(
-                    PinningController,
-                );
+                const controller: any =
+                    await container.get<PinningController>(PinningController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -41725,9 +41500,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<GroupsController>(
-                    GroupsController,
-                );
+                const controller: any =
+                    await container.get<GroupsController>(GroupsController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -41785,9 +41559,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<GroupsController>(
-                    GroupsController,
-                );
+                const controller: any =
+                    await container.get<GroupsController>(GroupsController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -41851,9 +41624,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<GroupsController>(
-                    GroupsController,
-                );
+                const controller: any =
+                    await container.get<GroupsController>(GroupsController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -41917,9 +41689,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<GroupsController>(
-                    GroupsController,
-                );
+                const controller: any =
+                    await container.get<GroupsController>(GroupsController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -41977,9 +41748,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<GroupsController>(
-                    GroupsController,
-                );
+                const controller: any =
+                    await container.get<GroupsController>(GroupsController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -42043,9 +41813,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<GroupsController>(
-                    GroupsController,
-                );
+                const controller: any =
+                    await container.get<GroupsController>(GroupsController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -42115,9 +41884,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<GroupsController>(
-                    GroupsController,
-                );
+                const controller: any =
+                    await container.get<GroupsController>(GroupsController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -42187,9 +41955,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<GroupsController>(
-                    GroupsController,
-                );
+                const controller: any =
+                    await container.get<GroupsController>(GroupsController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -42253,9 +42020,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<GroupsController>(
-                    GroupsController,
-                );
+                const controller: any =
+                    await container.get<GroupsController>(GroupsController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -42428,9 +42194,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<GitlabController>(
-                    GitlabController,
-                );
+                const controller: any =
+                    await container.get<GitlabController>(GitlabController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -42489,9 +42254,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<GitlabController>(
-                    GitlabController,
-                );
+                const controller: any =
+                    await container.get<GitlabController>(GitlabController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -42543,9 +42307,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<GitlabController>(
-                    GitlabController,
-                );
+                const controller: any =
+                    await container.get<GitlabController>(GitlabController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -42597,9 +42360,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<GitlabController>(
-                    GitlabController,
-                );
+                const controller: any =
+                    await container.get<GitlabController>(GitlabController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -43380,9 +43142,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<FunnelController>(
-                    FunnelController,
-                );
+                const controller: any =
+                    await container.get<FunnelController>(FunnelController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -43446,9 +43207,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<FunnelController>(
-                    FunnelController,
-                );
+                const controller: any =
+                    await container.get<FunnelController>(FunnelController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -43513,9 +43273,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ExploreController>(
-                    ExploreController,
-                );
+                const controller: any =
+                    await container.get<ExploreController>(ExploreController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -43573,9 +43332,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ExploreController>(
-                    ExploreController,
-                );
+                const controller: any =
+                    await container.get<ExploreController>(ExploreController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -43639,9 +43397,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ExploreController>(
-                    ExploreController,
-                );
+                const controller: any =
+                    await container.get<ExploreController>(ExploreController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -43720,9 +43477,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ExploreController>(
-                    ExploreController,
-                );
+                const controller: any =
+                    await container.get<ExploreController>(ExploreController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -43827,9 +43583,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ExploreController>(
-                    ExploreController,
-                );
+                const controller: any =
+                    await container.get<ExploreController>(ExploreController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -44126,9 +43881,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CsvController>(
-                    CsvController,
-                );
+                const controller: any =
+                    await container.get<CsvController>(CsvController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -44198,9 +43952,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CommentsController>(
-                    CommentsController,
-                );
+                const controller: any =
+                    await container.get<CommentsController>(CommentsController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -44258,9 +44011,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CommentsController>(
-                    CommentsController,
-                );
+                const controller: any =
+                    await container.get<CommentsController>(CommentsController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -44324,9 +44076,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CommentsController>(
-                    CommentsController,
-                );
+                const controller: any =
+                    await container.get<CommentsController>(CommentsController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -44390,9 +44141,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CommentsController>(
-                    CommentsController,
-                );
+                const controller: any =
+                    await container.get<CommentsController>(CommentsController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -44453,9 +44203,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -44519,9 +44268,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -44585,9 +44333,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -44657,9 +44404,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -44745,9 +44491,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -44817,9 +44562,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -44849,6 +44593,7 @@ export function RegisterRoutes(app: Router) {
             dataType: 'string',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        tableName: { in: 'query', name: 'tableName', dataType: 'string' },
     };
     app.get(
         '/api/v1/projects/:projectUuid/dataCatalog/metrics-with-time-dimensions',
@@ -44877,9 +44622,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -44943,9 +44687,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -45009,9 +44752,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -45078,9 +44820,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -45144,9 +44885,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -45226,9 +44966,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -45293,9 +45032,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -45359,9 +45097,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -45431,9 +45168,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -45491,9 +45227,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -45551,9 +45286,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<CatalogController>(
-                    CatalogController,
-                );
+                const controller: any =
+                    await container.get<CatalogController>(CatalogController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -46811,9 +46545,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<QueryController>(
-                    QueryController,
-                );
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -46877,9 +46610,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<QueryController>(
-                    QueryController,
-                );
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -46943,9 +46675,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<QueryController>(
-                    QueryController,
-                );
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -47009,9 +46740,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<QueryController>(
-                    QueryController,
-                );
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -47075,9 +46805,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<QueryController>(
-                    QueryController,
-                );
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -47141,9 +46870,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<QueryController>(
-                    QueryController,
-                );
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -47207,9 +46935,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<QueryController>(
-                    QueryController,
-                );
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -47273,9 +47000,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<QueryController>(
-                    QueryController,
-                );
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -47339,9 +47065,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<QueryController>(
-                    QueryController,
-                );
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -47405,9 +47130,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<QueryController>(
-                    QueryController,
-                );
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -47477,9 +47201,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<QueryController>(
-                    QueryController,
-                );
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -47549,9 +47272,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<QueryController>(
-                    QueryController,
-                );
+                const controller: any =
+                    await container.get<QueryController>(QueryController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -47977,9 +47699,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ContentController>(
-                    ContentController,
-                );
+                const controller: any =
+                    await container.get<ContentController>(ContentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -48043,9 +47764,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ContentController>(
-                    ContentController,
-                );
+                const controller: any =
+                    await container.get<ContentController>(ContentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }
@@ -48109,9 +47829,8 @@ export function RegisterRoutes(app: Router) {
                         ? (iocContainer as IocContainerFactory)(request)
                         : iocContainer;
 
-                const controller: any = await container.get<ContentController>(
-                    ContentController,
-                );
+                const controller: any =
+                    await container.get<ContentController>(ContentController);
                 if (typeof controller['setStatus'] === 'function') {
                     controller.setStatus(undefined);
                 }

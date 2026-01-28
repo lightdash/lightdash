@@ -326,9 +326,8 @@ export class RolesService extends BaseService {
                 );
             }
         });
-        const updatedRole = await this.rolesModel.getRoleWithScopesByUuid(
-            roleUuid,
-        );
+        const updatedRole =
+            await this.rolesModel.getRoleWithScopesByUuid(roleUuid);
 
         // We track add/remove scope analytics in their respective methods
         this.analytics.track({
@@ -403,9 +402,8 @@ export class RolesService extends BaseService {
         if (user.role === OrganizationMemberRole.ADMIN) {
             // If user is currently an admin, we need to check if there are more admins
             // because every org should have at least one admin
-            const adminUuids = await this.rolesModel.getOrganizationAdmins(
-                orgUuid,
-            );
+            const adminUuids =
+                await this.rolesModel.getOrganizationAdmins(orgUuid);
             if (adminUuids.length === 1) {
                 throw new ParameterError(
                     'Organization must have at least one admin',
@@ -825,9 +823,8 @@ export class RolesService extends BaseService {
 
         const userAccess = await this.rolesModel.getProjectAccess(projectUuid);
 
-        const groupAccess = await this.rolesModel.getGroupProjectAccess(
-            projectUuid,
-        );
+        const groupAccess =
+            await this.rolesModel.getGroupProjectAccess(projectUuid);
 
         return {
             users: userAccess,
@@ -957,9 +954,8 @@ export class RolesService extends BaseService {
         const { name, description } = duplicateRoleData;
         RolesService.validateRoleName(name);
 
-        const sourceRole = await this.rolesModel.getRoleWithScopesByUuid(
-            roleUuid,
-        );
+        const sourceRole =
+            await this.rolesModel.getRoleWithScopesByUuid(roleUuid);
         if (!sourceRole) {
             throw new NotFoundError(`Role to duplicate: ${roleUuid} not found`);
         }

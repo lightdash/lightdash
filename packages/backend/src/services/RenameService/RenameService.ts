@@ -163,9 +163,8 @@ export class RenameService extends BaseService {
             );
         }
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'update',
@@ -302,9 +301,8 @@ export class RenameService extends BaseService {
         projectUuid: string;
         context: RequestMethod;
     }) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         if (
             user.ability.cannot(
                 'update',
@@ -572,9 +570,8 @@ export class RenameService extends BaseService {
             // For example, if we want to rename "orders" model,
             // and "payments" contains a join to "orders", we also want to rename all "charts"
             // with exploreName "payments", since they can contain a join to "orders"
-            const explores = await this.projectModel.getAllExploresFromCache(
-                projectUuid,
-            );
+            const explores =
+                await this.projectModel.getAllExploresFromCache(projectUuid);
             // Do not filter explore errors, since the explore might be failing already, because of some renames
             const exploreJoins: string[] = Object.values(explores)
                 .filter((e) =>

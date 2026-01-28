@@ -73,18 +73,18 @@ await schedulerClient.compileProject({
 
 <importantToKnow>
 
--   Built on Graphile Worker for PostgreSQL-based job queuing with ACID guarantees
--   All tasks are wrapped with tryJobOrTimeout to prevent hung processes and unlock workers
--   SchedulerTask contains the business logic while SchedulerWorker manages job execution
--   Scheduled deliveries support multiple targets: email, Slack, Google Sheets, Microsoft Teams
--   Google Sheets uploads bypass image/PDF generation and directly query warehouse data
--   Project compilation jobs handle dbt project validation and explore generation
--   Event emitter system allows monitoring job lifecycle and worker status
--   Task tracing provides performance monitoring and debugging capabilities
--   Worker respects lightdashConfig.scheduler.tasks to enable/disable specific job types
--   Cron job automatically generates daily scheduled delivery jobs
--   Analytics tracking integrated for all scheduler operations
--   Proper error handling with Sentry integration and detailed logging
+- Built on Graphile Worker for PostgreSQL-based job queuing with ACID guarantees
+- All tasks are wrapped with tryJobOrTimeout to prevent hung processes and unlock workers
+- SchedulerTask contains the business logic while SchedulerWorker manages job execution
+- Scheduled deliveries support multiple targets: email, Slack, Google Sheets, Microsoft Teams
+- Google Sheets uploads bypass image/PDF generation and directly query warehouse data
+- Project compilation jobs handle dbt project validation and explore generation
+- Event emitter system allows monitoring job lifecycle and worker status
+- Task tracing provides performance monitoring and debugging capabilities
+- Worker respects lightdashConfig.scheduler.tasks to enable/disable specific job types
+- Cron job automatically generates daily scheduled delivery jobs
+- Analytics tracking integrated for all scheduler operations
+- Proper error handling with Sentry integration and detailed logging
 
 </importantToKnow>
 

@@ -88,7 +88,7 @@ const createMockExplore = (
                 ],
             ),
         ),
-    } as unknown as Explore);
+    }) as unknown as Explore;
 
 describe('parseCatalog', () => {
     describe('when same table appears in multiple explores with different fields', () => {

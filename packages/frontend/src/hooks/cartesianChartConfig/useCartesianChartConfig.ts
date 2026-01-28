@@ -1029,7 +1029,6 @@ const useCartesianChartConfig = ({
                 const newSeries = mergeExistingAndExpectedSeries({
                     expectedSeriesMap,
                     existingSeries: prev?.series || [],
-                    resultsColumns: resultsData.columns,
                 });
 
                 const seriesWithReferenceLines = applyReferenceLines(

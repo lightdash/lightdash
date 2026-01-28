@@ -35,9 +35,9 @@ type PreviewAndCustomizeScreenshotProps = {
             selectedTabs: string[] | null;
         }
     >;
-    previewChoice: typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined;
+    previewChoice: (typeof CUSTOM_WIDTH_OPTIONS)[number]['value'] | undefined;
     setPreviewChoice: (
-        prev: typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined,
+        prev: (typeof CUSTOM_WIDTH_OPTIONS)[number]['value'] | undefined,
     ) => void;
     onPreviewClick?: () => Promise<void>;
     currentPreview?: string;

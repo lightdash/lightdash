@@ -56,8 +56,8 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                             droppableSnapshot.isDraggingOver
                                 ? 'ldGray.1'
                                 : isDragging
-                                ? 'ldGray.0'
-                                : undefined
+                                  ? 'ldGray.0'
+                                  : undefined
                         }
                     >
                         {!isDragging && !hasItems ? (

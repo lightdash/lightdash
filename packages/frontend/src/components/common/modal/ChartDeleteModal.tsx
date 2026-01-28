@@ -6,8 +6,8 @@ import {
     useSavedQuery,
     useSavedQueryDeleteMutation,
 } from '../../../hooks/useSavedQuery';
-import MantineModal from '../MantineModal';
 import Callout from '../Callout';
+import MantineModal from '../MantineModal';
 
 interface ChartDeleteModalProps extends ModalProps {
     uuid: string;

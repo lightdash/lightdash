@@ -90,7 +90,7 @@ export const buildAccount = ({
         isRegisteredUser: () => userType === 'registered',
         isJwtUser: () => accountType === 'jwt',
         isAnonymousUser: () => userType === 'anonymous',
-    } as unknown as Account);
+    }) as unknown as Account;
 
 export const validExplore: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
@@ -458,6 +458,7 @@ export const lightdashConfigWithNoSMTP: Pick<
         csvCellsLimit: 100,
         timezone: undefined,
         useSqlPivotResults: false,
+        showExecutionTime: false,
     },
 };
 

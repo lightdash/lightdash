@@ -166,8 +166,8 @@ const RefreshDbtButton: FC<{
                     style={buttonStyles}
                 >
                     {!isLoading
-                        ? defaultTextOverride ?? 'Refresh dbt'
-                        : refreshingTextOverride ?? 'Refreshing dbt'}
+                        ? (defaultTextOverride ?? 'Refresh dbt')
+                        : (refreshingTextOverride ?? 'Refreshing dbt')}
                 </Button>
             </Tooltip>
             {data?.type === ProjectType.PREVIEW && (

@@ -8,9 +8,9 @@ import { IconFolderShare, IconPlus } from '@tabler/icons-react';
 import { useCallback, useMemo } from 'react';
 import { useSpaceManagement } from '../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
+import Callout from '../Callout';
 import MantineIcon from '../MantineIcon';
 import MantineModal, { type MantineModalProps } from '../MantineModal';
-import Callout from '../Callout';
 import SpaceCreationForm from '../SpaceSelector/SpaceCreationForm';
 import SpaceSelector from '../SpaceSelector/SpaceSelector';
 

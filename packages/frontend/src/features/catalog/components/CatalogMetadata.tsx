@@ -460,13 +460,13 @@ export const CatalogMetadata: FC = () => {
                                                           ],
                                                       }
                                                     : metadata.fieldType ===
-                                                      FieldType.METRIC
-                                                    ? {
-                                                          metrics: [
-                                                              fieldToExplore,
-                                                          ],
-                                                      }
-                                                    : {}),
+                                                        FieldType.METRIC
+                                                      ? {
+                                                            metrics: [
+                                                                fieldToExplore,
+                                                            ],
+                                                        }
+                                                      : {}),
                                             },
                                         },
                                     ),

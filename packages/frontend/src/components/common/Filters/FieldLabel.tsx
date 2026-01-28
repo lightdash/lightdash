@@ -24,8 +24,8 @@ const FieldLabel: FC<FieldLabelProps> = ({ item, hideTableName = false }) => {
                 {isCustomDimension(item)
                     ? item.name
                     : isField(item) || isAdditionalMetric(item)
-                    ? item.label
-                    : item.displayName}
+                      ? item.label
+                      : item.displayName}
             </Text>
         </Text>
     );

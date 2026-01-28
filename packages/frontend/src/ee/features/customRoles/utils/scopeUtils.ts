@@ -20,13 +20,16 @@ export type GroupedScopes = {
 export const getScopesByGroup = (isEnterprise = false): GroupedScopes[] => {
     const allScopes = getScopes({ isEnterprise });
 
-    const grouped = allScopes.reduce((acc, scope) => {
-        if (!acc[scope.group]) {
-            acc[scope.group] = [];
-        }
-        acc[scope.group].push(scope);
-        return acc;
-    }, {} as Record<ScopeGroup, Scope[]>);
+    const grouped = allScopes.reduce(
+        (acc, scope) => {
+            if (!acc[scope.group]) {
+                acc[scope.group] = [];
+            }
+            acc[scope.group].push(scope);
+            return acc;
+        },
+        {} as Record<ScopeGroup, Scope[]>,
+    );
 
     return Object.entries(grouped).map(([group, scopes]) => ({
         group: group as ScopeGroup,

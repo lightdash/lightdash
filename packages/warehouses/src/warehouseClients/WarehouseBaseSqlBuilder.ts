@@ -8,9 +8,7 @@ import {
 } from '@lightdash/common';
 import { getDefaultMetricSql, normalizeUnicode } from '../utils/sql';
 
-export default abstract class WarehouseBaseSqlBuilder
-    implements WarehouseSqlBuilder
-{
+export default abstract class WarehouseBaseSqlBuilder implements WarehouseSqlBuilder {
     protected startOfWeek: WeekDay | null | undefined;
 
     constructor(startOfWeek?: WeekDay | null) {

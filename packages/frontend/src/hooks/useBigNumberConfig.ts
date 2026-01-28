@@ -305,8 +305,8 @@ const useBigNumberConfig = (
                     round: bigNumberStyle
                         ? 2
                         : isField(item)
-                        ? item.round
-                        : undefined,
+                          ? item.round
+                          : undefined,
                     compact: bigNumberStyle,
                 }),
             );
@@ -333,22 +333,22 @@ const useBigNumberConfig = (
                   comparisonFormat,
               )
             : secondRowValueRaw === undefined
-            ? UNDEFINED
-            : NOT_APPLICABLE;
+              ? UNDEFINED
+              : NOT_APPLICABLE;
     }, [item, secondRowValueRaw, firstRowValueRaw, comparisonFormat]);
 
     const comparisonDiff = useMemo(() => {
         return unformattedValue === UNDEFINED
             ? ComparisonDiffTypes.UNDEFINED
             : unformattedValue === NOT_APPLICABLE
-            ? ComparisonDiffTypes.NAN
-            : unformattedValue > 0
-            ? ComparisonDiffTypes.POSITIVE
-            : unformattedValue < 0
-            ? ComparisonDiffTypes.NEGATIVE
-            : unformattedValue === 0
-            ? ComparisonDiffTypes.NONE
-            : ComparisonDiffTypes.NAN;
+              ? ComparisonDiffTypes.NAN
+              : unformattedValue > 0
+                ? ComparisonDiffTypes.POSITIVE
+                : unformattedValue < 0
+                  ? ComparisonDiffTypes.NEGATIVE
+                  : unformattedValue === 0
+                    ? ComparisonDiffTypes.NONE
+                    : ComparisonDiffTypes.NAN;
     }, [unformattedValue]);
 
     const comparisonValue = useMemo(() => {

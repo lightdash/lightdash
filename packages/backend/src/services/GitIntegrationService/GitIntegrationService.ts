@@ -120,8 +120,16 @@ export class GitIntegrationService extends BaseService {
     }
 
     static async createBranch(gitProps: GitProps) {
-        const { owner, repo, mainBranch, token, branch, type, hostDomain } =
-            gitProps;
+        const {
+            owner,
+            repo,
+            mainBranch,
+            token,
+            branch,
+            type,
+            hostDomain,
+            installationId,
+        } = gitProps;
 
         const getLastCommit =
             type === DbtProjectType.GITHUB
@@ -131,6 +139,7 @@ export class GitIntegrationService extends BaseService {
             owner,
             repo,
             branch: mainBranch,
+            installationId,
             token,
             hostDomain,
         });
@@ -149,6 +158,7 @@ export class GitIntegrationService extends BaseService {
             owner,
             repo,
             sha: commitSha,
+            installationId,
             token,
             hostDomain,
         });
@@ -214,6 +224,7 @@ Affected charts:
         path,
         projectUuid,
         table,
+        installationId,
         token,
         branch,
         type,
@@ -224,8 +235,9 @@ Affected charts:
         path: string;
         projectUuid: string;
         table: string;
-        branch: string;
+        installationId?: string;
         token: string;
+        branch: string;
         type: DbtProjectType.GITHUB | DbtProjectType.GITLAB;
         hostDomain?: string;
     }) {
@@ -252,6 +264,7 @@ Affected charts:
             owner,
             repo,
             branch,
+            installationId,
             token,
             hostDomain,
         });
@@ -296,6 +309,7 @@ Affected charts:
             repo,
             path,
             projectUuid,
+            installationId,
             token,
             branch,
             quoteChar,
@@ -324,6 +338,7 @@ Affected charts:
                     owner,
                     repo,
                     branch,
+                    installationId,
                     token,
                     projectUuid,
                     type: gitType,
@@ -375,6 +390,7 @@ Affected charts:
                 content: updatedYml,
                 fileSha,
                 branch,
+                installationId,
                 token,
                 hostDomain,
                 message,
@@ -457,9 +473,8 @@ Affected charts:
                 installationId = await this.getInstallationId(user);
                 token = await this.getOrUpdateToken(user.organizationUuid!);
             } catch {
-                const project = await this.projectModel.getWithSensitiveFields(
-                    projectUuid,
-                );
+                const project =
+                    await this.projectModel.getWithSensitiveFields(projectUuid);
                 const connection =
                     project.dbtConnection as DbtGithubProjectConfig;
                 token = connection.personal_access_token || '';
@@ -471,9 +486,8 @@ Affected charts:
             }
         } else if (type === DbtProjectType.GITLAB) {
             // GitLab logic - only personal access tokens supported
-            const project = await this.projectModel.getWithSensitiveFields(
-                projectUuid,
-            );
+            const project =
+                await this.projectModel.getWithSensitiveFields(projectUuid);
             const connection = project.dbtConnection as DbtGitlabProjectConfig;
             token = connection.personal_access_token || '';
             if (!token) {
@@ -936,6 +950,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             owner,
             repo,
             branch,
+            installationId: gitProps.installationId,
             token: gitProps.token,
             hostDomain,
         });
@@ -1002,6 +1017,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             content: newContent,
             fileSha: originalSha,
             branch: gitProps.branch,
+            installationId: gitProps.installationId,
             token: gitProps.token,
             hostDomain: gitProps.hostDomain,
             message: `Update ${filePath}`,

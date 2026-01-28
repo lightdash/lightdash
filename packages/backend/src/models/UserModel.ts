@@ -196,12 +196,9 @@ export class UserModel {
                 `${UserTableName}.user_id`,
                 `${OpenIdIdentitiesTableName}.user_id`,
             )
-            .select<{ user_uuid: string; has_authentication: false }[]>(
-                `${UserTableName}.user_uuid`,
-                trx.raw(
-                    `CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication`,
-                ),
-            )
+            .select<
+                { user_uuid: string; has_authentication: false }[]
+            >(`${UserTableName}.user_uuid`, trx.raw(`CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication`))
             .distinctOn(`user_uuid`)
             .whereIn(`${UserTableName}.user_uuid`, filters.userUuids);
     }
@@ -304,11 +301,9 @@ export class UserModel {
                     .where('user_uuid', userUuid)
                     .select('user_id'),
             )
-            .select<DbOrganization[]>(
-                'organizations.organization_uuid',
-                'organizations.created_at',
-                'organizations.organization_name',
-            );
+            .select<
+                DbOrganization[]
+            >('organizations.organization_uuid', 'organizations.created_at', 'organizations.organization_name');
 
         return organizations.map((organization) => ({
             organizationUuid: organization.organization_uuid,
@@ -360,10 +355,9 @@ export class UserModel {
                 'password_logins.user_id',
             )
             .where('email', email)
-            .select<(DbUserDetails & { password_hash: string })[]>(
-                '*',
-                'organizations.created_at as organization_created_at',
-            );
+            .select<
+                (DbUserDetails & { password_hash: string })[]
+            >('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
             throw new NotFoundError(
                 `No user found with email ${email} and password`,
@@ -408,10 +402,9 @@ export class UserModel {
                 'password_logins.user_id',
             )
             .where('users.user_uuid', userUuid)
-            .select<(DbUserDetails & { password_hash: string })[]>(
-                '*',
-                'organizations.created_at as organization_created_at',
-            );
+            .select<
+                (DbUserDetails & { password_hash: string })[]
+            >('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
             throw new NotFoundError(`No user found with uuid ${userUuid}`);
         }
@@ -634,10 +627,9 @@ export class UserModel {
             )
             .where('openid_identities.issuer', issuer)
             .andWhere('openid_identities.subject', subject)
-            .select<DbUserDetails[]>(
-                '*',
-                'organizations.created_at as organization_created_at',
-            );
+            .select<
+                DbUserDetails[]
+            >('*', 'organizations.created_at as organization_created_at');
         if (user === undefined) {
             return user;
         }

@@ -39,11 +39,11 @@ export class FeatureFlagModel {
             [FeatureFlags.DashboardComments]:
                 this.getDashboardComments.bind(this),
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
-            [FeatureFlags.ScreenshotReadyIndicator]:
-                this.getScreenshotReadyIndicator.bind(this),
             [FeatureFlags.MetricsCatalogEchartsVisualization]:
                 this.getMetricsCatalogEchartsVisualizationEnabled.bind(this),
             [FeatureFlags.Maps]: this.getMapsEnabled.bind(this),
+            [FeatureFlags.ShowExecutionTime]:
+                this.getShowExecutionTimeEnabled.bind(this),
         };
     }
 
@@ -172,31 +172,6 @@ export class FeatureFlagModel {
         };
     }
 
-    private async getScreenshotReadyIndicator({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.scheduler.useScreenshotReadyIndicator ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.ScreenshotReadyIndicator,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
     private async getMapsEnabled({
         user,
         featureFlagId,
@@ -224,6 +199,32 @@ export class FeatureFlagModel {
             (user
                 ? await isFeatureFlagEnabled(
                       FeatureFlags.MetricsCatalogEchartsVisualization,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+
+        return {
+            id: featureFlagId,
+            enabled,
+        };
+    }
+
+    private async getShowExecutionTimeEnabled({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.query.showExecutionTime ??
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.ShowExecutionTime,
                       {
                           userUuid: user.userUuid,
                           organizationUuid: user.organizationUuid,

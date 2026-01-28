@@ -222,7 +222,9 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                                                             c="ldGray.7"
                                                             fz="xs"
                                                         >
-                                                            {labels.operator}{' '}
+                                                            {
+                                                                labels.operator
+                                                            }{' '}
                                                         </Text>
                                                         <Text
                                                             fw={700}

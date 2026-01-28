@@ -5,7 +5,6 @@ import {
     getFilterDimensionsForMetric,
     getSegmentDimensionsForMetric,
     type CatalogField,
-    type ChartConfig,
     type FilterRule,
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
@@ -180,6 +179,7 @@ export const MetricExploreModalV2: FC<Props> = ({
         chartConfig,
         resultsData,
         columnOrder,
+        computedSeries,
         isLoading,
         hasData,
     } = useMetricVisualization({
@@ -191,19 +191,10 @@ export const MetricExploreModalV2: FC<Props> = ({
         filterRule,
         dateRange,
         comparison: query.comparison,
-    });
-
-    // Track the expanded chart config -> used to let the VisualizationProvider re-render with the new chart config, e.g. calculation of series & color assignment
-    const [expandedChartConfig, setExpandedChartConfig] = useState<
-        ChartConfig | undefined
-    >(undefined);
-
-    const metricsWithTimeDimensionsQuery = useCatalogMetricsWithTimeDimensions({
-        projectUuid,
-        options: {
-            enabled:
-                query.comparison === MetricExplorerComparison.DIFFERENT_METRIC,
-        },
+        compareMetric:
+            query.comparison === MetricExplorerComparison.DIFFERENT_METRIC
+                ? query.metric
+                : null,
     });
 
     const filterDimensionsQuery = useCatalogFilterDimensions({
@@ -219,6 +210,15 @@ export const MetricExploreModalV2: FC<Props> = ({
         tableName,
         options: {
             enabled: !!projectUuid && !!tableName,
+        },
+    });
+
+    const metricsWithTimeDimensionsQuery = useCatalogMetricsWithTimeDimensions({
+        projectUuid,
+        tableName,
+        options: {
+            enabled:
+                query.comparison === MetricExplorerComparison.DIFFERENT_METRIC,
         },
     });
 
@@ -264,10 +264,6 @@ export const MetricExploreModalV2: FC<Props> = ({
         ['ArrowUp', handleGoToPreviousMetric],
         ['ArrowDown', handleGoToNextMetric],
     ]);
-
-    const handleChartConfigChange = useCallback((newConfig: ChartConfig) => {
-        setExpandedChartConfig(newConfig);
-    }, []);
 
     const handleSegmentDimensionChange = useCallback(
         (value: string | null) => {
@@ -470,8 +466,6 @@ export const MetricExploreModalV2: FC<Props> = ({
                                         metricsWithTimeDimensionsQuery={
                                             metricsWithTimeDimensionsQuery
                                         }
-                                        // TODO: enable this when it's implemented
-                                        canCompareToAnotherMetric={false}
                                     />
                                 </Stack>
                             </Stack>
@@ -517,10 +511,7 @@ export const MetricExploreModalV2: FC<Props> = ({
                                     >
                                         <VisualizationProvider
                                             resultsData={resultsData}
-                                            chartConfig={
-                                                expandedChartConfig ??
-                                                chartConfig
-                                            }
+                                            chartConfig={chartConfig}
                                             columnOrder={columnOrder}
                                             initialPivotDimensions={
                                                 segmentDimensionId
@@ -530,10 +521,8 @@ export const MetricExploreModalV2: FC<Props> = ({
                                             colorPalette={colorPalette}
                                             isLoading={isLoading}
                                             onSeriesContextMenu={undefined}
-                                            onChartConfigChange={
-                                                handleChartConfigChange
-                                            }
                                             pivotTableMaxColumnLimit={60}
+                                            computedSeries={computedSeries}
                                         >
                                             <LightdashVisualization />
                                         </VisualizationProvider>

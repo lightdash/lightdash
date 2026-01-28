@@ -1,3 +1,75 @@
+# [0.2389.0](https://github.com/lightdash/lightdash/compare/0.2388.1...0.2389.0) (2026-01-28)
+
+
+### Features
+
+* add custom error messages for Snowflake warehouse access errors ([#19776](https://github.com/lightdash/lightdash/issues/19776)) ([49b8170](https://github.com/lightdash/lightdash/commit/49b8170b4d6ce6c558baed0e2d61eaad5991f70a))
+
+## [0.2388.1](https://github.com/lightdash/lightdash/compare/0.2388.0...0.2388.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* map hover opacity ([#19750](https://github.com/lightdash/lightdash/issues/19750)) ([f236d99](https://github.com/lightdash/lightdash/commit/f236d998ffdbbc1841eaf25f3f95ed56a8623928))
+
+# [0.2388.0](https://github.com/lightdash/lightdash/compare/0.2387.1...0.2388.0) (2026-01-28)
+
+
+### Features
+
+* add model.meta.owner key support ([#19719](https://github.com/lightdash/lightdash/issues/19719)) ([2ed0dcc](https://github.com/lightdash/lightdash/commit/2ed0dcc442b916a197755352f7a345ec9fb09068))
+
+## [0.2387.1](https://github.com/lightdash/lightdash/compare/0.2387.0...0.2387.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* ignore timezone when formatting date values with expressions ([#19759](https://github.com/lightdash/lightdash/issues/19759)) ([f6d0855](https://github.com/lightdash/lightdash/commit/f6d08556ea84845dd4c522e13a859725381d6084))
+
+# [0.2387.0](https://github.com/lightdash/lightdash/compare/0.2386.0...0.2387.0) (2026-01-28)
+
+
+### Features
+
+* move chart debug data to visualization card and add echarts options ([#19740](https://github.com/lightdash/lightdash/issues/19740)) ([483fa3b](https://github.com/lightdash/lightdash/commit/483fa3bb7da9fc2b11cdcc5f07e091501f4fb37c))
+
+# [0.2386.0](https://github.com/lightdash/lightdash/compare/0.2385.1...0.2386.0) (2026-01-28)
+
+
+### Features
+
+* allow new pop comparison on metric explore modal v2 ([#19701](https://github.com/lightdash/lightdash/issues/19701)) ([1d44f01](https://github.com/lightdash/lightdash/commit/1d44f01f2b7eb7d9e38367cb83652c7fdc78e682))
+* support compare to another metric in metric explore modal v2 ([#19727](https://github.com/lightdash/lightdash/issues/19727)) ([fc1d0b9](https://github.com/lightdash/lightdash/commit/fc1d0b9938fa2ddf2dc76707e29b94ded39abb53))
+
+## [0.2385.1](https://github.com/lightdash/lightdash/compare/0.2385.0...0.2385.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* center verification form buttons and fix indentation ([#19766](https://github.com/lightdash/lightdash/issues/19766)) ([f289188](https://github.com/lightdash/lightdash/commit/f2891882a54b4ce87c2581affb06d5165df32b02))
+* include charts from dashboards in validation error queries ([#19758](https://github.com/lightdash/lightdash/issues/19758)) ([9e8bde9](https://github.com/lightdash/lightdash/commit/9e8bde9efbfbbf963065b637f9cdb35faa599f63))
+
+# [0.2385.0](https://github.com/lightdash/lightdash/compare/0.2384.0...0.2385.0) (2026-01-28)
+
+
+### Features
+
+* add showExecutionTime feature flag and config ([#19745](https://github.com/lightdash/lightdash/issues/19745)) ([cc3ce82](https://github.com/lightdash/lightdash/commit/cc3ce8233319f16a0a690c2c836ca8ea0f3c482e))
+
+# [0.2384.0](https://github.com/lightdash/lightdash/compare/0.2383.0...0.2384.0) (2026-01-28)
+
+
+### Features
+
+* add GitHub App installation authentication support to GitHub and GitLab client functions ([#19716](https://github.com/lightdash/lightdash/issues/19716)) ([7a082cd](https://github.com/lightdash/lightdash/commit/7a082cd0acbec8dec164d0fda066ef78c756ef27))
+
+# [0.2383.0](https://github.com/lightdash/lightdash/compare/0.2382.1...0.2383.0) (2026-01-28)
+
+
+### Features
+
+* include sort in underlying data CSV export ([#19755](https://github.com/lightdash/lightdash/issues/19755)) ([6d8181f](https://github.com/lightdash/lightdash/commit/6d8181f17e38a3723ca2b8d95f98501314cdff7c))
+
 ## [0.2382.1](https://github.com/lightdash/lightdash/compare/0.2382.0...0.2382.1) (2026-01-27)
 
 

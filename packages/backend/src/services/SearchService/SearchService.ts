@@ -57,9 +57,8 @@ export class SearchService extends BaseService {
         source: 'omnibar' | 'ai_search_box' = 'omnibar',
         filters?: SearchFilters,
     ): Promise<SearchResults> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(

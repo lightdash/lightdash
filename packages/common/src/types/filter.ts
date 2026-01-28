@@ -99,16 +99,20 @@ export interface FilterRule<
     required?: boolean;
 }
 
-export interface MetricFilterRule
-    extends FilterRule<FilterOperator, { fieldRef: string }> {}
+export interface MetricFilterRule extends FilterRule<
+    FilterOperator,
+    { fieldRef: string }
+> {}
 
 type JoinModelRequiredFilterTarget = {
     fieldRef: string;
     tableName: string;
 };
 
-export interface JoinModelRequiredFilterRule
-    extends FilterRule<FilterOperator, JoinModelRequiredFilterTarget> {}
+export interface JoinModelRequiredFilterRule extends FilterRule<
+    FilterOperator,
+    JoinModelRequiredFilterTarget
+> {}
 
 export type ModelRequiredFilterRule =
     | MetricFilterRule // Keeping backwards compatibility with existing filters

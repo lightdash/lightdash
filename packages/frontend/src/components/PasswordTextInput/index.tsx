@@ -73,8 +73,8 @@ const PasswordTextInput: FC<React.PropsWithChildren<Props>> = ({
                             strength === 100
                                 ? 'teal'
                                 : strength > 50
-                                ? 'yellow'
-                                : 'red'
+                                  ? 'yellow'
+                                  : 'red'
                         }
                         value={strength}
                         size="sm"

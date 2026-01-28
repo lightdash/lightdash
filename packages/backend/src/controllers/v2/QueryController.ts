@@ -154,7 +154,6 @@ export class QueryController extends BaseController {
             timezone: body.query.timezone,
             metricOverrides: body.query.metricOverrides,
             dimensionOverrides: body.query.dimensionOverrides,
-            periodOverPeriod: body.query.periodOverPeriod,
         };
 
         const results = await this.services
@@ -300,6 +299,7 @@ export class QueryController extends BaseController {
                 dateZoom: body.dateZoom,
                 limit: body.limit,
                 parameters: body.parameters,
+                sorts: body.sorts,
             });
 
         return {

@@ -11,7 +11,7 @@ export const warehouseTypes = [
     'trino',
     'clickhouse',
 ] as const;
-export type WarehouseType = typeof warehouseTypes[number];
+export type WarehouseType = (typeof warehouseTypes)[number];
 type DbWarehouseCredentials = {
     warehouse_credentials_id: number;
     project_id: number;

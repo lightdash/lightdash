@@ -28,13 +28,13 @@ import {
     MetricOverrides,
     NotFoundError,
     Organization,
-    PeriodOverPeriodComparison,
     Project,
     SavedChartDAO,
     SessionUser,
     SortField,
     Space,
     TableCalculation,
+    TimeFrames,
     TimeZone,
     UpdatedByUser,
     UpdateMultipleSavedChart,
@@ -103,7 +103,6 @@ type DbSavedChartDetails = {
     pinned_list_uuid: string;
     dashboard_uuid: string | null;
     timezone: TimeZone | null;
-    period_over_period_config: PeriodOverPeriodComparison | null;
 };
 
 const createSavedChartVersionFields = async (
@@ -195,7 +194,6 @@ const createSavedChartVersion = async (
             additionalMetrics,
             customDimensions,
             timezone,
-            periodOverPeriod,
         },
         chartConfig,
         tableConfig,
@@ -231,7 +229,6 @@ const createSavedChartVersion = async (
                 parameters: parameters ? JSON.stringify(parameters) : null,
                 updated_by_user_uuid: updatedByUser?.userUuid || null,
                 timezone: timezone || null,
-                period_over_period_config: periodOverPeriod || null,
             })
             .returning('*');
         await createSavedChartVersionFields(
@@ -348,6 +345,14 @@ const createSavedChartVersion = async (
                 format_options: additionalMetric.formatOptions
                     ? JSON.stringify(additionalMetric.formatOptions)
                     : null,
+                generation_type: additionalMetric.generationType ?? null,
+                base_metric_id: additionalMetric.baseMetricId ?? null,
+                time_dimension_id: additionalMetric.timeDimensionId ?? null,
+                granularity: additionalMetric.granularity ?? null,
+                period_offset:
+                    additionalMetric.periodOffset !== undefined
+                        ? additionalMetric.periodOffset
+                        : null,
             })),
         );
     });
@@ -503,6 +508,23 @@ export class SavedChartModel {
             sql: additionalMetric.sql,
             table: additionalMetric.table,
             type: additionalMetric.type,
+            ...(additionalMetric.generation_type && {
+                generationType:
+                    additionalMetric.generation_type as 'periodOverPeriod',
+            }),
+            ...(additionalMetric.base_metric_id && {
+                baseMetricId: additionalMetric.base_metric_id,
+            }),
+            ...(additionalMetric.time_dimension_id && {
+                timeDimensionId: additionalMetric.time_dimension_id,
+            }),
+            ...(additionalMetric.granularity && {
+                granularity: additionalMetric.granularity as TimeFrames,
+            }),
+            ...(additionalMetric.period_offset !== undefined &&
+                additionalMetric.period_offset !== null && {
+                    periodOffset: additionalMetric.period_offset,
+                }),
             ...(additionalMetric.base_dimension_name && {
                 baseDimensionName: additionalMetric.base_dimension_name,
             }),
@@ -540,14 +562,9 @@ export class SavedChartModel {
                 `${SavedChartVersionsTableName}.updated_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
-            .select<VersionSummaryRow[]>(
-                `${SavedChartsTableName}.saved_query_uuid`,
-                `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
-                `${SavedChartVersionsTableName}.created_at`,
-                `${UserTableName}.user_uuid`,
-                `${UserTableName}.first_name`,
-                `${UserTableName}.last_name`,
-            )
+            .select<
+                VersionSummaryRow[]
+            >(`${SavedChartsTableName}.saved_query_uuid`, `${SavedChartVersionsTableName}.saved_queries_version_uuid`, `${SavedChartVersionsTableName}.created_at`, `${UserTableName}.user_uuid`, `${UserTableName}.first_name`, `${UserTableName}.last_name`)
             .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc');
     }
 
@@ -884,7 +901,6 @@ export class SavedChartModel {
                         'saved_queries_versions.pivot_dimensions',
                         'saved_queries_versions.timezone',
                         'saved_queries_versions.parameters',
-                        'saved_queries_versions.period_over_period_config',
                         `${OrganizationTableName}.organization_uuid`,
                         `${OrganizationColorPaletteTableName}.colors as color_palette`,
                         `${UserTableName}.user_uuid`,
@@ -975,6 +991,12 @@ export class SavedChartModel {
                         'uuid',
                         'compact',
                         'format_options',
+                        // PoP metadata (optional)
+                        'generation_type',
+                        'base_metric_id',
+                        'time_dimension_id',
+                        'granularity',
+                        'period_offset',
                     ])
                     .where('saved_queries_version_id', savedQueriesVersionId);
 
@@ -1098,7 +1120,7 @@ export class SavedChartModel {
                                     type: tableCalculation.type || undefined,
                                     template:
                                         tableCalculation.template || undefined,
-                                } as TableCalculation),
+                                }) as TableCalculation,
                         ),
                         additionalMetrics,
                         customDimensions: [
@@ -1127,8 +1149,6 @@ export class SavedChartModel {
                             })),
                         ],
                         timezone: savedQuery.timezone || undefined,
-                        periodOverPeriod:
-                            savedQuery.period_over_period_config ?? undefined,
                     },
                     parameters: savedQuery.parameters || undefined,
                     chartConfig,
@@ -1383,9 +1403,8 @@ export class SavedChartModel {
             .groupBy(1, 2, 3, 4, 5, 6, 7, 8, 9);
 
         // Filter out charts that are saved in a dashboard and don't belong to any tile in their dashboard last version
-        const chartsNotInTilesUuids = await this.getChartsNotInTilesUuids(
-            savedCharts,
-        );
+        const chartsNotInTilesUuids =
+            await this.getChartsNotInTilesUuids(savedCharts);
         return savedCharts
             .map((chart) => ({
                 ...chart,
@@ -1737,9 +1756,8 @@ export class SavedChartModel {
             );
 
         // Filter out charts that are saved in a dashboard and don't belong to any tile in their dashboard last version
-        const chartsNotInTilesUuids = await this.getChartsNotInTilesUuids(
-            savedCharts,
-        );
+        const chartsNotInTilesUuids =
+            await this.getChartsNotInTilesUuids(savedCharts);
         return savedCharts
             .filter((chart) => !chartsNotInTilesUuids.includes(chart.uuid))
             .map((chart) => ({

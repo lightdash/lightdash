@@ -14,6 +14,7 @@ import {
     type FunnelChartConfig,
     type GaugeChartConfig,
     type Item,
+    type ItemsMap,
     type MapChartConfig,
     type Metric,
     type MetricQuery,
@@ -277,6 +278,11 @@ export interface ExplorerReduceState {
             description?: string;
             fieldItem?: Item | AdditionalMetric;
         };
+        periodOverPeriodComparison: {
+            isOpen: boolean;
+            metric?: Metric;
+            itemsMap?: ItemsMap;
+        };
     };
 
     // Query execution state - manages TanStack Query arguments and history
@@ -287,9 +293,6 @@ export interface ExplorerReduceState {
         unpivotedQueryUuidHistory: string[];
         // Flag to trigger a query execution from components (works regardless of auto-fetch setting)
         pendingFetch: boolean;
-        // Complete column order including PoP columns (derived from query results)
-        // This is synced when query results arrive with popMetadata
-        completeColumnOrder: string[];
     };
     fromDashboard?: string;
     isExploreFromHere?: boolean;

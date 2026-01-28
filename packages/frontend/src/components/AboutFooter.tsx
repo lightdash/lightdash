@@ -157,10 +157,9 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                             icon={<IconInfoCircle size={17} />}
                         >
                             <Text c="blue">
-                                The version v
-                                {healthState.data?.latest.version} is now
-                                available. Please follow the instructions in
-                                the{' '}
+                                The version v{healthState.data?.latest.version}{' '}
+                                is now available. Please follow the instructions
+                                in the{' '}
                                 <Anchor
                                     href="https://docs.lightdash.com/self-host/update-lightdash"
                                     target="_blank"

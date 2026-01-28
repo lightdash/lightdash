@@ -70,9 +70,9 @@ apiV1Router.use('/my-resource', myRouter);
 
 **Authentication Middleware**: All routers use consistent middleware patterns:
 
--   `isAuthenticated`: Requires valid session or API key
--   `allowApiKeyAuthentication`: Enables API key auth for CLI/integrations
--   `unauthorisedInDemo`: Blocks write operations in demo environments
+- `isAuthenticated`: Requires valid session or API key
+- `allowApiKeyAuthentication`: Enables API key auth for CLI/integrations
+- `unauthorisedInDemo`: Blocks write operations in demo environments
 
 **Service Layer Access**: Routers access business logic via `req.services` dependency injection container. Never implement business logic directly in routers.
 

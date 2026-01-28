@@ -37,7 +37,7 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
 
     const isError = isSummaryExploreError(explore);
     const warnings =
-        !isError && 'warnings' in explore ? explore.warnings ?? [] : [];
+        !isError && 'warnings' in explore ? (explore.warnings ?? []) : [];
     const hasWarnings = warnings.length > 0;
     const needsHoverCard = isError || hasWarnings;
 

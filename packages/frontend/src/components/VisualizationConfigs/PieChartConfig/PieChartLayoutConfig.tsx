@@ -55,8 +55,8 @@ export const Layout: React.FC = () => {
                                 dimensions.length === 0
                                     ? 'You must select at least one dimension to create a pie chart'
                                     : dimensions.length === groupFieldIds.length
-                                    ? 'To add more groups you need to add more dimensions to your query'
-                                    : undefined
+                                      ? 'To add more groups you need to add more dimensions to your query'
+                                      : undefined
                             }
                             withinPortal
                         >

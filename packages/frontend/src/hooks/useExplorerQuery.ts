@@ -85,9 +85,8 @@ export const useExplorerQuery = () => {
                                   : undefined,
                           }
                         : null;
-                const downloadQuery = await executeQueryAndWaitForResults(
-                    queryArgsWithLimit,
-                );
+                const downloadQuery =
+                    await executeQueryAndWaitForResults(queryArgsWithLimit);
                 queryUuid = downloadQuery.queryUuid;
             }
             if (!queryUuid) {

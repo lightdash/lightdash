@@ -1103,6 +1103,25 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         return formattedMessage;
     }
 
+    /*
+     * This function is used to format the warehouse error message for the user.
+     * It is used to replace the {warehouseName} with the actual warehouse name.
+     * Sample custom template: You don't have access to warehouse {warehouseName}. Please reach out to your admin.
+     */
+    private formatWarehouseErrorMessage(customTemplate: string): string {
+        let formattedMessage = customTemplate;
+
+        // Replace warehouse name placeholder with the actual warehouse from connection options
+        if (this.connectionOptions.warehouse) {
+            formattedMessage = formattedMessage.replace(
+                /\{warehouseName\}/g,
+                this.connectionOptions.warehouse,
+            );
+        }
+
+        return formattedMessage;
+    }
+
     parseError(error: SnowflakeError, query: string = '') {
         // if the error has no code or data, return a generic error
         if (!error?.code && !error.data) {
@@ -1120,6 +1139,21 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     originalMessage,
                     customErrorMessage,
                 );
+                return new WarehouseQueryError(formattedMessage);
+            }
+        }
+
+        // Check for warehouse access errors and use custom message if configured
+        if (
+            originalMessage.includes(
+                'No active warehouse selected in the current session',
+            )
+        ) {
+            const customErrorMessage =
+                process.env.SNOWFLAKE_WAREHOUSE_ERROR_MESSAGE;
+            if (customErrorMessage) {
+                const formattedMessage =
+                    this.formatWarehouseErrorMessage(customErrorMessage);
                 return new WarehouseQueryError(formattedMessage);
             }
         }

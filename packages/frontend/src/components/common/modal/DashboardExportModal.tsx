@@ -57,7 +57,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     // Image export state
     const [previews, setPreviews] = useState<Record<string, string>>({});
     const [previewChoice, setPreviewChoice] = useState<
-        typeof CUSTOM_WIDTH_OPTIONS[number]['value'] | undefined
+        (typeof CUSTOM_WIDTH_OPTIONS)[number]['value'] | undefined
     >(CUSTOM_WIDTH_OPTIONS[1].value);
     const exportDashboardMutation = useExportDashboard();
 

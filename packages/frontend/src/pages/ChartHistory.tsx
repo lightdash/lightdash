@@ -74,6 +74,7 @@ const ChartHistoryExplorer = memo<{ selectedVersionUuid: string | undefined }>(
                         customDimension: { isOpen: false },
                         writeBack: { isOpen: false },
                         itemDetail: { isOpen: false },
+                        periodOverPeriodComparison: { isOpen: false },
                     },
                 },
                 savedChart: chartVersionQuery.data.chart,

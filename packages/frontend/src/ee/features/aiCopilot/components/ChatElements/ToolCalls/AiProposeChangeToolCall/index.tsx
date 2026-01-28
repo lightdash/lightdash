@@ -71,8 +71,8 @@ export const AiProposeChangeToolCall = ({
     const buttonText = isChangeDeleted
         ? 'Reverted'
         : isRejectedByMetadata
-        ? 'Rejected'
-        : 'Reject';
+          ? 'Rejected'
+          : 'Reject';
 
     const handleReject = () => {
         if (changeUuid) {

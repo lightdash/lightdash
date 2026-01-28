@@ -73,9 +73,8 @@ export class FunnelService extends BaseService {
             throw new ForbiddenError('Funnel Builder feature is not enabled');
         }
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         if (
             user.ability.cannot(
@@ -172,8 +171,8 @@ step_${idx + 1}_users AS (
     SELECT DISTINCT
         fo.${fieldQuote}user_id${fieldQuote},
         fo.${fieldQuote}event_timestamp${fieldQuote} AS ${fieldQuote}step_${
-                    idx + 1
-                }_time${fieldQuote}
+            idx + 1
+        }_time${fieldQuote}
         ${
             breakdownField
                 ? `, fo.${fieldQuote}breakdown_value${fieldQuote}`
@@ -181,8 +180,8 @@ step_${idx + 1}_users AS (
         }
     FROM first_occurrences fo
     WHERE fo.${fieldQuote}event_name${fieldQuote} = ${quoteString(
-                    step.eventName,
-                )}
+        step.eventName,
+    )}
     ${
         idx > 0
             ? `
@@ -234,8 +233,8 @@ step_${idx + 1}_users AS (
         idx > 0
             ? `
     JOIN step_${idx}_users s${idx} ON s${
-                  idx + 1
-              }.${fieldQuote}user_id${fieldQuote} = s${idx}.${fieldQuote}user_id${fieldQuote}
+        idx + 1
+    }.${fieldQuote}user_id${fieldQuote} = s${idx}.${fieldQuote}user_id${fieldQuote}
         ${
             breakdownField
                 ? `AND s${
@@ -391,8 +390,8 @@ ORDER BY ${
             FROM ${baseTableSql} AS ${quoteChar}${baseTableName}${quoteChar}
             WHERE ${eventField.compiledSql} IS NOT NULL
               AND ${timestampField.compiledSql} >= ${sqlBuilder.castToTimestamp(
-                    thirtyDaysAgo,
-                )}
+                  thirtyDaysAgo,
+              )}
             ORDER BY ${quoteChar}event_name${quoteChar}
             LIMIT 1000
         `;

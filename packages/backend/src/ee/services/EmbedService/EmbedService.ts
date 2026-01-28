@@ -150,9 +150,8 @@ export class EmbedService extends BaseService {
         { expiresIn, ...jwtData }: CreateEmbedJwt,
     ): Promise<EmbedUrl> {
         const { user } = account;
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
             userUuid: user.userUuid,
             organizationUuid,
@@ -194,9 +193,8 @@ export class EmbedService extends BaseService {
         user: LightdashSessionUser,
         projectUuid: string,
     ): Promise<DecodedEmbed> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
             userUuid: user.userUuid,
             organizationUuid,
@@ -227,9 +225,8 @@ export class EmbedService extends BaseService {
         projectUuid: string,
         data: CreateEmbedRequestBody,
     ): Promise<DecodedEmbed> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
             userUuid: user.userUuid,
             organizationUuid,
@@ -270,9 +267,8 @@ export class EmbedService extends BaseService {
         }: Pick<UpdateEmbed, 'dashboardUuids' | 'allowAllDashboards'>,
     ) {
         const { user } = account;
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
             userUuid: user.userUuid,
             organizationUuid,
@@ -305,9 +301,8 @@ export class EmbedService extends BaseService {
         }: UpdateEmbed,
     ) {
         const { user } = account;
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         await this.isFeatureEnabled({
             userUuid: user.userUuid,
@@ -490,9 +485,8 @@ export class EmbedService extends BaseService {
                 dashboardUuid,
             );
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         await this.isFeatureEnabled({
             userUuid: user?.userUuid ?? account.user.id,
@@ -960,9 +954,8 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         const chart = await this._getChartFromDashboardTiles(
             dashboard,
@@ -1062,9 +1055,8 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         const chart = await this._getChartFromDashboardTiles(
             dashboard,
@@ -1196,9 +1188,8 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
         const tile = dashboard.tiles
             .filter(isDashboardChartTileType)
@@ -1281,9 +1272,8 @@ export class EmbedService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         const acceptedUserParameters =
@@ -1375,9 +1365,8 @@ export class EmbedService extends BaseService {
             ...(metricQuery.additionalMetrics?.map((m) => m.name) || []),
         ];
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         const acceptedUserParameters =
@@ -1507,9 +1496,8 @@ export class EmbedService extends BaseService {
         projectUuid: string,
         data: CalculateTotalFromQuery,
     ): Promise<Record<string, number>> {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         const explore = await this.projectModel.getExploreFromCache(
             projectUuid,
@@ -1600,9 +1588,8 @@ export class EmbedService extends BaseService {
         projectUuid: string,
         data: CalculateSubtotalsFromQuery,
     ) {
-        const { organizationUuid } = await this.projectModel.getSummary(
-            projectUuid,
-        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         const explore = await this.projectModel.getExploreFromCache(
             projectUuid,
@@ -1677,9 +1664,8 @@ export class EmbedService extends BaseService {
             },
             dashboardUuid,
         );
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-        );
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const dashboardFilters = dashboard.filters.dimensions;
         const filter = dashboardFilters.find((f) => f.id === filterUuid);
         if (!filter) {

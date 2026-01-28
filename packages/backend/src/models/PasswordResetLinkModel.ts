@@ -41,10 +41,9 @@ export class PasswordResetLinkModel {
                 'emails.email_id',
                 'password_reset_links.email_id',
             )
-            .select<{ expires_at: Date; email: string }[]>([
-                'password_reset_links.expires_at',
-                'emails.email',
-            ])
+            .select<
+                { expires_at: Date; email: string }[]
+            >(['password_reset_links.expires_at', 'emails.email'])
             .where('code_hash', codeHash);
         if (links.length === 0) {
             throw new NotFoundError('No password reset link found');

@@ -14,8 +14,8 @@ When a table is pivoted, dimensions move from rows to columns, creating a matrix
 
 Imagine query results with:
 
--   **Dimensions**: `order_date_month`, `shipping_method`
--   **Metrics**: `total_order_amount`, `total_completed_order_amount`
+- **Dimensions**: `order_date_month`, `shipping_method`
+- **Metrics**: `total_order_amount`, `total_completed_order_amount`
 
 ```
 | order_date_month | shipping_method | total_order_amount | total_completed_order_amount |
@@ -145,9 +145,9 @@ Array describing each dimension used in the column headers.
 
 **Key properties:**
 
--   `type`: `"value"` for actual values, `"label"` for field name labels
--   `colSpan`: How many columns this header cell spans (0 = hidden/merged)
--   `value`: The actual dimension value
+- `type`: `"value"` for actual values, `"label"` for field name labels
+- `colSpan`: How many columns this header cell spans (0 = hidden/merged)
+- `value`: The actual dimension value
 
 #### `indexValueTypes`
 
@@ -178,8 +178,8 @@ Can also be `type: dimension` when dimensions remain as rows.
 
 This means:
 
--   Row 0 shows "Total order amount"
--   Row 1 shows "Total completed order amount"
+- Row 0 shows "Total order amount"
+- Row 1 shows "Total completed order amount"
 
 #### `dataValues`
 
@@ -210,9 +210,9 @@ This means:
 
 Simple counts:
 
--   `dataColumnCount`: Number of data columns (30)
--   `rowsCount`: Number of data rows (2)
--   `cellsCount`: Total columns including label column (31)
+- `dataColumnCount`: Number of data columns (30)
+- `rowsCount`: Number of data rows (2)
+- `cellsCount`: Total columns including label column (31)
 
 ---
 
@@ -464,8 +464,8 @@ Uses recursive `RecursiveRecord<number>` to map dimension value combinations →
 
 Key helper functions:
 
--   `setIndexByKey(obj, keys, value)`: Creates nested path, returns `true` if new
--   `getIndexByKey(obj, keys)`: Retrieves position from nested path
+- `setIndexByKey(obj, keys, value)`: Creates nested path, returns `true` if new
+- `getIndexByKey(obj, keys)`: Retrieves position from nested path
 
 #### Step 3: First Pass - Collect Unique Rows/Columns
 
@@ -526,9 +526,8 @@ Converts structured `PivotData` back to flat `ResultRow[]` for TanStack Table.
 
 ```typescript
 // Combines all header dimension fieldIds
-uniqueIdsForDataValueColumns[
-    colIndex
-] = `${header1.fieldId}__${header2.fieldId}__${colIndex}`;
+uniqueIdsForDataValueColumns[colIndex] =
+    `${header1.fieldId}__${header2.fieldId}__${colIndex}`;
 // Example: "orders_order_date_month__orders_shipping_method__0"
 ```
 

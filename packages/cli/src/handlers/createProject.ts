@@ -295,9 +295,8 @@ We will generate programatically a temporary PAT to enable access on Lightdash w
 For a better user experience, we recommend enabling Snowflake OAuth authentication on the server.\n`,
                 ),
             );
-            const patToken = await createProgramaticallySnowflakePat(
-                credentials,
-            );
+            const patToken =
+                await createProgramaticallySnowflakePat(credentials);
             credentials = {
                 ...credentials,
                 authenticationType: SnowflakeAuthenticationType.PASSWORD,

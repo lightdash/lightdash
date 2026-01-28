@@ -75,9 +75,9 @@ export class InviteLinkModel {
                 `LEFT JOIN ${EmailTableName} ON ${UserTableName}.user_id = ${EmailTableName}.user_id AND ${EmailTableName}.is_primary`,
             )
             .where('invite_code_hash', inviteCodeHash)
-            .select<Array<DbInviteLink & DbOrganization & DbUser & DbEmail>>(
-                '*',
-            );
+            .select<
+                Array<DbInviteLink & DbOrganization & DbUser & DbEmail>
+            >('*');
         if (inviteLinks.length === 0) {
             throw new NotFoundError('No invite link found');
         }

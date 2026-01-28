@@ -1,4 +1,5 @@
 import {
+    buildPopAdditionalMetricName,
     DimensionType,
     getItemId,
     getItemLabelWithoutTableName,
@@ -10,15 +11,17 @@ import {
     isMetric,
     isMetricWithDateValue,
     isNumericItem,
+    isPeriodOverPeriodAdditionalMetric,
     isTableCalculation,
     isTimeBasedDimension,
     type TableCalculation,
 } from '@lightdash/common';
-import { ActionIcon, Menu, Text } from '@mantine/core';
+import { ActionIcon, Box, Group, Menu, Text, Tooltip } from '@mantine/core';
 import {
     IconChevronDown,
     IconFilter,
     IconPencil,
+    IconTimelineEvent,
     IconTrash,
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -38,6 +41,7 @@ import { useExplore } from '../../../hooks/useExplore';
 import { useFilters } from '../../../hooks/useFilters';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { BetaBadge } from '../../common/BetaBadge';
 import MantineIcon from '../../common/MantineIcon';
 import { type HeaderProps, type TableColumn } from '../../common/Table/types';
 import ColumnHeaderSortMenuOptions from './ColumnHeaderSortMenuOptions';
@@ -91,12 +95,22 @@ const ContextMenu: FC<ContextMenuProps> = ({
     );
 
     const isItemAdditionalMetric = !!additionalMetric;
+    const isPopAdditionalMetric =
+        isPeriodOverPeriodAdditionalMetric(additionalMetric);
+
+    // Check if a PoP metric already exists for this base metric
+    const hasExistingPopForMetric = useMemo(() => {
+        if (!item || !isMetric(item)) return false;
+        const expectedPopName = buildPopAdditionalMetricName(item.name);
+        const expectedPopId = `${item.table}_${expectedPopName}`;
+        return additionalMetrics?.some((am) => getItemId(am) === expectedPopId);
+    }, [item, additionalMetrics]);
 
     if (item && isField(item)) {
         const itemFieldId = getItemId(item);
         return (
             <>
-                {isFilterableField(item) && (
+                {isFilterableField(item) && !isPopAdditionalMetric && (
                     <>
                         <Menu.Item
                             icon={<MantineIcon icon={IconFilter} />}
@@ -115,9 +129,12 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     </>
                 )}
 
-                <ColumnHeaderSortMenuOptions item={item} sort={sort} />
-
-                <Menu.Divider />
+                {!isPopAdditionalMetric && (
+                    <>
+                        <ColumnHeaderSortMenuOptions item={item} sort={sort} />
+                        <Menu.Divider />
+                    </>
+                )}
 
                 {isTimeBasedDimension(item) ||
                 (isDimension(item) && item.type === DimensionType.NUMBER) ? (
@@ -127,7 +144,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     </>
                 ) : null}
 
-                {isMetric(item) && (
+                {isMetric(item) && !isPopAdditionalMetric && (
                     <>
                         {!isItemAdditionalMetric &&
                             (isNumericItem(item) ||
@@ -143,7 +160,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     </>
                 )}
 
-                {isItemAdditionalMetric ? (
+                {isItemAdditionalMetric && !isPopAdditionalMetric ? (
                     <Menu.Item
                         icon={<MantineIcon icon={IconPencil} />}
                         onClick={() => {
@@ -158,6 +175,47 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     >
                         Edit custom metric
                     </Menu.Item>
+                ) : null}
+
+                {isMetric(item) && !isPopAdditionalMetric ? (
+                    <>
+                        <Tooltip
+                            disabled={!hasExistingPopForMetric}
+                            label="This metric already has a period comparison"
+                        >
+                            <Menu.Item
+                                icon={<MantineIcon icon={IconTimelineEvent} />}
+                                rightSection={
+                                    <Box ml="sm">
+                                        <BetaBadge tooltipLabel="" />
+                                    </Box>
+                                }
+                                sx={
+                                    hasExistingPopForMetric
+                                        ? {
+                                              opacity: 0.5,
+                                              cursor: 'not-allowed',
+                                          }
+                                        : undefined
+                                }
+                                onClick={() => {
+                                    if (hasExistingPopForMetric) return;
+                                    dispatch(
+                                        explorerActions.togglePeriodOverPeriodComparisonModal(
+                                            {
+                                                metric: item,
+                                                itemsMap: itemsMap,
+                                            },
+                                        ),
+                                    );
+                                }}
+                            >
+                                Add period comparison
+                            </Menu.Item>
+                        </Tooltip>
+
+                        <Menu.Divider />
+                    </>
                 ) : null}
 
                 <Menu.Item
@@ -308,21 +366,27 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                     e.stopPropagation();
                 }}
             >
-                <Menu withinPortal withArrow shadow="md">
-                    <Menu.Target>
-                        <ActionIcon size="xs" variant="light" bg="transparent">
-                            <MantineIcon icon={IconChevronDown} />
-                        </ActionIcon>
-                    </Menu.Target>
+                <Group spacing="two" noWrap>
+                    <Menu withinPortal withArrow shadow="md">
+                        <Menu.Target>
+                            <ActionIcon
+                                size="xs"
+                                variant="light"
+                                bg="transparent"
+                            >
+                                <MantineIcon icon={IconChevronDown} />
+                            </ActionIcon>
+                        </Menu.Target>
 
-                    <Menu.Dropdown>
-                        <ContextMenu
-                            header={header}
-                            onToggleCalculationEditModal={setShowUpdate}
-                            onToggleCalculationDeleteModal={setShowDelete}
-                        />
-                    </Menu.Dropdown>
-                </Menu>
+                        <Menu.Dropdown>
+                            <ContextMenu
+                                header={header}
+                                onToggleCalculationEditModal={setShowUpdate}
+                                onToggleCalculationDeleteModal={setShowDelete}
+                            />
+                        </Menu.Dropdown>
+                    </Menu>
+                </Group>
 
                 {showUpdate && (
                     <UpdateTableCalculationModal

@@ -96,9 +96,10 @@ export const getLastCommit = async ({
     owner,
     repo,
     branch,
+    installationId,
     token,
     hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
-}: Omit<GitlabFileParams, 'fileName'>) => {
+}: Omit<GitlabFileParams, 'fileName'> & { installationId?: string }) => {
     const projectId = getProjectId(owner, repo);
     const url = getApiUrl(
         hostDomain,
@@ -118,9 +119,10 @@ export const getFileContent = async ({
     owner,
     repo,
     branch,
+    installationId,
     token,
     hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
-}: GitlabFileParams) => {
+}: GitlabFileParams & { installationId?: string }) => {
     const projectId = getProjectId(owner, repo);
     const encodedPath = encodeURIComponent(fileName);
     const url = getApiUrl(
@@ -141,9 +143,10 @@ export const createBranch = async ({
     owner,
     repo,
     sha,
+    installationId,
     token,
     hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
-}: GitlabBranchParams) => {
+}: GitlabBranchParams & { installationId?: string }) => {
     const projectId = getProjectId(owner, repo);
     const url = getApiUrl(
         hostDomain,
@@ -171,15 +174,21 @@ export const checkFileDoesNotExist = async ({
     repo,
     path,
     branch,
+    installationId,
     token,
     hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
-}: GitlabApiParams & { path: string; branch: string }) => {
+}: GitlabApiParams & {
+    path: string;
+    branch: string;
+    installationId?: string;
+}) => {
     try {
         await getFileContent({
             fileName: path,
             owner,
             repo,
             branch,
+            installationId,
             token,
             hostDomain,
         });
@@ -200,9 +209,10 @@ export const createFile = async ({
     owner,
     repo,
     branch,
+    installationId,
     token,
     hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
-}: GitlabCreateFileParams) => {
+}: GitlabCreateFileParams & { installationId?: string }) => {
     const projectId = getProjectId(owner, repo);
     const encodedPath = encodeURIComponent(fileName);
     const url = getApiUrl(
@@ -229,9 +239,10 @@ export const updateFile = async ({
     owner,
     repo,
     branch,
+    installationId,
     token,
     hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
-}: GitlabUpdateFileParams) => {
+}: GitlabUpdateFileParams & { installationId?: string }) => {
     const projectId = getProjectId(owner, repo);
     const encodedPath = encodeURIComponent(fileName);
     const url = getApiUrl(
