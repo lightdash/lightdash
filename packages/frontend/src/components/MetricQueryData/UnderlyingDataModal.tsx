@@ -16,10 +16,11 @@ import {
     type FilterRule,
     type Filters,
     type Metric,
+    type SortField,
 } from '@lightdash/common';
 import { Button, Divider, Group, Popover } from '@mantine-8/core';
 import { IconShare2, IconStack } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useExplore } from '../../hooks/useExplore';
@@ -53,6 +54,8 @@ const UnderlyingDataModalContent: FC = () => {
         queryUuid,
         parameters,
     } = useMetricQueryDataContext();
+
+    const [sorts, setSorts] = useState<SortField[]>([]);
 
     const { user } = useApp();
     const { data: organization } = useOrganization();
@@ -239,6 +242,7 @@ const UnderlyingDataModalContent: FC = () => {
         underlyingDataItemId,
         underlyingDataConfig?.dateZoom,
         parameters,
+        sorts,
     );
 
     const exploreFromHereUrl = useMemo(() => {
@@ -277,6 +281,7 @@ const UnderlyingDataModalContent: FC = () => {
                         filters: convertDateFilters(filters),
                         dateZoom: underlyingDataConfig?.dateZoom,
                         limit,
+                        sorts,
                     },
                     undefined,
                     parameters,
@@ -297,6 +302,7 @@ const UnderlyingDataModalContent: FC = () => {
             underlyingDataConfig?.dateZoom,
             underlyingDataItemId,
             parameters,
+            sorts,
         ],
     );
 
@@ -388,6 +394,8 @@ const UnderlyingDataModalContent: FC = () => {
                     fieldsMap={resultsData?.fields || {}}
                     hasJoins={joinedTables.length > 0}
                     sortByUnderlyingValues={sortByUnderlyingValues}
+                    sorts={sorts}
+                    onSortChange={setSorts}
                 />
             )}
         </MantineModal>

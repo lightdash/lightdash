@@ -300,6 +300,7 @@ export class QueryController extends BaseController {
                 dateZoom: body.dateZoom,
                 limit: body.limit,
                 parameters: body.parameters,
+                sorts: body.sorts,
             });
 
         return {

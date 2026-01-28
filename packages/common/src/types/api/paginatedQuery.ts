@@ -64,6 +64,7 @@ export type ExecuteAsyncUnderlyingDataRequestParams =
         filters: Filters;
         dateZoom?: DateZoom;
         limit?: number | null;
+        sorts?: SortField[];
     };
 
 export type ExecuteAsyncSqlChartByUuidRequestParams =
