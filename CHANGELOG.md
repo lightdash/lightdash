@@ -1,3 +1,10 @@
+## [0.2389.1](https://github.com/lightdash/lightdash/compare/0.2389.0...0.2389.1) (2026-01-28)
+
+
+### Bug Fixes
+
+* pivot sorting with mix column types ([#19779](https://github.com/lightdash/lightdash/issues/19779)) ([42b7c65](https://github.com/lightdash/lightdash/commit/42b7c657be1ff6bfef1d5c692d6a11981eafd144))
+
 # [0.2389.0](https://github.com/lightdash/lightdash/compare/0.2388.1...0.2389.0) (2026-01-28)
 
 
