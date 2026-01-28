@@ -219,6 +219,7 @@ export const lightdashConfigMock: LightdashConfig = {
                     apiKey: 'mock_api_key',
                     modelName: 'gpt-4.1-2025-04-14',
                     embeddingModelName: 'text-embedding-3-small',
+                    zeroDataRetention: false,
                 },
             },
             verifiedAnswerSimilarityThreshold: 0.6,
