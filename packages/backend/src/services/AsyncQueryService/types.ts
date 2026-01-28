@@ -85,6 +85,7 @@ export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {
     underlyingDataItemId?: string;
     dateZoom?: DateZoom;
     limit?: number | null;
+    sorts?: SortField[];
 };
 
 export type ExecuteAsyncQueryReturn = {

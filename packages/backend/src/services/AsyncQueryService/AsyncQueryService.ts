@@ -2575,6 +2575,7 @@ export class AsyncQueryService extends ProjectService {
         dateZoom,
         limit,
         parameters,
+        sorts,
     }: ExecuteAsyncUnderlyingDataQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -2751,6 +2752,7 @@ export class AsyncQueryService extends ProjectService {
             underlyingDataSourceQueryUuid,
             filters,
             underlyingDataItemId,
+            sorts,
         };
 
         const queryTags: RunQueryTags = {
@@ -2767,7 +2769,7 @@ export class AsyncQueryService extends ProjectService {
             customDimensions: availableCustomDimensions,
             filters,
             metrics: availableMetrics.map(getItemId),
-            sorts: [],
+            sorts: sorts ?? [],
             limit: 500,
             tableCalculations: [],
             additionalMetrics: [],

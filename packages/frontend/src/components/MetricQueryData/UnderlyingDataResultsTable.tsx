@@ -2,6 +2,7 @@ import {
     type ApiQueryResults,
     type Field,
     type ItemsMap,
+    type SortField,
 } from '@lightdash/common';
 import { Box, Center } from '@mantine/core';
 import { useCallback, type FC } from 'react';
@@ -15,8 +16,9 @@ import {
     TableHeaderLabelContainer,
     TableHeaderRegularLabel,
 } from '../common/Table/Table.styles';
-import { type TableColumn } from '../common/Table/types';
+import { type HeaderProps, type TableColumn } from '../common/Table/types';
 import CellContextMenu from './CellContextMenu';
+import UnderlyingDataHeaderContextMenu from './UnderlyingDataHeaderContextMenu';
 
 const UnderlyingDataResultsTable: FC<{
     fieldsMap: ItemsMap;
@@ -27,12 +29,16 @@ const UnderlyingDataResultsTable: FC<{
         columnA: TableColumn,
         columnB: TableColumn,
     ) => number;
+    sorts: SortField[];
+    onSortChange: (sorts: SortField[]) => void;
 }> = ({
     fieldsMap,
     resultsData,
     isLoading,
     hasJoins,
     sortByUnderlyingValues,
+    sorts,
+    onSortChange,
 }) => {
     const columnHeader = useCallback(
         (dimension: Field) => (
@@ -54,6 +60,19 @@ const UnderlyingDataResultsTable: FC<{
         fieldsMap,
         columnHeader,
     });
+
+    const headerContextMenu = useCallback<
+        FC<React.PropsWithChildren<HeaderProps>>
+    >(
+        (props) => (
+            <UnderlyingDataHeaderContextMenu
+                {...props}
+                sorts={sorts}
+                onSortChange={onSortChange}
+            />
+        ),
+        [sorts, onSortChange],
+    );
 
     if (isLoading) {
         return (
@@ -81,6 +100,7 @@ const UnderlyingDataResultsTable: FC<{
                         show: true,
                     }}
                     cellContextMenu={CellContextMenu}
+                    headerContextMenu={headerContextMenu}
                     $shouldExpand
                 />
             </Box>

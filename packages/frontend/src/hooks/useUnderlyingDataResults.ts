@@ -12,6 +12,7 @@ import {
     QueryHistoryStatus,
     type ResultRow,
     sleep,
+    type SortField,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
@@ -138,6 +139,7 @@ export const useUnderlyingDataResults = (
     underlyingDataItemId?: string,
     dateZoom?: DateZoom,
     parameters?: ParametersValuesMap,
+    sorts?: SortField[],
 ) => {
     const projectUuid = useProjectUuid();
 
@@ -150,6 +152,7 @@ export const useUnderlyingDataResults = (
             filters,
             dateZoom,
             parameters,
+            sorts,
         ],
         enabled: Boolean(projectUuid) && Boolean(underlyingDataSourceQueryUuid),
         queryFn: () => {
@@ -162,6 +165,7 @@ export const useUnderlyingDataResults = (
                     underlyingDataItemId,
                     filters: convertDateFilters(filters),
                     dateZoom,
+                    sorts,
                 },
                 undefined,
                 parameters,
