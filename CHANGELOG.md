@@ -1,3 +1,10 @@
+# [0.2387.0](https://github.com/lightdash/lightdash/compare/0.2386.0...0.2387.0) (2026-01-28)
+
+
+### Features
+
+* move chart debug data to visualization card and add echarts options ([#19740](https://github.com/lightdash/lightdash/issues/19740)) ([483fa3b](https://github.com/lightdash/lightdash/commit/483fa3bb7da9fc2b11cdcc5f07e091501f4fb37c))
+
 # [0.2386.0](https://github.com/lightdash/lightdash/compare/0.2385.1...0.2386.0) (2026-01-28)
 
 
