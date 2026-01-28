@@ -103,8 +103,6 @@ const ContextMenu: FC<ContextMenuProps> = ({
         if (!item || !isMetric(item)) return false;
         const expectedPopName = buildPopAdditionalMetricName(item.name);
         const expectedPopId = `${item.table}_${expectedPopName}`;
-        console.log('expectedPopId', expectedPopId);
-        console.log('additionalMetrics', additionalMetrics);
         return additionalMetrics?.some((am) => getItemId(am) === expectedPopId);
     }, [item, additionalMetrics]);
 

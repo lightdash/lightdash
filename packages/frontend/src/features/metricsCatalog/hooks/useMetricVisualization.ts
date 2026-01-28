@@ -1,10 +1,13 @@
 import {
+    buildPopAdditionalMetric,
     CartesianSeriesType,
     ChartType,
     FilterOperator,
     getDefaultDateRangeFromInterval,
     getFieldIdForDateDimension,
     getItemId,
+    getPopPeriodLabel,
+    isCompleteLayout,
     MetricExplorerComparison,
     METRICS_EXPLORER_DATE_FORMAT,
     QueryExecutionContext,
@@ -16,16 +19,24 @@ import {
     type MetricExplorerDateRange,
     type MetricQuery,
     type MetricWithAssociatedTimeDimension,
+    type Series,
     type TimeDimensionConfig,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
 import { useMemo, useRef } from 'react';
 import { type VisualizationProviderProps } from '../../../components/LightdashVisualization/VisualizationProvider';
 import { type MetricQueryDataContext } from '../../../components/MetricQueryData/context';
+import {
+    getExpectedSeriesMap,
+    mergeExistingAndExpectedSeries,
+} from '../../../hooks/cartesianChartConfig/utils';
 import { useExplore } from '../../../hooks/useExplore';
 import { type QueryResultsProps } from '../../../hooks/useQueryResults';
 import { useQueryExecutor } from '../../../providers/Explorer/useQueryExecutor';
 import { useMetric } from './useMetricsCatalog';
+
+const METRICS_EXPLORER_PREVIOUS_PERIOD_OFFSET_DEFAULT = 1;
+const METRICS_EXPLORER_PREVIOUS_PERIOD_GRANULARITY_DEFAULT = TimeFrames.YEAR;
 
 const buildMetricQueryFromField = (
     field: MetricWithAssociatedTimeDimension,
@@ -93,27 +104,33 @@ const buildMetricQueryFromField = (
               }
             : {};
 
+    const baseMetricId = getItemId(field);
+    const popResult =
+        shouldCompareToPreviousYear && timeDimensionFieldId
+            ? buildPopAdditionalMetric({
+                  metric: field,
+                  timeDimensionId: timeDimensionFieldId,
+                  granularity:
+                      METRICS_EXPLORER_PREVIOUS_PERIOD_GRANULARITY_DEFAULT,
+                  periodOffset: METRICS_EXPLORER_PREVIOUS_PERIOD_OFFSET_DEFAULT,
+              })
+            : null;
+
+    const popMetricId = popResult?.metricId;
+
     return {
         exploreName: field.table,
         dimensions,
-        metrics: [getItemId(field)],
+        metrics:
+            popMetricId !== undefined
+                ? [baseMetricId, popMetricId]
+                : [baseMetricId],
         filters,
         sorts: [],
         limit: 5000,
         tableCalculations: [],
-        ...(shouldCompareToPreviousYear
-            ? {
-                  periodOverPeriod: {
-                      type: 'previousPeriod' as const,
-                      // Compare each point to the same period last year
-                      granularity: TimeFrames.YEAR,
-                      periodOffset: 1,
-                      field: {
-                          name: timeDimensionName,
-                          table: timeDimensionConfig.table,
-                      },
-                  },
-              }
+        ...(popResult !== null
+            ? { additionalMetrics: [popResult.additionalMetric] }
             : {}),
     };
 };
@@ -127,13 +144,16 @@ const buildLineChartConfig = (
 ): ChartConfig => {
     const timeDimensionFieldId = metricQuery.dimensions[0];
     const metricFieldId = metricQuery.metrics[0];
+    const popMetricFieldId = metricQuery.metrics[1];
 
     return {
         type: ChartType.CARTESIAN,
         config: {
             layout: {
                 xField: timeDimensionFieldId,
-                yField: [metricFieldId],
+                yField: popMetricFieldId
+                    ? [metricFieldId, popMetricFieldId]
+                    : [metricFieldId],
             },
             eChartsConfig: {
                 series: [
@@ -145,6 +165,21 @@ const buildLineChartConfig = (
                         type: CartesianSeriesType.LINE,
                         name: metricLabel,
                     },
+                    ...(popMetricFieldId
+                        ? [
+                              {
+                                  encode: {
+                                      xRef: { field: timeDimensionFieldId },
+                                      yRef: { field: popMetricFieldId },
+                                  },
+                                  type: CartesianSeriesType.LINE,
+                                  name: `${metricLabel} (${getPopPeriodLabel(
+                                      METRICS_EXPLORER_PREVIOUS_PERIOD_GRANULARITY_DEFAULT,
+                                      METRICS_EXPLORER_PREVIOUS_PERIOD_OFFSET_DEFAULT,
+                                  )})`,
+                              },
+                          ]
+                        : []),
                 ],
             },
         },
@@ -164,6 +199,12 @@ export type MetricVisualizationResult = {
     chartConfig: VisualizationProviderProps['chartConfig'];
     resultsData: VisualizationProviderProps['resultsData'];
     columnOrder: VisualizationProviderProps['columnOrder'];
+    /**
+     * Pre-computed series for VisualizationProvider.
+     * This ensures proper color assignment for pivoted series without needing onChartConfigChange.
+     * @see DashboardChartTile for the same pattern
+     */
+    computedSeries: Series[];
 
     hasData: boolean;
     isLoading: VisualizationProviderProps['isLoading'];
@@ -272,32 +313,86 @@ export function useMetricVisualization({
         !!queryArgs,
     );
 
+    /**
+     * Use the metricQuery from createQuery when available, falling back to our computed metricQuery.
+     * With computedSeries handling series generation from actual row data, we no longer need
+     * the queryUuid synchronization - series are computed based on what's actually in queryResults.
+     */
+    const executedMetricQuery = createQuery.data?.metricQuery ?? metricQuery;
+
     // 4. Build properties for VisualizationProvider
     const chartConfig = useMemo<ChartConfig>(() => {
-        if (!metricQuery || !metricFieldQuery.data) {
+        if (!executedMetricQuery || !metricFieldQuery.data) {
             return { type: ChartType.CARTESIAN, config: undefined };
         }
-        return buildLineChartConfig(metricQuery, metricFieldQuery.data.label);
-    }, [metricQuery, metricFieldQuery.data]);
+        return buildLineChartConfig(
+            executedMetricQuery,
+            metricFieldQuery.data.label,
+        );
+    }, [executedMetricQuery, metricFieldQuery.data]);
 
     const resultsData = useMemo(
         () => ({
             ...queryResults,
-            metricQuery: createQuery.data?.metricQuery ?? metricQuery,
+            metricQuery: executedMetricQuery,
             fields: createQuery.data?.fields ?? {},
         }),
-        [
-            queryResults,
-            createQuery.data?.metricQuery,
-            createQuery.data?.fields,
-            metricQuery,
-        ],
+        [queryResults, executedMetricQuery, createQuery.data?.fields],
     );
 
     const columnOrder = useMemo(() => {
-        if (!metricQuery) return [];
-        return [...metricQuery.dimensions, ...metricQuery.metrics];
-    }, [metricQuery]);
+        if (!executedMetricQuery) return [];
+        return [
+            ...executedMetricQuery.dimensions,
+            ...executedMetricQuery.metrics,
+        ];
+    }, [executedMetricQuery]);
+
+    /**
+     * Pre-compute series for VisualizationProvider to ensure proper color assignment.
+     * Without this, pivoted series may appear transparent because the provider's
+     * fallbackColors are computed before series expansion happens.
+     *
+     * This follows the same pattern as DashboardChartTile.
+     */
+    const computedSeries = useMemo<Series[]>(() => {
+        if (
+            chartConfig.type !== ChartType.CARTESIAN ||
+            !chartConfig.config ||
+            !isCompleteLayout(chartConfig.config.layout) ||
+            !queryResults.hasFetchedAllRows ||
+            queryResults.rows.length === 0
+        ) {
+            return [];
+        }
+
+        const firstSerie = chartConfig.config.eChartsConfig.series?.[0];
+        const expectedSeriesMap = getExpectedSeriesMap({
+            defaultSmooth: firstSerie?.smooth,
+            defaultShowSymbol: firstSerie?.showSymbol,
+            defaultAreaStyle: firstSerie?.areaStyle,
+            defaultCartesianType: CartesianSeriesType.LINE,
+            availableDimensions: executedMetricQuery?.dimensions ?? [],
+            isStacked: false,
+            pivotKeys: segmentDimensionId ? [segmentDimensionId] : undefined,
+            resultsData: queryResults,
+            xField: chartConfig.config.layout.xField,
+            yFields: chartConfig.config.layout.yField,
+            defaultLabel: firstSerie?.label,
+            itemsMap: createQuery.data?.fields ?? {},
+        });
+
+        return mergeExistingAndExpectedSeries({
+            expectedSeriesMap,
+            existingSeries: chartConfig.config.eChartsConfig.series ?? [],
+        });
+    }, [
+        chartConfig,
+        queryResults,
+        executedMetricQuery?.dimensions,
+        segmentDimensionId,
+        createQuery.data?.fields,
+    ]);
 
     const isLoading =
         metricFieldQuery.isLoading ||
@@ -320,17 +415,35 @@ export function useMetricVisualization({
         queryResults.error ||
         null;
 
-    return {
-        metricField: metricFieldQuery.data,
-        explore: exploreQuery.data,
+    const result = useMemo(() => {
+        return {
+            metricField: metricFieldQuery.data,
+            explore: exploreQuery.data,
+            metricQuery,
+            timeDimensionConfig,
+            effectiveDateRange,
+            chartConfig,
+            resultsData,
+            columnOrder,
+            computedSeries,
+            isLoading,
+            hasData,
+            error,
+        };
+    }, [
+        metricFieldQuery.data,
+        exploreQuery.data,
         metricQuery,
         timeDimensionConfig,
         effectiveDateRange,
         chartConfig,
         resultsData,
         columnOrder,
+        computedSeries,
         isLoading,
         hasData,
         error,
-    };
+    ]);
+
+    return result;
 }

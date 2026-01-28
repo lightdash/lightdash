@@ -1,13 +1,16 @@
 import {
+    buildPopAdditionalMetric,
     buildPopAdditionalMetricName,
+    getGranularityRank,
     getItemId,
+    getPopPeriodLabel,
     isDimension,
     isSupportedPeriodOverPeriodGranularity,
     timeFrameConfigs,
-    TimeFrames,
     type Dimension,
     type ItemsMap,
     type Metric,
+    type TimeFrames,
 } from '@lightdash/common';
 import {
     Group,
@@ -23,32 +26,10 @@ import {
     explorerActions,
     selectAdditionalMetrics,
     selectDimensions,
-    selectMetrics,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import MantineModal from '../../common/MantineModal';
-
-const getPeriodLabel = (granularity: TimeFrames, periodOffset: number) => {
-    const label = timeFrameConfigs[granularity]?.getLabel() || granularity;
-    return periodOffset === 1
-        ? `Previous ${String(label).toLowerCase()}`
-        : `${periodOffset} ${String(label).toLowerCase()}s ago`;
-};
-
-// Granularity order from finest to coarsest (lower index = finer)
-const GRANULARITY_ORDER: TimeFrames[] = [
-    TimeFrames.DAY,
-    TimeFrames.WEEK,
-    TimeFrames.MONTH,
-    TimeFrames.QUARTER,
-    TimeFrames.YEAR,
-];
-
-const getGranularityRank = (granularity: TimeFrames): number => {
-    const index = GRANULARITY_ORDER.indexOf(granularity);
-    return index === -1 ? Infinity : index;
-};
 
 const PeriodOverPeriodComparisonModalContent: FC<{
     metric: Metric;
@@ -56,7 +37,6 @@ const PeriodOverPeriodComparisonModalContent: FC<{
 }> = ({ metric, itemsMap }) => {
     const dispatch = useExplorerDispatch();
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
-    const selectedMetricIds = useExplorerSelector(selectMetrics);
 
     const selectedDimensions = useExplorerSelector(selectDimensions);
 
@@ -136,7 +116,6 @@ const PeriodOverPeriodComparisonModalContent: FC<{
         );
     }, [selectedDimensionObj]);
 
-    const baseMetricId = getItemId(metric);
     const canConfigure = allTimeDimensions.length > 0;
 
     const selectedGranularity = useMemo(() => {
@@ -169,11 +148,6 @@ const PeriodOverPeriodComparisonModalContent: FC<{
         );
     }, [additionalMetrics, popMetricIdForSelection]);
 
-    const popAlreadySelected = useMemo(() => {
-        if (!popMetricIdForSelection) return false;
-        return selectedMetricIds.includes(popMetricIdForSelection);
-    }, [popMetricIdForSelection, selectedMetricIds]);
-
     const closeModal = useCallback(() => {
         dispatch(
             explorerActions.togglePeriodOverPeriodComparisonModal(undefined),
@@ -185,36 +159,14 @@ const PeriodOverPeriodComparisonModalContent: FC<{
             return;
         if (!popMetricIdForSelection) return;
 
-        const popName = buildPopAdditionalMetricName(metric.name);
-        const periodLabel = getPeriodLabel(
-            selectedGranularity,
-            effectivePeriodOffset,
-        );
-
         if (!popAlreadyExists) {
-            dispatch(
-                explorerActions.addAdditionalMetric({
-                    uuid: null,
-                    table: metric.table,
-                    name: popName,
-                    label: `${metric.label} (${periodLabel})`,
-                    description: metric.description,
-                    type: metric.type,
-                    sql: metric.sql,
-                    hidden: true,
-                    round: metric.round,
-                    compact: metric.compact,
-                    format: metric.format,
-                    generationType: 'periodOverPeriod',
-                    baseMetricId,
-                    timeDimensionId,
-                    granularity: selectedGranularity,
-                    periodOffset: effectivePeriodOffset,
-                }),
-            );
-        } else if (!popAlreadySelected) {
-            // Additional metric exists, but isn't selected in the query yet
-            dispatch(explorerActions.toggleMetric(popMetricIdForSelection));
+            const { additionalMetric } = buildPopAdditionalMetric({
+                metric,
+                timeDimensionId,
+                granularity: selectedGranularity,
+                periodOffset: effectivePeriodOffset,
+            });
+            dispatch(explorerActions.addAdditionalMetric(additionalMetric));
         }
 
         dispatch(explorerActions.requestQueryExecution());
@@ -222,16 +174,14 @@ const PeriodOverPeriodComparisonModalContent: FC<{
             explorerActions.togglePeriodOverPeriodComparisonModal(undefined),
         );
     }, [
-        baseMetricId,
         dispatch,
         effectivePeriodOffset,
-        metric,
         popAlreadyExists,
-        popAlreadySelected,
         popMetricIdForSelection,
         selectedDimensionObj,
         selectedGranularity,
         timeDimensionId,
+        metric,
     ]);
 
     return (
@@ -284,7 +234,7 @@ const PeriodOverPeriodComparisonModalContent: FC<{
                         This will create:{' '}
                         <Text span fw={600}>
                             {metric.label}{' '}
-                            {`(${getPeriodLabel(
+                            {`(${getPopPeriodLabel(
                                 selectedGranularity,
                                 effectivePeriodOffset,
                             )})`}
