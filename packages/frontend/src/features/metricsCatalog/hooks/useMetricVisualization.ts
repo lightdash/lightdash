@@ -49,6 +49,7 @@ const buildMetricQueryFromField = (
         dimensionsFilterGroupId: string;
     },
     comparison?: MetricExplorerComparison,
+    compareMetric?: { table: string; name: string } | null,
 ): MetricQuery => {
     const timeDimensionConfig = timeDimensionOverride ?? field.timeDimension;
     const timeDimensionName =
@@ -105,6 +106,15 @@ const buildMetricQueryFromField = (
             : {};
 
     const baseMetricId = getItemId(field);
+    const compareMetricId =
+        comparison === MetricExplorerComparison.DIFFERENT_METRIC &&
+        compareMetric?.table &&
+        compareMetric?.name
+            ? getItemId({
+                  table: compareMetric.table,
+                  name: compareMetric.name,
+              })
+            : undefined;
     const popResult =
         shouldCompareToPreviousYear && timeDimensionFieldId
             ? buildPopAdditionalMetric({
@@ -124,6 +134,8 @@ const buildMetricQueryFromField = (
         metrics:
             popMetricId !== undefined
                 ? [baseMetricId, popMetricId]
+                : compareMetricId !== undefined
+                ? [baseMetricId, compareMetricId]
                 : [baseMetricId],
         filters,
         sorts: [],
@@ -141,18 +153,30 @@ const buildMetricQueryFromField = (
 const buildLineChartConfig = (
     metricQuery: MetricQuery,
     metricLabel: string,
+    comparison: MetricExplorerComparison | undefined,
+    compareMetricLabel: string | undefined,
 ): ChartConfig => {
     const timeDimensionFieldId = metricQuery.dimensions[0];
     const metricFieldId = metricQuery.metrics[0];
-    const popMetricFieldId = metricQuery.metrics[1];
+    const secondMetricFieldId = metricQuery.metrics[1];
+
+    const secondSeriesName =
+        comparison === MetricExplorerComparison.PREVIOUS_PERIOD
+            ? `${metricLabel} (${getPopPeriodLabel(
+                  METRICS_EXPLORER_PREVIOUS_PERIOD_GRANULARITY_DEFAULT,
+                  METRICS_EXPLORER_PREVIOUS_PERIOD_OFFSET_DEFAULT,
+              )})`
+            : comparison === MetricExplorerComparison.DIFFERENT_METRIC
+            ? compareMetricLabel ?? 'Comparison'
+            : undefined;
 
     return {
         type: ChartType.CARTESIAN,
         config: {
             layout: {
                 xField: timeDimensionFieldId,
-                yField: popMetricFieldId
-                    ? [metricFieldId, popMetricFieldId]
+                yField: secondMetricFieldId
+                    ? [metricFieldId, secondMetricFieldId]
                     : [metricFieldId],
             },
             eChartsConfig: {
@@ -165,18 +189,15 @@ const buildLineChartConfig = (
                         type: CartesianSeriesType.LINE,
                         name: metricLabel,
                     },
-                    ...(popMetricFieldId
+                    ...(secondMetricFieldId && secondSeriesName
                         ? [
                               {
                                   encode: {
                                       xRef: { field: timeDimensionFieldId },
-                                      yRef: { field: popMetricFieldId },
+                                      yRef: { field: secondMetricFieldId },
                                   },
                                   type: CartesianSeriesType.LINE,
-                                  name: `${metricLabel} (${getPopPeriodLabel(
-                                      METRICS_EXPLORER_PREVIOUS_PERIOD_GRANULARITY_DEFAULT,
-                                      METRICS_EXPLORER_PREVIOUS_PERIOD_OFFSET_DEFAULT,
-                                  )})`,
+                                  name: secondSeriesName,
                               },
                           ]
                         : []),
@@ -220,6 +241,11 @@ type UseMetricVisualizationProps = {
     filterRule?: FilterRule;
     dateRange?: MetricExplorerDateRange;
     comparison?: MetricExplorerComparison;
+    compareMetric?: {
+        table: string;
+        name: string;
+        label: string;
+    } | null;
 };
 
 /**
@@ -240,6 +266,7 @@ export function useMetricVisualization({
     filterRule,
     dateRange,
     comparison,
+    compareMetric,
 }: UseMetricVisualizationProps): MetricVisualizationResult {
     /**
      * Keep filter IDs stable to avoid unnecessary query churn.
@@ -276,7 +303,14 @@ export function useMetricVisualization({
     // 4. Build MetricQuery & Start executing
     const metricQuery = useMemo(() => {
         if (!metricFieldQuery.data) return undefined;
-        return buildMetricQueryFromField(
+
+        const effectiveComparison =
+            comparison === MetricExplorerComparison.DIFFERENT_METRIC &&
+            (!compareMetric?.table || !compareMetric?.name)
+                ? MetricExplorerComparison.NONE
+                : comparison;
+
+        const built = buildMetricQueryFromField(
             metricFieldQuery.data,
             timeDimensionConfig,
             segmentDimensionId,
@@ -286,8 +320,12 @@ export function useMetricVisualization({
                 dateFilterId: dateFilterIdRef.current,
                 dimensionsFilterGroupId: dimensionsFilterGroupIdRef.current,
             },
-            comparison,
+            effectiveComparison,
+            effectiveComparison === MetricExplorerComparison.DIFFERENT_METRIC
+                ? compareMetric
+                : null,
         );
+        return built;
     }, [
         metricFieldQuery.data,
         timeDimensionConfig,
@@ -295,6 +333,7 @@ export function useMetricVisualization({
         filterRule,
         effectiveDateRange,
         comparison,
+        compareMetric,
     ]);
 
     const queryArgs = useMemo<QueryResultsProps | null>(() => {
@@ -325,20 +364,23 @@ export function useMetricVisualization({
         if (!executedMetricQuery || !metricFieldQuery.data) {
             return { type: ChartType.CARTESIAN, config: undefined };
         }
-        return buildLineChartConfig(
+        const cfg = buildLineChartConfig(
             executedMetricQuery,
             metricFieldQuery.data.label,
+            comparison,
+            compareMetric?.label ?? undefined,
         );
-    }, [executedMetricQuery, metricFieldQuery.data]);
+        return cfg;
+    }, [executedMetricQuery, metricFieldQuery.data, comparison, compareMetric]);
 
-    const resultsData = useMemo(
-        () => ({
+    const resultsData = useMemo(() => {
+        const fields = createQuery.data?.fields ?? {};
+        return {
             ...queryResults,
             metricQuery: executedMetricQuery,
-            fields: createQuery.data?.fields ?? {},
-        }),
-        [queryResults, executedMetricQuery, createQuery.data?.fields],
-    );
+            fields,
+        };
+    }, [queryResults, executedMetricQuery, createQuery.data?.fields]);
 
     const columnOrder = useMemo(() => {
         if (!executedMetricQuery) return [];

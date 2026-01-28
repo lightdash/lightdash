@@ -282,6 +282,7 @@ export class CatalogController extends BaseController {
     async getMetricsWithTimeDimensions(
         @Path() projectUuid: string,
         @Request() req: express.Request,
+        @Query() tableName?: string,
     ): Promise<ApiMetricsWithAssociatedTimeDimensionResponse> {
         this.setStatus(200);
 
@@ -291,6 +292,7 @@ export class CatalogController extends BaseController {
                 req.user!,
                 projectUuid,
                 CatalogSearchContext.SPOTLIGHT,
+                tableName,
             );
 
         return {

@@ -44795,6 +44795,7 @@ export function RegisterRoutes(app: Router) {
             dataType: 'string',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        tableName: { in: 'query', name: 'tableName', dataType: 'string' },
     };
     app.get(
         '/api/v1/projects/:projectUuid/dataCatalog/metrics-with-time-dimensions',
