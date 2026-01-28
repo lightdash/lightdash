@@ -54,6 +54,7 @@ import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
 import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
+import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import VisualizationWarning from './VisualizationWarning';
@@ -372,6 +373,10 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                                         />
                                     )}
                                 </Can>
+
+                                {import.meta.env.DEV && (
+                                    <DevCopyChartDebugData />
+                                )}
                             </>
                         )
                     }
