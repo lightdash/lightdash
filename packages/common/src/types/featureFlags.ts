@@ -74,11 +74,6 @@ export enum FeatureFlags {
     EditYamlInUi = 'edit-yaml-in-ui',
 
     /**
-     * Use screenshot ready indicator for scheduler screenshots
-     */
-    ScreenshotReadyIndicator = 'screenshot-ready-indicator',
-
-    /**
      * Enable echarts visualization in Metrics Catalog explore modal (V2)
      * When enabled, uses VisualizationProvider + echarts instead of recharts
      */
