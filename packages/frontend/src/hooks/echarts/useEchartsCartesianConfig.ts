@@ -235,10 +235,21 @@ const getAxisType = ({
     };
 
     const topAxisType = inferAxisType(topAxisXId, true);
-    const bottomAxisType =
+
+    // Vertical bar chart needs the type 'category' in the bottom X axis when using numeric data
+    // Without this, bars are positioned at exact numeric values causing overlap with Y-axis
+    const defaultBottomAxisType =
         bottomAxisXId === EMPTY_X_AXIS
             ? 'category'
             : inferAxisType(bottomAxisXId, true);
+    const bottomAxisType =
+        !validCartesianConfig.layout.flipAxes &&
+        defaultBottomAxisType === 'value' &&
+        validCartesianConfig.eChartsConfig.series?.some(
+            (serie) => serie.type === CartesianSeriesType.BAR,
+        )
+            ? 'category'
+            : defaultBottomAxisType;
 
     // horizontal bar chart needs the type 'category' in the left/right axis
     const defaultRightAxisType = inferAxisType(rightAxisYId, false);
@@ -2482,6 +2493,35 @@ const useEchartsCartesianConfig = (
     ]);
 
     const { xAxisSortedResults, xAxisSortedCategoryValues } = useMemo(() => {
+        const xFieldId = validCartesianConfig?.layout?.xField;
+
+        // Force ascending numeric sort for vertical bar charts with numeric X-axis
+        // This matches the axis type override in getAxisType() that forces 'category'
+        // Must run BEFORE the stacked series early return since it applies to all bar charts
+        const isVerticalBarWithNumericX =
+            xFieldId &&
+            itemsMap &&
+            !validCartesianConfig?.layout.flipAxes &&
+            getAxisTypeFromField(itemsMap[xFieldId]) === 'value' &&
+            validCartesianConfig?.eChartsConfig.series?.some(
+                (serie) => serie.type === CartesianSeriesType.BAR,
+            );
+
+        if (isVerticalBarWithNumericX) {
+            const getNumericValue = (row: typeof sortedResults[number]) =>
+                EMPTY_X_AXIS in row ? 0 : Number(row[xFieldId] ?? 0);
+
+            const sorted = [...sortedResults].sort(
+                (a, b) => getNumericValue(a) - getNumericValue(b),
+            );
+
+            // Don't set explicit xAxis.data - let ECharts infer categories from sorted dataset
+            return {
+                xAxisSortedResults: sorted,
+                xAxisSortedCategoryValues: undefined,
+            };
+        }
+
         if (!stackedSeriesWithColorAssignments?.length) {
             return {
                 xAxisSortedResults: sortedResults,
@@ -2493,7 +2533,6 @@ const useEchartsCartesianConfig = (
             ? axes.yAxis[0]
             : axes.xAxis[0];
 
-        const xFieldId = validCartesianConfig?.layout?.xField;
         const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
 
         // Handle bar totals sorting
@@ -2596,6 +2635,8 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout.flipAxes,
         validCartesianConfig?.layout?.xField,
         validCartesianConfig?.eChartsConfig.xAxis,
+        validCartesianConfig?.eChartsConfig.series,
+        itemsMap,
         axes.yAxis,
         axes.xAxis,
         rows,
