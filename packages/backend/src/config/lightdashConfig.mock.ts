@@ -307,4 +307,7 @@ export const lightdashConfigMock: LightdashConfig = {
     maps: {
         enabled: false,
     },
+    nestedSpacesPermissions: {
+        enabled: false,
+    },
 };

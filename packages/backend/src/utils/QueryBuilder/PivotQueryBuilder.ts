@@ -133,6 +133,7 @@ export class PivotQueryBuilder {
     /**
      * Calculates the maximum number of columns allowed per value column.
      * @param valuesColumns - The value columns configuration
+     * @param columnLimit - Maximum total columns allowed
      * @returns Maximum columns per value to stay within pivot column limits
      */
     private static calculateMaxColumnsPerValueColumn(
@@ -140,8 +141,7 @@ export class PivotQueryBuilder {
         columnLimit: number,
     ): number {
         const valueColumnsCount = valuesColumns?.length || 1;
-        const remainingColumns = columnLimit - 1; // Account for the index column
-        return Math.floor(remainingColumns / valueColumnsCount);
+        return Math.floor(columnLimit / valueColumnsCount);
     }
 
     /**
@@ -599,7 +599,7 @@ export class PivotQueryBuilder {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const result: Record<string, { cteName: string; sql: string }> = {};
 
-        if (!valuesColumns || !sortBy) {
+        if (!valuesColumns || !sortBy || indexColumns.length === 0) {
             return result;
         }
 
@@ -681,12 +681,14 @@ export class PivotQueryBuilder {
             ({ cteName, sql }) => `${cteName} AS (${sql})`,
         );
 
-        // Check if we need row anchor CTEs (only when sorting by a metric value)
+        // Check if we need row anchor CTEs (only when sorting by a metric value AND have index columns)
         // When sorting by a metric, we need additional CTEs to identify the "first pivot column"
-        // and compute row anchor values from that specific column only
+        // and compute row anchor values from that specific column only.
+        // When there are no index columns, row sorting is not needed (all rows have row_index = 1)
         const hasMetricSort = valuesColumns?.some((valCol) =>
             sortBy?.some((sort) => sort.reference === valCol.reference),
         );
+        const needsRowAnchor = hasMetricSort && indexColumns.length > 0;
 
         let columnRankingCTE: string | null = null;
         let anchorColumnCTE: string | null = null;
@@ -694,7 +696,7 @@ export class PivotQueryBuilder {
         let rowAnchorQueries: Record<string, { cteName: string; sql: string }> =
             {};
 
-        if (hasMetricSort) {
+        if (needsRowAnchor) {
             // Generate column_ranking CTE
             const columnRankingSQL = this.getColumnRankingSQL(
                 groupByColumns,
@@ -769,13 +771,16 @@ export class PivotQueryBuilder {
         Object.values(metricFirstValueQueries).forEach(({ cteName }) => {
             if (cteName.endsWith('_row_anchor')) {
                 // Join on index columns for row anchor CTEs
-                const joinConditions = indexColumns
-                    .map(
-                        (col) =>
-                            `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
-                    )
-                    .join(' AND ');
-                joins.push(`LEFT JOIN ${cteName} ON ${joinConditions}`);
+                // Skip if no index columns (row anchor CTEs shouldn't exist in this case)
+                if (indexColumns.length > 0) {
+                    const joinConditions = indexColumns
+                        .map(
+                            (col) =>
+                                `g.${q}${col.reference}${q} = ${cteName}.${q}${col.reference}${q}`,
+                        )
+                        .join(' AND ');
+                    joins.push(`LEFT JOIN ${cteName} ON ${joinConditions}`);
+                }
             } else if (cteName.endsWith('_column_anchor')) {
                 // Join on group columns for column anchor CTEs
                 const joinConditions = groupByColumns
@@ -821,9 +826,14 @@ export class PivotQueryBuilder {
             q,
         );
 
+        // If there are no index columns, use a constant for row_index (all rows have same index)
+        const rowIndexExpression = rowIndexOrderBy
+            ? `DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy})`
+            : `1`;
+
         return `SELECT ${selectReferences.join(
             ', ',
-        )}, DENSE_RANK() OVER (ORDER BY ${rowIndexOrderBy}) AS ${q}row_index${q}, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${q}column_index${q} FROM ${fromClause}`;
+        )}, ${rowIndexExpression} AS ${q}row_index${q}, DENSE_RANK() OVER (ORDER BY ${groupByOrderBy}) AS ${q}column_index${q} FROM ${fromClause}`;
     }
 
     /**
@@ -959,11 +969,7 @@ export class PivotQueryBuilder {
         const indexColumns = normalizeIndexColumns(
             this.pivotConfiguration.indexColumn,
         );
-        if (indexColumns.length === 0) {
-            throw new ParameterError(
-                'At least one valid index column is required',
-            );
-        }
+
         const { valuesColumns, groupByColumns, sortBy } =
             this.pivotConfiguration;
 

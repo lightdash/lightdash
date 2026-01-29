@@ -78,6 +78,13 @@ export enum FeatureFlags {
      * When enabled, uses VisualizationProvider + echarts instead of recharts
      */
     MetricsCatalogEchartsVisualization = 'metrics-catalog-echarts-visualization',
+
+    /**
+     * Enable nested spaces to define their own permissions as well as extending
+     * their parent permissions. When disabled (default), all nested spaces
+     * inherit permissions from their root space.
+     */
+    NestedSpacesPermissions = 'nested-spaces-permissions',
 }
 
 export type FeatureFlag = {

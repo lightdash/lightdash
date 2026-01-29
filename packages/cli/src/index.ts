@@ -24,6 +24,7 @@ import { downloadHandler, uploadHandler } from './handlers/download';
 import { generateHandler } from './handlers/generate';
 import { generateExposuresHandler } from './handlers/generateExposures';
 import { getProjectHandler } from './handlers/getProject';
+import { installSkillsHandler } from './handlers/installSkills';
 import { lintHandler } from './handlers/lint';
 import { listProjectsHandler } from './handlers/listProjects';
 import { login } from './handlers/login';
@@ -34,6 +35,7 @@ import {
 } from './handlers/preview';
 import { renameHandler } from './handlers/renameHandler';
 import { setProjectHandler } from './handlers/setProject';
+import { sqlHandler } from './handlers/sql';
 import { validateHandler } from './handlers/validate';
 import * as styles from './styles';
 // Trigger CLI tests
@@ -1121,6 +1123,89 @@ ${styles.bold('Examples:')}
         'cli',
     )
     .action(lintHandler);
+
+program
+    .command('sql')
+    .description(
+        'Run raw SQL query against the warehouse using project credentials',
+    )
+    .argument('<query>', 'SQL query to execute')
+    .requiredOption('-o, --output <file>', 'Output file path for CSV results')
+    .option(
+        '--limit <number>',
+        'Maximum rows to return from query',
+        parseIntArgument,
+    )
+    .option(
+        '--page-size <number>',
+        'Number of rows per page (default: 500, max: 5000)',
+        parseIntArgument,
+    )
+    .option('--verbose', 'Show detailed output', false)
+    .action(sqlHandler);
+
+program
+    .command('install-skills')
+    .description(
+        'Installs Lightdash skills for AI coding assistants (Claude, Cursor, Codex)',
+    )
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'install-skills',
+        )} ${styles.secondary(
+            '-- installs skills for Claude at git root (default)',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'install-skills',
+        )} --agent cursor ${styles.secondary('-- installs skills for Cursor')}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'install-skills',
+        )} --global ${styles.secondary(
+            '-- installs skills globally to ~/.claude/skills/',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'install-skills',
+        )} --agent codex --global ${styles.secondary(
+            '-- installs skills globally for Codex',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'install-skills',
+        )} --path ./my-project ${styles.secondary(
+            '-- installs skills to a specific path',
+        )}
+
+${styles.bold('Installation paths:')}
+  ${styles.secondary('Project-level (default):')}
+    .claude/skills/    (Claude)
+    .cursor/skills/    (Cursor)
+    .codex/skills/     (Codex)
+
+  ${styles.secondary('Global (--global):')}
+    ~/.claude/skills/  (Claude)
+    ~/.cursor/skills/  (Cursor)
+    ~/.codex/skills/   (Codex)
+`,
+    )
+    .option('--verbose', 'Show detailed output', false)
+    .addOption(
+        new Option('--agent <agent>', 'Target agent for skill installation')
+            .choices(['claude', 'cursor', 'codex'])
+            .default('claude'),
+    )
+    .option(
+        '--global',
+        'Install skills globally to home directory instead of project',
+        false,
+    )
+    .option(
+        '--path <path>',
+        'Override the install path (skills directory will be created inside)',
+        undefined,
+    )
+    .action(installSkillsHandler);
 
 const errorHandler = (err: Error) => {
     // Use error message with fallback for safety

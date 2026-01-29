@@ -1,3 +1,41 @@
+## [0.2397.1](https://github.com/lightdash/lightdash/compare/0.2397.0...0.2397.1) (2026-01-29)
+
+
+### Bug Fixes
+
+* column limit calculation to match legacy pivoting ([#19736](https://github.com/lightdash/lightdash/issues/19736)) ([94651f2](https://github.com/lightdash/lightdash/commit/94651f23d43aae4857635f7b3f365e5bb54fe2ea))
+* support empty index pivoting ([#19728](https://github.com/lightdash/lightdash/issues/19728)) ([7a080de](https://github.com/lightdash/lightdash/commit/7a080decf43237f928b05a5ef89d30cd0f3f1c5b))
+
+# [0.2397.0](https://github.com/lightdash/lightdash/compare/0.2396.0...0.2397.0) (2026-01-29)
+
+
+### Features
+
+* add cli install-skills command ([#19813](https://github.com/lightdash/lightdash/issues/19813)) ([8ab97de](https://github.com/lightdash/lightdash/commit/8ab97deeda8353be3db85d2be7310e63ff0dabbf))
+
+# [0.2396.0](https://github.com/lightdash/lightdash/compare/0.2395.0...0.2396.0) (2026-01-29)
+
+
+### Features
+
+* add sql runner to cli ([#19785](https://github.com/lightdash/lightdash/issues/19785)) ([6b20cd2](https://github.com/lightdash/lightdash/commit/6b20cd261c9911f625a0563f6a66c204497e42a4)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+# [0.2395.0](https://github.com/lightdash/lightdash/compare/0.2394.2...0.2395.0) (2026-01-29)
+
+
+### Bug Fixes
+
+* maps dont work in react 18 ([#19783](https://github.com/lightdash/lightdash/issues/19783)) ([da03eea](https://github.com/lightdash/lightdash/commit/da03eea123e9e6ccfd1ed3bb46ecd035c7b6d352))
+* move "Add period comparison" to top of column header context menu ([#19808](https://github.com/lightdash/lightdash/issues/19808)) ([7684fd8](https://github.com/lightdash/lightdash/commit/7684fd847362dc7be4d16bd0d4048ae6c6894912))
+* validate spotlight owner type in project config ([#19794](https://github.com/lightdash/lightdash/issues/19794)) ([5efd545](https://github.com/lightdash/lightdash/commit/5efd545de3626deb9bfbb0b0211a5c4791e92ef5))
+
+
+### Features
+
+* add cli get-project command ([#19809](https://github.com/lightdash/lightdash/issues/19809)) ([a4622ff](https://github.com/lightdash/lightdash/commit/a4622ffdf9d7e72ba35420cf063ddb14323c474a)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add list-projects to CLI ([#19805](https://github.com/lightdash/lightdash/issues/19805)) ([318bc30](https://github.com/lightdash/lightdash/commit/318bc3079038fe92a580c281f145e1035c8a084b))
+* display current project info in CLI commands ([#19803](https://github.com/lightdash/lightdash/issues/19803)) ([e312181](https://github.com/lightdash/lightdash/commit/e312181dac8d48ea5bda2b99e65b180102cd5a5e))
+
 ## [0.2394.2](https://github.com/lightdash/lightdash/compare/0.2394.1...0.2394.2) (2026-01-29)
 
 
