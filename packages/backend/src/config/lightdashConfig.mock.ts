@@ -182,6 +182,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     staticIp: '',
     signupUrl: undefined,
+    helpMenuUrl: undefined,
     trustProxy: false,
     mode: LightdashMode.DEFAULT,
     license: {
