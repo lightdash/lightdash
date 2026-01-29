@@ -32,6 +32,7 @@ import {
 } from './handlers/preview';
 import { renameHandler } from './handlers/renameHandler';
 import { setProjectHandler } from './handlers/setProject';
+import { showProjectHandler } from './handlers/showProject';
 import { validateHandler } from './handlers/validate';
 import * as styles from './styles';
 // Trigger CLI tests
@@ -227,6 +228,12 @@ configProgram
         ).conflicts('name'),
     )
     .action(setProjectHandler);
+
+configProgram
+    .command('show-project')
+    .description('Show the current active project information')
+    .option('--verbose', undefined, false)
+    .action(showProjectHandler);
 
 const dbtProgram = program.command('dbt').description('Runs dbt commands');
 
