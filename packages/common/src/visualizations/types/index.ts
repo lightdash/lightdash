@@ -311,7 +311,7 @@ export type VizTableHeaderSortConfig = {
 
 export type EChartsSeries = {
     type: Series['type'];
-    connectNulls: boolean;
+    connectNulls?: boolean;
     stack?: string;
     stackLabel?: {
         show?: boolean;

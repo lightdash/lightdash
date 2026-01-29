@@ -813,7 +813,15 @@ const getPivotSeries = ({
         },
         xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
         yAxisIndex: flipAxes ? undefined : series.yAxisIndex,
-        connectNulls: true,
+        ...(series.type === CartesianSeriesType.LINE ||
+        series.type === CartesianSeriesType.AREA
+            ? {
+                  connectNulls:
+                      cartesianChart.layout.connectNulls !== undefined
+                          ? cartesianChart.layout.connectNulls
+                          : true,
+              }
+            : {}),
         encode: {
             x: flipAxes ? yFieldHash : xFieldHash,
             y: flipAxes ? xFieldHash : yFieldHash,
@@ -953,6 +961,7 @@ const applyReadableColorsToMarkLine = (
 type GetSimpleSeriesArg = {
     series: Series;
     itemsMap: ItemsMap;
+    cartesianChart: CartesianChart;
     flipAxes: boolean | undefined;
     yFieldHash: string;
     xFieldHash: string;
@@ -964,6 +973,7 @@ type GetSimpleSeriesArg = {
 
 const getSimpleSeries = ({
     series,
+    cartesianChart,
     flipAxes,
     yFieldHash,
     xFieldHash,
@@ -979,7 +989,15 @@ const getSimpleSeries = ({
     emphasis: {
         focus: 'series',
     },
-    connectNulls: true,
+    ...(series.type === CartesianSeriesType.LINE ||
+    series.type === CartesianSeriesType.AREA
+        ? {
+              connectNulls:
+                  cartesianChart.layout.connectNulls !== undefined
+                      ? cartesianChart.layout.connectNulls
+                      : true,
+          }
+        : {}),
     encode: {
         ...series.encode,
         x: flipAxes ? yFieldHash : xFieldHash,
@@ -1139,6 +1157,7 @@ const getEchartsSeriesFromPivotedData = (
             return getSimpleSeries({
                 series,
                 itemsMap,
+                cartesianChart,
                 flipAxes,
                 yFieldHash,
                 xFieldHash,
@@ -1184,6 +1203,7 @@ const getEchartsSeries = (
             return getSimpleSeries({
                 series,
                 itemsMap,
+                cartesianChart,
                 flipAxes,
                 yFieldHash,
                 xFieldHash,
@@ -2079,6 +2099,7 @@ const getStackTotalSeries = (
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
     isStack100: boolean,
+    cartesianChart: CartesianChart,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
@@ -2088,7 +2109,15 @@ const getStackTotalSeries = (
             }
             const stackSeries: EChartsSeries = {
                 type: series[0].type,
-                connectNulls: true,
+                ...(series[0].type === CartesianSeriesType.LINE ||
+                series[0].type === CartesianSeriesType.AREA
+                    ? {
+                          connectNulls:
+                              cartesianChart.layout.connectNulls !== undefined
+                                  ? cartesianChart.layout.connectNulls
+                                  : true,
+                      }
+                    : {}),
                 stack: stack,
                 clip: !isStack100,
                 label: {
@@ -2375,12 +2404,12 @@ const useEchartsCartesianConfig = (
                 validCartesianConfig?.layout.flipAxes,
                 validCartesianConfigLegend,
                 isStack100,
+                validCartesianConfig!,
             ),
         ];
     }, [
         itemsMap,
-        validCartesianConfig?.layout.flipAxes,
-        validCartesianConfig?.layout?.stack,
+        validCartesianConfig,
         series,
         rows,
         validCartesianConfigLegend,
