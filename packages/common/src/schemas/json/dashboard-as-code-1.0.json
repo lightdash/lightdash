@@ -12,7 +12,8 @@
         "version",
         "tiles",
         "filters",
-        "tabs"
+        "tabs",
+        "updatedAt"
     ],
     "properties": {
         "version": {
