@@ -14534,6 +14534,11 @@
                     "dashboardCount": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "childCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Count of direct child spaces (for expandable UI in nested spaces)"
                     }
                 },
                 "required": [
@@ -14550,7 +14555,8 @@
                     "parentSpaceUuid",
                     "path",
                     "chartCount",
-                    "dashboardCount"
+                    "dashboardCount",
+                    "childCount"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -17388,6 +17394,11 @@
                     },
                     {
                         "properties": {
+                            "childCount": {
+                                "type": "number",
+                                "format": "double",
+                                "description": "Count of direct child spaces (for expandable UI in nested spaces)"
+                            },
                             "dashboardCount": {
                                 "type": "number",
                                 "format": "double"
@@ -17406,7 +17417,12 @@
                                 "$ref": "#/components/schemas/SpaceShare"
                             }
                         },
-                        "required": ["dashboardCount", "chartCount", "access"],
+                        "required": [
+                            "childCount",
+                            "dashboardCount",
+                            "chartCount",
+                            "access"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -24457,6 +24473,11 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "childCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Count of direct child spaces (for expandable UI in nested spaces)"
+                    },
                     "parentSpaceUuid": {
                         "type": "string",
                         "nullable": true
@@ -24486,6 +24507,7 @@
                     "access",
                     "dashboardCount",
                     "chartCount",
+                    "childCount",
                     "parentSpaceUuid",
                     "path"
                 ],

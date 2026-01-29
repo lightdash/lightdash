@@ -48,6 +48,8 @@ export type SpaceSummary = Pick<
     access: string[];
     chartCount: number;
     dashboardCount: number;
+    /** Count of direct child spaces (for expandable UI in nested spaces) */
+    childCount: number;
 };
 
 export type CreateSpace = {

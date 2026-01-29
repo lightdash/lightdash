@@ -1008,6 +1008,7 @@ export class PromoteService extends BaseService {
                 access: [],
                 chartCount: 0,
                 dashboardCount: 0,
+                childCount: 0,
             };
             return {
                 action: PromotionAction.CREATE,
