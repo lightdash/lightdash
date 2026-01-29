@@ -1,6 +1,5 @@
 import {
     isChartValidationError,
-    isDashboardValidationError,
     isFixableDashboardValidationError,
     ValidationErrorType,
     type ValidationErrorChartResponse,
@@ -90,6 +89,8 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
             />
             <FixDashboardFilterModal
                 validationError={selectedDashboardError}
+                allValidationErrors={data}
+                projectUuid={projectUuid}
                 onClose={() => {
                     setSelectedDashboardError(undefined);
                 }}
