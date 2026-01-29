@@ -112,3 +112,25 @@ export type AddSpaceGroupAccess = {
     groupUuid: string;
     spaceRole: SpaceMemberRole;
 };
+
+/**
+ * Impact data shown when deleting a space that has nested child spaces.
+ * Used for the delete confirmation modal.
+ */
+export type SpaceDeleteImpact = {
+    space: Omit<SpaceSummary, 'userAccess'>;
+    childSpaces: Array<{
+        uuid: string;
+        name: string;
+        hasAccess: boolean;
+        chartCount: number;
+        dashboardCount: number;
+    }>;
+    totalCharts: number;
+    totalDashboards: number;
+};
+
+export type ApiSpaceDeleteImpactResponse = {
+    status: 'ok';
+    results: SpaceDeleteImpact;
+};

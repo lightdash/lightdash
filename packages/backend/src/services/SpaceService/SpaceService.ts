@@ -9,6 +9,7 @@ import {
     ParameterError,
     SessionUser,
     Space,
+    SpaceDeleteImpact,
     SpaceMemberRole,
     SpaceShare,
     SpaceSummary,
@@ -448,6 +449,76 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
                 isNested: !!space.parentSpaceUuid,
             },
         });
+    }
+
+    async getDeleteImpact(
+        user: SessionUser,
+        spaceUuid: string,
+    ): Promise<SpaceDeleteImpact> {
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
+
+        // Check if user can view the space
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Space', {
+                    ...space,
+                    access: spaceAccess,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Get all child spaces
+        const allChildSpaces =
+            await this.spaceModel.getAllChildSpaces(spaceUuid);
+
+        // Check user access to each child space
+        const childSpacesWithAccess = await Promise.all(
+            allChildSpaces.map(async (childSpace) => {
+                const childAccess = await this.spaceModel.getUserSpaceAccess(
+                    user.userUuid,
+                    childSpace.uuid,
+                );
+                const hasAccess = user.ability.can(
+                    'view',
+                    subject('Space', {
+                        ...childSpace,
+                        access: childAccess,
+                    }),
+                );
+                return {
+                    uuid: childSpace.uuid,
+                    name: childSpace.name,
+                    hasAccess,
+                    chartCount: childSpace.chartCount,
+                    dashboardCount: childSpace.dashboardCount,
+                };
+            }),
+        );
+
+        // Calculate totals (including the space being deleted)
+        const totalCharts =
+            Number(space.chartCount) +
+            allChildSpaces.reduce((sum, s) => sum + Number(s.chartCount), 0);
+        const totalDashboards =
+            Number(space.dashboardCount) +
+            allChildSpaces.reduce(
+                (sum, s) => sum + Number(s.dashboardCount),
+                0,
+            );
+
+        return {
+            space,
+            childSpaces: childSpacesWithAccess,
+            totalCharts,
+            totalDashboards,
+        };
     }
 
     async addSpaceUserAccess(
