@@ -400,22 +400,19 @@ export class CoderService extends BaseService {
             if (isAnyChartTile(tile)) {
                 const { chartSlug } = tile.properties;
                 const chartInfo = chartSlugToInfo.get(chartSlug);
-
-                if (!chartInfo) {
-                    throw new NotFoundError(
-                        `Chart with slug ${chartSlug} not found`,
-                    );
-                }
+                const isSqlChart =
+                    chartInfo?.isSql ??
+                    tile.type === DashboardTileTypes.SQL_CHART;
 
                 // Use the correct property name based on chart type
-                if (chartInfo.isSql) {
+                if (isSqlChart) {
                     return {
                         ...tile,
                         uuid: uuidv4(),
                         type: DashboardTileTypes.SQL_CHART,
                         properties: {
                             ...tile.properties,
-                            savedSqlUuid: chartInfo.uuid,
+                            savedSqlUuid: chartInfo?.uuid ?? null,
                         },
                     } as DashboardTileWithSlug;
                 }
@@ -426,7 +423,7 @@ export class CoderService extends BaseService {
                     type: DashboardTileTypes.SAVED_CHART,
                     properties: {
                         ...tile.properties,
-                        savedChartUuid: chartInfo.uuid,
+                        savedChartUuid: chartInfo?.uuid ?? null,
                     },
                 } as DashboardTileWithSlug;
             }
