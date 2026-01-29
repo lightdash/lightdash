@@ -1,3 +1,10 @@
+## [0.2389.4](https://github.com/lightdash/lightdash/compare/0.2389.3...0.2389.4) (2026-01-29)
+
+
+### Bug Fixes
+
+* allow `upsertDashboardAsCode` with orphan charts ([#19780](https://github.com/lightdash/lightdash/issues/19780)) ([7032bcb](https://github.com/lightdash/lightdash/commit/7032bcb7eb0f6a707c88f1411685127323a8411a))
+
 ## [0.2389.3](https://github.com/lightdash/lightdash/compare/0.2389.2...0.2389.3) (2026-01-29)
 
 
