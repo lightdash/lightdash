@@ -10,6 +10,9 @@ spotlight:
     sales:
       label: "Sales"
       color: green
+    revenue_growth:
+      label: "Revenue & Growth"
+      color: violet
 parameters:
   subscription_status:
     label: "Subscription Status"

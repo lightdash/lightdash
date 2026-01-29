@@ -32,7 +32,11 @@ models:
                 label: Total Subscriptions
                 description: Total number of subscriptions
                 spotlight:
-                  categories: ["core"]
+                  categories: ["core", "revenue_growth"]
+                  targets:
+                    - current_subscriptions
+                    - cancelled_subscriptions
+                    - expired_subscriptions
 
       - name: customer_id
         description: Foreign key to customers table
@@ -44,7 +48,10 @@ models:
                 label: Unique Subscribers
                 description: Number of unique customers with subscriptions
                 spotlight:
-                  categories: ["core"]
+                  categories: ["core", "revenue_growth"]
+                  targets:
+                    - total_subscriptions
+                    - current_subscriptions
 
       - name: plan_id
         description: Foreign key to plan table
@@ -159,16 +166,22 @@ models:
                 label: Current Subscriptions
                 description: Number of current/active subscriptions
                 sql: CASE WHEN subscription_status = 'Current' THEN subscription_id ELSE NULL END
+                spotlight:
+                  categories: ["revenue_growth"]
               expired_subscriptions:
                 type: count_distinct
                 label: Expired Subscriptions
                 description: Number of expired subscriptions
                 sql: CASE WHEN subscription_status = 'Expired' THEN subscription_id ELSE NULL END
+                spotlight:
+                  categories: ["revenue_growth"]
               cancelled_subscriptions:
                 type: count_distinct
                 label: Cancelled Subscriptions
                 description: Number of cancelled subscriptions
                 sql: CASE WHEN subscription_status = 'Cancelled' THEN subscription_id ELSE NULL END
+                spotlight:
+                  categories: ["revenue_growth"]
 
       - name: months_remaining
         description: Months remaining for active subscriptions
@@ -267,6 +280,10 @@ models:
                 label: Total Monthly MRR
                 description: Sum of monthly recurring revenue
                 format: "$#,##0.00"
+                spotlight:
+                  categories: ["revenue_growth"]
+                  targets:
+                    - avg_mrr_per_subscription
 
       - name: weekly_mrr
         description: "Weekly recurring revenue equivalent for this subscription"
@@ -344,6 +361,8 @@ models:
                 label: Average MRR per Subscription
                 description: Average MRR per subscription based on time zoom
                 format: "$#,##0.00"
+                spotlight:
+                  categories: ["revenue_growth"]
                 sql: |
                   CASE 
                     WHEN ${ld.parameters.time_zoom} = 'weekly' THEN weekly_mrr
