@@ -1011,6 +1011,9 @@ export type LightdashConfig = {
     maps: {
         enabled: boolean | undefined;
     };
+    nestedSpacesPermissions: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1820,6 +1823,9 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.LIGHTDASH_MAPS_ENABLED === 'true'
                     ? true
                     : undefined,
+        },
+        nestedSpacesPermissions: {
+            enabled: process.env.NESTED_SPACES_PERMISSIONS_ENABLED === 'true',
         },
     };
 };
