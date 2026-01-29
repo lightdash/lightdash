@@ -1,20 +1,121 @@
 ---
 name: developing-in-lightdash
-description: Build, configure, and deploy Lightdash analytics projects. Create dbt models with metrics and dimensions, design charts and dashboards, and manage deployments using the Lightdash CLI.
+description: Build, configure, and deploy Lightdash analytics projects. Supports both dbt projects with embedded Lightdash metadata and pure Lightdash YAML projects without dbt. Create metrics, dimensions, charts, and dashboards using the Lightdash CLI.
 ---
 
 # Developing in Lightdash
 
-Build, configure, and deploy Lightdash analytics projects. Create dbt models with metrics and dimensions, design beautiful charts and dashboards, and manage deployments using the Lightdash CLI.
+Build, configure, and deploy Lightdash analytics projects. Supports both **dbt projects** (Lightdash metadata embedded in dbt YAML) and **pure Lightdash YAML projects** (standalone semantic layer without dbt). Create metrics, dimensions, charts, and dashboards using the Lightdash CLI.
 
 ## Capabilities
 
 This skill enables you to:
 
 - **dbt Model Development**: Create and update dbt models with Lightdash metadata (dimensions, metrics, joins)
+- **Pure Lightdash YAML**: Define semantic layers directly without dbt
 - **Chart Creation**: Build and customize all chart types (bar, line, pie, funnel, table, big number, etc.)
 - **Dashboard Design**: Create multi-tile dashboards with filters, tabs, and interactive elements
 - **CLI Operations**: Deploy, preview, validate, and manage Lightdash projects
+
+## Project Types
+
+**Before working with any Lightdash project, detect which type it is.** There are two types:
+
+| Type | Detection | YAML Syntax | Workflow |
+|------|-----------|-------------|----------|
+| **dbt Project** | Has `dbt_project.yml` | Metadata nested under `meta:` | Requires dbt compilation |
+| **Pure Lightdash** | Has `lightdash.config.yml`, no dbt | Top-level properties | Use `lightdash lint` |
+
+### How to Detect
+
+```bash
+# Check for dbt project
+ls dbt_project.yml 2>/dev/null && echo "dbt project" || echo "Not dbt"
+
+# Check for pure Lightdash
+ls lightdash.config.yml 2>/dev/null && echo "Pure Lightdash" || echo "Not pure Lightdash"
+```
+
+### Pure Lightdash YAML Projects
+
+For teams without dbt, Lightdash YAML lets you define the semantic layer directly. See `examples/snowflake-template/` for a reference project.
+
+**Project structure:**
+```
+project/
+├── lightdash.config.yml    # Required: warehouse configuration
+└── lightdash/
+    └── models/
+        └── users.yml       # Model definitions
+```
+
+**Config file** (`lightdash.config.yml`):
+```yaml
+warehouse:
+  type: snowflake  # or postgres, bigquery, redshift, databricks, trino
+```
+
+**Model file** (`lightdash/models/users.yml`):
+```yaml
+# Metadata - top level, NOT nested under meta
+type: model
+name: users
+sql_from: 'DB.SCHEMA.USERS'  # Fully qualified table name
+
+metrics:
+  user_count:
+    type: count_distinct
+    sql: ${TABLE}.USER_ID
+    description: Total unique users
+
+dimensions:
+  - name: subscription_type
+    sql: ${TABLE}.SUBSCRIPTION
+    type: string
+
+  - name: signed_up_at
+    sql: ${TABLE}.SIGNED_UP
+    type: date
+    time_intervals:
+      - DAY
+      - WEEK
+      - MONTH
+```
+
+**Workflow for pure Lightdash:**
+```bash
+# 1. Validate YAML syntax locally (important - do this before deploying!)
+lightdash lint
+
+# 2. Deploy to create new project
+lightdash deploy --create "Project Name" --no-warehouse-credentials
+
+# 3. Deploy updates to existing project
+lightdash deploy --no-warehouse-credentials
+```
+
+### dbt Projects with Lightdash
+
+For dbt projects, Lightdash metadata is embedded in dbt YAML files under `meta:` tags.
+
+**Workflow for dbt projects:**
+```bash
+# Option A: Let Lightdash compile dbt
+lightdash deploy
+
+# Option B: Compile dbt separately, then deploy with existing manifest
+dbt compile
+lightdash deploy --skip-dbt-compile
+```
+
+### Key Syntax Differences
+
+| Property | dbt YAML | Pure Lightdash YAML |
+|----------|----------|---------------------|
+| Metrics | Nested under `meta:` | Top-level `metrics:` |
+| Dimensions | Under `columns.[].meta.dimension:` | Top-level `dimensions:` array |
+| Table reference | Uses dbt model ref | `sql_from:` with full table name |
+| Joins | Under `meta.joins:` | Top-level `joins:` |
 
 ## Workflow Components
 
