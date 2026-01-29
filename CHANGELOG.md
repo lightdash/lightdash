@@ -1,3 +1,10 @@
+# [0.2393.0](https://github.com/lightdash/lightdash/compare/0.2392.0...0.2393.0) (2026-01-29)
+
+
+### Features
+
+* add OpenAI zero data retention option ([#19774](https://github.com/lightdash/lightdash/issues/19774)) ([22146be](https://github.com/lightdash/lightdash/commit/22146bedc4da3764e1f0a378b1fe65edd6537fae))
+
 # [0.2392.0](https://github.com/lightdash/lightdash/compare/0.2391.0...0.2392.0) (2026-01-29)
 
 
