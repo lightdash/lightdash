@@ -1,3 +1,10 @@
+## [0.2399.1](https://github.com/lightdash/lightdash/compare/0.2399.0...0.2399.1) (2026-01-29)
+
+
+### Bug Fixes
+
+* resolve symlinks for cli install-skills ([#19826](https://github.com/lightdash/lightdash/issues/19826)) ([a593f34](https://github.com/lightdash/lightdash/commit/a593f34994e1e8b63dab08b27fcf18cf5c990cb0))
+
 # [0.2399.0](https://github.com/lightdash/lightdash/compare/0.2398.0...0.2399.0) (2026-01-29)
 
 
