@@ -182,6 +182,9 @@ lightdash login https://app.lightdash.cloud --token YOUR_API_TOKEN
 # List available projects (excludes preview projects)
 lightdash config list-projects
 
+# Show currently selected project
+lightdash config get-project
+
 # Set active project
 lightdash config set-project --name "My Project"
 lightdash config set-project --uuid abc123-def456
