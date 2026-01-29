@@ -1,3 +1,10 @@
+## [0.2399.2](https://github.com/lightdash/lightdash/compare/0.2399.1...0.2399.2) (2026-01-29)
+
+
+### Bug Fixes
+
+* add cartesian chart options to charts-as-code schema ([#19827](https://github.com/lightdash/lightdash/issues/19827)) ([9c11e42](https://github.com/lightdash/lightdash/commit/9c11e428d36e79dd3fabd7bf64892a10d97040b6))
+
 ## [0.2399.1](https://github.com/lightdash/lightdash/compare/0.2399.0...0.2399.1) (2026-01-29)
 
 
