@@ -394,6 +394,10 @@ export type HealthState = {
         csvCellsLimit: number;
         maxPageSize: number;
     };
+    dashboard: {
+        maxTilesPerTab: number;
+        maxTabsPerDashboard: number;
+    };
     pivotTable: {
         maxColumnLimit: number;
     };

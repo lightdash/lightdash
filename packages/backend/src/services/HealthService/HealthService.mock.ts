@@ -82,6 +82,10 @@ export const BaseResponse: HealthState = {
         maxPageSize: 2500,
         defaultLimit: 500,
     },
+    dashboard: {
+        maxTilesPerTab: 50,
+        maxTabsPerDashboard: 20,
+    },
     rudder: {
         dataPlaneUrl: '',
         writeKey: '',

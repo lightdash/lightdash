@@ -16,9 +16,11 @@ import {
     IconPlus,
     IconVideo,
 } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import useToaster from '../../hooks/toaster/useToaster';
+import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 import AddChartTilesModal from './TileForms/AddChartTilesModal';
@@ -50,13 +52,86 @@ const AddTileButton: FC<Props> = ({
 
     const { storeDashboard } = useDashboardStorage();
     const navigate = useNavigate();
+    const { showToastError } = useToaster();
+    const { health } = useApp();
+
+    // Calculate current tiles in the active tab
+    const currentTabTilesCount = useMemo(() => {
+        if (!dashboardTiles) return 0;
+        if (!activeTabUuid) return dashboardTiles.length;
+        return dashboardTiles.filter((tile) => tile.tabUuid === activeTabUuid)
+            .length;
+    }, [dashboardTiles, activeTabUuid]);
+
+    // Calculate current number of tabs
+    const currentTabsCount = useMemo(() => {
+        return dashboardTabs?.length || 0;
+    }, [dashboardTabs]);
+
+    // Get limits from health config
+    const maxTilesPerTab = health.data?.dashboard?.maxTilesPerTab || 50;
+    const maxTabsPerDashboard =
+        health.data?.dashboard?.maxTabsPerDashboard || 20;
+
+    // Check if we can add a tile to current tab
+    const canAddTile = useMemo(() => {
+        return currentTabTilesCount < maxTilesPerTab;
+    }, [currentTabTilesCount, maxTilesPerTab]);
+
+    // Check if we can add a new tab
+    const canAddTab = useMemo(() => {
+        return currentTabsCount < maxTabsPerDashboard;
+    }, [currentTabsCount, maxTabsPerDashboard]);
 
     const onAddTile = useCallback(
         (tile: Dashboard['tiles'][number]) => {
+            if (!canAddTile) {
+                showToastError({
+                    title: 'Tile limit reached',
+                    subtitle: `You've reached the maximum of ${maxTilesPerTab} tiles per tab. Consider creating a new tab or dashboard.`,
+                });
+                return;
+            }
             onAddTiles([tile]);
         },
-        [onAddTiles],
+        [onAddTiles, canAddTile, maxTilesPerTab, showToastError],
     );
+
+    const handleAddTab = useCallback(() => {
+        if (!canAddTab) {
+            showToastError({
+                title: 'Tab limit reached',
+                subtitle: `You've reached the maximum of ${maxTabsPerDashboard} tabs per dashboard. Consider creating a new dashboard.`,
+            });
+            return;
+        }
+        setAddingTab(true);
+    }, [canAddTab, maxTabsPerDashboard, showToastError, setAddingTab]);
+
+    const handleAddTileType = useCallback(
+        (tileType: DashboardTileTypes) => {
+            if (!canAddTile) {
+                showToastError({
+                    title: 'Tile limit reached',
+                    subtitle: `You've reached the maximum of ${maxTilesPerTab} tiles per tab. Consider creating a new tab or dashboard.`,
+                });
+                return;
+            }
+            setAddTileType(tileType);
+        },
+        [canAddTile, maxTilesPerTab, showToastError],
+    );
+
+    const handleAddCharts = useCallback(() => {
+        if (!canAddTile) {
+            showToastError({
+                title: 'Tile limit reached',
+                subtitle: `You've reached the maximum of ${maxTilesPerTab} tiles per tab. Consider creating a new tab or dashboard.`,
+            });
+            return;
+        }
+        setIsAddChartTilesModalOpen(true);
+    }, [canAddTile, maxTilesPerTab, showToastError]);
     const { projectUuid } = useParams<{
         projectUuid: string;
     }>();
@@ -82,16 +157,28 @@ const AddTileButton: FC<Props> = ({
                     </Button>
                 </Menu.Target>
                 <Menu.Dropdown>
-                    <Menu.Label>Tiles</Menu.Label>
+                    <Menu.Label>
+                        Tiles{' '}
+                        {!canAddTile &&
+                            `(${currentTabTilesCount}/${maxTilesPerTab} limit reached)`}
+                    </Menu.Label>
                     <Menu.Item
-                        onClick={() => setIsAddChartTilesModalOpen(true)}
+                        onClick={handleAddCharts}
                         icon={<MantineIcon icon={IconChartBar} />}
+                        disabled={!canAddTile}
                     >
                         Saved chart
                     </Menu.Item>
 
                     <Menu.Item
                         onClick={() => {
+                            if (!canAddTile) {
+                                showToastError({
+                                    title: 'Tile limit reached',
+                                    subtitle: `You've reached the maximum of ${maxTilesPerTab} tiles per tab. Consider creating a new tab or dashboard.`,
+                                });
+                                return;
+                            }
                             storeDashboard(
                                 dashboardTiles,
                                 dashboardFilters,
@@ -105,6 +192,7 @@ const AddTileButton: FC<Props> = ({
                             void navigate(`/projects/${projectUuid}/tables`);
                         }}
                         icon={<MantineIcon icon={IconPlus} />}
+                        disabled={!canAddTile}
                     >
                         <Group spacing="xxs">
                             <Text>New chart</Text>
@@ -119,35 +207,45 @@ const AddTileButton: FC<Props> = ({
 
                     <Menu.Item
                         onClick={() =>
-                            setAddTileType(DashboardTileTypes.MARKDOWN)
+                            handleAddTileType(DashboardTileTypes.MARKDOWN)
                         }
                         icon={<MantineIcon icon={IconMarkdown} />}
+                        disabled={!canAddTile}
                     >
                         Markdown
                     </Menu.Item>
 
                     <Menu.Item
-                        onClick={() => setAddTileType(DashboardTileTypes.LOOM)}
+                        onClick={() =>
+                            handleAddTileType(DashboardTileTypes.LOOM)
+                        }
                         icon={<MantineIcon icon={IconVideo} />}
+                        disabled={!canAddTile}
                     >
                         Loom video
                     </Menu.Item>
 
                     <Menu.Divider />
 
-                    <Menu.Label>Elements</Menu.Label>
+                    <Menu.Label>
+                        Elements{' '}
+                        {!canAddTab &&
+                            `(${currentTabsCount}/${maxTabsPerDashboard} limit reached)`}
+                    </Menu.Label>
                     <Menu.Item
-                        onClick={() => setAddingTab(true)}
+                        onClick={handleAddTab}
                         icon={<MantineIcon icon={IconNewSection} />}
+                        disabled={!canAddTab}
                     >
                         Tab
                     </Menu.Item>
 
                     <Menu.Item
                         onClick={() =>
-                            setAddTileType(DashboardTileTypes.HEADING)
+                            handleAddTileType(DashboardTileTypes.HEADING)
                         }
                         icon={<MantineIcon icon={IconHeading} />}
+                        disabled={!canAddTile}
                     >
                         Heading
                     </Menu.Item>
@@ -158,6 +256,9 @@ const AddTileButton: FC<Props> = ({
                 <AddChartTilesModal
                     onClose={() => setIsAddChartTilesModalOpen(false)}
                     onAddTiles={onAddTiles}
+                    currentTabTilesCount={currentTabTilesCount}
+                    maxTilesPerTab={maxTilesPerTab}
+                    activeTabUuid={activeTabUuid}
                 />
             )}
 

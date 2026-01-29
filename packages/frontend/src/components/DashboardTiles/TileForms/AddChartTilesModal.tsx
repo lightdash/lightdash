@@ -36,6 +36,9 @@ import { ChartIcon } from '../../common/ResourceIcon';
 type Props = {
     onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
     onClose: () => void;
+    currentTabTilesCount: number;
+    maxTilesPerTab: number;
+    activeTabUuid?: string;
 };
 
 interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
@@ -91,7 +94,13 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
     ),
 );
 
-const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
+const AddChartTilesModal: FC<Props> = ({
+    onAddTiles,
+    onClose,
+    currentTabTilesCount,
+    maxTilesPerTab,
+    activeTabUuid,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
@@ -177,7 +186,18 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         });
     }, [savedQueries, dashboard?.spaceUuid, dashboardTiles]);
 
+    const availableSlots = maxTilesPerTab - currentTabTilesCount;
+
     const handleSubmit = form.onSubmit(({ savedChartsUuids }) => {
+        // Validate tile limit
+        if (savedChartsUuids.length > availableSlots) {
+            form.setFieldError(
+                'savedChartsUuids',
+                `Can only add ${availableSlots} more tile${availableSlots !== 1 ? 's' : ''} to this tab. Maximum is ${maxTilesPerTab} tiles per tab.`,
+            );
+            return;
+        }
+
         onAddTiles(
             savedChartsUuids.map((uuid) => {
                 const chart = savedQueries?.find((c) => c.uuid === uuid);
@@ -192,7 +212,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                                 savedSqlUuid: uuid,
                                 chartName: chart?.name ?? '',
                             },
-                            tabUuid: undefined,
+                            tabUuid: activeTabUuid,
                             ...defaultTileSize,
                         };
 
@@ -210,7 +230,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                                         ? true
                                         : undefined,
                             },
-                            tabUuid: undefined,
+                            tabUuid: activeTabUuid,
                             ...defaultTileSize,
                         };
 
@@ -231,7 +251,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         <MantineModal
             opened
             onClose={onClose}
-            title="Add saved charts"
+            title={`Add saved charts (${availableSlots} slot${availableSlots !== 1 ? 's' : ''} available)`}
             icon={IconChartAreaLine}
             size="lg"
             modalRootProps={{ closeOnClickOutside: false }}

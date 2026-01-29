@@ -98,6 +98,7 @@ export const lightdashConfigMock: LightdashConfig = {
         path: '/metrics',
     },
     chart: { versionHistory: { daysLimit: 0 } },
+    dashboard: { maxTilesPerTab: 50, maxTabsPerDashboard: 20 },
     database: {
         connectionUri: undefined,
         maxConnections: undefined,
