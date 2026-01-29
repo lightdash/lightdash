@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     CartesianSeriesType,
     FeatureFlags,
+    getItemId,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
@@ -23,7 +24,7 @@ import {
     type XAxis,
 } from '@lightdash/common';
 import { produce } from 'immer';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     getMarkLineAxis,
     type ReferenceLineField,
@@ -219,6 +220,9 @@ const useCartesianChartConfig = ({
     }, [dirtyEchartsConfig?.series, initialChartConfig?.layout?.stack]);
 
     const [isStacked, setIsStacked] = useState<boolean>(isInitiallyStacked);
+
+    // Track previously available metrics to detect newly added PoP metrics
+    const prevAvailableMetricsRef = useRef<string[] | null>(null);
 
     const setLegend = useCallback((legend: EchartsLegend) => {
         const removePropertiesWithAuto = Object.entries(
@@ -941,6 +945,50 @@ const useCartesianChartConfig = ({
         setPivotDimensions,
         useSqlPivotResults,
     ]);
+
+    // Auto-add newly created period-over-period metrics to the Y axis
+    // so they appear on the chart without manual configuration.
+    // We skip the first data load (prevAvailableMetricsRef is null) to avoid
+    // modifying saved chart configurations on load.
+    useEffect(() => {
+        if (availableMetrics.length === 0) return;
+
+        if (prevAvailableMetricsRef.current === null) {
+            prevAvailableMetricsRef.current = availableMetrics;
+            return;
+        }
+
+        const prevSet = new Set(prevAvailableMetricsRef.current);
+        const newMetrics = availableMetrics.filter((m) => !prevSet.has(m));
+
+        if (newMetrics.length > 0) {
+            const popMetricIds = new Set(
+                (resultsData?.metricQuery?.additionalMetrics || [])
+                    .filter((am) => am.generationType === 'periodOverPeriod')
+                    .map((am) => getItemId(am)),
+            );
+
+            const newPopMetrics = newMetrics.filter((m) =>
+                popMetricIds.has(m),
+            );
+
+            if (newPopMetrics.length > 0) {
+                setDirtyLayout((prev) => {
+                    const currentYFields = prev?.yField || [];
+                    const toAdd = newPopMetrics.filter(
+                        (m) => !currentYFields.includes(m),
+                    );
+                    if (toAdd.length === 0) return prev;
+                    return {
+                        ...prev,
+                        yField: [...currentYFields, ...toAdd],
+                    };
+                });
+            }
+        }
+
+        prevAvailableMetricsRef.current = availableMetrics;
+    }, [availableMetrics, resultsData?.metricQuery?.additionalMetrics]);
 
     const selectedReferenceLines: ReferenceLineField[] = useMemo(() => {
         if (dirtyEchartsConfig?.series === undefined) return [];
