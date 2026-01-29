@@ -7,7 +7,7 @@ import {
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
-import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -33,7 +33,9 @@ describe('SpaceService', () => {
             projectModel: {} as ProjectModel,
             spaceModel: new SpaceModel({ database: db }),
             pinnedListModel: {} as PinnedListModel,
-            featureFlagModel: {} as FeatureFlagModel,
+            featureFlagModel: {
+                get: jest.fn().mockResolvedValue({ enabled: false }),
+            } as unknown as FeatureFlagModel,
         });
     });
 

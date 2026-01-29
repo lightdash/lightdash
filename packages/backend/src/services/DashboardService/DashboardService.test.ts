@@ -20,6 +20,7 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
+import { SpaceService } from '../SpaceService/SpaceService';
 import { DashboardService } from './DashboardService';
 import {
     chart,
@@ -80,6 +81,12 @@ describe('DashboardService', () => {
         analytics: analyticsMock,
         dashboardModel: dashboardModel as unknown as DashboardModel,
         spaceModel: spaceModel as unknown as SpaceModel,
+        spaceService: {
+            getUserAccessForPermissionCheck: jest.fn().mockResolvedValue([]),
+            getUserAccessForPermissionCheckBatch: jest
+                .fn()
+                .mockResolvedValue({}),
+        } as unknown as SpaceService,
         analyticsModel: analyticsModel as unknown as AnalyticsModel,
         pinnedListModel: {} as PinnedListModel,
         schedulerModel: {} as SchedulerModel,

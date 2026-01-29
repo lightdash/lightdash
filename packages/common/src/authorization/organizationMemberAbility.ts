@@ -66,6 +66,10 @@ const applyOrganizationMemberStaticAbilities: Record<
         });
         can('view', 'Space', {
             organizationUuid: member.organizationUuid,
+            inheritParentPermissions: true,
+        });
+        can('view', 'Space', {
+            organizationUuid: member.organizationUuid,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
@@ -197,6 +201,10 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
             isPrivate: false,
+        });
+        can('manage', 'Space', {
+            organizationUuid: member.organizationUuid,
+            inheritParentPermissions: true,
         });
         can('create', 'Space', {
             organizationUuid: member.organizationUuid,

@@ -42,6 +42,7 @@ import {
     warehouseClientMock,
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
+import type { SpaceService } from '../SpaceService/SpaceService';
 import { UserService } from '../UserService';
 import { ProjectService } from './ProjectService';
 import {
@@ -134,6 +135,11 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
             lightdashConfig: lightdashConfigWithNoSMTP,
         }),
         spaceModel: spaceModel as unknown as SpaceModel,
+        spaceService: {
+            getUserAccessForPermissionCheckBatch: jest
+                .fn()
+                .mockResolvedValue({}),
+        } as unknown as SpaceService,
         sshKeyPairModel: {} as SshKeyPairModel,
         userAttributesModel:
             userAttributesModel as unknown as UserAttributesModel,

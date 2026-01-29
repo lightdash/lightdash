@@ -19,7 +19,10 @@ import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
+import {
+    hasViewAccessToSpace,
+    type SpaceService,
+} from '../SpaceService/SpaceService';
 import { hasUserAttributes } from '../UserAttributesService/UserAttributeUtils';
 
 type SearchServiceArguments = {
@@ -27,6 +30,7 @@ type SearchServiceArguments = {
     searchModel: SearchModel;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
+    spaceService: SpaceService;
     userAttributesModel: UserAttributesModel;
 };
 
@@ -39,6 +43,8 @@ export class SearchService extends BaseService {
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly spaceService: SpaceService;
+
     private readonly userAttributesModel: UserAttributesModel;
 
     constructor(args: SearchServiceArguments) {
@@ -47,6 +53,7 @@ export class SearchService extends BaseService {
         this.searchModel = args.searchModel;
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
+        this.spaceService = args.spaceService;
         this.userAttributesModel = args.userAttributesModel;
     }
 
@@ -96,10 +103,11 @@ export class SearchService extends BaseService {
                 this.spaceModel.getSpaceSummary(spaceUuid),
             ),
         );
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess =
+            await this.spaceService.getUserAccessForPermissionCheckBatch(
+                user,
+                spaces.map((s) => s.uuid),
+            );
 
         const filterItem = async (
             item:

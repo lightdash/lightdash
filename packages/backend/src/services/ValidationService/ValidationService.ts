@@ -47,7 +47,10 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
+import {
+    hasViewAccessToSpace,
+    type SpaceService,
+} from '../SpaceService/SpaceService';
 
 type ValidationServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -57,6 +60,7 @@ type ValidationServiceArguments = {
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
+    spaceService: SpaceService;
     schedulerClient: SchedulerClient;
     featureFlagModel: FeatureFlagModel;
 };
@@ -76,6 +80,8 @@ export class ValidationService extends BaseService {
 
     spaceModel: SpaceModel;
 
+    spaceService: SpaceService;
+
     schedulerClient: SchedulerClient;
 
     featureFlagModel: FeatureFlagModel;
@@ -88,6 +94,7 @@ export class ValidationService extends BaseService {
         savedChartModel,
         dashboardModel,
         spaceModel,
+        spaceService,
         schedulerClient,
         featureFlagModel,
     }: ValidationServiceArguments) {
@@ -99,6 +106,7 @@ export class ValidationService extends BaseService {
         this.validationModel = validationModel;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
+        this.spaceService = spaceService;
         this.schedulerClient = schedulerClient;
         this.featureFlagModel = featureFlagModel;
     }
@@ -904,10 +912,11 @@ export class ValidationService extends BaseService {
         if (user.role === OrganizationMemberRole.ADMIN) return validations;
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess =
+            await this.spaceService.getUserAccessForPermissionCheckBatch(
+                user,
+                spaces.map((s) => s.uuid),
+            );
 
         const allowedSpaceUuids = spaces
             .filter((space, index) =>

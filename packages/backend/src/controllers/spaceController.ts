@@ -321,4 +321,35 @@ export class SpaceController extends BaseController {
             results: undefined,
         };
     }
+
+    /**
+     * Clear all direct user and group access from a space, leaving only inherited permissions
+     * @param projectUuid The uuid of the space's parent project
+     * @param spaceUuid The uuid of the space to clear access from
+     * @param req
+     * @summary Clear all space access
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('{spaceUuid}/access')
+    @OperationId('ClearAllSpaceAccess')
+    @Tags('Roles & Permissions')
+    async clearAllSpaceAccess(
+        @Path() projectUuid: string,
+        @Path() spaceUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSpaceResponse> {
+        this.setStatus(200);
+        const results = await this.services
+            .getSpaceService()
+            .clearAllSpaceAccess(req.user!, spaceUuid);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
 }
