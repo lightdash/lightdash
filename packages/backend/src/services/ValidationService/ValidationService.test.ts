@@ -13,6 +13,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { ValidationModel } from '../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import type { SpaceService } from '../SpaceService/SpaceService';
 import { ValidationService } from './ValidationService';
 import {
     additionalExplore,
@@ -62,6 +63,11 @@ describe('validation', () => {
         dashboardModel: dashboardModel as unknown as DashboardModel,
         lightdashConfig: config,
         spaceModel: {} as SpaceModel,
+        spaceService: {
+            getUserAccessForPermissionCheckBatch: jest
+                .fn()
+                .mockResolvedValue({}),
+        } as unknown as SpaceService,
         schedulerClient: {} as SchedulerClient,
         featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
     });

@@ -5,6 +5,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import type { SpaceService } from '../SpaceService/SpaceService';
 import { PromoteService } from './PromoteService';
 import {
     existingUpstreamChart,
@@ -53,6 +54,9 @@ describe('PromoteService chart changes', () => {
         projectModel: projectModel as unknown as ProjectModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         spaceModel: spaceModel as unknown as SpaceModel,
+        spaceService: {
+            getUserAccessForPermissionCheck: jest.fn().mockResolvedValue([]),
+        } as unknown as SpaceService,
         dashboardModel: {} as DashboardModel,
     });
     afterEach(() => {
@@ -227,6 +231,9 @@ describe('PromoteService dashboard changes', () => {
         projectModel: projectModel as unknown as ProjectModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         spaceModel: spaceModel as unknown as SpaceModel,
+        spaceService: {
+            getUserAccessForPermissionCheck: jest.fn().mockResolvedValue([]),
+        } as unknown as SpaceService,
         dashboardModel: {} as DashboardModel,
     });
     afterEach(() => {
@@ -477,6 +484,9 @@ describe('PromoteService promoting and mutating changes', () => {
         projectModel: projectModel as unknown as ProjectModel,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         spaceModel: spaceModel as unknown as SpaceModel,
+        spaceService: {
+            getUserAccessForPermissionCheck: jest.fn().mockResolvedValue([]),
+        } as unknown as SpaceService,
         dashboardModel: dashboardModel as unknown as DashboardModel,
     });
     afterEach(() => {
@@ -604,6 +614,7 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(spaceModel.createSpace).toHaveBeenCalledWith(
             {
                 isPrivate: true,
+                inheritParentPermissions: true,
                 name: 'Private space',
                 parentSpaceUuid: null,
             },

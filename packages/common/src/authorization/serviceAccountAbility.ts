@@ -54,6 +54,10 @@ const applyServiceAccountStaticAbilities: Record<
         });
         can('view', 'Space', {
             organizationUuid,
+            inheritParentPermissions: true,
+        });
+        can('view', 'Space', {
+            organizationUuid,
             /* access: {
                 $elemMatch: { userUuid: userUuid },
             }, */
@@ -183,6 +187,10 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'Space', {
             organizationUuid,
             isPrivate: false,
+        });
+        can('manage', 'Space', {
+            organizationUuid,
+            inheritParentPermissions: true,
         });
         can('create', 'Space', {
             organizationUuid,

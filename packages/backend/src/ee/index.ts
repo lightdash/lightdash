@@ -190,7 +190,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getOrganizationWarehouseCredentialsModel(),
                     userModel: models.getUserModel(),
                 }),
-            projectService: ({ models, context, clients, utils }) =>
+            projectService: ({ models, context, clients, utils, repository }) =>
                 new ProjectService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -200,6 +200,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     jobModel: models.getJobModel(),
                     emailClient: clients.getEmailClient(),
                     spaceModel: models.getSpaceModel(),
+                    spaceService: repository.getSpaceService(),
                     sshKeyPairModel: models.getSshKeyPairModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     s3CacheClient: clients.getS3CacheClient(),
@@ -264,6 +265,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     jobModel: models.getJobModel(),
                     emailClient: clients.getEmailClient(),
                     spaceModel: models.getSpaceModel(),
+                    spaceService: repository.getSpaceService(),
                     sshKeyPairModel: models.getSshKeyPairModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     s3CacheClient: clients.getS3CacheClient(),

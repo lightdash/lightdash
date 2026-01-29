@@ -18,12 +18,14 @@ import { NotificationsModel } from '../../models/NotificationsModel/Notification
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
+import type { SpaceService } from '../SpaceService/SpaceService';
 import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
 
 type CommentServiceArguments = {
     analytics: LightdashAnalytics;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
+    spaceService: SpaceService;
     commentModel: CommentModel;
     notificationsModel: NotificationsModel;
     userModel: UserModel;
@@ -37,6 +39,8 @@ export class CommentService extends BaseService {
 
     spaceModel: SpaceModel;
 
+    spaceService: SpaceService;
+
     commentModel: CommentModel;
 
     notificationsModel: NotificationsModel;
@@ -49,6 +53,7 @@ export class CommentService extends BaseService {
         analytics,
         dashboardModel,
         spaceModel,
+        spaceService,
         commentModel,
         notificationsModel,
         userModel,
@@ -58,6 +63,7 @@ export class CommentService extends BaseService {
         this.analytics = analytics;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
+        this.spaceService = spaceService;
         this.commentModel = commentModel;
         this.notificationsModel = notificationsModel;
         this.userModel = userModel;
@@ -73,10 +79,11 @@ export class CommentService extends BaseService {
 
         try {
             space = await this.spaceModel.getSpaceSummary(spaceUuid);
-            spaceAccess = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                spaceUuid,
-            );
+            spaceAccess =
+                await this.spaceService.getUserAccessForPermissionCheck(
+                    user,
+                    spaceUuid,
+                );
         } catch (e) {
             Sentry.captureException(e);
             console.error(e);

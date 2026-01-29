@@ -29,6 +29,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
+import type { SpaceService } from '../SpaceService/SpaceService';
 
 export type PromotedChart = {
     projectUuid: string;
@@ -66,6 +67,7 @@ type PromoteServiceArguments = {
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
+    spaceService: SpaceService;
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
 };
@@ -84,6 +86,8 @@ export class PromoteService extends BaseService {
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly spaceService: SpaceService;
+
     private readonly dashboardModel: DashboardModel;
 
     constructor(args: PromoteServiceArguments) {
@@ -93,6 +97,7 @@ export class PromoteService extends BaseService {
         this.savedChartModel = args.savedChartModel;
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
+        this.spaceService = args.spaceService;
         this.dashboardModel = args.dashboardModel;
     }
 
@@ -197,8 +202,8 @@ export class PromoteService extends BaseService {
                 projectUuid: upstreamProjectUuid,
                 space: promotedSpace,
                 spaces: promotedSpaceAncestors,
-                access: await this.spaceModel.getUserSpaceAccess(
-                    user.userUuid,
+                access: await this.spaceService.getUserAccessForPermissionCheck(
+                    user,
                     promotedSpace.uuid,
                 ),
             },
@@ -207,8 +212,8 @@ export class PromoteService extends BaseService {
                 projectUuid: upstreamProjectUuid,
                 space: upstreamSpace,
                 access: upstreamSpace
-                    ? await this.spaceModel.getUserSpaceAccess(
-                          user.userUuid,
+                    ? await this.spaceService.getUserAccessForPermissionCheck(
+                          user,
                           upstreamSpace.uuid,
                       )
                     : [],
@@ -230,6 +235,8 @@ export class PromoteService extends BaseService {
                         organizationUuid,
                         projectUuid: upstreamContent.projectUuid,
                         isPrivate: upstreamContent.space.isPrivate,
+                        inheritParentPermissions:
+                            upstreamContent.space.inheritParentPermissions,
                         access: upstreamContent.access,
                     }),
                 )
@@ -1386,8 +1393,8 @@ export class PromoteService extends BaseService {
             projectUuid: dashboard.projectUuid,
             space: promotedSpace,
             spaces: promotedSpaceAncestors,
-            access: await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
+            access: await this.spaceService.getUserAccessForPermissionCheck(
+                user,
                 promotedSpace.uuid,
             ),
         };
@@ -1402,8 +1409,8 @@ export class PromoteService extends BaseService {
             projectUuid: upstreamProjectUuid,
             space: upstreamSpace,
             access: upstreamSpace
-                ? await this.spaceModel.getUserSpaceAccess(
-                      user.userUuid,
+                ? await this.spaceService.getUserAccessForPermissionCheck(
+                      user,
                       upstreamSpace.uuid,
                   )
                 : [],

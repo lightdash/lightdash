@@ -243,6 +243,7 @@ import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { BaseService } from '../BaseService';
+import type { SpaceService } from '../SpaceService/SpaceService';
 import {
     hasDirectAccessToSpace,
     hasViewAccessToSpace,
@@ -264,6 +265,7 @@ export type ProjectServiceArguments = {
     jobModel: JobModel;
     emailClient: EmailClient;
     spaceModel: SpaceModel;
+    spaceService: SpaceService;
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
     s3CacheClient: S3CacheClient;
@@ -305,6 +307,8 @@ export class ProjectService extends BaseService {
     emailClient: EmailClient;
 
     spaceModel: SpaceModel;
+
+    spaceService: SpaceService;
 
     sshKeyPairModel: SshKeyPairModel;
 
@@ -357,6 +361,7 @@ export class ProjectService extends BaseService {
         jobModel,
         emailClient,
         spaceModel,
+        spaceService,
         sshKeyPairModel,
         userAttributesModel,
         s3CacheClient,
@@ -389,6 +394,7 @@ export class ProjectService extends BaseService {
         this.jobModel = jobModel;
         this.emailClient = emailClient;
         this.spaceModel = spaceModel;
+        this.spaceService = spaceService;
         this.sshKeyPairModel = sshKeyPairModel;
         this.userAttributesModel = userAttributesModel;
         this.s3CacheClient = s3CacheClient;
@@ -5060,6 +5066,26 @@ export class ProjectService extends BaseService {
                     return [];
                 }
 
+                // Build space access check - use feature-flag-aware method for registered users.
+                // This complexity exists because the batch method needs SessionUser for feature flag checks.
+                // TODO: Once SpacePermissionInheritance feature flag is removed, simplify this to just
+                // pass userUuid directly (works for both Account and SessionUser types).
+                const spaceAccessPromise =
+                    account.user.type === 'registered'
+                        ? this.spaceService.getUserAccessForPermissionCheckBatch(
+                              {
+                                  ...account.user,
+                                  organizationUuid:
+                                      account.organization.organizationUuid,
+                                  organizationName: account.organization.name,
+                              } as SessionUser,
+                              uniqueSpaceUuids,
+                          )
+                        : this.spaceModel.getUserSpacesAccess(
+                              account.user.id,
+                              uniqueSpaceUuids,
+                          );
+
                 const [spaceAccessMap, exploresMap, userSpacesAccess] =
                     await Promise.all([
                         this.spaceModel.getSpacesForAccessCheck(
@@ -5074,10 +5100,7 @@ export class ProjectService extends BaseService {
                             organizationUuid:
                                 account.organization.organizationUuid,
                         }),
-                        this.spaceModel.getUserSpacesAccess(
-                            account.user.id,
-                            uniqueSpaceUuids,
-                        ),
+                        spaceAccessPromise,
                     ]);
 
                 return savedCharts.map((savedChart) => {
@@ -5386,10 +5409,11 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess =
+            await this.spaceService.getUserAccessForPermissionCheckBatch(
+                user,
+                spaces.map((s) => s.uuid),
+            );
 
         const allowedSpaceUuids = spaces
             .filter(
@@ -5428,10 +5452,11 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess =
+            await this.spaceService.getUserAccessForPermissionCheckBatch(
+                user,
+                spaces.map((s) => s.uuid),
+            );
 
         const allowedSpaceUuids = spaces
             .filter(
@@ -5470,10 +5495,11 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess =
+            await this.spaceService.getUserAccessForPermissionCheckBatch(
+                user,
+                spaces.map((s) => s.uuid),
+            );
         const allowedSpaces = spaces.filter(
             (space) =>
                 (space.projectUuid === projectUuid &&
@@ -5579,10 +5605,11 @@ export class ProjectService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess =
+            await this.spaceService.getUserAccessForPermissionCheckBatch(
+                user,
+                spaces.map((s) => s.uuid),
+            );
 
         const spacesWithUserAccess = spaces
             .filter((space) =>

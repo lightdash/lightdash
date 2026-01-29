@@ -1023,6 +1023,78 @@ export class SpaceModel {
     }
 
     /**
+     * Get effective group access for a space, respecting the inherit flag.
+     *
+     * When inherit=false: Only returns direct group access for this space
+     * When inherit=true: Aggregates group access from the inheritance chain
+     */
+    async getEffectiveGroupAccess(spaceUuid: string): Promise<SpaceGroup[]> {
+        const chain = await this.getInheritanceChain(spaceUuid);
+
+        if (chain.length === 0) {
+            return [];
+        }
+
+        // Check if current space has inherit=false (explicit permissions only)
+        const currentSpace = chain.find((s) => s.spaceUuid === spaceUuid);
+        const hasExplicitPermissionsOnly =
+            currentSpace?.inheritParentPermissions === false;
+
+        if (hasExplicitPermissionsOnly) {
+            // Only return direct group access for this space
+            return this.database
+                .table(SpaceGroupAccessTableName)
+                .select({
+                    groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
+                    spaceRole: `${SpaceGroupAccessTableName}.space_role`,
+                    groupName: `${GroupTableName}.name`,
+                })
+                .leftJoin(
+                    `${GroupTableName}`,
+                    `${GroupTableName}.group_uuid`,
+                    `${SpaceGroupAccessTableName}.group_uuid`,
+                )
+                .where('space_uuid', spaceUuid);
+        }
+
+        // Aggregate group access from all spaces in the inheritance chain
+        const chainSpaceUuids = chain.map((s) => s.spaceUuid);
+        const access = await this.database
+            .table(SpaceGroupAccessTableName)
+            .select<SpaceGroup[]>({
+                groupUuid: `${SpaceGroupAccessTableName}.group_uuid`,
+                spaceRole: `${SpaceGroupAccessTableName}.space_role`,
+                groupName: `${GroupTableName}.name`,
+            })
+            .leftJoin(
+                `${GroupTableName}`,
+                `${GroupTableName}.group_uuid`,
+                `${SpaceGroupAccessTableName}.group_uuid`,
+            )
+            .whereIn('space_uuid', chainSpaceUuids);
+
+        // Deduplicate by groupUuid, taking the highest role
+        const groupAccessMap = new Map<string, SpaceGroup>();
+        const roleOrder = {
+            [SpaceMemberRole.ADMIN]: 3,
+            [SpaceMemberRole.EDITOR]: 2,
+            [SpaceMemberRole.VIEWER]: 1,
+        };
+
+        for (const group of access) {
+            const existing = groupAccessMap.get(group.groupUuid);
+            if (
+                !existing ||
+                roleOrder[group.spaceRole] > roleOrder[existing.spaceRole]
+            ) {
+                groupAccessMap.set(group.groupUuid, group);
+            }
+        }
+
+        return Array.from(groupAccessMap.values());
+    }
+
+    /**
      * Get the access for a space
      * Nested Spaces MVP - inherit access from root space
      * @param userUuid - The UUID of the user to get access for
@@ -1461,7 +1533,13 @@ export class SpaceModel {
     ): Promise<
         Map<
             string,
-            Pick<SpaceSummary, 'isPrivate' | 'organizationUuid' | 'projectUuid'>
+            Pick<
+                SpaceSummary,
+                | 'isPrivate'
+                | 'inheritParentPermissions'
+                | 'organizationUuid'
+                | 'projectUuid'
+            >
         >
     > {
         const spaces = await this.database(SpaceTableName)
@@ -1493,6 +1571,7 @@ export class SpaceModel {
                 isPrivate: this.database.raw(
                     SpaceModel.getRootSpaceIsPrivateQuery(),
                 ),
+                inheritParentPermissions: `${SpaceTableName}.inherit_parent_permissions`,
                 access: this.database.raw(
                     SpaceModel.getRootSpaceAccessQuery('shared_with'),
                 ),
@@ -1513,6 +1592,7 @@ export class SpaceModel {
                 organizationUuid: space.organizationUuid,
                 projectUuid: space.projectUuid,
                 isPrivate: space.isPrivate,
+                inheritParentPermissions: space.inheritParentPermissions,
             });
         });
 
@@ -1574,6 +1654,11 @@ export class SpaceModel {
         return breadcrumbs;
     }
 
+    /**
+     * Get full space with legacy behavior (Nested Spaces MVP).
+     * Access is always fetched from the root space.
+     * Use this when the SpacePermissionInheritance feature flag is OFF.
+     */
     async getFullSpace(spaceUuid: string): Promise<Space> {
         const space = await this.get(spaceUuid);
         const { spaceRoot: rootSpaceUuid } =
@@ -1603,6 +1688,42 @@ export class SpaceModel {
             parentSpaceUuid: space.parentSpaceUuid,
             path: space.path,
             inheritParentPermissions: space.inheritParentPermissions,
+            breadcrumbs,
+        };
+    }
+
+    /**
+     * Get full space with permission inheritance behavior.
+     * Access respects the `inherit` flag on the space:
+     * - inherit=false: only direct space permissions (all removable)
+     * - inherit=true: aggregated from inheritance chain
+     * Use this when the SpacePermissionInheritance feature flag is ON.
+     */
+    async getFullSpaceWithInheritance(spaceUuid: string): Promise<Space> {
+        const space = await this.get(spaceUuid);
+        const breadcrumbs = await this.getSpaceBreadcrumbs(
+            spaceUuid,
+            space.projectUuid,
+        );
+        return {
+            organizationUuid: space.organizationUuid,
+            name: space.name,
+            uuid: space.uuid,
+            isPrivate: space.isPrivate,
+            inheritParentPermissions: space.inheritParentPermissions,
+            projectUuid: space.projectUuid,
+            pinnedListUuid: space.pinnedListUuid,
+            pinnedListOrder: space.pinnedListOrder,
+            queries: await this.getSpaceQueries([space.uuid]),
+            dashboards: await this.getSpaceDashboards([space.uuid]),
+            childSpaces: await this.find({
+                parentSpaceUuid: spaceUuid,
+            }),
+            access: await this.getEffectiveSpaceAccess(spaceUuid),
+            groupsAccess: await this.getEffectiveGroupAccess(spaceUuid),
+            slug: space.slug,
+            parentSpaceUuid: space.parentSpaceUuid,
+            path: space.path,
             breadcrumbs,
         };
     }
@@ -2307,6 +2428,22 @@ export class SpaceModel {
             .where('space_uuid', spaceUuid)
             .andWhere('group_uuid', groupUuid)
             .delete();
+    }
+
+    /**
+     * Clear all direct permissions from a space.
+     * Removes all entries from space_user_access and space_group_access for this space.
+     * Used when users want to reset to inherited-only permissions.
+     */
+    async clearAllDirectAccess(spaceUuid: string): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx(SpaceUserAccessTableName)
+                .where('space_uuid', spaceUuid)
+                .delete();
+            await trx(SpaceGroupAccessTableName)
+                .where('space_uuid', spaceUuid)
+                .delete();
+        });
     }
 
     /**

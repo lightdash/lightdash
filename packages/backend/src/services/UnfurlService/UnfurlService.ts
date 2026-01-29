@@ -61,6 +61,7 @@ import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel'
 import { SpaceModel } from '../../models/SpaceModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { BaseService } from '../BaseService';
+import type { SpaceService } from '../SpaceService/SpaceService';
 
 const RESPONSE_TIMEOUT_MS = 180000;
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
@@ -152,6 +153,7 @@ type UnfurlServiceArguments = {
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
+    spaceService: SpaceService;
     shareModel: ShareModel;
     s3Client: S3Client;
     slackClient: SlackClient;
@@ -169,6 +171,8 @@ export class UnfurlService extends BaseService {
     savedChartModel: SavedChartModel;
 
     spaceModel: SpaceModel;
+
+    spaceService: SpaceService;
 
     shareModel: ShareModel;
 
@@ -189,6 +193,7 @@ export class UnfurlService extends BaseService {
         dashboardModel,
         savedChartModel,
         spaceModel,
+        spaceService,
         shareModel,
         s3Client,
         projectModel,
@@ -202,6 +207,7 @@ export class UnfurlService extends BaseService {
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;
+        this.spaceService = spaceService;
         this.shareModel = shareModel;
         this.s3Client = s3Client;
         this.slackClient = slackClient;
@@ -462,8 +468,8 @@ export class UnfurlService extends BaseService {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+        const access = await this.spaceService.getUserAccessForPermissionCheck(
+            user,
             dashboard.spaceUuid,
         );
 

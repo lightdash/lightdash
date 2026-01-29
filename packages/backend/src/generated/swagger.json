@@ -29799,6 +29799,57 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/access": {
+            "delete": {
+                "operationId": "ClearAllSpaceAccess",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSpaceResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Clear all direct user and group access from a space, leaving only inherited permissions",
+                "summary": "Clear all space access",
+                "tags": ["Roles & Permissions", "Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the space's parent project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the space to clear access from",
+                        "in": "path",
+                        "name": "spaceUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/slack/channels": {
             "get": {
                 "operationId": "getSlackChannels",

@@ -33,6 +33,7 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
+import type { SpaceService } from '../SpaceService/SpaceService';
 import { CsvService } from './CsvService';
 import { itemMap, metricQuery } from './CsvService.mock';
 
@@ -53,6 +54,11 @@ describe('Csv service', () => {
             s3CacheClient: {} as S3CacheClient,
             savedChartModel: {} as SavedChartModel,
             spaceModel: {} as SpaceModel,
+            spaceService: {
+                getUserAccessForPermissionCheckBatch: jest
+                    .fn()
+                    .mockResolvedValue({}),
+            } as unknown as SpaceService,
             sshKeyPairModel: {} as SshKeyPairModel,
             userAttributesModel: {} as UserAttributesModel,
             userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,

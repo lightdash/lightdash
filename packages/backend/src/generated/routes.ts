@@ -34613,6 +34613,71 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsSpaceController_clearAllSpaceAccess: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        spaceUuid: {
+            in: 'path',
+            name: 'spaceUuid',
+            required: true,
+            dataType: 'string',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.delete(
+        '/api/v1/projects/:projectUuid/spaces/:spaceUuid/access',
+        ...fetchMiddlewares<RequestHandler>(SpaceController),
+        ...fetchMiddlewares<RequestHandler>(
+            SpaceController.prototype.clearAllSpaceAccess,
+        ),
+
+        async function SpaceController_clearAllSpaceAccess(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsSpaceController_clearAllSpaceAccess,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<SpaceController>(SpaceController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'clearAllSpaceAccess',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsSlackController_get: Record<string, TsoaRoute.ParameterSchema> = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         search: { in: 'query', name: 'search', dataType: 'string' },

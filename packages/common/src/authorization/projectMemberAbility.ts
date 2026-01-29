@@ -43,6 +43,10 @@ export const projectMemberAbilities: Record<
         });
         can('view', 'Space', {
             projectUuid: member.projectUuid,
+            inheritParentPermissions: true,
+        });
+        can('view', 'Space', {
+            projectUuid: member.projectUuid,
             access: {
                 $elemMatch: { userUuid: member.userUuid },
             },
@@ -162,6 +166,10 @@ export const projectMemberAbilities: Record<
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
             isPrivate: false,
+        });
+        can('manage', 'Space', {
+            projectUuid: member.projectUuid,
+            inheritParentPermissions: true,
         });
         can('manage', 'Job');
         can('manage', 'PinnedItems', {

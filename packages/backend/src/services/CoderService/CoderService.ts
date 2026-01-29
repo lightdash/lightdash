@@ -44,7 +44,10 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { PromoteService } from '../PromoteService/PromoteService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
+import {
+    hasViewAccessToSpace,
+    type SpaceService,
+} from '../SpaceService/SpaceService';
 
 type CoderServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -54,6 +57,7 @@ type CoderServiceArguments = {
     savedSqlModel: SavedSqlModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
+    spaceService: SpaceService;
     schedulerClient: SchedulerClient;
     promoteService: PromoteService;
 };
@@ -81,6 +85,8 @@ export class CoderService extends BaseService {
 
     spaceModel: SpaceModel;
 
+    spaceService: SpaceService;
+
     schedulerClient: SchedulerClient;
 
     promoteService: PromoteService;
@@ -93,6 +99,7 @@ export class CoderService extends BaseService {
         savedSqlModel,
         dashboardModel,
         spaceModel,
+        spaceService,
         schedulerClient,
         promoteService,
     }: CoderServiceArguments) {
@@ -104,6 +111,7 @@ export class CoderService extends BaseService {
         this.savedSqlModel = savedSqlModel;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
+        this.spaceService = spaceService;
         this.schedulerClient = schedulerClient;
         this.promoteService = promoteService;
     }
@@ -504,10 +512,11 @@ export class CoderService extends BaseService {
             // User is an admin, return all content
             return content;
         }
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess =
+            await this.spaceService.getUserAccessForPermissionCheckBatch(
+                user,
+                spaces.map((s) => s.uuid),
+            );
 
         return content.filter((c) => {
             const space = spaces.find((s) => s.uuid === c.spaceUuid);
@@ -1187,10 +1196,11 @@ export class CoderService extends BaseService {
         });
 
         if (existingSpace !== undefined) {
-            const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-                user.userUuid,
-                [existingSpace.uuid],
-            );
+            const spacesAccess =
+                await this.spaceService.getUserAccessForPermissionCheckBatch(
+                    user,
+                    [existingSpace.uuid],
+                );
             if (
                 hasViewAccessToSpace(
                     user,

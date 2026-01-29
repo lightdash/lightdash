@@ -73,7 +73,10 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
+import {
+    SpaceService,
+    hasViewAccessToSpace,
+} from '../SpaceService/SpaceService';
 import { UserService } from '../UserService';
 
 type SavedChartServiceArguments = {
@@ -81,6 +84,7 @@ type SavedChartServiceArguments = {
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
+    spaceService: SpaceService;
     analyticsModel: AnalyticsModel;
     pinnedListModel: PinnedListModel;
     schedulerModel: SchedulerModel;
@@ -104,6 +108,8 @@ export class SavedChartService
     private readonly savedChartModel: SavedChartModel;
 
     private readonly spaceModel: SpaceModel;
+
+    private readonly spaceService: SpaceService;
 
     private readonly analyticsModel: AnalyticsModel;
 
@@ -131,6 +137,7 @@ export class SavedChartService
         this.projectModel = args.projectModel;
         this.savedChartModel = args.savedChartModel;
         this.spaceModel = args.spaceModel;
+        this.spaceService = args.spaceService;
         this.analyticsModel = args.analyticsModel;
         this.pinnedListModel = args.pinnedListModel;
         this.schedulerModel = args.schedulerModel;
@@ -152,8 +159,8 @@ export class SavedChartService
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+        const access = await this.spaceService.getUserAccessForPermissionCheck(
+            user,
             savedChart.spaceUuid,
         );
         if (
@@ -205,10 +212,11 @@ export class SavedChartService
     ): Promise<boolean> {
         try {
             const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-            const access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                space.uuid,
-            );
+            const access =
+                await this.spaceService.getUserAccessForPermissionCheck(
+                    user,
+                    space.uuid,
+                );
             return hasViewAccessToSpace(user, space, access);
         } catch (e) {
             return false;
@@ -422,8 +430,8 @@ export class SavedChartService
         } = await this.savedChartModel.get(savedChartUuid);
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+        const access = await this.spaceService.getUserAccessForPermissionCheck(
+            user,
             spaceUuid,
         );
 
@@ -519,8 +527,8 @@ export class SavedChartService
         } = await this.savedChartModel.getSummary(savedChartUuid);
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+        const access = await this.spaceService.getUserAccessForPermissionCheck(
+            user,
             spaceUuid,
         );
 
@@ -648,10 +656,11 @@ export class SavedChartService
             const space = await this.spaceModel.getSpaceSummary(
                 chart.spaceUuid,
             );
-            const access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                chart.spaceUuid,
-            );
+            const access =
+                await this.spaceService.getUserAccessForPermissionCheck(
+                    user,
+                    chart.spaceUuid,
+                );
             return user.ability.can(
                 'update',
                 subject('SavedChart', {
@@ -674,10 +683,11 @@ export class SavedChartService
                 const space = await this.spaceModel.getSpaceSummary(
                     savedChart.spaceUuid,
                 );
-                const access = await this.spaceModel.getUserSpaceAccess(
-                    user.userUuid,
-                    savedChart.spaceUuid,
-                );
+                const access =
+                    await this.spaceService.getUserAccessForPermissionCheck(
+                        user,
+                        savedChart.spaceUuid,
+                    );
                 return {
                     ...savedChart,
                     isPrivate: space.isPrivate,
@@ -705,8 +715,8 @@ export class SavedChartService
             tableName,
         } = await this.savedChartModel.get(savedChartUuid);
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+        const access = await this.spaceService.getUserAccessForPermissionCheck(
+            user,
             spaceUuid,
         );
 
@@ -768,8 +778,8 @@ export class SavedChartService
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+        const access = await this.spaceService.getUserAccessForPermissionCheck(
+            user,
             savedChart.spaceUuid,
         );
         if (
@@ -808,6 +818,8 @@ export class SavedChartService
             //       https://linear.app/lightdash/issue/CENG-110/front-load-available-charts-for-dashboard-requests
             access = [{ chartUuid: savedChart.uuid }];
         } else {
+            // Note: Using spaceModel directly here because we only have account.user.id,
+            // not a full SessionUser. This is an edge case for anonymous accounts.
             access = await this.spaceModel.getUserSpaceAccess(
                 account.user.id,
                 savedChart.spaceUuid,
@@ -880,8 +892,8 @@ export class SavedChartService
                 savedChart.spaceUuid,
             );
             isPrivate = space.isPrivate;
-            access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
+            access = await this.spaceService.getUserAccessForPermissionCheck(
+                user,
                 savedChart.spaceUuid,
             );
         } else if (savedChart.dashboardUuid) {
@@ -892,8 +904,8 @@ export class SavedChartService
                 dashboard.spaceUuid,
             );
             isPrivate = space.isPrivate;
-            access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
+            access = await this.spaceService.getUserAccessForPermissionCheck(
+                user,
                 dashboard.spaceUuid,
             );
         }
@@ -979,8 +991,8 @@ export class SavedChartService
     ): Promise<SavedChart> {
         const chart = await this.savedChartModel.get(chartUuid);
         const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+        const access = await this.spaceService.getUserAccessForPermissionCheck(
+            user,
             chart.spaceUuid,
         );
         if (
@@ -1224,8 +1236,8 @@ export class SavedChartService
     ): Promise<ChartHistory> {
         const chart = await this.savedChartModel.getSummary(chartUuid);
         const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+        const access = await this.spaceService.getUserAccessForPermissionCheck(
+            user,
             chart.spaceUuid,
         );
         if (
@@ -1265,8 +1277,8 @@ export class SavedChartService
     ): Promise<ChartVersion> {
         const chart = await this.savedChartModel.getSummary(chartUuid);
         const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
-        const access = await this.spaceModel.getUserSpaceAccess(
-            user.userUuid,
+        const access = await this.spaceService.getUserAccessForPermissionCheck(
+            user,
             chart.spaceUuid,
         );
         if (
@@ -1407,10 +1419,11 @@ export class SavedChartService
         }
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            actor.user.userUuid,
-            spaceUuid,
-        );
+        const spaceAccess =
+            await this.spaceService.getUserAccessForPermissionCheck(
+                actor.user,
+                spaceUuid,
+            );
 
         const hasPermission = actor.user.ability.can(
             action,
@@ -1432,10 +1445,11 @@ export class SavedChartService
             const newSpace = await this.spaceModel.getSpaceSummary(
                 resource.spaceUuid,
             );
-            const newSpaceAccess = await this.spaceModel.getUserSpaceAccess(
-                actor.user.userUuid,
-                resource.spaceUuid,
-            );
+            const newSpaceAccess =
+                await this.spaceService.getUserAccessForPermissionCheck(
+                    actor.user,
+                    resource.spaceUuid,
+                );
 
             const hasPermissionInNewSpace = actor.user.ability.can(
                 action,

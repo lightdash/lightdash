@@ -66,6 +66,7 @@ import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
+import type { SpaceService } from '../SpaceService/SpaceService';
 import {
     doesExploreMatchRequiredAttributes,
     getFilteredExplore,
@@ -80,6 +81,7 @@ export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     catalogModel: T;
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
+    spaceService: SpaceService;
     tagsModel: TagsModel;
     changesetModel: ChangesetModel;
 };
@@ -101,6 +103,8 @@ export class CatalogService<
 
     spaceModel: SpaceModel;
 
+    spaceService: SpaceService;
+
     tagsModel: TagsModel;
 
     changesetModel: ChangesetModel;
@@ -113,6 +117,7 @@ export class CatalogService<
         catalogModel,
         savedChartModel,
         spaceModel,
+        spaceService,
         tagsModel,
         changesetModel,
     }: CatalogArguments<T>) {
@@ -124,6 +129,7 @@ export class CatalogService<
         this.catalogModel = catalogModel;
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;
+        this.spaceService = spaceService;
         this.tagsModel = tagsModel;
         this.changesetModel = changesetModel;
     }
@@ -731,10 +737,11 @@ export class CatalogService<
     ) => {
         // TODO move to space utils ?
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess =
+            await this.spaceService.getUserAccessForPermissionCheckBatch(
+                user,
+                spaces.map((s) => s.uuid),
+            );
 
         const allowedSpaceUuids = spaces
             .filter((space) =>
@@ -744,6 +751,8 @@ export class CatalogService<
                         organizationUuid: space.organizationUuid,
                         projectUuid,
                         isPrivate: space.isPrivate,
+                        inheritParentPermissions:
+                            space.inheritParentPermissions,
                         access: spacesAccess[space.uuid] ?? [],
                     }),
                 ),

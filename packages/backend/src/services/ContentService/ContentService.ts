@@ -112,10 +112,11 @@ export class ContentService extends BaseService {
             projectUuids: allowedProjectUuids,
             spaceUuids: filters.spaceUuids,
         });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((p) => p.uuid),
-        );
+        const spacesAccess =
+            await this.spaceService.getUserAccessForPermissionCheckBatch(
+                user,
+                spaces.map((p) => p.uuid),
+            );
         const allowedSpaceUuids = spaces
             .filter((space) =>
                 hasViewAccessToSpace(
