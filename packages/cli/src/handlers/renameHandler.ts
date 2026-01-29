@@ -91,6 +91,15 @@ export const renameHandler = async (options: RenameHandlerOptions) => {
         );
     }
 
+    // Log current project info
+    if (options.project) {
+        console.error(
+            `\n${styles.success('Renaming in project:')} ${projectUuid}\n`,
+        );
+    } else {
+        GlobalState.logProjectInfo(config);
+    }
+
     const isValidInput = (input: string): boolean => /^[a-z_]+$/.test(input);
 
     if (!isValidInput(options.from) || !isValidInput(options.to)) {
