@@ -1309,7 +1309,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             );
             // Should calculate total_columns correctly using subquery approach
             expect(result).toContain(
-                'SELECT COUNT(*) * 1 AS total_columns FROM (SELECT DISTINCT "category" FROM filtered_rows) AS distinct_groups',
+                'SELECT COUNT(*) AS total_columns FROM (SELECT DISTINCT "category" FROM filtered_rows) AS distinct_groups',
             );
         });
 
