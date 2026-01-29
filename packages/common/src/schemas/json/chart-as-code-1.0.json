@@ -1434,6 +1434,666 @@
                     }
                 }
             }
+        },
+        "pieChart": {
+            "type": ["object", "null"],
+            "description": "Configuration for pie and donut charts",
+            "additionalProperties": false,
+            "properties": {
+                "groupFieldIds": {
+                    "type": "array",
+                    "description": "Field IDs used for grouping/slicing the pie",
+                    "items": { "type": "string" }
+                },
+                "metricId": {
+                    "type": "string",
+                    "description": "Field ID of the metric to display"
+                },
+                "isDonut": {
+                    "type": "boolean",
+                    "description": "Display as donut chart with hole in center"
+                },
+                "valueLabel": {
+                    "type": "string",
+                    "enum": ["hidden", "inside", "outside"],
+                    "description": "Position of value labels on slices"
+                },
+                "showValue": {
+                    "type": "boolean",
+                    "description": "Show the actual value on slices"
+                },
+                "showPercentage": {
+                    "type": "boolean",
+                    "description": "Show percentage on slices"
+                },
+                "groupLabelOverrides": {
+                    "type": "object",
+                    "description": "Custom labels for each group/slice",
+                    "additionalProperties": { "type": "string" }
+                },
+                "groupColorOverrides": {
+                    "type": "object",
+                    "description": "Custom colors for each group/slice",
+                    "additionalProperties": { "type": "string" }
+                },
+                "groupValueOptionOverrides": {
+                    "type": "object",
+                    "description": "Per-slice value display options",
+                    "additionalProperties": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "valueLabel": {
+                                "type": "string",
+                                "enum": ["hidden", "inside", "outside"]
+                            },
+                            "showValue": { "type": "boolean" },
+                            "showPercentage": { "type": "boolean" }
+                        }
+                    }
+                },
+                "groupSortOverrides": {
+                    "type": "array",
+                    "description": "Custom sort order for groups/slices",
+                    "items": { "type": "string" }
+                },
+                "showLegend": {
+                    "type": "boolean",
+                    "description": "Show the chart legend"
+                },
+                "legendPosition": {
+                    "type": "string",
+                    "enum": ["horizontal", "vertical"],
+                    "description": "Legend orientation"
+                },
+                "legendMaxItemLength": {
+                    "type": "number",
+                    "description": "Maximum character length for legend items"
+                },
+                "metadata": {
+                    "type": "object",
+                    "description": "Metadata for series (colors, etc.)",
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "color": { "type": "string" }
+                        }
+                    }
+                }
+            }
+        },
+        "funnelChart": {
+            "type": ["object", "null"],
+            "description": "Configuration for funnel charts",
+            "additionalProperties": false,
+            "properties": {
+                "dataInput": {
+                    "type": "string",
+                    "enum": ["row", "column"],
+                    "description": "How data is structured (row-based or column-based)"
+                },
+                "fieldId": {
+                    "type": "string",
+                    "description": "Field ID to display in funnel"
+                },
+                "metadata": {
+                    "type": "object",
+                    "description": "Metadata for series (colors, etc.)",
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "color": { "type": "string" }
+                        }
+                    }
+                },
+                "labelOverrides": {
+                    "type": "object",
+                    "description": "Custom labels for funnel stages",
+                    "additionalProperties": { "type": "string" }
+                },
+                "colorOverrides": {
+                    "type": "object",
+                    "description": "Custom colors for funnel stages",
+                    "additionalProperties": { "type": "string" }
+                },
+                "labels": {
+                    "type": "object",
+                    "description": "Label display configuration",
+                    "additionalProperties": false,
+                    "properties": {
+                        "position": {
+                            "type": "string",
+                            "enum": ["inside", "left", "right", "hidden"],
+                            "description": "Position of labels"
+                        },
+                        "showValue": {
+                            "type": "boolean",
+                            "description": "Show the actual value"
+                        },
+                        "showPercentage": {
+                            "type": "boolean",
+                            "description": "Show percentage"
+                        }
+                    }
+                },
+                "showLegend": {
+                    "type": "boolean",
+                    "description": "Show the chart legend"
+                },
+                "legendPosition": {
+                    "type": "string",
+                    "enum": ["horizontal", "vertical"],
+                    "description": "Legend orientation"
+                }
+            }
+        },
+        "bigNumber": {
+            "type": ["object", "null"],
+            "description": "Configuration for big number (single value) displays",
+            "additionalProperties": false,
+            "properties": {
+                "label": {
+                    "type": "string",
+                    "description": "Custom label for the big number"
+                },
+                "selectedField": {
+                    "type": "string",
+                    "description": "Field ID to display as the big number"
+                },
+                "style": {
+                    "type": "string",
+                    "enum": [
+                        "thousands",
+                        "millions",
+                        "billions",
+                        "trillions",
+                        "K",
+                        "M",
+                        "B",
+                        "T"
+                    ],
+                    "description": "Number formatting style (compact notation)"
+                },
+                "showBigNumberLabel": {
+                    "type": "boolean",
+                    "description": "Show the label above the number"
+                },
+                "showTableNamesInLabel": {
+                    "type": "boolean",
+                    "description": "Include table name in the label"
+                },
+                "showComparison": {
+                    "type": "boolean",
+                    "description": "Show comparison with previous value"
+                },
+                "comparisonFormat": {
+                    "type": "string",
+                    "enum": ["raw", "percentage"],
+                    "description": "Format for comparison value"
+                },
+                "flipColors": {
+                    "type": "boolean",
+                    "description": "Flip positive/negative colors (red for increase, green for decrease)"
+                },
+                "comparisonLabel": {
+                    "type": "string",
+                    "description": "Custom label for the comparison value"
+                }
+            }
+        },
+        "gaugeChart": {
+            "type": ["object", "null"],
+            "description": "Configuration for gauge charts",
+            "additionalProperties": false,
+            "properties": {
+                "selectedField": {
+                    "type": "string",
+                    "description": "Field ID for the gauge value"
+                },
+                "min": {
+                    "type": "number",
+                    "description": "Minimum value for the gauge"
+                },
+                "max": {
+                    "type": "number",
+                    "description": "Maximum value for the gauge"
+                },
+                "maxFieldId": {
+                    "type": "string",
+                    "description": "Field ID to use as the max value"
+                },
+                "showAxisLabels": {
+                    "type": "boolean",
+                    "description": "Show min/max labels on the gauge"
+                },
+                "sections": {
+                    "type": "array",
+                    "description": "Color sections/ranges for the gauge",
+                    "items": { "$ref": "#/$defs/gaugeSection" }
+                },
+                "customLabel": {
+                    "type": "string",
+                    "description": "Custom label for the gauge value"
+                },
+                "showPercentage": {
+                    "type": "boolean",
+                    "description": "Show value as percentage"
+                },
+                "customPercentageLabel": {
+                    "type": "string",
+                    "description": "Custom label for the percentage display"
+                }
+            }
+        },
+        "gaugeSection": {
+            "type": "object",
+            "description": "A colored section/range in a gauge chart",
+            "additionalProperties": false,
+            "required": ["min", "max", "color"],
+            "properties": {
+                "min": {
+                    "type": "number",
+                    "description": "Start value for this section"
+                },
+                "max": {
+                    "type": "number",
+                    "description": "End value for this section"
+                },
+                "minFieldId": {
+                    "type": "string",
+                    "description": "Field ID to use as min value"
+                },
+                "maxFieldId": {
+                    "type": "string",
+                    "description": "Field ID to use as max value"
+                },
+                "color": {
+                    "type": "string",
+                    "description": "Color for this section (hex code)"
+                }
+            }
+        },
+        "treemapChart": {
+            "type": ["object", "null"],
+            "description": "Configuration for treemap charts",
+            "additionalProperties": false,
+            "properties": {
+                "visibleMin": {
+                    "type": "number",
+                    "description": "Minimum size for visible nodes"
+                },
+                "leafDepth": {
+                    "type": "number",
+                    "description": "Depth of leaf nodes to display"
+                },
+                "groupFieldIds": {
+                    "type": "array",
+                    "description": "Field IDs for hierarchical grouping",
+                    "items": { "type": "string" }
+                },
+                "sizeMetricId": {
+                    "type": "string",
+                    "description": "Field ID for node size"
+                },
+                "colorMetricId": {
+                    "type": "string",
+                    "description": "Field ID for node color value"
+                },
+                "startColor": {
+                    "type": "string",
+                    "description": "Start color for color gradient (hex code)"
+                },
+                "endColor": {
+                    "type": "string",
+                    "description": "End color for color gradient (hex code)"
+                },
+                "useDynamicColors": {
+                    "type": "boolean",
+                    "description": "Use dynamic color scaling based on values"
+                },
+                "startColorThreshold": {
+                    "type": "number",
+                    "description": "Value threshold for start color"
+                },
+                "endColorThreshold": {
+                    "type": "number",
+                    "description": "Value threshold for end color"
+                }
+            }
+        },
+        "customVis": {
+            "type": ["object", "null"],
+            "description": "Configuration for custom visualizations",
+            "additionalProperties": false,
+            "properties": {
+                "spec": {
+                    "type": "object",
+                    "description": "Custom visualization specification (Vega-Lite or other)"
+                }
+            }
+        },
+        "tableChart": {
+            "type": ["object", "null"],
+            "description": "Configuration for table visualizations",
+            "additionalProperties": false,
+            "properties": {
+                "showColumnCalculation": {
+                    "type": "boolean",
+                    "description": "Show column totals/calculations"
+                },
+                "showRowCalculation": {
+                    "type": "boolean",
+                    "description": "Show row totals/calculations"
+                },
+                "showTableNames": {
+                    "type": "boolean",
+                    "description": "Show table names in column headers"
+                },
+                "hideRowNumbers": {
+                    "type": "boolean",
+                    "description": "Hide row number column"
+                },
+                "showResultsTotal": {
+                    "type": "boolean",
+                    "description": "Show total results count"
+                },
+                "showSubtotals": {
+                    "type": "boolean",
+                    "description": "Show subtotal rows"
+                },
+                "metricsAsRows": {
+                    "type": "boolean",
+                    "description": "Display metrics as rows instead of columns"
+                },
+                "columns": {
+                    "type": "object",
+                    "description": "Column-specific configuration",
+                    "additionalProperties": {
+                        "$ref": "#/$defs/columnProperties"
+                    }
+                },
+                "conditionalFormattings": {
+                    "type": "array",
+                    "description": "Conditional formatting rules",
+                    "items": { "$ref": "#/$defs/conditionalFormattingConfig" }
+                }
+            }
+        },
+        "columnProperties": {
+            "type": "object",
+            "description": "Configuration for a table column",
+            "additionalProperties": false,
+            "properties": {
+                "visible": {
+                    "type": "boolean",
+                    "description": "Whether the column is visible"
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Custom display name for the column"
+                },
+                "frozen": {
+                    "type": "boolean",
+                    "description": "Freeze the column (stick to left side)"
+                },
+                "displayStyle": {
+                    "type": "string",
+                    "enum": ["text", "bar"],
+                    "description": "How to display the cell value"
+                },
+                "color": {
+                    "type": "string",
+                    "description": "Color for bar display style (hex code)"
+                }
+            }
+        },
+        "conditionalFormattingConfig": {
+            "type": "object",
+            "description": "Conditional formatting rule configuration",
+            "additionalProperties": false,
+            "properties": {
+                "target": {
+                    "type": ["object", "null"],
+                    "description": "Target field for the formatting rule",
+                    "additionalProperties": false,
+                    "properties": {
+                        "fieldId": {
+                            "type": "string",
+                            "description": "Field ID to apply formatting to"
+                        }
+                    }
+                },
+                "color": {
+                    "description": "Color for formatting (string for single color, object for range)",
+                    "oneOf": [
+                        { "type": "string" },
+                        {
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "start": {
+                                    "type": "string",
+                                    "description": "Start color for gradient"
+                                },
+                                "end": {
+                                    "type": "string",
+                                    "description": "End color for gradient"
+                                }
+                            }
+                        }
+                    ]
+                },
+                "rules": {
+                    "type": "array",
+                    "description": "Rules for single-color conditional formatting",
+                    "items": { "$ref": "#/$defs/conditionalFormattingRule" }
+                },
+                "rule": {
+                    "type": "object",
+                    "description": "Rule for color range formatting",
+                    "additionalProperties": false,
+                    "properties": {
+                        "min": {
+                            "description": "Minimum value (number or 'auto')"
+                        },
+                        "max": {
+                            "description": "Maximum value (number or 'auto')"
+                        }
+                    }
+                },
+                "applyTo": {
+                    "type": "string",
+                    "enum": ["cell", "text"],
+                    "description": "Apply formatting to cell background or text"
+                }
+            }
+        },
+        "conditionalFormattingRule": {
+            "type": "object",
+            "description": "A single conditional formatting rule",
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "Unique identifier for the rule"
+                },
+                "operator": {
+                    "type": "string",
+                    "description": "Comparison operator",
+                    "enum": [
+                        "isNull",
+                        "notNull",
+                        "equals",
+                        "notEquals",
+                        "startsWith",
+                        "endsWith",
+                        "include",
+                        "doesNotInclude",
+                        "lessThan",
+                        "lessThanOrEqual",
+                        "greaterThan",
+                        "greaterThanOrEqual",
+                        "inThePast",
+                        "notInThePast",
+                        "inTheNext",
+                        "inTheCurrent",
+                        "notInTheCurrent",
+                        "inBetween",
+                        "notInBetween"
+                    ]
+                },
+                "values": {
+                    "type": "array",
+                    "description": "Values to compare against"
+                },
+                "compareTarget": {
+                    "type": ["object", "null"],
+                    "description": "Target field to compare against",
+                    "additionalProperties": false,
+                    "properties": {
+                        "fieldId": {
+                            "type": "string",
+                            "description": "Field ID to compare against"
+                        }
+                    }
+                }
+            }
+        },
+        "mapChart": {
+            "type": ["object", "null"],
+            "description": "Configuration for map visualizations",
+            "additionalProperties": false,
+            "properties": {
+                "mapType": {
+                    "type": "string",
+                    "enum": ["USA", "world", "europe", "custom"],
+                    "description": "Type of map to display"
+                },
+                "locationType": {
+                    "type": "string",
+                    "enum": ["scatter", "area", "heatmap"],
+                    "description": "How to display location data"
+                },
+                "tileBackground": {
+                    "type": "string",
+                    "enum": [
+                        "none",
+                        "openstreetmap",
+                        "light",
+                        "dark",
+                        "satellite"
+                    ],
+                    "description": "Map tile background style"
+                },
+                "customGeoJsonUrl": {
+                    "type": "string",
+                    "description": "URL to custom GeoJSON file"
+                },
+                "geoJsonPropertyKey": {
+                    "type": "string",
+                    "description": "Property key in GeoJSON to match against data"
+                },
+                "backgroundColor": {
+                    "type": "string",
+                    "description": "Background color for the map (hex code)"
+                },
+                "noDataColor": {
+                    "type": "string",
+                    "description": "Color for regions with no data (hex code)"
+                },
+                "latitudeFieldId": {
+                    "type": "string",
+                    "description": "Field ID for latitude values"
+                },
+                "longitudeFieldId": {
+                    "type": "string",
+                    "description": "Field ID for longitude values"
+                },
+                "locationFieldId": {
+                    "type": "string",
+                    "description": "Field ID for location/region names (area maps)"
+                },
+                "valueFieldId": {
+                    "type": "string",
+                    "description": "Field ID for the value to display"
+                },
+                "sizeFieldId": {
+                    "type": "string",
+                    "description": "Field ID for bubble size (scatter maps)"
+                },
+                "showLegend": {
+                    "type": "boolean",
+                    "description": "Show the map legend"
+                },
+                "saveMapExtent": {
+                    "type": "boolean",
+                    "description": "Save the current map zoom/position"
+                },
+                "colorRange": {
+                    "type": "array",
+                    "description": "Array of colors for the value gradient",
+                    "items": { "type": "string" }
+                },
+                "defaultZoom": {
+                    "type": "number",
+                    "description": "Default zoom level"
+                },
+                "defaultCenterLat": {
+                    "type": "number",
+                    "description": "Default center latitude"
+                },
+                "defaultCenterLon": {
+                    "type": "number",
+                    "description": "Default center longitude"
+                },
+                "minBubbleSize": {
+                    "type": "number",
+                    "description": "Minimum bubble size for scatter maps"
+                },
+                "maxBubbleSize": {
+                    "type": "number",
+                    "description": "Maximum bubble size for scatter maps"
+                },
+                "heatmapConfig": {
+                    "type": "object",
+                    "description": "Configuration for heatmap visualization",
+                    "additionalProperties": false,
+                    "properties": {
+                        "radius": {
+                            "type": "number",
+                            "description": "Radius of heat points"
+                        },
+                        "blur": {
+                            "type": "number",
+                            "description": "Blur amount for heat points"
+                        },
+                        "opacity": {
+                            "type": "number",
+                            "description": "Opacity of the heatmap layer"
+                        }
+                    }
+                },
+                "fieldConfig": {
+                    "type": "object",
+                    "description": "Field-specific configuration for tooltips",
+                    "additionalProperties": { "$ref": "#/$defs/mapFieldConfig" }
+                }
+            }
+        },
+        "mapFieldConfig": {
+            "type": "object",
+            "description": "Configuration for a field in map tooltips",
+            "additionalProperties": false,
+            "properties": {
+                "visible": {
+                    "type": "boolean",
+                    "description": "Whether to show this field in tooltips"
+                },
+                "label": {
+                    "type": "string",
+                    "description": "Custom label for the field"
+                }
+            }
         }
     }
 }
