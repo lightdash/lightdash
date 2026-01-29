@@ -139,10 +139,20 @@ const FilterConfiguration: FC<Props> = ({
                 // When a disabled filter has a value set, it should be enabled by setting it to false
                 const isNewFilterDisabled =
                     newFilterRule.disabled && !hasFilterValueSet(newFilterRule);
-                return { ...newFilterRule, disabled: isNewFilterDisabled };
+
+                // In view mode: if values cleared and not required, set to "any value"
+                const shouldDisableInViewMode =
+                    !isEditMode &&
+                    !newFilterRule.required &&
+                    !hasFilterValueSet(newFilterRule);
+
+                return {
+                    ...newFilterRule,
+                    disabled: isNewFilterDisabled || shouldDisableInViewMode,
+                };
             });
         },
-        [setDraftFilterRule],
+        [setDraftFilterRule, isEditMode],
     );
     const sqlChartTilesMetadata = useDashboardContext(
         (c) => c.sqlChartTilesMetadata,
