@@ -11,7 +11,8 @@
         "metricQuery",
         "slug",
         "spaceSlug",
-        "version"
+        "version",
+        "updatedAt"
     ],
     "properties": {
         "version": {
