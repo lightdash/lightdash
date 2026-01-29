@@ -1625,6 +1625,83 @@ export class SpaceModel {
         return ancestors.map((ancestor) => ancestor.space_uuid);
     }
 
+    /**
+     * Get the inheritance chain for a space.
+     * Walks up the tree from the given space until it reaches either:
+     * - A space with inherit_parent_permissions=false (stops there, includes that space)
+     * - The root space (includes the root)
+     *
+     * Returns space UUIDs ordered from the given space (first) to the ancestor (last).
+     * This chain is used to aggregate permissions additively.
+     *
+     * @example
+     * Given: Root (inherit_parent_permissions=true) -> Parent (inherit_parent_permissions=true) -> Child (inherit_parent_permissions=false) -> GrandChild (inherit_parent_permissions=true)
+     * getInheritanceChain(GrandChild) returns [GrandChild, Child] (stops at Child because inherit=false)
+     * getInheritanceChain(Parent) returns [Parent, Root] (goes all the way to root)
+     */
+    async getInheritanceChain(spaceUuid: string): Promise<
+        Array<{
+            spaceUuid: string;
+            spaceName: string;
+            inheritParentPermissions: boolean;
+        }>
+    > {
+        return wrapSentryTransaction(
+            'SpaceModel.getInheritanceChain',
+            { spaceUuid },
+            async () => {
+                const space = await this.database(SpaceTableName)
+                    .select('path', 'project_id')
+                    .where('space_uuid', spaceUuid)
+                    .first();
+
+                if (!space) {
+                    throw new NotFoundError(
+                        `Space with uuid ${spaceUuid} does not exist`,
+                    );
+                }
+
+                // Get all ancestors (including self) ordered from leaf to root
+                // Using ltree: space.path <@ ancestor.path (space is contained in ancestor)
+                const ancestors = await this.database(SpaceTableName)
+                    .select(
+                        'space_uuid',
+                        'name',
+                        'inherit_parent_permissions',
+                        'path',
+                    )
+                    .whereRaw(`?::ltree <@ ${SpaceTableName}.path`, [
+                        space.path,
+                    ])
+                    .andWhere('project_id', space.project_id)
+                    .orderByRaw(`nlevel(${SpaceTableName}.path) DESC`); // Leaf first, root last
+
+                // Build the inheritance chain - stop at first inherit=false (but include it)
+                const chain: Array<{
+                    spaceUuid: string;
+                    spaceName: string;
+                    inheritParentPermissions: boolean;
+                }> = [];
+
+                for (const ancestor of ancestors) {
+                    chain.push({
+                        spaceUuid: ancestor.space_uuid,
+                        spaceName: ancestor.name,
+                        inheritParentPermissions:
+                            ancestor.inherit_parent_permissions,
+                    });
+
+                    // Stop if this space has inherit=false (explicit permissions only)
+                    if (!ancestor.inherit_parent_permissions) {
+                        break;
+                    }
+                }
+
+                return chain;
+            },
+        );
+    }
+
     async findClosestAncestorByPath({
         path,
         projectUuid,
