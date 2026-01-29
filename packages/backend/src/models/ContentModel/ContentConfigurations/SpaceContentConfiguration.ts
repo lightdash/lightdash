@@ -21,6 +21,7 @@ import {
 type SpaceContentRow = SummaryContentRow<{
     dashboardCount: number;
     chartCount: number;
+    childCount: number;
     parentSpaceUuid: string | null;
     path: string;
     access: string[];
@@ -114,6 +115,12 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                         SELECT count(DISTINCT ${DashboardsTableName}.dashboard_id)
                                         FROM ${DashboardsTableName}
                                         WHERE ${DashboardsTableName}.space_id = ${SpaceTableName}.space_id
+                                    ),
+                                    'childCount', (
+                                        SELECT count(*)
+                                        FROM ${SpaceTableName} as child_spaces
+                                        WHERE child_spaces.parent_space_uuid = ${SpaceTableName}.space_uuid
+                                        AND child_spaces.project_id = ${SpaceTableName}.project_id
                                     ),
                                     'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
                                     'path', ${SpaceTableName}.path,
@@ -222,6 +229,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                 access: value.metadata.access,
                 dashboardCount: value.metadata.dashboardCount,
                 chartCount: value.metadata.chartCount,
+                childCount: value.metadata.childCount,
             };
         },
     };

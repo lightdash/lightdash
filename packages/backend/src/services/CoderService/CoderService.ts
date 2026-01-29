@@ -1298,6 +1298,7 @@ export class CoderService extends BaseService {
                 ...newSpaces[newSpaces.length - 1],
                 chartCount: 0,
                 dashboardCount: 0,
+                childCount: 0,
                 access: [],
             },
             created: true,

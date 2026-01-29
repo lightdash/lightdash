@@ -451,6 +451,15 @@ export class SpaceModel {
                             .whereRaw(
                                 `${DashboardsTableName}.space_id = ${SpaceTableName}.space_id`,
                             ),
+                        childCount: trx
+                            .count('*')
+                            .from(`${SpaceTableName} as child_spaces`)
+                            .whereRaw(
+                                `child_spaces.parent_space_uuid = ${SpaceTableName}.space_uuid`,
+                            )
+                            .andWhereRaw(
+                                `child_spaces.project_id = ${SpaceTableName}.project_id`,
+                            ),
                         slug: `${SpaceTableName}.slug`,
                         parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
                         path: `${SpaceTableName}.path`,
@@ -1623,6 +1632,116 @@ export class SpaceModel {
             .andWhere(`${ProjectTableName}.project_uuid`, projectUuid);
 
         return ancestors.map((ancestor) => ancestor.space_uuid);
+    }
+
+    /**
+     * Get all nested child spaces (including children of children) for a given space.
+     * Uses ltree path containment: child.path <@ parent.path
+     * Results are ordered by depth (nlevel) so direct children come first.
+     */
+    async getAllChildSpaces(
+        spaceUuid: string,
+    ): Promise<Omit<SpaceSummary, 'userAccess'>[]> {
+        const space = await this.database(SpaceTableName)
+            .select('path', 'project_id')
+            .where('space_uuid', spaceUuid)
+            .first();
+
+        if (!space) {
+            throw new NotFoundError(
+                `Space with uuid ${spaceUuid} does not exist`,
+            );
+        }
+
+        // Get all spaces whose path is a descendant of the given space's path
+        // Using ltree operator: child.path <@ parent.path (child is contained in parent)
+        const children = await this.database(SpaceTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .leftJoin(
+                PinnedSpaceTableName,
+                `${PinnedSpaceTableName}.space_uuid`,
+                `${SpaceTableName}.space_uuid`,
+            )
+            .leftJoin(
+                PinnedListTableName,
+                `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedSpaceTableName}.pinned_list_uuid`,
+            )
+            .leftJoin(
+                SpaceUserAccessTableName,
+                `${SpaceUserAccessTableName}.space_uuid`,
+                `${SpaceTableName}.space_uuid`,
+            )
+            .leftJoin(
+                `${UserTableName} as shared_with`,
+                `${SpaceUserAccessTableName}.user_uuid`,
+                'shared_with.user_uuid',
+            )
+            .whereRaw(`${SpaceTableName}.path <@ ?::ltree`, [space.path])
+            .andWhereNot(`${SpaceTableName}.space_uuid`, spaceUuid)
+            .andWhere(`${SpaceTableName}.project_id`, space.project_id)
+            .groupBy(
+                `${PinnedListTableName}.pinned_list_uuid`,
+                `${PinnedSpaceTableName}.order`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${ProjectTableName}.project_uuid`,
+                `${SpaceTableName}.space_uuid`,
+                `${SpaceTableName}.space_id`,
+            )
+            .orderByRaw(`nlevel(${SpaceTableName}.path) ASC`)
+            .select({
+                organizationUuid: `${OrganizationTableName}.organization_uuid`,
+                projectUuid: `${ProjectTableName}.project_uuid`,
+                uuid: `${SpaceTableName}.space_uuid`,
+                name: this.database.raw(`max(${SpaceTableName}.name)`),
+                isPrivate: this.database.raw(
+                    SpaceModel.getRootSpaceIsPrivateQuery(),
+                ),
+                inheritParentPermissions: this.database.raw(
+                    `max(${SpaceTableName}.inherit_parent_permissions::int)::bool`,
+                ),
+                access: this.database.raw(
+                    SpaceModel.getRootSpaceAccessQuery('shared_with'),
+                ),
+                pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
+                pinnedListOrder: `${PinnedSpaceTableName}.order`,
+                chartCount: this.database
+                    .countDistinct(`${SavedChartsTableName}.saved_query_id`)
+                    .from(SavedChartsTableName)
+                    .whereRaw(
+                        `${SavedChartsTableName}.space_id = ${SpaceTableName}.space_id`,
+                    ),
+                dashboardCount: this.database
+                    .countDistinct(`${DashboardsTableName}.dashboard_id`)
+                    .from(DashboardsTableName)
+                    .whereRaw(
+                        `${DashboardsTableName}.space_id = ${SpaceTableName}.space_id`,
+                    ),
+                // Count of direct child spaces (for expandable UI)
+                childCount: this.database
+                    .count('*')
+                    .from(`${SpaceTableName} as child_spaces`)
+                    .whereRaw(
+                        `child_spaces.parent_space_uuid = ${SpaceTableName}.space_uuid`,
+                    )
+                    .andWhereRaw(
+                        `child_spaces.project_id = ${SpaceTableName}.project_id`,
+                    ),
+                slug: `${SpaceTableName}.slug`,
+                parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
+                path: `${SpaceTableName}.path`,
+            });
+
+        return children;
     }
 
     async findClosestAncestorByPath({

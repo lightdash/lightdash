@@ -13917,6 +13917,7 @@ const models: TsoaRoute.Models = {
                 path: { dataType: 'string', required: true },
                 chartCount: { dataType: 'double', required: true },
                 dashboardCount: { dataType: 'double', required: true },
+                childCount: { dataType: 'double', required: true },
             },
             validators: {},
         },
@@ -16367,6 +16368,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        childCount: { dataType: 'double', required: true },
                         dashboardCount: { dataType: 'double', required: true },
                         chartCount: { dataType: 'double', required: true },
                         access: {
@@ -23536,6 +23538,7 @@ const models: TsoaRoute.Models = {
             },
             dashboardCount: { dataType: 'double', required: true },
             chartCount: { dataType: 'double', required: true },
+            childCount: { dataType: 'double', required: true },
             parentSpaceUuid: {
                 dataType: 'union',
                 subSchemas: [

@@ -81,6 +81,8 @@ export interface SpaceContent extends Content {
     access: string[];
     dashboardCount: number;
     chartCount: number;
+    /** Count of direct child spaces (for expandable UI in nested spaces) */
+    childCount: number;
     pinnedList: {
         uuid: string;
         order: number;
