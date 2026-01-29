@@ -718,6 +718,7 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
                     pinnedListModel: this.models.getPinnedListModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

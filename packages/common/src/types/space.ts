@@ -62,6 +62,7 @@ export type CreateSpace = {
 export type UpdateSpace = {
     name: string;
     isPrivate?: boolean;
+    inheritParentPermissions?: boolean;
 };
 
 export type SpaceShare = {
@@ -78,6 +79,7 @@ export type SpaceShare = {
         | 'project'
         | 'group'
         | 'space_group'
+        | 'parent_space'
         | undefined;
 };
 

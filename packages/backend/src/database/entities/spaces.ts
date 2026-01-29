@@ -28,7 +28,9 @@ export type CreateDbSpace = Pick<
     | 'inherit_parent_permissions'
 >;
 
-export type UpdateDbSpace = Partial<Pick<DbSpace, 'name' | 'is_private'>>;
+export type UpdateDbSpace = Partial<
+    Pick<DbSpace, 'name' | 'is_private' | 'inherit_parent_permissions'>
+>;
 
 export type SpaceTable = Knex.CompositeTableType<
     DbSpace,

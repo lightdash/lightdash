@@ -1969,6 +1969,7 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: ['project'] },
                         { dataType: 'enum', enums: ['group'] },
                         { dataType: 'enum', enums: ['space_group'] },
+                        { dataType: 'enum', enums: ['parent_space'] },
                         { dataType: 'undefined' },
                     ],
                     required: true,
@@ -14063,6 +14064,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                inheritParentPermissions: { dataType: 'boolean' },
                 isPrivate: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },
             },
@@ -16311,7 +16313,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_':
+    'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path-or-inheritParentPermissions_':
         {
             dataType: 'refAlias',
             type: {
@@ -16363,7 +16365,7 @@ const models: TsoaRoute.Models = {
             dataType: 'intersection',
             subSchemas: [
                 {
-                    ref: 'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_',
+                    ref: 'Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path-or-inheritParentPermissions_',
                 },
                 {
                     dataType: 'nestedObjectLiteral',
