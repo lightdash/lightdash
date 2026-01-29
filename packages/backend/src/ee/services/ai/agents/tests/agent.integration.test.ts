@@ -46,6 +46,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
             apiKey: process.env.OPENAI_API_KEY!,
             modelName: 'gpt-4.1',
             embeddingModelName: 'text-embedding-3-small',
+            zeroDataRetention: false,
         },
         getModelPreset('openai', 'gpt-4.1')!,
     );

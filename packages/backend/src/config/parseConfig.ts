@@ -711,6 +711,8 @@ export const getAiConfig = () => ({
                   availableModels: getArrayFromCommaSeparatedList(
                       'OPENAI_AVAILABLE_MODELS',
                   ),
+                  zeroDataRetention:
+                      process.env.OPENAI_ZERO_DATA_RETENTION === 'true',
               }
             : undefined,
         anthropic:
