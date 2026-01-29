@@ -1,3 +1,10 @@
+# [0.2391.0](https://github.com/lightdash/lightdash/compare/0.2390.0...0.2391.0) (2026-01-29)
+
+
+### Features
+
+* configure help menu icon behavior ([#19731](https://github.com/lightdash/lightdash/issues/19731)) ([ec3ac3c](https://github.com/lightdash/lightdash/commit/ec3ac3c3b4455bd883c7e3c2d0cc815839b2f3c6))
+
 # [0.2390.0](https://github.com/lightdash/lightdash/compare/0.2389.4...0.2390.0) (2026-01-29)
 
 
