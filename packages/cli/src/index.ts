@@ -34,6 +34,7 @@ import {
 } from './handlers/preview';
 import { renameHandler } from './handlers/renameHandler';
 import { setProjectHandler } from './handlers/setProject';
+import { sqlHandler } from './handlers/sql';
 import { validateHandler } from './handlers/validate';
 import * as styles from './styles';
 // Trigger CLI tests
@@ -1121,6 +1122,26 @@ ${styles.bold('Examples:')}
         'cli',
     )
     .action(lintHandler);
+
+program
+    .command('sql')
+    .description(
+        'Run raw SQL query against the warehouse using project credentials',
+    )
+    .argument('<query>', 'SQL query to execute')
+    .requiredOption('-o, --output <file>', 'Output file path for CSV results')
+    .option(
+        '--limit <number>',
+        'Maximum rows to return from query',
+        parseIntArgument,
+    )
+    .option(
+        '--page-size <number>',
+        'Number of rows per page (default: 500, max: 5000)',
+        parseIntArgument,
+    )
+    .option('--verbose', 'Show detailed output', false)
+    .action(sqlHandler);
 
 const errorHandler = (err: Error) => {
     // Use error message with fallback for safety
