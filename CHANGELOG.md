@@ -1,3 +1,10 @@
+# [0.2390.0](https://github.com/lightdash/lightdash/compare/0.2389.4...0.2390.0) (2026-01-29)
+
+
+### Features
+
+* add PARTIAL_SUCCESS status for explores with warnings ([#19781](https://github.com/lightdash/lightdash/issues/19781)) ([a0303bf](https://github.com/lightdash/lightdash/commit/a0303bfed38148cb8b1be74c205844367687ca12))
+
 ## [0.2389.4](https://github.com/lightdash/lightdash/compare/0.2389.3...0.2389.4) (2026-01-29)
 
 
