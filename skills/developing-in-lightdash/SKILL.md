@@ -57,6 +57,36 @@ This skill enables you to:
 
 See [Workflows Reference](./resources/workflows-reference.md) for detailed examples and CI/CD configurations.
 
+### Exploring the Warehouse with SQL
+
+When creating or editing dbt models and YAML files, use `lightdash sql` to explore the warehouse directly. This is invaluable for:
+
+- **Discovering available columns**: Query `INFORMATION_SCHEMA` or run `SELECT *` with a limit to see what data exists
+- **Testing SQL snippets**: Validate custom SQL for metrics or dimensions before adding to YAML
+- **Verifying data types**: Check column types to choose the right dimension/metric configurations
+- **Exploring relationships**: Investigate foreign keys and join conditions between tables
+
+**Example exploration workflow:**
+
+```bash
+# See what tables exist (PostgreSQL/Redshift)
+lightdash sql "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'" -o tables.csv
+
+# Explore columns in a table (PostgreSQL/Redshift)
+lightdash sql "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'orders'" -o columns.csv
+
+# Preview data to understand the schema
+lightdash sql "SELECT * FROM orders LIMIT 5" -o preview.csv
+
+# Test a metric calculation before adding to YAML
+lightdash sql "SELECT customer_id, SUM(amount) as total_spent FROM orders GROUP BY 1 LIMIT 10" -o test.csv
+
+# Check distinct values for a potential dimension
+lightdash sql "SELECT DISTINCT status FROM orders" -o statuses.csv
+```
+
+**Tip:** The SQL runner uses credentials from your current Lightdash project, so you're querying the same warehouse that Lightdash uses. This ensures your explorations match what will work in production.
+
 ## Quick Reference
 
 ### dbt YAML Structure
@@ -269,6 +299,33 @@ lightdash upload --force
 # Upload specific items
 lightdash upload --charts my-chart --dashboards my-dashboard
 ```
+
+### SQL Runner
+
+Execute raw SQL queries against the warehouse using the current project's credentials. Results are exported to CSV.
+
+```bash
+# Run a query and save results to CSV
+lightdash sql "SELECT * FROM orders LIMIT 10" -o results.csv
+
+# Limit rows returned
+lightdash sql "SELECT * FROM customers" -o customers.csv --limit 1000
+
+# Adjust pagination for large results (default 500, max 5000)
+lightdash sql "SELECT * FROM events" -o events.csv --page-size 2000
+
+# Verbose output for debugging
+lightdash sql "SELECT COUNT(*) FROM users" -o count.csv --verbose
+```
+
+**Options:**
+- `<query>` - SQL query to execute (required)
+- `-o, --output <file>` - Output CSV file path (required)
+- `--limit <number>` - Maximum rows to return
+- `--page-size <number>` - Rows per page (default: 500, max: 5000)
+- `--verbose` - Show detailed output
+
+**Note:** Uses the warehouse credentials from your currently selected Lightdash project. Run `lightdash config get-project` to see which project is active.
 
 ## Chart Configuration
 
