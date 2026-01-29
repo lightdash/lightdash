@@ -451,6 +451,33 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         });
     }
 
+    async getSpaceAccess(
+        user: SessionUser,
+        spaceUuid: string,
+    ): Promise<SpaceShare[]> {
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
+            user.userUuid,
+            spaceUuid,
+        );
+
+        // Check if user can view the space
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Space', {
+                    ...space,
+                    access: spaceAccess,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        // Get effective access (with inheritance)
+        return this.spaceModel.getEffectiveSpaceAccess(spaceUuid);
+    }
+
     async getDeleteImpact(
         user: SessionUser,
         spaceUuid: string,

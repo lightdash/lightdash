@@ -137,3 +137,8 @@ export type ApiSpaceDeleteImpactResponse = {
     status: 'ok';
     results: SpaceDeleteImpact;
 };
+
+export type ApiSpaceAccessResponse = {
+    status: 'ok';
+    results: SpaceShare[];
+};

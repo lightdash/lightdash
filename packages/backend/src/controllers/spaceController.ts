@@ -2,6 +2,7 @@ import {
     AddSpaceGroupAccess,
     AddSpaceUserAccess,
     ApiErrorPayload,
+    ApiSpaceAccessResponse,
     ApiSpaceDeleteImpactResponse,
     ApiSpaceResponse,
     ApiSuccessEmpty,
@@ -55,6 +56,33 @@ export class SpaceController extends BaseController {
         const results = await this.services
             .getSpaceService()
             .getSpace(projectUuid, req.user!, spaceUuid);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get access list for a space with inherited permissions from parent spaces
+     * @param projectUuid The uuid of the space's parent project
+     * @param spaceUuid The uuid of the space
+     * @param req
+     * @summary Get space access
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{spaceUuid}/access')
+    @OperationId('GetSpaceAccess')
+    @Tags('Roles & Permissions')
+    async getSpaceAccess(
+        @Path() projectUuid: string,
+        @Path() spaceUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSpaceAccessResponse> {
+        this.setStatus(200);
+        const results = await this.services
+            .getSpaceService()
+            .getSpaceAccess(req.user!, spaceUuid);
         return {
             status: 'ok',
             results,
