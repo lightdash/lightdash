@@ -1,3 +1,10 @@
+# [0.2396.0](https://github.com/lightdash/lightdash/compare/0.2395.0...0.2396.0) (2026-01-29)
+
+
+### Features
+
+* add sql runner to cli ([#19785](https://github.com/lightdash/lightdash/issues/19785)) ([6b20cd2](https://github.com/lightdash/lightdash/commit/6b20cd261c9911f625a0563f6a66c204497e42a4)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2395.0](https://github.com/lightdash/lightdash/compare/0.2394.2...0.2395.0) (2026-01-29)
 
 
