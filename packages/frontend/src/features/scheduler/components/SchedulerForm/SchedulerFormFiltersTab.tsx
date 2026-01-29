@@ -137,6 +137,13 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                                 {dashboardFilter.target.fieldId}
                             </Text>
                         </Text>
+                        {onRemove && (
+                            <Tooltip label="Remove invalid filter" fz="xs">
+                                <ActionIcon size="xs" onClick={onRemove}>
+                                    <MantineIcon icon={IconTrash} />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                     </Group>
                 </Paper>
             </Group>
