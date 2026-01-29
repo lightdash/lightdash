@@ -11,6 +11,16 @@ type SpotlightConfigArgs = {
     owner?: string;
 };
 
+const validateOwner = (owner: unknown): string | null => {
+    if (typeof owner === 'string') return owner;
+    if (owner === undefined)
+        // eslint-disable-next-line no-console
+        console.warn(
+            `Invalid spotlight owner: expected string, got ${typeof owner}`,
+        );
+    return null;
+};
+
 /**
  * Get the spotlight configuration for a resource
  */
@@ -27,13 +37,15 @@ export const getSpotlightConfigurationForResource = ({
         return {};
     }
 
+    const validatedOwner = validateOwner(owner);
+
     return {
         spotlight: {
             visibility,
             categories,
             ...(filterBy ? { filterBy } : {}),
             ...(segmentBy ? { segmentBy } : {}),
-            ...(owner ? { owner } : {}),
+            ...(validatedOwner ? { owner: validatedOwner } : {}),
         },
     };
 };
