@@ -134,17 +134,14 @@ export class PivotQueryBuilder {
      * Calculates the maximum number of columns allowed per value column.
      * @param valuesColumns - The value columns configuration
      * @param columnLimit - Maximum total columns allowed
-     * @param indexColumnsCount - Number of index columns (can be multiple)
      * @returns Maximum columns per value to stay within pivot column limits
      */
     private static calculateMaxColumnsPerValueColumn(
         valuesColumns: PivotConfiguration['valuesColumns'],
         columnLimit: number,
-        indexColumnsCount: number,
     ): number {
         const valueColumnsCount = valuesColumns?.length || 1;
-        const remainingColumns = columnLimit - indexColumnsCount; // Account for all index columns
-        return Math.floor(remainingColumns / valueColumnsCount);
+        return Math.floor(columnLimit / valueColumnsCount);
     }
 
     /**
@@ -890,7 +887,6 @@ export class PivotQueryBuilder {
                 PivotQueryBuilder.calculateMaxColumnsPerValueColumn(
                     valuesColumns,
                     columnLimit,
-                    indexColumns.length,
                 );
 
             // Keep leading space to avoid SQL syntax errors
