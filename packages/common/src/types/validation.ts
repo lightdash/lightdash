@@ -139,10 +139,10 @@ export const isFixableDashboardValidationError = (
     error: ValidationResponse | CreateValidation,
 ): error is ValidationErrorDashboardResponse | CreateDashboardValidation => {
     if (!isDashboardValidationError(error)) return false;
-    const dashboardError = error as ValidationErrorDashboardResponse;
     return (
-        dashboardError.dashboardFilterErrorType ===
-        DashboardFilterValidationErrorType.FieldTableMismatch
+        'dashboardFilterErrorType' in error &&
+        error.dashboardFilterErrorType ===
+            DashboardFilterValidationErrorType.FieldTableMismatch
     );
 };
 
