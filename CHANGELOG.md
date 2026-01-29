@@ -1,3 +1,10 @@
+# [0.2399.0](https://github.com/lightdash/lightdash/compare/0.2398.0...0.2399.0) (2026-01-29)
+
+
+### Features
+
+* add frontend to display pivot sql ([#19744](https://github.com/lightdash/lightdash/issues/19744)) ([4c4efd3](https://github.com/lightdash/lightdash/commit/4c4efd3de4b1aa8d0f2514eceb556c464a0d0768))
+
 # [0.2398.0](https://github.com/lightdash/lightdash/compare/0.2397.1...0.2398.0) (2026-01-29)
 
 
