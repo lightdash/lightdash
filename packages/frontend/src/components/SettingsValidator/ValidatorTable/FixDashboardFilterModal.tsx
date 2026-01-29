@@ -290,6 +290,11 @@ export const FixDashboardFilterModal: FC<Props> = ({
             const fromModel = oldModelName || fieldOldModelPrefix || '';
             const toModel = newName;
 
+            // Guard against empty fromModel which would corrupt fieldIds
+            if (!fromModel) {
+                return;
+            }
+
             if (fixAllFilters && targetTableName) {
                 // Update ALL filters targeting the same table
                 updatedFilters = {
