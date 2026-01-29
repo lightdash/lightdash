@@ -297,4 +297,8 @@ export interface ExplorerReduceState {
     fromDashboard?: string;
     isExploreFromHere?: boolean;
     savedChart?: SavedChart;
+
+    // Field IDs that should be added to the chart Y axis after query results arrive.
+    // Set by addAdditionalMetric for PoP metrics, consumed by PendingYFieldConsumer.
+    pendingChartYFields: string[];
 }

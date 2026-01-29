@@ -423,6 +423,16 @@ export const selectPeriodOverPeriodComparisonModal = createSelector(
     (modals) => modals?.periodOverPeriodComparison ?? { isOpen: false },
 );
 
+// Pending chart Y field additions (set by addAdditionalMetric for PoP metrics)
+const EMPTY_PENDING_CHART_Y_FIELDS: string[] = [];
+export const selectPendingChartYFields = createSelector(
+    [selectExplorerState],
+    (explorer) =>
+        explorer.pendingChartYFields.length > 0
+            ? explorer.pendingChartYFields
+            : EMPTY_PENDING_CHART_Y_FIELDS,
+);
+
 // Map extent selector - used at save time to capture current map position
 // Stored in cachedChartConfigs['map'].tempMapExtent (ChartType.MAP = 'map')
 // NOTE: This is intentionally NOT subscribed to during render to avoid re-renders on pan/zoom

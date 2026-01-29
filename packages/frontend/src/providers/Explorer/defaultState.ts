@@ -66,4 +66,5 @@ export const defaultState: ExplorerSliceState = {
         },
     },
     queryExecution: defaultQueryExecution,
+    pendingChartYFields: [],
 };

@@ -3,6 +3,7 @@ import {
     convertFieldRefToFieldId,
     getFieldRef,
     getItemId,
+    isPeriodOverPeriodAdditionalMetric,
     isSqlTableCalculation,
     lightdashVariablePattern,
     maybeReplaceFieldsInChartVersion,
@@ -741,6 +742,17 @@ const explorerSlice = createSlice({
                 state.unsavedChartVersion.tableConfig.columnOrder,
                 [...dimensionIds, ...metricIds, ...calcIds],
             );
+
+            // Queue PoP metrics to be auto-added to the chart Y axis
+            if (isPeriodOverPeriodAdditionalMetric(newMetric)) {
+                const metricFieldId = getItemId(newMetric);
+                if (!state.pendingChartYFields.includes(metricFieldId)) {
+                    state.pendingChartYFields.push(metricFieldId);
+                }
+            }
+        },
+        clearPendingChartYFields: (state) => {
+            state.pendingChartYFields = [];
         },
         // Context-compatible editAdditionalMetric with full logic including filters and table calculations
         editAdditionalMetric: (

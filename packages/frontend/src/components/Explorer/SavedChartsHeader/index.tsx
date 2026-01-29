@@ -355,6 +355,7 @@ const SavedChartsHeader: FC = () => {
                 },
                 modals: defaultState.modals,
                 queryExecution: defaultQueryExecution,
+                pendingChartYFields: [],
             };
             dispatch(explorerActions.reset(resetState));
         }

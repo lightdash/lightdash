@@ -21,6 +21,7 @@ import {
 import {
     memo,
     useCallback,
+    useEffect,
     useLayoutEffect,
     useMemo,
     useState,
@@ -33,12 +34,15 @@ import {
     selectIsEditMode,
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
+    selectPendingChartYFields,
     selectSavedChart,
     selectTableCalculationsMetadata,
     selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { isCartesianVisualizationConfig } from '../../LightdashVisualization/types';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
@@ -58,6 +62,46 @@ import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
 import { SeriesContextMenu } from './SeriesContextMenu';
 import VisualizationWarning from './VisualizationWarning';
+
+/**
+ * Bridges the explorer Redux state to the visualization context.
+ * When a period-over-period metric is added, the reducer queues its field ID
+ * in `pendingChartYFields`. This component adds those fields to the chart's
+ * Y axis once query results make them available, then clears the queue.
+ */
+const PendingYFieldConsumer: FC = () => {
+    const dispatch = useExplorerDispatch();
+    const pendingChartYFields = useExplorerSelector(selectPendingChartYFields);
+    const { visualizationConfig, resultsData } = useVisualizationContext();
+
+    useEffect(() => {
+        if (pendingChartYFields.length === 0) return;
+        if (!isCartesianVisualizationConfig(visualizationConfig)) return;
+
+        const availableMetrics = resultsData?.metricQuery?.metrics ?? [];
+        const currentYFields =
+            visualizationConfig.chartConfig.dirtyLayout?.yField ?? [];
+
+        const fieldsToAdd = pendingChartYFields.filter(
+            (f) =>
+                availableMetrics.includes(f) && !currentYFields.includes(f),
+        );
+
+        if (fieldsToAdd.length === 0) return;
+
+        for (const fieldId of fieldsToAdd) {
+            visualizationConfig.chartConfig.addSingleSeries(fieldId);
+        }
+        dispatch(explorerActions.clearPendingChartYFields());
+    }, [
+        pendingChartYFields,
+        visualizationConfig,
+        resultsData?.metricQuery?.metrics,
+        dispatch,
+    ]);
+
+    return null;
+};
 
 export type EchartsClickEvent = {
     event: EchartsSeriesClickEvent;
@@ -292,6 +336,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 containerHeight={containerHeight}
                 isDashboard={false}
             >
+                <PendingYFieldConsumer />
                 <CollapsableCard
                     title="Chart"
                     isOpen={isOpen}

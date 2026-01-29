@@ -75,6 +75,7 @@ export const buildInitialExplorerState = ({
             },
             modals: defaultState.modals,
             queryExecution: defaultQueryExecution,
+            pendingChartYFields: [],
         };
     } else {
         // When no savedChart, use defaults with optional defaultLimit

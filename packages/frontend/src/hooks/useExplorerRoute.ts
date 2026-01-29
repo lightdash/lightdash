@@ -286,6 +286,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                     fromDashboard: fromDashboard ?? undefined,
                     isExploreFromHere: isExploreFromHere,
                     queryExecution: defaultQueryExecution,
+                    pendingChartYFields: [],
                 };
             } catch (e: any) {
                 const errorMessage = e.message ? ` Error: "${e.message}"` : '';
