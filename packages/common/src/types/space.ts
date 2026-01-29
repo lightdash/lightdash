@@ -43,6 +43,7 @@ export type SpaceSummary = Pick<
     | 'slug'
     | 'parentSpaceUuid'
     | 'path'
+    | 'inheritParentPermissions'
 > & {
     userAccess: SpaceShare | undefined;
     access: string[];
@@ -62,6 +63,7 @@ export type CreateSpace = {
 export type UpdateSpace = {
     name: string;
     isPrivate?: boolean;
+    inheritParentPermissions?: boolean;
 };
 
 export type SpaceShare = {
@@ -78,6 +80,7 @@ export type SpaceShare = {
         | 'project'
         | 'group'
         | 'space_group'
+        | 'parent_space'
         | undefined;
 };
 

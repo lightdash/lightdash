@@ -1807,6 +1807,249 @@ export class SpaceModel {
         return chain;
     }
 
+    /**
+     * Get effective permissions for a user on a space by aggregating permissions
+     * from the entire inheritance chain (additive model).
+     *
+     * For each space in the chain, collects:
+     * - Direct user access (space_user_access)
+     * - Group access (space_group_access)
+     *
+     * Then merges all permissions, returning the highest role per user.
+     *
+     * @param spaceUuid - The space to get effective permissions for
+     * @param filters - Optional filters (e.g., specific userUuid)
+     * @returns Array of SpaceShare with aggregated permissions from inheritance chain
+     */
+    /**
+     * Get only direct space permissions (from space_user_access and space_group_access).
+     * Used when inherit=false - no project/org level permissions included.
+     * All returned permissions have hasDirectAccess=true and can be modified/removed.
+     */
+    private async getDirectSpaceAccess(
+        spaceUuid: string,
+        filters?: { userUuid?: string },
+    ): Promise<SpaceShare[]> {
+        // Query direct user access
+        const directUserAccess = await this.database
+            .select({
+                userUuid: `${UserTableName}.user_uuid`,
+                firstName: `${UserTableName}.first_name`,
+                lastName: `${UserTableName}.last_name`,
+                email: `${EmailTableName}.email`,
+                role: `${SpaceUserAccessTableName}.space_role`,
+            })
+            .from(SpaceUserAccessTableName)
+            .innerJoin(
+                UserTableName,
+                `${SpaceUserAccessTableName}.user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .innerJoin(
+                EmailTableName,
+                `${UserTableName}.user_id`,
+                `${EmailTableName}.user_id`,
+            )
+            .where(`${SpaceUserAccessTableName}.space_uuid`, spaceUuid)
+            .where(`${EmailTableName}.is_primary`, true)
+            .modify((query) => {
+                if (filters?.userUuid) {
+                    void query.where(
+                        `${UserTableName}.user_uuid`,
+                        filters.userUuid,
+                    );
+                }
+            });
+
+        // Query users from group access
+        const groupUserAccess = await this.database
+            .select({
+                userUuid: `${UserTableName}.user_uuid`,
+                firstName: `${UserTableName}.first_name`,
+                lastName: `${UserTableName}.last_name`,
+                email: `${EmailTableName}.email`,
+                role: `${SpaceGroupAccessTableName}.space_role`,
+            })
+            .from(SpaceGroupAccessTableName)
+            .innerJoin(
+                GroupMembershipTableName,
+                `${SpaceGroupAccessTableName}.group_uuid`,
+                `${GroupMembershipTableName}.group_uuid`,
+            )
+            .innerJoin(
+                UserTableName,
+                `${GroupMembershipTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .innerJoin(
+                EmailTableName,
+                `${UserTableName}.user_id`,
+                `${EmailTableName}.user_id`,
+            )
+            .where(`${SpaceGroupAccessTableName}.space_uuid`, spaceUuid)
+            .where(`${EmailTableName}.is_primary`, true)
+            .modify((query) => {
+                if (filters?.userUuid) {
+                    void query.where(
+                        `${UserTableName}.user_uuid`,
+                        filters.userUuid,
+                    );
+                }
+            });
+
+        // Merge user and group access, taking highest role per user
+        const userAccessMap = new Map<string, SpaceShare>();
+
+        const processAccess = (
+            access: {
+                userUuid: string;
+                firstName: string;
+                lastName: string;
+                email: string;
+                role: SpaceMemberRole;
+            },
+            fromGroup: boolean,
+        ) => {
+            const existing = userAccessMap.get(access.userUuid);
+            const roleOrder = {
+                [SpaceMemberRole.ADMIN]: 3,
+                [SpaceMemberRole.EDITOR]: 2,
+                [SpaceMemberRole.VIEWER]: 1,
+            };
+
+            if (
+                !existing ||
+                roleOrder[access.role] > roleOrder[existing.role]
+            ) {
+                userAccessMap.set(access.userUuid, {
+                    userUuid: access.userUuid,
+                    firstName: access.firstName,
+                    lastName: access.lastName,
+                    email: access.email,
+                    role: access.role,
+                    hasDirectAccess: true,
+                    projectRole: undefined,
+                    inheritedRole: undefined,
+                    inheritedFrom: fromGroup ? 'space_group' : undefined,
+                });
+            }
+        };
+
+        // Process direct user access first (takes priority)
+        for (const access of directUserAccess) {
+            processAccess(access, false);
+        }
+
+        // Process group access (only if user doesn't have direct access or has lower role)
+        for (const access of groupUserAccess) {
+            processAccess(access, true);
+        }
+
+        return Array.from(userAccessMap.values());
+    }
+
+    /**
+     * Get effective permissions for a user on a space by aggregating permissions
+     * from the entire inheritance chain (additive model).
+     *
+     * When inherit=false: Only returns direct space permissions (all can be modified/removed)
+     * When inherit=true: Aggregates from inheritance chain
+     */
+    async getEffectiveSpaceAccess(
+        spaceUuid: string,
+        filters?: { userUuid?: string },
+    ): Promise<SpaceShare[]> {
+        // Get the inheritance chain (from this space up to first inherit=false or root)
+        const chain = await this.getInheritanceChain(spaceUuid);
+
+        if (chain.length === 0) {
+            return [];
+        }
+
+        // Check if current space has inherit=false (explicit permissions only)
+        const currentSpaceInChain = chain.find(
+            (s) => s.spaceUuid === spaceUuid,
+        );
+        const hasExplicitPermissionsOnly =
+            currentSpaceInChain?.inheritParentPermissions === false;
+
+        // When inherit=false, only query direct space permissions (efficient, no project/org joins)
+        if (hasExplicitPermissionsOnly) {
+            return this.getDirectSpaceAccess(spaceUuid, filters);
+        }
+
+        // When inherit=true, aggregate from inheritance chain
+        const chainSpaceUuids = chain.map((s) => s.spaceUuid);
+
+        // Get permissions from all spaces in the chain
+        const accessBySpace = await this._getSpaceAccess(
+            chainSpaceUuids,
+            filters,
+        );
+
+        // Aggregate permissions - merge all users from all spaces in chain
+        // For users appearing in multiple spaces, take the highest role
+        const userAccessMap = new Map<string, SpaceShare>();
+
+        for (const chainSpaceUuid of chainSpaceUuids) {
+            const spaceAccess = accessBySpace[chainSpaceUuid] ?? [];
+            const isCurrentSpace = chainSpaceUuid === spaceUuid;
+
+            for (const access of spaceAccess) {
+                const existing = userAccessMap.get(access.userUuid);
+
+                // Determine inheritedFrom for this permission
+                // If from an ancestor space, mark as 'parent_space'
+                const inheritedFrom =
+                    !isCurrentSpace && access.hasDirectAccess
+                        ? 'parent_space'
+                        : access.inheritedFrom;
+
+                if (!existing) {
+                    // First time seeing this user
+                    userAccessMap.set(access.userUuid, {
+                        ...access,
+                        // Mark as inherited if from ancestor space
+                        hasDirectAccess:
+                            access.hasDirectAccess && isCurrentSpace,
+                        inheritedFrom,
+                    });
+                } else {
+                    // User already exists - take highest role
+                    const roleOrder = {
+                        [SpaceMemberRole.ADMIN]: 3,
+                        [SpaceMemberRole.EDITOR]: 2,
+                        [SpaceMemberRole.VIEWER]: 1,
+                    };
+
+                    const existingRoleOrder = roleOrder[existing.role] ?? 0;
+                    const newRoleOrder = roleOrder[access.role] ?? 0;
+
+                    if (newRoleOrder > existingRoleOrder) {
+                        userAccessMap.set(access.userUuid, {
+                            ...access,
+                            hasDirectAccess:
+                                existing.hasDirectAccess ||
+                                (access.hasDirectAccess && isCurrentSpace),
+                            inheritedFrom: existing.hasDirectAccess
+                                ? existing.inheritedFrom
+                                : inheritedFrom,
+                        });
+                    } else if (access.hasDirectAccess && isCurrentSpace) {
+                        // Keep higher role but mark as having direct access
+                        userAccessMap.set(access.userUuid, {
+                            ...existing,
+                            hasDirectAccess: true,
+                            inheritedFrom: undefined, // Direct access has no inherited source
+                        });
+                    }
+                }
+            }
+        }
+
+        return Array.from(userAccessMap.values());
+    }
+
     async findClosestAncestorByPath({
         path,
         projectUuid,
@@ -2004,14 +2247,7 @@ export class SpaceModel {
             .update({
                 name: space.name,
                 is_private: space.isPrivate,
-                ...(space.isPrivate !== undefined && {
-                    // While the feature isn't fully built, we still depend on the `isPrivate`
-                    // and `parent_space_uuid` to set the `inherit_parent_permissions` column
-                    inherit_parent_permissions: this.database.raw(
-                        `CASE WHEN parent_space_uuid IS NULL THEN ? ELSE inherit_parent_permissions END`,
-                        [!space.isPrivate],
-                    ),
-                }),
+                inherit_parent_permissions: space.inheritParentPermissions,
             })
             .where('space_uuid', spaceUuid);
         return this.getFullSpace(spaceUuid);
