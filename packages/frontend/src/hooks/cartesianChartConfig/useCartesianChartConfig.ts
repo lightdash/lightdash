@@ -413,6 +413,13 @@ const useCartesianChartConfig = ({
         }));
     }, []);
 
+    const setConnectNulls = useCallback((connect: boolean) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            connectNulls: connect,
+        }));
+    }, []);
+
     const setAxisLabelFontSize = useCallback((fontSize: number | undefined) => {
         setDirtyEchartsConfig((prev) => ({
             ...prev,
@@ -1132,6 +1139,7 @@ const useCartesianChartConfig = ({
         setShowXAxis,
         setShowYAxis,
         setShowAxisTicks,
+        setConnectNulls,
         setAxisLabelFontSize,
         setAxisTitleFontSize,
         setXAxisSort,
