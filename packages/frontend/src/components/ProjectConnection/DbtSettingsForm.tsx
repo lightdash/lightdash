@@ -19,6 +19,7 @@ import { dbtDefaults } from './DbtForms/defaultValues';
 import FormCollapseButton from './FormCollapseButton';
 import FormSection from './Inputs/FormSection';
 import { MultiKeyValuePairsInput } from './Inputs/MultiKeyValuePairsInput';
+import { AthenaSchemaInput } from './WarehouseForms/AthenaForm';
 import { BigQuerySchemaInput } from './WarehouseForms/BigQueryForm';
 import { ClickhouseSchemaInput } from './WarehouseForms/ClickhouseForm';
 import { DatabricksSchemaInput } from './WarehouseForms/DatabricksForm';
@@ -145,6 +146,8 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                 return DatabricksSchemaInput;
             case WarehouseTypes.CLICKHOUSE:
                 return ClickhouseSchemaInput;
+            case WarehouseTypes.ATHENA:
+                return AthenaSchemaInput;
             default: {
                 return assertUnreachable(
                     warehouseType,

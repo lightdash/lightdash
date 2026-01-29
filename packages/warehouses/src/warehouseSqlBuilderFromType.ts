@@ -2,6 +2,7 @@ import {
     SupportedDbtAdapter,
     isSupportedDbtAdapterType,
 } from '@lightdash/common';
+import { AthenaSqlBuilder } from './warehouseClients/AthenaWarehouseClient';
 import { BigquerySqlBuilder } from './warehouseClients/BigqueryWarehouseClient';
 import { ClickhouseSqlBuilder } from './warehouseClients/ClickhouseWarehouseClient';
 import { DatabricksSqlBuilder } from './warehouseClients/DatabricksWarehouseClient';
@@ -38,6 +39,8 @@ export const warehouseSqlBuilderFromType = (
             return new SnowflakeSqlBuilder(...args);
         case SupportedDbtAdapter.TRINO:
             return new TrinoSqlBuilder(...args);
+        case SupportedDbtAdapter.ATHENA:
+            return new AthenaSqlBuilder(...args);
         default:
             const never: never = adapterType;
             throw new Error(`Unsupported adapter type: ${adapterType}`);

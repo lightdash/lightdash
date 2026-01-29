@@ -71,6 +71,11 @@ export class UserWarehouseCredentialsModel {
                         user: credentialsWithSecrets.user,
                     };
                     break;
+                case WarehouseTypes.ATHENA:
+                    credentials = {
+                        type: credentialsWithSecrets.type,
+                    };
+                    break;
                 default:
                     credentials = {
                         type: credentialsWithSecrets.type,

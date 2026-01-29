@@ -204,7 +204,8 @@ export const renderDateFilterSql = (
 ): string => {
     const castValue = (value: string): string => {
         switch (adapterType) {
-            case SupportedDbtAdapter.TRINO: {
+            case SupportedDbtAdapter.TRINO:
+            case SupportedDbtAdapter.ATHENA: {
                 return `CAST('${value}' AS timestamp)`;
             }
             default:
