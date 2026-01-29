@@ -346,6 +346,13 @@
                                                     "owner": {
                                                         "type": "string",
                                                         "description": "Email of the metric owner"
+                                                    },
+                                                    "targets": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "description": "Array of metric names on the same table that this metric relates to (creates edges in the Metrics Canvas)"
                                                     }
                                                 },
                                                 "anyOf": [
@@ -371,6 +378,9 @@
                                                     },
                                                     {
                                                         "required": ["owner"]
+                                                    },
+                                                    {
+                                                        "required": ["targets"]
                                                     }
                                                 ]
                                             }
@@ -896,6 +906,13 @@
                                                                 "owner": {
                                                                     "type": "string",
                                                                     "description": "Email of the metric owner"
+                                                                },
+                                                                "targets": {
+                                                                    "type": "array",
+                                                                    "items": {
+                                                                        "type": "string"
+                                                                    },
+                                                                    "description": "Array of metric names on the same table that this metric relates to (creates edges in the Metrics Canvas)"
                                                                 }
                                                             },
                                                             "anyOf": [
@@ -922,6 +939,11 @@
                                                                 {
                                                                     "required": [
                                                                         "owner"
+                                                                    ]
+                                                                },
+                                                                {
+                                                                    "required": [
+                                                                        "targets"
                                                                     ]
                                                                 }
                                                             ]

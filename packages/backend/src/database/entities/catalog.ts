@@ -133,12 +133,16 @@ export type DbCatalogItemsMigrateIn = Pick<
 
 export const CatalogTagsTableName = 'catalog_search_tags';
 
+export type DbMetricsTreeEdgeSource = 'yaml' | 'ui';
+
 export type DbMetricsTreeEdge = {
     source_metric_catalog_search_uuid: string;
     target_metric_catalog_search_uuid: string;
     created_at: Date;
     created_by_user_uuid: string | null;
     project_uuid: string;
+    source: DbMetricsTreeEdgeSource;
+    tree_name: string | null;
 };
 
 export type DbMetricsTreeEdgeIn = Pick<
@@ -147,7 +151,8 @@ export type DbMetricsTreeEdgeIn = Pick<
     | 'target_metric_catalog_search_uuid'
     | 'created_by_user_uuid'
     | 'project_uuid'
->;
+> &
+    Partial<Pick<DbMetricsTreeEdge, 'source' | 'tree_name' | 'created_at'>>;
 
 export type DbMetricsTreeEdgeDelete = Pick<
     DbMetricsTreeEdge,

@@ -367,8 +367,9 @@ export class CatalogService<
             'uuid',
         );
 
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         const projectYamlTags = await this.tagsModel.getYamlTags(projectUuid);
 
@@ -602,6 +603,7 @@ export class CatalogService<
                             created_by_user_uuid: edge.createdByUserUuid,
                             created_at: edge.createdAt,
                             project_uuid: projectUuid,
+                            source: 'ui', // These are migrated UI edges
                         },
                     ];
                 }
@@ -618,8 +620,9 @@ export class CatalogService<
         catalogSearch: ApiCatalogSearch,
         context: CatalogSearchContext,
     ): Promise<KnexPaginatedData<(CatalogField | CatalogTable)[]>> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -674,8 +677,9 @@ export class CatalogService<
         // Right now we return the full cached explore based on name
         // We could extract some data to only return what we need instead
         // to make this request more lightweight
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -760,8 +764,9 @@ export class CatalogService<
         projectUuid: string,
         table: string,
     ): Promise<CatalogAnalytics> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -846,8 +851,9 @@ export class CatalogService<
         }: ApiCatalogSearch = {},
         sortArgs?: ApiSort,
     ): Promise<KnexPaginatedData<CatalogField[]>> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -941,8 +947,9 @@ export class CatalogService<
             throw new NotFoundError('Tag not found');
         }
 
-        const catalogSearch =
-            await this.catalogModel.getCatalogItem(catalogSearchUuid);
+        const catalogSearch = await this.catalogModel.getCatalogItem(
+            catalogSearchUuid,
+        );
 
         if (!catalogSearch) {
             throw new NotFoundError('Catalog search not found');
@@ -1023,8 +1030,9 @@ export class CatalogService<
         catalogSearchUuid: string,
         icon: CatalogItemIcon | null,
     ): Promise<void> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1065,8 +1073,9 @@ export class CatalogService<
         userAttributes?: UserAttributeValueMap;
         addDefaultTimeDimension?: boolean;
     }): Promise<MetricWithAssociatedTimeDimension[]> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1207,8 +1216,9 @@ export class CatalogService<
         projectUuid: string,
         metricUuids: string[],
     ) {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1277,8 +1287,9 @@ export class CatalogService<
         projectUuid: string,
         edgePayload: ApiMetricsTreeEdgePayload,
     ) {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1299,6 +1310,7 @@ export class CatalogService<
             target_metric_catalog_search_uuid: targetCatalogSearchUuid,
             created_by_user_uuid: user.userUuid,
             project_uuid: projectUuid,
+            source: 'ui', // Explicitly set source for UI-created edges
         });
     }
 
@@ -1308,8 +1320,9 @@ export class CatalogService<
         context: CatalogSearchContext,
         tableName?: string,
     ): Promise<MetricWithAssociatedTimeDimension[]> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
         if (
             user.ability.cannot(
                 'view',
@@ -1334,8 +1347,9 @@ export class CatalogService<
                 type: CatalogType.Field,
                 filter: CatalogFilter.Metrics,
             },
-            tablesConfiguration:
-                await this.projectModel.getTablesConfiguration(projectUuid),
+            tablesConfiguration: await this.projectModel.getTablesConfiguration(
+                projectUuid,
+            ),
         });
 
         const filteredMetrics = allCatalogMetrics.data.filter(
@@ -1362,8 +1376,9 @@ export class CatalogService<
         tableName: string,
         context: CatalogSearchContext,
     ): Promise<CompiledDimension[]> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1394,8 +1409,9 @@ export class CatalogService<
                 type: CatalogType.Field,
                 filter: CatalogFilter.Dimensions,
             },
-            tablesConfiguration:
-                await this.projectModel.getTablesConfiguration(projectUuid),
+            tablesConfiguration: await this.projectModel.getTablesConfiguration(
+                projectUuid,
+            ),
         });
 
         const allDimensions = catalogDimensions.data
@@ -1412,8 +1428,9 @@ export class CatalogService<
         tableName: string,
         context: CatalogSearchContext,
     ): Promise<CompiledDimension[]> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1444,8 +1461,9 @@ export class CatalogService<
                 type: CatalogType.Field,
                 filter: CatalogFilter.Dimensions,
             },
-            tablesConfiguration:
-                await this.projectModel.getTablesConfiguration(projectUuid),
+            tablesConfiguration: await this.projectModel.getTablesConfiguration(
+                projectUuid,
+            ),
         });
 
         const allDimensions = catalogDimensions.data
@@ -1461,8 +1479,9 @@ export class CatalogService<
         projectUuid: string,
         edgePayload: ApiMetricsTreeEdgePayload,
     ) {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1488,8 +1507,9 @@ export class CatalogService<
         user: SessionUser,
         projectUuid: string,
     ): Promise<boolean> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(
@@ -1508,8 +1528,9 @@ export class CatalogService<
         user: SessionUser,
         projectUuid: string,
     ): Promise<CatalogOwner[]> {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = await this.projectModel.getSummary(
+            projectUuid,
+        );
 
         if (
             user.ability.cannot(

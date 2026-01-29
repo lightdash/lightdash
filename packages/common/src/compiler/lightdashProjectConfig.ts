@@ -9,6 +9,7 @@ type SpotlightConfigArgs = {
     filterBy?: string[];
     segmentBy?: string[];
     owner?: string;
+    targets?: string[];
 };
 
 /**
@@ -20,6 +21,7 @@ export const getSpotlightConfigurationForResource = ({
     filterBy,
     segmentBy,
     owner,
+    targets,
 }: SpotlightConfigArgs):
     | Pick<Explore, 'spotlight'>
     | Pick<Metric, 'spotlight'> => {
@@ -34,6 +36,7 @@ export const getSpotlightConfigurationForResource = ({
             ...(filterBy ? { filterBy } : {}),
             ...(segmentBy ? { segmentBy } : {}),
             ...(owner ? { owner } : {}),
+            ...(targets ? { targets } : {}),
         },
     };
 };
