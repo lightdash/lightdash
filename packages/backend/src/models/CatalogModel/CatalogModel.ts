@@ -126,6 +126,7 @@ export class CatalogModel {
                         catalogInserts,
                         catalogFieldMap,
                         numberOfCategoriesApplied,
+                        yamlEdges,
                     } = await wrapSentryTransaction(
                         'indexCatalog.convertExploresToCatalog',
                         {
@@ -204,9 +205,9 @@ export class CatalogModel {
                                             }) => ({
                                                 ...catalogInsert,
                                                 owner_user_uuid: ownerEmail
-                                                    ? (emailToUserUuidMap.get(
+                                                    ? emailToUserUuidMap.get(
                                                           ownerEmail.toLowerCase(),
-                                                      ) ?? null)
+                                                      ) ?? null
                                                     : null,
                                             }),
                                         ),
@@ -238,6 +239,84 @@ export class CatalogModel {
                                     await trx(CatalogTagsTableName)
                                         .insert(yamlTagInserts)
                                         .returning('*');
+                                }
+
+                                // Handle YAML-defined metric edges
+                                // 1. Delete old YAML edges for this project
+                                await trx(MetricsTreeEdgesTableName)
+                                    .where({
+                                        project_uuid: projectUuid,
+                                        source: 'yaml',
+                                    })
+                                    .delete();
+
+                                // 2. Build metric name → UUID map for metrics only
+                                const metricUuidMap = new Map<string, string>();
+                                results
+                                    .filter(
+                                        (r) =>
+                                            r.field_type === FieldType.METRIC,
+                                    )
+                                    .forEach((r) => {
+                                        metricUuidMap.set(
+                                            `${r.table_name}.${r.name}`,
+                                            r.catalog_search_uuid,
+                                        );
+                                    });
+
+                                // 3. Resolve and insert YAML edges
+                                const validYamlEdges = yamlEdges
+                                    .filter(
+                                        (edge) =>
+                                            edge.sourceMetricName !==
+                                            edge.targetMetricName,
+                                    ) // No self-references
+                                    .map((edge) => {
+                                        const sourceUuid = metricUuidMap.get(
+                                            `${edge.sourceTableName}.${edge.sourceMetricName}`,
+                                        );
+                                        const targetUuid = metricUuidMap.get(
+                                            `${edge.sourceTableName}.${edge.targetMetricName}`,
+                                        );
+                                        if (!sourceUuid || !targetUuid) {
+                                            Logger.warn(
+                                                `Invalid YAML metric target reference: ${
+                                                    edge.sourceMetricName
+                                                } -> ${
+                                                    edge.targetMetricName
+                                                } (source found: ${!!sourceUuid}, target found: ${!!targetUuid})`,
+                                            );
+                                            return null;
+                                        }
+                                        return {
+                                            source_metric_catalog_search_uuid:
+                                                sourceUuid,
+                                            target_metric_catalog_search_uuid:
+                                                targetUuid,
+                                            project_uuid: projectUuid,
+                                            created_by_user_uuid:
+                                                userUuid ?? null,
+                                            source: 'yaml' as const,
+                                            tree_name: null,
+                                        };
+                                    })
+                                    .filter(
+                                        (
+                                            edge,
+                                        ): edge is NonNullable<typeof edge> =>
+                                            edge !== null,
+                                    );
+
+                                if (validYamlEdges.length > 0) {
+                                    // YAML is source of truth - if edge exists (e.g., from UI), convert it to YAML-managed
+                                    // This way, removing from YAML will delete the edge on next sync
+                                    await trx(MetricsTreeEdgesTableName)
+                                        .insert(validYamlEdges)
+                                        .onConflict([
+                                            'source_metric_catalog_search_uuid',
+                                            'target_metric_catalog_search_uuid',
+                                        ])
+                                        .merge({ source: 'yaml' });
                                 }
 
                                 return results;
@@ -1644,10 +1723,18 @@ export class CatalogModel {
     async migrateMetricsTreeEdges(
         metricTreeEdgesMigrateIn: DbMetricsTreeEdgeIn[],
     ) {
-        return this.database.batchInsert(
-            MetricsTreeEdgesTableName,
-            metricTreeEdgesMigrateIn,
-        );
+        if (metricTreeEdgesMigrateIn.length === 0) {
+            return;
+        }
+        // YAML-defined edges take precedence over UI edges
+        // If the same edge was defined in YAML, the UI edge migration is skipped
+        await this.database(MetricsTreeEdgesTableName)
+            .insert(metricTreeEdgesMigrateIn)
+            .onConflict([
+                'source_metric_catalog_search_uuid',
+                'target_metric_catalog_search_uuid',
+            ])
+            .ignore();
     }
 
     async hasMetricsInCatalog(projectUuid: string): Promise<boolean> {

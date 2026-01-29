@@ -240,6 +240,7 @@ export type DbtColumnLightdashMetric = {
         filter_by?: string[]; // dimension IDs allowlist
         segment_by?: string[]; // dimension IDs allowlist
         owner?: string; // metric owner email
+        targets?: string[]; // metric names this metric points to (creates edges: this metric → target metrics)
     };
     ai_hint?: string | string[];
 } & DbtLightdashFieldTags;
@@ -610,6 +611,7 @@ export const convertModelMetric = ({
             filterBy: metric.spotlight?.filter_by,
             segmentBy: metric.spotlight?.segment_by,
             owner,
+            targets: metric.spotlight?.targets,
         }),
         ...(metric.ai_hint ? { aiHint: convertToAiHints(metric.ai_hint) } : {}),
     };

@@ -34,6 +34,12 @@ type CatalogInsertWithYamlTags = Omit<DbCatalogIn, 'owner_user_uuid'> & {
     ownerEmail: string | null;
 };
 
+export type MetricTreeEdge = {
+    sourceMetricName: string;
+    sourceTableName: string;
+    targetMetricName: string;
+};
+
 export const convertExploresToCatalog = (
     projectUuid: string,
     cachedExplores: (Explore & { cachedExploreUuid: string })[],
@@ -42,11 +48,15 @@ export const convertExploresToCatalog = (
     catalogInserts: CatalogInsertWithYamlTags[];
     catalogFieldMap: CatalogFieldMap;
     numberOfCategoriesApplied: number;
+    yamlEdges: MetricTreeEdge[];
 } => {
     // Track fields' ids and names to calculate their chart usage
     const catalogFieldMap: CatalogFieldMap = {};
 
     let numberOfCategoriesApplied = 0;
+
+    // Collect YAML-defined metric edges
+    const yamlEdges: MetricTreeEdge[] = [];
 
     // Build map of base explore field names per baseTable
     // Used to avoid duplicating fields for additional explores
@@ -131,6 +141,17 @@ export const convertExploresToCatalog = (
                         numberOfCategoriesApplied += assignedYamlTags.length;
                     }
 
+                    // Extract YAML-defined metric targets (same-table relationships)
+                    if (isMetric(field) && field.spotlight?.targets) {
+                        field.spotlight.targets.forEach((targetName) => {
+                            yamlEdges.push({
+                                sourceMetricName: field.name,
+                                sourceTableName: field.table,
+                                targetMetricName: targetName,
+                            });
+                        });
+                    }
+
                     // Metric owner takes precedence over explore/model owner
                     const metricOwner = isMetric(field)
                         ? field.spotlight?.owner
@@ -178,6 +199,7 @@ export const convertExploresToCatalog = (
         catalogInserts,
         catalogFieldMap,
         numberOfCategoriesApplied,
+        yamlEdges,
     };
 };
 

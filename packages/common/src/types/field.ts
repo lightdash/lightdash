@@ -67,14 +67,14 @@ export enum NumberSeparator {
 }
 type CompactConfig = {
     compact: Compact;
-    alias: Array<(typeof CompactAlias)[number]>;
+    alias: Array<typeof CompactAlias[number]>;
     orderOfMagnitude: number;
     convertFn: (value: number) => number;
     label: string;
     suffix: string;
 };
 
-export type CompactOrAlias = Compact | (typeof CompactAlias)[number];
+export type CompactOrAlias = Compact | typeof CompactAlias[number];
 
 export const CompactConfigMap: Record<Compact, CompactConfig> = {
     [Compact.THOUSANDS]: {
@@ -284,7 +284,7 @@ export interface CustomFormat {
     type: CustomFormatType;
     round?: number | undefined;
     separator?: NumberSeparator;
-    currency?: (typeof currencies)[number] | undefined;
+    currency?: typeof currencies[number] | undefined;
     compact?: CompactOrAlias | undefined;
     prefix?: string | undefined;
     suffix?: string | undefined;
@@ -764,6 +764,7 @@ export interface Metric extends Field {
         filterBy?: string[]; // dimension IDs allowlist
         segmentBy?: string[]; // dimension IDs allowlist
         owner?: string; // metric owner email
+        targets?: string[]; // metric names this metric points to (creates edges: this metric → target metrics)
     };
     aiHint?: string | string[];
 }
