@@ -27,6 +27,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconTool } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
+import escapeRegExp from 'lodash/escapeRegExp';
 import { useMemo, useState, type FC } from 'react';
 import { lightdashApi } from '../../../api';
 import {
@@ -207,7 +208,7 @@ export const FixDashboardFilterModal: FC<Props> = ({
     ): DashboardFilterRule => {
         // Update the main target fieldId by replacing the old model prefix with the new one
         const newFieldId = filter.target.fieldId.replace(
-            new RegExp(`^${fromModel}`),
+            new RegExp(`^${escapeRegExp(fromModel)}`),
             toModel,
         );
 
@@ -229,7 +230,7 @@ export const FixDashboardFilterModal: FC<Props> = ({
                                 ...tileTarget,
                                 tableName: toModel,
                                 fieldId: tileTarget.fieldId.replace(
-                                    new RegExp(`^${fromModel}`),
+                                    new RegExp(`^${escapeRegExp(fromModel)}`),
                                     toModel,
                                 ),
                             },
