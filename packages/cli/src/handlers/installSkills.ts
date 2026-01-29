@@ -124,16 +124,9 @@ async function fetchFileContent(downloadUrl: string): Promise<string> {
     return response.text();
 }
 
-async function resolveSymlinkTarget(
-    symlinkPath: string,
-    target: string,
-): Promise<string> {
-    // Resolve the symlink relative to its location
-    const symlinkDir = path.dirname(symlinkPath);
-    const resolvedPath = path.posix.normalize(
-        path.posix.join(symlinkDir, target),
-    );
-    return resolvedPath;
+function resolveSymlinkTarget(symlinkPath: string, target: string): string {
+    const symlinkDir = path.posix.dirname(symlinkPath);
+    return path.posix.normalize(path.posix.join(symlinkDir, target.trim()));
 }
 
 /* eslint-disable no-await-in-loop */
@@ -160,10 +153,7 @@ async function downloadSkillFiles(
             await downloadSkillFiles(item.path, localPath, visited);
         } else if (item.type === 'symlink' && item.target) {
             // Resolve the symlink and fetch the actual content
-            const resolvedPath = await resolveSymlinkTarget(
-                item.path,
-                item.target,
-            );
+            const resolvedPath = resolveSymlinkTarget(item.path, item.target);
             GlobalState.debug(
                 `> Resolving symlink: ${item.path} -> ${resolvedPath}`,
             );
@@ -201,8 +191,19 @@ async function downloadSkillFiles(
                 fs.writeFileSync(localPath, content);
             }
         } else if (item.type === 'file' && item.download_url) {
-            const content = await fetchFileContent(item.download_url);
-            // Ensure parent directory exists
+            let content = await fetchFileContent(item.download_url);
+
+            // GitHub returns symlink content as the target path - resolve it
+            if (content.startsWith('../') || content.startsWith('./')) {
+                const resolvedPath = resolveSymlinkTarget(item.path, content);
+                GlobalState.debug(
+                    `> Resolving symlink: ${item.path} -> ${resolvedPath}`,
+                );
+                content = await fetchFileContent(
+                    `${GITHUB_RAW_BASE}/${resolvedPath}`,
+                );
+            }
+
             fs.mkdirSync(path.dirname(localPath), { recursive: true });
             fs.writeFileSync(localPath, content);
         }
