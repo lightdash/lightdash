@@ -1,3 +1,19 @@
+# [0.2395.0](https://github.com/lightdash/lightdash/compare/0.2394.2...0.2395.0) (2026-01-29)
+
+
+### Bug Fixes
+
+* maps dont work in react 18 ([#19783](https://github.com/lightdash/lightdash/issues/19783)) ([da03eea](https://github.com/lightdash/lightdash/commit/da03eea123e9e6ccfd1ed3bb46ecd035c7b6d352))
+* move "Add period comparison" to top of column header context menu ([#19808](https://github.com/lightdash/lightdash/issues/19808)) ([7684fd8](https://github.com/lightdash/lightdash/commit/7684fd847362dc7be4d16bd0d4048ae6c6894912))
+* validate spotlight owner type in project config ([#19794](https://github.com/lightdash/lightdash/issues/19794)) ([5efd545](https://github.com/lightdash/lightdash/commit/5efd545de3626deb9bfbb0b0211a5c4791e92ef5))
+
+
+### Features
+
+* add cli get-project command ([#19809](https://github.com/lightdash/lightdash/issues/19809)) ([a4622ff](https://github.com/lightdash/lightdash/commit/a4622ffdf9d7e72ba35420cf063ddb14323c474a)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add list-projects to CLI ([#19805](https://github.com/lightdash/lightdash/issues/19805)) ([318bc30](https://github.com/lightdash/lightdash/commit/318bc3079038fe92a580c281f145e1035c8a084b))
+* display current project info in CLI commands ([#19803](https://github.com/lightdash/lightdash/issues/19803)) ([e312181](https://github.com/lightdash/lightdash/commit/e312181dac8d48ea5bda2b99e65b180102cd5a5e))
+
 ## [0.2394.2](https://github.com/lightdash/lightdash/compare/0.2394.1...0.2394.2) (2026-01-29)
 
 
