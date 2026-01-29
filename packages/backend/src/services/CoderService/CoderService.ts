@@ -1241,6 +1241,10 @@ export class CoderService extends BaseService {
                     isPrivate:
                         closestAncestorSpace?.isPrivate ??
                         publicSpaceCreate !== true,
+                    // Nested spaces should inherit permissions from parent by default
+                    inheritParentPermissions: parentSpaceUuid
+                        ? true
+                        : undefined,
                     name: friendlyName(currentPath),
                     parentSpaceUuid,
                 },

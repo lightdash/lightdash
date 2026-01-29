@@ -181,6 +181,10 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             {
                 name: space.name,
                 isPrivate: space.isPrivate !== false,
+                // Nested spaces inherit by default, root spaces use !isPrivate default
+                inheritParentPermissions:
+                    space.inheritParentPermissions ??
+                    (space.parentSpaceUuid ? true : undefined),
                 parentSpaceUuid: space.parentSpaceUuid ?? null,
             },
             {

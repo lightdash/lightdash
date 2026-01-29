@@ -2035,6 +2035,8 @@ export class SpaceModel {
             name: string;
             isPrivate: boolean;
             parentSpaceUuid: string | null;
+            /** Whether to inherit permissions from parent. Defaults to !isPrivate for backward compatibility. */
+            inheritParentPermissions?: boolean;
         },
         {
             projectUuid,
@@ -2085,12 +2087,14 @@ export class SpaceModel {
             .insert({
                 project_id: project.project_id,
                 is_private: spaceData.isPrivate,
+                // Default inherit to !isPrivate for backward compatibility with migration
+                inherit_parent_permissions:
+                    spaceData.inheritParentPermissions ?? !spaceData.isPrivate,
                 name: spaceData.name,
                 created_by_user_id: userId,
                 slug: spaceSlug,
                 parent_space_uuid: spaceData.parentSpaceUuid ?? null,
                 path: spacePath,
-                inherit_parent_permissions: inheritParentPermissions,
             })
             .returning('*');
 

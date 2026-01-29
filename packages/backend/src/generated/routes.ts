@@ -14183,6 +14183,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                inheritParentPermissions: { dataType: 'boolean' },
                 parentSpaceUuid: { dataType: 'string' },
                 access: {
                     dataType: 'array',
