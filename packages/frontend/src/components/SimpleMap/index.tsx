@@ -44,6 +44,49 @@ import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import HeatmapLayer from './HeatmapLayer';
 import MapLegend from './MapLegend';
+
+// Types for Leaflet internals used in the monkey-patch below
+interface LeafletMapPrototype {
+    initialize: (id: string | HTMLElement, options?: L.MapOptions) => L.Map;
+}
+
+interface LeafletAugmentedContainer extends HTMLElement {
+    _leaflet_id?: number;
+    _leaflet_map?: L.Map;
+}
+
+// Monkey-patch Leaflet to handle "Map container is already initialized" error
+// that occurs with React 18 StrictMode's double-mounting behavior.
+// Instead of throwing, we remove the existing map and allow re-initialization.
+(() => {
+    const MapPrototype = L.Map.prototype as unknown as LeafletMapPrototype;
+    const originalMapInitialize = MapPrototype.initialize;
+    MapPrototype.initialize = function (
+        this: L.Map,
+        id: string | HTMLElement,
+        options?: L.MapOptions,
+    ) {
+        const container: LeafletAugmentedContainer | null =
+            typeof id === 'string' ? document.getElementById(id) : id;
+        if (container && container._leaflet_id) {
+            // Container already has a map - properly remove it first
+            // The map instance stores itself on the container as _leaflet_map
+            const existingMap = container._leaflet_map;
+            if (existingMap) {
+                existingMap.remove();
+            } else {
+                // Fallback: just clear the ID if we can't find the map instance
+                delete container._leaflet_id;
+            }
+        }
+        // Store reference to this map on the container for future cleanup
+        const result = originalMapInitialize.call(this, id, options);
+        if (container) {
+            container._leaflet_map = this;
+        }
+        return result;
+    };
+})();
 // eslint-disable-next-line css-modules/no-unused-class
 import classes from './SimpleMap.module.css';
 import {
@@ -282,7 +325,7 @@ const MapMarker: FC<MapMarkerProps> = ({
     );
 };
 
-// Component to capture the Leaflet map instance and store it in the ref
+// Component to capture the Leaflet map instance, store it in the ref, and handle cleanup
 const MapRefUpdater: FC<{ mapRef: RefObject<L.Map | null> }> = ({ mapRef }) => {
     const map = useMap();
     useEffect(() => {
@@ -922,8 +965,6 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     }
                 >
                     <MapContainer
-                        // Key based on saved extent - forces remount when saved config changes
-                        key={`scatter-${effectiveExtent?.lat}-${effectiveExtent?.lng}-${effectiveExtent?.zoom}`}
                         center={[
                             effectiveExtent?.lat ?? 20,
                             effectiveExtent?.lng ?? 0,
@@ -1022,8 +1063,6 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     }
                 >
                     <MapContainer
-                        // Key based on saved extent - forces remount when saved config changes
-                        key={`choropleth-${effectiveExtent?.lat}-${effectiveExtent?.lng}-${effectiveExtent?.zoom}`}
                         center={[
                             effectiveExtent?.lat ?? 20,
                             effectiveExtent?.lng ?? 0,
