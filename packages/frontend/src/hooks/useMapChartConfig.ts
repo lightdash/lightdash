@@ -53,6 +53,7 @@ type MapChartConfig = {
     setTileBackground: (background: MapTileBackground | undefined) => void;
     setBackgroundColor: (color: string | undefined) => void;
     setNoDataColor: (color: string | undefined) => void;
+    setDataLayerOpacity: (opacity: number | undefined) => void;
     // Field configuration methods
     updateFieldConfig: (
         fieldId: string,
@@ -130,6 +131,9 @@ const useMapChartConfig = (
     const [noDataColor, setNoDataColorState] = useState<string | undefined>(
         initialConfig?.noDataColor,
     );
+    const [dataLayerOpacity, setDataLayerOpacityState] = useState<
+        number | undefined
+    >(initialConfig?.dataLayerOpacity);
     const [fieldConfig, setFieldConfigState] = useState<
         Record<string, MapFieldConfig>
     >(initialConfig?.fieldConfig ?? {});
@@ -211,6 +215,7 @@ const useMapChartConfig = (
             tileBackground,
             backgroundColor,
             noDataColor,
+            dataLayerOpacity,
             fieldConfig,
         };
     }, [
@@ -235,6 +240,7 @@ const useMapChartConfig = (
         tileBackground,
         backgroundColor,
         noDataColor,
+        dataLayerOpacity,
         fieldConfig,
     ]);
 
@@ -393,6 +399,10 @@ const useMapChartConfig = (
         setNoDataColorState(color);
     }, []);
 
+    const setDataLayerOpacity = useCallback((opacity: number | undefined) => {
+        setDataLayerOpacityState(opacity);
+    }, []);
+
     const updateFieldConfig = useCallback(
         (fieldId: string, config: Partial<MapFieldConfig>) => {
             setFieldConfigState((prev) => ({
@@ -448,6 +458,7 @@ const useMapChartConfig = (
         setTileBackground,
         setBackgroundColor,
         setNoDataColor,
+        setDataLayerOpacity,
         updateFieldConfig,
         isFieldVisible,
         getFieldLabel,

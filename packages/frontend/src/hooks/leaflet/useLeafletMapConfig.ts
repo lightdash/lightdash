@@ -71,6 +71,8 @@ export type LeafletMapConfig = {
     backgroundColor: string | null;
     // Color for regions with no matching data (area maps)
     noDataColor: string;
+    // Opacity for scatter and area map data layers (0.1 to 1)
+    dataLayerOpacity: number;
     showLegend: boolean;
     valueRange: {
         min: number;
@@ -206,6 +208,7 @@ const useLeafletMapConfig = ({
             tileBackground,
             backgroundColor,
             noDataColor,
+            dataLayerOpacity,
             showLegend,
             fieldConfig,
         } = chartConfig.validConfig || {};
@@ -472,6 +475,7 @@ const useLeafletMapConfig = ({
             tile: getTileConfig(tileBackground),
             backgroundColor: backgroundColor ?? null,
             noDataColor: noDataColor ?? '#f3f3f3',
+            dataLayerOpacity: dataLayerOpacity ?? 0.7,
             showLegend: showLegend ?? false,
             valueRange,
             valueFieldLabel,

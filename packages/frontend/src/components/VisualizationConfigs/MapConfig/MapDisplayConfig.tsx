@@ -22,7 +22,8 @@ import {
 } from '@mantine-8/core';
 import { useHover } from '@mantine-8/hooks';
 import { IconPlus, IconX } from '@tabler/icons-react';
-import { memo, useMemo, type FC } from 'react';
+import debounce from 'lodash/debounce';
+import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { DEFAULT_MAP_COLORS } from '../../../hooks/useMapChartConfig';
 import FieldSelect from '../../common/FieldSelect';
 import GradientBar from '../../common/GradientBar';
@@ -82,6 +83,31 @@ const ColorItem: FC<ColorItemProps> = ({
 export const Display: FC = memo(() => {
     const { visualizationConfig, itemsMap } = useVisualizationContext();
 
+    // Ref to hold the current setDataLayerOpacity function
+    const setDataLayerOpacityRef = useRef<
+        ((opacity: number | undefined) => void) | null
+    >(null);
+
+    // Stable debounced function that calls the ref
+    const debouncedSetDataLayerOpacity = useRef(
+        debounce((value: number) => {
+            setDataLayerOpacityRef.current?.(value);
+        }, 100),
+    ).current;
+
+    // Local state for immediate slider feedback (initialized with default, synced via effect)
+    const [localOpacity, setLocalOpacity] = useState(0.7);
+
+    // Get the config opacity value (only available when it's a map config)
+    const configOpacity = isMapVisualizationConfig(visualizationConfig)
+        ? (visualizationConfig.chartConfig.validConfig.dataLayerOpacity ?? 0.7)
+        : 0.7;
+
+    // Sync local state when config changes externally
+    useEffect(() => {
+        setLocalOpacity(configOpacity);
+    }, [configOpacity]);
+
     // Get all available fields for selection (dimensions, metrics, and table calculations)
     const availableFields = useMemo(() => {
         if (!itemsMap) return [];
@@ -115,6 +141,7 @@ export const Display: FC = memo(() => {
             setTileBackground,
             setBackgroundColor,
             setNoDataColor,
+            setDataLayerOpacity,
         },
     } = visualizationConfig;
 
@@ -145,6 +172,9 @@ export const Display: FC = memo(() => {
     // Show color range for numeric values OR heatmaps (which use density-based coloring)
     const showColorRange = isValueFieldNumeric || isHeatmap;
     const hasSizeField = !!validConfig.sizeFieldId;
+
+    // Update the ref with the current function
+    setDataLayerOpacityRef.current = setDataLayerOpacity;
 
     return (
         <Stack>
@@ -239,6 +269,29 @@ export const Display: FC = memo(() => {
                                 }}
                             />
                         </Config.Group>
+                    )}
+                    {(isScatterMap || isAreaMap) && (
+                        <>
+                            <Config.Label mt="sm">
+                                Data layer opacity
+                            </Config.Label>
+                            <Slider
+                                min={0.1}
+                                max={1}
+                                step={0.1}
+                                value={localOpacity}
+                                onChange={(value) => {
+                                    setLocalOpacity(value);
+                                    debouncedSetDataLayerOpacity(value);
+                                }}
+                                marks={[
+                                    { value: 0.1, label: '0.1' },
+                                    { value: 0.5, label: '0.5' },
+                                    { value: 1, label: '1' },
+                                ]}
+                                mb="md"
+                            />
+                        </>
                     )}
                     {isAreaMap && (
                         <Config.Group>

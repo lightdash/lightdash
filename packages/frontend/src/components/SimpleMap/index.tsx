@@ -89,11 +89,7 @@ interface LeafletAugmentedContainer extends HTMLElement {
 })();
 // eslint-disable-next-line css-modules/no-unused-class
 import classes from './SimpleMap.module.css';
-import {
-    MAP_FILL_NO_BASE_MAP_OPACITY,
-    MAP_FILL_NO_DATA_OPACITY,
-    MAP_FILL_WITH_DATA_OPACITY,
-} from './constants';
+import { MAP_FILL_NO_BASE_MAP_OPACITY } from './constants';
 
 // Helper to get formatted value from row data
 const getFormattedValue = (
@@ -768,11 +764,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         // When there's no base map, use opaque fills so shapes are fully visible
         const hasBaseMap = !!mapConfig?.tile.url;
+        const configuredOpacity = mapConfig?.dataLayerOpacity ?? 0.7;
         const fillOpacityWithData = hasBaseMap
-            ? MAP_FILL_WITH_DATA_OPACITY
+            ? configuredOpacity
             : MAP_FILL_NO_BASE_MAP_OPACITY;
         const fillOpacityNoData = hasBaseMap
-            ? MAP_FILL_NO_DATA_OPACITY
+            ? configuredOpacity * 0.7 // Slightly more transparent for no-data regions
             : MAP_FILL_NO_BASE_MAP_OPACITY;
         const noDataColor = mapConfig?.noDataColor ?? '#f3f3f3';
 

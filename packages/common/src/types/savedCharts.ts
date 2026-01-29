@@ -204,6 +204,8 @@ export type MapChart = {
         blur?: number;
         opacity?: number;
     };
+    // Data layer opacity for scatter and area maps (0.1 to 1, default 0.7)
+    dataLayerOpacity?: number;
     tileBackground?: MapTileBackground;
     backgroundColor?: string;
     // Color for regions with no matching data (area maps only)
