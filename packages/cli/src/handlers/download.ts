@@ -480,6 +480,15 @@ export const downloadHandler = async (
         );
     }
 
+    // Log current project info
+    if (options.project) {
+        console.error(
+            `\n${styles.success('Downloading from project:')} ${projectId}\n`,
+        );
+    } else {
+        GlobalState.logProjectInfo(config);
+    }
+
     // Fetch project details to get project name for folder structure
     const project = await lightdashApi<Project>({
         method: 'GET',
@@ -857,6 +866,15 @@ export const uploadHandler = async (
         throw new Error(
             'No project selected. Run lightdash config set-project',
         );
+    }
+
+    // Log current project info
+    if (options.project) {
+        console.error(
+            `\n${styles.success('Uploading to project:')} ${projectId}\n`,
+        );
+    } else {
+        GlobalState.logProjectInfo(config);
     }
 
     let changes: Record<string, number> = {};

@@ -279,6 +279,11 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     const config = await getConfig();
     let projectUuid: string;
 
+    // Log current project info if not creating a new one
+    if (options.create === undefined) {
+        GlobalState.logProjectInfo(config);
+    }
+
     if (options.create !== undefined) {
         const project = await createNewProject(executionId, options);
         if (!project) {

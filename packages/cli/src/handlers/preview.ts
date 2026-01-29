@@ -370,9 +370,22 @@ export const startPreviewHandler = async (
     }
 
     const projectName = options.name;
+    const config = await getConfig();
+
+    // Log current source project info if copying content
+    if (!options.skipCopyContent && config.context?.project) {
+        console.error(
+            `\n${styles.success('Source project for content:')} ${styles.bold(
+                config.context.projectName || config.context.project,
+            )}\n`,
+        );
+    }
 
     const previewProject = await getPreviewProject(projectName);
     if (previewProject) {
+        console.error(
+            `\n${styles.success('Updating preview project:')} ${styles.bold(projectName)}\n`,
+        );
         await setPreviewProject(previewProject.projectUuid, projectName);
         await LightdashAnalytics.track({
             event: 'start_preview.update',
@@ -384,7 +397,6 @@ export const startPreviewHandler = async (
         });
 
         // Update
-        console.error(`Updating project preview ${projectName}`);
         const explores = await compile(options);
         await deploy(explores, {
             ...options,
@@ -397,7 +409,9 @@ export const startPreviewHandler = async (
             core.setOutput('project_uuid', previewProject.projectUuid);
         }
     } else {
-        const config = await getConfig();
+        console.error(
+            `\n${styles.success('Creating preview project:')} ${styles.bold(projectName)}\n`,
+        );
 
         if (!config.context?.project) {
             console.error(
@@ -422,7 +436,6 @@ export const startPreviewHandler = async (
         }
 
         // Create
-        console.error(`Creating new project preview ${projectName}`);
         const results = await createProject({
             ...options,
             name: projectName,

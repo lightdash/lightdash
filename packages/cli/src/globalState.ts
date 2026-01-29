@@ -1,4 +1,5 @@
 import ora from 'ora';
+import { Config } from './config';
 import * as styles from './styles';
 
 type PromptAnswer = {
@@ -62,6 +63,12 @@ class GlobalState {
         if (this.verbose) {
             this.log(styles.debug(message));
         }
+    }
+
+    logProjectInfo(config: Config) {
+        const projectUuid = config.context?.project;
+
+        this.log(`\n${styles.success('Using project:')} ${projectUuid}\n`);
     }
 }
 

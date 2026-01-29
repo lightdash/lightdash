@@ -48,6 +48,9 @@ export const generateExposuresHandler = async (
         ),
     );
 
+    // Log current project info
+    GlobalState.logProjectInfo(config);
+
     const spinner = GlobalState.startSpinner(
         `  Generating Lightdash exposures .yml for project ${styles.bold(
             config.context.projectName || config.context.project,

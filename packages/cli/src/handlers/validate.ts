@@ -89,6 +89,9 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
 
     const config = await getConfig();
 
+    // Log current project info
+    GlobalState.logProjectInfo(config);
+
     const explores = await compile(options);
     GlobalState.debug(`> Compiled ${explores.length} explores`);
 
