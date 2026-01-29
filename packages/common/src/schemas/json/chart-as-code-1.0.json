@@ -93,116 +93,7 @@
                                     "description": "Empty dimensions filter array (no filters applied)",
                                     "maxItems": 0
                                 },
-                                {
-                                    "type": "object",
-                                    "description": "Dimension filter group",
-                                    "additionalProperties": false,
-                                    "properties": {
-                                        "id": {
-                                            "type": "string",
-                                            "description": "Optional unique identifier for the filter group"
-                                        },
-                                        "and": {
-                                            "type": "array",
-                                            "description": "Array of filters combined with AND logic",
-                                            "items": {
-                                                "type": "object",
-                                                "additionalProperties": false,
-                                                "required": [
-                                                    "target",
-                                                    "operator"
-                                                ],
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "string",
-                                                        "description": "Optional unique identifier for the filter"
-                                                    },
-                                                    "target": {
-                                                        "type": "object",
-                                                        "additionalProperties": false,
-                                                        "required": ["fieldId"],
-                                                        "properties": {
-                                                            "fieldId": {
-                                                                "type": "string",
-                                                                "description": "Field ID to filter on"
-                                                            },
-                                                            "fieldFilterType": {
-                                                                "type": "string",
-                                                                "description": "Filter type hint (e.g., 'date' for date fields)"
-                                                            }
-                                                        }
-                                                    },
-                                                    "operator": {
-                                                        "type": "string",
-                                                        "description": "Filter operator",
-                                                        "enum": [
-                                                            "equals",
-                                                            "notEquals",
-                                                            "isNull",
-                                                            "notNull",
-                                                            "startsWith",
-                                                            "endsWith",
-                                                            "include",
-                                                            "doesNotInclude",
-                                                            "lessThan",
-                                                            "lessThanOrEqual",
-                                                            "greaterThan",
-                                                            "greaterThanOrEqual",
-                                                            "inThePast",
-                                                            "notInThePast",
-                                                            "inTheNext",
-                                                            "inTheCurrent",
-                                                            "notInTheCurrent",
-                                                            "inBetween",
-                                                            "notInBetween"
-                                                        ]
-                                                    },
-                                                    "values": {
-                                                        "type": "array",
-                                                        "description": "Values to filter by"
-                                                    },
-                                                    "required": {
-                                                        "type": "boolean",
-                                                        "description": "Whether this filter is required"
-                                                    },
-                                                    "settings": {
-                                                        "type": "object",
-                                                        "description": "Additional settings for date/time filters",
-                                                        "additionalProperties": false,
-                                                        "properties": {
-                                                            "unitOfTime": {
-                                                                "type": "string",
-                                                                "enum": [
-                                                                    "milliseconds",
-                                                                    "seconds",
-                                                                    "minutes",
-                                                                    "hours",
-                                                                    "days",
-                                                                    "weeks",
-                                                                    "months",
-                                                                    "quarters",
-                                                                    "years"
-                                                                ],
-                                                                "description": "Time unit for relative date filters"
-                                                            },
-                                                            "completed": {
-                                                                "type": "boolean",
-                                                                "description": "For date filters, whether to include completed periods"
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        },
-                                        "or": {
-                                            "type": "array",
-                                            "description": "Array of filters combined with OR logic",
-                                            "items": {
-                                                "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/oneOf/1/properties/and/items"
-                                            }
-                                        }
-                                    }
-                                }
+                                { "$ref": "#/$defs/filterGroup" }
                             ]
                         },
                         "metrics": {
@@ -212,23 +103,7 @@
                                     "description": "Empty metrics filter array (no filters applied)",
                                     "maxItems": 0
                                 },
-                                {
-                                    "type": "object",
-                                    "description": "Metric filter group",
-                                    "additionalProperties": false,
-                                    "properties": {
-                                        "id": {
-                                            "type": "string",
-                                            "description": "Optional unique identifier for the filter group"
-                                        },
-                                        "and": {
-                                            "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/oneOf/1/properties/and"
-                                        },
-                                        "or": {
-                                            "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/oneOf/1/properties/or"
-                                        }
-                                    }
-                                }
+                                { "$ref": "#/$defs/filterGroup" }
                             ]
                         },
                         "tableCalculations": {
@@ -238,23 +113,7 @@
                                     "description": "Empty table calculations filter array (no filters applied)",
                                     "maxItems": 0
                                 },
-                                {
-                                    "type": "object",
-                                    "description": "Table calculation filter group",
-                                    "additionalProperties": false,
-                                    "properties": {
-                                        "id": {
-                                            "type": "string",
-                                            "description": "Optional unique identifier for the filter group"
-                                        },
-                                        "and": {
-                                            "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/oneOf/1/properties/and"
-                                        },
-                                        "or": {
-                                            "$ref": "#/properties/metricQuery/properties/filters/properties/dimensions/oneOf/1/properties/or"
-                                        }
-                                    }
-                                }
+                                { "$ref": "#/$defs/filterGroup" }
                             ]
                         }
                     }
@@ -274,6 +133,10 @@
                             "descending": {
                                 "type": "boolean",
                                 "description": "Sort in descending order"
+                            },
+                            "nullsFirst": {
+                                "type": "boolean",
+                                "description": "Sort null values first"
                             }
                         }
                     }
@@ -615,7 +478,17 @@
                                     "sum",
                                     "average",
                                     "min",
-                                    "max"
+                                    "max",
+                                    "percentile",
+                                    "median",
+                                    "number",
+                                    "string",
+                                    "date",
+                                    "timestamp",
+                                    "boolean",
+                                    "percent_of_previous",
+                                    "percent_of_total",
+                                    "running_total"
                                 ],
                                 "description": "Aggregation type"
                             },
@@ -638,6 +511,34 @@
                             "index": {
                                 "type": "number",
                                 "description": "Display order index"
+                            },
+                            "round": {
+                                "type": "number",
+                                "description": "Number of decimal places"
+                            },
+                            "format": {
+                                "type": "string",
+                                "description": "Format string (legacy format specification)"
+                            },
+                            "generationType": {
+                                "type": "string",
+                                "description": "Type of generated metric (e.g., 'periodOverPeriod' for time comparison metrics)"
+                            },
+                            "baseMetricId": {
+                                "type": "string",
+                                "description": "ID of the base metric for generated metrics"
+                            },
+                            "timeDimensionId": {
+                                "type": "string",
+                                "description": "ID of the time dimension for period-over-period metrics"
+                            },
+                            "granularity": {
+                                "type": "string",
+                                "description": "Time granularity (e.g., 'MONTH', 'WEEK', 'DAY')"
+                            },
+                            "periodOffset": {
+                                "type": "number",
+                                "description": "Number of periods to offset for comparison"
                             },
                             "filters": {
                                 "type": "array",
@@ -791,6 +692,96 @@
                     "items": {
                         "type": "object"
                     }
+                },
+                "dimensionOverrides": {
+                    "type": "object",
+                    "description": "Override formatting and display options for existing dimensions",
+                    "additionalProperties": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "formatOptions": {
+                                "type": "object",
+                                "description": "Formatting configuration for the dimension",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "default",
+                                            "currency",
+                                            "number",
+                                            "percent"
+                                        ],
+                                        "description": "Format type"
+                                    },
+                                    "round": {
+                                        "type": "number",
+                                        "description": "Number of decimal places"
+                                    },
+                                    "currency": {
+                                        "type": "string",
+                                        "description": "Currency code (e.g., USD, GBP, EUR)"
+                                    },
+                                    "separator": {
+                                        "type": "string",
+                                        "enum": [
+                                            "default",
+                                            "commaPeriod",
+                                            "spacePeriod",
+                                            "periodComma",
+                                            "spaceComma"
+                                        ],
+                                        "description": "Thousands separator style"
+                                    },
+                                    "suffix": {
+                                        "type": "string",
+                                        "description": "Suffix to append to formatted values"
+                                    },
+                                    "prefix": {
+                                        "type": "string",
+                                        "description": "Prefix to prepend to formatted values"
+                                    },
+                                    "compact": {
+                                        "type": "string",
+                                        "enum": [
+                                            "thousands",
+                                            "millions",
+                                            "billions",
+                                            "trillions",
+                                            "kilobytes",
+                                            "megabytes",
+                                            "gigabytes",
+                                            "terabytes",
+                                            "petabytes",
+                                            "kibibytes",
+                                            "mebibytes",
+                                            "gibibytes",
+                                            "tebibytes",
+                                            "pebibytes"
+                                        ],
+                                        "description": "Compact format for large numbers (K, M, B, T) or byte units"
+                                    }
+                                }
+                            },
+                            "label": {
+                                "type": "string",
+                                "description": "Custom label for the dimension"
+                            },
+                            "description": {
+                                "type": "string",
+                                "description": "Custom description for the dimension"
+                            },
+                            "uuid": {
+                                "type": "string",
+                                "description": "UUID of the dimension override"
+                            }
+                        }
+                    }
+                },
+                "timezone": {
+                    "type": "string",
+                    "description": "Timezone for date/time values (e.g., 'America/Los_Angeles', 'UTC')"
                 }
             }
         },
@@ -810,12 +801,14 @@
                         "big_number",
                         "funnel",
                         "treemap",
+                        "gauge",
+                        "map",
                         "custom"
                     ]
                 },
                 "config": {
                     "type": ["object", "null"],
-                    "description": "Chart-specific configuration (varies by chart type)"
+                    "description": "Chart-specific configuration (varies by chart type). See $defs/cartesianChart for cartesian chart structure."
                 }
             }
         },
@@ -843,6 +836,601 @@
                     "description": "Fields to use as pivot columns",
                     "items": {
                         "type": "string"
+                    }
+                }
+            }
+        }
+    },
+    "$defs": {
+        "filterGroup": {
+            "type": "object",
+            "description": "Filter group containing filters combined with AND/OR logic",
+            "additionalProperties": false,
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "Optional unique identifier for the filter group"
+                },
+                "and": {
+                    "type": "array",
+                    "description": "Array of filters or nested groups combined with AND logic",
+                    "items": { "$ref": "#/$defs/filterItem" }
+                },
+                "or": {
+                    "type": "array",
+                    "description": "Array of filters or nested groups combined with OR logic",
+                    "items": { "$ref": "#/$defs/filterItem" }
+                }
+            }
+        },
+        "filterItem": {
+            "description": "Either a filter rule or a nested filter group",
+            "oneOf": [
+                { "$ref": "#/$defs/filterRule" },
+                { "$ref": "#/$defs/filterGroup" }
+            ]
+        },
+        "filterRule": {
+            "type": "object",
+            "description": "A single filter rule",
+            "additionalProperties": false,
+            "required": ["target", "operator"],
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "description": "Optional unique identifier for the filter"
+                },
+                "target": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["fieldId"],
+                    "properties": {
+                        "fieldId": {
+                            "type": "string",
+                            "description": "Field ID to filter on"
+                        },
+                        "tableName": {
+                            "type": "string",
+                            "description": "Table name the field belongs to"
+                        },
+                        "type": {
+                            "type": "string",
+                            "description": "Field type (e.g., 'string', 'number', 'date')"
+                        },
+                        "fieldFilterType": {
+                            "type": "string",
+                            "description": "Filter type hint (e.g., 'date' for date fields)"
+                        }
+                    }
+                },
+                "operator": {
+                    "type": "string",
+                    "description": "Filter operator",
+                    "enum": [
+                        "equals",
+                        "notEquals",
+                        "isNull",
+                        "notNull",
+                        "startsWith",
+                        "endsWith",
+                        "include",
+                        "doesNotInclude",
+                        "lessThan",
+                        "lessThanOrEqual",
+                        "greaterThan",
+                        "greaterThanOrEqual",
+                        "inThePast",
+                        "notInThePast",
+                        "inTheNext",
+                        "inTheCurrent",
+                        "notInTheCurrent",
+                        "inBetween",
+                        "notInBetween"
+                    ]
+                },
+                "values": {
+                    "type": "array",
+                    "description": "Values to filter by"
+                },
+                "required": {
+                    "type": "boolean",
+                    "description": "Whether this filter is required"
+                },
+                "settings": {
+                    "type": "object",
+                    "description": "Additional settings for date/time filters",
+                    "additionalProperties": false,
+                    "properties": {
+                        "unitOfTime": {
+                            "type": "string",
+                            "enum": [
+                                "milliseconds",
+                                "seconds",
+                                "minutes",
+                                "hours",
+                                "days",
+                                "weeks",
+                                "months",
+                                "quarters",
+                                "years"
+                            ],
+                            "description": "Time unit for relative date filters"
+                        },
+                        "completed": {
+                            "type": "boolean",
+                            "description": "For date filters, whether to include completed periods"
+                        }
+                    }
+                },
+                "disabled": {
+                    "type": "boolean",
+                    "description": "Whether this filter is disabled"
+                },
+                "tileTargets": {
+                    "type": "object",
+                    "description": "Dashboard tile-specific filter targets (maps tile UUIDs to field IDs)"
+                }
+            }
+        },
+        "cartesianChart": {
+            "type": ["object", "null"],
+            "description": "Configuration for cartesian (line, bar, area, scatter) charts",
+            "additionalProperties": false,
+            "properties": {
+                "layout": {
+                    "type": "object",
+                    "description": "Layout configuration for the chart axes and orientation",
+                    "additionalProperties": false,
+                    "properties": {
+                        "xField": {
+                            "type": "string",
+                            "description": "Field ID to use for the X axis"
+                        },
+                        "yField": {
+                            "type": "array",
+                            "description": "Field IDs to use for the Y axis",
+                            "items": { "type": "string" }
+                        },
+                        "flipAxes": {
+                            "type": "boolean",
+                            "description": "Swap X and Y axes (creates horizontal bar charts)"
+                        },
+                        "showGridX": {
+                            "type": "boolean",
+                            "description": "Show vertical grid lines"
+                        },
+                        "showGridY": {
+                            "type": "boolean",
+                            "description": "Show horizontal grid lines"
+                        },
+                        "showXAxis": {
+                            "type": "boolean",
+                            "description": "Show the X axis"
+                        },
+                        "showYAxis": {
+                            "type": "boolean",
+                            "description": "Show the Y axis"
+                        },
+                        "stack": {
+                            "type": ["boolean", "string"],
+                            "description": "Stack series together (true for default stacking, or string for stack group name)"
+                        }
+                    }
+                },
+                "eChartsConfig": {
+                    "type": "object",
+                    "description": "ECharts-specific configuration",
+                    "additionalProperties": false,
+                    "properties": {
+                        "legend": { "$ref": "#/$defs/echartsLegend" },
+                        "grid": { "$ref": "#/$defs/echartsGrid" },
+                        "series": {
+                            "type": "array",
+                            "description": "Chart series configuration",
+                            "items": { "$ref": "#/$defs/series" }
+                        },
+                        "xAxis": {
+                            "type": ["array", "null"],
+                            "description": "X axis configuration",
+                            "items": { "$ref": "#/$defs/xAxis" }
+                        },
+                        "yAxis": {
+                            "type": ["array", "null"],
+                            "description": "Y axis configuration",
+                            "items": { "$ref": "#/$defs/axis" }
+                        },
+                        "tooltip": {
+                            "type": "string",
+                            "description": "Tooltip formatter template"
+                        },
+                        "tooltipSort": {
+                            "type": "string",
+                            "description": "How to sort tooltip items",
+                            "enum": [
+                                "default",
+                                "alphabetical",
+                                "value_ascending",
+                                "value_descending"
+                            ]
+                        },
+                        "showAxisTicks": {
+                            "type": "boolean",
+                            "description": "Show tick marks on axes"
+                        },
+                        "axisLabelFontSize": {
+                            "type": "number",
+                            "description": "Font size for axis labels"
+                        },
+                        "axisTitleFontSize": {
+                            "type": "number",
+                            "description": "Font size for axis titles"
+                        }
+                    }
+                },
+                "metadata": {
+                    "type": "object",
+                    "description": "Metadata for series (colors, etc.)",
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "color": { "type": "string" }
+                        }
+                    }
+                }
+            }
+        },
+        "echartsLegend": {
+            "type": "object",
+            "description": "Legend configuration",
+            "additionalProperties": false,
+            "properties": {
+                "show": {
+                    "type": "boolean",
+                    "description": "Show the legend"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": ["plain", "scroll"],
+                    "description": "Legend type (plain or scrollable)"
+                },
+                "orient": {
+                    "type": "string",
+                    "enum": ["horizontal", "vertical"],
+                    "description": "Legend orientation"
+                },
+                "top": { "type": "string", "description": "Top position" },
+                "right": { "type": "string", "description": "Right position" },
+                "bottom": {
+                    "type": "string",
+                    "description": "Bottom position"
+                },
+                "left": { "type": "string", "description": "Left position" },
+                "width": { "type": "string", "description": "Legend width" },
+                "height": { "type": "string", "description": "Legend height" },
+                "align": {
+                    "type": "string",
+                    "enum": ["auto", "left", "right"],
+                    "description": "Legend alignment"
+                },
+                "icon": {
+                    "type": "string",
+                    "enum": [
+                        "circle",
+                        "rect",
+                        "roundRect",
+                        "triangle",
+                        "diamond",
+                        "pin",
+                        "arrow",
+                        "none"
+                    ],
+                    "description": "Legend icon shape"
+                }
+            }
+        },
+        "echartsGrid": {
+            "type": "object",
+            "description": "Grid (chart area) configuration",
+            "additionalProperties": false,
+            "properties": {
+                "containLabel": {
+                    "type": "boolean",
+                    "description": "Whether the grid area contains axis labels"
+                },
+                "top": { "type": "string", "description": "Top padding" },
+                "right": { "type": "string", "description": "Right padding" },
+                "bottom": { "type": "string", "description": "Bottom padding" },
+                "left": { "type": "string", "description": "Left padding" },
+                "width": { "type": "string", "description": "Grid width" },
+                "height": { "type": "string", "description": "Grid height" }
+            }
+        },
+        "axis": {
+            "type": "object",
+            "description": "Axis configuration",
+            "additionalProperties": false,
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Axis title"
+                },
+                "min": {
+                    "type": "string",
+                    "description": "Minimum value (or 'dataMin' for auto)"
+                },
+                "max": {
+                    "type": "string",
+                    "description": "Maximum value (or 'dataMax' for auto)"
+                },
+                "minOffset": {
+                    "type": "string",
+                    "description": "Offset from minimum value"
+                },
+                "maxOffset": {
+                    "type": "string",
+                    "description": "Offset from maximum value"
+                },
+                "inverse": {
+                    "type": "boolean",
+                    "description": "Reverse the axis direction"
+                },
+                "rotate": {
+                    "type": "number",
+                    "description": "Rotation angle for axis labels"
+                }
+            }
+        },
+        "xAxis": {
+            "type": "object",
+            "description": "X axis configuration (extends axis)",
+            "additionalProperties": false,
+            "properties": {
+                "name": { "type": "string", "description": "Axis title" },
+                "min": { "type": "string", "description": "Minimum value" },
+                "max": { "type": "string", "description": "Maximum value" },
+                "minOffset": {
+                    "type": "string",
+                    "description": "Offset from minimum"
+                },
+                "maxOffset": {
+                    "type": "string",
+                    "description": "Offset from maximum"
+                },
+                "inverse": {
+                    "type": "boolean",
+                    "description": "Reverse axis direction"
+                },
+                "rotate": {
+                    "type": "number",
+                    "description": "Label rotation angle"
+                },
+                "sortType": {
+                    "type": "string",
+                    "description": "How to sort the X axis",
+                    "enum": ["default", "category", "bar_totals"]
+                },
+                "enableDataZoom": {
+                    "type": "boolean",
+                    "description": "Enable data zoom slider for this axis"
+                }
+            }
+        },
+        "series": {
+            "type": "object",
+            "description": "Chart series configuration",
+            "additionalProperties": false,
+            "required": ["encode", "type"],
+            "properties": {
+                "encode": {
+                    "type": "object",
+                    "description": "Field references for this series",
+                    "additionalProperties": false,
+                    "required": ["xRef", "yRef"],
+                    "properties": {
+                        "xRef": { "$ref": "#/$defs/pivotReference" },
+                        "yRef": { "$ref": "#/$defs/pivotReference" },
+                        "x": {
+                            "type": "string",
+                            "description": "Hash of xRef (computed)"
+                        },
+                        "y": {
+                            "type": "string",
+                            "description": "Hash of yRef (computed)"
+                        }
+                    }
+                },
+                "type": {
+                    "type": "string",
+                    "description": "Series visualization type",
+                    "enum": ["line", "bar", "scatter", "area"]
+                },
+                "stack": {
+                    "type": "string",
+                    "description": "Stack group name (series with same stack name are stacked)"
+                },
+                "stackLabel": {
+                    "type": "object",
+                    "description": "Stack total label configuration",
+                    "additionalProperties": false,
+                    "properties": {
+                        "show": {
+                            "type": "boolean",
+                            "description": "Show stack total labels"
+                        }
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Display name for the series"
+                },
+                "color": {
+                    "type": "string",
+                    "description": "Color for the series (hex code)"
+                },
+                "yAxisIndex": {
+                    "type": "number",
+                    "description": "Index of Y axis to use (for dual Y axis charts)"
+                },
+                "label": {
+                    "type": "object",
+                    "description": "Data label configuration",
+                    "additionalProperties": false,
+                    "properties": {
+                        "show": {
+                            "type": "boolean",
+                            "description": "Show data labels on points"
+                        },
+                        "position": {
+                            "type": "string",
+                            "enum": [
+                                "left",
+                                "top",
+                                "right",
+                                "bottom",
+                                "inside"
+                            ],
+                            "description": "Position of data labels"
+                        },
+                        "showOverlappingLabels": {
+                            "type": "boolean",
+                            "description": "Show labels even when they overlap"
+                        }
+                    }
+                },
+                "hidden": {
+                    "type": "boolean",
+                    "description": "Hide this series from the chart"
+                },
+                "areaStyle": {
+                    "type": "object",
+                    "description": "Area fill style (presence indicates area chart)"
+                },
+                "showSymbol": {
+                    "type": "boolean",
+                    "description": "Show symbols/markers on data points"
+                },
+                "smooth": {
+                    "type": "boolean",
+                    "description": "Use smooth curves for line/area charts"
+                },
+                "markLine": { "$ref": "#/$defs/markLine" },
+                "isFilteredOut": {
+                    "type": "boolean",
+                    "description": "Whether this series is currently filtered out"
+                }
+            }
+        },
+        "pivotReference": {
+            "type": "object",
+            "description": "Reference to a field, optionally with pivot values",
+            "additionalProperties": false,
+            "required": ["field"],
+            "properties": {
+                "field": {
+                    "type": "string",
+                    "description": "Field ID being referenced"
+                },
+                "pivotValues": {
+                    "type": "array",
+                    "description": "Pivot values for this reference (for pivoted data)",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["field", "value"],
+                        "properties": {
+                            "field": {
+                                "type": "string",
+                                "description": "Pivot field ID"
+                            },
+                            "value": {
+                                "description": "Pivot value"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "markLine": {
+            "type": "object",
+            "description": "Reference line configuration",
+            "additionalProperties": false,
+            "properties": {
+                "data": {
+                    "type": "array",
+                    "description": "Reference line data points",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["uuid"],
+                        "properties": {
+                            "yAxis": {
+                                "type": "string",
+                                "description": "Y axis value for horizontal line"
+                            },
+                            "xAxis": {
+                                "type": "string",
+                                "description": "X axis value for vertical line"
+                            },
+                            "name": {
+                                "type": "string",
+                                "description": "Name of the reference line"
+                            },
+                            "value": {
+                                "type": "string",
+                                "description": "Value to display"
+                            },
+                            "type": {
+                                "type": "string",
+                                "description": "Point type (e.g., 'average')"
+                            },
+                            "uuid": {
+                                "type": "string",
+                                "description": "Unique identifier for this mark line"
+                            },
+                            "lineStyle": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "color": { "type": "string" }
+                                }
+                            },
+                            "label": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "formatter": { "type": "string" },
+                                    "position": {
+                                        "type": "string",
+                                        "enum": ["start", "middle", "end"]
+                                    }
+                                }
+                            },
+                            "dynamicValue": {
+                                "type": "string",
+                                "enum": ["average"],
+                                "description": "Dynamic value type"
+                            }
+                        }
+                    }
+                },
+                "symbol": {
+                    "type": "string",
+                    "description": "Symbol at line endpoints"
+                },
+                "lineStyle": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "color": { "type": "string" },
+                        "width": { "type": "number" },
+                        "type": { "type": "string" }
+                    }
+                },
+                "label": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "formatter": { "type": "string" }
                     }
                 }
             }
