@@ -1,3 +1,11 @@
+## [0.2397.1](https://github.com/lightdash/lightdash/compare/0.2397.0...0.2397.1) (2026-01-29)
+
+
+### Bug Fixes
+
+* column limit calculation to match legacy pivoting ([#19736](https://github.com/lightdash/lightdash/issues/19736)) ([94651f2](https://github.com/lightdash/lightdash/commit/94651f23d43aae4857635f7b3f365e5bb54fe2ea))
+* support empty index pivoting ([#19728](https://github.com/lightdash/lightdash/issues/19728)) ([7a080de](https://github.com/lightdash/lightdash/commit/7a080decf43237f928b05a5ef89d30cd0f3f1c5b))
+
 # [0.2397.0](https://github.com/lightdash/lightdash/compare/0.2396.0...0.2397.0) (2026-01-29)
 
 
