@@ -51,7 +51,7 @@
         },
         "tiles": {
             "type": "array",
-            "description": "Array of tiles (charts, markdown, loom videos) positioned on the dashboard",
+            "description": "Array of tiles (charts, markdown, loom videos) positioned on the dashboard. The dashboard uses a 36-column grid system. For full-width layouts, set w: 36. Common layouts: full-width (w: 36), half-width (w: 18), thirds (w: 12), quarters (w: 9).",
             "items": {
                 "type": "object",
                 "additionalProperties": false,
@@ -78,23 +78,25 @@
                     },
                     "x": {
                         "type": "number",
-                        "description": "Horizontal position in grid units",
-                        "minimum": 0
+                        "description": "Horizontal position in grid units (0-35). The dashboard uses a 36-column grid, so x + w should not exceed 36.",
+                        "minimum": 0,
+                        "maximum": 35
                     },
                     "y": {
                         "type": "number",
-                        "description": "Vertical position in grid units",
+                        "description": "Vertical position in grid units (rows are unlimited)",
                         "minimum": 0
                     },
                     "h": {
                         "type": "number",
-                        "description": "Height in grid units",
+                        "description": "Height in grid units (minimum 1 row)",
                         "minimum": 1
                     },
                     "w": {
                         "type": "number",
-                        "description": "Width in grid units",
-                        "minimum": 1
+                        "description": "Width in grid units. The dashboard uses a 36-column grid, so use w: 36 for full-width tiles, w: 18 for half-width, w: 12 for one-third width, etc.",
+                        "minimum": 1,
+                        "maximum": 36
                     },
                     "tabUuid": {
                         "type": ["string", "null"],

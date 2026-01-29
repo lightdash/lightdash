@@ -110,21 +110,33 @@ tiles:
 
 ## Grid Layout
 
-Dashboards use a 36-column grid system:
+**IMPORTANT: The dashboard uses a 36-column grid system.** To fill the full width of the dashboard, set `w: 36`. Many layouts incorrectly use smaller widths (like 24 or 30), leaving empty space on the right side of the dashboard.
 
 - **x**: Column position (0-35)
 - **y**: Row position (0+)
-- **w**: Width in columns (1-36)
-- **h**: Height in rows
+- **w**: Width in columns (1-36). **Use 36 for full-width tiles.**
+- **h**: Height in rows (minimum 1)
+
+### Width Quick Reference
+
+| Layout | Width (w) | Tiles per row |
+|--------|-----------|---------------|
+| Full width | 36 | 1 |
+| Half width | 18 | 2 |
+| Third width | 12 | 3 |
+| Quarter width | 9 | 4 |
+| Sixth width | 6 | 6 |
+
+**Note:** The default tile width in Lightdash is 15 columns, which is less than half the grid. When creating dashboards, always explicitly set widths to fill the available space.
 
 ### Common Layouts
 
-**Full width:**
+**Full width (w: 36):**
 ```yaml
 x: 0, y: 0, w: 36, h: 6
 ```
 
-**Two columns:**
+**Two columns (w: 18 each, total: 36):**
 ```yaml
 # Left half
 x: 0, y: 0, w: 18, h: 6
@@ -132,14 +144,14 @@ x: 0, y: 0, w: 18, h: 6
 x: 18, y: 0, w: 18, h: 6
 ```
 
-**Three columns:**
+**Three columns (w: 12 each, total: 36):**
 ```yaml
 x: 0, y: 0, w: 12, h: 6
 x: 12, y: 0, w: 12, h: 6
 x: 24, y: 0, w: 12, h: 6
 ```
 
-**Four columns (KPIs):**
+**Four columns/KPIs (w: 9 each, total: 36):**
 ```yaml
 x: 0, y: 0, w: 9, h: 3
 x: 9, y: 0, w: 9, h: 3
