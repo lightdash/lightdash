@@ -1,3 +1,10 @@
+# [0.2394.0](https://github.com/lightdash/lightdash/compare/0.2393.0...0.2394.0) (2026-01-29)
+
+
+### Features
+
+* add clear button for dashboard filters and auto-disable when empty ([#19633](https://github.com/lightdash/lightdash/issues/19633)) ([e8d125e](https://github.com/lightdash/lightdash/commit/e8d125e323503a3998b1bb398361cb543164d894))
+
 # [0.2393.0](https://github.com/lightdash/lightdash/compare/0.2392.0...0.2393.0) (2026-01-29)
 
 
