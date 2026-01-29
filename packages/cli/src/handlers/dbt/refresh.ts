@@ -101,6 +101,9 @@ export const refreshHandler = async (options: RefreshHandlerOptions) => {
     }
     const projectUuid = config.context.project;
 
+    // Log current project info
+    GlobalState.logProjectInfo(config);
+
     const project = await getProject(projectUuid);
 
     if (project.dbtConnection.type === DbtProjectType.NONE) {

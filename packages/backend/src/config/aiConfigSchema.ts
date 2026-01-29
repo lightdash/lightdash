@@ -28,6 +28,7 @@ export const aiCopilotConfigSchema = z
                         .default(DEFAULT_OPENAI_EMBEDDING_MODEL),
                     baseUrl: z.string().optional(),
                     availableModels: z.array(z.string()).optional(),
+                    zeroDataRetention: z.boolean().default(false),
                 })
                 .optional(),
             azure: z

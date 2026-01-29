@@ -40,6 +40,12 @@ export const getOpenaiGptmodel = (
                     reasoningSummary: 'auto',
                     reasoningEffort,
                 }),
+                // ZDR: use encrypted reasoning items instead of server-stored IDs
+                ...(config.zeroDataRetention &&
+                    reasoningEnabled && {
+                        store: false,
+                        include: ['reasoning.encrypted_content'],
+                    }),
             },
         },
     };

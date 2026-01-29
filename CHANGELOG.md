@@ -1,3 +1,66 @@
+## [0.2394.2](https://github.com/lightdash/lightdash/compare/0.2394.1...0.2394.2) (2026-01-29)
+
+
+### Bug Fixes
+
+* map zoom-button contrast in dark mode ([#19801](https://github.com/lightdash/lightdash/issues/19801)) ([82ee6a8](https://github.com/lightdash/lightdash/commit/82ee6a89242b780f5c27c4867bb1c050e98a9021))
+
+## [0.2394.1](https://github.com/lightdash/lightdash/compare/0.2394.0...0.2394.1) (2026-01-29)
+
+
+### Bug Fixes
+
+* remove file-level ACLs in s3 uploads ([#19797](https://github.com/lightdash/lightdash/issues/19797)) ([a5dbbb9](https://github.com/lightdash/lightdash/commit/a5dbbb9603ca9ab882c253c3832aa96ebabcebaa))
+
+# [0.2394.0](https://github.com/lightdash/lightdash/compare/0.2393.0...0.2394.0) (2026-01-29)
+
+
+### Features
+
+* add clear button for dashboard filters and auto-disable when empty ([#19633](https://github.com/lightdash/lightdash/issues/19633)) ([e8d125e](https://github.com/lightdash/lightdash/commit/e8d125e323503a3998b1bb398361cb543164d894))
+
+# [0.2393.0](https://github.com/lightdash/lightdash/compare/0.2392.0...0.2393.0) (2026-01-29)
+
+
+### Features
+
+* add OpenAI zero data retention option ([#19774](https://github.com/lightdash/lightdash/issues/19774)) ([22146be](https://github.com/lightdash/lightdash/commit/22146bedc4da3764e1f0a378b1fe65edd6537fae))
+
+# [0.2392.0](https://github.com/lightdash/lightdash/compare/0.2391.0...0.2392.0) (2026-01-29)
+
+
+### Features
+
+* add support for dbt version 1.11 ([#19120](https://github.com/lightdash/lightdash/issues/19120)) ([03f7428](https://github.com/lightdash/lightdash/commit/03f74281773c7eb8d37992ad45dd941f6cd018a6))
+
+# [0.2391.0](https://github.com/lightdash/lightdash/compare/0.2390.0...0.2391.0) (2026-01-29)
+
+
+### Features
+
+* configure help menu icon behavior ([#19731](https://github.com/lightdash/lightdash/issues/19731)) ([ec3ac3c](https://github.com/lightdash/lightdash/commit/ec3ac3c3b4455bd883c7e3c2d0cc815839b2f3c6))
+
+# [0.2390.0](https://github.com/lightdash/lightdash/compare/0.2389.4...0.2390.0) (2026-01-29)
+
+
+### Features
+
+* add PARTIAL_SUCCESS status for explores with warnings ([#19781](https://github.com/lightdash/lightdash/issues/19781)) ([a0303bf](https://github.com/lightdash/lightdash/commit/a0303bfed38148cb8b1be74c205844367687ca12))
+
+## [0.2389.4](https://github.com/lightdash/lightdash/compare/0.2389.3...0.2389.4) (2026-01-29)
+
+
+### Bug Fixes
+
+* allow `upsertDashboardAsCode` with orphan charts ([#19780](https://github.com/lightdash/lightdash/issues/19780)) ([7032bcb](https://github.com/lightdash/lightdash/commit/7032bcb7eb0f6a707c88f1411685127323a8411a))
+
+## [0.2389.3](https://github.com/lightdash/lightdash/compare/0.2389.2...0.2389.3) (2026-01-29)
+
+
+### Bug Fixes
+
+* add pre-wrap style to SuboptimalState description text ([#19773](https://github.com/lightdash/lightdash/issues/19773)) ([88a4648](https://github.com/lightdash/lightdash/commit/88a4648f231de181386aaed215bd806d26e9e64b))
+
 ## [0.2389.2](https://github.com/lightdash/lightdash/compare/0.2389.1...0.2389.2) (2026-01-28)
 
 

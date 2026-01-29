@@ -64,18 +64,17 @@ const SuboptimalState: FC<Props> = ({
             )}
             {description && (
                 <Box c="dimmed" fz="xs" maw={400} mt={title ? -10 : 0}>
-                    {typeof description === 'string' ? (
-                        <Text
-                            size="xs"
-                            className={
-                                adaptive ? classes.description : undefined
-                            }
-                        >
-                            {description}
-                        </Text>
-                    ) : (
-                        description
-                    )}
+                    <Text
+                        size="xs"
+                        className={adaptive ? classes.description : undefined}
+                        style={
+                            // Prevent line breaks in the description
+                            // Can be custom using: SNOWFLAKE_UNAUTHORIZED_ERROR_MESSAGE
+                            { whiteSpace: 'pre-wrap' }
+                        }
+                    >
+                        {description}
+                    </Text>
                 </Box>
             )}
             {action && action}

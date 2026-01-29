@@ -110,6 +110,47 @@ const ContextMenu: FC<ContextMenuProps> = ({
         const itemFieldId = getItemId(item);
         return (
             <>
+                {isMetric(item) && !isPopAdditionalMetric ? (
+                    <>
+                        <Tooltip
+                            disabled={!hasExistingPopForMetric}
+                            label="This metric already has a period comparison"
+                        >
+                            <Menu.Item
+                                icon={<MantineIcon icon={IconTimelineEvent} />}
+                                rightSection={
+                                    <Box ml="sm">
+                                        <BetaBadge tooltipLabel="" />
+                                    </Box>
+                                }
+                                sx={
+                                    hasExistingPopForMetric
+                                        ? {
+                                              opacity: 0.5,
+                                              cursor: 'not-allowed',
+                                          }
+                                        : undefined
+                                }
+                                onClick={() => {
+                                    if (hasExistingPopForMetric) return;
+                                    dispatch(
+                                        explorerActions.togglePeriodOverPeriodComparisonModal(
+                                            {
+                                                metric: item,
+                                                itemsMap: itemsMap,
+                                            },
+                                        ),
+                                    );
+                                }}
+                            >
+                                Add period comparison
+                            </Menu.Item>
+                        </Tooltip>
+
+                        <Menu.Divider />
+                    </>
+                ) : null}
+
                 {isFilterableField(item) && !isPopAdditionalMetric && (
                     <>
                         <Menu.Item
@@ -175,47 +216,6 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     >
                         Edit custom metric
                     </Menu.Item>
-                ) : null}
-
-                {isMetric(item) && !isPopAdditionalMetric ? (
-                    <>
-                        <Tooltip
-                            disabled={!hasExistingPopForMetric}
-                            label="This metric already has a period comparison"
-                        >
-                            <Menu.Item
-                                icon={<MantineIcon icon={IconTimelineEvent} />}
-                                rightSection={
-                                    <Box ml="sm">
-                                        <BetaBadge tooltipLabel="" />
-                                    </Box>
-                                }
-                                sx={
-                                    hasExistingPopForMetric
-                                        ? {
-                                              opacity: 0.5,
-                                              cursor: 'not-allowed',
-                                          }
-                                        : undefined
-                                }
-                                onClick={() => {
-                                    if (hasExistingPopForMetric) return;
-                                    dispatch(
-                                        explorerActions.togglePeriodOverPeriodComparisonModal(
-                                            {
-                                                metric: item,
-                                                itemsMap: itemsMap,
-                                            },
-                                        ),
-                                    );
-                                }}
-                            >
-                                Add period comparison
-                            </Menu.Item>
-                        </Tooltip>
-
-                        <Menu.Divider />
-                    </>
                 ) : null}
 
                 <Menu.Item

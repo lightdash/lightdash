@@ -53,7 +53,6 @@ export class S3Client extends S3BaseClient {
                 Key: fileId,
                 Body: file,
                 ContentType: fileOpts.contentType,
-                ACL: 'private',
                 ContentDisposition: createContentDispositionHeader(
                     fileOpts.attachmentDownloadName || fileId,
                 ),
@@ -193,7 +192,6 @@ export class S3Client extends S3BaseClient {
                 Key: fileId,
                 Body: buffer,
                 ContentType: `application/jsonl`,
-                ACL: 'private',
                 ContentDisposition: createContentDispositionHeader(fileId),
             },
         });

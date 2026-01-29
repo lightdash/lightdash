@@ -235,7 +235,8 @@ jobs:
 Bring existing UI-created content into version control.
 
 ```bash
-# 1. Set project to download from
+# 1. List available projects and set project to download from
+lightdash config list-projects
 lightdash config set-project --name "Production"
 
 # 2. Download content
@@ -287,6 +288,9 @@ Separate dev, staging, and production projects with promotion workflow.
 ### Manual Promotion
 
 ```bash
+# List available projects (excludes preview projects)
+lightdash config list-projects
+
 # Development
 lightdash config set-project --name "Dev"
 lightdash deploy --target dev

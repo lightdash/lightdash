@@ -23,7 +23,9 @@ import { diagnosticsHandler } from './handlers/diagnostics';
 import { downloadHandler, uploadHandler } from './handlers/download';
 import { generateHandler } from './handlers/generate';
 import { generateExposuresHandler } from './handlers/generateExposures';
+import { getProjectHandler } from './handlers/getProject';
 import { lintHandler } from './handlers/lint';
+import { listProjectsHandler } from './handlers/listProjects';
 import { login } from './handlers/login';
 import {
     previewHandler,
@@ -100,55 +102,55 @@ program
         `
 ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold('generate')} ${styles.secondary(
-      '-- generates .yml file for all dbt models',
-  )}
+            '-- generates .yml file for all dbt models',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'generate',
-  )} -s mymodel ${styles.secondary(
-      '-- generates .yml file for a single dbt model',
-  )}
+            'generate',
+        )} -s mymodel ${styles.secondary(
+            '-- generates .yml file for a single dbt model',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'generate',
-  )} -s model1 model2 ${styles.secondary(
-      '-- generates .yml for multiple dbt models',
-  )}
+            'generate',
+        )} -s model1 model2 ${styles.secondary(
+            '-- generates .yml for multiple dbt models',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'generate',
-  )} -s tag:sales ${styles.secondary(
-      '-- generates .yml for all dbt models tagged as sales',
-  )}
+            'generate',
+        )} -s tag:sales ${styles.secondary(
+            '-- generates .yml for all dbt models tagged as sales',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'generate',
-  )} -s +mymodel ${styles.secondary(
-      "-- generates .yml for mymodel and all it's parents",
-  )}
+            'generate',
+        )} -s +mymodel ${styles.secondary(
+            "-- generates .yml for mymodel and all it's parents",
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'generate',
-  )} --help ${styles.secondary(
-      '-- shows detailed help for the "generate" command',
-  )}
+            'generate',
+        )} --help ${styles.secondary(
+            '-- shows detailed help for the "generate" command',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold('dbt run')} ${styles.secondary(
-      '-- runs dbt for all models and updates .yml for all models',
-  )}
+            '-- runs dbt for all models and updates .yml for all models',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'dbt run',
-  )} -s model1 model2+ tag:dev ${styles.secondary(
-      '-- runs dbt for models and generates .yml for affected models',
-  )}
+            'dbt run',
+        )} -s model1 model2+ tag:dev ${styles.secondary(
+            '-- runs dbt for models and generates .yml for affected models',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'dbt run',
-  )} --help ${styles.secondary(
-      '-- shows detailed help for the "dbt run" command',
-  )}
+            'dbt run',
+        )} --help ${styles.secondary(
+            '-- shows detailed help for the "dbt run" command',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold('compile')} ${styles.secondary(
-      '-- compiles Lightdash metrics and dimensions',
-  )}
+            '-- compiles Lightdash metrics and dimensions',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold('deploy')} ${styles.secondary(
-      '-- compiles and deploys Lightdash metrics to active project',
-  )}
+            '-- compiles and deploys Lightdash metrics to active project',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'login https://lightdash.domain.com',
-  )} ${styles.secondary('-- logs in to a Lightdash instance')}
+            'login https://lightdash.domain.com',
+        )} ${styles.secondary('-- logs in to a Lightdash instance')}
 `,
     );
 
@@ -164,34 +166,38 @@ program
         `
 ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold('login')} ${styles.secondary(
-      '-- Uses previously saved URL (opens browser for OAuth)',
-  )}
-  ${styles.title('⚡')}️lightdash ${styles.bold('login')} app ${styles.secondary(
-      '-- Short form for https://app.lightdash.cloud (opens browser for OAuth)',
-  )}
-  ${styles.title('⚡')}️lightdash ${styles.bold('login')} eu1 ${styles.secondary(
-      '-- Short form for https://eu1.lightdash.cloud (opens browser for OAuth)',
-  )}
+            '-- Uses previously saved URL (opens browser for OAuth)',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'login',
-  )} app.lightdash.cloud ${styles.secondary(
-      '-- Adds https:// automatically (opens browser for OAuth)',
-  )}
+            'login',
+        )} app ${styles.secondary(
+            '-- Short form for https://app.lightdash.cloud (opens browser for OAuth)',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'login',
-  )} https://custom.lightdash.domain/projects/123 ${styles.secondary(
-      '-- Strips path, uses https://custom.lightdash.domain (opens browser for OAuth)',
-  )}
+            'login',
+        )} eu1 ${styles.secondary(
+            '-- Short form for https://eu1.lightdash.cloud (opens browser for OAuth)',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'login',
-  )} http://localhost:3000 ${styles.secondary(
-      '-- Preserves http protocol for local development',
-  )}
+            'login',
+        )} app.lightdash.cloud ${styles.secondary(
+            '-- Adds https:// automatically (opens browser for OAuth)',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'login',
-  )} --token 12345 ${styles.secondary(
-      '-- Logs in with API token using saved URL (bypasses OAuth)',
-  )}
+            'login',
+        )} https://custom.lightdash.domain/projects/123 ${styles.secondary(
+            '-- Strips path, uses https://custom.lightdash.domain (opens browser for OAuth)',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'login',
+        )} http://localhost:3000 ${styles.secondary(
+            '-- Preserves http protocol for local development',
+        )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+            'login',
+        )} --token 12345 ${styles.secondary(
+            '-- Logs in with API token using saved URL (bypasses OAuth)',
+        )}
 `,
     )
     .option('--token <token>', 'Login with an API access token', undefined)
@@ -227,6 +233,18 @@ configProgram
         ).conflicts('name'),
     )
     .action(setProjectHandler);
+configProgram
+    .command('list-projects')
+    .description(
+        'List all projects in the organization (excludes preview projects)',
+    )
+    .option('--verbose', undefined, false)
+    .action(listProjectsHandler);
+configProgram
+    .command('get-project')
+    .description('Show the currently selected project')
+    .option('--verbose', undefined, false)
+    .action(getProjectHandler);
 
 const dbtProgram = program.command('dbt').description('Runs dbt commands');
 
@@ -238,26 +256,28 @@ dbtProgram
         `
 ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold('dbt run')} ${styles.secondary(
-      '-- run all models and generate .yml files',
-  )}
+            '-- run all models and generate .yml files',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'dbt run',
-  )} -s mymodel ${styles.secondary('-- runs a single model and generates .yml')}
+            'dbt run',
+        )} -s mymodel ${styles.secondary(
+            '-- runs a single model and generates .yml',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'dbt run',
-  )} -s model1 model2 ${styles.secondary(
-      '-- runs multiple models and generates .yml',
-  )}
+            'dbt run',
+        )} -s model1 model2 ${styles.secondary(
+            '-- runs multiple models and generates .yml',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'dbt run',
-  )} -s tag:sales ${styles.secondary(
-      '-- runs all models tagged as "sales" and generates .yml',
-  )}
+            'dbt run',
+        )} -s tag:sales ${styles.secondary(
+            '-- runs all models tagged as "sales" and generates .yml',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'dbt run',
-  )} -s +mymodel ${styles.secondary(
-      '-- runs mymodel and its parents and generates .yml',
-  )}
+            'dbt run',
+        )} -s +mymodel ${styles.secondary(
+            '-- runs mymodel and its parents and generates .yml',
+        )}
 `,
     )
     .option(
@@ -884,28 +904,28 @@ program
         `
 ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold('generate')} ${styles.secondary(
-      '-- generates .yml file for all dbt models',
-  )}
+            '-- generates .yml file for all dbt models',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'generate',
-  )} -s mymodel ${styles.secondary(
-      '-- generates .yml file for a single dbt model',
-  )}
+            'generate',
+        )} -s mymodel ${styles.secondary(
+            '-- generates .yml file for a single dbt model',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'generate',
-  )} -s model1 model2 ${styles.secondary(
-      '-- generates .yml for multiple dbt models',
-  )}
+            'generate',
+        )} -s model1 model2 ${styles.secondary(
+            '-- generates .yml for multiple dbt models',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'generate',
-  )} -s tag:sales ${styles.secondary(
-      '-- generates .yml for all dbt models tagged as sales',
-  )}
+            'generate',
+        )} -s tag:sales ${styles.secondary(
+            '-- generates .yml for all dbt models tagged as sales',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'generate',
-  )} -s +mymodel ${styles.secondary(
-      "-- generates .yml for mymodel and all it's parents",
-  )}
+            'generate',
+        )} -s +mymodel ${styles.secondary(
+            "-- generates .yml for mymodel and all it's parents",
+        )}
 `,
     )
 
@@ -993,8 +1013,10 @@ program
         `
 ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'generate-exposures',
-  )} ${styles.secondary('-- generates .yml file for all lightdash exposures')}
+            'generate-exposures',
+        )} ${styles.secondary(
+            '-- generates .yml file for all lightdash exposures',
+        )}
 `,
     )
     .option(
@@ -1018,18 +1040,18 @@ program
         `
 ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'diagnostics',
-  )} ${styles.secondary(
-      '-- shows CLI version, Node.js version, and auth status',
-  )}
+            'diagnostics',
+        )} ${styles.secondary(
+            '-- shows CLI version, Node.js version, and auth status',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'diagnostics',
-  )} --dbt ${styles.secondary('-- includes dbt debug output')}
+            'diagnostics',
+        )} --dbt ${styles.secondary('-- includes dbt debug output')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'diagnostics',
-  )} --dbt --project-dir ./my-dbt-project ${styles.secondary(
-      '-- runs dbt debug with custom project directory',
-  )}
+            'diagnostics',
+        )} --dbt --project-dir ./my-dbt-project ${styles.secondary(
+            '-- runs dbt debug with custom project directory',
+        )}
 `,
     )
     .option('--dbt', 'Include dbt debug information', false)
@@ -1065,24 +1087,26 @@ program
         `
 ${styles.bold('Examples:')}
   ${styles.title('⚡')}️lightdash ${styles.bold('lint')} ${styles.secondary(
-      '-- validates all Lightdash Code files in current directory',
-  )}
+            '-- validates all Lightdash Code files in current directory',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'lint',
-  )} --path ./chart.yml ${styles.secondary('-- validates a single chart file')}
+            'lint',
+        )} --path ./chart.yml ${styles.secondary(
+            '-- validates a single chart file',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'lint',
-  )} --path ./lightdash ${styles.secondary(
-      '-- validates files in a specific directory',
-  )}
+            'lint',
+        )} --path ./lightdash ${styles.secondary(
+            '-- validates files in a specific directory',
+        )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'lint',
-  )} --verbose ${styles.secondary('-- shows detailed validation output')}
+            'lint',
+        )} --verbose ${styles.secondary('-- shows detailed validation output')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
-      'lint',
-  )} --format json ${styles.secondary(
-      '-- outputs results in SARIF JSON format',
-  )}
+            'lint',
+        )} --format json ${styles.secondary(
+            '-- outputs results in SARIF JSON format',
+        )}
 `,
     )
     .option(
