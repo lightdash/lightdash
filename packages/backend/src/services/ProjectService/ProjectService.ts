@@ -175,6 +175,7 @@ import {
     exchangeDatabricksOAuthCredentials,
     refreshDatabricksOAuthToken,
     SshTunnel,
+    warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';
@@ -2409,13 +2410,16 @@ export class ProjectService extends BaseService {
         args: {
             account: Account;
             // ! TODO: we need to fix this type
-            body: MetricQuery & { parameters?: ParametersValuesMap };
+            body: MetricQuery & {
+                parameters?: ParametersValuesMap;
+                pivotConfiguration?: PivotConfiguration;
+            };
             projectUuid: string;
         } & ({ exploreName: string } | { explore: Explore }),
     ) {
         const {
             account,
-            body: { parameters, ...metricQuery },
+            body: { parameters, pivotConfiguration, ...metricQuery },
             projectUuid,
         } = args;
 
@@ -2445,17 +2449,15 @@ export class ProjectService extends BaseService {
                 ? args.explore
                 : await this.getExplore(account, projectUuid, args.exploreName);
 
-        const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
-            projectUuid,
-            await this.getWarehouseCredentials({
+        // Get warehouse credentials to build the SQL builder (no full connection needed for compilation)
+        const warehouseCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
                 projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-            }),
-            {
-                snowflakeVirtualWarehouse: explore.warehouse,
-                databricksCompute: explore.databricksCompute,
-            },
+            );
+
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
         );
 
         const { userAttributes, intrinsicUserAttributes } =
@@ -2469,7 +2471,7 @@ export class ProjectService extends BaseService {
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
             explore,
-            warehouseSqlBuilder: warehouseClient,
+            warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes,
             timezone: this.lightdashConfig.query.timezone || 'UTC',
@@ -2478,7 +2480,20 @@ export class ProjectService extends BaseService {
             continueOnError: true, // Return SQL even with compilation errors for debugging
         });
 
-        await sshTunnel.disconnect();
+        // Generate pivot query if pivot configuration is provided
+        let pivotQuery: string | undefined;
+        if (pivotConfiguration) {
+            const pivotQueryBuilder = new PivotQueryBuilder(
+                compiledQuery.query,
+                pivotConfiguration,
+                warehouseSqlBuilder,
+                metricQuery.limit,
+                compiledQuery.fields,
+            );
+            pivotQuery = pivotQueryBuilder.toSql({
+                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+            });
+        }
 
         return {
             ...compiledQuery,
@@ -2488,6 +2503,8 @@ export class ProjectService extends BaseService {
             ...(compiledQuery.compilationErrors.length > 0 && {
                 compilationErrors: compiledQuery.compilationErrors,
             }),
+            // Include pivot query if pivot configuration was provided
+            ...(pivotQuery && { pivotQuery }),
         };
     }
 

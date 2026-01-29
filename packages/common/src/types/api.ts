@@ -215,6 +215,7 @@ export type UpdateMetadata = {
 };
 export type ApiCompiledQueryResults = {
     query: string;
+    pivotQuery?: string;
     parameterReferences: string[];
     compilationErrors?: string[];
 };
