@@ -1,3 +1,15 @@
+# [0.2398.0](https://github.com/lightdash/lightdash/compare/0.2397.1...0.2398.0) (2026-01-29)
+
+
+### Bug Fixes
+
+* take metricsAsRows when calculating column limit ([#19739](https://github.com/lightdash/lightdash/issues/19739)) ([03f1af4](https://github.com/lightdash/lightdash/commit/03f1af4662023aa4225b544f4dade462ce4f786f))
+
+
+### Features
+
+* add pivot sql to compile sql endpoint ([#19743](https://github.com/lightdash/lightdash/issues/19743)) ([cc8dc36](https://github.com/lightdash/lightdash/commit/cc8dc36884a2199fb557706ffa9b7dfc1cc8738e))
+
 ## [0.2397.1](https://github.com/lightdash/lightdash/compare/0.2397.0...0.2397.1) (2026-01-29)
 
 
