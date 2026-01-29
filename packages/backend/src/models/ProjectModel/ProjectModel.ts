@@ -514,6 +514,7 @@ export class ProjectModel {
                     slug,
                     parent_space_uuid: null,
                     path,
+                    inherit_parent_permissions: true,
                 });
             }
 

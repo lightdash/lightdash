@@ -13,6 +13,7 @@ export type DbSpace = {
     slug: string;
     parent_space_uuid: string | null;
     path: string;
+    inherit_parent_permissions: boolean;
 };
 
 export type CreateDbSpace = Pick<
@@ -24,6 +25,7 @@ export type CreateDbSpace = Pick<
     | 'slug'
     | 'parent_space_uuid'
     | 'path'
+    | 'inherit_parent_permissions'
 >;
 
 export type UpdateDbSpace = Partial<Pick<DbSpace, 'name' | 'is_private'>>;
