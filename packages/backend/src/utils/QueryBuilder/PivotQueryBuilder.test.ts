@@ -974,32 +974,6 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain('"date"');
         });
 
-        test('Should throw error for undefined index column', () => {
-            const pivotConfiguration = {
-                indexColumn: undefined,
-                valuesColumns: [
-                    {
-                        reference: 'event_id',
-                        aggregation: VizAggregationOptions.SUM,
-                    },
-                ],
-                groupByColumns: undefined,
-                sortBy: undefined,
-            };
-
-            const builder = new PivotQueryBuilder(
-                baseSql,
-                pivotConfiguration,
-                mockWarehouseSqlBuilder,
-            );
-
-            // Should throw an error since no index columns are provided
-            expect(() => builder.toSql()).toThrow(ParameterError);
-            expect(() => builder.toSql()).toThrow(
-                'At least one valid index column is required',
-            );
-        });
-
         test('Should throw error when index and group by columns overlap', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
@@ -1027,8 +1001,8 @@ SELECT * FROM group_by_query LIMIT 50`);
         });
     });
 
-    describe('Validation', () => {
-        test('Should throw error when indexColumn is undefined', () => {
+    describe('Pivoting without index columns', () => {
+        test('Should support undefined indexColumn when groupBy columns are present', () => {
             const pivotConfiguration = {
                 indexColumn: undefined,
                 valuesColumns: [
@@ -1046,14 +1020,17 @@ SELECT * FROM group_by_query LIMIT 50`);
                 pivotConfiguration,
                 mockWarehouseSqlBuilder,
             );
+            const result = builder.toSql();
 
-            expect(() => builder.toSql()).toThrow(ParameterError);
-            expect(() => builder.toSql()).toThrow(
-                'At least one valid index column is required',
+            // Should generate a full pivot query with a constant row_index (no index columns)
+            expect(result).toContain('pivot_query AS (');
+            expect(result).toContain('1 AS "row_index"');
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."event_type" asc) as "column_index"',
             );
         });
 
-        test('Should throw error when indexColumns array is empty', () => {
+        test('Should support empty indexColumns array when groupBy columns are present', () => {
             const pivotConfiguration = {
                 indexColumn: [],
                 valuesColumns: [
@@ -1071,10 +1048,13 @@ SELECT * FROM group_by_query LIMIT 50`);
                 pivotConfiguration,
                 mockWarehouseSqlBuilder,
             );
+            const result = builder.toSql();
 
-            expect(() => builder.toSql()).toThrow(ParameterError);
-            expect(() => builder.toSql()).toThrow(
-                'At least one valid index column is required',
+            // Should generate a full pivot query with a constant row_index (no index columns)
+            expect(result).toContain('pivot_query AS (');
+            expect(result).toContain('1 AS "row_index"');
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."event_type" asc) as "column_index"',
             );
         });
     });
