@@ -23,6 +23,7 @@ import { diagnosticsHandler } from './handlers/diagnostics';
 import { downloadHandler, uploadHandler } from './handlers/download';
 import { generateHandler } from './handlers/generate';
 import { generateExposuresHandler } from './handlers/generateExposures';
+import { getProjectHandler } from './handlers/getProject';
 import { lintHandler } from './handlers/lint';
 import { listProjectsHandler } from './handlers/listProjects';
 import { login } from './handlers/login';
@@ -239,6 +240,11 @@ configProgram
     )
     .option('--verbose', undefined, false)
     .action(listProjectsHandler);
+configProgram
+    .command('get-project')
+    .description('Show the currently selected project')
+    .option('--verbose', undefined, false)
+    .action(getProjectHandler);
 
 const dbtProgram = program.command('dbt').description('Runs dbt commands');
 
