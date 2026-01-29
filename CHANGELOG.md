@@ -1,3 +1,10 @@
+## [0.2399.3](https://github.com/lightdash/lightdash/compare/0.2399.2...0.2399.3) (2026-01-29)
+
+
+### Bug Fixes
+
+* add config for all charts as code ([#19828](https://github.com/lightdash/lightdash/issues/19828)) ([ec5bffe](https://github.com/lightdash/lightdash/commit/ec5bffe05fa60797092c14cd27d84554cd4bc6d2))
+
 ## [0.2399.2](https://github.com/lightdash/lightdash/compare/0.2399.1...0.2399.2) (2026-01-29)
 
 
