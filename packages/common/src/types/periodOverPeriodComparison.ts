@@ -56,8 +56,11 @@ export const isSupportedPeriodOverPeriodGranularity = (
     granularity: TimeFrames,
 ) => validPeriodOverPeriodGranularities.includes(granularity);
 
-export const buildPopAdditionalMetricName = (baseMetricName: string) =>
-    `${baseMetricName}__pop`;
+export const buildPopAdditionalMetricName = (
+    baseMetricName: string,
+    granularity: TimeFrames,
+    periodOffset: number,
+) => `${baseMetricName}__pop_${granularity}_${periodOffset}`;
 
 export const getPopPeriodLabel = (
     granularity: TimeFrames,
@@ -92,7 +95,11 @@ export const buildPopAdditionalMetric = ({
     periodOffset: number;
 }): { additionalMetric: AdditionalMetric; metricId: string } => {
     const baseMetricId = getItemId(metric);
-    const popName = buildPopAdditionalMetricName(metric.name);
+    const popName = buildPopAdditionalMetricName(
+        metric.name,
+        granularity,
+        periodOffset,
+    );
     const popMetricId = getItemId({ table: metric.table, name: popName });
 
     const additionalMetric: AdditionalMetric = {

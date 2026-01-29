@@ -1,5 +1,4 @@
 import {
-    buildPopAdditionalMetricName,
     DimensionType,
     getItemId,
     getItemLabelWithoutTableName,
@@ -101,9 +100,12 @@ const ContextMenu: FC<ContextMenuProps> = ({
     // Check if a PoP metric already exists for this base metric
     const hasExistingPopForMetric = useMemo(() => {
         if (!item || !isMetric(item)) return false;
-        const expectedPopName = buildPopAdditionalMetricName(item.name);
-        const expectedPopId = `${item.table}_${expectedPopName}`;
-        return additionalMetrics?.some((am) => getItemId(am) === expectedPopId);
+        const itemId = getItemId(item);
+        return additionalMetrics?.some(
+            (am) =>
+                isPeriodOverPeriodAdditionalMetric(am) &&
+                am.baseMetricId === itemId,
+        );
     }, [item, additionalMetrics]);
 
     if (item && isField(item)) {

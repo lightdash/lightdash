@@ -5,6 +5,7 @@ import {
     getItemId,
     getPopPeriodLabel,
     isDimension,
+    isPeriodOverPeriodAdditionalMetric,
     isSupportedPeriodOverPeriodGranularity,
     timeFrameConfigs,
     type Dimension,
@@ -13,6 +14,7 @@ import {
     type TimeFrames,
 } from '@lightdash/common';
 import {
+    Alert,
     Group,
     NumberInput,
     Select,
@@ -20,12 +22,13 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { IconTimelineEvent } from '@tabler/icons-react';
+import { IconInfoCircle, IconTimelineEvent } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import {
     explorerActions,
     selectAdditionalMetrics,
     selectDimensions,
+    selectMetrics,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
@@ -37,8 +40,30 @@ const PeriodOverPeriodComparisonModalContent: FC<{
 }> = ({ metric, itemsMap }) => {
     const dispatch = useExplorerDispatch();
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
+    const selectedMetricIds = useExplorerSelector(selectMetrics);
 
     const selectedDimensions = useExplorerSelector(selectDimensions);
+
+    // Detect existing PoP configuration from selected additional metrics.
+    // The backend requires all PoP configs in a query to match, so we take
+    // the config from the first selected PoP metric (if any).
+    const existingPopConfig = useMemo(() => {
+        const selectedPopMetrics = additionalMetrics.filter(
+            (am) =>
+                isPeriodOverPeriodAdditionalMetric(am) &&
+                selectedMetricIds.includes(getItemId(am)),
+        );
+        if (selectedPopMetrics.length === 0) return null;
+        const first = selectedPopMetrics[0];
+        if (!isPeriodOverPeriodAdditionalMetric(first)) return null;
+        return {
+            timeDimensionId: first.timeDimensionId,
+            granularity: first.granularity,
+            periodOffset: first.periodOffset,
+        };
+    }, [additionalMetrics, selectedMetricIds]);
+
+    const isLockedToExistingConfig = existingPopConfig !== null;
 
     const allTimeDimensions = useMemo(() => {
         if (!itemsMap || !selectedDimensions) return [];
@@ -99,8 +124,10 @@ const PeriodOverPeriodComparisonModalContent: FC<{
 
     const [selectedTimeDimensionId, setSelectedTimeDimensionId] = useState<
         string | null
-    >(null);
-    const [periodOffset, setPeriodOffset] = useState<number>(1);
+    >(existingPopConfig?.timeDimensionId ?? null);
+    const [periodOffset, setPeriodOffset] = useState<number>(
+        existingPopConfig?.periodOffset ?? 1,
+    );
 
     const selectedDimensionObj = useMemo(() => {
         if (!selectedTimeDimensionId || !itemsMap) return null;
@@ -137,9 +164,19 @@ const PeriodOverPeriodComparisonModalContent: FC<{
 
     const popMetricIdForSelection = useMemo(() => {
         if (!timeDimensionId || !selectedGranularity) return null;
-        const name = buildPopAdditionalMetricName(metric.name);
-        return `${metric.table}.${name}`;
-    }, [metric.name, metric.table, selectedGranularity, timeDimensionId]);
+        const name = buildPopAdditionalMetricName(
+            metric.name,
+            selectedGranularity,
+            effectivePeriodOffset,
+        );
+        return `${metric.table}_${name}`;
+    }, [
+        metric.name,
+        metric.table,
+        selectedGranularity,
+        timeDimensionId,
+        effectivePeriodOffset,
+    ]);
 
     const popAlreadyExists = useMemo(() => {
         if (!popMetricIdForSelection) return false;
@@ -194,6 +231,18 @@ const PeriodOverPeriodComparisonModalContent: FC<{
             icon={IconTimelineEvent}
         >
             <Stack>
+                {isLockedToExistingConfig && (
+                    <Alert
+                        icon={<IconInfoCircle size={16} />}
+                        color="blue"
+                        variant="light"
+                    >
+                        Period comparison settings are shared across all metrics
+                        in this query. To use different settings, remove all
+                        existing period comparisons first.
+                    </Alert>
+                )}
+
                 <Select
                     label="Time dimension"
                     placeholder={
@@ -204,10 +253,10 @@ const PeriodOverPeriodComparisonModalContent: FC<{
                     data={selectData}
                     value={selectedTimeDimensionId}
                     onChange={setSelectedTimeDimensionId}
-                    disabled={!canConfigure}
+                    disabled={!canConfigure || isLockedToExistingConfig}
                     renderOption={renderSelectOption}
                     searchable
-                    clearable
+                    clearable={!isLockedToExistingConfig}
                 />
 
                 <Group gap="xs" align="center">
@@ -221,6 +270,7 @@ const PeriodOverPeriodComparisonModalContent: FC<{
                             )
                         }
                         w={120}
+                        disabled={isLockedToExistingConfig}
                     />
                     <Text size="sm" c="dimmed" mt="lg">
                         {selectedGranularityLabel
