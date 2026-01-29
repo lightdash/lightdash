@@ -1,3 +1,10 @@
+## [0.2394.2](https://github.com/lightdash/lightdash/compare/0.2394.1...0.2394.2) (2026-01-29)
+
+
+### Bug Fixes
+
+* map zoom-button contrast in dark mode ([#19801](https://github.com/lightdash/lightdash/issues/19801)) ([82ee6a8](https://github.com/lightdash/lightdash/commit/82ee6a89242b780f5c27c4867bb1c050e98a9021))
+
 ## [0.2394.1](https://github.com/lightdash/lightdash/compare/0.2394.0...0.2394.1) (2026-01-29)
 
 
