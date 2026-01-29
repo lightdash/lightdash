@@ -3,6 +3,7 @@ import {
     AbilityAction,
     BulkActionable,
     CreateSpace,
+    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     ParameterError,
@@ -15,6 +16,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -25,6 +27,7 @@ type SpaceServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     pinnedListModel: PinnedListModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export const hasDirectAccessToSpace = (
@@ -76,12 +79,15 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
 
     private readonly pinnedListModel: PinnedListModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     constructor(args: SpaceServiceArguments) {
         super();
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.pinnedListModel = args.pinnedListModel;
+        this.featureFlagModel = args.featureFlagModel;
     }
 
     /** @internal For unit testing only */
@@ -238,6 +244,31 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        // Copy permissions when disabling inheritance (inherit: true -> false)
+        // This ensures users don't lose access when switching to explicit permissions
+        if (
+            updateSpace.inheritParentPermissions === false &&
+            space.inheritParentPermissions === true &&
+            isNested
+        ) {
+            // Get all effective permissions from inheritance chain
+            const effectiveAccess =
+                await this.spaceModel.getEffectiveSpaceAccess(spaceUuid);
+
+            // Copy inherited permissions as explicit permissions on this space
+            for (const access of effectiveAccess) {
+                // Only copy if user doesn't already have direct access to this space
+                if (!access.hasDirectAccess) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.spaceModel.addSpaceAccess(
+                        spaceUuid,
+                        access.userUuid,
+                        access.role,
+                    );
+                }
+            }
         }
 
         const updatedSpace = await this.spaceModel.update(
@@ -430,9 +461,17 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             user.userUuid,
             spaceUuid,
         );
-        // Nested Spaces MVP - disables nested spaces' access changes
+
+        // Check feature flag - when ON, nested spaces can have additive permissions
+        const { enabled: isInheritanceEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.NestedSpacesPermissions,
+            });
+
+        // Nested Spaces MVP - disables nested spaces' access changes (unless inheritance flag is ON)
         const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
-        if (isNested) {
+        if (isNested && !isInheritanceEnabled) {
             throw new ForbiddenError(
                 `Can't change user access to a nested space`,
             );
@@ -466,9 +505,17 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             user.userUuid,
             spaceUuid,
         );
-        // Nested Spaces MVP - disables nested spaces' access changes
+
+        // Check feature flag - when ON, nested spaces can have additive permissions
+        const { enabled: isInheritanceEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.NestedSpacesPermissions,
+            });
+
+        // Nested Spaces MVP - disables nested spaces' access changes (unless inheritance flag is ON)
         const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
-        if (isNested) {
+        if (isNested && !isInheritanceEnabled) {
             throw new ForbiddenError(
                 `Can't change user access to a nested space`,
             );
@@ -499,9 +546,17 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             user.userUuid,
             spaceUuid,
         );
-        // Nested Spaces MVP - disables nested spaces' access changes
+
+        // Check feature flag - when ON, nested spaces can have additive permissions
+        const { enabled: isInheritanceEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.NestedSpacesPermissions,
+            });
+
+        // Nested Spaces MVP - disables nested spaces' access changes (unless inheritance flag is ON)
         const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
-        if (isNested) {
+        if (isNested && !isInheritanceEnabled) {
             throw new ForbiddenError(
                 `Can't change group access to a nested space`,
             );
@@ -535,9 +590,17 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             user.userUuid,
             spaceUuid,
         );
-        // Nested Spaces MVP - disables nested spaces' access changes
+
+        // Check feature flag - when ON, nested spaces can have additive permissions
+        const { enabled: isInheritanceEnabled } =
+            await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.NestedSpacesPermissions,
+            });
+
+        // Nested Spaces MVP - disables nested spaces' access changes (unless inheritance flag is ON)
         const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
-        if (isNested) {
+        if (isNested && !isInheritanceEnabled) {
             throw new ForbiddenError(
                 `Can't change group access to a nested space`,
             );

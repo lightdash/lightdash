@@ -1,11 +1,11 @@
-import { NotFoundError } from '@lightdash/common';
+import { NotFoundError, type AnyType } from '@lightdash/common';
 import knex from 'knex';
 import { getTracker, MockClient, RawQuery, Tracker } from 'knex-mock-client';
 import { SpaceTableName } from '../database/entities/spaces';
-import { SpaceModel } from './SpaceModel';
+import * as SpaceModelModule from './SpaceModel';
 
 describe('SpaceModel', () => {
-    const model = new SpaceModel({
+    const model = new SpaceModelModule.SpaceModel({
         database: knex({ client: MockClient, dialect: 'pg' }),
     });
 
@@ -259,6 +259,196 @@ describe('SpaceModel', () => {
             await expect(
                 model.getInheritanceChain(spaceUuid),
             ).rejects.toThrowError(NotFoundError);
+        });
+    });
+
+    describe('update - isPrivate and inheritParentPermissions sync', () => {
+        const mockSpace = (parentSpaceUuid: string | null) => ({
+            organizationUuid: 'org-uuid',
+            name: 'Test Space',
+            uuid: 'test-space-uuid',
+            isPrivate: false,
+            projectUuid: 'project-uuid',
+            pinnedListUuid: null,
+            pinnedListOrder: null,
+            slug: 'test-space',
+            parentSpaceUuid,
+            path: parentSpaceUuid ? 'root.test' : 'test',
+            inheritParentPermissions: true,
+        });
+
+        const mockFullSpace = (parentSpaceUuid: string | null) => ({
+            ...mockSpace(parentSpaceUuid),
+            queries: [],
+            dashboards: [],
+            childSpaces: [],
+            access: [],
+            groupsAccess: [],
+            breadcrumbs: [],
+        });
+
+        // Create mock knex chain to capture update argument
+        const createMockDatabase = () => {
+            const mockWhere = jest.fn().mockResolvedValue(1);
+            const mockUpdate = jest.fn().mockReturnValue({ where: mockWhere });
+            const mockDatabase = jest.fn().mockReturnValue({
+                update: mockUpdate,
+            });
+            return { mockDatabase: mockDatabase as AnyType, mockUpdate };
+        };
+
+        describe('root space (parentSpaceUuid = null)', () => {
+            test('isPrivate=true should derive inheritParentPermissions=false', async () => {
+                const spaceUuid = 'root-space-uuid';
+                const { mockDatabase, mockUpdate } = createMockDatabase();
+
+                const testModel = new SpaceModelModule.SpaceModel({
+                    database: mockDatabase,
+                });
+
+                jest.spyOn(testModel, 'get').mockResolvedValueOnce(
+                    mockSpace(null),
+                );
+                jest.spyOn(testModel, 'getFullSpace').mockResolvedValueOnce(
+                    mockFullSpace(null),
+                );
+
+                await testModel.update(spaceUuid, { isPrivate: true });
+
+                expect(mockUpdate).toHaveBeenCalledWith({
+                    name: undefined,
+                    is_private: true,
+                    inherit_parent_permissions: false,
+                });
+            });
+
+            test('isPrivate=false should derive inheritParentPermissions=true', async () => {
+                const spaceUuid = 'root-space-uuid';
+                const { mockDatabase, mockUpdate } = createMockDatabase();
+
+                const testModel = new SpaceModelModule.SpaceModel({
+                    database: mockDatabase,
+                });
+
+                jest.spyOn(testModel, 'get').mockResolvedValueOnce(
+                    mockSpace(null),
+                );
+                jest.spyOn(testModel, 'getFullSpace').mockResolvedValueOnce(
+                    mockFullSpace(null),
+                );
+
+                await testModel.update(spaceUuid, { isPrivate: false });
+
+                expect(mockUpdate).toHaveBeenCalledWith({
+                    name: undefined,
+                    is_private: false,
+                    inherit_parent_permissions: true,
+                });
+            });
+
+            test('inheritParentPermissions=true should derive isPrivate=false', async () => {
+                const spaceUuid = 'root-space-uuid';
+                const { mockDatabase, mockUpdate } = createMockDatabase();
+
+                const testModel = new SpaceModelModule.SpaceModel({
+                    database: mockDatabase,
+                });
+
+                jest.spyOn(testModel, 'get').mockResolvedValueOnce(
+                    mockSpace(null),
+                );
+                jest.spyOn(testModel, 'getFullSpace').mockResolvedValueOnce(
+                    mockFullSpace(null),
+                );
+
+                await testModel.update(spaceUuid, {
+                    inheritParentPermissions: true,
+                });
+
+                expect(mockUpdate).toHaveBeenCalledWith({
+                    name: undefined,
+                    is_private: false,
+                    inherit_parent_permissions: true,
+                });
+            });
+
+            test('inheritParentPermissions=false should derive isPrivate=true', async () => {
+                const spaceUuid = 'root-space-uuid';
+                const { mockDatabase, mockUpdate } = createMockDatabase();
+
+                const testModel = new SpaceModelModule.SpaceModel({
+                    database: mockDatabase,
+                });
+
+                jest.spyOn(testModel, 'get').mockResolvedValueOnce(
+                    mockSpace(null),
+                );
+                jest.spyOn(testModel, 'getFullSpace').mockResolvedValueOnce(
+                    mockFullSpace(null),
+                );
+
+                await testModel.update(spaceUuid, {
+                    inheritParentPermissions: false,
+                });
+
+                expect(mockUpdate).toHaveBeenCalledWith({
+                    name: undefined,
+                    is_private: true,
+                    inherit_parent_permissions: false,
+                });
+            });
+        });
+
+        describe('child space (parentSpaceUuid != null)', () => {
+            test('isPrivate=true should always derive inheritParentPermissions=true', async () => {
+                const spaceUuid = 'child-space-uuid';
+                const { mockDatabase, mockUpdate } = createMockDatabase();
+
+                const testModel = new SpaceModelModule.SpaceModel({
+                    database: mockDatabase,
+                });
+
+                jest.spyOn(testModel, 'get').mockResolvedValueOnce(
+                    mockSpace('parent-uuid'),
+                );
+                jest.spyOn(testModel, 'getFullSpace').mockResolvedValueOnce(
+                    mockFullSpace('parent-uuid'),
+                );
+
+                await testModel.update(spaceUuid, { isPrivate: true });
+
+                expect(mockUpdate).toHaveBeenCalledWith({
+                    name: undefined,
+                    is_private: true,
+                    inherit_parent_permissions: true, // child spaces always inherit
+                });
+            });
+
+            test('inheritParentPermissions should not change isPrivate for child spaces', async () => {
+                const spaceUuid = 'child-space-uuid';
+                const { mockDatabase, mockUpdate } = createMockDatabase();
+
+                const testModel = new SpaceModelModule.SpaceModel({
+                    database: mockDatabase,
+                });
+
+                jest.spyOn(testModel, 'get').mockResolvedValueOnce(
+                    mockSpace('parent-uuid'),
+                );
+                jest.spyOn(testModel, 'getFullSpace').mockResolvedValueOnce(
+                    mockFullSpace('parent-uuid'),
+                );
+
+                await testModel.update(spaceUuid, {
+                    inheritParentPermissions: true,
+                });
+
+                expect(mockUpdate).toHaveBeenCalledWith({
+                    name: undefined,
+                    is_private: undefined, // not changed for child spaces
+                    inherit_parent_permissions: true,
+                });
+            });
         });
     });
 });
