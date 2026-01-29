@@ -9,10 +9,10 @@ patients as (
         last_name,
         first_name || ' ' || last_name as full_name,
         date_of_birth,
-        date_part('year', age(current_date, date_of_birth::date)) as age,
+        {{ age_years('date_of_birth') }} as age,
         email,
         phone,
-        registration_date::date as registration_date,
+        {{ cast_date('registration_date') }} as registration_date,
         health_plan,
         risk_category,
         primary_care_provider
