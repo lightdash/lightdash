@@ -1,3 +1,10 @@
+## [0.2389.3](https://github.com/lightdash/lightdash/compare/0.2389.2...0.2389.3) (2026-01-29)
+
+
+### Bug Fixes
+
+* add pre-wrap style to SuboptimalState description text ([#19773](https://github.com/lightdash/lightdash/issues/19773)) ([88a4648](https://github.com/lightdash/lightdash/commit/88a4648f231de181386aaed215bd806d26e9e64b))
+
 ## [0.2389.2](https://github.com/lightdash/lightdash/compare/0.2389.1...0.2389.2) (2026-01-28)
 
 
