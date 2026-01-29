@@ -18,6 +18,13 @@ export type PivotConfiguration = {
     valuesColumns: ValuesColumn[];
     groupByColumns: GroupByColumn[] | undefined;
     sortBy: SortBy | undefined;
+    /**
+     * When true, metrics are displayed as rows instead of columns.
+     * This affects column limit calculation - when metrics are rows,
+     * we don't need to divide the column limit by the number of metrics.
+     * Defaults to false for backward compatibility (SQL runner behavior).
+     */
+    metricsAsRows?: boolean;
 };
 
 type Field =

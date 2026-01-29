@@ -207,6 +207,8 @@ function getTablePivotConfiguration(
             partialPivotConfiguration,
             metricQuery,
         ),
+        // Pass metricsAsRows from table chart config for accurate column limit calculation
+        metricsAsRows: chartConfig.config?.metricsAsRows,
     };
 
     return pivotConfiguration;
