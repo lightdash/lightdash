@@ -118,12 +118,12 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && python3 -m venv /usr/local/dbt1.10 \
     && /usr/local/dbt1.10/bin/pip install \
     "dbt-core~=1.10.0" \
-    "dbt-postgres~=1.9.0" \
-    "dbt-redshift~=1.9.0" \
-    "dbt-snowflake~=1.9.0" \
-    "dbt-bigquery~=1.9.0" \
+    "dbt-postgres~=1.10.0" \
+    "dbt-redshift~=1.10.0" \
+    "dbt-snowflake~=1.10.0" \
+    "dbt-bigquery~=1.10.0" \
     "dbt-databricks~=1.10.0" \
-    "dbt-trino~=1.9.0" \
+    "dbt-trino~=1.10.0" \
     "dbt-clickhouse~=1.9.0" \
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10 \
     && python3 -m venv /usr/local/dbt1.11 \
