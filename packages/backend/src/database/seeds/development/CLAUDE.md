@@ -1,3 +1,21 @@
+# Development Seeds Guide
+
+## Running Seeds
+
+### Run All Seeds
+
+```bash
+cd packages/backend && pnpm knex seed:run --knexfile src/knexfile.ts
+```
+
+### Run a Single Seed File
+
+```bash
+cd packages/backend && pnpm knex seed:run --knexfile src/knexfile.ts --specific=11_table_calculation_charts.ts
+```
+
+---
+
 # Dashboard Data Extraction Guide
 
 ## Overview
