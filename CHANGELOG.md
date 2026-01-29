@@ -1,3 +1,10 @@
+## [0.2394.1](https://github.com/lightdash/lightdash/compare/0.2394.0...0.2394.1) (2026-01-29)
+
+
+### Bug Fixes
+
+* remove file-level ACLs in s3 uploads ([#19797](https://github.com/lightdash/lightdash/issues/19797)) ([a5dbbb9](https://github.com/lightdash/lightdash/commit/a5dbbb9603ca9ab882c253c3832aa96ebabcebaa))
+
 # [0.2394.0](https://github.com/lightdash/lightdash/compare/0.2393.0...0.2394.0) (2026-01-29)
 
 
