@@ -48,6 +48,8 @@ export type SpaceSummary = Pick<
     access: string[];
     chartCount: number;
     dashboardCount: number;
+    /** Count of direct child spaces (for expandable UI in nested spaces) */
+    childCount: number;
 };
 
 export type CreateSpace = {
@@ -109,4 +111,26 @@ export type AddSpaceUserAccess = {
 export type AddSpaceGroupAccess = {
     groupUuid: string;
     spaceRole: SpaceMemberRole;
+};
+
+/**
+ * Impact data shown when deleting a space that has nested child spaces.
+ * Used for the delete confirmation modal.
+ */
+export type SpaceDeleteImpact = {
+    space: SpaceSummary;
+    childSpaces: Array<{
+        uuid: string;
+        name: string;
+        hasAccess: boolean;
+        chartCount: number;
+        dashboardCount: number;
+    }>;
+    totalCharts: number;
+    totalDashboards: number;
+};
+
+export type ApiSpaceDeleteImpactResponse = {
+    status: 'ok';
+    results: SpaceDeleteImpact;
 };
