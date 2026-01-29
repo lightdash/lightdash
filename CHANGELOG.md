@@ -1,3 +1,10 @@
+# [0.2397.0](https://github.com/lightdash/lightdash/compare/0.2396.0...0.2397.0) (2026-01-29)
+
+
+### Features
+
+* add cli install-skills command ([#19813](https://github.com/lightdash/lightdash/issues/19813)) ([8ab97de](https://github.com/lightdash/lightdash/commit/8ab97deeda8353be3db85d2be7310e63ff0dabbf))
+
 # [0.2396.0](https://github.com/lightdash/lightdash/compare/0.2395.0...0.2396.0) (2026-01-29)
 
 
