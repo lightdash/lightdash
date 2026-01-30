@@ -7,7 +7,7 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { Button, Group, Tabs } from '@mantine-8/core';
+import { Button, Group, Tabs, Tooltip } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
@@ -21,6 +21,8 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
+import useToaster from '../../hooks/toaster/useToaster';
+import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import '../../styles/droppable.css';
@@ -95,6 +97,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 }) => {
     const gridProps = getResponsiveGridLayoutProps();
     const [currentCols, setCurrentCols] = useState(gridProps.cols.lg);
+    const { showToastError } = useToaster();
+    const { health } = useApp();
 
     const handleUpdateTilesWithScaling = async (layout: Layout[]) => {
         const unscaledLayout = convertLayoutToBaseCoordinates(
@@ -317,7 +321,22 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         );
     };
 
+    const maxTabsPerDashboard =
+        health.data?.dashboard?.maxTabsPerDashboard || 20;
+    const currentTabsCount = dashboardTabs?.length || 0;
+    const canAddTab = currentTabsCount < maxTabsPerDashboard;
+
     const handleAddTab = (name: string) => {
+        // Check tab limit
+        if (currentTabsCount >= maxTabsPerDashboard) {
+            showToastError({
+                title: 'Tab limit reached',
+                subtitle: `You've reached the maximum of ${maxTabsPerDashboard} tabs per dashboard. Consider creating a new dashboard.`,
+            });
+            setAddingTab(false);
+            return;
+        }
+
         if (name) {
             const newTabs = dashboardTabs ? [...dashboardTabs] : [];
             if (!dashboardTabs?.length) {
@@ -421,6 +440,17 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     };
 
     const handleConfirmDuplicateTab = (name: string) => {
+        // Check tab limit
+        if (currentTabsCount >= maxTabsPerDashboard) {
+            showToastError({
+                title: 'Tab limit reached',
+                subtitle: `You've reached the maximum of ${maxTabsPerDashboard} tabs per dashboard. Consider creating a new dashboard.`,
+            });
+            setDuplicatingTab(false);
+            setTabToDuplicate(null);
+            return;
+        }
+
         if (tabToDuplicate) {
             const lastOrd =
                 dashboardTabs.length > 0
@@ -580,27 +610,39 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     {provided.placeholder}
 
                                                     {isEditMode && (
-                                                        <Button
-                                                            ml="sm"
-                                                            size="sm"
-                                                            fz={13}
-                                                            variant="subtle"
-                                                            flex="0 0 auto"
-                                                            leftSection={
-                                                                <MantineIcon
-                                                                    icon={
-                                                                        IconPlus
-                                                                    }
-                                                                />
+                                                        <Tooltip
+                                                            label={
+                                                                !canAddTab
+                                                                    ? `Maximum ${maxTabsPerDashboard} tabs per dashboard. Consider creating a new dashboard.`
+                                                                    : 'Add a new tab'
                                                             }
-                                                            onClick={() =>
-                                                                setAddingTab(
-                                                                    true,
-                                                                )
-                                                            }
+                                                            disabled={canAddTab}
                                                         >
-                                                            New tab
-                                                        </Button>
+                                                            <Button
+                                                                ml="sm"
+                                                                size="sm"
+                                                                fz={13}
+                                                                variant="subtle"
+                                                                flex="0 0 auto"
+                                                                disabled={
+                                                                    !canAddTab
+                                                                }
+                                                                leftSection={
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            IconPlus
+                                                                        }
+                                                                    />
+                                                                }
+                                                                onClick={() =>
+                                                                    setAddingTab(
+                                                                        true,
+                                                                    )
+                                                                }
+                                                            >
+                                                                New tab
+                                                            </Button>
+                                                        </Tooltip>
                                                     )}
                                                 </Tabs.List>
                                             )}

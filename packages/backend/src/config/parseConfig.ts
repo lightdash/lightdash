@@ -836,6 +836,10 @@ export type LightdashConfig = {
             daysLimit: number;
         };
     };
+    dashboard: {
+        maxTilesPerTab: number;
+        maxTabsPerDashboard: number;
+    };
     // This is the override color palette for the organization
     // TODO: allow override for dark theme
     appearance: {
@@ -1578,6 +1582,16 @@ export const parseConfig = (): LightdashConfig => {
                         'LIGHTDASH_CHART_VERSION_HISTORY_DAYS_LIMIT',
                     ) || 3,
             },
+        },
+        dashboard: {
+            maxTilesPerTab:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_DASHBOARD_MAX_TILES_PER_TAB',
+                ) || 50,
+            maxTabsPerDashboard:
+                getIntegerFromEnvironmentVariable(
+                    'LIGHTDASH_DASHBOARD_MAX_TABS_PER_DASHBOARD',
+                ) || 20,
         },
         pivotTable: {
             maxColumnLimit:

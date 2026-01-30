@@ -122,6 +122,7 @@ export class HealthService extends BaseService {
                 maxPageSize: this.lightdashConfig.query.maxPageSize,
                 defaultLimit: this.lightdashConfig.query.defaultLimit,
             },
+            dashboard: this.lightdashConfig.dashboard,
             pivotTable: this.lightdashConfig.pivotTable,
             hasSlack: this.hasSlackConfig(),
             hasGithub: process.env.GITHUB_PRIVATE_KEY !== undefined,
