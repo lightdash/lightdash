@@ -1,3 +1,15 @@
+# [0.2404.0](https://github.com/lightdash/lightdash/compare/0.2403.1...0.2404.0) (2026-01-30)
+
+
+### Bug Fixes
+
+* prevent event propagation in CollapsableCard header elements ([#19853](https://github.com/lightdash/lightdash/issues/19853)) ([cc298eb](https://github.com/lightdash/lightdash/commit/cc298eb905b1064da8415e9b8fac980a0cad73ed))
+
+
+### Features
+
+* support filters in AI agent custom metrics ([#19723](https://github.com/lightdash/lightdash/issues/19723)) ([a16a007](https://github.com/lightdash/lightdash/commit/a16a007560bb09993e26eb2033112a2b4d808cb4))
+
 ## [0.2403.1](https://github.com/lightdash/lightdash/compare/0.2403.0...0.2403.1) (2026-01-30)
 
 
