@@ -77,6 +77,7 @@ export interface DashboardContent extends Content {
 export interface SpaceContent extends Content {
     contentType: ContentType.SPACE;
     isPrivate: boolean;
+    inheritParentPermissions: boolean;
     access: string[];
     dashboardCount: number;
     chartCount: number;
