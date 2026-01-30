@@ -1885,7 +1885,6 @@ const getEchartAxes = ({
         yAxis: [
             {
                 type: leftAxisType,
-                show: showLeftYAxis,
                 ...(showLeftYAxis
                     ? {
                           name: validCartesianConfig.layout.flipAxes
@@ -1952,7 +1951,7 @@ const getEchartAxes = ({
             },
             {
                 type: rightAxisType,
-                show: showSecondaryYAxis && showRightYAxis,
+                show: showSecondaryYAxis,
                 ...(showRightYAxis
                     ? {
                           name: validCartesianConfig.layout.flipAxes
