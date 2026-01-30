@@ -132,6 +132,7 @@ import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatB
 import { DashboardExportImage } from './DashboardExportImage';
 import EditChartMenuItem from './EditChartMenuItem';
 import ExportDataModal from './ExportDataModal';
+import ExportImageModal from './ExportImageModal';
 import TileBase from './TileBase';
 import { UnderlyingDataMenuItem } from './UnderlyingDataMenuItem';
 
@@ -151,7 +152,7 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
             metricQuery: savedChart.metricQuery,
             columnOrder: savedChart.tableConfig.columnOrder,
             showTableNames: isTableChartConfig(savedChart.chartConfig.config)
-                ? (savedChart.chartConfig.config.showTableNames ?? false)
+                ? savedChart.chartConfig.config.showTableNames ?? false
                 : true,
             customLabels: getCustomLabelsFromTableConfig(
                 savedChart.chartConfig.config,
@@ -775,6 +776,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
         useState<FilterDashboardToRule[]>([]);
 
     const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
+    const [isImageExportModalOpen, setIsImageExportModalOpen] = useState(false);
 
     const onSeriesContextMenu = useCallback(
         (e: EchartsSeriesClickEvent, series: EChartsSeries[]) => {
@@ -1293,8 +1295,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     ) &&
                                         userCanExportData && (
                                             <DashboardExportImage
-                                                echartRef={echartRef}
-                                                chartName={chart.name}
+                                                onClick={() =>
+                                                    setIsImageExportModalOpen(
+                                                        true,
+                                                    )
+                                                }
                                                 isMinimal={false}
                                             />
                                         )}
@@ -1466,7 +1471,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 getDownloadQueryUuid={getDownloadQueryUuid}
                 showTableNames={
                     isTableChartConfig(chart.chartConfig.config)
-                        ? (chart.chartConfig.config.showTableNames ?? false)
+                        ? chart.chartConfig.config.showTableNames ?? false
                         : true
                 }
                 chartName={title || chart.name}
@@ -1476,6 +1481,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                 )}
                 hiddenFields={getHiddenTableFields(chart.chartConfig)}
                 pivotConfig={getPivotConfig(chart)}
+            />
+            <ExportImageModal
+                echartRef={echartRef}
+                chartName={chart.name}
+                isOpen={isImageExportModalOpen}
+                onClose={() => setIsImageExportModalOpen(false)}
             />
         </>
     );
@@ -1488,6 +1499,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         top: number;
     }>();
     const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
+    const [isImageExportModalOpen, setIsImageExportModalOpen] = useState(false);
 
     const {
         tile: {
@@ -1667,8 +1679,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                                     chart.chartConfig.type,
                                 ) && (
                                     <DashboardExportImage
-                                        echartRef={echartRef}
-                                        chartName={chart.name}
+                                        onClick={() =>
+                                            setIsImageExportModalOpen(true)
+                                        }
                                         isMinimal={true}
                                     />
                                 )}
@@ -1745,7 +1758,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     getDownloadQueryUuid={getDownloadQueryUuid}
                     showTableNames={
                         isTableChartConfig(chart.chartConfig.config)
-                            ? (chart.chartConfig.config.showTableNames ?? false)
+                            ? chart.chartConfig.config.showTableNames ?? false
                             : true
                     }
                     chartName={title || chart.name}
@@ -1755,6 +1768,14 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
                     pivotConfig={getPivotConfig(chart)}
+                />
+            )}
+            {canExportImages && (
+                <ExportImageModal
+                    echartRef={echartRef}
+                    chartName={chart.name}
+                    isOpen={isImageExportModalOpen}
+                    onClose={() => setIsImageExportModalOpen(false)}
                 />
             )}
         </>

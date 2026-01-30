@@ -29,6 +29,7 @@ import {
 
 type DownloadOptions = {
     getChartInstance: () => EChartsInstance | undefined;
+    chartName?: string;
     unavailableOptions?: DownloadType[];
 };
 
@@ -114,6 +115,7 @@ const getOptionsWorkaround = (
 
 const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     getChartInstance,
+    chartName,
     unavailableOptions,
 }) => {
     const [isCopied, setIsCopied] = useState(false);
@@ -149,11 +151,12 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                     );
                     break;
                 case DownloadType.SVG:
-                    downloadImage(svgBase64);
+                    downloadImage(svgBase64, chartName);
                     break;
                 case DownloadType.JPEG:
                     downloadImage(
                         await base64SvgToBase64Image(svgBase64, width, 'jpeg'),
+                        chartName,
                     );
                     break;
                 case DownloadType.PNG:
@@ -164,6 +167,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                             'png',
                             isBackgroundTransparent,
                         ),
+                        chartName,
                     );
                     break;
                 case DownloadType.JSON:
@@ -184,7 +188,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                 chartInstance.setOption(originalOptions);
             }
         }
-    }, [getChartInstance, type, isBackgroundTransparent]);
+    }, [getChartInstance, chartName, type, isBackgroundTransparent]);
 
     const onCopyToClipboard = useCallback(async () => {
         setIsCopied(true);
@@ -221,6 +225,7 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                 id="download-type"
                 value={type}
                 onChange={(value) => setType(value as DownloadType)}
+                withinPortal
                 data={Object.values(DownloadType)
                     .filter(
                         (downloadType) =>
