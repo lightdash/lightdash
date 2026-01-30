@@ -4,6 +4,7 @@ import { DimensionType, FieldType, friendlyName } from '../types/field';
 import {
     ExploreCompiler,
     parseAllReferences,
+    sqlContainsAggregation,
     type UncompiledExplore,
 } from './exploreCompiler';
 import {
@@ -48,6 +49,10 @@ import {
     exploreWithJoinWithFieldsAndGroups,
     exploreWithMetricNumber,
     exploreWithMetricNumberCompiled,
+    exploreWithMixedDimensionAndMetricReferences,
+    exploreWithMixedDimensionAndMetricReferencesCompiled,
+    exploreWithNonAggregateMetricWithAggregationInSql,
+    exploreWithNonAggregateMetricWithAggregationInSqlCompiled,
     exploreWithParameters,
     exploreWithRequiredAttributes,
     exploreWithRequiredAttributesCompiled,
@@ -135,6 +140,27 @@ test('Should compile with a reference to a metric in a non-aggregate metric', ()
     expect(compiler.compileExplore(exploreWithMetricNumber)).toStrictEqual(
         exploreWithMetricNumberCompiled,
     );
+});
+
+test('Should compile non-aggregate metrics with aggregation in SQL referencing dimensions', () => {
+    // This tests the Looker pattern where type:number metrics have aggregation
+    // functions in their SQL (e.g., "count(distinct ${user_id})").
+    // These should be allowed to reference dimensions.
+    expect(
+        compiler.compileExplore(
+            exploreWithNonAggregateMetricWithAggregationInSql,
+        ),
+    ).toStrictEqual(exploreWithNonAggregateMetricWithAggregationInSqlCompiled);
+});
+
+test('Should compile non-aggregate metrics with aggregation in SQL referencing BOTH dimensions AND metrics', () => {
+    // This tests the Looker pattern where type:number metrics have aggregation
+    // and reference both dimensions and other metrics in the same SQL.
+    // For example: "sum(${amount}) / ${user_count}" where amount is a dimension
+    // and user_count is a metric.
+    expect(
+        compiler.compileExplore(exploreWithMixedDimensionAndMetricReferences),
+    ).toStrictEqual(exploreWithMixedDimensionAndMetricReferencesCompiled);
 });
 
 describe('Explores with a base table and joined table', () => {
@@ -968,6 +994,86 @@ describe('Explore compilation with model-level parameters', () => {
             expect(() => compiler.compileExplore(explore)).toThrow(
                 /Set "nonexistent_set" not found/,
             );
+        });
+    });
+});
+
+describe('sqlContainsAggregation', () => {
+    describe('should detect common aggregation functions', () => {
+        test.each([
+            ['count(${field})', true],
+            ['count(distinct ${field})', true],
+            ['COUNT(DISTINCT ${field})', true],
+            ['sum(${amount})', true],
+            ['SUM(${amount})', true],
+            ['avg(${amount})', true],
+            ['average(${amount})', true],
+            ['min(${amount})', true],
+            ['max(${amount})', true],
+            ['median(${amount})', true],
+            ['stddev(${amount})', true],
+            ['stddev_pop(${amount})', true],
+            ['stddev_samp(${amount})', true],
+            ['variance(${amount})', true],
+            ['var_pop(${amount})', true],
+            ['var_samp(${amount})', true],
+            ['percentile(${amount}, 90)', true],
+            ['percentile_cont(0.5)', true],
+            ['percentile_disc(0.5)', true],
+            ['approx_count_distinct(${field})', true],
+            ['any_value(${field})', true],
+            ['array_agg(${field})', true],
+            ['string_agg(${field}, ",")', true],
+            ['group_concat(${field})', true],
+            ['listagg(${field})', true],
+            ['corr(${x}, ${y})', true],
+            ['covar_pop(${x}, ${y})', true],
+            ['covar_samp(${x}, ${y})', true],
+            ['mode(${field})', true],
+            ['approx_percentile(${field}, 0.5)', true],
+        ])('"%s" should return %s', (sql, expected) => {
+            expect(sqlContainsAggregation(sql)).toBe(expected);
+        });
+    });
+
+    describe('should detect aggregation in complex SQL', () => {
+        test.each([
+            ['CASE WHEN x THEN count(${field}) ELSE 0 END', true],
+            ['COALESCE(sum(${amount}), 0)', true],
+            ['sum(${amount}) * 1.1', true],
+            ['2 + count(distinct ${user_id})', true],
+            ['ROUND(avg(${amount}), 2)', true],
+        ])('"%s" should return true', (sql) => {
+            expect(sqlContainsAggregation(sql)).toBe(true);
+        });
+    });
+
+    describe('should not detect aggregation in non-aggregate SQL', () => {
+        test.each([
+            ['${field} * 2', false],
+            ['${field1} + ${field2}', false],
+            ['${summary_field}', false], // 'summary' contains 'sum' but is not sum()
+            ['${count_field}', false], // 'count_field' contains 'count' but is not count()
+            ['COALESCE(${amount}, 0)', false],
+            ["CASE WHEN ${status} = 'active' THEN 1 ELSE 0 END", false],
+            ['UPPER(${name})', false],
+            ['CONCAT(${first_name}, ${last_name})', false],
+        ])('"%s" should return false', (sql) => {
+            expect(sqlContainsAggregation(sql)).toBe(false);
+        });
+    });
+
+    describe('should handle edge cases', () => {
+        test('should return false for empty string', () => {
+            expect(sqlContainsAggregation('')).toBe(false);
+        });
+
+        test('should return false for undefined', () => {
+            expect(sqlContainsAggregation(undefined)).toBe(false);
+        });
+
+        test('should return false for null', () => {
+            expect(sqlContainsAggregation(null)).toBe(false);
         });
     });
 });
