@@ -120,7 +120,7 @@ export type AddSpaceGroupAccess = {
  * Used for the delete confirmation modal.
  */
 export type SpaceDeleteImpact = {
-    space: SpaceSummary;
+    space: Omit<SpaceSummary, 'userAccess'>;
     childSpaces: Array<{
         uuid: string;
         name: string;

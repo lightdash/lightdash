@@ -14555,6 +14555,75 @@
                 "required": ["name"],
                 "type": "object"
             },
+            "SpaceDeleteImpact": {
+                "properties": {
+                    "totalDashboards": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalCharts": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "childSpaces": {
+                        "items": {
+                            "properties": {
+                                "dashboardCount": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "chartCount": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
+                                "hasAccess": {
+                                    "type": "boolean"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "dashboardCount",
+                                "chartCount",
+                                "hasAccess",
+                                "name",
+                                "uuid"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "space": {
+                        "$ref": "#/components/schemas/Omit_SpaceSummary.userAccess_"
+                    }
+                },
+                "required": [
+                    "totalDashboards",
+                    "totalCharts",
+                    "childSpaces",
+                    "space"
+                ],
+                "type": "object",
+                "description": "Impact data shown when deleting a space that has nested child spaces.\nUsed for the delete confirmation modal."
+            },
+            "ApiSpaceDeleteImpactResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SpaceDeleteImpact"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "UpdateSpace": {
                 "properties": {
                     "inheritParentPermissions": {
@@ -29302,6 +29371,57 @@
                         "description": "The uuid of the project to get spaces for",
                         "in": "path",
                         "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/spaces/{spaceUuid}/delete-impact": {
+            "get": {
+                "operationId": "GetSpaceDeleteImpact",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSpaceDeleteImpactResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the impact of deleting a space, including affected child spaces and content counts",
+                "summary": "Get delete impact",
+                "tags": ["Spaces"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the space's parent project",
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "The uuid of the space to check",
+                        "in": "path",
+                        "name": "spaceUuid",
                         "required": true,
                         "schema": {
                             "type": "string"

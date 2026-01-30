@@ -2,6 +2,7 @@ import {
     AddSpaceGroupAccess,
     AddSpaceUserAccess,
     ApiErrorPayload,
+    ApiSpaceDeleteImpactResponse,
     ApiSpaceResponse,
     ApiSuccessEmpty,
     CreateSpace,
@@ -85,6 +86,32 @@ export class SpaceController extends BaseController {
         const results = await this.services
             .getSpaceService()
             .createSpace(projectUuid, req.user!, body);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get the impact of deleting a space, including affected child spaces and content counts
+     * @param projectUuid The uuid of the space's parent project
+     * @param spaceUuid The uuid of the space to check
+     * @param req
+     * @summary Get delete impact
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{spaceUuid}/delete-impact')
+    @OperationId('GetSpaceDeleteImpact')
+    async getSpaceDeleteImpact(
+        @Path() projectUuid: string,
+        @Path() spaceUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSpaceDeleteImpactResponse> {
+        this.setStatus(200);
+        const results = await this.services
+            .getSpaceService()
+            .getDeleteImpact(req.user!, spaceUuid);
         return {
             status: 'ok',
             results,
