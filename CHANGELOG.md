@@ -1,3 +1,10 @@
+# [0.2402.0](https://github.com/lightdash/lightdash/compare/0.2401.0...0.2402.0) (2026-01-30)
+
+
+### Features
+
+* add dashboard tile and tab limits with configuration ([#19791](https://github.com/lightdash/lightdash/issues/19791)) ([022481b](https://github.com/lightdash/lightdash/commit/022481bae0bc9b210f14fe87eff28c3c1534fb68))
+
 # [0.2401.0](https://github.com/lightdash/lightdash/compare/0.2400.0...0.2401.0) (2026-01-30)
 
 
