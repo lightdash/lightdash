@@ -252,7 +252,8 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 };
             });
 
-        return [...usersSet, ...(groupsSet ?? [])].filter(
+        // Groups first to encourage their usage (more scalable than individual users)
+        return [...(groupsSet ?? []), ...usersSet].filter(
             (item): item is SelectItem => item !== null,
         );
     }, [
@@ -279,7 +280,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                 clearable
                 clearSearchOnChange
                 clearSearchOnBlur
-                placeholder="Select users to share this space with"
+                placeholder="Add groups or users..."
                 nothingFound="No users found"
                 searchValue={searchQuery}
                 onSearchChange={setSearchQuery}

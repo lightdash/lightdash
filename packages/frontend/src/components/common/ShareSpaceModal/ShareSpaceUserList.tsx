@@ -10,6 +10,7 @@ import {
     ActionIcon,
     Avatar,
     Badge,
+    Button,
     Collapse,
     Group,
     Paper,
@@ -26,6 +27,7 @@ import {
     IconChevronDown,
     IconChevronUp,
     IconDatabase,
+    IconFolder,
     IconUsers,
     type Icon as TablerIconType,
 } from '@tabler/icons-react';
@@ -35,6 +37,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import {
     useAddGroupSpaceShareMutation,
     useAddSpaceShareMutation,
+    useClearAllSpaceAccessMutation,
     useDeleteSpaceGroupAccessMutation,
     useDeleteSpaceShareMutation,
 } from '../../../hooks/useSpaces';
@@ -450,6 +453,7 @@ const GroupsAccessList: FC<GroupAccessListProps> = ({
 type SpaceAccessByType = {
     project: SpaceShare[];
     organisation: SpaceShare[];
+    parentSpace: SpaceShare[];
     direct: SpaceShare[];
 };
 
@@ -477,6 +481,9 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
         projectUuid,
         space.uuid,
     );
+
+    const { mutate: clearAllAccess, isLoading: isClearingAccess } =
+        useClearAllSpaceAccessMutation(projectUuid, space.uuid);
 
     const handleAccessChange = useCallback(
         (userAccessOption: UserAccessAction, sharedUser: SpaceShare) => {
@@ -576,14 +583,32 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
             new Map<string, SpaceShare>(),
         );
 
+        // Inheritance display logic:
+        // - inherit=false: Only show direct permissions (no inherited sections)
+        // - inherit=true + nested: All inherited → "From parent space"
+        // - inherit=true + root: Show actual sources (project/org)
+        const isNestedSpace = !!space.parentSpaceUuid;
+        const showInheritedPermissions = space.inheritParentPermissions;
+        const isNestedWithInheritance =
+            isNestedSpace && space.inheritParentPermissions;
+
         const result = Array.from(userAccessMap.values()).reduce<{
             project: SpaceShare[];
             organisation: SpaceShare[];
+            parentSpace: SpaceShare[];
             direct: SpaceShare[];
         }>(
             (acc, spaceShare) => {
                 if (spaceShare.hasDirectAccess) {
                     acc.direct.push(spaceShare);
+                } else if (!showInheritedPermissions) {
+                    // inherit=false: Don't show inherited permissions at all
+                    // (they still have access but we only show explicit permissions)
+                } else if (isNestedWithInheritance) {
+                    // Nested space with inheritance: all inherited permissions come from parent
+                    acc.parentSpace.push(spaceShare);
+                } else if (spaceShare.inheritedFrom === 'parent_space') {
+                    acc.parentSpace.push(spaceShare);
                 } else if (
                     spaceShare.inheritedFrom === 'project' ||
                     spaceShare.inheritedFrom === 'group'
@@ -597,6 +622,7 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
             {
                 project: [],
                 organisation: [],
+                parentSpace: [],
                 direct: [],
             },
         );
@@ -604,76 +630,130 @@ export const ShareSpaceUserList: FC<ShareSpaceUserListProps> = ({
         return {
             project: result.project,
             organisation: result.organisation,
+            parentSpace: result.parentSpace,
             direct: result.direct,
         };
     }, [space]);
 
+    const hasInheritedAccess =
+        accessByType.organisation.length > 0 ||
+        accessByType.project.length > 0 ||
+        accessByType.parentSpace.length > 0;
+
+    const hasDirectAccess =
+        accessByType.direct.length > 0 || space.groupsAccess.length > 0;
+
+    const handleClearAll = () => {
+        clearAllAccess();
+    };
+
     return (
         <Stack spacing={'xs'}>
-            {(accessByType.organisation.length > 0 ||
-                accessByType.project.length > 0) && (
-                <Text fw={400} span c="ldGray.6">
-                    Inherited access
+            {/* Inherited access section - only shown when inherit=true */}
+            {hasInheritedAccess && (
+                <>
+                    <Text fw={400} span c="ldGray.6">
+                        Inherited access (read-only)
+                    </Text>
+                    {accessByType.parentSpace.length > 0 && (
+                        <ListCollapse
+                            icon={IconFolder}
+                            label="From parent space"
+                            accessCount={accessByType.parentSpace.length}
+                        >
+                            <UserAccessList
+                                isPrivate={space.isPrivate}
+                                accessList={accessByType.parentSpace}
+                                sessionUser={sessionUser}
+                                onAccessChange={handleAccessChange}
+                                disabled={true}
+                            />
+                        </ListCollapse>
+                    )}
+                    {accessByType.organisation.length > 0 && (
+                        <ListCollapse
+                            icon={IconBuildingBank}
+                            label="From organisation"
+                            accessCount={accessByType.organisation.length}
+                        >
+                            <UserAccessList
+                                isPrivate={space.isPrivate}
+                                accessList={accessByType.organisation}
+                                sessionUser={sessionUser}
+                                onAccessChange={handleAccessChange}
+                                disabled={true}
+                            />
+                        </ListCollapse>
+                    )}
+                    {accessByType.project.length > 0 && (
+                        <ListCollapse
+                            icon={IconDatabase}
+                            label="From project"
+                            accessCount={accessByType.project.length}
+                        >
+                            <UserAccessList
+                                isPrivate={space.isPrivate}
+                                accessList={accessByType.project}
+                                sessionUser={sessionUser}
+                                onAccessChange={handleAccessChange}
+                                disabled={true}
+                            />
+                        </ListCollapse>
+                    )}
+                </>
+            )}
+
+            {/* Direct/Additional access section */}
+            {hasDirectAccess && (
+                <>
+                    <Group position="apart">
+                        <Text fw={400} span c="ldGray.6">
+                            {hasInheritedAccess
+                                ? 'Additional permissions'
+                                : 'Space permissions'}
+                        </Text>
+                        {!disabled && (
+                            <Button
+                                variant="subtle"
+                                color="red"
+                                size="xs"
+                                compact
+                                onClick={handleClearAll}
+                                loading={isClearingAccess}
+                            >
+                                Clear all
+                            </Button>
+                        )}
+                    </Group>
+
+                    {space.groupsAccess.length > 0 && (
+                        <GroupsAccessList
+                            disabled={disabled}
+                            isPrivate={space.isPrivate}
+                            groupsAccess={space.groupsAccess}
+                            onAccessChange={handleGroupAccessChange}
+                            pageSize={5}
+                        />
+                    )}
+
+                    {accessByType.direct.length > 0 && (
+                        <UserAccessList
+                            isPrivate={space.isPrivate}
+                            accessList={accessByType.direct}
+                            sessionUser={sessionUser}
+                            onAccessChange={handleAccessChange}
+                            pageSize={5}
+                            disabled={disabled}
+                        />
+                    )}
+                </>
+            )}
+
+            {/* Empty state when no permissions at all */}
+            {!hasInheritedAccess && !hasDirectAccess && (
+                <Text c="ldGray.5" fz="sm" ta="center" py="md">
+                    No permissions configured for this space.
                 </Text>
-            )}
-            {accessByType.organisation.length > 0 && (
-                <ListCollapse
-                    icon={IconBuildingBank}
-                    label="From organisation"
-                    accessCount={accessByType.organisation.length}
-                >
-                    <UserAccessList
-                        isPrivate={space.isPrivate}
-                        accessList={accessByType.organisation}
-                        sessionUser={sessionUser}
-                        onAccessChange={handleAccessChange}
-                        disabled={disabled}
-                    />
-                </ListCollapse>
-            )}
-            {accessByType.project.length > 0 && (
-                <ListCollapse
-                    icon={IconDatabase}
-                    label="From project"
-                    accessCount={accessByType.project.length}
-                >
-                    <UserAccessList
-                        isPrivate={space.isPrivate}
-                        accessList={accessByType.project}
-                        sessionUser={sessionUser}
-                        onAccessChange={handleAccessChange}
-                        disabled={disabled}
-                    />
-                </ListCollapse>
-            )}
-            {space.access.length > 0 && (
-                <>
-                    <Text fw={400} span c="ldGray.6">
-                        Group access
-                    </Text>
-                    <GroupsAccessList
-                        disabled={disabled}
-                        isPrivate={space.isPrivate}
-                        groupsAccess={space.groupsAccess}
-                        onAccessChange={handleGroupAccessChange}
-                        pageSize={5}
-                    />
-                </>
-            )}
-            {accessByType.direct.length > 0 && (
-                <>
-                    <Text fw={400} span c="ldGray.6">
-                        User access
-                    </Text>
-                    <UserAccessList
-                        isPrivate={space.isPrivate}
-                        accessList={accessByType.direct}
-                        sessionUser={sessionUser}
-                        onAccessChange={handleAccessChange}
-                        pageSize={5}
-                        disabled={disabled}
-                    />
-                </>
             )}
         </Stack>
     );

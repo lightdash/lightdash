@@ -5,13 +5,22 @@ import {
     ResourceViewItemType,
     type ResourceViewSpaceItem,
 } from '@lightdash/common';
-import { ActionIcon, Box, Button, Group, Menu, Stack } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Group,
+    Menu,
+    Stack,
+    Tooltip,
+} from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconDots,
     IconFolderCog,
     IconFolderPlus,
     IconFolderX,
+    IconLock,
     IconPlus,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -151,29 +160,66 @@ const Space: FC = () => {
                                 title: 'Spaces',
                                 to: `/projects/${projectUuid}/spaces`,
                             },
-                            ...(space.breadcrumbs?.map((breadcrumb, index) => ({
-                                title: breadcrumb.name,
-                                active:
+                            ...(space.breadcrumbs?.map((breadcrumb, index) => {
+                                // hasAccess is undefined for backwards compat - treat as true
+                                const hasAccess =
+                                    (
+                                        breadcrumb as {
+                                            name: string;
+                                            uuid: string;
+                                            hasAccess?: boolean;
+                                        }
+                                    ).hasAccess ?? true;
+                                const isCurrentSpace =
                                     index ===
-                                    (space.breadcrumbs?.length ?? 0) - 1,
-                                to: `/projects/${projectUuid}/spaces/${breadcrumb.uuid}`,
-                                onClick: () => {
-                                    if (
+                                    (space.breadcrumbs?.length ?? 0) - 1;
+
+                                return {
+                                    title: (
+                                        <Group spacing={4} noWrap>
+                                            {breadcrumb.name}
+                                            {!hasAccess && !isCurrentSpace && (
+                                                <Tooltip
+                                                    label="You don't have access to view this space"
+                                                    withinPortal
+                                                >
+                                                    <span>
+                                                        <MantineIcon
+                                                            icon={IconLock}
+                                                            size={12}
+                                                            color="gray"
+                                                        />
+                                                    </span>
+                                                </Tooltip>
+                                            )}
+                                        </Group>
+                                    ),
+                                    active: isCurrentSpace,
+                                    // Only provide link if user has access
+                                    to: hasAccess
+                                        ? `/projects/${projectUuid}/spaces/${breadcrumb.uuid}`
+                                        : undefined,
+                                    onClick:
+                                        hasAccess &&
                                         user.data?.userUuid &&
                                         user.data?.organizationUuid
-                                    ) {
-                                        track({
-                                            name: EventName.SPACE_BREADCRUMB_CLICKED,
-                                            properties: {
-                                                userId: user.data?.userUuid,
-                                                organizationId:
-                                                    user.data?.organizationUuid,
-                                                projectId: projectUuid,
-                                            },
-                                        });
-                                    }
-                                },
-                            })) ?? []),
+                                            ? () => {
+                                                  track({
+                                                      name: EventName.SPACE_BREADCRUMB_CLICKED,
+                                                      properties: {
+                                                          userId: user.data!
+                                                              .userUuid,
+                                                          organizationId:
+                                                              user.data!
+                                                                  .organizationUuid!,
+                                                          projectId:
+                                                              projectUuid,
+                                                      },
+                                                  });
+                                              }
+                                            : undefined,
+                                };
+                            }) ?? []),
                         ]}
                     />
 
