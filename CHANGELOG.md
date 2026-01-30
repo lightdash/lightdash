@@ -1,3 +1,10 @@
+## [0.2403.1](https://github.com/lightdash/lightdash/compare/0.2403.0...0.2403.1) (2026-01-30)
+
+
+### Bug Fixes
+
+* normalize quarter filter values to start of quarter ([#19810](https://github.com/lightdash/lightdash/issues/19810)) ([4204406](https://github.com/lightdash/lightdash/commit/42044064463f7f373c0e8c0c10cb6dcc2796a9db))
+
 # [0.2403.0](https://github.com/lightdash/lightdash/compare/0.2402.0...0.2403.0) (2026-01-30)
 
 
