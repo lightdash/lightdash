@@ -34,6 +34,10 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Git Integration')
 export class GitIntegrationController extends BaseController {
+    /**
+     * Create a pull request for custom metrics
+     * @summary Create PR for custom metrics
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -73,6 +77,10 @@ export class GitIntegrationController extends BaseController {
         };
     }
 
+    /**
+     * Create a pull request for custom dimensions
+     * @summary Create PR for custom dimensions
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -107,6 +115,10 @@ export class GitIntegrationController extends BaseController {
         };
     }
 
+    /**
+     * List git branches for the project repository
+     * @summary List git branches
+     */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('200')
     @Get('/branches')

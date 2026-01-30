@@ -61,6 +61,7 @@ export class ProjectRolesController extends BaseController {
 
     /**
      * List project role assignments
+     * @summary List project role assignments
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -85,6 +86,7 @@ export class ProjectRolesController extends BaseController {
 
     /**
      * Create or update project role assignment for user (upsert)
+     * @summary Assign project role to user
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -117,6 +119,7 @@ export class ProjectRolesController extends BaseController {
 
     /**
      * Create or update project role assignment for group (upsert)
+     * @summary Assign project role to group
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -149,6 +152,7 @@ export class ProjectRolesController extends BaseController {
 
     /**
      * Update project role assignment for group
+     * @summary Update project group role
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -182,6 +186,7 @@ export class ProjectRolesController extends BaseController {
 
     /**
      * Delete project role assignment for user
+     * @summary Remove project role from user
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -212,6 +217,7 @@ export class ProjectRolesController extends BaseController {
 
     /**
      * Delete project role assignment for group
+     * @summary Remove project role from group
      */
     @Middlewares([
         allowApiKeyAuthentication,

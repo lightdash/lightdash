@@ -37,6 +37,10 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
 export class ExploreController extends BaseController {
+    /**
+     * Set explores for a project
+     * @summary Set explores
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -61,6 +65,10 @@ export class ExploreController extends BaseController {
         };
     }
 
+    /**
+     * Get all explores for a project
+     * @summary List explores
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')
@@ -84,6 +92,10 @@ export class ExploreController extends BaseController {
         };
     }
 
+    /**
+     * Get a specific explore
+     * @summary Get explore
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('{exploreId}')
@@ -105,6 +117,10 @@ export class ExploreController extends BaseController {
         };
     }
 
+    /**
+     * Compile a metric query for an explore
+     * @summary Compile query
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('{exploreId}/compileQuery')
@@ -141,6 +157,10 @@ export class ExploreController extends BaseController {
         };
     }
 
+    /**
+     * Download CSV from an explore query
+     * @summary Download CSV from explore
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,

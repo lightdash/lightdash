@@ -28,7 +28,7 @@ import { BaseController } from './baseController';
 export class GitlabController extends BaseController {
     /**
      * Initiate GitLab OAuth integration
-     *
+     * @summary Install GitLab integration
      * @param req express request
      * @param gitlab_instance_url Custom GitLab instance URL (optional, defaults to gitlab.com)
      */
@@ -58,7 +58,7 @@ export class GitlabController extends BaseController {
 
     /**
      * GitLab OAuth callback handler
-     *
+     * @summary GitLab OAuth callback
      * @param req express request
      * @param code Authorization code from GitLab
      * @param state OAuth state parameter for CSRF protection
@@ -91,6 +91,10 @@ export class GitlabController extends BaseController {
         this.setHeader('Location', redirectUrl);
     }
 
+    /**
+     * Uninstall GitLab integration from the organization
+     * @summary Uninstall GitLab integration
+     */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @Delete('/uninstall')
     @OperationId('uninstallGitlabIntegration')
@@ -108,6 +112,10 @@ export class GitlabController extends BaseController {
         };
     }
 
+    /**
+     * List GitLab projects accessible via the integration
+     * @summary List GitLab projects
+     */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('200')
     @Get('/repos/list')

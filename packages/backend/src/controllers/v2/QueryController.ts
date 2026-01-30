@@ -54,7 +54,7 @@ export type ApiGetAsyncQueryResultsResponse = {
 
 @Route('/api/v2/projects/{projectUuid}/query')
 @Response<ApiErrorPayload>('default', 'Error')
-@Tags('Query')
+@Tags('v2', 'Query')
 export class QueryController extends BaseController {
     /**
      * Retrieves paginated results from a previously executed async query using its UUID

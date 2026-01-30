@@ -74,6 +74,10 @@ export class ChangesetController extends BaseController {
         };
     }
 
+    /**
+     * Revert a specific change
+     * @summary Revert change
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/changes/{changeUuid}/revert')
@@ -93,6 +97,10 @@ export class ChangesetController extends BaseController {
         };
     }
 
+    /**
+     * Revert all changes in the active changeset
+     * @summary Revert all changes
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/revert-all')

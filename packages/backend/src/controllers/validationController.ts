@@ -36,6 +36,7 @@ export class ValidationController extends BaseController {
      *
      * Validation jobs scan all charts and dashboards inside a project to find any broken references
      * to metrics or dimensions that aren't available. Results are available after the job is completed.
+     * @summary Validate project
      * @param projectUuid the projectId for the validation
      * @param req express request
      * @param body the compiled explores to validate against an existing project, this is used in the CLI to validate a project without creating a preview
@@ -78,6 +79,7 @@ export class ValidationController extends BaseController {
 
     /**
      * Get validation results for a project. This will return the results of the latest validation job.
+     * @summary Get validation results
      * @param projectUuid the projectId for the validation
      * @param req express request
      * @param fromSettings boolean to know if this request is made from the settings page, for analytics
@@ -104,6 +106,7 @@ export class ValidationController extends BaseController {
 
     /**
      * Deletes a single validation error.
+     * @summary Dismiss validation error
      * @param validationId the projectId for the validation
      * @param req express request
      * @param fromSettings boolean to know if this request is made from the settings page, for analytics

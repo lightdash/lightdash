@@ -53,6 +53,7 @@ import { BaseController } from './baseController';
 export class UserController extends BaseController {
     /**
      * Get authenticated user
+     * @summary Get authenticated user
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -74,6 +75,7 @@ export class UserController extends BaseController {
 
     /**
      * Register user
+     * @summary Register user
      * @param req express request
      * @param body
      */
@@ -110,6 +112,7 @@ export class UserController extends BaseController {
     /**
      * Create a new one-time passcode for the current user's primary email.
      * The user will receive an email with the passcode.
+     * @summary Create email one-time passcode
      * @param req express request
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
@@ -130,6 +133,7 @@ export class UserController extends BaseController {
 
     /**
      * Get the verification status for the current user's primary email
+     * @summary Get email verification status
      * @param req express request
      * @param passcode the one-time passcode sent to the user's primary email
      */
@@ -154,6 +158,7 @@ export class UserController extends BaseController {
     /**
      * List the organizations that the current user can join.
      * This is based on the user's primary email domain and the organization's allowed email domains.
+     * @summary List available organizations
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -175,6 +180,7 @@ export class UserController extends BaseController {
     /**
      * Add the current user to an organization that accepts users with a verified email domain.
      * This will fail if the organization email domain does not match the user's primary email domain.
+     * @summary Join organization
      * @param req express request
      * @param organizationUuid the uuid of the organization to join
      */
@@ -212,6 +218,7 @@ export class UserController extends BaseController {
 
     /**
      * Delete user
+     * @summary Delete user
      * @param req express request
      */
     @Middlewares([isAuthenticated])
@@ -241,6 +248,7 @@ export class UserController extends BaseController {
 
     /**
      * Get user warehouse credentials
+     * @summary List warehouse credentials
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/warehouseCredentials')
@@ -260,6 +268,7 @@ export class UserController extends BaseController {
 
     /**
      * Create user warehouse credentials
+     * @summary Create warehouse credentials
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Post('/warehouseCredentials')
@@ -282,6 +291,7 @@ export class UserController extends BaseController {
 
     /**
      * Update user warehouse credentials
+     * @summary Update warehouse credentials
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Patch('/warehouseCredentials/{uuid}')
@@ -305,6 +315,7 @@ export class UserController extends BaseController {
 
     /**
      * Delete user warehouse credentials
+     * @summary Delete warehouse credentials
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Delete('/warehouseCredentials/{uuid}')
@@ -325,6 +336,7 @@ export class UserController extends BaseController {
 
     /**
      * Get login options
+     * @summary Get login options
      */
     @Get('/login-options')
     @OperationId('getLoginOptions')
@@ -344,6 +356,7 @@ export class UserController extends BaseController {
 
     /**
      * List personal access tokens
+     * @summary List personal access tokens
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -368,6 +381,7 @@ export class UserController extends BaseController {
 
     /**
      * Create personal access token
+     * @summary Create personal access token
      */
     @Middlewares([
         // NOTE: We do NOT allow personal access tokens to be created with PAT authentication
@@ -399,6 +413,7 @@ export class UserController extends BaseController {
 
     /**
      * Delete personal access token
+     * @summary Delete personal access token
      */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('200', 'Success')
@@ -420,6 +435,7 @@ export class UserController extends BaseController {
 
     /**
      * Rotate personal access token
+     * @summary Rotate personal access token
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -455,6 +471,7 @@ export class UserController extends BaseController {
 
     /**
      * Get account information
+     * @summary Get account
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')

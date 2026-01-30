@@ -34,6 +34,7 @@ import { BaseController } from './baseController';
 export class CommentsController extends BaseController {
     /**
      * Creates a comment on a dashboard tile
+     * @summary Create comment
      * @param req express request
      * @param body the comment to create
      * @param dashboardUuid the uuid of the dashboard
@@ -73,6 +74,7 @@ export class CommentsController extends BaseController {
 
     /**
      * Gets all comments for a dashboard
+     * @summary Get comments
      * @param req express request
      * @param dashboardUuid the uuid of the dashboard
      * @returns all comments for a dashboard
@@ -97,6 +99,7 @@ export class CommentsController extends BaseController {
 
     /**
      * Resolves a comment on a dashboard
+     * @summary Resolve comment
      * @param req express request
      * @param dashboardUuid the uuid of the dashboard
      * @param commentId the uuid of the comment
@@ -125,6 +128,7 @@ export class CommentsController extends BaseController {
 
     /**
      * Deletes a comment on a dashboard
+     * @summary Delete comment
      * @param req express request
      * @param dashboardUuid the uuid of the dashboard
      * @param commentId the uuid of the comment

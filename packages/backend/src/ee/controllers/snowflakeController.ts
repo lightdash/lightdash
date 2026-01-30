@@ -26,6 +26,10 @@ import { BaseController } from '../../controllers/baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
 export class SnowflakeController extends BaseController {
+    /**
+     * Check if the user is authenticated with Snowflake SSO
+     * @summary Check Snowflake SSO authentication
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/sso/is-authenticated')

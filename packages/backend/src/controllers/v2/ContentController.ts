@@ -34,6 +34,7 @@ import { BaseController } from '../baseController';
 export class ContentController extends BaseController {
     /**
      * Get content (charts, dashboards, spaces)
+     * @summary List content
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -76,6 +77,7 @@ export class ContentController extends BaseController {
 
     /**
      * Move a single item (Chart, Dashboard, Space) to another space
+     * @summary Move content
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -107,6 +109,7 @@ export class ContentController extends BaseController {
 
     /**
      * Move multiple items (Charts, Dashboards, Spaces) to another space
+     * @summary Bulk move content
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')

@@ -42,6 +42,7 @@ import { BaseController } from './baseController';
 export class SlackController extends BaseController {
     /**
      * Get slack channels
+     * @summary Get Slack channels
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -101,6 +102,7 @@ export class SlackController extends BaseController {
 
     /**
      * Update slack notification channel to send notifications to scheduled jobs fail
+     * @summary Update Slack custom settings
      * @param req express request
      */
     @Middlewares([
@@ -128,6 +130,7 @@ export class SlackController extends BaseController {
 
     /**
      * Check if the user has an OpenID identity for Slack
+     * @summary Check Slack OpenID link status
      * @param req express request
      */
     @Middlewares([isAuthenticated])
@@ -152,6 +155,10 @@ export class SlackController extends BaseController {
         };
     }
 
+    /**
+     * Get Slack installation details for the organization
+     * @summary Get Slack installation
+     */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('200', 'Success')
     @Get('/')
@@ -167,6 +174,10 @@ export class SlackController extends BaseController {
         };
     }
 
+    /**
+     * Get a Slack image by nanoId
+     * @summary Get Slack image
+     */
     @SuccessResponse('200', 'Success')
     @Get('/image/:nanoId')
     @OperationId('getSlackImage')
@@ -190,6 +201,10 @@ export class SlackController extends BaseController {
         return fs.createReadStream(normalizedPath);
     }
 
+    /**
+     * Delete the Slack installation for the organization
+     * @summary Delete Slack installation
+     */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('200', 'Success')
     @Delete('/')
@@ -207,6 +222,10 @@ export class SlackController extends BaseController {
         };
     }
 
+    /**
+     * Start the Slack installation flow
+     * @summary Install Slack
+     */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('200', 'Success')
     @Get('/install')

@@ -35,6 +35,7 @@ import { BaseController } from './baseController';
 export class UserAttributesController extends BaseController {
     /**
      * Get all user attributes
+     * @summary List user attributes
      * @param req
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -57,6 +58,7 @@ export class UserAttributesController extends BaseController {
 
     /**
      * Creates new user attribute
+     * @summary Create user attribute
      * @param body the user attribute to create
      * @param req
      */
@@ -83,6 +85,7 @@ export class UserAttributesController extends BaseController {
 
     /**
      * Updates a user attribute
+     * @summary Update user attribute
      * @param userAttributeUuid the UUID for the group to add the user to
      * @param body the user attribute to update
      * @param req
@@ -111,6 +114,7 @@ export class UserAttributesController extends BaseController {
 
     /**
      * Remove a user attribute
+     * @summary Delete user attribute
      * @param userAttributeUuid the user attribute UUID to remove
      * @param req
      */

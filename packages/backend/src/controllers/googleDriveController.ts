@@ -27,6 +27,7 @@ import { BaseController } from './baseController';
 export class GoogleDriveController extends BaseController {
     /**
      * Get access token for google drive
+     * @summary Get Google Drive access token
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -47,6 +48,7 @@ export class GoogleDriveController extends BaseController {
 
     /**
      * Upload results from query to Google Sheet
+     * @summary Upload to Google Sheet
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

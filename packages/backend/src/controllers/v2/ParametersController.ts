@@ -73,6 +73,10 @@ export class ParametersController extends BaseController {
         };
     }
 
+    /**
+     * Get project parameters by names
+     * @summary Get project parameters
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')
@@ -104,6 +108,10 @@ export class ParametersController extends BaseController {
         };
     }
 
+    /**
+     * Replace all project parameters
+     * @summary Replace project parameters
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,

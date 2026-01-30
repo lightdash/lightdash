@@ -30,6 +30,7 @@ import { BaseController } from './baseController';
 export class PinningController extends BaseController {
     /**
      * Get pinned items
+     * @summary Get pinned items
      * @param projectUuid project uuid
      * @param pinnedListUuid the list uuid for the pinned items
      * @param req express request
@@ -55,6 +56,7 @@ export class PinningController extends BaseController {
 
     /**
      * Update pinned items order
+     * @summary Update pinned items order
      * @param projectUuid project uuid
      * @param pinnedListUuid the list uuid for the pinned items
      * @param req express request

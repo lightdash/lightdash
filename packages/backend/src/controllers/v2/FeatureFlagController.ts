@@ -18,6 +18,7 @@ import { BaseController } from '../baseController';
 export class FeatureFlagController extends BaseController {
     /**
      * Get feature flag
+     * @summary Get feature flag
      */
     @SuccessResponse('200', 'Success')
     @Get('/{featureFlagId}')

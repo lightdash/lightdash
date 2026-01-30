@@ -50,6 +50,7 @@ import { BaseController } from './baseController';
 export class CatalogController extends BaseController {
     /**
      * Get catalog items
+     * @summary Get catalog
      * @param projectUuid
      * @param query contains filters for the catalog items
      * - search: string
@@ -91,6 +92,7 @@ export class CatalogController extends BaseController {
 
     /**
      * Get catalog metadata for tables
+     * @summary Get table metadata
      * @param projectUuid
      * @param table Table name to get metadata for
      * @returns ApiCatalogMetadataResults
@@ -117,6 +119,7 @@ export class CatalogController extends BaseController {
 
     /**
      * Get catalog analytics for tables
+     * @summary Get table analytics
      * @param projectUuid
      * @param table Table name to get analytics for
      * @returns ApiCatalogAnalyticsResults
@@ -143,6 +146,7 @@ export class CatalogController extends BaseController {
 
     /**
      * Get catalog analytics for fields
+     * @summary Get field analytics
      * @param projectUuid
      * @param field Field name to get analytics for
      * @param table Table where this field belongs
@@ -177,6 +181,7 @@ export class CatalogController extends BaseController {
 
     /**
      * Get metrics catalog
+     * @summary List metrics in catalog
      * @param projectUuid
      * @param query contains filters for the catalog items as well as pagination
      * - search: string
@@ -243,6 +248,7 @@ export class CatalogController extends BaseController {
 
     /**
      * Get metric by table and metric name
+     * @summary Get metric
      * @param projectUuid
      * @param tableName
      * @param metricName
@@ -272,6 +278,7 @@ export class CatalogController extends BaseController {
 
     /**
      * Get metrics with time dimensions
+     * @summary Get metrics with time dimensions
      * @param projectUuid
      * @returns ApiMetricsWithAssociatedTimeDimensionResponse
      */
@@ -303,6 +310,7 @@ export class CatalogController extends BaseController {
 
     /**
      * Get dimensions that can be used to filter metrics
+     * @summary Get filter dimensions
      * @param projectUuid
      * @param tableName
      * @returns ApiFilterDimensionsResponse
@@ -335,6 +343,7 @@ export class CatalogController extends BaseController {
 
     /**
      * Get dimensions that can be used to segment metrics
+     * @summary Get segment dimensions
      * @param projectUuid
      * @param tableName
      * @returns ApiSegmentDimensionsResponse
@@ -365,6 +374,10 @@ export class CatalogController extends BaseController {
         };
     }
 
+    /**
+     * Add a category to a catalog item
+     * @summary Add category to catalog item
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -393,6 +406,10 @@ export class CatalogController extends BaseController {
         };
     }
 
+    /**
+     * Remove a category from a catalog item
+     * @summary Remove category from catalog item
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -418,6 +435,10 @@ export class CatalogController extends BaseController {
         };
     }
 
+    /**
+     * Update the icon for a catalog item
+     * @summary Update catalog item icon
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -448,6 +469,10 @@ export class CatalogController extends BaseController {
         };
     }
 
+    /**
+     * Get the metrics tree structure
+     * @summary Get metrics tree
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/metrics/tree')
@@ -469,6 +494,10 @@ export class CatalogController extends BaseController {
         };
     }
 
+    /**
+     * Create an edge in the metrics tree
+     * @summary Create metrics tree edge
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -493,6 +522,10 @@ export class CatalogController extends BaseController {
         };
     }
 
+    /**
+     * Delete an edge from the metrics tree
+     * @summary Delete metrics tree edge
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -525,6 +558,7 @@ export class CatalogController extends BaseController {
 
     /**
      * Check if there are any metrics in catalog
+     * @summary Check if metrics exist in catalog
      * @param projectUuid
      * @returns boolean indicating if there are metrics
      */
