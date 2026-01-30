@@ -112,7 +112,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                                 data={[
                                     { label: 'Base Query', value: 'query' },
                                     {
-                                        label: 'Pivot Query',
+                                        label: 'Chart Query',
                                         value: 'pivotQuery',
                                     },
                                 ]}
