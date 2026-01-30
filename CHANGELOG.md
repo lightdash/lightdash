@@ -1,3 +1,10 @@
+# [0.2405.0](https://github.com/lightdash/lightdash/compare/0.2404.0...0.2405.0) (2026-01-30)
+
+
+### Features
+
+* opacity settings for maps ([#19820](https://github.com/lightdash/lightdash/issues/19820)) ([e2e2ab0](https://github.com/lightdash/lightdash/commit/e2e2ab0d16cab869ed95d766b54dda75ec29b52e))
+
 # [0.2404.0](https://github.com/lightdash/lightdash/compare/0.2403.1...0.2404.0) (2026-01-30)
 
 
