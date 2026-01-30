@@ -373,6 +373,13 @@
                                                         "required": ["owner"]
                                                     }
                                                 ]
+                                            },
+                                            "drivers": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "description": "Array of metrics that drive this metric. Use 'metric_name' for same-table or 'table.metric_name' for cross-table."
                                             }
                                         },
                                         "required": ["type", "sql"]
@@ -925,6 +932,13 @@
                                                                     ]
                                                                 }
                                                             ]
+                                                        },
+                                                        "drivers": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "type": "string"
+                                                            },
+                                                            "description": "Array of metrics that drive this metric. Use 'metric_name' for same-table or 'table.metric_name' for cross-table."
                                                         }
                                                     },
                                                     "required": ["type"]

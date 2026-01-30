@@ -139,6 +139,7 @@ export type DbMetricsTreeEdge = {
     created_at: Date;
     created_by_user_uuid: string | null;
     project_uuid: string;
+    source: 'yaml' | 'ui';
 };
 
 export type DbMetricsTreeEdgeIn = Pick<
@@ -147,6 +148,7 @@ export type DbMetricsTreeEdgeIn = Pick<
     | 'target_metric_catalog_search_uuid'
     | 'created_by_user_uuid'
     | 'project_uuid'
+    | 'source'
 >;
 
 export type DbMetricsTreeEdgeDelete = Pick<
