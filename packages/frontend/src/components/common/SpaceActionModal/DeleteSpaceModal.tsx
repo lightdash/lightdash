@@ -1,7 +1,20 @@
-import { List, TextInput } from '@mantine-8/core';
+import { FeatureFlags } from '@lightdash/common';
+import {
+    Badge,
+    Group,
+    List,
+    Loader,
+    Stack,
+    Text,
+    TextInput,
+} from '@mantine-8/core';
+import { IconLock } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { type DeleteSpaceModalBody } from '.';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useSpaceDeleteImpact } from '../../../hooks/useSpaceDeleteImpact';
 import Callout from '../Callout';
+import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 
 const DeleteSpaceTextInputConfirmation: FC<{
@@ -27,7 +40,8 @@ const DeleteSpaceTextInputConfirmation: FC<{
     );
 };
 
-const DeleteSpaceModalContent: FC<Pick<DeleteSpaceModalBody, 'data'>> = ({
+/** Legacy delete modal content - shows counts from Space object */
+const LegacyDeleteSpaceModalContent: FC<Pick<DeleteSpaceModalBody, 'data'>> = ({
     data,
 }) => {
     const hasContent =
@@ -67,6 +81,106 @@ const DeleteSpaceModalContent: FC<Pick<DeleteSpaceModalBody, 'data'>> = ({
     );
 };
 
+/** Enhanced delete modal content - shows detailed impact from API */
+const EnhancedDeleteSpaceModalContent: FC<{
+    projectUuid: string;
+    spaceUuid: string;
+}> = ({ projectUuid, spaceUuid }) => {
+    const { data: deleteImpact, isLoading } = useSpaceDeleteImpact(
+        projectUuid,
+        spaceUuid,
+        { enabled: true },
+    );
+
+    if (isLoading) {
+        return (
+            <Group justify="center" p="md">
+                <Loader size="sm" />
+                <Text fz="sm" c="ldGray.6">
+                    Loading impact details...
+                </Text>
+            </Group>
+        );
+    }
+
+    if (!deleteImpact) {
+        return null;
+    }
+
+    const hasContent =
+        deleteImpact.totalCharts > 0 ||
+        deleteImpact.totalDashboards > 0 ||
+        deleteImpact.childSpaces.length > 0;
+
+    if (!hasContent) {
+        return null;
+    }
+
+    return (
+        <Callout variant="danger" title="This will permanently delete:">
+            <Stack gap="xs">
+                <List size="sm">
+                    {deleteImpact.totalCharts > 0 && (
+                        <List.Item>
+                            {deleteImpact.totalCharts} chart
+                            {deleteImpact.totalCharts === 1 ? '' : 's'} total
+                        </List.Item>
+                    )}
+                    {deleteImpact.totalDashboards > 0 && (
+                        <List.Item>
+                            {deleteImpact.totalDashboards} dashboard
+                            {deleteImpact.totalDashboards === 1 ? '' : 's'}{' '}
+                            total
+                        </List.Item>
+                    )}
+                </List>
+
+                {deleteImpact.childSpaces.length > 0 && (
+                    <>
+                        <Text fz="sm" fw={500}>
+                            {deleteImpact.childSpaces.length} nested space
+                            {deleteImpact.childSpaces.length === 1 ? '' : 's'}:
+                        </Text>
+                        <List size="sm" withPadding>
+                            {deleteImpact.childSpaces.map((childSpace) => (
+                                <List.Item key={childSpace.uuid}>
+                                    <Group gap="xs">
+                                        <Text fz="sm" fw={500}>
+                                            "{childSpace.name}"
+                                        </Text>
+                                        {!childSpace.hasAccess && (
+                                            <Badge
+                                                size="xs"
+                                                color="gray"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconLock}
+                                                        size={10}
+                                                    />
+                                                }
+                                            >
+                                                restricted access
+                                            </Badge>
+                                        )}
+                                    </Group>
+                                    <Text fz="xs" c="ldGray.6">
+                                        {childSpace.chartCount} chart
+                                        {childSpace.chartCount === 1 ? '' : 's'}
+                                        , {childSpace.dashboardCount} dashboard
+                                        {childSpace.dashboardCount === 1
+                                            ? ''
+                                            : 's'}
+                                    </Text>
+                                </List.Item>
+                            ))}
+                        </List>
+                    </>
+                )}
+            </Stack>
+        </Callout>
+    );
+};
+
 export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
     data,
     title,
@@ -74,8 +188,16 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
     form,
     handleSubmit,
     isLoading,
+    projectUuid,
+    spaceUuid,
 }) => {
     const [canDelete, setCanDelete] = useState(false);
+
+    // Feature flag for enhanced delete impact
+    const { data: inheritanceFeatureFlag } = useServerFeatureFlag(
+        FeatureFlags.NestedSpacesPermissions,
+    );
+    const isInheritanceEnabled = inheritanceFeatureFlag?.enabled ?? false;
 
     return (
         <MantineModal
@@ -90,7 +212,15 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
             confirmDisabled={!canDelete || isLoading}
             confirmLoading={isLoading}
         >
-            <DeleteSpaceModalContent data={data} />
+            {/* Use enhanced content when flag is ON and we have space details */}
+            {isInheritanceEnabled && projectUuid && spaceUuid ? (
+                <EnhancedDeleteSpaceModalContent
+                    projectUuid={projectUuid}
+                    spaceUuid={spaceUuid}
+                />
+            ) : (
+                <LegacyDeleteSpaceModalContent data={data} />
+            )}
             <DeleteSpaceTextInputConfirmation
                 data={data}
                 setCanDelete={setCanDelete}

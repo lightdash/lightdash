@@ -397,3 +397,42 @@ export const useDeleteSpaceGroupAccessMutation = (
         },
     );
 };
+
+const clearAllSpaceAccess = async (projectUuid: string, spaceUuid: string) =>
+    lightdashApi<Space>({
+        url: `/projects/${projectUuid}/spaces/${spaceUuid}/access`,
+        method: 'DELETE',
+        body: undefined,
+    });
+
+export const useClearAllSpaceAccessMutation = (
+    projectUuid: string,
+    spaceUuid: string,
+) => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+
+    return useMutation<Space, ApiError, void>(
+        () => clearAllSpaceAccess(projectUuid, spaceUuid),
+        {
+            mutationKey: ['space_clear_access', projectUuid, spaceUuid],
+            onSuccess: async (data) => {
+                await queryClient.refetchQueries(['spaces', projectUuid]);
+                queryClient.setQueryData(
+                    ['space', projectUuid, spaceUuid],
+                    data,
+                );
+
+                showToastSuccess({
+                    title: `Success! All direct permissions cleared.`,
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: `Failed to clear space permissions`,
+                    apiError: error,
+                });
+            },
+        },
+    );
+};

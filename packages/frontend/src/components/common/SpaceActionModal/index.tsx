@@ -66,7 +66,8 @@ export interface CreateSpaceModalBody
 
 export interface DeleteSpaceModalBody
     extends Pick<CreateSpaceModalBody, 'data' | 'form'>,
-        Pick<ActionModalProps, 'title' | 'icon'> {
+        Pick<ActionModalProps, 'title' | 'icon' | 'projectUuid'> {
+    spaceUuid: string | undefined;
     isLoading: boolean;
     handleSubmit: (values: Space) => void;
     onClose: () => void;
@@ -140,6 +141,8 @@ const SpaceModal: FC<ActionModalProps> = ({
                 form={form}
                 handleSubmit={handleSubmit}
                 isLoading={isLoading}
+                projectUuid={projectUuid}
+                spaceUuid={data?.uuid}
             />
         );
     }
