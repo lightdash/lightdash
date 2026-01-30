@@ -14536,6 +14536,9 @@
             },
             "CreateSpace": {
                 "properties": {
+                    "inheritParentPermissions": {
+                        "type": "boolean"
+                    },
                     "parentSpaceUuid": {
                         "type": "string"
                     },

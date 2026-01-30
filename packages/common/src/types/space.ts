@@ -57,6 +57,7 @@ export type CreateSpace = {
     isPrivate?: boolean;
     access?: Pick<SpaceShare, 'userUuid' | 'role'>[];
     parentSpaceUuid?: string;
+    inheritParentPermissions?: boolean;
 };
 
 export type UpdateSpace = {
