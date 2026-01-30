@@ -14548,6 +14548,10 @@
                     "breadcrumbs": {
                         "items": {
                             "properties": {
+                                "hasAccess": {
+                                    "type": "boolean",
+                                    "description": "Whether the current user has access to this space. undefined treated as true for backwards compat"
+                                },
                                 "uuid": {
                                     "type": "string"
                                 },
@@ -19671,7 +19675,7 @@
                 "enum": ["space"],
                 "type": "string"
             },
-            "Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path_": {
+            "Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -19686,6 +19690,9 @@
                         "type": "string"
                     },
                     "isPrivate": {
+                        "type": "boolean"
+                    },
+                    "inheritParentPermissions": {
                         "type": "boolean"
                     },
                     "pinnedListUuid": {
@@ -19711,6 +19718,7 @@
                     "organizationUuid",
                     "uuid",
                     "isPrivate",
+                    "inheritParentPermissions",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "parentSpaceUuid",
@@ -19724,7 +19732,7 @@
                     "data": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path_"
+                                "$ref": "#/components/schemas/Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_"
                             },
                             {
                                 "properties": {

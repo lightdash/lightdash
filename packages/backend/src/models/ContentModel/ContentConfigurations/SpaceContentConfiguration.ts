@@ -160,6 +160,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     `${SpaceTableName}.space_id`,
                     `${SpaceTableName}.name`,
                     `${SpaceTableName}.slug`,
+                    `${SpaceTableName}.inherit_parent_permissions`,
                     `${ProjectTableName}.project_uuid`,
                     `${ProjectTableName}.name`,
                     `${OrganizationTableName}.organization_uuid`,

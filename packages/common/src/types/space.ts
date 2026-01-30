@@ -27,6 +27,8 @@ export type Space = {
     breadcrumbs?: {
         name: string;
         uuid: string;
+        /** Whether the current user has access to this space. undefined treated as true for backwards compat */
+        hasAccess?: boolean;
     }[];
 };
 

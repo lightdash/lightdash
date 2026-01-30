@@ -5068,7 +5068,7 @@ export class ProjectService extends BaseService {
 
                 // Build space access check - use feature-flag-aware method for registered users.
                 // This complexity exists because the batch method needs SessionUser for feature flag checks.
-                // TODO: Once SpacePermissionInheritance feature flag is removed, simplify this to just
+                // TODO: Once NestedSpacesPermissions feature flag is removed, simplify this to just
                 // pass userUuid directly (works for both Account and SessionUser types).
                 const spaceAccessPromise =
                     account.user.type === 'registered'

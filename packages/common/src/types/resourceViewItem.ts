@@ -70,6 +70,7 @@ export type ResourceViewSpaceItem = {
         | 'organizationUuid'
         | 'parentSpaceUuid'
         | 'path'
+        | 'inheritParentPermissions'
     > & {
         access: string[];
         accessListLength: number;
@@ -139,6 +140,7 @@ export const spaceToResourceViewItem = (
     access: space.access,
     parentSpaceUuid: space.parentSpaceUuid,
     path: space.path,
+    inheritParentPermissions: space.inheritParentPermissions,
 });
 
 export type MostPopularAndRecentlyUpdated = {
@@ -203,6 +205,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                     userAccess: undefined, // This propery is not needed for the resource view item
                     parentSpaceUuid: content.parentSpaceUuid,
                     path: content.path,
+                    inheritParentPermissions: content.inheritParentPermissions,
                 }),
                 ResourceViewItemType.SPACE,
             );
