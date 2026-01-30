@@ -1,7 +1,7 @@
 import {
     MetricType,
     WindowFunctionType,
-    type CustomMetricBase,
+    type CustomMetricBaseTransformed,
     type TableCalcsSchema,
 } from '@lightdash/common';
 import { mockOrdersExplore } from './validationExplore.mock';
@@ -85,7 +85,7 @@ describe('validateTableCalculations', () => {
                 },
             ];
 
-            const customMetrics: CustomMetricBase[] = [
+            const customMetrics: CustomMetricBaseTransformed[] = [
                 {
                     name: 'avg_revenue',
                     label: 'Average Revenue',

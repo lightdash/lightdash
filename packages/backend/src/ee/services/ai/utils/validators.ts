@@ -6,7 +6,7 @@ import {
     CompiledField,
     convertAdditionalMetric,
     convertAiTableCalcsSchemaToTableCalcs,
-    CustomMetricBase,
+    CustomMetricBaseTransformed,
     dateFilterSchema,
     DependencyNode,
     detectCircularDependencies,
@@ -53,7 +53,9 @@ import { serializeData } from './serializeData';
 export function validateSelectedFieldsExistence(
     explore: Explore,
     selectedFieldIds: string[],
-    customMetrics?: (CustomMetricBase | Omit<AdditionalMetric, 'sql'>)[] | null,
+    customMetrics?:
+        | (CustomMetricBaseTransformed | Omit<AdditionalMetric, 'sql'>)[]
+        | null,
     tableCalculations?: TableCalcsSchema | TableCalculation[],
 ) {
     const exploreFieldIds = getFields(explore).map(getItemId);
@@ -91,7 +93,7 @@ ${nonExploreFields.join('\n')}
  */
 export function validateCustomMetricsDefinition(
     explore: Explore,
-    customMetrics: CustomMetricBase[] | null,
+    customMetrics: CustomMetricBaseTransformed[] | null,
 ) {
     if (!customMetrics || customMetrics.length === 0) {
         return;
@@ -287,7 +289,7 @@ ${serializeData(filterRule, 'json')}`;
 export function validateFilterRules(
     explore: Explore,
     filterRules: FilterRule[],
-    customMetrics?: CustomMetricBase[] | null,
+    customMetrics?: CustomMetricBaseTransformed[] | null,
     tableCalculations?: TableCalcsSchema | null,
 ) {
     const exploreFields = getFields(explore);
@@ -357,7 +359,7 @@ ${filterRuleErrorStrings}`;
  */
 export function validateMetricDimensionFilterPlacement(
     explore: Explore,
-    customMetrics: CustomMetricBase[] | null,
+    customMetrics: CustomMetricBaseTransformed[] | null,
     tableCalculations: TableCalcsSchema | null,
     filters?: Filters,
 ) {
@@ -538,7 +540,7 @@ export function validateSortFieldsAreSelected(
     sorts: ToolSortField[],
     selectedDimensions: string[],
     selectedMetrics: string[],
-    customMetrics?: CustomMetricBase[] | null,
+    customMetrics?: CustomMetricBaseTransformed[] | null,
     tableCalculations?: TableCalcsSchema,
 ) {
     if (!sorts || sorts.length === 0) {
@@ -590,7 +592,7 @@ export function validateFieldEntityType(
     explore: Explore,
     fieldIds: string[],
     expectedEntityType: 'dimension' | 'metric',
-    customMetrics?: CustomMetricBase[] | null,
+    customMetrics?: CustomMetricBaseTransformed[] | null,
 ) {
     const exploreFields = getFields(explore);
     const customMetricsProvided =
@@ -762,7 +764,7 @@ export function validateTableCalculations(
     tableCalcs: TableCalcsSchema,
     selectedDimensions: string[],
     selectedMetrics: string[],
-    customMetrics: CustomMetricBase[] | null,
+    customMetrics: CustomMetricBaseTransformed[] | null,
 ) {
     if (!tableCalcs?.length) return;
 

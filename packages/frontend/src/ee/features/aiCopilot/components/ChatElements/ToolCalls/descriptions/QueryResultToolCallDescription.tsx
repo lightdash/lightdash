@@ -1,10 +1,10 @@
-import { type ToolRunQueryArgsTransformed } from '@lightdash/common';
+import { type ToolRunQueryArgs } from '@lightdash/common';
 import { Badge, Group, Text } from '@mantine-8/core';
 import type { FC } from 'react';
 import { formatFieldName } from '../utils/formatFieldName';
 
 type QueryResultToolCallDescriptionProps = Pick<
-    ToolRunQueryArgsTransformed,
+    ToolRunQueryArgs,
     | 'title'
     | 'queryConfig'
     | 'chartConfig'
