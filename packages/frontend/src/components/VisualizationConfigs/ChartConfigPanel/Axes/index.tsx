@@ -74,6 +74,8 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setShowGridY,
         setShowXAxis,
         setShowYAxis,
+        setShowLeftYAxis,
+        setShowRightYAxis,
         setShowAxisTicks,
         setAxisLabelFontSize,
         setAxisTitleFontSize,
@@ -117,8 +119,19 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
     const showXAxis =
         dirtyLayout?.showXAxis !== undefined ? dirtyLayout?.showXAxis : true;
-    const showYAxis =
+    // Legacy showYAxis is used as fallback for independent axis controls
+    const legacyShowYAxis =
         dirtyLayout?.showYAxis !== undefined ? dirtyLayout?.showYAxis : true;
+    const showLeftYAxis =
+        dirtyLayout?.showLeftYAxis !== undefined
+            ? dirtyLayout?.showLeftYAxis
+            : legacyShowYAxis;
+    const showRightYAxis =
+        dirtyLayout?.showRightYAxis !== undefined
+            ? dirtyLayout?.showRightYAxis
+            : legacyShowYAxis;
+    // Determine if there are series on the secondary Y-axis (right axis)
+    const hasSecondaryYAxis = !dirtyLayout?.flipAxes && showSecondAxisRange;
 
     return (
         <Stack>
@@ -375,29 +388,44 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         <Checkbox
                             label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
                             checked={
-                                dirtyLayout?.flipAxes ? showYAxis : showXAxis
+                                dirtyLayout?.flipAxes
+                                    ? showLeftYAxis
+                                    : showXAxis
                             }
                             onChange={() => {
                                 if (dirtyLayout?.flipAxes) {
-                                    setShowYAxis(!showYAxis);
+                                    setShowLeftYAxis(!showLeftYAxis);
                                 } else {
                                     setShowXAxis(!showXAxis);
                                 }
                             }}
                         />
                         <Checkbox
-                            label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis`}
+                            label={
+                                dirtyLayout?.flipAxes
+                                    ? 'X-axis'
+                                    : 'Left Y-axis'
+                            }
                             checked={
-                                dirtyLayout?.flipAxes ? showXAxis : showYAxis
+                                dirtyLayout?.flipAxes ? showXAxis : showLeftYAxis
                             }
                             onChange={() => {
                                 if (dirtyLayout?.flipAxes) {
                                     setShowXAxis(!showXAxis);
                                 } else {
-                                    setShowYAxis(!showYAxis);
+                                    setShowLeftYAxis(!showLeftYAxis);
                                 }
                             }}
                         />
+                        {hasSecondaryYAxis && (
+                            <Checkbox
+                                label="Right Y-axis"
+                                checked={showRightYAxis}
+                                onChange={() => {
+                                    setShowRightYAxis(!showRightYAxis);
+                                }}
+                            />
+                        )}
                     </Stack>
                 </Config.Section>
             </Config>

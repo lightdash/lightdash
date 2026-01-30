@@ -459,7 +459,9 @@ export type CompleteCartesianChartLayout = {
     showGridX?: boolean | undefined;
     showGridY?: boolean | undefined;
     showXAxis?: boolean | undefined;
-    showYAxis?: boolean | undefined;
+    showYAxis?: boolean | undefined; // Legacy: controls all Y-axes together
+    showLeftYAxis?: boolean | undefined; // Controls left/primary Y-axis visibility independently
+    showRightYAxis?: boolean | undefined; // Controls right/secondary Y-axis visibility independently
     stack?: boolean | string | undefined; // Support both old boolean and new StackType string for backward compatibility
 };
 
