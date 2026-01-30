@@ -1,4 +1,7 @@
 import {
+    ToolCompileQueryArgs,
+    toolCompileQueryArgsSchema,
+    toolCompileQueryArgsSchemaTransformed,
     ToolFindFieldsArgs,
     toolFindFieldsArgsSchema,
     toolFindFieldsArgsSchemaTransformed,
@@ -538,6 +541,84 @@ describe('McpSchemaCompatLayer', () => {
                 },
                 tableCalculations: null,
             });
+        });
+    });
+
+    describe('compileQueryArgs', () => {
+        const schema = toolCompileQueryArgsSchema;
+        const schemaTransformed = toolCompileQueryArgsSchemaTransformed;
+        const mapped = mapZodSchema<ToolCompileQueryArgs>(schema);
+
+        const baseVizConfig = {
+            exploreName: 'test',
+            metrics: [],
+            dimensions: [],
+            sorts: [],
+        };
+
+        const base = {
+            vizConfig: baseVizConfig,
+        };
+
+        test('should handle empty filters', () => {
+            expect(
+                mapped.parse({
+                    ...base,
+                }),
+            ).toEqual({
+                ...base,
+                customMetrics: null,
+                vizConfig: {
+                    ...baseVizConfig,
+                    limit: null,
+                },
+                filters: null,
+                tableCalculations: null,
+            });
+        });
+
+        test('should handle filters', () => {
+            const parsed = mapped.parse({
+                ...base,
+                filters: {
+                    type: 'and',
+                    dimensions: [
+                        {
+                            values: ['2023-01-01'],
+                            fieldId: 'orders_order_date_year',
+                            operator: 'equals',
+                            fieldType: 'date',
+                            fieldFilterType: 'date',
+                        },
+                    ],
+                },
+            });
+
+            expect(parsed).toEqual({
+                ...base,
+                customMetrics: null,
+                vizConfig: {
+                    ...baseVizConfig,
+                    limit: null,
+                },
+                filters: {
+                    type: 'and',
+                    metrics: null,
+                    dimensions: [
+                        {
+                            values: ['2023-01-01'],
+                            fieldId: 'orders_order_date_year',
+                            operator: 'equals',
+                            fieldType: 'date',
+                            fieldFilterType: 'date',
+                        },
+                    ],
+                    tableCalculations: null,
+                },
+                tableCalculations: null,
+            });
+
+            expect(() => schemaTransformed.parse(parsed)).not.toThrow();
         });
     });
 

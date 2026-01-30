@@ -87,6 +87,14 @@ export type RunAsyncQueryFn = (
     fields: ItemsMap;
 }>;
 
+export type CompileMiniMetricQueryFn = (
+    metricQuery: AiMetricQueryWithFilters,
+    additionalMetrics?: AdditionalMetric[],
+) => Promise<{
+    query: string;
+    parameterReferences: string[];
+}>;
+
 export type SendFileFn = (args: PostSlackFile) => Promise<void>;
 
 export type UpdatePromptFn = (
