@@ -188,16 +188,24 @@ const applyGroupLimit = (
 
     // Add "Other" key - use the field from the first "other" group
     const firstOtherRef = rowKeyMap[otherGroupKeys[0]];
+    const otherPivotReference: PivotReference = {
+        field:
+            typeof firstOtherRef === 'object' && 'field' in firstOtherRef
+                ? firstOtherRef.field
+                : '',
+        pivotValues: [
+            {
+                field: OTHER_GROUP_PIVOT_VALUE,
+                value: OTHER_GROUP_PIVOT_VALUE,
+            },
+        ],
+    };
+
+    // Compute the hashed key that matches what series generation expects
+    const otherDataKey = hashFieldReference(otherPivotReference);
+
     if (typeof firstOtherRef === 'object' && 'field' in firstOtherRef) {
-        newRowKeyMap[otherLabel] = {
-            field: firstOtherRef.field,
-            pivotValues: [
-                {
-                    field: OTHER_GROUP_PIVOT_VALUE,
-                    value: OTHER_GROUP_PIVOT_VALUE,
-                },
-            ],
-        };
+        newRowKeyMap[otherDataKey] = otherPivotReference;
     }
 
     // Keep non-pivot keys (regular fields like x-axis dimension)
@@ -230,11 +238,11 @@ const applyGroupLimit = (
             delete newRow[key];
         }
 
-        // Add the "Other" column with aggregated value
-        newRow[otherLabel] = {
+        // Add the "Other" column with aggregated value at the hashed key
+        newRow[otherDataKey] = {
             value: {
                 raw: otherSum,
-                formatted: String(otherSum),
+                formatted: otherLabel, // Use the user's label for display
             },
         };
 
@@ -245,7 +253,7 @@ const applyGroupLimit = (
         rows: newRows,
         rowKeyMap: newRowKeyMap,
         aggregatedKeys: otherGroupKeys,
-        otherKey: otherLabel,
+        otherKey: otherLabel, // Keep returning the label for display purposes
     };
 };
 
@@ -2367,19 +2375,9 @@ const useEchartsCartesianConfig = (
         if (
             !validCartesianConfig ||
             !otherKey ||
-            aggregatedKeys.length === 0 ||
-            !pivotValuesColumnsMap
+            aggregatedKeys.length === 0
         ) {
             return validCartesianConfig;
-        }
-
-        // Find which column names map to the aggregated keys
-        const aggregatedColumnNames = new Set<string>();
-        for (const [columnName, col] of Object.entries(pivotValuesColumnsMap)) {
-            // Check if this column's pivot values match any aggregated key
-            if (aggregatedKeys.includes(columnName)) {
-                aggregatedColumnNames.add(columnName);
-            }
         }
 
         const originalSeries = validCartesianConfig.eChartsConfig.series || [];
@@ -2388,26 +2386,45 @@ const useEchartsCartesianConfig = (
         const filteredSeries: Series[] = [];
         let otherSeriesTemplate: Series | null = null;
 
+        // Create a Set for faster lookups
+        const aggregatedKeysSet = new Set(aggregatedKeys);
+
         for (const s of originalSeries) {
             // Check if this series should be aggregated
             if (isPivotReferenceWithValues(s.encode.yRef)) {
-                const yRef = s.encode.yRef;
-                // Find the matching column for this series
-                const matchingColumn = Object.values(
-                    pivotValuesColumnsMap,
-                ).find(
-                    (col) =>
-                        col.referenceField === yRef.field &&
-                        col.pivotValues.length === yRef.pivotValues.length &&
-                        col.pivotValues.every(
-                            (pv, idx) => pv.value === yRef.pivotValues[idx].value,
-                        ),
-                );
+                let shouldAggregate = false;
 
-                if (
-                    matchingColumn &&
-                    aggregatedKeys.includes(matchingColumn.pivotColumnName)
-                ) {
+                // For new pivot mode (with pivotValuesColumnsMap)
+                if (pivotValuesColumnsMap) {
+                    const yRef = s.encode.yRef;
+                    // Find the matching column for this series
+                    const matchingColumn = Object.values(
+                        pivotValuesColumnsMap,
+                    ).find(
+                        (col) =>
+                            col.referenceField === yRef.field &&
+                            col.pivotValues.length === yRef.pivotValues.length &&
+                            col.pivotValues.every(
+                                (pv, idx) =>
+                                    pv.value === yRef.pivotValues[idx].value,
+                            ),
+                    );
+
+                    if (
+                        matchingColumn &&
+                        aggregatedKeysSet.has(matchingColumn.pivotColumnName)
+                    ) {
+                        shouldAggregate = true;
+                    }
+                } else {
+                    // For legacy mode, use hashFieldReference directly
+                    const yFieldHash = hashFieldReference(s.encode.yRef);
+                    if (aggregatedKeysSet.has(yFieldHash)) {
+                        shouldAggregate = true;
+                    }
+                }
+
+                if (shouldAggregate) {
                     // This series should be aggregated - save as template if first one
                     if (!otherSeriesTemplate) {
                         otherSeriesTemplate = s;
