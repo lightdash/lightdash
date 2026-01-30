@@ -1,4 +1,4 @@
-import { type Space } from '@lightdash/common';
+import { FeatureFlags, type Space } from '@lightdash/common';
 import { Alert, Anchor, Box, Button, Stack, Text } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -9,10 +9,12 @@ import {
 import { useEffect, useState, type FC } from 'react';
 import { Link, useNavigate } from 'react-router';
 import useSearchParams from '../../../hooks/useSearchParams';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import MantineModal from '../MantineModal';
 import { ShareSpaceAccessType } from './ShareSpaceAccessType';
 import { ShareSpaceAddUser } from './ShareSpaceAddUser';
+import { ShareSpaceInheritanceToggle } from './ShareSpaceInheritanceToggle';
 import {
     SpaceAccessOptions,
     SpaceAccessType,
@@ -36,6 +38,16 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const isNestedSpace = !!space.parentSpaceUuid;
     const rootSpaceBreadcrumb = space.breadcrumbs?.[0] ?? null;
+
+    // Feature flag for space permission inheritance
+    const { data: inheritanceFeatureFlag } = useServerFeatureFlag(
+        FeatureFlags.NestedSpacesPermissions,
+    );
+    const isInheritanceEnabled = inheritanceFeatureFlag?.enabled ?? false;
+
+    // When flag is ON: controls are always enabled (additive permissions allowed even when inheriting)
+    // When flag is OFF: controls are disabled for nested spaces (legacy behavior)
+    const areControlsDisabled = isInheritanceEnabled ? false : isNestedSpace;
 
     useEffect(() => {
         if (shareSpaceModalSearchParam === 'true') {
@@ -72,7 +84,7 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                 opened={isOpen}
                 onClose={() => setIsOpen(false)}
                 actions={
-                    !isNestedSpace ? (
+                    !areControlsDisabled ? (
                         <Box bg="ldGray.0">
                             <Text color="ldGray.7" fz="xs">
                                 {selectedAccess.value ===
@@ -115,7 +127,16 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
             >
                 <>
                     <Stack>
-                        {isNestedSpace && (
+                        {/* Flag ON: Show inheritance toggle */}
+                        {isInheritanceEnabled && (
+                            <ShareSpaceInheritanceToggle
+                                space={space}
+                                projectUuid={projectUuid}
+                            />
+                        )}
+
+                        {/* Flag OFF + nested: Show legacy alert about inherited permissions */}
+                        {!isInheritanceEnabled && isNestedSpace && (
                             <Alert
                                 color="blue"
                                 icon={<IconAlertCircle size="1rem" />}
@@ -145,22 +166,25 @@ const ShareSpaceModal: FC<ShareSpaceProps> = ({ space, projectUuid }) => {
                         <ShareSpaceAddUser
                             space={space}
                             projectUuid={projectUuid}
-                            disabled={isNestedSpace}
+                            disabled={areControlsDisabled}
                         />
 
-                        <ShareSpaceAccessType
-                            projectUuid={projectUuid}
-                            space={space}
-                            selectedAccess={selectedAccess}
-                            setSelectedAccess={setSelectedAccess}
-                            disabled={isNestedSpace}
-                        />
+                        {/* Only show access type selector when flag is OFF (legacy behavior) */}
+                        {!isInheritanceEnabled && (
+                            <ShareSpaceAccessType
+                                projectUuid={projectUuid}
+                                space={space}
+                                selectedAccess={selectedAccess}
+                                setSelectedAccess={setSelectedAccess}
+                                disabled={areControlsDisabled}
+                            />
+                        )}
 
                         <ShareSpaceUserList
                             projectUuid={projectUuid}
                             space={space}
                             sessionUser={sessionUser.data}
-                            disabled={isNestedSpace}
+                            disabled={areControlsDisabled}
                         />
                     </Stack>
                 </>
