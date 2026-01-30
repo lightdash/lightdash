@@ -1,3 +1,10 @@
+# [0.2403.0](https://github.com/lightdash/lightdash/compare/0.2402.0...0.2403.0) (2026-01-30)
+
+
+### Features
+
+* allow saving metrics explorer chart to space/dashboard ([#19768](https://github.com/lightdash/lightdash/issues/19768)) ([0d3fded](https://github.com/lightdash/lightdash/commit/0d3fded6029de7c6b988ff81a7f3cc13a615c4a5))
+
 # [0.2402.0](https://github.com/lightdash/lightdash/compare/0.2401.0...0.2402.0) (2026-01-30)
 
 
