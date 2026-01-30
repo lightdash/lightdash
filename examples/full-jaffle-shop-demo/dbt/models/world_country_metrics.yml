@@ -1,0 +1,75 @@
+version: 2
+models:
+  - name: world_country_metrics
+    description: |
+      # World Country Metrics
+
+      Country-level business metrics for worldwide operations.
+      Use country_code (ISO 3166-1 alpha-3) for choropleth/area maps
+      with the built-in World map type.
+    columns:
+      - name: country_code
+        description: "ISO 3166-1 alpha-3 country code (e.g., USA, GBR, DEU) - matches countries.geojson"
+        config:
+          meta:
+            dimension:
+              type: string
+
+      - name: country_name
+        description: Full country name
+        config:
+          meta:
+            dimension:
+              type: string
+
+      - name: continent
+        description: Continent where the country is located
+        config:
+          meta:
+            dimension:
+              type: string
+
+      - name: customer_count
+        description: Number of customers in this country
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_customers:
+                type: sum
+                label: Total Customers
+                description: Sum of customers across countries
+
+      - name: annual_revenue_usd
+        description: Annual revenue in USD for this country
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              total_country_revenue:
+                type: sum
+                label: Total Country Revenue
+                description: Sum of revenue across countries
+
+      - name: avg_deal_size_usd
+        description: Average deal size in USD
+        config:
+          meta:
+            dimension:
+              type: number
+
+      - name: market_penetration_pct
+        description: Market penetration percentage
+        config:
+          meta:
+            dimension:
+              type: number
+
+      - name: yoy_growth_pct
+        description: Year-over-year growth percentage
+        config:
+          meta:
+            dimension:
+              type: number

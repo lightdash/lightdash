@@ -1,0 +1,106 @@
+country_code,country_name,continent,customer_count,annual_revenue_usd,avg_deal_size_usd,market_penetration_pct,yoy_growth_pct
+USA,United States,North America,4850,48500000,9995,12.5,18.2
+GBR,United Kingdom,Europe,1820,14560000,8000,9.8,15.6
+DEU,Germany,Europe,1650,14025000,8500,8.2,22.4
+FRA,France,Europe,1280,9600000,7500,7.1,14.8
+CAN,Canada,North America,1120,8960000,8000,11.2,16.9
+AUS,Australia,Oceania,980,7840000,8000,14.5,19.3
+JPN,Japan,Asia,1450,11600000,8000,5.2,12.1
+NLD,Netherlands,Europe,620,4960000,8000,15.8,21.5
+ESP,Spain,Europe,580,4060000,7000,6.4,25.2
+ITA,Italy,Europe,520,3640000,7000,4.8,18.7
+BRA,Brazil,South America,680,4080000,6000,3.2,28.5
+MEX,Mexico,North America,420,2520000,6000,4.1,32.1
+IND,India,Asia,1250,6250000,5000,1.8,45.6
+CHN,China,Asia,890,5340000,6000,0.8,38.2
+KOR,South Korea,Asia,680,5440000,8000,8.5,24.3
+SGP,Singapore,Asia,380,3420000,9000,22.5,17.8
+HKG,Hong Kong,Asia,290,2610000,9000,18.2,14.2
+TWN,Taiwan,Asia,320,2240000,7000,7.8,19.5
+IDN,Indonesia,Asia,280,1400000,5000,1.2,52.3
+THA,Thailand,Asia,240,1200000,5000,2.8,35.4
+MYS,Malaysia,Asia,210,1260000,6000,4.5,28.9
+PHL,Philippines,Asia,180,900000,5000,1.5,42.1
+VNM,Vietnam,Asia,150,600000,4000,1.1,58.3
+SWE,Sweden,Europe,480,4320000,9000,18.5,16.2
+NOR,Norway,Europe,320,2880000,9000,21.2,14.8
+DNK,Denmark,Europe,280,2520000,9000,19.8,15.4
+FIN,Finland,Europe,220,1980000,9000,16.2,17.9
+CHE,Switzerland,Europe,420,4200000,10000,20.5,12.5
+AUT,Austria,Europe,280,2240000,8000,12.8,18.2
+BEL,Belgium,Europe,310,2480000,8000,11.5,16.8
+IRL,Ireland,Europe,380,3420000,9000,24.8,22.1
+PRT,Portugal,Europe,180,1080000,6000,7.2,28.5
+POL,Poland,Europe,420,2520000,6000,5.8,35.2
+CZE,Czech Republic,Europe,180,1080000,6000,8.2,26.4
+HUN,Hungary,Europe,120,600000,5000,5.5,24.8
+ROU,Romania,Europe,140,700000,5000,3.8,32.5
+GRC,Greece,Europe,110,660000,6000,4.2,22.1
+ISR,Israel,Middle East,480,4320000,9000,18.5,28.4
+ARE,United Arab Emirates,Middle East,320,2880000,9000,15.2,35.8
+SAU,Saudi Arabia,Middle East,180,1260000,7000,3.2,42.5
+QAT,Qatar,Middle East,85,765000,9000,22.5,28.2
+KWT,Kuwait,Middle East,65,455000,7000,8.5,18.5
+BHR,Bahrain,Middle East,45,315000,7000,12.8,22.4
+OMN,Oman,Middle East,35,210000,6000,4.2,25.8
+JOR,Jordan,Middle East,42,210000,5000,2.8,28.5
+LBN,Lebanon,Middle East,28,140000,5000,2.1,15.2
+ZAF,South Africa,Africa,420,2520000,6000,4.5,24.8
+EGY,Egypt,Africa,180,720000,4000,1.2,38.5
+NGA,Nigeria,Africa,120,480000,4000,0.4,55.2
+KEN,Kenya,Africa,85,340000,4000,1.8,48.5
+GHA,Ghana,Africa,45,180000,4000,1.2,42.1
+MAR,Morocco,Africa,65,260000,4000,1.5,32.8
+TUN,Tunisia,Africa,35,140000,4000,1.8,28.5
+TZA,Tanzania,Africa,28,112000,4000,0.5,45.2
+UGA,Uganda,Africa,22,88000,4000,0.4,52.8
+ETH,Ethiopia,Africa,18,72000,4000,0.2,62.5
+SEN,Senegal,Africa,15,60000,4000,0.8,38.2
+CIV,Ivory Coast,Africa,12,48000,4000,0.3,42.5
+CMR,Cameroon,Africa,10,40000,4000,0.2,35.8
+AGO,Angola,Africa,8,32000,4000,0.1,28.5
+MOZ,Mozambique,Africa,6,24000,4000,0.1,48.2
+ZWE,Zimbabwe,Africa,5,20000,4000,0.2,22.5
+BWA,Botswana,Africa,8,40000,5000,2.5,32.1
+NAM,Namibia,Africa,6,30000,5000,1.8,28.4
+MUS,Mauritius,Africa,12,72000,6000,5.2,24.8
+ARG,Argentina,South America,320,1600000,5000,3.5,22.8
+CHL,Chile,South America,280,1680000,6000,6.8,25.4
+COL,Colombia,South America,220,1100000,5000,2.2,35.2
+PER,Peru,South America,140,700000,5000,2.1,32.8
+VEN,Venezuela,South America,45,180000,4000,0.8,12.5
+ECU,Ecuador,South America,65,260000,4000,1.8,28.5
+URY,Uruguay,South America,48,288000,6000,6.2,22.4
+PRY,Paraguay,South America,22,88000,4000,1.5,35.2
+BOL,Bolivia,South America,18,72000,4000,0.8,28.5
+PAN,Panama,Central America,42,252000,6000,5.2,32.1
+CRI,Costa Rica,Central America,55,275000,5000,4.8,28.5
+GTM,Guatemala,Central America,35,140000,4000,0.9,35.2
+DOM,Dominican Republic,Central America,28,112000,4000,1.2,32.8
+HND,Honduras,Central America,15,60000,4000,0.6,28.5
+SLV,El Salvador,Central America,12,48000,4000,0.8,25.4
+NIC,Nicaragua,Central America,8,32000,4000,0.5,22.1
+JAM,Jamaica,Central America,18,72000,4000,2.5,18.5
+TTO,Trinidad and Tobago,Central America,22,110000,5000,6.8,15.2
+NZL,New Zealand,Oceania,380,3040000,8000,18.5,18.2
+FJI,Fiji,Oceania,8,32000,4000,3.2,22.5
+PNG,Papua New Guinea,Oceania,5,20000,4000,0.2,28.4
+RUS,Russia,Europe,280,1400000,5000,0.8,8.5
+UKR,Ukraine,Europe,120,480000,4000,1.2,18.2
+BLR,Belarus,Europe,25,100000,4000,1.0,12.5
+KAZ,Kazakhstan,Asia,45,180000,4000,1.2,28.5
+UZB,Uzbekistan,Asia,18,72000,4000,0.3,35.2
+PAK,Pakistan,Asia,85,340000,4000,0.2,42.5
+BGD,Bangladesh,Asia,65,260000,4000,0.2,55.8
+LKA,Sri Lanka,Asia,35,140000,4000,0.8,32.5
+NPL,Nepal,Asia,15,60000,4000,0.3,45.2
+MMR,Myanmar,Asia,12,48000,4000,0.1,38.5
+KHM,Cambodia,Asia,18,72000,4000,0.5,52.1
+LAO,Laos,Asia,8,32000,4000,0.4,48.5
+MNG,Mongolia,Asia,12,48000,4000,1.5,35.2
+TUR,Turkey,Europe,380,1900000,5000,2.1,28.5
+IRN,Iran,Middle East,65,260000,4000,0.3,15.2
+IRQ,Iraq,Middle East,22,88000,4000,0.2,42.5
+AFG,Afghanistan,Asia,5,20000,4000,0.1,25.8
+SYR,Syria,Middle East,3,12000,4000,0.1,8.5
+YEM,Yemen,Middle East,2,8000,4000,0.1,5.2

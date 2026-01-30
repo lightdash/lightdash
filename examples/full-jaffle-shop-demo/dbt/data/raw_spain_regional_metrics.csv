@@ -1,0 +1,53 @@
+province_name,capital_city,latitude,longitude,customer_count,annual_revenue_eur,employee_count,market_penetration_pct,yoy_growth_pct
+A Coruña,A Coruña,43.3623,-8.4115,48,288000,6,4.2,18.5
+Alacant/Alicante,Alicante,38.3452,-0.4810,62,434000,8,4.5,24.2
+Albacete,Albacete,38.9943,-1.8585,18,108000,2,3.2,22.5
+Almería,Almería,36.8340,-2.4637,24,144000,3,3.5,28.4
+Araba/Álava,Vitoria-Gasteiz,42.8467,-2.6716,32,256000,4,6.8,21.5
+Asturias,Oviedo,43.3619,-5.8494,38,228000,5,4.8,18.2
+Badajoz,Badajoz,38.8794,-6.9707,22,110000,3,3.2,25.8
+Barcelona,Barcelona,41.3851,2.1734,185,1480000,28,8.2,28.4
+Bizkaia/Vizcaya,Bilbao,43.2630,-2.9350,58,464000,8,6.5,22.8
+Burgos,Burgos,42.3439,-3.6969,18,108000,2,4.2,19.5
+Cantabria,Santander,43.4623,-3.8100,22,132000,3,5.2,19.8
+Castelló/Castellón,Castellón de la Plana,39.9864,-0.0513,28,168000,3,4.1,23.5
+Ceuta,Ceuta,35.8894,-5.3198,3,15000,1,2.5,15.2
+Ciudad Real,Ciudad Real,38.9848,-3.9274,15,90000,2,2.8,24.8
+Cuenca,Cuenca,40.0704,-2.1374,8,48000,1,3.5,22.1
+Cáceres,Cáceres,39.4753,-6.3724,12,72000,2,3.1,26.2
+Cádiz,Cádiz,36.5271,-6.2886,42,252000,5,3.8,32.5
+Córdoba,Córdoba,37.8882,-4.7794,32,192000,4,3.5,28.8
+Gipuzkoa/Guipúzcoa,San Sebastián,43.3183,-1.9812,45,360000,6,7.2,20.5
+Girona,Girona,41.9794,2.8214,35,245000,4,5.8,25.2
+Granada,Granada,37.1773,-3.5986,38,228000,4,3.2,30.5
+Guadalajara,Guadalajara,40.6337,-3.1674,12,84000,2,4.5,28.2
+Huelva,Huelva,37.2614,-6.9447,18,108000,2,3.2,26.8
+Huesca,Huesca,42.1401,-0.4089,10,70000,1,4.2,21.5
+Illes Balears,Palma,39.5696,2.6502,48,336000,6,5.5,28.2
+Jaén,Jaén,37.7796,-3.7849,22,132000,3,2.8,25.4
+La Rioja,Logroño,42.4627,-2.4499,15,105000,2,6.8,24.5
+Las Palmas,Las Palmas de Gran Canaria,28.1235,-15.4363,42,252000,5,4.8,32.1
+León,León,42.5987,-5.5671,18,108000,2,3.5,18.8
+Lleida,Lleida,41.6176,0.6200,22,154000,3,4.8,22.8
+Lugo,Lugo,43.0097,-7.5568,12,72000,2,3.2,17.5
+Madrid,Madrid,40.4168,-3.7038,245,1960000,38,8.5,22.5
+Melilla,Melilla,35.2923,-2.9381,2,10000,1,2.2,12.8
+Murcia,Murcia,37.9922,-1.1307,52,312000,6,3.8,32.5
+Málaga,Málaga,36.7213,-4.4214,68,408000,8,4.2,35.2
+Navarra,Pamplona,42.8125,-1.6458,35,245000,5,6.2,21.5
+Ourense,Ourense,42.3364,-7.8639,12,72000,2,3.5,16.8
+Palencia,Palencia,42.0096,-4.5288,8,48000,1,4.2,18.2
+Pontevedra,Pontevedra,42.4310,-8.6446,32,192000,4,4.5,19.2
+Salamanca,Salamanca,40.9701,-5.6635,15,90000,2,4.0,20.5
+Santa Cruz De Tenerife,Santa Cruz de Tenerife,28.4636,-16.2518,38,228000,5,4.2,30.8
+Segovia,Segovia,40.9429,-4.1088,8,56000,1,4.8,22.4
+Sevilla,Seville,37.3891,-5.9845,85,510000,10,4.5,28.5
+Soria,Soria,41.7636,-2.4649,5,30000,1,5.2,18.5
+Tarragona,Tarragona,41.1189,1.2445,32,224000,4,5.2,24.8
+Teruel,Teruel,40.3456,-1.1065,6,36000,1,4.0,20.2
+Toledo,Toledo,39.8628,-4.0273,28,168000,3,3.8,26.5
+Valladolid,Valladolid,41.6523,-4.7245,35,210000,4,5.5,21.8
+València/Valencia,Valencia,39.4699,-0.3763,98,686000,12,5.2,25.8
+Zamora,Zamora,41.5034,-5.7467,8,48000,1,3.8,17.2
+Zaragoza,Zaragoza,41.6488,-0.8891,52,364000,6,5.8,22.8
+Ávila,Ávila,40.6566,-4.6812,6,36000,1,3.5,19.8

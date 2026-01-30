@@ -1,0 +1,51 @@
+office_id,office_name,city,country_name,country_code,region,latitude,longitude,annual_revenue_usd,employee_count,year_established,office_type
+1,San Francisco HQ,San Francisco,United States,USA,North America,37.7749,-122.4194,12500000,145,2015,headquarters
+2,New York Office,New York,United States,USA,North America,40.7128,-74.0060,8900000,98,2016,regional
+3,London Office,London,United Kingdom,GBR,Europe,51.5074,-0.1278,7200000,82,2017,regional
+4,Tokyo Office,Tokyo,Japan,JPN,Asia Pacific,35.6762,139.6503,6800000,76,2017,regional
+5,Sydney Office,Sydney,Australia,AUS,Asia Pacific,-33.8688,151.2093,4200000,52,2018,regional
+6,Berlin Office,Berlin,Germany,DEU,Europe,52.5200,13.4050,3800000,45,2018,regional
+7,Toronto Office,Toronto,Canada,CAN,North America,43.6532,-79.3832,3500000,42,2018,regional
+8,Singapore Office,Singapore,Singapore,SGP,Asia Pacific,1.3521,103.8198,5100000,58,2017,regional
+9,Paris Office,Paris,France,FRA,Europe,48.8566,2.3522,4100000,48,2019,regional
+10,Amsterdam Office,Amsterdam,Netherlands,NLD,Europe,52.3676,4.9041,2900000,35,2019,satellite
+11,Mumbai Office,Mumbai,India,IND,Asia Pacific,19.0760,72.8777,2400000,68,2019,regional
+12,São Paulo Office,São Paulo,Brazil,BRA,South America,-23.5505,-46.6333,3200000,55,2019,regional
+13,Dubai Office,Dubai,United Arab Emirates,ARE,Middle East,25.2048,55.2708,2800000,32,2020,satellite
+14,Stockholm Office,Stockholm,Sweden,SWE,Europe,59.3293,18.0686,2100000,28,2020,satellite
+15,Seoul Office,Seoul,South Korea,KOR,Asia Pacific,37.5665,126.9780,4500000,62,2018,regional
+16,Melbourne Office,Melbourne,Australia,AUS,Asia Pacific,-37.8136,144.9631,2600000,34,2020,satellite
+17,Chicago Office,Chicago,United States,USA,North America,41.8781,-87.6298,5200000,65,2017,regional
+18,Austin Office,Austin,United States,USA,North America,30.2672,-97.7431,3900000,48,2019,satellite
+19,Denver Office,Denver,United States,USA,North America,39.7392,-104.9903,2700000,33,2020,satellite
+20,Boston Office,Boston,United States,USA,North America,42.3601,-71.0589,4600000,54,2018,regional
+21,Los Angeles Office,Los Angeles,United States,USA,North America,34.0522,-118.2437,5800000,72,2017,regional
+22,Seattle Office,Seattle,United States,USA,North America,47.6062,-122.3321,4100000,51,2018,regional
+23,Dublin Office,Dublin,Ireland,IRL,Europe,53.3498,-6.2603,3400000,41,2019,regional
+24,Zurich Office,Zurich,Switzerland,CHE,Europe,47.3769,8.5417,2200000,25,2020,satellite
+25,Hong Kong Office,Hong Kong,Hong Kong,HKG,Asia Pacific,22.3193,114.1694,3700000,44,2018,regional
+26,Shanghai Office,Shanghai,China,CHN,Asia Pacific,31.2304,121.4737,4800000,85,2018,regional
+27,Beijing Office,Beijing,China,CHN,Asia Pacific,39.9042,116.4074,3600000,62,2019,satellite
+28,Bangalore Office,Bangalore,India,IND,Asia Pacific,12.9716,77.5946,1800000,95,2019,development
+29,Tel Aviv Office,Tel Aviv,Israel,ISR,Middle East,32.0853,34.7818,2500000,38,2019,satellite
+30,Madrid Office,Madrid,Spain,ESP,Europe,40.4168,-3.7038,2300000,32,2020,satellite
+31,Barcelona Office,Barcelona,Spain,ESP,Europe,41.3851,2.1734,1900000,28,2021,satellite
+32,Milan Office,Milan,Italy,ITA,Europe,45.4642,9.1900,2000000,26,2021,satellite
+33,Warsaw Office,Warsaw,Poland,POL,Europe,52.2297,21.0122,1500000,35,2021,satellite
+34,Prague Office,Prague,Czech Republic,CZE,Europe,50.0755,14.4378,1200000,22,2021,satellite
+35,Vienna Office,Vienna,Austria,AUT,Europe,48.2082,16.3738,1400000,20,2021,satellite
+36,Copenhagen Office,Copenhagen,Denmark,DNK,Europe,55.6761,12.5683,1800000,24,2020,satellite
+37,Oslo Office,Oslo,Norway,NOR,Europe,59.9139,10.7522,1600000,22,2020,satellite
+38,Helsinki Office,Helsinki,Finland,FIN,Europe,60.1699,24.9384,1300000,18,2021,satellite
+39,Brussels Office,Brussels,Belgium,BEL,Europe,50.8503,4.3517,1700000,23,2020,satellite
+40,Lisbon Office,Lisbon,Portugal,PRT,Europe,38.7223,-9.1393,1100000,19,2021,satellite
+41,Mexico City Office,Mexico City,Mexico,MEX,North America,19.4326,-99.1332,2200000,42,2020,regional
+42,Buenos Aires Office,Buenos Aires,Argentina,ARG,South America,-34.6037,-58.3816,1400000,28,2021,satellite
+43,Santiago Office,Santiago,Chile,CHL,South America,-33.4489,-70.6693,1200000,22,2021,satellite
+44,Johannesburg Office,Johannesburg,South Africa,ZAF,Africa,-26.2041,28.0473,1600000,30,2020,regional
+45,Cairo Office,Cairo,Egypt,EGY,Africa,30.0444,31.2357,900000,24,2021,satellite
+46,Lagos Office,Lagos,Nigeria,NGA,Africa,6.5244,3.3792,700000,18,2022,satellite
+47,Nairobi Office,Nairobi,Kenya,KEN,Africa,-1.2921,36.8219,600000,15,2022,satellite
+48,Manila Office,Manila,Philippines,PHL,Asia Pacific,14.5995,120.9842,1500000,45,2020,regional
+49,Jakarta Office,Jakarta,Indonesia,IDN,Asia Pacific,-6.2088,106.8456,1800000,52,2020,regional
+50,Bangkok Office,Bangkok,Thailand,THA,Asia Pacific,13.7563,100.5018,1400000,35,2020,satellite
