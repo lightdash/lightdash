@@ -11,115 +11,40 @@ Gauge charts in Lightdash provide a visual representation of a single metric val
 
 Gauge charts display a single numeric value on a semi-circular dial with optional colored sections to indicate different ranges or performance zones.
 
-## Basic Structure
+## Schema Reference
 
-```yaml
-version: 1
-name: "My Gauge Chart"
-slug: "my-gauge-chart"
-spaceSlug: "analytics"
-tableName: "my_explore"
-updatedAt: "2024-01-01T00:00:00.000Z"
+For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.json) under `$defs/gaugeChart`.
 
-metricQuery:
-  dimensions: []
-  metrics:
-    - "my_explore_current_value"
-    - "my_explore_target_value"  # Optional: for dynamic max
-  filters: []
-  sorts: []
-  limit: 1
+## Key Configuration Properties
 
-chartConfig:
-  type: "gauge"
-  config:
-    gaugeChart:
-      selectedField: "my_explore_current_value"
-      min: 0
-      max: 100
-      showAxisLabels: true
-```
+The `gaugeChart` configuration object supports these key properties:
 
-## Configuration Options
+### Core Value Settings
 
-### `gaugeChart` (object, optional)
+- **`selectedField`**: Field ID for the gauge value (a metric from your `metricQuery`)
+- **`min`**: Minimum value for the gauge scale (default: 0)
+- **`max`**: Fixed maximum value for the gauge scale
+- **`maxFieldId`**: Field ID to use as dynamic maximum (mutually exclusive with `max`)
 
-The main configuration object for gauge chart settings. All properties are optional.
+### Display Settings
 
-#### Core Value Settings
+- **`showAxisLabels`**: Show min/max labels on the gauge axis
+- **`customLabel`**: Custom label to display instead of the field name
+- **`showPercentage`**: Display the value as a percentage of max
+- **`customPercentageLabel`**: Custom label for percentage display
 
-- **`selectedField`** (string): Field ID for the gauge value. This should be a metric from your `metricQuery`.
+### Sections (Color Ranges)
 
-- **`min`** (number): Minimum value for the gauge scale. Default is typically 0.
-
-- **`max`** (number): Maximum value for the gauge scale. Use this for a fixed maximum.
-
-- **`maxFieldId`** (string): Field ID to use as the maximum value. Use this when the max should be dynamic based on query results (e.g., a target metric). Mutually exclusive with `max`.
-
-#### Display Settings
-
-- **`showAxisLabels`** (boolean): Whether to show min/max labels on the gauge axis. Default is typically `true`.
-
-- **`customLabel`** (string): Custom label to display with the gauge value instead of the field name.
-
-- **`showPercentage`** (boolean): Display the value as a percentage of the max value.
-
-- **`customPercentageLabel`** (string): Custom label for the percentage display when `showPercentage` is `true`.
-
-#### Sections (Color Ranges)
-
-- **`sections`** (array): Define colored sections/ranges on the gauge to indicate different performance zones. Each section is a `gaugeSection` object (see below).
-
-### `gaugeSection` (object)
-
-Defines a colored range on the gauge. Required properties: `min`, `max`, `color`.
-
-- **`min`** (number, required): Start value for this section.
-
-- **`max`** (number, required): End value for this section.
-
-- **`minFieldId`** (string, optional): Field ID to use as the section's min value (dynamic min).
-
-- **`maxFieldId`** (string, optional): Field ID to use as the section's max value (dynamic max).
-
-- **`color`** (string, required): Color for this section as a hex code (e.g., `"#FF0000"` for red).
+- **`sections`**: Array of colored ranges indicating performance zones. Each section requires:
+  - `min` / `minFieldId`: Start value (fixed or dynamic)
+  - `max` / `maxFieldId`: End value (fixed or dynamic)
+  - `color`: Hex color code (e.g., `"#DC2626"`)
 
 ## Examples
 
-### Example 1: Basic Gauge with Fixed Range
+### Example 1: Gauge with Color-Coded Sections
 
-Simple gauge showing current revenue vs. a fixed target:
-
-```yaml
-version: 1
-name: "Monthly Revenue"
-slug: "monthly-revenue"
-spaceSlug: "sales"
-tableName: "sales_metrics"
-updatedAt: "2024-01-01T00:00:00.000Z"
-
-metricQuery:
-  dimensions: []
-  metrics:
-    - "sales_metrics_current_revenue"
-  filters: []
-  sorts: []
-  limit: 1
-
-chartConfig:
-  type: "gauge"
-  config:
-    gaugeChart:
-      selectedField: "sales_metrics_current_revenue"
-      min: 0
-      max: 100000
-      showAxisLabels: true
-      customLabel: "Current Revenue ($)"
-```
-
-### Example 2: Multiple Colored Sections (Red/Yellow/Green Zones)
-
-Gauge with color-coded performance zones:
+Gauge with red/yellow/green performance zones:
 
 ```yaml
 version: 1
@@ -161,41 +86,9 @@ chartConfig:
           color: "#10B981"
 ```
 
-### Example 3: Dynamic Max from Field
+### Example 2: Dynamic Max with Percentage Display
 
-Gauge showing progress against a dynamic target value:
-
-```yaml
-version: 1
-name: "Sales Progress vs Target"
-slug: "sales-progress"
-spaceSlug: "sales"
-tableName: "sales_metrics"
-updatedAt: "2024-01-01T00:00:00.000Z"
-
-metricQuery:
-  dimensions: []
-  metrics:
-    - "sales_metrics_current_sales"
-    - "sales_metrics_quarterly_target"
-  filters: []
-  sorts: []
-  limit: 1
-
-chartConfig:
-  type: "gauge"
-  config:
-    gaugeChart:
-      selectedField: "sales_metrics_current_sales"
-      min: 0
-      maxFieldId: "sales_metrics_quarterly_target"  # Dynamic max
-      showAxisLabels: true
-      customLabel: "Current Sales"
-```
-
-### Example 4: Percentage Display with Custom Label
-
-Display value as percentage with a custom label:
+Progress gauge against a dynamic target:
 
 ```yaml
 version: 1
@@ -236,58 +129,9 @@ chartConfig:
           color: "#22C55E"
 ```
 
-### Example 5: Advanced with Dynamic Sections
-
-Dynamic sections using field values for boundaries:
-
-```yaml
-version: 1
-name: "Performance Score"
-slug: "performance-score"
-spaceSlug: "analytics"
-tableName: "performance_metrics"
-updatedAt: "2024-01-01T00:00:00.000Z"
-
-metricQuery:
-  dimensions: []
-  metrics:
-    - "performance_metrics_current_score"
-    - "performance_metrics_warning_threshold"
-    - "performance_metrics_critical_threshold"
-    - "performance_metrics_max_score"
-  filters: []
-  sorts: []
-  limit: 1
-
-chartConfig:
-  type: "gauge"
-  config:
-    gaugeChart:
-      selectedField: "performance_metrics_current_score"
-      min: 0
-      maxFieldId: "performance_metrics_max_score"
-      showAxisLabels: true
-      customLabel: "Performance"
-      sections:
-        # Critical zone: 0 to critical_threshold
-        - min: 0
-          maxFieldId: "performance_metrics_critical_threshold"
-          color: "#DC2626"
-        # Warning zone: critical_threshold to warning_threshold
-        - minFieldId: "performance_metrics_critical_threshold"
-          maxFieldId: "performance_metrics_warning_threshold"
-          color: "#F59E0B"
-        # Healthy zone: warning_threshold to max
-        - minFieldId: "performance_metrics_warning_threshold"
-          maxFieldId: "performance_metrics_max_score"
-          color: "#10B981"
-```
-
 ## Common Patterns
 
 ### KPI Dashboard Gauge
-
-For executive dashboards showing current performance vs. target:
 
 ```yaml
 gaugeChart:
@@ -309,36 +153,12 @@ gaugeChart:
 
 ### Simple Progress Indicator
 
-For tracking completion without color zones:
-
 ```yaml
 gaugeChart:
   selectedField: "completed_count"
   maxFieldId: "total_count"
   showPercentage: true
   showAxisLabels: true
-```
-
-### Health Status Gauge
-
-For monitoring system health with thresholds:
-
-```yaml
-gaugeChart:
-  selectedField: "health_score"
-  min: 0
-  max: 100
-  showAxisLabels: true
-  sections:
-    - min: 0
-      max: 50
-      color: "#DC2626"  # Critical
-    - min: 50
-      max: 80
-      color: "#FBBF24"  # Warning
-    - min: 80
-      max: 100
-      color: "#10B981"  # Healthy
 ```
 
 ## Tips

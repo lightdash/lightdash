@@ -2,6 +2,8 @@
 
 Custom visualizations in Lightdash allow you to create advanced, bespoke charts using Vega-Lite specifications. This is an advanced feature for users who need visualization types not covered by Lightdash's built-in chart types.
 
+For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.json) under `$defs/customVis`.
+
 ## Overview
 
 Custom visualizations integrate with Vega-Lite, a declarative grammar for creating interactive visualizations. Lightdash automatically provides your query results to the Vega-Lite specification, allowing you to define exactly how the data should be visualized.
@@ -15,51 +17,7 @@ Custom visualizations integrate with Vega-Lite, a declarative grammar for creati
 - Familiarity with Vega-Lite specifications (see [Vega-Lite documentation](https://vega.github.io/vega-lite/))
 - Understanding of your data structure and field names
 
-## YAML Structure
-
-```yaml
-version: 1
-name: Custom Visualization Name
-slug: custom-viz-slug
-spaceSlug: analytics/custom
-tableName: orders
-updatedAt: '2024-01-15T10:30:00Z'
-
-metricQuery:
-  dimensions:
-    - orders_status
-    - orders_created_date
-  metrics:
-    - orders_count
-  filters: {}
-  sorts:
-    - fieldId: orders_created_date
-      descending: false
-  limit: 100
-  tableCalculations: []
-
-chartConfig:
-  type: custom
-  config:
-    spec:
-      $schema: https://vega.github.io/schema/vega-lite/v5.json
-      mark: bar
-      encoding:
-        x:
-          field: orders_status
-          type: nominal
-          axis:
-            labelColor: '#6e7079'
-            tickColor: '#6e7079'
-        y:
-          field: orders_count
-          type: quantitative
-          axis:
-            labelColor: '#6e7079'
-            tickColor: '#6e7079'
-```
-
-## Configuration Options
+## Configuration
 
 ### chartConfig.type
 Must be set to `"custom"` for custom visualizations.
@@ -79,18 +37,7 @@ The complete Vega-Lite specification object. This object defines how your data w
 
 ## How Lightdash Provides Data
 
-Lightdash automatically provides your query results to the Vega-Lite specification in a specific format:
-
-**Data structure:**
-```javascript
-{
-  values: [
-    { field_name_1: value, field_name_2: value, ... },
-    { field_name_1: value, field_name_2: value, ... },
-    ...
-  ]
-}
-```
+Lightdash automatically provides your query results to the Vega-Lite specification:
 
 - Data is available as an array of objects under the `values` key
 - Field names in your Vega-Lite spec must match the field names from your `metricQuery` (dimensions, metrics, and table calculations)
@@ -150,66 +97,6 @@ chartConfig:
           aggregate: sum
           scale:
             scheme: blues
-```
-
-### Bubble Plot
-
-A scatter plot with size encoding:
-
-```yaml
-chartConfig:
-  type: custom
-  config:
-    spec:
-      $schema: https://vega.github.io/schema/vega-lite/v5.json
-      mark: point
-      encoding:
-        x:
-          field: customers_lifetime_value
-          type: quantitative
-        y:
-          field: customers_order_count
-          type: quantitative
-        size:
-          field: customers_total_spent
-          type: quantitative
-        color:
-          field: customers_status
-          type: nominal
-```
-
-### Advanced: Layered Chart with Transformations
-
-A more complex example with data transformations and multiple layers:
-
-```yaml
-chartConfig:
-  type: custom
-  config:
-    spec:
-      $schema: https://vega.github.io/schema/vega-lite/v5.json
-      transform:
-        - calculate: "datum.orders_revenue / datum.orders_count"
-          as: avg_order_value
-      layer:
-        - mark: bar
-          encoding:
-            x:
-              field: orders_created_month
-              type: temporal
-            y:
-              field: orders_count
-              type: quantitative
-        - mark:
-            type: line
-            color: red
-          encoding:
-            x:
-              field: orders_created_month
-              type: temporal
-            y:
-              field: avg_order_value
-              type: quantitative
 ```
 
 ## Tips and Best Practices
