@@ -135,6 +135,7 @@ export const spaceEntry: SpaceTable['base'] = {
     search_vector: '',
     parent_space_uuid: null,
     path: 'space-name',
+    inherit_parent_permissions: true,
 };
 export const savedChartEntry: SavedChartTable['base'] = {
     saved_query_id: 0,

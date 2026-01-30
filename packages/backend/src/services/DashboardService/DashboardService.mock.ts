@@ -56,6 +56,7 @@ export const space: SpaceTable['base'] = {
     search_vector: '',
     parent_space_uuid: null,
     path: 'space-name',
+    inherit_parent_permissions: false,
 };
 
 export const publicSpace: Space = {

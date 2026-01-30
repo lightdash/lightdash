@@ -1766,6 +1766,12 @@ export class SpaceModel {
             );
         }
 
+        // While the feature isn't fully built, we still depend on the `isPrivate`
+        // and `parent_space_uuid` to set the `inherit_parent_permissions` column
+        const inheritParentPermissions = spaceData.parentSpaceUuid
+            ? true
+            : !spaceData.isPrivate;
+
         const [space] = await trx(SpaceTableName)
             .insert({
                 project_id: project.project_id,
@@ -1775,6 +1781,7 @@ export class SpaceModel {
                 slug: spaceSlug,
                 parent_space_uuid: spaceData.parentSpaceUuid ?? null,
                 path: spacePath,
+                inherit_parent_permissions: inheritParentPermissions,
             })
             .returning('*');
 
@@ -1811,6 +1818,14 @@ export class SpaceModel {
             .update({
                 name: space.name,
                 is_private: space.isPrivate,
+                ...(space.isPrivate !== undefined && {
+                    // While the feature isn't fully built, we still depend on the `isPrivate`
+                    // and `parent_space_uuid` to set the `inherit_parent_permissions` column
+                    inherit_parent_permissions: this.database.raw(
+                        `CASE WHEN parent_space_uuid IS NULL THEN ? ELSE inherit_parent_permissions END`,
+                        [!space.isPrivate],
+                    ),
+                }),
             })
             .where('space_uuid', spaceUuid);
         return this.getFullSpace(spaceUuid);
@@ -1886,6 +1901,12 @@ export class SpaceModel {
                     parent_space_uuid = CASE
                         WHEN s.space_uuid = ? THEN ?
                         ELSE s.parent_space_uuid
+                    END,
+                    -- When moving into a parent, all spaces in the subtree must inherit permissions.
+                    -- This prevents currently unsupported scenarios where a nested space has its own permissions.
+                    inherit_parent_permissions = CASE
+                        WHEN ?::uuid IS NOT NULL THEN true
+                        ELSE NOT s.is_private
                     END
                 FROM
                     -- 'm' is the space being moved.
@@ -1903,6 +1924,7 @@ export class SpaceModel {
             `,
             [
                 spaceUuid,
+                targetSpaceUuid,
                 targetSpaceUuid,
                 targetSpaceUuid,
                 spaceUuid,
