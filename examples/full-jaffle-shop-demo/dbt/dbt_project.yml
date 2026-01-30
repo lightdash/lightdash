@@ -40,6 +40,21 @@ models:
     product_events:
       +meta:
         group_label: funnels
+    geo:
+      +meta:
+        group_label: maps
+    global_office_locations:
+      +meta:
+        group_label: maps
+    world_country_metrics:
+      +meta:
+        group_label: maps
+    spain_regional_metrics:
+      +meta:
+        group_label: maps
+    airports:
+      +meta:
+        group_label: maps
 seeds:
   jaffle_shop:
     raw_customers:
