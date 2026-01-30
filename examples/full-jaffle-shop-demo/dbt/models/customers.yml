@@ -47,7 +47,7 @@ models:
                 label: Unique customer count
                 description: Total number of customers
                 spotlight:
-                  categories: ["core"]
+                  categories: ["core", "revenue_growth"]
                 ai_hint: Unique customer count.
         meta:
           dimension:
