@@ -109,8 +109,6 @@ export const FixDashboardFilterModal: FC<Props> = ({
     const [fixAllFilters, setFixAllFilters] = useState(false);
     const form = useForm({});
 
-    // Extract the field prefix (old model name) from fieldId
-    // e.g., "Related_Opportunity_TYPE" -> "Related_Opportunity"
     const fieldName = validationError?.fieldName;
     const targetTableName = validationError?.tableName;
 
@@ -162,6 +160,16 @@ export const FixDashboardFilterModal: FC<Props> = ({
         }
         return fieldName.split('_')[0];
     }, [fieldName, targetTableName, explore]);
+
+    // Find which table a fieldId belongs to from the explore fields
+    const getTableForFieldId = (fieldId: string): string | undefined => {
+        for (const [tableName, tableFields] of Object.entries(fields.fields)) {
+            if (tableFields.includes(fieldId)) {
+                return tableName;
+            }
+        }
+        return undefined;
+    };
 
     const fieldOptions = useMemo(
         () =>
@@ -276,32 +284,55 @@ export const FixDashboardFilterModal: FC<Props> = ({
         let updatedFilters = { ...dashboard.filters };
 
         if (renameType === RenameType.FIELD) {
-            // FIELD rename: just update the single filter's fieldId
+            // FIELD rename: update fieldId, tableName, and tileTargets
+            const newTableName = getTableForFieldId(newName);
+            const updateFieldFilter = (
+                filter: DashboardFilterRule,
+            ): DashboardFilterRule => {
+                if (filter.target.fieldId !== fieldName) return filter;
+
+                let updatedTileTargets = filter.tileTargets;
+                if (filter.tileTargets) {
+                    updatedTileTargets = Object.fromEntries(
+                        Object.entries(filter.tileTargets).map(
+                            ([tileUuid, tileTarget]) => {
+                                if (
+                                    tileTarget === false ||
+                                    tileTarget.fieldId !== fieldName
+                                ) {
+                                    return [tileUuid, tileTarget];
+                                }
+                                return [
+                                    tileUuid,
+                                    {
+                                        ...tileTarget,
+                                        fieldId: newName,
+                                        ...(newTableName && {
+                                            tableName: newTableName,
+                                        }),
+                                    },
+                                ];
+                            },
+                        ),
+                    );
+                }
+
+                return {
+                    ...filter,
+                    target: {
+                        ...filter.target,
+                        fieldId: newName,
+                        ...(newTableName && { tableName: newTableName }),
+                    },
+                    ...(updatedTileTargets && {
+                        tileTargets: updatedTileTargets,
+                    }),
+                };
+            };
+
             updatedFilters = {
-                dimensions: dashboard.filters.dimensions.map((filter) => {
-                    if (filter.target.fieldId === fieldName) {
-                        return {
-                            ...filter,
-                            target: {
-                                ...filter.target,
-                                fieldId: newName,
-                            },
-                        };
-                    }
-                    return filter;
-                }),
-                metrics: dashboard.filters.metrics.map((filter) => {
-                    if (filter.target.fieldId === fieldName) {
-                        return {
-                            ...filter,
-                            target: {
-                                ...filter.target,
-                                fieldId: newName,
-                            },
-                        };
-                    }
-                    return filter;
-                }),
+                dimensions: dashboard.filters.dimensions.map(updateFieldFilter),
+                metrics: dashboard.filters.metrics.map(updateFieldFilter),
                 tableCalculations: dashboard.filters.tableCalculations,
             };
         } else {
