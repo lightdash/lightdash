@@ -401,6 +401,45 @@ lightdash upload --force
 lightdash upload --charts my-chart --dashboards my-dashboard
 ```
 
+### Delete Content
+
+Permanently delete charts and dashboards from the server and remove their local YAML files. This action cannot be undone.
+
+```bash
+# Delete a chart by slug
+lightdash delete -c my-chart
+
+# Delete a dashboard by slug
+lightdash delete -d my-dashboard
+
+# Delete multiple items at once
+lightdash delete -c chart1 chart2 -d dashboard1
+
+# Delete by UUID
+lightdash delete -c abc123-def456
+
+# Delete by URL
+lightdash delete -c "https://app.lightdash.cloud/projects/xxx/saved/abc123"
+
+# Skip confirmation prompt (use with caution)
+lightdash delete -c my-chart --force
+
+# Use custom path for local files
+lightdash delete -c my-chart --path ./custom-lightdash
+
+# Delete from a specific project
+lightdash delete -c my-chart --project <project-uuid>
+```
+
+**Options:**
+- `-c, --charts <charts...>` - Chart slugs, UUIDs, or URLs to delete
+- `-d, --dashboards <dashboards...>` - Dashboard slugs, UUIDs, or URLs to delete
+- `-f, --force` - Skip confirmation prompt
+- `-p, --path <path>` - Custom path where local chart-as-code files are stored
+- `--project <uuid>` - Specify a project UUID
+
+**Warning:** The delete command will warn you if any charts being deleted are referenced by dashboards. Those dashboard tiles will break after deletion.
+
 ### SQL Runner
 
 Execute raw SQL queries against the warehouse using the current project's credentials. Results are exported to CSV.
@@ -432,58 +471,58 @@ lightdash sql "SELECT COUNT(*) FROM users" -o count.csv --verbose
 
 ### Chart Types
 
-- `cartesian` - Bar, line, area, scatter charts
-- `pie` - Pie and donut charts
-- `table` - Data tables with formatting
-- `big_number` - Single KPI display
-- `funnel` - Funnel visualization
-- `treemap` - Hierarchical treemap
+Lightdash supports 9 chart types. Each has detailed configuration options documented in its own reference file:
 
-### Chart YAML Structure
+| Type | Description | Reference |
+|------|-------------|-----------|
+| `cartesian` | Bar, line, area, scatter charts | [Cartesian Chart Reference](./resources/cartesian-chart-reference.md) |
+| `pie` | Pie and donut charts | [Pie Chart Reference](./resources/pie-chart-reference.md) |
+| `table` | Data tables with formatting and conditional styling | [Table Chart Reference](./resources/table-chart-reference.md) |
+| `big_number` | Single KPI display with comparison | [Big Number Reference](./resources/big-number-chart-reference.md) |
+| `funnel` | Conversion funnel visualization | [Funnel Chart Reference](./resources/funnel-chart-reference.md) |
+| `gauge` | Gauge/dial visualization with colored sections | [Gauge Chart Reference](./resources/gauge-chart-reference.md) |
+| `treemap` | Hierarchical treemap | [Treemap Chart Reference](./resources/treemap-chart-reference.md) |
+| `map` | Geographic scatter, area, and heatmaps | [Map Chart Reference](./resources/map-chart-reference.md) |
+| `custom` | Custom Vega-Lite visualizations | [Custom Viz Reference](./resources/custom-viz-reference.md) |
+
+### Basic Chart YAML Structure
+
+All charts share this common structure. The `chartConfig` section varies by chart type.
 
 ```yaml
 version: 1
-name: "Monthly Revenue"
-slug: monthly-revenue
-spaceSlug: sales-reports
-tableName: orders
-description: "Revenue trends by month"
+name: "Chart Name"
+slug: chart-slug
+spaceSlug: space-name
+tableName: explore_name
+description: "Optional description"
 
 metricQuery:
-  exploreName: orders
+  exploreName: explore_name
   dimensions:
-    - orders_created_at_month
+    - dimension_field_id
   metrics:
-    - orders_total_revenue
+    - metric_field_id
   filters:
     dimensions:
       and:
         - target:
-            fieldId: orders_status
+            fieldId: field_id
           operator: equals
           values:
-            - completed
+            - value
   sorts:
-    - fieldId: orders_created_at_month
+    - fieldId: field_id
       descending: false
   limit: 500
 
 chartConfig:
-  type: cartesian
+  type: cartesian  # or pie, table, big_number, funnel, gauge, treemap, map, custom
   config:
-    layout:
-      xField: orders_created_at_month
-      yField:
-        - orders_total_revenue
-      flipAxes: false
-    echartsConfig:
-      series:
-        - type: bar
-          encode:
-            xRef: { field: orders_created_at_month }
-            yRef: { field: orders_total_revenue }
-          yAxisIndex: 0
+    # Type-specific configuration - see individual references
 ```
+
+See the chart type references above for detailed `chartConfig.config` options for each type.
 
 ## Dashboard Configuration
 
@@ -589,11 +628,24 @@ filters:
 
 For detailed reference documentation:
 
+### Semantic Layer
 - [Dimensions Reference](./resources/dimensions-reference.md) - Complete dimension configuration
 - [Metrics Reference](./resources/metrics-reference.md) - All metric types and options
 - [Tables Reference](./resources/tables-reference.md) - Table/model configuration
 - [Joins Reference](./resources/joins-reference.md) - Join configuration guide
-- [Chart Types Reference](./resources/chart-types-reference.md) - All chart configurations
+
+### Chart Types
+- [Cartesian Chart Reference](./resources/cartesian-chart-reference.md) - Bar, line, area, scatter charts
+- [Pie Chart Reference](./resources/pie-chart-reference.md) - Pie and donut charts
+- [Table Chart Reference](./resources/table-chart-reference.md) - Data tables with conditional formatting
+- [Big Number Reference](./resources/big-number-chart-reference.md) - KPI displays with comparison
+- [Funnel Chart Reference](./resources/funnel-chart-reference.md) - Conversion funnels
+- [Gauge Chart Reference](./resources/gauge-chart-reference.md) - Gauge/dial visualizations
+- [Treemap Chart Reference](./resources/treemap-chart-reference.md) - Hierarchical treemaps
+- [Map Chart Reference](./resources/map-chart-reference.md) - Geographic visualizations
+- [Custom Viz Reference](./resources/custom-viz-reference.md) - Vega-Lite custom charts
+
+### Dashboards & Workflows
 - [Dashboard Reference](./resources/dashboard-reference.md) - Dashboard configuration
 - [Workflows Reference](./resources/workflows-reference.md) - CI/CD and deployment patterns
 
