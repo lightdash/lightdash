@@ -1484,7 +1484,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
             />
             <ExportImageModal
                 echartRef={echartRef}
-                chartName={title || chart.name}
                 isOpen={isImageExportModalOpen}
                 onClose={() => setIsImageExportModalOpen(false)}
             />
@@ -1773,7 +1772,6 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
             {canExportImages && (
                 <ExportImageModal
                     echartRef={echartRef}
-                    chartName={title || chart.name}
                     isOpen={isImageExportModalOpen}
                     onClose={() => setIsImageExportModalOpen(false)}
                 />
