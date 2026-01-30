@@ -28,9 +28,7 @@ const ExportImageModal: FC<ExportImageModalProps> = ({
             onClose={onClose}
             title="Export Image"
             icon={IconPhoto}
-            size="sm"
             cancelLabel={false}
-            modalBodyProps={{ mih: 180 }}
         >
             <ChartDownloadOptions getChartInstance={getChartInstance} />
         </MantineModal>
