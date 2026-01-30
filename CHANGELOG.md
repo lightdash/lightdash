@@ -1,3 +1,10 @@
+# [0.2400.0](https://github.com/lightdash/lightdash/compare/0.2399.3...0.2400.0) (2026-01-30)
+
+
+### Features
+
+* add `inherit_parent_permissions` column to spaces ([#19800](https://github.com/lightdash/lightdash/issues/19800)) ([f48e943](https://github.com/lightdash/lightdash/commit/f48e943f86626776f5f9ce917776fd17f56d3e45))
+
 ## [0.2399.3](https://github.com/lightdash/lightdash/compare/0.2399.2...0.2399.3) (2026-01-29)
 
 
