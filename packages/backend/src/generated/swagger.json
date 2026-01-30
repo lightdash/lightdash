@@ -8188,6 +8188,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -18077,22 +18090,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiChartAsCodeListResponse": {
@@ -24461,7 +24474,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2400.0",
+        "version": "0.2403.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -24498,6 +24511,8 @@
                         }
                     }
                 },
+                "description": "Check if the user is authenticated with Snowflake SSO",
+                "summary": "Check Snowflake SSO authentication",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []
@@ -26110,6 +26125,7 @@
                     }
                 },
                 "description": "Create a new role in organization",
+                "summary": "Create custom role",
                 "tags": ["v2", "Custom Roles"],
                 "security": [],
                 "parameters": [
@@ -26165,6 +26181,7 @@
                     }
                 },
                 "description": "Get roles for organization",
+                "summary": "Get organization roles",
                 "tags": ["v2", "Organization Roles"],
                 "security": [],
                 "parameters": [
@@ -26221,6 +26238,7 @@
                     }
                 },
                 "description": "Update role in organization",
+                "summary": "Update custom role",
                 "tags": ["v2", "Custom Roles"],
                 "security": [],
                 "parameters": [
@@ -26277,6 +26295,7 @@
                     }
                 },
                 "description": "Delete role from organization",
+                "summary": "Delete custom role",
                 "tags": ["v2", "Custom Roles"],
                 "security": [],
                 "parameters": [
@@ -26323,6 +26342,7 @@
                     }
                 },
                 "description": "Get custom role by uuid",
+                "summary": "Get custom role",
                 "tags": ["v2", "Organization Roles"],
                 "security": [],
                 "parameters": [
@@ -26371,6 +26391,7 @@
                     }
                 },
                 "description": "Add scopes to role",
+                "summary": "Add scopes to role",
                 "tags": ["v2", "Custom Roles"],
                 "security": [],
                 "parameters": [
@@ -26429,6 +26450,7 @@
                     }
                 },
                 "description": "Remove scope from role",
+                "summary": "Remove scope from role",
                 "tags": ["v2", "Custom Roles"],
                 "security": [],
                 "parameters": [
@@ -26484,6 +26506,8 @@
                         }
                     }
                 },
+                "description": "Get all AI agent threads for admin",
+                "summary": "List AI agent threads",
                 "security": [],
                 "parameters": [
                     {
@@ -26624,6 +26648,8 @@
                         }
                     }
                 },
+                "description": "Get all AI agents for admin",
+                "summary": "List AI agents",
                 "security": [],
                 "parameters": []
             }
@@ -26724,6 +26750,7 @@
                     }
                 },
                 "description": "Validate content inside a project. This will start a validation job and return the job id.\n\nValidation jobs scan all charts and dashboards inside a project to find any broken references\nto metrics or dimensions that aren't available. Results are available after the job is completed.",
+                "summary": "Validate project",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -26792,6 +26819,7 @@
                     }
                 },
                 "description": "Get validation results for a project. This will return the results of the latest validation job.",
+                "summary": "Get validation results",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -26851,6 +26879,7 @@
                     }
                 },
                 "description": "Deletes a single validation error.",
+                "summary": "Dismiss validation error",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -26901,6 +26930,7 @@
                     }
                 },
                 "description": "Get authenticated user",
+                "summary": "Get authenticated user",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": []
@@ -26930,6 +26960,7 @@
                     }
                 },
                 "description": "Register user",
+                "summary": "Register user",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": [],
@@ -26971,6 +27002,7 @@
                     }
                 },
                 "description": "Create a new one-time passcode for the current user's primary email.\nThe user will receive an email with the passcode.",
+                "summary": "Create email one-time passcode",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": []
@@ -27002,6 +27034,7 @@
                     }
                 },
                 "description": "Get the verification status for the current user's primary email",
+                "summary": "Get email verification status",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": [
@@ -27043,6 +27076,7 @@
                     }
                 },
                 "description": "List the organizations that the current user can join.\nThis is based on the user's primary email domain and the organization's allowed email domains.",
+                "summary": "List available organizations",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": []
@@ -27074,6 +27108,7 @@
                     }
                 },
                 "description": "Add the current user to an organization that accepts users with a verified email domain.\nThis will fail if the organization email domain does not match the user's primary email domain.",
+                "summary": "Join organization",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": [
@@ -27115,6 +27150,7 @@
                     }
                 },
                 "description": "Delete user",
+                "summary": "Delete user",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": []
@@ -27160,6 +27196,7 @@
                     }
                 },
                 "description": "Get user warehouse credentials",
+                "summary": "List warehouse credentials",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": []
@@ -27200,6 +27237,7 @@
                     }
                 },
                 "description": "Create user warehouse credentials",
+                "summary": "Create warehouse credentials",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": [],
@@ -27252,6 +27290,7 @@
                     }
                 },
                 "description": "Update user warehouse credentials",
+                "summary": "Update warehouse credentials",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": [
@@ -27300,6 +27339,7 @@
                     }
                 },
                 "description": "Delete user warehouse credentials",
+                "summary": "Delete warehouse credentials",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": [
@@ -27340,6 +27380,7 @@
                     }
                 },
                 "description": "Get login options",
+                "summary": "Get login options",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": [
@@ -27394,6 +27435,7 @@
                     }
                 },
                 "description": "List personal access tokens",
+                "summary": "List personal access tokens",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": []
@@ -27434,6 +27476,7 @@
                     }
                 },
                 "description": "Create personal access token",
+                "summary": "Create personal access token",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": [],
@@ -27475,6 +27518,7 @@
                     }
                 },
                 "description": "Delete personal access token",
+                "summary": "Delete personal access token",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": [
@@ -27526,6 +27570,7 @@
                     }
                 },
                 "description": "Rotate personal access token",
+                "summary": "Rotate personal access token",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": [
@@ -27583,6 +27628,7 @@
                     }
                 },
                 "description": "Get account information",
+                "summary": "Get account",
                 "tags": ["My Account"],
                 "security": [],
                 "parameters": []
@@ -27614,6 +27660,7 @@
                     }
                 },
                 "description": "Get all user attributes",
+                "summary": "List user attributes",
                 "tags": ["User attributes"],
                 "security": [],
                 "parameters": []
@@ -27643,6 +27690,7 @@
                     }
                 },
                 "description": "Creates new user attribute",
+                "summary": "Create user attribute",
                 "tags": ["User attributes"],
                 "security": [],
                 "parameters": [],
@@ -27686,6 +27734,7 @@
                     }
                 },
                 "description": "Updates a user attribute",
+                "summary": "Update user attribute",
                 "tags": ["User attributes"],
                 "security": [],
                 "parameters": [
@@ -27737,6 +27786,7 @@
                     }
                 },
                 "description": "Remove a user attribute",
+                "summary": "Delete user attribute",
                 "tags": ["User attributes"],
                 "security": [],
                 "parameters": [
@@ -27777,6 +27827,8 @@
                         }
                     }
                 },
+                "description": "Get user activity for a project",
+                "summary": "Get user activity",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -27816,6 +27868,8 @@
                         }
                     }
                 },
+                "description": "Download user activity as CSV",
+                "summary": "Download user activity CSV",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -27896,6 +27950,8 @@
                         }
                     }
                 },
+                "description": "Create a new SSH key pair",
+                "summary": "Create SSH key pair",
                 "tags": ["SSH Keypairs"],
                 "security": [],
                 "parameters": []
@@ -27926,6 +27982,8 @@
                         }
                     }
                 },
+                "description": "Get warehouse tables for a project",
+                "summary": "List warehouse tables",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -27965,6 +28023,8 @@
                         }
                     }
                 },
+                "description": "Get fields for a warehouse table",
+                "summary": "Get table fields",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28028,6 +28088,8 @@
                         }
                     }
                 },
+                "description": "Run a SQL query",
+                "summary": "Run SQL query",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28077,6 +28139,8 @@
                         }
                     }
                 },
+                "description": "Run a SQL pivot query",
+                "summary": "Run SQL pivot query",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28127,6 +28191,7 @@
                     }
                 },
                 "description": "Get results from a file stored locally",
+                "summary": "Get stored results",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28177,6 +28242,7 @@
                     }
                 },
                 "description": "Get saved sql chart",
+                "summary": "Get SQL chart",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28225,6 +28291,7 @@
                     }
                 },
                 "description": "Update sql chart",
+                "summary": "Update SQL chart",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28285,6 +28352,7 @@
                     }
                 },
                 "description": "Delete sql chart",
+                "summary": "Delete SQL chart",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28335,6 +28403,7 @@
                     }
                 },
                 "description": "Get saved sql chart",
+                "summary": "Get SQL chart by slug",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28385,6 +28454,7 @@
                     }
                 },
                 "description": "Schedules a job to get its results",
+                "summary": "Get SQL chart results job",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28435,6 +28505,7 @@
                     }
                 },
                 "description": "Schedules a job to get its results",
+                "summary": "Get SQL chart results job by UUID",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28485,6 +28556,7 @@
                     }
                 },
                 "description": "Create sql chart",
+                "summary": "Create SQL chart",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28538,6 +28610,7 @@
                     }
                 },
                 "description": "Refresh the catalog cache",
+                "summary": "Refresh catalog cache",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28578,6 +28651,7 @@
                     }
                 },
                 "description": "Create a virtual-view",
+                "summary": "Create virtual view",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28627,6 +28701,8 @@
                         }
                     }
                 },
+                "description": "Update a virtual view",
+                "summary": "Update virtual view",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28683,6 +28759,7 @@
                     }
                 },
                 "description": "Delete a virtual-view",
+                "summary": "Delete virtual view",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28731,6 +28808,7 @@
                     }
                 },
                 "description": "Preview write back from SQL runner",
+                "summary": "Preview write back",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28781,6 +28859,7 @@
                     }
                 },
                 "description": "Write back from SQL runner",
+                "summary": "Create write back PR",
                 "tags": ["SQL runner"],
                 "security": [],
                 "parameters": [
@@ -28830,6 +28909,8 @@
                         }
                     }
                 },
+                "description": "Create or update spotlight table configuration",
+                "summary": "Update spotlight table config",
                 "tags": ["Spotlight"],
                 "security": [],
                 "parameters": [
@@ -28877,6 +28958,8 @@
                         }
                     }
                 },
+                "description": "Get spotlight table configuration",
+                "summary": "Get spotlight table config",
                 "tags": ["Spotlight"],
                 "security": [],
                 "parameters": [
@@ -28914,6 +28997,8 @@
                         }
                     }
                 },
+                "description": "Reset spotlight table configuration to defaults",
+                "summary": "Reset spotlight table config",
                 "tags": ["Spotlight"],
                 "security": [],
                 "parameters": [
@@ -28954,6 +29039,7 @@
                     }
                 },
                 "description": "Get details for a space in a project",
+                "summary": "Get space",
                 "tags": ["Spaces"],
                 "security": [],
                 "parameters": [
@@ -29002,6 +29088,7 @@
                     }
                 },
                 "description": "Delete a space from a project",
+                "summary": "Delete space",
                 "tags": ["Spaces"],
                 "security": [],
                 "parameters": [
@@ -29050,6 +29137,7 @@
                     }
                 },
                 "description": "Update a space in a project",
+                "summary": "Update space",
                 "tags": ["Roles & Permissions", "Spaces"],
                 "security": [],
                 "parameters": [
@@ -29110,6 +29198,7 @@
                     }
                 },
                 "description": "Create a new space inside a project",
+                "summary": "Create space",
                 "tags": ["Roles & Permissions", "Spaces"],
                 "security": [],
                 "parameters": [
@@ -29159,6 +29248,7 @@
                     }
                 },
                 "description": "List all spaces in a project",
+                "summary": "List spaces in project",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -29200,6 +29290,7 @@
                     }
                 },
                 "description": "Grant a user access to a space",
+                "summary": "Grant user access to space",
                 "tags": ["Roles & Permissions", "Spaces"],
                 "security": [],
                 "parameters": [
@@ -29259,6 +29350,7 @@
                     }
                 },
                 "description": "Remove a user's access to a space",
+                "summary": "Revoke user access to space",
                 "tags": ["Roles & Permissions", "Spaces"],
                 "security": [],
                 "parameters": [
@@ -29318,6 +29410,7 @@
                     }
                 },
                 "description": "Grant a group access to a space",
+                "summary": "Grant group access to space",
                 "tags": ["Roles & Permissions", "Spaces"],
                 "security": [],
                 "parameters": [
@@ -29378,6 +29471,7 @@
                     }
                 },
                 "description": "Remove a group's access to a space",
+                "summary": "Revoke group access to space",
                 "tags": ["Roles & Permissions", "Spaces"],
                 "security": [],
                 "parameters": [
@@ -29437,6 +29531,7 @@
                     }
                 },
                 "description": "Get slack channels",
+                "summary": "Get Slack channels",
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": [
@@ -29559,6 +29654,7 @@
                     }
                 },
                 "description": "Update slack notification channel to send notifications to scheduled jobs fail",
+                "summary": "Update Slack custom settings",
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": [],
@@ -29600,6 +29696,7 @@
                     }
                 },
                 "description": "Check if the user has an OpenID identity for Slack",
+                "summary": "Check Slack OpenID link status",
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": []
@@ -29630,6 +29727,8 @@
                         }
                     }
                 },
+                "description": "Get Slack installation details for the organization",
+                "summary": "Get Slack installation",
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": []
@@ -29658,6 +29757,8 @@
                         }
                     }
                 },
+                "description": "Delete the Slack installation for the organization",
+                "summary": "Delete Slack installation",
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": []
@@ -29689,6 +29790,8 @@
                         }
                     }
                 },
+                "description": "Get a Slack image by nanoId",
+                "summary": "Get Slack image",
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": []
@@ -29712,6 +29815,8 @@
                         }
                     }
                 },
+                "description": "Start the Slack installation flow",
+                "summary": "Install Slack",
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": []
@@ -29743,6 +29848,7 @@
                     }
                 },
                 "description": "Get a share url from a short url id",
+                "summary": "Get share URL",
                 "tags": ["Share links"],
                 "security": [],
                 "parameters": [
@@ -29784,6 +29890,7 @@
                     }
                 },
                 "description": "Given a full URL generates a short url id that can be used for sharing",
+                "summary": "Create share URL",
                 "tags": ["Share links"],
                 "security": [],
                 "parameters": [],
@@ -29827,6 +29934,7 @@
                     }
                 },
                 "description": "Get scheduled logs",
+                "summary": "Get scheduler logs",
                 "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
@@ -30112,6 +30220,7 @@
                     }
                 },
                 "description": "List all schedulers for the current user across all projects with pagination, search, sorting, and filtering",
+                "summary": "List user schedulers",
                 "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
@@ -30239,6 +30348,7 @@
                     }
                 },
                 "description": "List all schedulers with pagination, search, sorting, and filtering",
+                "summary": "List schedulers",
                 "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
@@ -30382,6 +30492,7 @@
                     }
                 },
                 "description": "Get a scheduler",
+                "summary": "Get scheduler",
                 "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
@@ -30421,6 +30532,7 @@
                     }
                 },
                 "description": "Update a scheduler",
+                "summary": "Update scheduler",
                 "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
@@ -30481,6 +30593,7 @@
                     }
                 },
                 "description": "Delete a scheduler",
+                "summary": "Delete scheduler",
                 "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
@@ -30522,6 +30635,7 @@
                     }
                 },
                 "description": "Set scheduler enabled",
+                "summary": "Update scheduler enabled status",
                 "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
@@ -30635,6 +30749,7 @@
                     }
                 },
                 "description": "Get scheduled jobs",
+                "summary": "Get scheduled jobs",
                 "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
@@ -30676,6 +30791,7 @@
                     }
                 },
                 "description": "Get a generic job status\nThis method can be used when polling from the frontend",
+                "summary": "Get scheduler job status",
                 "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [
@@ -30717,6 +30833,7 @@
                     }
                 },
                 "description": "Send a scheduler now before saving it",
+                "summary": "Send scheduler",
                 "tags": ["Schedulers"],
                 "security": [],
                 "parameters": [],
@@ -30802,6 +30919,7 @@
                     }
                 },
                 "description": "Run a query for underlying data results",
+                "summary": "Run underlying data query",
                 "tags": ["Exploring"],
                 "deprecated": true,
                 "security": [],
@@ -30865,6 +30983,7 @@
                     }
                 },
                 "description": "Run a query for explore",
+                "summary": "Run metric query",
                 "tags": ["Exploring"],
                 "deprecated": true,
                 "security": [],
@@ -30928,6 +31047,7 @@
                     }
                 },
                 "description": "Run a query for a chart",
+                "summary": "Run chart query",
                 "tags": ["Charts"],
                 "deprecated": true,
                 "security": [],
@@ -30984,6 +31104,8 @@
                         }
                     }
                 },
+                "description": "Get chart and run query with dashboard filters",
+                "summary": "Get chart and results",
                 "tags": ["Charts"],
                 "deprecated": true,
                 "security": [],
@@ -31063,6 +31185,7 @@
                     }
                 },
                 "description": "Get chart version history from last 30 days",
+                "summary": "Get chart version history",
                 "tags": ["Charts"],
                 "security": [],
                 "parameters": [
@@ -31104,6 +31227,7 @@
                     }
                 },
                 "description": "Get chart version",
+                "summary": "Get chart version",
                 "tags": ["Charts"],
                 "security": [],
                 "parameters": [
@@ -31154,6 +31278,7 @@
                     }
                 },
                 "description": "Run a query for a chart version",
+                "summary": "Get chart version results",
                 "tags": ["Charts"],
                 "deprecated": true,
                 "security": [],
@@ -31205,6 +31330,7 @@
                     }
                 },
                 "description": "Rollback chart to version",
+                "summary": "Rollback chart to version",
                 "tags": ["Charts"],
                 "security": [],
                 "parameters": [
@@ -31255,6 +31381,7 @@
                     }
                 },
                 "description": "Calculate metric totals from a saved chart",
+                "summary": "Calculate total from saved chart",
                 "tags": ["Charts"],
                 "security": [],
                 "parameters": [
@@ -31317,6 +31444,7 @@
                     }
                 },
                 "description": "Promote chart to its upstream project",
+                "summary": "Promote chart",
                 "tags": ["Charts"],
                 "security": [],
                 "parameters": [
@@ -31358,6 +31486,7 @@
                     }
                 },
                 "description": "Get diff from chart to promote",
+                "summary": "Get chart promotion diff",
                 "tags": ["Charts"],
                 "security": [],
                 "parameters": [
@@ -31416,6 +31545,7 @@
                     }
                 },
                 "description": "Download a CSV from a saved chart uuid",
+                "summary": "Download CSV from saved chart",
                 "tags": ["Charts"],
                 "security": [],
                 "parameters": [
@@ -31482,6 +31612,8 @@
                         }
                     }
                 },
+                "description": "Get schedulers for a saved chart",
+                "summary": "List saved chart schedulers",
                 "tags": ["Charts"],
                 "deprecated": true,
                 "security": [],
@@ -31520,6 +31652,8 @@
                         }
                     }
                 },
+                "description": "Create a scheduler for a saved chart",
+                "summary": "Create saved chart scheduler",
                 "tags": ["Charts"],
                 "security": [],
                 "parameters": [
@@ -31559,6 +31693,8 @@
                         }
                     }
                 },
+                "description": "Rename resources in a project",
+                "summary": "Rename resources",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -31608,6 +31744,8 @@
                         }
                     }
                 },
+                "description": "Rename a chart and its fields",
+                "summary": "Rename chart",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -31666,6 +31804,7 @@
                     }
                 },
                 "description": "Get a list of fields for this chart's explore to be used when renaming a chart in the UI",
+                "summary": "Get chart fields for rename",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -31714,6 +31853,7 @@
                     }
                 },
                 "description": "Get a project of an organiztion",
+                "summary": "Get project",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -31754,6 +31894,7 @@
                     }
                 },
                 "description": "List all charts in a project",
+                "summary": "List charts in project",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -31795,6 +31936,7 @@
                     }
                 },
                 "description": "List all charts summaries in a project",
+                "summary": "List chart summaries in project",
                 "tags": ["Projects"],
                 "deprecated": true,
                 "security": [],
@@ -31846,6 +31988,7 @@
                     }
                 },
                 "description": "Get access list for a project. This is a list of users that have been explictly granted access to the project.\nThere may be other users that have access to the project via their organization membership.",
+                "summary": "List project access",
                 "tags": ["Roles & Permissions", "Projects"],
                 "security": [],
                 "parameters": [
@@ -31884,6 +32027,7 @@
                     }
                 },
                 "description": "Grant a user access to a project",
+                "summary": "Grant project access to user",
                 "tags": ["Roles & Permissions", "Projects"],
                 "security": [],
                 "parameters": [
@@ -31933,7 +32077,8 @@
                         }
                     }
                 },
-                "description": "Get a project explicit member's access.\nThere may be users that have access to the project via their organization membership.\n\nNOTE:\nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
+                "description": "Get a project explicit member's access.\nThere may be users that have access to the project via their organization membership.",
+                "summary": "Get project member access\n\nNOTE:\nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
                 "tags": ["Roles & Permissions", "Projects"],
                 "security": [],
                 "parameters": [
@@ -31982,6 +32127,7 @@
                     }
                 },
                 "description": "Update a user's access to a project",
+                "summary": "Update project access for user",
                 "tags": ["Roles & Permissions", "Projects"],
                 "deprecated": true,
                 "security": [],
@@ -32039,6 +32185,7 @@
                     }
                 },
                 "description": "Remove a user's access to a project",
+                "summary": "Revoke project access for user",
                 "tags": ["Roles & Permissions", "Projects"],
                 "deprecated": true,
                 "security": [],
@@ -32088,6 +32235,7 @@
                     }
                 },
                 "description": "List group access for projects",
+                "summary": "List project group accesses",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32139,6 +32287,7 @@
                     }
                 },
                 "description": "Run a raw sql query against the project's warehouse connection",
+                "summary": "Run SQL query",
                 "tags": ["Exploring", "Projects"],
                 "deprecated": true,
                 "security": [],
@@ -32199,6 +32348,7 @@
                     }
                 },
                 "description": "Calculate all metric totals from a metricQuery",
+                "summary": "Calculate total from query",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32251,6 +32401,8 @@
                         }
                     }
                 },
+                "description": "Calculate subtotals from a metricQuery",
+                "summary": "Calculate subtotals from query",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32311,6 +32463,8 @@
                         }
                     }
                 },
+                "description": "Get the user's warehouse credentials preference for a project",
+                "summary": "Get user warehouse credentials preference",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32350,6 +32504,8 @@
                         }
                     }
                 },
+                "description": "Update the user's warehouse credentials preference for a project",
+                "summary": "Update user warehouse credentials preference",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32439,6 +32595,8 @@
                         }
                     }
                 },
+                "description": "Get all custom metrics in a project",
+                "summary": "List custom metrics",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32479,6 +32637,7 @@
                     }
                 },
                 "description": "Update project metadata like upstreamProjectUuid\nwe don't trigger a compile, so not for updating warehouse or credentials",
+                "summary": "Update project metadata",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32528,6 +32687,8 @@
                         }
                     }
                 },
+                "description": "Get all dashboards in a project",
+                "summary": "List dashboards",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32565,6 +32726,8 @@
                         }
                     }
                 },
+                "description": "Create a new dashboard in a project",
+                "summary": "Create dashboard",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32627,6 +32790,8 @@
                         }
                     }
                 },
+                "description": "Update multiple dashboards",
+                "summary": "Update dashboards",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32679,6 +32844,8 @@
                         }
                     }
                 },
+                "description": "Create a new dashboard with embedded charts",
+                "summary": "Create dashboard with charts",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32739,6 +32906,8 @@
                         }
                     }
                 },
+                "description": "Create a preview project",
+                "summary": "Create project preview",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32822,6 +32991,8 @@
                         }
                     }
                 },
+                "description": "Update scheduler settings for a project",
+                "summary": "Update scheduler settings",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32871,6 +33042,8 @@
                         }
                     }
                 },
+                "description": "Create a new tag in a project",
+                "summary": "Create tag",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32918,6 +33091,8 @@
                         }
                     }
                 },
+                "description": "Get all tags in a project",
+                "summary": "List tags",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32957,6 +33132,8 @@
                         }
                     }
                 },
+                "description": "Delete a tag from a project",
+                "summary": "Delete tag",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -32994,6 +33171,8 @@
                         }
                     }
                 },
+                "description": "Update a tag in a project",
+                "summary": "Update tag",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -33043,6 +33222,8 @@
                         }
                     }
                 },
+                "description": "Replace all YAML-defined tags in a project",
+                "summary": "Replace YAML tags",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -33108,7 +33289,8 @@
                         }
                     }
                 },
-                "description": "Charts as code",
+                "description": "Get charts in code representation",
+                "summary": "List charts as code",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -33176,6 +33358,8 @@
                         }
                     }
                 },
+                "description": "Get dashboards in code representation",
+                "summary": "List dashboards as code",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -33243,6 +33427,8 @@
                         }
                     }
                 },
+                "description": "Upsert a chart from code representation",
+                "summary": "Upsert chart as code",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -33466,6 +33652,8 @@
                         }
                     }
                 },
+                "description": "Upsert a dashboard from code representation",
+                "summary": "Upsert dashboard as code",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -33552,6 +33740,8 @@
                         }
                     }
                 },
+                "description": "Handle dbt Cloud webhook for job completion",
+                "summary": "Handle dbt Cloud webhook",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -33601,6 +33791,8 @@
                         }
                     }
                 },
+                "description": "Refresh a project by recompiling dbt",
+                "summary": "Refresh project",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -33641,6 +33833,7 @@
                     }
                 },
                 "description": "Get compilation logs for a project",
+                "summary": "Get project compilation logs",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -33795,6 +33988,7 @@
                     }
                 },
                 "description": "Get pinned items",
+                "summary": "Get pinned items",
                 "tags": ["Content"],
                 "security": [],
                 "parameters": [
@@ -33845,6 +34039,7 @@
                     }
                 },
                 "description": "Update pinned items order",
+                "summary": "Update pinned items order",
                 "tags": ["Content"],
                 "security": [],
                 "parameters": [
@@ -33910,6 +34105,7 @@
                     }
                 },
                 "description": "Get the current user's organization",
+                "summary": "Get current organization",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
@@ -33939,6 +34135,7 @@
                     }
                 },
                 "description": "Creates a new organization, the current user becomes the Admin of the new organization.\nThis is only available to users that are not already in an organization.",
+                "summary": "Create organization",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],
@@ -33980,6 +34177,7 @@
                     }
                 },
                 "description": "Update the current user's organization",
+                "summary": "Update current organization",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],
@@ -34023,6 +34221,7 @@
                     }
                 },
                 "description": "Deletes an organization and all users inside that organization",
+                "summary": "Delete organization",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [
@@ -34064,6 +34263,7 @@
                     }
                 },
                 "description": "Gets all projects of the current user's organization",
+                "summary": "List organization projects",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
@@ -34092,6 +34292,8 @@
                         }
                     }
                 },
+                "description": "Create a new project in the organization",
+                "summary": "Create project",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],
@@ -34133,6 +34335,7 @@
                     }
                 },
                 "description": "Gets all the members of the current user's organization",
+                "summary": "List organization members",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [
@@ -34217,6 +34420,7 @@
                     }
                 },
                 "description": "Get the member profile for a user in the current user's organization by uuid",
+                "summary": "Get organization member by UUID",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [
@@ -34256,6 +34460,7 @@
                     }
                 },
                 "description": "Updates the membership profile for a user in the current user's organization",
+                "summary": "Update organization member",
                 "tags": ["Roles & Permissions", "Organizations"],
                 "deprecated": true,
                 "security": [],
@@ -34310,6 +34515,7 @@
                     }
                 },
                 "description": "Get the member profile for a user in the current user's organization by email",
+                "summary": "Get organization member by email",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [
@@ -34351,6 +34557,7 @@
                     }
                 },
                 "description": "Deletes a user from the current user's organization",
+                "summary": "Delete organization member",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [
@@ -34488,6 +34695,7 @@
                     }
                 },
                 "description": "Gets the allowed email domains for the current user's organization",
+                "summary": "List allowed email domains",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
@@ -34517,6 +34725,7 @@
                     }
                 },
                 "description": "Updates the allowed email domains for the current user's organization",
+                "summary": "Update allowed email domains",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],
@@ -34560,6 +34769,7 @@
                     }
                 },
                 "description": "Creates a new group in the current user's organization",
+                "summary": "Create group",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],
@@ -34601,6 +34811,7 @@
                     }
                 },
                 "description": "Gets all the groups in the current user's organization",
+                "summary": "List organization groups",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [
@@ -34668,6 +34879,8 @@
                         }
                     }
                 },
+                "description": "Create a new color palette",
+                "summary": "Create color palette",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],
@@ -34706,6 +34919,8 @@
                         }
                     }
                 },
+                "description": "List all color palettes in the organization",
+                "summary": "List color palettes",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
@@ -34736,6 +34951,8 @@
                         }
                     }
                 },
+                "description": "Update a color palette",
+                "summary": "Update color palette",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [
@@ -34783,6 +35000,8 @@
                         }
                     }
                 },
+                "description": "Delete a color palette",
+                "summary": "Delete color palette",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [
@@ -34822,6 +35041,8 @@
                         }
                     }
                 },
+                "description": "Set a color palette as the active palette",
+                "summary": "Set active color palette",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [
@@ -34862,6 +35083,7 @@
                     }
                 },
                 "description": "Gets notifications for a user based on the type",
+                "summary": "Get notifications",
                 "tags": ["Notifications"],
                 "security": [],
                 "parameters": [
@@ -34902,6 +35124,7 @@
                     }
                 },
                 "description": "Update notification",
+                "summary": "Update notification",
                 "tags": ["Notifications"],
                 "security": [],
                 "parameters": [
@@ -34953,6 +35176,7 @@
                     }
                 },
                 "description": "Run a metrics explorer query",
+                "summary": "Run metric explorer query",
                 "tags": ["Metrics Explorer", "Metrics", "Explorer"],
                 "security": [],
                 "parameters": [
@@ -35049,6 +35273,8 @@
                         }
                     }
                 },
+                "description": "Run a metric total query with comparison",
+                "summary": "Run metric total query",
                 "tags": ["Metrics Explorer", "Metrics", "Explorer"],
                 "security": [],
                 "parameters": [
@@ -35152,6 +35378,7 @@
                     }
                 },
                 "description": "Get group details",
+                "summary": "Get group",
                 "tags": ["User Groups"],
                 "security": [],
                 "parameters": [
@@ -35211,6 +35438,7 @@
                     }
                 },
                 "description": "Delete a group",
+                "summary": "Delete group",
                 "tags": ["User Groups"],
                 "security": [],
                 "parameters": [
@@ -35249,6 +35477,7 @@
                     }
                 },
                 "description": "Update a group",
+                "summary": "Update group",
                 "tags": ["User Groups"],
                 "security": [],
                 "parameters": [
@@ -35299,6 +35528,7 @@
                     }
                 },
                 "description": "Add a Lightdash user to a group",
+                "summary": "Add user to group",
                 "tags": ["User Groups"],
                 "security": [],
                 "parameters": [
@@ -35347,6 +35577,7 @@
                     }
                 },
                 "description": "Remove a user from a group",
+                "summary": "Remove user from group",
                 "tags": ["User Groups"],
                 "security": [],
                 "parameters": [
@@ -35397,6 +35628,7 @@
                     }
                 },
                 "description": "View members of a group",
+                "summary": "Get group members",
                 "tags": ["User Groups"],
                 "security": [],
                 "parameters": [
@@ -35438,6 +35670,7 @@
                     }
                 },
                 "description": "Add project access to a group",
+                "summary": "Add project access to group",
                 "tags": ["User Groups"],
                 "deprecated": true,
                 "security": [],
@@ -35495,6 +35728,7 @@
                     }
                 },
                 "description": "Update project access for a group",
+                "summary": "Update project access for group",
                 "tags": ["User Groups"],
                 "deprecated": true,
                 "security": [],
@@ -35552,6 +35786,7 @@
                     }
                 },
                 "description": "Remove project access from a group",
+                "summary": "Remove project access from group",
                 "tags": ["User Groups"],
                 "deprecated": true,
                 "security": [],
@@ -35601,6 +35836,7 @@
                     }
                 },
                 "description": "Get access token for google drive",
+                "summary": "Get Google Drive access token",
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": []
@@ -35632,6 +35868,7 @@
                     }
                 },
                 "description": "Upload results from query to Google Sheet",
+                "summary": "Upload to Google Sheet",
                 "tags": ["Integrations"],
                 "security": [],
                 "parameters": [],
@@ -35656,6 +35893,7 @@
                     }
                 },
                 "description": "Initiate GitLab OAuth integration",
+                "summary": "Install GitLab integration",
                 "security": [],
                 "parameters": [
                     {
@@ -35679,6 +35917,7 @@
                     }
                 },
                 "description": "GitLab OAuth callback handler",
+                "summary": "GitLab OAuth callback",
                 "security": [],
                 "parameters": [
                     {
@@ -35726,6 +35965,8 @@
                         }
                     }
                 },
+                "description": "Uninstall GitLab integration from the organization",
+                "summary": "Uninstall GitLab integration",
                 "security": [],
                 "parameters": []
             }
@@ -35759,6 +36000,8 @@
                         }
                     }
                 },
+                "description": "List GitLab projects accessible via the integration",
+                "summary": "List GitLab projects",
                 "security": [],
                 "parameters": []
             }
@@ -35772,6 +36015,7 @@
                     }
                 },
                 "description": "Install the Lightdash GitHub App and link to an organization",
+                "summary": "Install GitHub App",
                 "security": [],
                 "parameters": []
             }
@@ -35802,6 +36046,8 @@
                         }
                     }
                 },
+                "description": "Get GitHub App configuration for the organization",
+                "summary": "Get GitHub App configuration",
                 "security": [],
                 "parameters": []
             }
@@ -35815,6 +36061,7 @@
                     }
                 },
                 "description": "Callback URL for GitHub App Authorization also used for GitHub App Installation with combined Authorization",
+                "summary": "GitHub OAuth callback",
                 "security": [],
                 "parameters": [
                     {
@@ -35871,6 +36118,8 @@
                         }
                     }
                 },
+                "description": "Uninstall the GitHub App from the organization",
+                "summary": "Uninstall GitHub App",
                 "security": [],
                 "parameters": []
             }
@@ -35904,6 +36153,8 @@
                         }
                     }
                 },
+                "description": "List GitHub repositories accessible via the installed app",
+                "summary": "List GitHub repositories",
                 "security": [],
                 "parameters": []
             }
@@ -35944,6 +36195,8 @@
                         }
                     }
                 },
+                "description": "Create a pull request for custom metrics",
+                "summary": "Create PR for custom metrics",
                 "tags": ["Git Integration"],
                 "security": [],
                 "parameters": [
@@ -36017,6 +36270,8 @@
                         }
                     }
                 },
+                "description": "Create a pull request for custom dimensions",
+                "summary": "Create PR for custom dimensions",
                 "tags": ["Git Integration"],
                 "security": [],
                 "parameters": [
@@ -36390,6 +36645,8 @@
                         }
                     }
                 },
+                "description": "Set explores for a project",
+                "summary": "Set explores",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -36451,6 +36708,8 @@
                         }
                     }
                 },
+                "description": "Get all explores for a project",
+                "summary": "List explores",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -36501,6 +36760,8 @@
                         }
                     }
                 },
+                "description": "Get a specific explore",
+                "summary": "Get explore",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -36559,6 +36820,8 @@
                         }
                     }
                 },
+                "description": "Compile a metric query for an explore",
+                "summary": "Compile query",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -36648,6 +36911,8 @@
                         }
                     }
                 },
+                "description": "Download CSV from an explore query",
+                "summary": "Download CSV from explore",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -36756,6 +37021,7 @@
                     }
                 },
                 "description": "Promote dashboard to its upstream project",
+                "summary": "Promote dashboard",
                 "tags": ["Dashboards"],
                 "security": [],
                 "parameters": [
@@ -36797,6 +37063,7 @@
                     }
                 },
                 "description": "Get diff from dashboard to promote",
+                "summary": "Get dashboard promotion diff",
                 "tags": ["Dashboards"],
                 "security": [],
                 "parameters": [
@@ -36837,6 +37104,8 @@
                         }
                     }
                 },
+                "description": "Get schedulers for a dashboard",
+                "summary": "List dashboard schedulers",
                 "tags": ["Dashboards"],
                 "deprecated": true,
                 "security": [],
@@ -36875,6 +37144,8 @@
                         }
                     }
                 },
+                "description": "Create a scheduler for a dashboard",
+                "summary": "Create dashboard scheduler",
                 "tags": ["Dashboards"],
                 "security": [],
                 "parameters": [
@@ -36915,6 +37186,7 @@
                     }
                 },
                 "description": "Get a Csv",
+                "summary": "Get CSV URL",
                 "tags": ["Exports"],
                 "security": [],
                 "parameters": [
@@ -36956,6 +37228,7 @@
                     }
                 },
                 "description": "Creates a comment on a dashboard tile",
+                "summary": "Create comment",
                 "tags": ["Comments"],
                 "security": [],
                 "parameters": [
@@ -37018,6 +37291,7 @@
                     }
                 },
                 "description": "Gets all comments for a dashboard",
+                "summary": "Get comments",
                 "tags": ["Comments"],
                 "security": [],
                 "parameters": [
@@ -37058,6 +37332,7 @@
                     }
                 },
                 "description": "Resolves a comment on a dashboard",
+                "summary": "Resolve comment",
                 "tags": ["Comments"],
                 "security": [],
                 "parameters": [
@@ -37106,6 +37381,7 @@
                     }
                 },
                 "description": "Deletes a comment on a dashboard",
+                "summary": "Delete comment",
                 "tags": ["Comments"],
                 "security": [],
                 "parameters": [
@@ -37167,6 +37443,7 @@
                     }
                 },
                 "description": "Get catalog items",
+                "summary": "Get catalog",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -37242,6 +37519,7 @@
                     }
                 },
                 "description": "Get catalog metadata for tables",
+                "summary": "Get table metadata",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -37302,6 +37580,7 @@
                     }
                 },
                 "description": "Get catalog analytics for tables",
+                "summary": "Get table analytics",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -37362,6 +37641,7 @@
                     }
                 },
                 "description": "Get catalog analytics for fields",
+                "summary": "Get field analytics",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -37420,6 +37700,7 @@
                     }
                 },
                 "description": "Get metrics catalog",
+                "summary": "List metrics in catalog",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -37543,6 +37824,7 @@
                     }
                 },
                 "description": "Get metric by table and metric name",
+                "summary": "Get metric",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -37599,6 +37881,7 @@
                     }
                 },
                 "description": "Get metrics with time dimensions",
+                "summary": "Get metrics with time dimensions",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -37647,6 +37930,7 @@
                     }
                 },
                 "description": "Get dimensions that can be used to filter metrics",
+                "summary": "Get filter dimensions",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -37695,6 +37979,7 @@
                     }
                 },
                 "description": "Get dimensions that can be used to segment metrics",
+                "summary": "Get segment dimensions",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -37742,6 +38027,8 @@
                         }
                     }
                 },
+                "description": "Add a category to a catalog item",
+                "summary": "Add category to catalog item",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -37804,6 +38091,8 @@
                         }
                     }
                 },
+                "description": "Remove a category from a catalog item",
+                "summary": "Remove category from catalog item",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -37851,6 +38140,8 @@
                         }
                     }
                 },
+                "description": "Update the icon for a catalog item",
+                "summary": "Update catalog item icon",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -37919,6 +38210,8 @@
                         }
                     }
                 },
+                "description": "Get the metrics tree structure",
+                "summary": "Get metrics tree",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -37969,6 +38262,8 @@
                         }
                     }
                 },
+                "description": "Create an edge in the metrics tree",
+                "summary": "Create metrics tree edge",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -38018,6 +38313,8 @@
                         }
                     }
                 },
+                "description": "Delete an edge from the metrics tree",
+                "summary": "Delete metrics tree edge",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -38085,6 +38382,7 @@
                     }
                 },
                 "description": "Check if there are any metrics in catalog",
+                "summary": "Check if metrics exist in catalog",
                 "tags": ["Catalog"],
                 "security": [],
                 "parameters": [
@@ -38179,6 +38477,8 @@
                         }
                     }
                 },
+                "description": "Get BigQuery datasets for a project",
+                "summary": "Get BigQuery datasets",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
@@ -38218,6 +38518,8 @@
                         }
                     }
                 },
+                "description": "Check if user is authenticated with BigQuery",
+                "summary": "Check BigQuery authentication",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": []
@@ -38249,6 +38551,7 @@
                     }
                 },
                 "description": "List project role assignments",
+                "summary": "List project role assignments",
                 "tags": ["v2", "Project Roles"],
                 "security": [],
                 "parameters": [
@@ -38289,6 +38592,7 @@
                     }
                 },
                 "description": "Create or update project role assignment for user (upsert)",
+                "summary": "Assign project role to user",
                 "tags": ["v2", "Project Roles"],
                 "security": [],
                 "parameters": [
@@ -38345,6 +38649,7 @@
                     }
                 },
                 "description": "Delete project role assignment for user",
+                "summary": "Remove project role from user",
                 "tags": ["v2", "Project Roles"],
                 "security": [],
                 "parameters": [
@@ -38393,6 +38698,7 @@
                     }
                 },
                 "description": "Create or update project role assignment for group (upsert)",
+                "summary": "Assign project role to group",
                 "tags": ["v2", "Project Roles"],
                 "security": [],
                 "parameters": [
@@ -38449,6 +38755,7 @@
                     }
                 },
                 "description": "Update project role assignment for group",
+                "summary": "Update project group role",
                 "tags": ["v2", "Project Roles"],
                 "security": [],
                 "parameters": [
@@ -38505,6 +38812,7 @@
                     }
                 },
                 "description": "Delete project role assignment for group",
+                "summary": "Remove project role from group",
                 "tags": ["v2", "Project Roles"],
                 "security": [],
                 "parameters": [
@@ -38553,6 +38861,7 @@
                     }
                 },
                 "description": "List organization role assignments (system roles only)",
+                "summary": "List organization role assignments",
                 "tags": ["v2", "Organization Roles"],
                 "security": [],
                 "parameters": [
@@ -38593,6 +38902,7 @@
                     }
                 },
                 "description": "Assign system role to user at organization level",
+                "summary": "Assign organization role to user",
                 "tags": ["v2", "Organization Roles"],
                 "security": [],
                 "parameters": [
@@ -38657,6 +38967,7 @@
                     }
                 },
                 "description": "Duplicate a role",
+                "summary": "Duplicate role",
                 "tags": ["v2", "Organization Roles"],
                 "security": [],
                 "parameters": [
@@ -38804,6 +39115,8 @@
                         }
                     }
                 },
+                "description": "Revert a specific change",
+                "summary": "Revert change",
                 "tags": ["Changesets"],
                 "security": [],
                 "parameters": [
@@ -38851,6 +39164,8 @@
                         }
                     }
                 },
+                "description": "Revert all changes in the active changeset",
+                "summary": "Revert all changes",
                 "tags": ["Changesets"],
                 "security": [],
                 "parameters": [
@@ -38970,7 +39285,7 @@
                 },
                 "description": "Retrieves paginated results from a previously executed async query using its UUID",
                 "summary": "Get results",
-                "tags": ["Query"],
+                "tags": ["v2", "Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -39040,7 +39355,7 @@
                 },
                 "description": "Cancels a running async query and discards any partial results",
                 "summary": "Cancel query",
-                "tags": ["Query"],
+                "tags": ["v2", "Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -39090,7 +39405,7 @@
                 },
                 "description": "Executes a metric query asynchronously against your data warehouse using dimensions, metrics, filters, and sorts",
                 "summary": "Execute metric query",
-                "tags": ["Query"],
+                "tags": ["v2", "Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -39141,7 +39456,7 @@
                 },
                 "description": "Executes a saved chart query asynchronously with optional parameter overrides",
                 "summary": "Execute saved chart",
-                "tags": ["Query"],
+                "tags": ["v2", "Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -39192,7 +39507,7 @@
                 },
                 "description": "Executes a chart within a dashboard context asynchronously with inherited dashboard filters",
                 "summary": "Execute dashboard chart",
-                "tags": ["Query"],
+                "tags": ["v2", "Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -39243,7 +39558,7 @@
                 },
                 "description": "Executes a query to retrieve underlying raw data for drilling down into aggregated values",
                 "summary": "Execute underlying data",
-                "tags": ["Query"],
+                "tags": ["v2", "Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -39294,7 +39609,7 @@
                 },
                 "description": "Executes a raw SQL query asynchronously against your data warehouse for custom queries",
                 "summary": "Execute SQL query",
-                "tags": ["Query"],
+                "tags": ["v2", "Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -39345,7 +39660,7 @@
                 },
                 "description": "Executes a saved SQL chart query asynchronously with optional chart configurations",
                 "summary": "Execute SQL chart",
-                "tags": ["Query"],
+                "tags": ["v2", "Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -39396,7 +39711,7 @@
                 },
                 "description": "Executes a SQL chart within a dashboard context asynchronously with inherited filters",
                 "summary": "Execute dashboard SQL chart",
-                "tags": ["Query"],
+                "tags": ["v2", "Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -39447,7 +39762,7 @@
                 },
                 "description": "Downloads query results in various formats with custom formatting options",
                 "summary": "Download results",
-                "tags": ["Query"],
+                "tags": ["v2", "Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -39507,7 +39822,7 @@
                 },
                 "description": "Downloads query results in various formats with custom formatting options",
                 "summary": "Download results",
-                "tags": ["Query"],
+                "tags": ["v2", "Query"],
                 "security": [],
                 "parameters": [
                     {
@@ -39650,6 +39965,8 @@
                         }
                     }
                 },
+                "description": "Get project parameters by names",
+                "summary": "Get project parameters",
                 "tags": ["v2", "Parameters"],
                 "security": [],
                 "parameters": [
@@ -39698,6 +40015,8 @@
                         }
                     }
                 },
+                "description": "Replace all project parameters",
+                "summary": "Replace project parameters",
                 "tags": ["v2", "Parameters"],
                 "security": [],
                 "parameters": [
@@ -39759,6 +40078,7 @@
                     }
                 },
                 "description": "Get feature flag",
+                "summary": "Get feature flag",
                 "tags": ["v2", "Feature Flag"],
                 "security": [],
                 "parameters": [
@@ -39869,6 +40189,7 @@
                     }
                 },
                 "description": "Get content (charts, dashboards, spaces)",
+                "summary": "List content",
                 "tags": ["v2", "Content"],
                 "security": [],
                 "parameters": [
@@ -39985,6 +40306,7 @@
                     }
                 },
                 "description": "Move a single item (Chart, Dashboard, Space) to another space",
+                "summary": "Move content",
                 "tags": ["Content", "Move content", "v2", "Content"],
                 "security": [],
                 "parameters": [
@@ -40035,6 +40357,7 @@
                     }
                 },
                 "description": "Move multiple items (Charts, Dashboards, Spaces) to another space",
+                "summary": "Bulk move content",
                 "tags": [
                     "Content",
                     "Bulk action",

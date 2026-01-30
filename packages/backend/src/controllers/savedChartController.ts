@@ -51,6 +51,7 @@ import { ApiRunQueryResponse } from './runQueryController';
 export class SavedChartController extends BaseController {
     /**
      * Run a query for a chart
+     * @summary Run chart query
      * @param chartUuid chartUuid for the chart to run
      * @param body
      * @param body.dashboardFilters dashboard filters
@@ -105,6 +106,10 @@ export class SavedChartController extends BaseController {
         };
     }
 
+    /**
+     * Get chart and run query with dashboard filters
+     * @summary Get chart and results
+     */
     @Deprecated()
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -144,6 +149,7 @@ export class SavedChartController extends BaseController {
 
     /**
      * Get chart version history from last 30 days
+     * @summary Get chart version history
      * @param chartUuid chartUuid for the chart
      * @param req express request
      */
@@ -166,6 +172,7 @@ export class SavedChartController extends BaseController {
 
     /**
      * Get chart version
+     * @summary Get chart version
      * @param chartUuid chartUuid for the chart
      * @param versionUuid versionUuid for the chart version
      * @param req express request
@@ -190,6 +197,7 @@ export class SavedChartController extends BaseController {
 
     /**
      * Run a query for a chart version
+     * @summary Get chart version results
      * @param chartUuid chartUuid for the chart to run
      * @param versionUuid versionUuid for the chart version
      * @param req express request
@@ -240,6 +248,7 @@ export class SavedChartController extends BaseController {
 
     /**
      * Rollback chart to version
+     * @summary Rollback chart to version
      * @param chartUuid chartUuid for the chart to run
      * @param versionUuid versionUuid for the chart version
      * @param req express request
@@ -269,6 +278,7 @@ export class SavedChartController extends BaseController {
 
     /**
      * Calculate metric totals from a saved chart
+     * @summary Calculate total from saved chart
      * @param chartUuid chartUuid for the chart to run
      * @param req express request
      */
@@ -304,6 +314,7 @@ export class SavedChartController extends BaseController {
 
     /**
      * Promote chart to its upstream project
+     * @summary Promote chart
      * @param chartUuid chartUuid for the chart to run
      * @param req express request
      */
@@ -330,6 +341,7 @@ export class SavedChartController extends BaseController {
 
     /**
      * Get diff from chart to promote
+     * @summary Get chart promotion diff
      * @param chartUuid chartUuid for the chart to check diff
      * @param req express request
      */
@@ -352,6 +364,7 @@ export class SavedChartController extends BaseController {
 
     /**
      * Download a CSV from a saved chart uuid
+     * @summary Download CSV from saved chart
      * @param req express request
      */
     @Middlewares([
@@ -396,6 +409,10 @@ export class SavedChartController extends BaseController {
         };
     }
 
+    /**
+     * Get schedulers for a saved chart
+     * @summary List saved chart schedulers
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/schedulers')
@@ -421,6 +438,10 @@ export class SavedChartController extends BaseController {
         };
     }
 
+    /**
+     * Create a scheduler for a saved chart
+     * @summary Create saved chart scheduler
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,

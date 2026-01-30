@@ -26,6 +26,7 @@ import { BaseController } from './baseController';
 export class ProjectCompileLogController extends BaseController {
     /**
      * Get compilation logs for a project
+     * @summary Get project compilation logs
      * @param projectUuid
      * @param pageSize number of items per page
      * @param page number of page

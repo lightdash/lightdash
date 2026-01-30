@@ -31,6 +31,10 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Spotlight')
 export class SpotlightController extends BaseController {
+    /**
+     * Create or update spotlight table configuration
+     * @summary Update spotlight table config
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -55,6 +59,10 @@ export class SpotlightController extends BaseController {
         };
     }
 
+    /**
+     * Get spotlight table configuration
+     * @summary Get spotlight table config
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/table/config')
@@ -76,6 +84,10 @@ export class SpotlightController extends BaseController {
         };
     }
 
+    /**
+     * Reset spotlight table configuration to defaults
+     * @summary Reset spotlight table config
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,

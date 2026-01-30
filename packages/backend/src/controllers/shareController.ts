@@ -26,6 +26,7 @@ import { BaseController } from './baseController';
 export class ShareController extends BaseController {
     /**
      * Get a share url from a short url id
+     * @summary Get share URL
      * @param nanoId the short id for the share url
      * @param req express request
      */
@@ -47,6 +48,7 @@ export class ShareController extends BaseController {
 
     /**
      * Given a full URL generates a short url id that can be used for sharing
+     * @summary Create share URL
      * @param body a full URL used to generate a short url id
      * @param req express request
      */

@@ -42,6 +42,7 @@ import { BaseController } from './baseController';
 export class GroupsController extends BaseController {
     /**
      * Get group details
+     * @summary Get group
      * @param groupUuid unique id of the group
      * @param includeMembers number of members to include
      * @param offset offset of members to include
@@ -66,6 +67,7 @@ export class GroupsController extends BaseController {
 
     /**
      * Delete a group
+     * @summary Delete group
      * @param unique id of the group to delete
      */
     @Middlewares([
@@ -89,6 +91,7 @@ export class GroupsController extends BaseController {
 
     /**
      * Add a Lightdash user to a group
+     * @summary Add user to group
      * @param groupUuid the UUID for the group to add the user to
      * @param userUuid the UUID for the user to add to the group
      */
@@ -119,6 +122,7 @@ export class GroupsController extends BaseController {
 
     /**
      * Remove a user from a group
+     * @summary Remove user from group
      * @param groupUuid the UUID for the group to remove the user from
      * @param userUuid the UUID for the user to remove from the group
      */
@@ -149,6 +153,7 @@ export class GroupsController extends BaseController {
 
     /**
      * View members of a group
+     * @summary Get group members
      * @param groupUuid the UUID for the group to view the members of
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -169,6 +174,7 @@ export class GroupsController extends BaseController {
 
     /**
      * Update a group
+     * @summary Update group
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -194,6 +200,7 @@ export class GroupsController extends BaseController {
 
     /**
      * Add project access to a group
+     * @summary Add project access to group
      *
      * @deprecated Use ProjectRoleAssignments instead
      */
@@ -226,6 +233,7 @@ export class GroupsController extends BaseController {
 
     /**
      * Update project access for a group
+     * @summary Update project access for group
      *
      *  @deprecated Use ProjectRoleAssignments instead
      */
@@ -259,6 +267,7 @@ export class GroupsController extends BaseController {
 
     /**
      * Remove project access from a group
+     * @summary Remove project access from group
      *
      * @deprecated Use ProjectRoleAssignments instead
      */

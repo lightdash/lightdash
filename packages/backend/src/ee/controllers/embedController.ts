@@ -163,6 +163,7 @@ export class EmbedController extends BaseController {
 
     /**
      * This endpoint is used for updating the embed config for dashboards and charts.
+     * @summary Update embed config
      * @param req
      * @param projectUuid
      * @param body Contains dashboardUuids, allowAllDashboards, chartUuids, allowAllCharts
@@ -405,6 +406,7 @@ export class EmbedController extends BaseController {
     /**
      * Calculate totals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
+     * @summary Calculate totals for embed query
      */
     @SuccessResponse('200', 'Success')
     @Post('/calculate-total')
@@ -431,6 +433,7 @@ export class EmbedController extends BaseController {
     /**
      * Calculate subtotals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
+     * @summary Calculate subtotals for embed query
      */
     @SuccessResponse('200', 'Success')
     @Post('/calculate-subtotals')

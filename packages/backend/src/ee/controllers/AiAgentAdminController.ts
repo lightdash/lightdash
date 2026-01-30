@@ -35,6 +35,10 @@ import { type AiOrganizationSettingsService } from '../services/AiOrganizationSe
 @Route('/api/v1/aiAgents/admin')
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiAgentAdminController extends BaseController {
+    /**
+     * Get all AI agent threads for admin
+     * @summary List AI agent threads
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/threads')
@@ -100,6 +104,10 @@ export class AiAgentAdminController extends BaseController {
         };
     }
 
+    /**
+     * Get all AI agents for admin
+     * @summary List AI agents
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/agents')

@@ -53,6 +53,7 @@ export class OrganizationRolesController extends BaseController {
 
     /**
      * Get roles for organization
+     * @summary Get organization roles
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -81,6 +82,7 @@ export class OrganizationRolesController extends BaseController {
 
     /**
      * List organization role assignments (system roles only)
+     * @summary List organization role assignments
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -105,6 +107,7 @@ export class OrganizationRolesController extends BaseController {
 
     /**
      * Get custom role by uuid
+     * @summary Get custom role
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -129,6 +132,7 @@ export class OrganizationRolesController extends BaseController {
 
     /**
      * Assign system role to user at organization level
+     * @summary Assign organization role to user
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -161,6 +165,7 @@ export class OrganizationRolesController extends BaseController {
 
     /**
      * Duplicate a role
+     * @summary Duplicate role
      */
     @Middlewares([
         allowApiKeyAuthentication,

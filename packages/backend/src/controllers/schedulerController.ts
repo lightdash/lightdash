@@ -54,6 +54,7 @@ const VALID_DESTINATIONS = ['email', 'slack', 'msteams', 'gsheets'] as const;
 export class SchedulerController extends BaseController {
     /**
      * Get scheduled logs
+     * @summary Get scheduler logs
      * @param req express request
      * @param projectUuid The uuid of the project
      * @param pageSize number of items per page
@@ -219,6 +220,7 @@ export class SchedulerController extends BaseController {
 
     /**
      * List all schedulers for the current user across all projects with pagination, search, sorting, and filtering
+     * @summary List user schedulers
      * @param req express request
      * @param pageSize number of items per page
      * @param page page number
@@ -292,6 +294,7 @@ export class SchedulerController extends BaseController {
 
     /**
      * List all schedulers with pagination, search, sorting, and filtering
+     * @summary List schedulers
      * @param req express request
      * @param projectUuid
      * @param pageSize number of items per page
@@ -370,6 +373,7 @@ export class SchedulerController extends BaseController {
 
     /**
      * Get a scheduler
+     * @summary Get scheduler
      * @param schedulerUuid The uuid of the scheduler to update
      * @param req express request
      */
@@ -392,6 +396,7 @@ export class SchedulerController extends BaseController {
 
     /**
      * Update a scheduler
+     * @summary Update scheduler
      * @param schedulerUuid The uuid of the scheduler to update
      * @param req express request
      * @param body the new scheduler data
@@ -420,6 +425,7 @@ export class SchedulerController extends BaseController {
 
     /**
      * Set scheduler enabled
+     * @summary Update scheduler enabled status
      * @param schedulerUuid The uuid of the scheduler to update
      * @param req express request
      * @param body the enabled flag
@@ -486,6 +492,7 @@ export class SchedulerController extends BaseController {
 
     /**
      * Delete a scheduler
+     * @summary Delete scheduler
      * @param schedulerUuid The uuid of the scheduler to delete
      * @param req express request
      */
@@ -516,6 +523,7 @@ export class SchedulerController extends BaseController {
 
     /**
      * Get scheduled jobs
+     * @summary Get scheduled jobs
      * @param schedulerUuid The uuid of the scheduler to update
      * @param req express request
      */
@@ -539,6 +547,7 @@ export class SchedulerController extends BaseController {
     /**
      * Get a generic job status
      * This method can be used when polling from the frontend
+     * @summary Get scheduler job status
      * @param jobId the jobId for the status to check
      * @param req express request
      */
@@ -565,6 +574,7 @@ export class SchedulerController extends BaseController {
 
     /**
      * Send a scheduler now before saving it
+     * @summary Send scheduler
      * @param req express request
      * @param body the create scheduler data
      */

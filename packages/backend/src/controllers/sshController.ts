@@ -17,6 +17,10 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('SSH Keypairs')
 export class SshController extends BaseController {
+    /**
+     * Create a new SSH key pair
+     * @summary Create SSH key pair
+     */
     @Middlewares([isAuthenticated, unauthorisedInDemo])
     @SuccessResponse('201', 'Success')
     @Post('key-pairs')

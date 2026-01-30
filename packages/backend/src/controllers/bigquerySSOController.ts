@@ -22,6 +22,10 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
 export class BigquerySSOController extends BaseController {
+    /**
+     * Get BigQuery datasets for a project
+     * @summary Get BigQuery datasets
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/datasets')
@@ -41,6 +45,10 @@ export class BigquerySSOController extends BaseController {
         };
     }
 
+    /**
+     * Check if user is authenticated with BigQuery
+     * @summary Check BigQuery authentication
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/is-authenticated')

@@ -38,6 +38,10 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
 export class UserActivityController extends BaseController {
+    /**
+     * Get user activity for a project
+     * @summary Get user activity
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -60,6 +64,10 @@ export class UserActivityController extends BaseController {
         };
     }
 
+    /**
+     * Download user activity as CSV
+     * @summary Download user activity CSV
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,

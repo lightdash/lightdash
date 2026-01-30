@@ -33,6 +33,10 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
 export class RenameController extends BaseController {
+    /**
+     * Rename resources in a project
+     * @summary Rename resources
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -66,6 +70,10 @@ export class RenameController extends BaseController {
         };
     }
 
+    /**
+     * Rename a chart and its fields
+     * @summary Rename chart
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -101,6 +109,7 @@ export class RenameController extends BaseController {
 
     /**
      * Get a list of fields for this chart's explore to be used when renaming a chart in the UI
+     * @summary Get chart fields for rename
      */
     @Middlewares([
         allowApiKeyAuthentication,

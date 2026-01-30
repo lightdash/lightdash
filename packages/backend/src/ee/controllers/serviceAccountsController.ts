@@ -34,6 +34,7 @@ import { ServiceAccountService } from '../services/ServiceAccountService/Service
 export class ServiceAccountsController extends BaseController {
     /**
      * Get a list of service accounts for the organization
+     * @summary List service accounts
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -60,6 +61,7 @@ export class ServiceAccountsController extends BaseController {
 
     /**
      * Create a new service account for the organization
+     * @summary Create service account
      * @param req express request
      * @param body service account details
      */
@@ -88,6 +90,7 @@ export class ServiceAccountsController extends BaseController {
 
     /**
      * Delete an access token by ID
+     * @summary Delete service account
      * @param req express request
      * @param tokenUuid UUID of the access token to delete
      */

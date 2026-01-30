@@ -56,6 +56,7 @@ export class CustomRolesController extends BaseController {
 
     /**
      * Create a new role in organization
+     * @summary Create custom role
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -85,6 +86,7 @@ export class CustomRolesController extends BaseController {
 
     /**
      * Update role in organization
+     * @summary Update custom role
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -116,6 +118,7 @@ export class CustomRolesController extends BaseController {
 
     /**
      * Delete role from organization
+     * @summary Delete custom role
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -141,6 +144,7 @@ export class CustomRolesController extends BaseController {
 
     /**
      * Add scopes to role
+     * @summary Add scopes to role
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -171,6 +175,7 @@ export class CustomRolesController extends BaseController {
 
     /**
      * Remove scope from role
+     * @summary Remove scope from role
      */
     @Middlewares([
         allowApiKeyAuthentication,

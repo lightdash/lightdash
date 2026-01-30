@@ -50,6 +50,10 @@ import { BaseController } from './baseController';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('SQL runner')
 export class SqlRunnerController extends BaseController {
+    /**
+     * Get warehouse tables for a project
+     * @summary List warehouse tables
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/tables')
@@ -67,6 +71,10 @@ export class SqlRunnerController extends BaseController {
         };
     }
 
+    /**
+     * Get fields for a warehouse table
+     * @summary Get table fields
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -99,6 +107,10 @@ export class SqlRunnerController extends BaseController {
         };
     }
 
+    /**
+     * Run a SQL query
+     * @summary Run SQL query
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -127,6 +139,10 @@ export class SqlRunnerController extends BaseController {
         };
     }
 
+    /**
+     * Run a SQL pivot query
+     * @summary Run SQL pivot query
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
@@ -157,6 +173,7 @@ export class SqlRunnerController extends BaseController {
 
     /**
      * Get results from a file stored locally
+     * @summary Get stored results
      * @param fileId the fileId for the file
      * @param projectUuid the uuid for the project
      * @param req express request
@@ -191,6 +208,7 @@ export class SqlRunnerController extends BaseController {
 
     /**
      * Get saved sql chart
+     * @summary Get SQL chart
      * @param projectUuid the uuid for the project
      * @param uuid the uuid for the saved sql chart
      * @param req express request
@@ -215,6 +233,7 @@ export class SqlRunnerController extends BaseController {
 
     /**
      * Get saved sql chart
+     * @summary Get SQL chart by slug
      * @param projectUuid the uuid for the project
      * @param slug the slug for the saved sql chart
      * @param req express request
@@ -239,6 +258,7 @@ export class SqlRunnerController extends BaseController {
 
     /**
      * Schedules a job to get its results
+     * @summary Get SQL chart results job
      * @param projectUuid - the uuid of the project
      * @param slug - the slug of the saved chart
      * @param req - express request
@@ -269,6 +289,7 @@ export class SqlRunnerController extends BaseController {
 
     /**
      * Schedules a job to get its results
+     * @summary Get SQL chart results job by UUID
      * @param projectUuid - the uuid of the project
      * @param uuid - the uuid of the saved chart
      * @param req - express request
@@ -299,6 +320,7 @@ export class SqlRunnerController extends BaseController {
 
     /**
      * Create sql chart
+     * @summary Create SQL chart
      * @param projectUuid the uuid for the project
      * @param req express request
      * @param body the sql chart to create
@@ -327,6 +349,7 @@ export class SqlRunnerController extends BaseController {
 
     /**
      * Update sql chart
+     * @summary Update SQL chart
      * @param uuid the uuid for the saved sql chart
      * @param projectUuid the uuid for the project
      * @param req express request
@@ -357,6 +380,7 @@ export class SqlRunnerController extends BaseController {
 
     /**
      * Delete sql chart
+     * @summary Delete SQL chart
      * @param uuid the uuid for the saved sql chart
      * @param projectUuid the uuid for the project
      * @param req express request
@@ -386,6 +410,7 @@ export class SqlRunnerController extends BaseController {
 
     /**
      * Refresh the catalog cache
+     * @summary Refresh catalog cache
      * @param uuid the uuid for the saved sql chart
      * @param req express request
      */
@@ -413,6 +438,7 @@ export class SqlRunnerController extends BaseController {
 
     /**
      * Create a virtual-view
+     * @summary Create virtual view
      * @param req express request
      */
     @Middlewares([
@@ -445,6 +471,10 @@ export class SqlRunnerController extends BaseController {
         };
     }
 
+    /**
+     * Update a virtual view
+     * @summary Update virtual view
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Put('virtual-view/{name}')
@@ -470,6 +500,7 @@ export class SqlRunnerController extends BaseController {
 
     /**
      * Delete a virtual-view
+     * @summary Delete virtual view
      * @param req express request
      */
     @Middlewares([
@@ -497,6 +528,7 @@ export class SqlRunnerController extends BaseController {
 
     /**
      * Preview write back from SQL runner
+     * @summary Preview write back
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -524,6 +556,7 @@ export class SqlRunnerController extends BaseController {
 
     /**
      * Write back from SQL runner
+     * @summary Create write back PR
      */
     @Middlewares([
         allowApiKeyAuthentication,

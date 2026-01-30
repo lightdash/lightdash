@@ -33,6 +33,7 @@ import { BaseController } from './baseController';
 export class DashboardController extends BaseController {
     /**
      * Promote dashboard to its upstream project
+     * @summary Promote dashboard
      * @param dashboardUuid dashboardUuid for the dashboard to run
      * @param req express request
      */
@@ -59,6 +60,7 @@ export class DashboardController extends BaseController {
 
     /**
      * Get diff from dashboard to promote
+     * @summary Get dashboard promotion diff
      * @param dashboardUuid dashboardUuid for the dashboard to check diff
      * @param req express request
      */
@@ -79,6 +81,10 @@ export class DashboardController extends BaseController {
         };
     }
 
+    /**
+     * Get schedulers for a dashboard
+     * @summary List dashboard schedulers
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/schedulers')
@@ -104,6 +110,10 @@ export class DashboardController extends BaseController {
         };
     }
 
+    /**
+     * Create a scheduler for a dashboard
+     * @summary Create dashboard scheduler
+     */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,

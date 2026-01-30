@@ -41,6 +41,7 @@ const SCIM_SCOPES = [ServiceAccountScope.SCIM_MANAGE];
 export class ScimOrganizationAccessTokenController extends BaseController {
     /**
      * Get a list of access tokens for the organization
+     * @summary List SCIM access tokens
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -63,6 +64,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
 
     /**
      * Create a new access token for the organization
+     * @summary Create SCIM access token
      * @param req express request
      * @param body Access token details
      */
@@ -93,6 +95,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
 
     /**
      * Delete an access token by ID
+     * @summary Delete SCIM access token
      * @param req express request
      * @param tokenUuid UUID of the access token to delete
      */
@@ -117,6 +120,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
 
     /**
      * Get token by UUID
+     * @summary Get SCIM access token
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -142,6 +146,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
 
     /**
      * Rotate an access token by UUID
+     * @summary Rotate SCIM access token
      */
     @Middlewares([
         allowApiKeyAuthentication,

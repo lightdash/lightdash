@@ -31,6 +31,7 @@ import { BaseController } from './baseController';
 export class MetricsExplorerController extends BaseController {
     /**
      * Run a metrics explorer query
+     * @summary Run metric explorer query
      * @param projectUuid The project UUID
      * @param explore The explore name
      * @param metric The metric name
@@ -80,6 +81,10 @@ export class MetricsExplorerController extends BaseController {
         };
     }
 
+    /**
+     * Run a metric total query with comparison
+     * @summary Run metric total query
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/{explore}/{metric}/runMetricTotal')

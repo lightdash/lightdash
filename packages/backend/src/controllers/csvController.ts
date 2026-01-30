@@ -24,6 +24,7 @@ import { BaseController } from './baseController';
 export class CsvController extends BaseController {
     /**
      * Get a Csv
+     * @summary Get CSV URL
      * @param jobId the jobId for the CSV
      * @param req express request
      */

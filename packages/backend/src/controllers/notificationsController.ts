@@ -29,6 +29,7 @@ import { BaseController } from './baseController';
 export class NotificationsController extends BaseController {
     /**
      * Gets notifications for a user based on the type
+     * @summary Get notifications
      * @param req express request
      * @query type the type of notification to get
      * @returns the notifications for a user
@@ -54,6 +55,7 @@ export class NotificationsController extends BaseController {
 
     /**
      * Update notification
+     * @summary Update notification
      * @param req express request
      * @param notificationId the id of the notification
      */
