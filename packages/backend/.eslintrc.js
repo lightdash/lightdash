@@ -11,12 +11,13 @@ module.exports = {
         'airbnb-typescript/base',
         'prettier',
     ],
+    plugins: ['jsdoc'],
     settings: {
         'import/resolver': {
             node: {
-                extensions: ['.js', '.jsx', '.ts', '.tsx']
-            }
-        }
+                extensions: ['.js', '.jsx', '.ts', '.tsx'],
+            },
+        },
     },
     rules: {
         'import/prefer-default-export': 'off',
@@ -28,17 +29,16 @@ module.exports = {
         'no-template-curly-in-string': 'off',
         'no-restricted-syntax': 'off',
         eqeqeq: 'error',
-        '@typescript-eslint/no-floating-promises': 'error'
+        '@typescript-eslint/no-floating-promises': 'error',
     },
     overrides: [
-        
         {
-            files: ['*.ts'], 
+            files: ['*.ts'],
             rules: {
-                "@typescript-eslint/no-unsafe-member-access": "error",
-                "@typescript-eslint/no-unsafe-assignment": "error",
-                "@typescript-eslint/no-unsafe-call": "error"
-            }
+                '@typescript-eslint/no-unsafe-member-access': 'error',
+                '@typescript-eslint/no-unsafe-assignment': 'error',
+                '@typescript-eslint/no-unsafe-call': 'error',
+            },
         },
 
         {
@@ -58,27 +58,53 @@ module.exports = {
                 'src/scheduler/**/*.ts',
                 'src/config/**/*.ts',
                 'src/projectAdapters/**/*.ts',
-            ], 
+            ],
             rules: {
-                "@typescript-eslint/no-unsafe-member-access": "off",
-                "@typescript-eslint/no-unsafe-assignment": "off",
-                "@typescript-eslint/no-unsafe-call": "off"
-            }
+                '@typescript-eslint/no-unsafe-member-access': 'off',
+                '@typescript-eslint/no-unsafe-assignment': 'off',
+                '@typescript-eslint/no-unsafe-call': 'off',
+            },
         },
         {
-            files: ['src/database/migrations/*.ts',
+            files: [
+                'src/database/migrations/*.ts',
                 'src/routers/*.ts',
                 '*.mock.ts',
                 '*.test.ts',
                 '*.spec.ts',
             ],
             rules: {
-                "@typescript-eslint/no-unsafe-member-access": "off",
-                "@typescript-eslint/no-unsafe-assignment": "off",
-                "@typescript-eslint/no-unsafe-call": "off"
-            }
+                '@typescript-eslint/no-unsafe-member-access': 'off',
+                '@typescript-eslint/no-unsafe-assignment': 'off',
+                '@typescript-eslint/no-unsafe-call': 'off',
+            },
         },
-       
-    ]
-
+        {
+            // Require @summary tag in JSDoc comments for controller API endpoints
+            // This ensures API documentation has human-readable names
+            // Only applies to methods with decorators (API endpoints have @Get, @Post, etc.)
+            files: [
+                'src/controllers/**/*Controller.ts',
+                'src/ee/controllers/**/*Controller.ts',
+            ],
+            rules: {
+                'jsdoc/no-restricted-syntax': [
+                    'error',
+                    {
+                        contexts: [
+                            {
+                                // Match JSDoc blocks on decorated methods that are missing @summary
+                                // Methods with decorators are API endpoints (@Get, @Post, @OperationId, etc.)
+                                comment:
+                                    'JsdocBlock:not(*:has(JsdocTag[tag="summary"]))',
+                                context: 'MethodDefinition:has(Decorator)',
+                                message:
+                                    '@summary tag is required for API endpoint documentation. Add it like: /** @summary Human readable name */',
+                            },
+                        ],
+                    },
+                ],
+            },
+        },
+    ],
 };
