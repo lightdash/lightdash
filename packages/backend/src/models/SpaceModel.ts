@@ -1579,6 +1579,7 @@ export class SpaceModel {
                 `${SpaceTableName}.path`,
                 `${SpaceTableName}.project_id`,
                 `${SpaceTableName}.is_private`,
+                `${SpaceTableName}.inherit_parent_permissions`,
             );
 
         const spaceAccessMap = new Map();
@@ -1652,7 +1653,7 @@ export class SpaceModel {
     /**
      * Get full space with legacy behavior (Nested Spaces MVP).
      * Access is always fetched from the root space.
-     * Use this when the SpacePermissionInheritance feature flag is OFF.
+     * Use this when the NestedSpacesPermissions feature flag is OFF.
      */
     async getFullSpace(spaceUuid: string): Promise<Space> {
         const space = await this.get(spaceUuid);
@@ -1692,7 +1693,7 @@ export class SpaceModel {
      * Access respects the `inherit` flag on the space:
      * - inherit=false: only direct space permissions (all removable)
      * - inherit=true: aggregated from inheritance chain
-     * Use this when the SpacePermissionInheritance feature flag is ON.
+     * Use this when the NestedSpacesPermissions feature flag is ON.
      */
     async getFullSpaceWithInheritance(spaceUuid: string): Promise<Space> {
         const space = await this.get(spaceUuid);

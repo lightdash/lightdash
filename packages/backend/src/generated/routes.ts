@@ -13942,6 +13942,7 @@ const models: TsoaRoute.Models = {
                     array: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
+                            hasAccess: { dataType: 'boolean' },
                             uuid: { dataType: 'string', required: true },
                             name: { dataType: 'string', required: true },
                         },
@@ -18721,7 +18722,7 @@ const models: TsoaRoute.Models = {
         enums: ['space'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path_':
+    'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_':
         {
             dataType: 'refAlias',
             type: {
@@ -18732,6 +18733,10 @@ const models: TsoaRoute.Models = {
                     organizationUuid: { dataType: 'string', required: true },
                     uuid: { dataType: 'string', required: true },
                     isPrivate: { dataType: 'boolean', required: true },
+                    inheritParentPermissions: {
+                        dataType: 'boolean',
+                        required: true,
+                    },
                     pinnedListUuid: {
                         dataType: 'union',
                         subSchemas: [
@@ -18771,7 +18776,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'intersection',
                     subSchemas: [
                         {
-                            ref: 'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path_',
+                            ref: 'Pick_Space.projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-organizationUuid-or-parentSpaceUuid-or-path-or-inheritParentPermissions_',
                         },
                         {
                             dataType: 'nestedObjectLiteral',

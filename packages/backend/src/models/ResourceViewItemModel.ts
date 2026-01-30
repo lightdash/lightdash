@@ -295,6 +295,7 @@ const getAllSpaces = async (
             `${SpaceTableName}.path`,
             `${SpaceTableName}.is_private`,
             `${SpaceTableName}.space_id`,
+            `${SpaceTableName}.inherit_parent_permissions`,
             'sc.dashboard_count',
             'sc.chart_count',
         )
@@ -314,6 +315,7 @@ const getAllSpaces = async (
             uuid: row.space_uuid,
             name: row.name,
             isPrivate: row.is_private,
+            inheritParentPermissions: row.inherit_parent_permissions,
             accessListLength: Number(row.access_list_length),
             dashboardCount: Number(row.dashboard_count),
             chartCount: Number(row.chart_count),
