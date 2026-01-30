@@ -33,11 +33,13 @@ import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
+import type { SpaceService } from '../SpaceService/SpaceService';
 
 type SavedSqlServiceArguments = {
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
+    spaceService: SpaceService;
     savedSqlModel: SavedSqlModel;
     schedulerClient: SchedulerClient;
     analyticsModel: AnalyticsModel;
@@ -55,6 +57,8 @@ export class SavedSqlService
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly spaceService: SpaceService;
+
     private readonly savedSqlModel: SavedSqlModel;
 
     private readonly schedulerClient: SchedulerClient;
@@ -66,6 +70,7 @@ export class SavedSqlService
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
+        this.spaceService = args.spaceService;
         this.savedSqlModel = args.savedSqlModel;
         this.schedulerClient = args.schedulerClient;
         this.analyticsModel = args.analyticsModel;
@@ -147,10 +152,11 @@ export class SavedSqlService
         }
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
-        const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-            actor.user.userUuid,
-            spaceUuid,
-        );
+        const spaceAccess =
+            await this.spaceService.getUserAccessForPermissionCheck(
+                actor.user,
+                spaceUuid,
+            );
 
         const hasPermission = actor.user.ability.can(
             action,
@@ -172,10 +178,11 @@ export class SavedSqlService
             const newSpace = await this.spaceModel.getSpaceSummary(
                 resource.spaceUuid,
             );
-            const newSpaceAccess = await this.spaceModel.getUserSpaceAccess(
-                actor.user.userUuid,
-                resource.spaceUuid,
-            );
+            const newSpaceAccess =
+                await this.spaceService.getUserAccessForPermissionCheck(
+                    actor.user,
+                    resource.spaceUuid,
+                );
 
             const hasPermissionInNewSpace = actor.user.ability.can(
                 action,

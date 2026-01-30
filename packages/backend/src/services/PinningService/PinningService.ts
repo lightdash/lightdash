@@ -12,7 +12,10 @@ import { ResourceViewItemModel } from '../../models/ResourceViewItemModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
+import {
+    hasViewAccessToSpace,
+    type SpaceService,
+} from '../SpaceService/SpaceService';
 
 type PinningServiceArguments = {
     dashboardModel: DashboardModel;
@@ -20,6 +23,8 @@ type PinningServiceArguments = {
     savedChartModel: SavedChartModel;
 
     spaceModel: SpaceModel;
+
+    spaceService: SpaceService;
 
     pinnedListModel: PinnedListModel;
     resourceViewItemModel: ResourceViewItemModel;
@@ -33,6 +38,8 @@ export class PinningService extends BaseService {
 
     spaceModel: SpaceModel;
 
+    spaceService: SpaceService;
+
     pinnedListModel: PinnedListModel;
 
     resourceViewItemModel: ResourceViewItemModel;
@@ -43,6 +50,7 @@ export class PinningService extends BaseService {
         dashboardModel,
         savedChartModel,
         spaceModel,
+        spaceService,
         pinnedListModel,
         resourceViewItemModel,
         projectModel,
@@ -51,6 +59,7 @@ export class PinningService extends BaseService {
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;
+        this.spaceService = spaceService;
         this.pinnedListModel = pinnedListModel;
         this.resourceViewItemModel = resourceViewItemModel;
         this.projectModel = projectModel;
@@ -67,10 +76,11 @@ export class PinningService extends BaseService {
         }
 
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spacesAccess =
+            await this.spaceService.getUserAccessForPermissionCheckBatch(
+                user,
+                spaces.map((s) => s.uuid),
+            );
         const allowedSpaceUuids = spaces
             .filter((space, index) =>
                 hasViewAccessToSpace(

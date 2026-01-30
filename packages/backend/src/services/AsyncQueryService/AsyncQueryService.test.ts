@@ -69,6 +69,7 @@ import {
     tablesConfiguration,
     validExplore,
 } from '../ProjectService/ProjectService.mock';
+import type { SpaceService } from '../SpaceService/SpaceService';
 import { AsyncQueryService } from './AsyncQueryService';
 import type {
     ExecuteAsyncQueryReturn,
@@ -139,6 +140,11 @@ const getMockedAsyncQueryService = (
             lightdashConfig: lightdashConfigWithNoSMTP,
         }),
         spaceModel: spaceModel as unknown as SpaceModel,
+        spaceService: {
+            getUserAccessForPermissionCheckBatch: jest
+                .fn()
+                .mockResolvedValue({}),
+        } as unknown as SpaceService,
         sshKeyPairModel: {} as SshKeyPairModel,
         userAttributesModel:
             userAttributesModel as unknown as UserAttributesModel,

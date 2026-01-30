@@ -68,6 +68,7 @@ import { UserModel } from '../../models/UserModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAdjustedCronByOffset } from '../../utils/cronUtils';
 import { BaseService } from '../BaseService';
+import type { SpaceService } from '../SpaceService/SpaceService';
 import { UserService } from '../UserService';
 
 type SchedulerServiceArguments = {
@@ -78,6 +79,7 @@ type SchedulerServiceArguments = {
     savedChartModel: SavedChartModel;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
+    spaceService: SpaceService;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
     userModel: UserModel;
@@ -98,6 +100,8 @@ export class SchedulerService extends BaseService {
     savedChartModel: SavedChartModel;
 
     spaceModel: SpaceModel;
+
+    spaceService: SpaceService;
 
     schedulerClient: SchedulerClient;
 
@@ -120,6 +124,7 @@ export class SchedulerService extends BaseService {
         dashboardModel,
         savedChartModel,
         spaceModel,
+        spaceService,
         schedulerClient,
         slackClient,
         projectModel,
@@ -135,6 +140,7 @@ export class SchedulerService extends BaseService {
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;
+        this.spaceService = spaceService;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
         this.projectModel = projectModel;
@@ -217,10 +223,11 @@ export class SchedulerService extends BaseService {
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
 
             const [space] = await this.spaceModel.find({ spaceUuid });
-            const access = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                spaceUuid,
-            );
+            const access =
+                await this.spaceService.getUserAccessForPermissionCheck(
+                    user,
+                    spaceUuid,
+                );
             if (
                 user.ability.cannot(
                     'view',
@@ -239,10 +246,11 @@ export class SchedulerService extends BaseService {
                     scheduler.dashboardUuid,
                 );
             const [space] = await this.spaceModel.find({ spaceUuid });
-            const spaceAccess = await this.spaceModel.getUserSpaceAccess(
-                user.userUuid,
-                spaceUuid,
-            );
+            const spaceAccess =
+                await this.spaceService.getUserAccessForPermissionCheck(
+                    user,
+                    spaceUuid,
+                );
 
             if (
                 user.ability.cannot(
