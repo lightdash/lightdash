@@ -1,3 +1,10 @@
+# [0.2401.0](https://github.com/lightdash/lightdash/compare/0.2400.0...0.2401.0) (2026-01-30)
+
+
+### Features
+
+* Refactor image export to use modal dialog with options ([#19831](https://github.com/lightdash/lightdash/issues/19831)) ([da6261c](https://github.com/lightdash/lightdash/commit/da6261ccf01a7a1b4981428d8f9bf2fa600c755e)), closes [#19830](https://github.com/lightdash/lightdash/issues/19830)
+
 # [0.2400.0](https://github.com/lightdash/lightdash/compare/0.2399.3...0.2400.0) (2026-01-30)
 
 
