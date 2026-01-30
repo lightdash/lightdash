@@ -484,6 +484,8 @@ export type CompleteCartesianChartLayout = {
     showXAxis?: boolean | undefined;
     showYAxis?: boolean | undefined;
     stack?: boolean | string | undefined; // Support both old boolean and new StackType string for backward compatibility
+    /** Configuration for limiting visible groups and aggregating the rest into "Other" */
+    groupLimit?: GroupLimitConfig | undefined;
 };
 
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;

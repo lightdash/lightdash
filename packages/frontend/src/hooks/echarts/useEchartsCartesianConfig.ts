@@ -48,6 +48,7 @@ import {
     isTableCalculation,
     LightdashParameters,
     MetricType,
+    OTHER_GROUP_PIVOT_VALUE,
     StackType,
     TableCalculationType,
     TimeFrames,
@@ -58,6 +59,7 @@ import {
     type CustomDimension,
     type EChartsSeries,
     type Field,
+    type GroupLimitConfig,
     type Item,
     type ItemsMap,
     type MarkLine,
@@ -97,6 +99,138 @@ import {
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
+
+/**
+ * Aggregates groups that exceed the maxGroups limit into an "Other" category.
+ * Groups are ranked by their total value (sum across all rows).
+ */
+const applyGroupLimit = (
+    rows: ResultRow[],
+    rowKeyMap: RowKeyMap,
+    groupLimit: GroupLimitConfig,
+): { rows: ResultRow[]; rowKeyMap: RowKeyMap } => {
+    if (!groupLimit.enabled || rows.length === 0) {
+        return { rows, rowKeyMap };
+    }
+
+    const { maxGroups, otherLabel } = groupLimit;
+
+    // Get all pivot keys (grouped series) from rowKeyMap
+    // These are keys that have pivotValues (i.e., are pivoted/grouped)
+    const pivotKeys = Object.keys(rowKeyMap).filter((key) => {
+        const ref = rowKeyMap[key];
+        return (
+            typeof ref === 'object' &&
+            'pivotValues' in ref &&
+            ref.pivotValues &&
+            ref.pivotValues.length > 0
+        );
+    });
+
+    // If we have fewer pivot groups than the limit, no aggregation needed
+    if (pivotKeys.length <= maxGroups) {
+        return { rows, rowKeyMap };
+    }
+
+    // Calculate total value for each pivot key across all rows
+    const pivotTotals = pivotKeys.map((key) => {
+        const total = rows.reduce((sum, row) => {
+            const cell = row[key];
+            if (!cell || cell.value === undefined || cell.value === null) {
+                return sum;
+            }
+            // ResultRow structure: { [key]: { value: { raw: number, formatted: string } } }
+            const rawValue =
+                typeof cell.value === 'object' && 'raw' in cell.value
+                    ? cell.value.raw
+                    : cell.value;
+            const numValue =
+                typeof rawValue === 'number'
+                    ? rawValue
+                    : parseFloat(String(rawValue)) || 0;
+            return sum + Math.abs(numValue);
+        }, 0);
+        return { key, total };
+    });
+
+    // Sort by total (descending) to get top groups
+    pivotTotals.sort((a, b) => b.total - a.total);
+
+    // Split into top groups and "other" groups
+    const topGroupKeys = new Set(
+        pivotTotals.slice(0, maxGroups).map((g) => g.key),
+    );
+    const otherGroupKeys = pivotTotals.slice(maxGroups).map((g) => g.key);
+
+    if (otherGroupKeys.length === 0) {
+        return { rows, rowKeyMap };
+    }
+
+    // Create new rowKeyMap with only top groups + "Other"
+    const newRowKeyMap: RowKeyMap = {};
+
+    // Keep top groups
+    for (const key of topGroupKeys) {
+        newRowKeyMap[key] = rowKeyMap[key];
+    }
+
+    // Add "Other" key - use the field from the first "other" group
+    const firstOtherRef = rowKeyMap[otherGroupKeys[0]];
+    if (typeof firstOtherRef === 'object' && 'field' in firstOtherRef) {
+        newRowKeyMap[otherLabel] = {
+            field: firstOtherRef.field,
+            pivotValues: [
+                {
+                    field: OTHER_GROUP_PIVOT_VALUE,
+                    value: OTHER_GROUP_PIVOT_VALUE,
+                },
+            ],
+        };
+    }
+
+    // Keep non-pivot keys (regular fields like x-axis dimension)
+    for (const key of Object.keys(rowKeyMap)) {
+        if (!pivotKeys.includes(key)) {
+            newRowKeyMap[key] = rowKeyMap[key];
+        }
+    }
+
+    // Aggregate rows: sum "other" groups into the "Other" column
+    const newRows = rows.map((row) => {
+        const newRow = { ...row };
+
+        // Calculate sum of "other" groups
+        let otherSum = 0;
+        for (const key of otherGroupKeys) {
+            const cell = row[key];
+            if (cell && cell.value !== undefined && cell.value !== null) {
+                const rawValue =
+                    typeof cell.value === 'object' && 'raw' in cell.value
+                        ? cell.value.raw
+                        : cell.value;
+                const numValue =
+                    typeof rawValue === 'number'
+                        ? rawValue
+                        : parseFloat(String(rawValue)) || 0;
+                otherSum += numValue;
+            }
+            // Remove individual "other" group columns
+            delete newRow[key];
+        }
+
+        // Add the "Other" column with aggregated value
+        newRow[otherLabel] = {
+            value: {
+                raw: otherSum,
+                formatted: String(otherSum),
+            },
+        };
+
+        return newRow;
+    });
+
+    return { rows: newRows, rowKeyMap: newRowKeyMap };
+};
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
 type TooltipFormatterParams = DefaultLabelFormatterCallbackParams & {
@@ -2183,7 +2317,7 @@ const useEchartsCartesianConfig = (
         );
     }, [resultsData?.pivotDetails]);
 
-    const { rows, rowKeyMap } = useMemo(() => {
+    const { rows: rawRows, rowKeyMap: rawRowKeyMap } = useMemo(() => {
         if (resultsData?.pivotDetails) {
             return getPivotedDataFromPivotDetails(resultsData, undefined);
         }
@@ -2196,6 +2330,15 @@ const useEchartsCartesianConfig = (
             nonPivotedKeys,
         );
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
+
+    // Apply group limit to aggregate excess groups into "Other"
+    const { rows, rowKeyMap } = useMemo(() => {
+        const groupLimit = validCartesianConfig?.layout?.groupLimit;
+        if (!groupLimit || !groupLimit.enabled) {
+            return { rows: rawRows, rowKeyMap: rawRowKeyMap };
+        }
+        return applyGroupLimit(rawRows, rawRowKeyMap, groupLimit);
+    }, [rawRows, rawRowKeyMap, validCartesianConfig?.layout?.groupLimit]);
 
     const series = useMemo(() => {
         if (!itemsMap || !validCartesianConfig || !resultsData) {

@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     CartesianSeriesType,
+    DEFAULT_GROUP_LIMIT_CONFIG,
     FeatureFlags,
     getSeriesId,
     isCompleteEchartsConfig,
@@ -13,6 +14,7 @@ import {
     type CompleteCartesianChartLayout,
     type EchartsGrid,
     type EchartsLegend,
+    type GroupLimitConfig,
     type ItemsMap,
     type MarkLineData,
     type MetricQuery,
@@ -549,6 +551,33 @@ const useCartesianChartConfig = ({
             flipAxes,
         }));
     }, []);
+
+    const setGroupLimit = useCallback(
+        (groupLimit: GroupLimitConfig | undefined) => {
+            setDirtyLayout((prev) => ({
+                ...prev,
+                groupLimit,
+            }));
+        },
+        [],
+    );
+
+    const setGroupLimitEnabled = useCallback(
+        (enabled: boolean) => {
+            setDirtyLayout((prev) => ({
+                ...prev,
+                groupLimit: enabled
+                    ? {
+                          ...(prev?.groupLimit || DEFAULT_GROUP_LIMIT_CONFIG),
+                          enabled: true,
+                      }
+                    : prev?.groupLimit
+                      ? { ...prev.groupLimit, enabled: false }
+                      : undefined,
+            }));
+        },
+        [],
+    );
 
     const updateAllGroupedSeries = useCallback(
         (fieldKey: string, updateSeries: Partial<Series>) =>
@@ -1119,6 +1148,8 @@ const useCartesianChartConfig = ({
         updateAllGroupedSeries,
         updateYField,
         setFlipAxis,
+        setGroupLimit,
+        setGroupLimitEnabled,
         setYMinValue,
         setYMaxValue,
         setXMinValue,
