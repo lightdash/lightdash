@@ -9,7 +9,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { useCallback, type FC, type Ref } from 'react';
+import { useCallback, type FC, type MouseEvent, type Ref } from 'react';
 import MantineIcon from './../MantineIcon';
 import { COLLAPSIBLE_CARD_GAP_SIZE } from './constants';
 
@@ -59,21 +59,10 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
 
     const shouldExpand = isOpen && isVisualizationCard;
 
-    /**
-     * Collapsible cards can be toggled via the heading, in which case we need to
-     * ensure we're targetting click events only to the heading (and not its children),
-     * so that things like the 'Copy SQL' button continue to work.
-     */
-    const onClickHeading = useCallback(
-        (event: React.MouseEvent<HTMLDivElement>) => {
-            if (disabled) return;
-            if (event.target === event.currentTarget) {
-                handleToggle(!isOpen);
-                event.stopPropagation();
-            }
-        },
-        [disabled, handleToggle, isOpen],
-    );
+    const onClickHeading = useCallback(() => {
+        if (disabled) return;
+        handleToggle(!isOpen);
+    }, [disabled, handleToggle, isOpen]);
 
     return (
         <Card
@@ -114,7 +103,12 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                         h="xxl"
                         p={0}
                         onClick={
-                            disabled ? undefined : () => handleToggle(!isOpen)
+                            disabled
+                                ? undefined
+                                : (e: MouseEvent) => {
+                                      e.stopPropagation();
+                                      handleToggle(!isOpen);
+                                  }
                         }
                         sx={
                             disabled
@@ -140,12 +134,22 @@ const CollapsableCard: FC<React.PropsWithChildren<CollapsableCardProps>> = ({
                     <Title order={5} fw={500} fz="sm">
                         {title}
                     </Title>
-                    <Group spacing="xs">{headerElement}</Group>
+                    <Group
+                        spacing="xs"
+                        onClick={(e: MouseEvent) => e.stopPropagation()}
+                    >
+                        {headerElement}
+                    </Group>
                 </Group>
                 {rightHeaderElement && (
                     <>
                         <Box sx={{ flexGrow: 1 }} />
-                        <Group spacing="xs" pos="relative" right={2}>
+                        <Group
+                            spacing="xs"
+                            pos="relative"
+                            right={2}
+                            onClick={(e: MouseEvent) => e.stopPropagation()}
+                        >
                             {rightHeaderElement}
                         </Group>
                     </>
