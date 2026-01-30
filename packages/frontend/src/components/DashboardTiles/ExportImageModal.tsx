@@ -6,12 +6,14 @@ import MantineModal from '../common/MantineModal';
 
 interface ExportImageModalProps {
     echartRef: RefObject<EChartsReact | null> | undefined;
+    chartName?: string;
     isOpen: boolean;
     onClose: () => void;
 }
 
 const ExportImageModal: FC<ExportImageModalProps> = ({
     echartRef,
+    chartName,
     isOpen,
     onClose,
 }) => {
@@ -30,7 +32,10 @@ const ExportImageModal: FC<ExportImageModalProps> = ({
             icon={IconPhoto}
             cancelLabel={false}
         >
-            <ChartDownloadOptions getChartInstance={getChartInstance} />
+            <ChartDownloadOptions
+                getChartInstance={getChartInstance}
+                chartName={chartName}
+            />
         </MantineModal>
     );
 };
