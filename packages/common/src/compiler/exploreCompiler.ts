@@ -55,6 +55,35 @@ type Reference = {
     refName: string;
 };
 
+/**
+ * Regex pattern to detect SQL aggregation functions.
+ * Used to allow dimension references in non-aggregate metrics when
+ * the SQL itself contains an aggregation function (common Looker pattern).
+ *
+ * Matches: sum(, count(, avg(, etc. with word boundary to avoid false positives
+ * like "summary" matching "sum".
+ */
+const SQL_AGGREGATION_FUNCTIONS_PATTERN =
+    /\b(sum|count|avg|average|min|max|median|stddev|stddev_pop|stddev_samp|variance|var_pop|var_samp|percentile|percentile_cont|percentile_disc|count_distinct|approx_count_distinct|any_value|array_agg|string_agg|group_concat|listagg|corr|covar_pop|covar_samp|mode|approx_percentile)\s*\(/i;
+
+/**
+ * Check if the SQL contains any aggregation functions.
+ *
+ * This is used to determine if a non-aggregate metric with dimension references
+ * should be allowed. In Looker, it's common to define metrics as type:number
+ * with aggregation functions in the SQL field. These are valid in Lightdash
+ * because the aggregation happens in the SQL itself.
+ *
+ * @param sql - The SQL expression to check
+ * @returns True if the SQL contains aggregation functions, false otherwise
+ */
+export const sqlContainsAggregation = (
+    sql: string | undefined | null,
+): boolean => {
+    if (!sql) return false;
+    return SQL_AGGREGATION_FUNCTIONS_PATTERN.test(sql);
+};
+
 type FieldContext = {
     fieldType:
         | 'metric'
@@ -763,22 +792,39 @@ export class ExploreCompiler {
                     fieldType: 'metric' as const,
                     fieldName: metric.name,
                 };
-                const compiledReference =
-                    isNonAggregateMetric(metric) ||
-                    isPostCalculationMetric(metric)
-                        ? this.compileMetricReference(
-                              p1,
-                              tables,
-                              metric.table,
-                              availableParameters,
-                              fieldContext,
-                          )
-                        : this.compileDimensionReference(
-                              p1,
-                              tables,
-                              metric.table,
-                              fieldContext,
-                          );
+
+                // Determine how to resolve the reference:
+                // - Post-calculation metrics can ONLY reference other metrics
+                // - Non-aggregate metrics without aggregation can only reference other metrics
+                // - Non-aggregate metrics that have aggregation in their SQL can
+                //   reference dimensions (common Looker pattern like type:number with
+                //   sql: "count(distinct ${user_id})")
+                // - Aggregate metrics can reference dimensions
+                const isNonAggregate = isNonAggregateMetric(metric);
+                const isPostCalc = isPostCalculationMetric(metric);
+                const hasAggregationInSql =
+                    isNonAggregate && sqlContainsAggregation(metric.sql);
+
+                // Post-calc metrics always use metric references
+                // Non-aggregate metrics use dimension references only if SQL has aggregation
+                // Aggregate metrics always use dimension references
+                const shouldCompileAsDimension =
+                    !isPostCalc && (!isNonAggregate || hasAggregationInSql);
+
+                const compiledReference = shouldCompileAsDimension
+                    ? this.compileDimensionReference(
+                          p1,
+                          tables,
+                          metric.table,
+                          fieldContext,
+                      )
+                    : this.compileMetricReference(
+                          p1,
+                          tables,
+                          metric.table,
+                          availableParameters,
+                          fieldContext,
+                      );
                 tablesReferences = new Set([
                     ...tablesReferences,
                     ...compiledReference.tablesReferences,
