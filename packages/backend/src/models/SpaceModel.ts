@@ -361,6 +361,7 @@ export class SpaceModel {
             access: [],
             groupsAccess: [],
             slug: space.slug,
+            inheritParentPermissions: space.inherit_parent_permissions,
         };
     }
 
@@ -558,6 +559,7 @@ export class SpaceModel {
             slug: row.slug,
             parentSpaceUuid: row.parent_space_uuid,
             path: row.path,
+            inheritParentPermissions: row.inherit_parent_permissions,
         };
     }
 
@@ -1586,6 +1588,7 @@ export class SpaceModel {
             slug: space.slug,
             parentSpaceUuid: space.parentSpaceUuid,
             path: space.path,
+            inheritParentPermissions: space.inheritParentPermissions,
             breadcrumbs,
         };
     }
@@ -1801,6 +1804,7 @@ export class SpaceModel {
             slug: space.slug,
             parentSpaceUuid: space.parent_space_uuid,
             path: space.path,
+            inheritParentPermissions: space.inherit_parent_permissions,
         };
     }
 

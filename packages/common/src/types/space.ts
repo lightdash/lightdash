@@ -21,6 +21,7 @@ export type Space = {
     // Nested Spaces MVP - disables nested spaces' access changes
     childSpaces: Omit<SpaceSummary, 'userAccess'>[];
     parentSpaceUuid: string | null;
+    inheritParentPermissions: boolean;
     // ltree path serialized as string
     path: string;
     breadcrumbs?: {
@@ -36,6 +37,7 @@ export type SpaceSummary = Pick<
     | 'uuid'
     | 'name'
     | 'isPrivate'
+    | 'inheritParentPermissions'
     | 'pinnedListUuid'
     | 'pinnedListOrder'
     | 'slug'
