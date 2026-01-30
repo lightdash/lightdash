@@ -700,6 +700,8 @@ export type CompleteCartesianChartLayout = {
     colorByCategory?: boolean | undefined;
     /** Per-category color overrides (maps category value to hex color) */
     categoryColorOverrides?: Record<string, string> | undefined;
+    /** Configuration for limiting visible groups and aggregating the rest into "Other" */
+    groupLimit?: GroupLimitConfig | undefined;
 };
 
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;
