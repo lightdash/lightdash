@@ -101,6 +101,18 @@ import { type InfiniteQueryResults } from '../useQueryResults';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 /**
+ * Result of applying group limit to data.
+ */
+type GroupLimitResult = {
+    rows: ResultRow[];
+    rowKeyMap: RowKeyMap;
+    /** Keys that were aggregated into "Other" */
+    aggregatedKeys: string[];
+    /** The key used for the "Other" group (equals otherLabel when aggregation occurred) */
+    otherKey: string | null;
+};
+
+/**
  * Aggregates groups that exceed the maxGroups limit into an "Other" category.
  * Groups are ranked by their total value (sum across all rows).
  */
@@ -108,9 +120,9 @@ const applyGroupLimit = (
     rows: ResultRow[],
     rowKeyMap: RowKeyMap,
     groupLimit: GroupLimitConfig,
-): { rows: ResultRow[]; rowKeyMap: RowKeyMap } => {
+): GroupLimitResult => {
     if (!groupLimit.enabled || rows.length === 0) {
-        return { rows, rowKeyMap };
+        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null };
     }
 
     const { maxGroups, otherLabel } = groupLimit;
@@ -129,7 +141,7 @@ const applyGroupLimit = (
 
     // If we have fewer pivot groups than the limit, no aggregation needed
     if (pivotKeys.length <= maxGroups) {
-        return { rows, rowKeyMap };
+        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null };
     }
 
     // Calculate total value for each pivot key across all rows
@@ -163,7 +175,7 @@ const applyGroupLimit = (
     const otherGroupKeys = pivotTotals.slice(maxGroups).map((g) => g.key);
 
     if (otherGroupKeys.length === 0) {
-        return { rows, rowKeyMap };
+        return { rows, rowKeyMap, aggregatedKeys: [], otherKey: null };
     }
 
     // Create new rowKeyMap with only top groups + "Other"
@@ -229,7 +241,12 @@ const applyGroupLimit = (
         return newRow;
     });
 
-    return { rows: newRows, rowKeyMap: newRowKeyMap };
+    return {
+        rows: newRows,
+        rowKeyMap: newRowKeyMap,
+        aggregatedKeys: otherGroupKeys,
+        otherKey: otherLabel,
+    };
 };
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -2332,16 +2349,114 @@ const useEchartsCartesianConfig = (
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 
     // Apply group limit to aggregate excess groups into "Other"
-    const { rows, rowKeyMap } = useMemo(() => {
+    const { rows, rowKeyMap, aggregatedKeys, otherKey } = useMemo(() => {
         const groupLimit = validCartesianConfig?.layout?.groupLimit;
         if (!groupLimit || !groupLimit.enabled) {
-            return { rows: rawRows, rowKeyMap: rawRowKeyMap };
+            return {
+                rows: rawRows,
+                rowKeyMap: rawRowKeyMap,
+                aggregatedKeys: [] as string[],
+                otherKey: null as string | null,
+            };
         }
         return applyGroupLimit(rawRows, rawRowKeyMap, groupLimit);
     }, [rawRows, rawRowKeyMap, validCartesianConfig?.layout?.groupLimit]);
 
+    // Create a modified cartesian config that handles group limiting
+    const effectiveCartesianConfig = useMemo(() => {
+        if (
+            !validCartesianConfig ||
+            !otherKey ||
+            aggregatedKeys.length === 0 ||
+            !pivotValuesColumnsMap
+        ) {
+            return validCartesianConfig;
+        }
+
+        // Find which column names map to the aggregated keys
+        const aggregatedColumnNames = new Set<string>();
+        for (const [columnName, col] of Object.entries(pivotValuesColumnsMap)) {
+            // Check if this column's pivot values match any aggregated key
+            if (aggregatedKeys.includes(columnName)) {
+                aggregatedColumnNames.add(columnName);
+            }
+        }
+
+        const originalSeries = validCartesianConfig.eChartsConfig.series || [];
+
+        // Filter out aggregated series and get a template for "Other"
+        const filteredSeries: Series[] = [];
+        let otherSeriesTemplate: Series | null = null;
+
+        for (const s of originalSeries) {
+            // Check if this series should be aggregated
+            if (isPivotReferenceWithValues(s.encode.yRef)) {
+                const yRef = s.encode.yRef;
+                // Find the matching column for this series
+                const matchingColumn = Object.values(
+                    pivotValuesColumnsMap,
+                ).find(
+                    (col) =>
+                        col.referenceField === yRef.field &&
+                        col.pivotValues.length === yRef.pivotValues.length &&
+                        col.pivotValues.every(
+                            (pv, idx) => pv.value === yRef.pivotValues[idx].value,
+                        ),
+                );
+
+                if (
+                    matchingColumn &&
+                    aggregatedKeys.includes(matchingColumn.pivotColumnName)
+                ) {
+                    // This series should be aggregated - save as template if first one
+                    if (!otherSeriesTemplate) {
+                        otherSeriesTemplate = s;
+                    }
+                    continue; // Skip this series
+                }
+            }
+            filteredSeries.push(s);
+        }
+
+        // Add "Other" series if we have a template
+        if (otherSeriesTemplate) {
+            const otherSeries: Series = {
+                ...otherSeriesTemplate,
+                name: otherKey,
+                encode: {
+                    ...otherSeriesTemplate.encode,
+                    yRef: {
+                        field: otherSeriesTemplate.encode.yRef.field,
+                        pivotValues: [
+                            {
+                                field: OTHER_GROUP_PIVOT_VALUE,
+                                value: OTHER_GROUP_PIVOT_VALUE,
+                            },
+                        ],
+                    },
+                },
+                // Clear color so it gets auto-assigned
+                color: undefined,
+            };
+            filteredSeries.push(otherSeries);
+        }
+
+        return {
+            ...validCartesianConfig,
+            eChartsConfig: {
+                ...validCartesianConfig.eChartsConfig,
+                series: filteredSeries,
+            },
+        };
+    }, [
+        validCartesianConfig,
+        otherKey,
+        aggregatedKeys,
+        pivotValuesColumnsMap,
+    ]);
+
     const series = useMemo(() => {
-        if (!itemsMap || !validCartesianConfig || !resultsData) {
+        if (!itemsMap || !effectiveCartesianConfig || !resultsData) {
             return [];
         }
 
@@ -2349,7 +2464,7 @@ const useEchartsCartesianConfig = (
         if (resultsData?.pivotDetails && rowKeyMap) {
             return getEchartsSeriesFromPivotedData(
                 itemsMap,
-                validCartesianConfig,
+                effectiveCartesianConfig,
                 rowKeyMap,
                 pivotValuesColumnsMap,
                 parameters,
@@ -2359,12 +2474,12 @@ const useEchartsCartesianConfig = (
         // Legacy implementation
         return getEchartsSeries(
             itemsMap,
-            validCartesianConfig,
+            effectiveCartesianConfig,
             pivotDimensions,
             parameters,
         );
     }, [
-        validCartesianConfig,
+        effectiveCartesianConfig,
         resultsData,
         itemsMap,
         pivotDimensions,
