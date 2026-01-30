@@ -16,7 +16,6 @@ import {
     Button,
     Checkbox,
     Group,
-    Highlight,
     Radio,
     Select,
     Stack,
@@ -108,28 +107,12 @@ export const FixDashboardFilterModal: FC<Props> = ({
     const [oldModelName, setOldModelName] = useState<string | undefined>();
     const [newName, setNewName] = useState('');
     const [fixAllFilters, setFixAllFilters] = useState(false);
-    const [search, setSearch] = useState('');
     const form = useForm({});
 
     // Extract the field prefix (old model name) from fieldId
     // e.g., "Related_Opportunity_TYPE" -> "Related_Opportunity"
     const fieldName = validationError?.fieldName;
     const targetTableName = validationError?.tableName;
-
-    const fieldOldModelPrefix = useMemo(() => {
-        if (!fieldName || !targetTableName) return undefined;
-        // If fieldId starts with tableName_, the field belongs to the target table (no prefix issue)
-        if (fieldName.startsWith(`${targetTableName}_`)) {
-            return targetTableName;
-        }
-        // Otherwise, extract the prefix (everything before the last underscore segment)
-        // e.g., "Related_Opportunity_TYPE" -> "Related_Opportunity"
-        const lastUnderscoreIndex = fieldName.lastIndexOf('_');
-        if (lastUnderscoreIndex > 0) {
-            return fieldName.substring(0, lastUnderscoreIndex);
-        }
-        return fieldName.split('_')[0];
-    }, [fieldName, targetTableName]);
 
     // Fetch the explore for the target table to get available fields
     const { data: explore, isError: isExploreLoadError } =
@@ -142,6 +125,43 @@ export const FixDashboardFilterModal: FC<Props> = ({
         if (!explore || checkIsExploreError(explore)) return { fields: {} };
         return getFieldsFromExplore(explore);
     }, [explore]);
+
+    // Extract the field prefix (old model name) from fieldId
+    // e.g., "Related_Opportunity_TYPE" with target table "dim_global__opportunity"
+    //   -> checks if "TYPE" is a field in dim_global__opportunity -> "Related_Opportunity"
+    const fieldOldModelPrefix = useMemo(() => {
+        if (!fieldName || !targetTableName) return undefined;
+        if (fieldName.startsWith(`${targetTableName}_`)) {
+            return targetTableName;
+        }
+
+        // Try to match against field names in the target explore.
+        // For each underscore position, check if the suffix is a known field name.
+        if (explore && !checkIsExploreError(explore)) {
+            const targetTable = explore.tables[targetTableName];
+            if (targetTable) {
+                const allFieldNames = new Set([
+                    ...Object.keys(targetTable.dimensions),
+                    ...Object.keys(targetTable.metrics),
+                ]);
+                for (let i = 0; i < fieldName.length; i++) {
+                    if (fieldName[i] === '_') {
+                        const suffix = fieldName.substring(i + 1);
+                        if (allFieldNames.has(suffix)) {
+                            return fieldName.substring(0, i);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback: use the last underscore as a split point
+        const lastUnderscoreIndex = fieldName.lastIndexOf('_');
+        if (lastUnderscoreIndex > 0) {
+            return fieldName.substring(0, lastUnderscoreIndex);
+        }
+        return fieldName.split('_')[0];
+    }, [fieldName, targetTableName, explore]);
 
     const fieldOptions = useMemo(
         () =>
@@ -196,7 +216,6 @@ export const FixDashboardFilterModal: FC<Props> = ({
         setOldModelName(undefined);
         setNewName('');
         setFixAllFilters(false);
-        setSearch('');
         form.reset();
         onClose();
     };
@@ -407,7 +426,6 @@ export const FixDashboardFilterModal: FC<Props> = ({
                             const type = value as RenameType;
                             setRenameType(type);
                             setNewName('');
-                            setSearch('');
 
                             if (type === RenameType.MODEL) {
                                 setOldModelName(fieldOldModelPrefix);
@@ -433,22 +451,11 @@ export const FixDashboardFilterModal: FC<Props> = ({
                             >
                                 <div>
                                     <Select
-                                        renderOption={({ option }) => (
-                                            <Highlight
-                                                highlight={search}
-                                                fz="sm"
-                                                color="yellow"
-                                            >
-                                                {option.label}
-                                            </Highlight>
-                                        )}
-                                        onSearchChange={setSearch}
-                                        searchValue={search}
-                                        radius="md"
                                         data={fieldOptions}
                                         required
                                         disabled={isExploreLoadError}
                                         searchable
+                                        nothingFoundMessage="No matching fields"
                                         label="New field"
                                         placeholder="Select a field to rename to"
                                         onChange={(value) => {
@@ -476,20 +483,10 @@ export const FixDashboardFilterModal: FC<Props> = ({
                                 {fieldOldModelPrefix}&apos;).
                             </Text>
                             <Select
-                                searchValue={search}
-                                onSearchChange={setSearch}
-                                renderOption={({ option }) => (
-                                    <Highlight
-                                        highlight={search}
-                                        fz="sm"
-                                        color="yellow"
-                                    >
-                                        {option.label}
-                                    </Highlight>
-                                )}
                                 data={explores?.map((e) => e.name) || []}
                                 required
                                 searchable
+                                nothingFoundMessage="No matching models"
                                 label="New model"
                                 placeholder="Select a model to rename to"
                                 onChange={(value) => {
