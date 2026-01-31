@@ -85,6 +85,11 @@ export enum FeatureFlags {
      * inherit permissions from their root space.
      */
     NestedSpacesPermissions = 'nested-spaces-permissions',
+
+    /**
+     * Enable bulk edit modal for filter string autocomplete
+     */
+    FilterBulkEdit = 'filter-bulk-edit',
 }
 
 export type FeatureFlag = {

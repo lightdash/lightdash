@@ -1,4 +1,6 @@
 import {
+    FeatureFlags,
+    FilterOperator,
     FilterType,
     createFilterRuleFromField,
     getFilterRuleFromFieldWithDefaultValue,
@@ -9,12 +11,15 @@ import {
     type FilterableField,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, Select, Tooltip } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { IconDots, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
+import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
 import FilterInputComponent from './FilterInputs';
+import BulkEditValuesModal from './FilterInputs/BulkEditValuesModal';
 import { getFilterOperatorOptions } from './FilterInputs/utils';
 import useFiltersContext from './useFiltersContext';
 
@@ -37,6 +42,10 @@ const FilterRuleForm: FC<Props> = memo(
         onConvertToGroup,
     }) => {
         const { popoverProps, baseTable } = useFiltersContext();
+        const isBulkEditEnabled = useClientFeatureFlag(
+            FeatureFlags.FilterBulkEdit,
+        );
+        const [bulkEditOpened, bulkEditHandlers] = useDisclosure(false);
         const activeField = useMemo(() => {
             return fields.find(
                 (field) => getItemId(field) === filterRule.target.fieldId,
@@ -88,6 +97,37 @@ const FilterRuleForm: FC<Props> = memo(
         const isRequiredLabel = isRequired
             ? "This filter is a required filter.\n It can't be deleted, but the value can be changed."
             : '';
+
+        // Multi-value operators that support bulk edit
+        const isMultiValueOperator = [
+            FilterOperator.EQUALS,
+            FilterOperator.NOT_EQUALS,
+            FilterOperator.INCLUDE,
+            FilterOperator.NOT_INCLUDE,
+            FilterOperator.STARTS_WITH,
+            FilterOperator.ENDS_WITH,
+        ].includes(filterRule.operator);
+
+        const showBulkEdit =
+            isBulkEditEnabled && isEditMode && isMultiValueOperator;
+
+        const handleBulkEditApply = useCallback(
+            (newValues: string[]) => {
+                // For number fields, convert strings back to numbers
+                const parsedValues =
+                    filterType === FilterType.NUMBER
+                        ? newValues.map((v) => {
+                              const num = parseFloat(v);
+                              return isNaN(num) ? v : num;
+                          })
+                        : newValues;
+                onChange({
+                    ...filterRule,
+                    values: parsedValues,
+                });
+            },
+            [filterRule, filterType, onChange],
+        );
 
         if (!activeField) {
             return null;
@@ -187,6 +227,11 @@ const FilterRuleForm: FC<Props> = memo(
                             </Menu.Target>
 
                             <Menu.Dropdown>
+                                {showBulkEdit && (
+                                    <Menu.Item onClick={bulkEditHandlers.open}>
+                                        Bulk edit values
+                                    </Menu.Item>
+                                )}
                                 <Menu.Item onClick={onConvertToGroup}>
                                     Convert to group
                                 </Menu.Item>
@@ -210,6 +255,15 @@ const FilterRuleForm: FC<Props> = memo(
                             </Menu.Dropdown>
                         </Menu>
                     ))}
+                {showBulkEdit && (
+                    <BulkEditValuesModal
+                        opened={bulkEditOpened}
+                        onClose={bulkEditHandlers.close}
+                        values={(filterRule.values ?? []).map(String)}
+                        onApply={handleBulkEditApply}
+                        isNumberField={filterType === FilterType.NUMBER}
+                    />
+                )}
             </Group>
         );
     },
