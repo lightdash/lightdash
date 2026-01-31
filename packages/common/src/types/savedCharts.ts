@@ -461,6 +461,7 @@ export type CompleteCartesianChartLayout = {
     showXAxis?: boolean | undefined;
     showYAxis?: boolean | undefined;
     stack?: boolean | string | undefined; // Support both old boolean and new StackType string for backward compatibility
+    connectNulls?: boolean | undefined; // only applicable for line series, defaults to true
 };
 
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;
