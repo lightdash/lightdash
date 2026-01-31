@@ -1,5 +1,4 @@
 import {
-    buildPopAdditionalMetricName,
     DimensionType,
     getItemId,
     getItemLabelWithoutTableName,
@@ -16,7 +15,7 @@ import {
     isTimeBasedDimension,
     type TableCalculation,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Box, Group, Menu, Text } from '@mantine/core';
 import {
     IconChevronDown,
     IconFilter,
@@ -98,54 +97,32 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const isPopAdditionalMetric =
         isPeriodOverPeriodAdditionalMetric(additionalMetric);
 
-    // Check if a PoP metric already exists for this base metric
-    const hasExistingPopForMetric = useMemo(() => {
-        if (!item || !isMetric(item)) return false;
-        const expectedPopName = buildPopAdditionalMetricName(item.name);
-        const expectedPopId = `${item.table}_${expectedPopName}`;
-        return additionalMetrics?.some((am) => getItemId(am) === expectedPopId);
-    }, [item, additionalMetrics]);
-
     if (item && isField(item)) {
         const itemFieldId = getItemId(item);
         return (
             <>
                 {isMetric(item) && !isPopAdditionalMetric ? (
                     <>
-                        <Tooltip
-                            disabled={!hasExistingPopForMetric}
-                            label="This metric already has a period comparison"
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconTimelineEvent} />}
+                            rightSection={
+                                <Box ml="sm">
+                                    <BetaBadge tooltipLabel="" />
+                                </Box>
+                            }
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.togglePeriodOverPeriodComparisonModal(
+                                        {
+                                            metric: item,
+                                            itemsMap: itemsMap,
+                                        },
+                                    ),
+                                );
+                            }}
                         >
-                            <Menu.Item
-                                icon={<MantineIcon icon={IconTimelineEvent} />}
-                                rightSection={
-                                    <Box ml="sm">
-                                        <BetaBadge tooltipLabel="" />
-                                    </Box>
-                                }
-                                sx={
-                                    hasExistingPopForMetric
-                                        ? {
-                                              opacity: 0.5,
-                                              cursor: 'not-allowed',
-                                          }
-                                        : undefined
-                                }
-                                onClick={() => {
-                                    if (hasExistingPopForMetric) return;
-                                    dispatch(
-                                        explorerActions.togglePeriodOverPeriodComparisonModal(
-                                            {
-                                                metric: item,
-                                                itemsMap: itemsMap,
-                                            },
-                                        ),
-                                    );
-                                }}
-                            >
-                                Add period comparison
-                            </Menu.Item>
-                        </Tooltip>
+                            Add period comparison
+                        </Menu.Item>
 
                         <Menu.Divider />
                     </>
