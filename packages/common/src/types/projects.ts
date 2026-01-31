@@ -25,6 +25,7 @@ export enum WarehouseTypes {
     DATABRICKS = 'databricks',
     TRINO = 'trino',
     CLICKHOUSE = 'clickhouse',
+    DUCKDB = 'duckdb',
 }
 
 export type SshTunnelConfiguration = {
@@ -175,6 +176,17 @@ export type ClickhouseCredentials = Omit<
     CreateClickhouseCredentials,
     SensitiveCredentialsFieldNames
 >;
+export type CreateDuckdbCredentials = {
+    type: WarehouseTypes.DUCKDB;
+    path: string; // Path to .duckdb file or :memory:
+    schema?: string;
+    startOfWeek?: WeekDay | null;
+    timeoutSeconds?: number;
+};
+export type DuckdbCredentials = Omit<
+    CreateDuckdbCredentials,
+    SensitiveCredentialsFieldNames
+>;
 export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     type: WarehouseTypes.REDSHIFT;
     host: string;
@@ -240,7 +252,8 @@ export type CreateWarehouseCredentials =
     | CreateSnowflakeCredentials
     | CreateDatabricksCredentials
     | CreateTrinoCredentials
-    | CreateClickhouseCredentials;
+    | CreateClickhouseCredentials
+    | CreateDuckdbCredentials;
 export type WarehouseCredentials =
     | SnowflakeCredentials
     | RedshiftCredentials
@@ -248,7 +261,8 @@ export type WarehouseCredentials =
     | BigqueryCredentials
     | DatabricksCredentials
     | TrinoCredentials
-    | ClickhouseCredentials;
+    | ClickhouseCredentials
+    | DuckdbCredentials;
 
 export type CreatePostgresLikeCredentials =
     | CreateRedshiftCredentials

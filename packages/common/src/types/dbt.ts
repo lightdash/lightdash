@@ -37,6 +37,7 @@ export enum SupportedDbtAdapter {
     POSTGRES = 'postgres',
     TRINO = 'trino',
     CLICKHOUSE = 'clickhouse',
+    DUCKDB = 'duckdb',
 }
 
 export type DbtNodeConfig = {
@@ -266,6 +267,8 @@ export const normaliseModelDatabase = (
             return { ...model, database: model.database as string };
         case SupportedDbtAdapter.CLICKHOUSE:
             return { ...model, database: '' }; // Clickhouse doesn't have a database field
+        case SupportedDbtAdapter.DUCKDB:
+            return { ...model, database: model.database || 'main' }; // DuckDB uses 'main' as default database
         case SupportedDbtAdapter.DATABRICKS:
             return { ...model, database: model.database || 'DEFAULT' };
         default:
