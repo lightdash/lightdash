@@ -98,6 +98,9 @@ export const WarehouseFormInputs: FC<{
             return <BigQueryFormInput onClose={onClose} />;
         case WarehouseTypes.DATABRICKS:
             return <DatabricksFormInput onClose={onClose} />;
+        case WarehouseTypes.DUCKDB:
+            // DuckDB connects to local files, no user credentials needed
+            return null;
         default:
             return null;
     }
