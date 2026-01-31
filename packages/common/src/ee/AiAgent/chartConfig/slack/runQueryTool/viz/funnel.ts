@@ -1,5 +1,6 @@
 import { type EChartsOption } from 'echarts';
 import { type ToolRunQueryArgsTransformed } from '../../../../schemas';
+import { getCommonEChartsConfig } from '../../shared/getCommonEChartsConfig';
 
 /**
  * Generates funnel chart echarts config for server-side rendering
@@ -24,14 +25,20 @@ export const getFunnelChartEchartsConfig = (
     });
 
     return {
-        ...(queryTool.title ? { title: { text: queryTool.title } } : {}),
+        ...getCommonEChartsConfig({
+            title: queryTool.title,
+            showLegend: false,
+            chartData: rows,
+        }),
+        tooltip: {
+            show: true,
+            trigger: 'item' as const,
+        },
         legend: {
             show: true,
             orient: 'horizontal',
             bottom: 10,
         },
-        animation: false,
-        backgroundColor: '#fff',
         series: [
             {
                 type: 'funnel',
