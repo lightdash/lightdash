@@ -180,6 +180,7 @@ export type CreateDuckdbCredentials = {
     type: WarehouseTypes.DUCKDB;
     path: string; // Path to .duckdb file or :memory:
     schema?: string;
+    requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
     timeoutSeconds?: number;
 };
