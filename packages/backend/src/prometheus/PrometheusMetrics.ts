@@ -1,17 +1,26 @@
 import { AnyType, QueryHistoryStatus } from '@lightdash/common';
 import express from 'express';
+import { EventEmitter } from 'events';
 import http from 'http';
 import { Knex } from 'knex';
 import { performance } from 'perf_hooks';
 import prometheus from 'prom-client';
-import { LightdashConfig } from './config/parseConfig';
-import Logger from './logging/logger';
-import { SchedulerClient } from './scheduler/SchedulerClient';
+import path from 'path';
+import * as fs from 'fs';
+import { LightdashConfig } from '../config/parseConfig';
+import Logger from '../logging/logger';
+import { SchedulerClient } from '../scheduler/SchedulerClient';
+import {
+    PrometheusEventMetricManager,
+    PrometheusEventMetricManagerConfig,
+} from './PrometheusEventMetricManager';
 
 export default class PrometheusMetrics {
     private readonly config: LightdashConfig['prometheus'];
 
     private server: http.Server | null = null;
+
+    private eventMetricManager: PrometheusEventMetricManager | null = null;
 
     // Add query status metrics
     public queryStatusCounter: prometheus.Counter<string> | null = null;
@@ -408,6 +417,68 @@ export default class PrometheusMetrics {
                     }
                 },
             });
+        }
+    }
+
+    public monitorEventMetrics(eventEmitter: EventEmitter) {
+        if (!this.config.enabled || !this.config.eventMetricsEnabled) {
+            return;
+        }
+
+        const configPath = this.config.eventMetricsConfigPath;
+
+        if (!configPath) {
+            Logger.debug(
+                'PrometheusEventMetricManager config path not set, skipping initialization',
+            );
+            return;
+        }
+
+        try {
+            const fullPath = path.isAbsolute(configPath)
+                ? configPath
+                : path.join(process.cwd(), configPath);
+
+            if (!fs.existsSync(fullPath)) {
+                Logger.warn(
+                    `PrometheusEventMetricManager config file not found: ${fullPath}`,
+                );
+                return;
+            }
+
+            const configContent = fs.readFileSync(fullPath, 'utf-8');
+            const jsonConfig = JSON.parse(configContent);
+
+            // Validate config structure
+            if (!jsonConfig.metrics || !Array.isArray(jsonConfig.metrics)) {
+                Logger.error(
+                    'PrometheusEventMetricManager config must have a "metrics" array',
+                );
+                return;
+            }
+
+            // Merge with prometheus config from lightdashConfig
+            const config: PrometheusEventMetricManagerConfig = {
+                metrics: jsonConfig.metrics,
+                prometheusConfig: this.config,
+            };
+
+            this.eventMetricManager = new PrometheusEventMetricManager(
+                config,
+                eventEmitter,
+            );
+
+            Logger.info('Initializing PrometheusEventMetricManager');
+            this.eventMetricManager.initialize();
+
+            Logger.info(
+                `PrometheusEventMetricManager loaded from ${fullPath} with ${config.metrics.length} metrics`,
+            );
+        } catch (error) {
+            Logger.error(
+                `Error loading PrometheusEventMetricManager config from ${configPath}`,
+                error,
+            );
         }
     }
 
