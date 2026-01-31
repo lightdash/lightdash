@@ -60,10 +60,7 @@ const defaultCredentials: Record<
         user: '',
         password: '',
     },
-    [WarehouseTypes.DUCKDB]: {
-        type: WarehouseTypes.DUCKDB,
-        path: '',
-    },
+    // DuckDB is file-based and doesn't need user credentials
 };
 
 const FORM_ID = 'create-credentials-form';
