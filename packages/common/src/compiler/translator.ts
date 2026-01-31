@@ -92,6 +92,9 @@ const convertTimezone = (
         case SupportedDbtAdapter.CLICKHOUSE:
             // DateTime: stored in server timezone, returns in server timezone
             return timestampSql;
+        case SupportedDbtAdapter.DUCKDB:
+            // DuckDB uses PostgreSQL-compatible timestamp handling
+            return timestampSql;
         default:
             return assertUnreachable(
                 adapterType,

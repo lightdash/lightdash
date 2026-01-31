@@ -8,6 +8,7 @@ import type {
     CreateBigqueryCredentials,
     CreateClickhouseCredentials,
     CreateDatabricksCredentials,
+    CreateDuckdbCredentials,
     CreatePostgresCredentials,
     CreateRedshiftCredentials,
     CreateSnowflakeCredentials,
@@ -142,6 +143,14 @@ export const ClickhouseDefaultValues: CreateClickhouseCredentials = {
     timeoutSeconds: 300,
 };
 
+export const DuckdbDefaultValues: CreateDuckdbCredentials = {
+    type: WarehouseTypes.DUCKDB,
+    path: '',
+    schema: 'main',
+    startOfWeek: undefined,
+    timeoutSeconds: 300,
+};
+
 export const warehouseDefaultValues = {
     [WarehouseTypes.BIGQUERY]: BigQueryDefaultValues,
     [WarehouseTypes.POSTGRES]: PostgresDefaultValues,
@@ -150,4 +159,5 @@ export const warehouseDefaultValues = {
     [WarehouseTypes.DATABRICKS]: DatabricksDefaultValues,
     [WarehouseTypes.TRINO]: TrinoDefaultValues,
     [WarehouseTypes.CLICKHOUSE]: ClickhouseDefaultValues,
+    [WarehouseTypes.DUCKDB]: DuckdbDefaultValues,
 };

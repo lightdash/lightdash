@@ -21,6 +21,7 @@ export const getFieldQuoteChar = (
             case WarehouseTypes.POSTGRES:
             case WarehouseTypes.TRINO:
             case WarehouseTypes.CLICKHOUSE:
+            case WarehouseTypes.DUCKDB:
                 return '"';
             default:
                 return assertUnreachable(
@@ -52,8 +53,10 @@ export const getAggregatedField = (
             return `${aggregationFunction}(${q}${reference}${q})`;
 
         case SupportedDbtAdapter.POSTGRES:
+        case SupportedDbtAdapter.DUCKDB:
             if (aggregation === VizAggregationOptions.ANY) {
                 // ANY_VALUE on Postgres is only available from version v16+
+                // DuckDB supports any_value() but using ARRAY_AGG for consistency
                 return `(ARRAY_AGG(${q}${reference}${q}))[1]`;
             }
             break;

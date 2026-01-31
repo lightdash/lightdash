@@ -398,6 +398,7 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.DATABRICKS]: databricksConfig,
     [SupportedDbtAdapter.TRINO]: trinoConfig,
     [SupportedDbtAdapter.CLICKHOUSE]: clickhouseConfig,
+    [SupportedDbtAdapter.DUCKDB]: postgresConfig, // DuckDB uses PostgreSQL-compatible SQL
 };
 
 export const getSqlForTruncatedDate: TimeFrameConfig['getSql'] = (
