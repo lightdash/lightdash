@@ -603,14 +603,14 @@ type CompiledProperties = {
 export type CompiledDimension = Dimension & CompiledProperties;
 export type CompiledMetric = Metric & CompiledProperties;
 
+export type CompiledField = CompiledDimension | CompiledMetric;
+
 /**
  * Type guard to check if a compiled field has a compilation error.
  */
 export const hasFieldCompilationError = (
     field: CompiledDimension | CompiledMetric,
 ): boolean => field.compilationError !== undefined;
-
-export type CompiledField = CompiledDimension | CompiledMetric;
 
 export const isDimension = (
     field: ItemsMap[string] | AdditionalMetric | undefined, // NOTE: `ItemsMap converts AdditionalMetric to Metric
@@ -647,6 +647,8 @@ export enum MetricType {
     SUM = 'sum',
     MIN = 'min',
     MAX = 'max',
+    VARIANCE = 'variance',
+    STANDARD_DEVIATION = 'standard_deviation',
     PERCENT_OF_PREVIOUS = 'percent_of_previous',
     PERCENT_OF_TOTAL = 'percent_of_total',
     RUNNING_TOTAL = 'running_total',
@@ -691,6 +693,10 @@ export const parseMetricType = (metricType: string): MetricType => {
             return MetricType.MIN;
         case 'max':
             return MetricType.MAX;
+        case 'variance':
+            return MetricType.VARIANCE;
+        case 'standard_deviation':
+            return MetricType.STANDARD_DEVIATION;
         case 'number':
             return MetricType.NUMBER;
         case 'string':

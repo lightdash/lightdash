@@ -148,6 +148,10 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
                 })]`;
             case MetricType.MEDIAN:
                 return `APPROX_QUANTILES(${sql}, 100)[OFFSET(50)]`;
+            case MetricType.VARIANCE:
+                return `VAR_SAMP(${sql})`;
+            case MetricType.STANDARD_DEVIATION:
+                return `STDDEV_SAMP(${sql})`;
             default:
                 return super.getMetricSql(sql, metric);
         }

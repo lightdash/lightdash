@@ -6,6 +6,7 @@ import {
     MetricType,
     convertFieldRefToFieldId,
     isFormat,
+    parseMetricType,
     type CustomBinDimension,
     type CustomSqlDimension,
     type TableCalculation,
@@ -121,6 +122,23 @@ describe('field util functions', () => {
             expect(isFormat('invalid')).toBe(false);
             expect(isFormat(undefined)).toBe(false);
             expect(isFormat('')).toBe(false);
+        });
+    });
+    describe('parseMetricType', () => {
+        it('should parse variance metric type', () => {
+            expect(parseMetricType('variance')).toBe(MetricType.VARIANCE);
+        });
+
+        it('should parse standard_deviation metric type', () => {
+            expect(parseMetricType('standard_deviation')).toBe(
+                MetricType.STANDARD_DEVIATION,
+            );
+        });
+
+        it('should throw error for invalid metric type', () => {
+            expect(() => parseMetricType('invalid_type')).toThrow(
+                "Cannot parse dbt metric with type 'invalid_type'",
+            );
         });
     });
 });

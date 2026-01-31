@@ -137,6 +137,8 @@ export const prepareCustomMetricData = ({
         MetricType.SUM,
         MetricType.MIN,
         MetricType.MAX,
+        MetricType.VARIANCE,
+        MetricType.STANDARD_DEVIATION,
     ].includes(type);
 
     const compact =
