@@ -34,6 +34,30 @@ type CatalogInsertWithYamlTags = Omit<DbCatalogIn, 'owner_user_uuid'> & {
     ownerEmail: string | null;
 };
 
+export type MetricTreeEdge = {
+    sourceMetricName: string;
+    sourceTableName: string;
+    targetMetricName: string;
+    targetTableName: string;
+};
+
+/**
+ * Parse a metric reference in the format 'metric_name' or 'table.metric_name'
+ * @param ref - The metric reference string
+ * @param defaultTable - The table to use if no table is specified
+ * @returns Object with table and metric names
+ */
+const parseMetricRef = (
+    ref: string,
+    defaultTable: string,
+): { table: string; metric: string } => {
+    const parts = ref.split('.');
+    if (parts.length === 2) {
+        return { table: parts[0], metric: parts[1] };
+    }
+    return { table: defaultTable, metric: ref };
+};
+
 export const convertExploresToCatalog = (
     projectUuid: string,
     cachedExplores: (Explore & { cachedExploreUuid: string })[],
@@ -42,11 +66,15 @@ export const convertExploresToCatalog = (
     catalogInserts: CatalogInsertWithYamlTags[];
     catalogFieldMap: CatalogFieldMap;
     numberOfCategoriesApplied: number;
+    yamlEdges: MetricTreeEdge[];
 } => {
     // Track fields' ids and names to calculate their chart usage
     const catalogFieldMap: CatalogFieldMap = {};
 
     let numberOfCategoriesApplied = 0;
+
+    // Collect YAML-defined metric edges
+    const yamlEdges: MetricTreeEdge[] = [];
 
     // Build map of base explore field names per baseTable
     // Used to avoid duplicating fields for additional explores
@@ -116,8 +144,9 @@ export const convertExploresToCatalog = (
                         cachedExploreUuid: explore.cachedExploreUuid,
                         fieldType: field.fieldType,
                     };
+                    const fieldIsMetric = isMetric(field);
 
-                    const assignedYamlTags = isMetric(field)
+                    const assignedYamlTags = fieldIsMetric
                         ? projectYamlTags.filter(
                               (tag) =>
                                   tag.yaml_reference &&
@@ -131,8 +160,22 @@ export const convertExploresToCatalog = (
                         numberOfCategoriesApplied += assignedYamlTags.length;
                     }
 
+                    // Extract YAML-defined metric drivers (driver → current metric)
+                    if (fieldIsMetric && field.drivers) {
+                        field.drivers.forEach((driverRef) => {
+                            const { table: driverTable, metric: driverMetric } =
+                                parseMetricRef(driverRef, field.table);
+                            yamlEdges.push({
+                                sourceMetricName: driverMetric, // Driver is source
+                                sourceTableName: driverTable,
+                                targetMetricName: field.name, // Current metric is target
+                                targetTableName: field.table,
+                            });
+                        });
+                    }
+
                     // Metric owner takes precedence over explore/model owner
-                    const metricOwner = isMetric(field)
+                    const metricOwner = fieldIsMetric
                         ? field.spotlight?.owner
                         : undefined;
                     const owner =
@@ -153,9 +196,7 @@ export const convertExploresToCatalog = (
                         chart_usage: 0, // Fields are initialized with 0 chart usage
                         table_name: explore.baseTable,
                         spotlight_show: getSpotlightShow(
-                            isMetric(field)
-                                ? field.spotlight
-                                : explore.spotlight,
+                            fieldIsMetric ? field.spotlight : explore.spotlight,
                         ),
                         assigned_yaml_tags: assignedYamlTags,
                         yaml_tags:
@@ -178,6 +219,7 @@ export const convertExploresToCatalog = (
         catalogInserts,
         catalogFieldMap,
         numberOfCategoriesApplied,
+        yamlEdges,
     };
 };
 
