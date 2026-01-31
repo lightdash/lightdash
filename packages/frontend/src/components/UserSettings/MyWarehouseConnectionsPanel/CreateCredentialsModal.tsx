@@ -23,10 +23,11 @@ type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
     onSuccess?: (data: UserWarehouseCredentials) => void;
 };
 
-const defaultCredentials: Record<
+// Partial because DuckDB is file-based and doesn't need user credentials
+const defaultCredentials: Partial<Record<
     WarehouseTypes,
     UpsertUserWarehouseCredentials['credentials']
-> = {
+>> = {
     [WarehouseTypes.POSTGRES]: {
         type: WarehouseTypes.POSTGRES,
         user: '',
@@ -84,7 +85,8 @@ export const CreateCredentialsModal: FC<Props> = ({
         initialValues: {
             name: '',
             credentials:
-                defaultCredentials[warehouseType || WarehouseTypes.POSTGRES],
+                defaultCredentials[warehouseType || WarehouseTypes.POSTGRES] ??
+                defaultCredentials[WarehouseTypes.POSTGRES]!,
         },
     });
 
