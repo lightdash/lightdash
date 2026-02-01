@@ -242,6 +242,15 @@ const credentialsTarget = (
                     [envVar('password')]: credentials.password,
                 },
             };
+        case WarehouseTypes.DUCKDB:
+            return {
+                target: {
+                    type: WarehouseTypes.DUCKDB,
+                    path: credentials.path,
+                    schema: credentials.schema || 'main',
+                },
+                environment: {},
+            };
         default:
             const { type } = credentials;
             return assertUnreachable(

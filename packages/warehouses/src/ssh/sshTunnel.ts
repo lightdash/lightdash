@@ -286,6 +286,8 @@ export class SshTunnel<T extends CreateWarehouseCredentials> {
             case WarehouseTypes.SNOWFLAKE:
             case WarehouseTypes.BIGQUERY:
             case WarehouseTypes.CLICKHOUSE:
+            case WarehouseTypes.DUCKDB:
+                // DuckDB is file-based, no SSH tunnel needed
                 break;
             default:
                 assertUnreachable(type, new Error('Unknown warehouse type'));

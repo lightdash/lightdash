@@ -5,6 +5,7 @@ import { useFormContext } from './formContext';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import ClickhouseForm from './WarehouseForms/ClickhouseForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
+import DuckdbForm from './WarehouseForms/DuckdbForm';
 import { warehouseDefaultValues } from './WarehouseForms/defaultValues';
 import PostgresForm from './WarehouseForms/PostgresForm';
 import RedshiftForm from './WarehouseForms/RedshiftForm';
@@ -19,6 +20,7 @@ const WarehouseTypeLabels = {
     [WarehouseTypes.DATABRICKS]: 'Databricks',
     [WarehouseTypes.TRINO]: 'Trino',
     [WarehouseTypes.CLICKHOUSE]: 'ClickHouse',
+    [WarehouseTypes.DUCKDB]: 'DuckDB',
 };
 
 const WarehouseTypeForms = {
@@ -29,6 +31,7 @@ const WarehouseTypeForms = {
     [WarehouseTypes.DATABRICKS]: DatabricksForm,
     [WarehouseTypes.TRINO]: TrinoForm,
     [WarehouseTypes.CLICKHOUSE]: ClickhouseForm,
+    [WarehouseTypes.DUCKDB]: DuckdbForm,
 };
 
 interface WarehouseSettingsFormProps {

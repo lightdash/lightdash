@@ -60,4 +60,8 @@ export const warehouseValueValidators: Record<
         host: hasNoWhiteSpaces('Host'),
         user: hasNoWhiteSpaces('User'),
     },
+    [WarehouseTypes.DUCKDB]: {
+        path: hasNoWhiteSpaces('Database path'),
+        schema: hasNoWhiteSpaces('Schema'),
+    },
 } as const;
