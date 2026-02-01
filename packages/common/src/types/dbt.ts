@@ -552,7 +552,9 @@ export const convertModelMetric = ({
 }: ConvertModelMetricArgs): Metric => {
     const groups = convertToGroups(metric.groups, metric.group_label);
     const spotlightVisibility =
-        metric.spotlight?.visibility ?? spotlightConfig?.default_visibility;
+        metric.spotlight?.visibility ??
+        spotlightConfig?.default_visibility ??
+        'show';
     const metricCategories = Array.from(
         new Set([...modelCategories, ...(metric.spotlight?.categories || [])]),
     );

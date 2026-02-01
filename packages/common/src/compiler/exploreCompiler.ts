@@ -446,7 +446,9 @@ export class ExploreCompiler {
         }
 
         const spotlightVisibility =
-            meta.spotlight?.visibility ?? spotlightConfig?.default_visibility;
+            meta.spotlight?.visibility ??
+            spotlightConfig?.default_visibility ??
+            'show';
 
         const spotlightCategories = getCategoriesFromResource(
             'explore',
