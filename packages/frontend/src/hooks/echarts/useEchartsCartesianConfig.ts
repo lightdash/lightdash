@@ -457,169 +457,6 @@ export const getMinAndMaxValues = (
     );
 };
 
-const getMinAndMaxReferenceLines = (
-    leftAxisFieldYIds: string[] | undefined,
-    rightAxisYFieldIds: string[] | undefined,
-    bottomAxisXFieldIds: string[] | undefined,
-    rows: ResultRow[] | undefined,
-    series: Series[] | undefined,
-    items: ItemsMap,
-    pivotDetails?: InfiniteQueryResults['pivotDetails'],
-) => {
-    if (rows === undefined || series === undefined) return {};
-    // Skip method if there are no reference lines
-    const hasReferenceLines =
-        series.find((serie) => {
-            const data = serie.markLine?.data;
-            return data !== undefined && data.length > 0;
-        }) !== undefined;
-
-    if (!hasReferenceLines) return {};
-
-    const getMinAndMaxReferenceLineValues = (
-        axis: string,
-        fieldIds: (string | undefined)[] | undefined,
-    ): (string | number)[] => {
-        const values = series.flatMap<string | number>((serie) => {
-            const serieFieldId =
-                axis === 'yAxis' ? serie.encode.yRef : serie.encode.xRef;
-            if (!fieldIds || !fieldIds.includes(serieFieldId.field)) return [];
-
-            if (!serie.markLine) return [];
-            const field = items[serieFieldId.field];
-
-            const fieldType = isField(field) ? field.type : undefined;
-
-            switch (fieldType) {
-                case DimensionType.NUMBER:
-                case MetricType.NUMBER:
-                case MetricType.AVERAGE:
-                case MetricType.COUNT:
-                case MetricType.COUNT_DISTINCT:
-                case MetricType.SUM:
-                case MetricType.MEDIAN:
-                case MetricType.PERCENTILE:
-                case MetricType.MIN:
-                case MetricType.MAX:
-                    return serie.markLine?.data.reduce<number[]>(
-                        (acc, data) => {
-                            try {
-                                const axisValue =
-                                    axis === 'yAxis' ? data.yAxis : data.xAxis;
-                                if (axisValue === undefined) return acc;
-                                const value = parseInt(axisValue);
-                                if (isNaN(value)) return acc;
-                                return [...acc, value];
-                            } catch (e) {
-                                console.error(
-                                    `Unexpected value when getting numbers min/max for ${fieldType}: ${JSON.stringify(
-                                        data,
-                                    )}`,
-                                );
-                                return acc;
-                            }
-                        },
-                        [],
-                    );
-
-                case DimensionType.TIMESTAMP:
-                case MetricType.TIMESTAMP:
-                case DimensionType.DATE:
-                case MetricType.DATE:
-                    return serie.markLine?.data.reduce<string[]>(
-                        (acc, data) => {
-                            try {
-                                const axisValue =
-                                    axis === 'yAxis' ? data.yAxis : data.xAxis;
-                                if (axisValue === undefined) return acc;
-                                return [...acc, axisValue];
-                            } catch (e) {
-                                console.error(
-                                    `Unexpected value when getting date min/max for ${fieldType}: ${data}`,
-                                );
-                                return acc;
-                            }
-                        },
-                        [],
-                    );
-                default: {
-                    // We will try getting values for TableCalculations
-                    return serie.markLine?.data.reduce<number[]>(
-                        (acc, data) => {
-                            try {
-                                const axisValue =
-                                    axis === 'yAxis' ? data.yAxis : data.xAxis;
-                                if (axisValue === undefined) return acc;
-                                const value = parseInt(axisValue);
-                                if (isNaN(value)) return acc;
-                                return [...acc, value];
-                            } catch (e) {
-                                console.error(
-                                    `Unexpected value when getting numbers min/max for ${fieldType}: ${JSON.stringify(
-                                        data,
-                                    )}`,
-                                );
-                                return acc;
-                            }
-                        },
-                        [],
-                    );
-                }
-            }
-        });
-
-        if (values.length === 0) return [];
-        const min: string | number = values.sort()[0];
-        const max = values.reverse()[0];
-        return [min, max];
-    };
-
-    const [minValueLeftY, maxValueLeftY] = getMinAndMaxValues(
-        leftAxisFieldYIds,
-        rows,
-        pivotDetails,
-    );
-    const [minValueRightY, maxValueRightY] = getMinAndMaxValues(
-        rightAxisYFieldIds,
-        rows,
-        pivotDetails,
-    );
-    const [minValueX, maxValueX] = getMinAndMaxValues(
-        bottomAxisXFieldIds,
-        rows,
-        pivotDetails,
-    );
-
-    const [minReferenceLineX, maxReferenceLineX] =
-        getMinAndMaxReferenceLineValues('xAxis', bottomAxisXFieldIds);
-    const [minReferenceLineLeftY, maxReferenceLineLeftY] =
-        getMinAndMaxReferenceLineValues('yAxis', leftAxisFieldYIds);
-    const [minReferenceLineRightY, maxReferenceLineRightY] =
-        getMinAndMaxReferenceLineValues('yAxis', rightAxisYFieldIds);
-
-    return {
-        referenceLineMinX:
-            minReferenceLineX < minValueX ? minReferenceLineX : undefined,
-        referenceLineMaxX:
-            maxReferenceLineX > maxValueX ? maxReferenceLineX : undefined,
-        referenceLineMinLeftY:
-            minReferenceLineLeftY < minValueLeftY
-                ? minReferenceLineLeftY
-                : undefined,
-        referenceLineMaxLeftY:
-            maxReferenceLineLeftY > maxValueLeftY
-                ? maxReferenceLineLeftY
-                : undefined,
-        referenceLineMinRightY:
-            minReferenceLineRightY < minValueRightY
-                ? minReferenceLineRightY
-                : undefined,
-        referenceLineMaxRightY:
-            maxReferenceLineRightY > maxValueRightY
-                ? maxReferenceLineRightY
-                : undefined,
-    };
-};
 type GetPivotSeriesArg = {
     series: Series;
     itemsMap: ItemsMap;
@@ -1496,22 +1333,6 @@ const getEchartAxes = ({
             rightAxisYId,
         });
 
-    const {
-        referenceLineMinX,
-        referenceLineMaxX,
-        referenceLineMinLeftY,
-        referenceLineMaxLeftY,
-        referenceLineMinRightY,
-        referenceLineMaxRightY,
-    } = getMinAndMaxReferenceLines(
-        leftAxisYFieldIds,
-        rightAxisYFieldIds,
-        bottomAxisXFieldIds,
-        resultsData?.rows,
-        validCartesianConfig.eChartsConfig.series,
-        itemsMap,
-        resultsData?.pivotDetails,
-    );
     const eChartsSeries = validCartesianConfig.eChartsConfig.series;
     const bottomAxisExtraConfig = getCategoryDateAxisConfig(
         bottomAxisXId,
@@ -1649,12 +1470,10 @@ const getEchartAxes = ({
         if (axisType === 'value') {
             const initialBottomAxisMin =
                 xAxisConfiguration?.[0]?.min ??
-                referenceLineMinX ??
                 maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange);
 
             const initialBottomAxisMax =
                 xAxisConfiguration?.[0]?.max ??
-                referenceLineMaxX ??
                 maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange);
 
             // Apply offset to the min and max values of the axis
@@ -1742,14 +1561,12 @@ const getEchartAxes = ({
             ? shouldStack100 && !validCartesianConfig.layout.flipAxes
                 ? 100 // For 100% stacking without flipped axes, max is always 100
                 : yAxisConfiguration?.[0]?.max ||
-                  referenceLineMaxLeftY ||
                   maybeGetAxisDefaultMaxValue(allowFirstAxisDefaultRange)
             : undefined;
 
     const minYAxisValue =
         leftAxisType === 'value'
             ? yAxisConfiguration?.[0]?.min ||
-              referenceLineMinLeftY ||
               maybeGetAxisDefaultMinValue(allowFirstAxisDefaultRange)
             : undefined;
 
@@ -1967,7 +1784,6 @@ const getEchartAxes = ({
                 min:
                     rightAxisType === 'value'
                         ? yAxisConfiguration?.[1]?.min ||
-                          referenceLineMinRightY ||
                           maybeGetAxisDefaultMinValue(
                               allowSecondAxisDefaultRange,
                           )
@@ -1975,7 +1791,6 @@ const getEchartAxes = ({
                 max:
                     rightAxisType === 'value'
                         ? yAxisConfiguration?.[1]?.max ||
-                          referenceLineMaxRightY ||
                           maybeGetAxisDefaultMaxValue(
                               allowSecondAxisDefaultRange,
                           )
