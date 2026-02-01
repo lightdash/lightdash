@@ -1083,6 +1083,10 @@ export class ProjectService extends BaseService {
                     password: '',
                 };
             }
+            case WarehouseTypes.DUCKDB: {
+                // DuckDB is file-based, no secrets to clear
+                return credentials;
+            }
 
             default:
                 return assertUnreachable(
@@ -1273,6 +1277,7 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.BIGQUERY:
             case WarehouseTypes.TRINO:
             case WarehouseTypes.CLICKHOUSE:
+            case WarehouseTypes.DUCKDB:
                 credentialsWithOverrides = warehouseSshCredentials;
                 break;
             default:
@@ -4740,6 +4745,8 @@ export class ProjectService extends BaseService {
                 return credentials.database.toLowerCase();
             case WarehouseTypes.DATABRICKS:
                 return credentials.catalog;
+            case WarehouseTypes.DUCKDB:
+                return credentials.schema || 'main';
             default:
                 return assertUnreachable(credentials, 'Unknown warehouse type');
         }
