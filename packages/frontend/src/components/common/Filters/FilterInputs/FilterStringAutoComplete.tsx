@@ -1,5 +1,7 @@
 import { type FilterableItem } from '@lightdash/common';
 import {
+    ActionIcon,
+    Box,
     Group,
     Highlight,
     Loader,
@@ -11,7 +13,7 @@ import {
     type MultiSelectProps,
     type MultiSelectValueProps,
 } from '@mantine/core';
-import { IconAlertCircle, IconPlus } from '@tabler/icons-react';
+import { IconAlertCircle, IconPlus, IconUpload } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import {
     useCallback,
@@ -29,6 +31,7 @@ import {
 } from '../../../../hooks/useFieldValues';
 import MantineIcon from '../../MantineIcon';
 import useFiltersContext from '../useFiltersContext';
+import CsvUploadModal from './CsvUploadModal';
 import MultiValuePastePopover from './MultiValuePastePopover';
 import { formatDisplayValue } from './utils';
 
@@ -84,6 +87,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     const [tempPasteValues, setTempPasteValues] = useState<
         string | undefined
     >();
+    const [csvModalOpened, setCsvModalOpened] = useState(false);
 
     const [forceRefresh, setForceRefresh] = useState<boolean>(false);
 
@@ -253,126 +257,171 @@ const FilterStringAutoComplete: FC<Props> = ({
     );
 
     return (
-        <MultiValuePastePopover
-            opened={pastePopUpOpened}
-            onClose={() => {
-                setPastePopUpOpened(false);
-                setTempPasteValues(undefined);
-                handleResetSearch();
-            }}
-            onMultiValue={() => {
-                if (!tempPasteValues) {
-                    setPastePopUpOpened(false);
-                    return;
-                }
-                const clipboardDataArray = tempPasteValues
-                    .split(/\,|\n/)
-                    .map((s) => s.trim())
-                    .filter((s) => s.length > 0);
-                handleAddMultiple(clipboardDataArray);
-            }}
-            onSingleValue={() => {
-                if (!tempPasteValues) {
-                    setPastePopUpOpened(false);
-                    return;
-                }
-                handleAdd(tempPasteValues);
-            }}
-        >
-            <MultiSelect
-                ref={multiSelectRef}
-                size="xs"
-                w="100%"
-                placeholder={
-                    values.length > 0 || disabled ? undefined : placeholder
-                }
-                disabled={disabled}
-                creatable
-                valueComponent={singleValue ? SingleValueComponent : undefined}
-                /**
-                 * Opts out of Mantine's default condition and always allows adding, as long as not
-                 * an empty query.
-                 */
-                shouldCreate={(query) =>
-                    query.trim().length > 0 && !values.includes(query)
-                }
-                getCreateLabel={(query) => (
-                    <Group spacing="xxs">
-                        <MantineIcon icon={IconPlus} color="blue.6" size="sm" />
-                        <Text c="blue.6">Add "{query}"</Text>
-                    </Group>
-                )}
-                styles={(theme) => ({
-                    input: {
-                        maxHeight: '350px',
-                        overflowY: 'auto',
-                    },
-                    item: {
-                        // makes add new item button sticky to bottom
-                        '&:last-child:not([value])': {
-                            position: 'sticky',
-                            bottom: 4,
-                            zIndex: 10,
-                            backgroundColor:
-                                theme.colorScheme === 'dark'
-                                    ? theme.colors.dark[6]
-                                    : theme.white,
-                            boxShadow: `0 -1px 0 0 ${theme.colors.ldGray[2]}`,
-                            paddingTop: theme.spacing.xs,
-                            borderRadius: 0,
-                            marginTop: theme.spacing.xs,
-                        },
-                    },
-                })}
-                disableSelectedItemFiltering
-                searchable
-                clearSearchOnChange
-                {...rest}
-                searchValue={search}
-                onSearchChange={setSearch}
-                limit={MAX_AUTOCOMPLETE_RESULTS}
-                onPaste={handlePaste}
-                nothingFound={
-                    isInitialLoading ? 'Loading...' : 'No results found'
-                }
-                rightSection={
-                    isInitialLoading ? (
-                        <Loader size="xs" color="gray" />
-                    ) : isError ? (
-                        <Tooltip
-                            label={
-                                error?.error?.message || 'Filter not available'
+        <>
+            <Group spacing="xs" w="100%" noWrap align="flex-start">
+                <Box sx={{ flex: 1 }}>
+                    <MultiValuePastePopover
+                        opened={pastePopUpOpened}
+                        onClose={() => {
+                            setPastePopUpOpened(false);
+                            setTempPasteValues(undefined);
+                            handleResetSearch();
+                        }}
+                        onMultiValue={() => {
+                            if (!tempPasteValues) {
+                                setPastePopUpOpened(false);
+                                return;
                             }
-                            withinPortal
+                            const clipboardDataArray = tempPasteValues
+                                .split(/\,|\n/)
+                                .map((s) => s.trim())
+                                .filter((s) => s.length > 0);
+                            handleAddMultiple(clipboardDataArray);
+                        }}
+                        onSingleValue={() => {
+                            if (!tempPasteValues) {
+                                setPastePopUpOpened(false);
+                                return;
+                            }
+                            handleAdd(tempPasteValues);
+                        }}
+                    >
+                        <MultiSelect
+                            ref={multiSelectRef}
+                            size="xs"
+                            w="100%"
+                            placeholder={
+                                values.length > 0 || disabled
+                                    ? undefined
+                                    : placeholder
+                            }
+                            disabled={disabled}
+                            creatable
+                            valueComponent={
+                                singleValue ? SingleValueComponent : undefined
+                            }
+                            /**
+                             * Opts out of Mantine's default condition and always allows adding, as long as not
+                             * an empty query.
+                             */
+                            shouldCreate={(query) =>
+                                query.trim().length > 0 &&
+                                !values.includes(query)
+                            }
+                            getCreateLabel={(query) => (
+                                <Group spacing="xxs">
+                                    <MantineIcon
+                                        icon={IconPlus}
+                                        color="blue.6"
+                                        size="sm"
+                                    />
+                                    <Text c="blue.6">Add "{query}"</Text>
+                                </Group>
+                            )}
+                            styles={(theme) => ({
+                                input: {
+                                    maxHeight: '350px',
+                                    overflowY: 'auto',
+                                },
+                                item: {
+                                    // makes add new item button sticky to bottom
+                                    '&:last-child:not([value])': {
+                                        position: 'sticky',
+                                        bottom: 4,
+                                        zIndex: 10,
+                                        backgroundColor:
+                                            theme.colorScheme === 'dark'
+                                                ? theme.colors.dark[6]
+                                                : theme.white,
+                                        boxShadow: `0 -1px 0 0 ${theme.colors.ldGray[2]}`,
+                                        paddingTop: theme.spacing.xs,
+                                        borderRadius: 0,
+                                        marginTop: theme.spacing.xs,
+                                    },
+                                },
+                            })}
+                            disableSelectedItemFiltering
+                            searchable
+                            clearSearchOnChange
+                            {...rest}
+                            searchValue={search}
+                            onSearchChange={setSearch}
+                            limit={MAX_AUTOCOMPLETE_RESULTS}
+                            onPaste={handlePaste}
+                            nothingFound={
+                                isInitialLoading
+                                    ? 'Loading...'
+                                    : 'No results found'
+                            }
+                            rightSection={
+                                isInitialLoading ? (
+                                    <Loader size="xs" color="gray" />
+                                ) : isError ? (
+                                    <Tooltip
+                                        label={
+                                            error?.error?.message ||
+                                            'Filter not available'
+                                        }
+                                        withinPortal
+                                    >
+                                        <MantineIcon
+                                            icon={IconAlertCircle}
+                                            color="red"
+                                        />
+                                    </Tooltip>
+                                ) : null
+                            }
+                            dropdownComponent={DropdownComponentOverride}
+                            itemComponent={({ label, ...others }) =>
+                                others.disabled ? (
+                                    <Text color="dimmed" {...others}>
+                                        {label}
+                                    </Text>
+                                ) : (
+                                    <Highlight highlight={search} {...others}>
+                                        {label}
+                                    </Highlight>
+                                )
+                            }
+                            data={data}
+                            value={values}
+                            onDropdownOpen={onDropdownOpen}
+                            onDropdownClose={() => {
+                                handleResetSearch();
+                                onDropdownClose?.();
+                            }}
+                            onChange={handleChange}
+                            onCreate={handleAdd}
+                            onKeyDown={handleKeyDown}
+                        />
+                    </MultiValuePastePopover>
+                </Box>
+                {!singleValue && (
+                    <Tooltip
+                        label="Upload values from file"
+                        position="top"
+                        withinPortal
+                    >
+                        <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="gray"
+                            disabled={disabled}
+                            onClick={() => setCsvModalOpened(true)}
+                            mt={4}
                         >
-                            <MantineIcon icon={IconAlertCircle} color="red" />
-                        </Tooltip>
-                    ) : null
-                }
-                dropdownComponent={DropdownComponentOverride}
-                itemComponent={({ label, ...others }) =>
-                    others.disabled ? (
-                        <Text color="dimmed" {...others}>
-                            {label}
-                        </Text>
-                    ) : (
-                        <Highlight highlight={search} {...others}>
-                            {label}
-                        </Highlight>
-                    )
-                }
-                data={data}
-                value={values}
-                onDropdownOpen={onDropdownOpen}
-                onDropdownClose={() => {
-                    handleResetSearch();
-                    onDropdownClose?.();
-                }}
-                onChange={handleChange}
-                onCreate={handleAdd}
-                onKeyDown={handleKeyDown}
+                            <MantineIcon icon={IconUpload} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
+            </Group>
+
+            <CsvUploadModal
+                opened={csvModalOpened}
+                onClose={() => setCsvModalOpened(false)}
+                onAddValues={handleAddMultiple}
             />
-        </MultiValuePastePopover>
+        </>
     );
 };
 
