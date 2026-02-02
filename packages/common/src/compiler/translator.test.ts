@@ -57,6 +57,7 @@ import {
     MODEL_WITH_METRIC,
     MODEL_WITH_METRIC_AI_HINT,
     MODEL_WITH_METRIC_AI_HINT_ARRAY,
+    MODEL_WITH_METRIC_DRIVERS,
     MODEL_WITH_METRIC_LEVEL_CATEGORIES,
     MODEL_WITH_MODEL_LEVEL_CATEGORIES,
     MODEL_WITH_MODEL_METRIC_AI_HINT,
@@ -331,6 +332,22 @@ describe('convert tables from dbt models', () => {
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRICS);
+    });
+    it('should convert dbt model with metrics that have drivers', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            MODEL_WITH_METRIC_DRIVERS,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        // Metric without drivers should not have the property
+        expect(result.metrics.user_count.drivers).toBeUndefined();
+
+        // Metric with drivers should have them parsed correctly
+        expect(result.metrics.total_num_participating_athletes.drivers).toEqual(
+            ['user_count', 'other_table.other_metric'],
+        );
     });
     it('should convert dbt model with dimension with default time intervals bigquery', () => {
         expect(
