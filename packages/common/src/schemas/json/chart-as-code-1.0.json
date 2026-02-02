@@ -788,29 +788,90 @@
         "chartConfig": {
             "type": "object",
             "description": "Visualization configuration for the chart",
-            "additionalProperties": false,
-            "required": ["type"],
-            "properties": {
-                "type": {
-                    "type": "string",
-                    "description": "Type of chart visualization",
-                    "enum": [
-                        "cartesian",
-                        "pie",
-                        "table",
-                        "big_number",
-                        "funnel",
-                        "treemap",
-                        "gauge",
-                        "map",
-                        "custom"
-                    ]
+            "discriminator": { "propertyName": "type" },
+            "oneOf": [
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type"],
+                    "properties": {
+                        "type": { "const": "cartesian" },
+                        "config": { "$ref": "#/$defs/cartesianChart" }
+                    }
                 },
-                "config": {
-                    "type": ["object", "null"],
-                    "description": "Chart-specific configuration (varies by chart type). See $defs/cartesianChart for cartesian chart structure."
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type"],
+                    "properties": {
+                        "type": { "const": "pie" },
+                        "config": { "$ref": "#/$defs/pieChart" }
+                    }
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type"],
+                    "properties": {
+                        "type": { "const": "table" },
+                        "config": { "$ref": "#/$defs/tableChart" }
+                    }
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type"],
+                    "properties": {
+                        "type": { "const": "big_number" },
+                        "config": { "$ref": "#/$defs/bigNumber" }
+                    }
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type"],
+                    "properties": {
+                        "type": { "const": "funnel" },
+                        "config": { "$ref": "#/$defs/funnelChart" }
+                    }
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type"],
+                    "properties": {
+                        "type": { "const": "treemap" },
+                        "config": { "$ref": "#/$defs/treemapChart" }
+                    }
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type"],
+                    "properties": {
+                        "type": { "const": "gauge" },
+                        "config": { "$ref": "#/$defs/gaugeChart" }
+                    }
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type"],
+                    "properties": {
+                        "type": { "const": "map" },
+                        "config": { "$ref": "#/$defs/mapChart" }
+                    }
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["type"],
+                    "properties": {
+                        "type": { "const": "custom" },
+                        "config": { "$ref": "#/$defs/customVis" }
+                    }
                 }
-            }
+            ]
         },
         "tableConfig": {
             "type": "object",
@@ -1019,7 +1080,7 @@
                 },
                 "eChartsConfig": {
                     "type": "object",
-                    "description": "ECharts-specific configuration",
+                    "description": "ECharts-specific configuration. Supports all ECharts options.",
                     "additionalProperties": false,
                     "properties": {
                         "legend": { "$ref": "#/$defs/echartsLegend" },
@@ -1039,9 +1100,95 @@
                             "description": "Y axis configuration",
                             "items": { "$ref": "#/$defs/axis" }
                         },
+                        "title": {
+                            "type": "object",
+                            "description": "Chart title configuration",
+                            "additionalProperties": false,
+                            "properties": {
+                                "text": {
+                                    "type": "string",
+                                    "description": "Title text"
+                                },
+                                "subtext": {
+                                    "type": "string",
+                                    "description": "Subtitle text"
+                                },
+                                "left": {
+                                    "type": "string",
+                                    "description": "Horizontal position"
+                                },
+                                "top": {
+                                    "type": "string",
+                                    "description": "Vertical position"
+                                }
+                            }
+                        },
                         "tooltip": {
-                            "type": "string",
-                            "description": "Tooltip formatter template"
+                            "description": "Tooltip configuration (string for formatter, object for full config)",
+                            "oneOf": [
+                                {
+                                    "type": "string",
+                                    "description": "Tooltip formatter template"
+                                },
+                                {
+                                    "type": "object",
+                                    "description": "Full tooltip configuration",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "show": {
+                                            "type": "boolean",
+                                            "description": "Show tooltip"
+                                        },
+                                        "trigger": {
+                                            "type": "string",
+                                            "enum": ["item", "axis", "none"],
+                                            "description": "Tooltip trigger type"
+                                        },
+                                        "backgroundColor": {
+                                            "type": "string",
+                                            "description": "Tooltip background color"
+                                        },
+                                        "borderColor": {
+                                            "type": "string",
+                                            "description": "Tooltip border color"
+                                        },
+                                        "borderWidth": {
+                                            "type": "number",
+                                            "description": "Tooltip border width in pixels"
+                                        },
+                                        "formatter": {
+                                            "type": "string",
+                                            "description": "Tooltip content formatter (HTML template or function)"
+                                        },
+                                        "textStyle": {
+                                            "type": "object",
+                                            "description": "Tooltip text style",
+                                            "additionalProperties": false,
+                                            "properties": {
+                                                "color": {
+                                                    "type": "string",
+                                                    "description": "Text color"
+                                                },
+                                                "fontSize": {
+                                                    "type": "number",
+                                                    "description": "Font size"
+                                                },
+                                                "fontWeight": {
+                                                    "type": [
+                                                        "string",
+                                                        "number"
+                                                    ],
+                                                    "description": "Font weight"
+                                                },
+                                                "fontFamily": {
+                                                    "type": "string",
+                                                    "description": "Font family"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
                         },
                         "tooltipSort": {
                             "type": "string",
@@ -1081,7 +1228,7 @@
         },
         "echartsLegend": {
             "type": "object",
-            "description": "Legend configuration",
+            "description": "Legend configuration. Supports all ECharts legend options.",
             "additionalProperties": false,
             "properties": {
                 "show": {
@@ -1130,7 +1277,7 @@
         },
         "echartsGrid": {
             "type": "object",
-            "description": "Grid (chart area) configuration",
+            "description": "Grid (chart area) configuration. Supports all ECharts grid options.",
             "additionalProperties": false,
             "properties": {
                 "containLabel": {
@@ -1147,12 +1294,22 @@
         },
         "axis": {
             "type": "object",
-            "description": "Axis configuration",
+            "description": "Axis configuration. Supports all ECharts axis options.",
             "additionalProperties": false,
             "properties": {
                 "name": {
                     "type": "string",
                     "description": "Axis title"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": ["value", "category", "time", "log"],
+                    "description": "Axis type"
+                },
+                "position": {
+                    "type": "string",
+                    "enum": ["left", "right", "top", "bottom"],
+                    "description": "Axis position"
                 },
                 "min": {
                     "type": "string",
@@ -1177,15 +1334,48 @@
                 "rotate": {
                     "type": "number",
                     "description": "Rotation angle for axis labels"
+                },
+                "axisLabel": {
+                    "type": "object",
+                    "description": "Axis label configuration",
+                    "additionalProperties": false,
+                    "properties": {
+                        "show": {
+                            "type": "boolean",
+                            "description": "Show axis labels"
+                        },
+                        "rotate": {
+                            "type": "number",
+                            "description": "Label rotation angle"
+                        },
+                        "formatter": {
+                            "type": "string",
+                            "description": "Label formatter"
+                        },
+                        "fontSize": {
+                            "type": "number",
+                            "description": "Label font size"
+                        }
+                    }
                 }
             }
         },
         "xAxis": {
             "type": "object",
-            "description": "X axis configuration (extends axis)",
+            "description": "X axis configuration. Supports all ECharts xAxis options.",
             "additionalProperties": false,
             "properties": {
                 "name": { "type": "string", "description": "Axis title" },
+                "type": {
+                    "type": "string",
+                    "enum": ["value", "category", "time", "log"],
+                    "description": "Axis type"
+                },
+                "position": {
+                    "type": "string",
+                    "enum": ["top", "bottom"],
+                    "description": "X axis position"
+                },
                 "min": { "type": "string", "description": "Minimum value" },
                 "max": { "type": "string", "description": "Maximum value" },
                 "minOffset": {
@@ -1212,12 +1402,35 @@
                 "enableDataZoom": {
                     "type": "boolean",
                     "description": "Enable data zoom slider for this axis"
+                },
+                "axisLabel": {
+                    "type": "object",
+                    "description": "Axis label configuration",
+                    "additionalProperties": false,
+                    "properties": {
+                        "show": {
+                            "type": "boolean",
+                            "description": "Show axis labels"
+                        },
+                        "rotate": {
+                            "type": "number",
+                            "description": "Label rotation angle"
+                        },
+                        "formatter": {
+                            "type": "string",
+                            "description": "Label formatter"
+                        },
+                        "fontSize": {
+                            "type": "number",
+                            "description": "Label font size"
+                        }
+                    }
                 }
             }
         },
         "series": {
             "type": "object",
-            "description": "Chart series configuration",
+            "description": "Chart series configuration. Supports all ECharts series options.",
             "additionalProperties": false,
             "required": ["encode", "type"],
             "properties": {
@@ -1271,6 +1484,10 @@
                     "type": "number",
                     "description": "Index of Y axis to use (for dual Y axis charts)"
                 },
+                "xAxisIndex": {
+                    "type": "number",
+                    "description": "Index of X axis to use (for dual X axis charts)"
+                },
                 "label": {
                     "type": "object",
                     "description": "Data label configuration",
@@ -1303,7 +1520,82 @@
                 },
                 "areaStyle": {
                     "type": "object",
-                    "description": "Area fill style (presence indicates area chart)"
+                    "description": "Area fill style (presence indicates area chart)",
+                    "additionalProperties": false,
+                    "properties": {
+                        "opacity": {
+                            "type": "number",
+                            "description": "Area fill opacity (0-1)"
+                        },
+                        "color": {
+                            "type": "string",
+                            "description": "Area fill color"
+                        }
+                    }
+                },
+                "lineStyle": {
+                    "type": "object",
+                    "description": "Line style configuration",
+                    "additionalProperties": false,
+                    "properties": {
+                        "width": {
+                            "type": "number",
+                            "description": "Line width"
+                        },
+                        "type": {
+                            "type": "string",
+                            "enum": ["solid", "dashed", "dotted"],
+                            "description": "Line type"
+                        },
+                        "color": {
+                            "type": "string",
+                            "description": "Line color"
+                        }
+                    }
+                },
+                "itemStyle": {
+                    "type": "object",
+                    "description": "Style for data points/items",
+                    "additionalProperties": false,
+                    "properties": {
+                        "color": {
+                            "description": "Item color (string or gradient object)"
+                        },
+                        "borderColor": {
+                            "type": "string",
+                            "description": "Item border color"
+                        },
+                        "borderWidth": {
+                            "type": "number",
+                            "description": "Item border width"
+                        },
+                        "opacity": {
+                            "type": "number",
+                            "description": "Item opacity (0-1)"
+                        }
+                    }
+                },
+                "symbol": {
+                    "type": "string",
+                    "description": "Symbol shape for data points",
+                    "enum": [
+                        "circle",
+                        "rect",
+                        "roundRect",
+                        "triangle",
+                        "diamond",
+                        "pin",
+                        "arrow",
+                        "none"
+                    ]
+                },
+                "symbolSize": {
+                    "type": "number",
+                    "description": "Size of data point symbols"
+                },
+                "barWidth": {
+                    "type": ["string", "number"],
+                    "description": "Width of bars (number for pixels, string for percentage)"
                 },
                 "showSymbol": {
                     "type": "boolean",
@@ -1352,7 +1644,7 @@
         },
         "markLine": {
             "type": "object",
-            "description": "Reference line configuration",
+            "description": "Reference line configuration. Supports all ECharts markLine options.",
             "additionalProperties": false,
             "properties": {
                 "data": {
@@ -1437,7 +1729,7 @@
         },
         "pieChart": {
             "type": ["object", "null"],
-            "description": "Configuration for pie and donut charts",
+            "description": "Configuration for pie and donut charts. Supports additional ECharts pie options.",
             "additionalProperties": false,
             "properties": {
                 "groupFieldIds": {
@@ -1455,8 +1747,76 @@
                 },
                 "valueLabel": {
                     "type": "string",
-                    "enum": ["hidden", "inside", "outside"],
+                    "enum": ["hidden", "inside", "outside", "both"],
                     "description": "Position of value labels on slices"
+                },
+                "colors": {
+                    "type": "object",
+                    "description": "Custom colors for each slice by label",
+                    "additionalProperties": { "type": "string" }
+                },
+                "eChartsConfig": {
+                    "type": "object",
+                    "description": "ECharts-specific pie chart configuration",
+                    "additionalProperties": false,
+                    "properties": {
+                        "tooltip": {
+                            "description": "Tooltip configuration",
+                            "oneOf": [
+                                {
+                                    "type": "string",
+                                    "description": "Tooltip formatter template"
+                                },
+                                {
+                                    "type": "object",
+                                    "description": "Full tooltip configuration",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "show": {
+                                            "type": "boolean",
+                                            "description": "Show tooltip"
+                                        },
+                                        "trigger": {
+                                            "type": "string",
+                                            "enum": ["item", "axis", "none"],
+                                            "description": "Tooltip trigger type"
+                                        },
+                                        "backgroundColor": {
+                                            "type": "string",
+                                            "description": "Tooltip background color"
+                                        },
+                                        "borderColor": {
+                                            "type": "string",
+                                            "description": "Tooltip border color"
+                                        },
+                                        "borderWidth": {
+                                            "type": "number",
+                                            "description": "Tooltip border width in pixels"
+                                        },
+                                        "formatter": {
+                                            "type": "string",
+                                            "description": "Tooltip content formatter"
+                                        },
+                                        "textStyle": {
+                                            "type": "object",
+                                            "description": "Tooltip text style",
+                                            "additionalProperties": false,
+                                            "properties": {
+                                                "color": {
+                                                    "type": "string",
+                                                    "description": "Text color"
+                                                },
+                                                "fontSize": {
+                                                    "type": "number",
+                                                    "description": "Font size"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
                 },
                 "showValue": {
                     "type": "boolean",
@@ -1503,8 +1863,15 @@
                 },
                 "legendPosition": {
                     "type": "string",
-                    "enum": ["horizontal", "vertical"],
-                    "description": "Legend orientation"
+                    "enum": [
+                        "horizontal",
+                        "vertical",
+                        "left",
+                        "right",
+                        "top",
+                        "bottom"
+                    ],
+                    "description": "Legend position/orientation"
                 },
                 "legendMaxItemLength": {
                     "type": "number",
@@ -1524,7 +1891,7 @@
         },
         "funnelChart": {
             "type": ["object", "null"],
-            "description": "Configuration for funnel charts",
+            "description": "Configuration for funnel charts. Supports additional ECharts funnel options.",
             "additionalProperties": false,
             "properties": {
                 "dataInput": {
@@ -1589,7 +1956,7 @@
         },
         "bigNumber": {
             "type": ["object", "null"],
-            "description": "Configuration for big number (single value) displays",
+            "description": "Configuration for big number (single value) displays. Supports additional options.",
             "additionalProperties": false,
             "properties": {
                 "label": {
@@ -1603,6 +1970,7 @@
                 "style": {
                     "type": "string",
                     "enum": [
+                        "default",
                         "thousands",
                         "millions",
                         "billions",
@@ -1643,7 +2011,7 @@
         },
         "gaugeChart": {
             "type": ["object", "null"],
-            "description": "Configuration for gauge charts",
+            "description": "Configuration for gauge charts. Supports additional ECharts gauge options.",
             "additionalProperties": false,
             "properties": {
                 "selectedField": {
@@ -1715,7 +2083,7 @@
         },
         "treemapChart": {
             "type": ["object", "null"],
-            "description": "Configuration for treemap charts",
+            "description": "Configuration for treemap charts. Supports additional ECharts treemap options.",
             "additionalProperties": false,
             "properties": {
                 "visibleMin": {
@@ -1763,7 +2131,7 @@
         },
         "customVis": {
             "type": ["object", "null"],
-            "description": "Configuration for custom visualizations",
+            "description": "Configuration for custom visualizations. Accepts any configuration.",
             "additionalProperties": false,
             "properties": {
                 "spec": {
@@ -1774,7 +2142,7 @@
         },
         "tableChart": {
             "type": ["object", "null"],
-            "description": "Configuration for table visualizations",
+            "description": "Configuration for table visualizations. Supports additional options.",
             "additionalProperties": false,
             "properties": {
                 "showColumnCalculation": {
@@ -1792,6 +2160,14 @@
                 "hideRowNumbers": {
                     "type": "boolean",
                     "description": "Hide row number column"
+                },
+                "showRowNumbers": {
+                    "type": "boolean",
+                    "description": "Show row number column"
+                },
+                "showColumnTotals": {
+                    "type": "boolean",
+                    "description": "Show column totals row"
                 },
                 "showResultsTotal": {
                     "type": "boolean",
@@ -1961,7 +2337,7 @@
         },
         "mapChart": {
             "type": ["object", "null"],
-            "description": "Configuration for map visualizations",
+            "description": "Configuration for map visualizations. Supports additional options.",
             "additionalProperties": false,
             "properties": {
                 "mapType": {
