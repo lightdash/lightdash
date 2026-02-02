@@ -11,8 +11,9 @@ import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
 const getIndexCatalogCompleteJob = async (
     jobId: string,
 ): Promise<ApiJobStatusResponse['results']> => {
-    const job =
-        await getSchedulerJobStatus<ApiJobStatusResponse['results']>(jobId);
+    const job = await getSchedulerJobStatus<ApiJobStatusResponse['results']>(
+        jobId,
+    );
 
     if (job.status === SchedulerJobStatus.COMPLETED) {
         return job;
@@ -55,6 +56,15 @@ export const useIndexCatalogJob = (
                     exact: false,
                 });
                 await queryClient.invalidateQueries(['catalog'], {
+                    exact: false,
+                });
+                await queryClient.invalidateQueries(['project-tags'], {
+                    exact: false,
+                });
+                await queryClient.invalidateQueries(['metrics-tree'], {
+                    exact: false,
+                });
+                await queryClient.invalidateQueries(['metric-owners'], {
                     exact: false,
                 });
                 onSuccess(job);
