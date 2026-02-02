@@ -71,11 +71,12 @@ export const getLineChartEchartsConfig = async (
     return {
         ...getCommonEChartsConfig({
             title: queryTool.title,
-            metricsCount: metrics.length,
+            showLegend: metrics.length > 1,
             chartData,
             xAxisLabel: chartConfig?.xAxisLabel,
             yAxisLabel: chartConfig?.yAxisLabel,
             secondaryYAxisLabel: chartConfig?.secondaryYAxisLabel,
+            useLinePointer: true,
         }),
         xAxis: [
             {
