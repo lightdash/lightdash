@@ -6,6 +6,7 @@
         "type": "git",
         "url": "https://github.com/lightdash/lightdash.git"
     },
+    "sideEffects": true,
     "files": [
         "dist"
     ],
