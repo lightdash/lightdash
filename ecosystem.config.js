@@ -14,6 +14,7 @@
  *   - lightdash-frontend: Vite dev server (port 3000)
  *   - lightdash-common-watch: TypeScript watcher for common package
  *   - lightdash-warehouses-watch: TypeScript watcher for warehouses package
+ *   - lightdash-spotlight: Sentry Spotlight debugging UI (port 8969)
  *
  * Logs are stored in ~/.pm2/logs/ (PM2 default location)
  */
@@ -47,6 +48,7 @@ module.exports = {
                 LIGHTDASH_MODE: 'development',
                 HEADLESS: 'true',
                 NODE_ENV: 'development',
+                SENTRY_SPOTLIGHT: 'http://localhost:8969/stream',
             },
             // tsx watch handles file watching and restarts
             watch: false,
@@ -70,6 +72,7 @@ module.exports = {
             env: {
                 ...env,
                 NODE_ENV: 'development',
+                SENTRY_SPOTLIGHT: 'http://localhost:8969/stream',
             },
             watch: false,
             autorestart: false,
@@ -88,6 +91,7 @@ module.exports = {
             cwd: path.join(__dirname, 'packages/frontend'),
             env: {
                 NODE_ENV: 'development',
+                VITE_SENTRY_SPOTLIGHT: 'http://localhost:8969/stream',
             },
             watch: false,
             autorestart: false,
@@ -128,5 +132,23 @@ module.exports = {
             time: true,
         },
 
+        // ─────────────────────────────────────────────────────────────────
+        // Spotlight.js Sidecar (Sentry Dev Debugging UI)
+        // ─────────────────────────────────────────────────────────────────
+        {
+            name: 'lightdash-spotlight',
+            script: 'pnpm',
+            args: 'dlx @spotlightjs/spotlight@latest',
+            interpreter: 'none',
+            cwd: __dirname,
+            env: {
+                NODE_ENV: 'development',
+            },
+            watch: false,
+            autorestart: false,
+            kill_timeout: 3000,
+            merge_logs: true,
+            time: true,
+        },
     ],
 };

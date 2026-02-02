@@ -24,15 +24,21 @@ import {
 const sentrySpotlightEnabled =
     import.meta.env.DEV && import.meta.env.VITE_SENTRY_SPOTLIGHT;
 
+// Dummy DSN for Spotlight-only mode (no real Sentry account needed)
+const SPOTLIGHT_DUMMY_DSN = 'https://0@o0.ingest.sentry.io/0';
+
 const useSentry = (
     sentryConfig: HealthState['sentry'] | undefined,
     user: LightdashUser | undefined,
 ) => {
     const [isSentryLoaded, setIsSentryLoaded] = useState(false);
     useEffect(() => {
-        if (sentryConfig && !isSentryLoaded && sentryConfig.frontend.dsn) {
+        const dsn =
+            sentryConfig?.frontend.dsn ||
+            (sentrySpotlightEnabled ? SPOTLIGHT_DUMMY_DSN : '');
+        if (sentryConfig && !isSentryLoaded && dsn) {
             init({
-                dsn: sentryConfig.frontend.dsn,
+                dsn,
                 release: sentryConfig.release,
                 environment: sentryConfig.environment,
                 integrations: [

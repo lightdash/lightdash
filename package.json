@@ -155,6 +155,9 @@
         "pm2:restart:api": "pm2 restart lightdash-api",
         "pm2:restart:scheduler": "pm2 restart lightdash-scheduler",
         "pm2:restart:frontend": "pm2 restart lightdash-frontend",
+        "pm2:logs:spotlight": "pm2 logs lightdash-spotlight --lines 50",
+        "pm2:restart:spotlight": "pm2 restart lightdash-spotlight",
+        "spotlight": "pnpm dlx @spotlightjs/spotlight@latest",
         "dev:pm2": "pm2 start ecosystem.config.js && pm2 logs --lines 50"
     },
     "lint-staged": {
