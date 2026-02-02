@@ -31,6 +31,7 @@ import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateAxisFields,
+    validateCustomMetricFilters,
     validateCustomMetricsDefinition,
     validateFieldEntityType,
     validateFilterRules,
@@ -92,6 +93,7 @@ export const validateRunQueryTool = (
     );
 
     validateCustomMetricsDefinition(explore, queryTool.customMetrics);
+    validateCustomMetricFilters(explore, queryTool.customMetrics);
     validateFilterRules(
         explore,
         filterRules,
