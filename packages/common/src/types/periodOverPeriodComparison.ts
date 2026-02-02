@@ -2,7 +2,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { getItemId } from '../utils/item';
 import { timeFrameConfigs } from '../utils/timeFrames';
 import { type Metric } from './field';
-import { type AdditionalMetric } from './metricQuery';
+import {
+    isPeriodOverPeriodAdditionalMetric,
+    type AdditionalMetric,
+} from './metricQuery';
 import { TimeFrames } from './timeFrames';
 
 type PreviousPeriod = {
@@ -56,8 +59,38 @@ export const isSupportedPeriodOverPeriodGranularity = (
     granularity: TimeFrames,
 ) => validPeriodOverPeriodGranularities.includes(granularity);
 
-export const buildPopAdditionalMetricName = (baseMetricName: string) =>
-    `${baseMetricName}__pop`;
+const hashStringToBase36 = (input: string): string => {
+    // Deterministic, non-cryptographic hash (no deps).
+    // Polynomial rolling hash modulo a large prime (lint-safe: no bitwise ops).
+    const MODULUS = 2_147_483_647; // 2^31 - 1
+    const BASE = 31;
+
+    let hash = 0;
+    for (let i = 0; i < input.length; i += 1) {
+        hash = (hash * BASE + input.charCodeAt(i)) % MODULUS;
+    }
+
+    // pad for nicer/consistent suffix length
+    return hash.toString(36).padStart(6, '0');
+};
+
+export const hashPopComparisonConfigKeyToSuffix = (configKey: string): string =>
+    hashStringToBase36(configKey).padStart(8, '0');
+
+export const buildPopAdditionalMetricName = ({
+    baseMetricName,
+    timeDimensionId,
+    granularity,
+    periodOffset,
+}: {
+    baseMetricName: string;
+    timeDimensionId: string;
+    granularity: TimeFrames;
+    periodOffset: number;
+}) =>
+    `${baseMetricName}__pop__${String(granularity).toLowerCase()}_${periodOffset}__${hashStringToBase36(
+        `${timeDimensionId}|${granularity}|${periodOffset}`,
+    )}`;
 
 export const getPopPeriodLabel = (
     granularity: TimeFrames,
@@ -68,6 +101,44 @@ export const getPopPeriodLabel = (
         ? `Previous ${String(label).toLowerCase()}`
         : `${periodOffset} ${String(label).toLowerCase()}s ago`;
 };
+
+export const getPopComparisonConfigKey = ({
+    timeDimensionId,
+    granularity,
+    periodOffset,
+}: {
+    timeDimensionId: string;
+    granularity: TimeFrames;
+    periodOffset: number;
+}): string =>
+    JSON.stringify([
+        'pop:v1',
+        timeDimensionId,
+        granularity,
+        periodOffset,
+    ] as const);
+
+export const hasPeriodOverPeriodAdditionalMetricWithConfig = ({
+    additionalMetrics,
+    baseMetricId,
+    timeDimensionId,
+    granularity,
+    periodOffset,
+}: {
+    additionalMetrics: AdditionalMetric[];
+    baseMetricId: string;
+    timeDimensionId: string;
+    granularity: TimeFrames;
+    periodOffset: number;
+}): boolean =>
+    additionalMetrics.some(
+        (am) =>
+            isPeriodOverPeriodAdditionalMetric(am) &&
+            am.baseMetricId === baseMetricId &&
+            am.timeDimensionId === timeDimensionId &&
+            am.granularity === granularity &&
+            am.periodOffset === periodOffset,
+    );
 
 export const buildPopAdditionalMetric = ({
     metric,
@@ -92,7 +163,12 @@ export const buildPopAdditionalMetric = ({
     periodOffset: number;
 }): { additionalMetric: AdditionalMetric; metricId: string } => {
     const baseMetricId = getItemId(metric);
-    const popName = buildPopAdditionalMetricName(metric.name);
+    const popName = buildPopAdditionalMetricName({
+        baseMetricName: metric.name,
+        timeDimensionId,
+        granularity,
+        periodOffset,
+    });
     const popMetricId = getItemId({ table: metric.table, name: popName });
 
     const additionalMetric: AdditionalMetric = {
