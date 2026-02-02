@@ -10,8 +10,10 @@ import {
     Badge,
     Box,
     Button,
+    HoverCard,
     Indicator,
     Popover,
+    ScrollArea,
     Text,
     Tooltip,
 } from '@mantine-8/core';
@@ -372,25 +374,49 @@ const Filter: FC<Props> = ({
                                                         : filterRuleLabels?.value}
                                                 </Text>
                                                 {truncatedValuesDisplay.hasMore && (
-                                                    <Tooltip
+                                                    <HoverCard
                                                         withinPortal
                                                         position="bottom"
-                                                        label={
-                                                            <Box>
-                                                                <Text
-                                                                    fz="xs"
-                                                                    fw={500}
-                                                                    c="dimmed"
-                                                                >
-                                                                    Additional
-                                                                    values (
-                                                                    {
-                                                                        truncatedValuesDisplay
-                                                                            .additionalValues
-                                                                            .length
-                                                                    }
-                                                                    )
-                                                                </Text>
+                                                        classNames={{
+                                                            dropdown:
+                                                                classes.additionalValuesList,
+                                                        }}
+                                                    >
+                                                        <HoverCard.Target>
+                                                            <Badge
+                                                                size="sm"
+                                                                variant="light"
+                                                                color="gray"
+                                                                ml={4}
+                                                            >
+                                                                +
+                                                                {
+                                                                    truncatedValuesDisplay
+                                                                        .additionalValues
+                                                                        .length
+                                                                }
+                                                            </Badge>
+                                                        </HoverCard.Target>
+                                                        <HoverCard.Dropdown>
+                                                            <Text
+                                                                fz="xs"
+                                                                fw={500}
+                                                                c="ldGray.5"
+                                                            >
+                                                                Additional
+                                                                values (
+                                                                {
+                                                                    truncatedValuesDisplay
+                                                                        .additionalValues
+                                                                        .length
+                                                                }
+                                                                )
+                                                            </Text>
+                                                            <ScrollArea.Autosize
+                                                                mah={200}
+                                                                type="always"
+                                                                scrollbars="y"
+                                                            >
                                                                 {truncatedValuesDisplay.additionalValues.map(
                                                                     (
                                                                         val,
@@ -401,6 +427,7 @@ const Filter: FC<Props> = ({
                                                                                 idx
                                                                             }
                                                                             fz="xs"
+                                                                            c="white"
                                                                         >
                                                                             •{' '}
                                                                             {
@@ -409,23 +436,9 @@ const Filter: FC<Props> = ({
                                                                         </Text>
                                                                     ),
                                                                 )}
-                                                            </Box>
-                                                        }
-                                                    >
-                                                        <Badge
-                                                            size="sm"
-                                                            variant="light"
-                                                            color="gray"
-                                                            ml={4}
-                                                        >
-                                                            +
-                                                            {
-                                                                truncatedValuesDisplay
-                                                                    .additionalValues
-                                                                    .length
-                                                            }
-                                                        </Badge>
-                                                    </Tooltip>
+                                                            </ScrollArea.Autosize>
+                                                        </HoverCard.Dropdown>
+                                                    </HoverCard>
                                                 )}
                                             </>
                                         )}
