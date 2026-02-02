@@ -2249,3 +2249,24 @@ export const LIGHTDASH_TABLE_WITH_DEFAULT_SHOW_UNDERLYING_VALUES: Omit<
         },
     },
 };
+
+export const MODEL_WITH_METRIC_DRIVERS: DbtModelNode & {
+    relation_name: string;
+} = {
+    ...model,
+    columns: {
+        ...COLUMN_WITH_METRICS,
+        num_participating_athletes: {
+            ...COLUMN_WITH_METRICS.num_participating_athletes,
+            meta: {
+                ...COLUMN_WITH_METRICS.num_participating_athletes.meta,
+                metrics: {
+                    total_num_participating_athletes: {
+                        type: MetricType.SUM,
+                        drivers: ['user_count', 'other_table.other_metric'],
+                    },
+                },
+            },
+        },
+    },
+};
