@@ -160,7 +160,8 @@ const CsvUploadModal: FC<Props> = ({ opened, onClose, onAddValues }) => {
                 <FileInput
                     label="Select file"
                     description="Upload a CSV or text file with one value per line"
-                    // @ts-ignore - Mantine v6 types issue
+                    // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
+                    // @ts-ignore
                     placeholder="Choose file..."
                     accept=".csv,.txt,text/csv,text/plain"
                     value={file}
