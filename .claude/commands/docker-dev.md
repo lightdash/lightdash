@@ -200,8 +200,6 @@ PM2 provides process isolation, individual service restarts, and monitoring - id
 | `pnpm pm2:stop`              | Stop all processes                 |
 | `pnpm pm2:delete`            | Stop and remove all processes      |
 
-See `scripts/pm2/README.md` for full PM2 documentation.
-
 ### Alternative: Traditional Dev Server
 
 If the user specifically requests `pnpm dev`, use the traditional single-terminal approach:

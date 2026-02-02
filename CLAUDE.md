@@ -46,8 +46,6 @@ pnpm pm2:monit          # Interactive monitoring dashboard
 pnpm pm2:stop           # Stop all services
 ```
 
-See `scripts/pm2/README.md` for full documentation.
-
 ### Option 2: Traditional Dev Server
 
 Single terminal with interleaved output:
