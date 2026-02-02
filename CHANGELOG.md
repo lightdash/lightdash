@@ -1,3 +1,15 @@
+# [0.2409.0](https://github.com/lightdash/lightdash/compare/0.2408.0...0.2409.0) (2026-02-02)
+
+
+### Bug Fixes
+
+* check for parentPath existence in isLightdashContentFile ([#19909](https://github.com/lightdash/lightdash/issues/19909)) ([474b184](https://github.com/lightdash/lightdash/commit/474b18492415975971fc35d086237520e081947c))
+
+
+### Features
+
+* generate api ([#19906](https://github.com/lightdash/lightdash/issues/19906)) ([863e904](https://github.com/lightdash/lightdash/commit/863e9048da533c3064d9575e51cddd650f5b0861))
+
 # [0.2408.0](https://github.com/lightdash/lightdash/compare/0.2407.0...0.2408.0) (2026-02-02)
 
 
