@@ -32,7 +32,6 @@ const MAX_RECOMMENDED_VALUES = 1000;
 
 const CsvUploadModal: FC<Props> = ({ opened, onClose, onAddValues }) => {
     const [file, setFile] = useState<File | null>(null);
-    const [fileContent, setFileContent] = useState<string | null>(null);
     const [parsedCsv, setParsedCsv] = useState<ParsedCsv | null>(null);
     const [simpleListValues, setSimpleListValues] = useState<string[] | null>(
         null,
@@ -48,7 +47,6 @@ const CsvUploadModal: FC<Props> = ({ opened, onClose, onAddValues }) => {
         setSelectedColumn(null);
 
         if (!newFile) {
-            setFileContent(null);
             return;
         }
 
@@ -59,8 +57,6 @@ const CsvUploadModal: FC<Props> = ({ opened, onClose, onAddValues }) => {
                 setError('Could not read file content');
                 return;
             }
-
-            setFileContent(content);
 
             try {
                 const contentType = detectContentType(content);
@@ -129,7 +125,6 @@ const CsvUploadModal: FC<Props> = ({ opened, onClose, onAddValues }) => {
 
     const handleClose = useCallback(() => {
         setFile(null);
-        setFileContent(null);
         setParsedCsv(null);
         setSimpleListValues(null);
         setSelectedColumn(null);
