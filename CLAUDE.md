@@ -148,7 +148,7 @@ pnpm -F backend rollback-last
 
 ## Testing Memories
 
--   Use puppeteer mcp to interact with the frontend web app
+-   Use Chrome DevTools MCP to interact with the frontend web app
 -   Test user login is demo@lightdash.com and 'demo_password!'
 -   Use ./scripts/reset-db.sh to reset the database, run migrations, and seed the database with dev data
 
@@ -158,7 +158,7 @@ Use the `/debug` skill for comprehensive debugging workflows combining:
 
 -   **PM2 logs**: `pnpm pm2:logs:api` to view API server logs with trace IDs
 -   **Spotlight MCP**: Query traces and errors programmatically via `mcp__spotlight__search_traces`, `mcp__spotlight__get_traces`, `mcp__spotlight__search_errors`
--   **Browser automation**: Use `/agent-browser` for UI debugging
+-   **Browser automation**: Use Chrome DevTools MCP (`mcp__chrome-devtools__*`) for UI debugging
 
 Spotlight UI is available at http://localhost:8969 when running `pnpm pm2:start`.
 

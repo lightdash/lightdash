@@ -1,7 +1,7 @@
 ---
 name: debug
 description: Debug the Lightdash app using PM2 logs, Spotlight traces, and browser automation. Use when investigating issues, tracking down bugs, understanding request flow, or correlating frontend actions with backend behavior.
-allowed-tools: Bash, Read, mcp__spotlight__search_traces, mcp__spotlight__get_traces, mcp__spotlight__search_errors, mcp__spotlight__search_logs
+allowed-tools: Bash, Read, mcp__spotlight__search_traces, mcp__spotlight__get_traces, mcp__spotlight__search_errors, mcp__spotlight__search_logs, mcp__chrome-devtools__*
 ---
 
 # Debugging Lightdash
@@ -96,50 +96,90 @@ mcp__spotlight__search_logs with filters: {"timeWindow": 300}
 
 Returns application log entries.
 
-## Browser Debugging
+## Browser Debugging (Chrome DevTools MCP)
 
-For browser automation, use the `/agent-browser` skill. Quick reference:
+Use the Chrome DevTools MCP tools for browser automation:
 
-```bash
-agent-browser open http://localhost:3000 --headed  # Open with visible browser
-agent-browser snapshot -i                          # Get interactive elements with @refs
-agent-browser click @e5                            # Click by ref
-agent-browser fill @e3 "test@example.com"          # Fill input
-agent-browser console                              # View JS console
-agent-browser errors                               # View page errors
+### Opening pages
+
+```
+mcp__chrome-devtools__new_page with url: "http://localhost:3000/login"
+mcp__chrome-devtools__navigate_page with url: "http://localhost:3000", type: "url"
 ```
 
-See `/agent-browser` for full command reference.
+### Taking snapshots
+
+```
+mcp__chrome-devtools__take_snapshot
+```
+
+Returns a text snapshot of the page based on the accessibility tree with unique `uid` identifiers for each element.
+
+### Interacting with elements
+
+```
+mcp__chrome-devtools__click with uid: "1_5"
+mcp__chrome-devtools__fill with uid: "1_4", value: "test@example.com"
+mcp__chrome-devtools__hover with uid: "1_3"
+```
+
+### Screenshots
+
+```
+mcp__chrome-devtools__take_screenshot
+mcp__chrome-devtools__take_screenshot with fullPage: true
+mcp__chrome-devtools__take_screenshot with filePath: "/tmp/debug.png"
+```
+
+### Console and network
+
+```
+mcp__chrome-devtools__list_console_messages
+mcp__chrome-devtools__list_network_requests
+mcp__chrome-devtools__get_network_request with reqid: 123
+```
+
+### Page management
+
+```
+mcp__chrome-devtools__list_pages
+mcp__chrome-devtools__select_page with pageId: 1
+mcp__chrome-devtools__close_page with pageId: 2
+```
 
 ## End-to-End Debug Workflow
 
 ### Example: Debug a login failure
 
-```bash
-# 1. Open the login page with visible browser
-agent-browser open http://localhost:3000/login --headed
-agent-browser snapshot -i
+```
+# 1. Open the login page
+mcp__chrome-devtools__new_page url: "http://localhost:3000/login"
 
-# 2. Fill the form and submit
-agent-browser fill @e3 "test@example.com"
-agent-browser fill @e5 "wrongpassword"
-agent-browser click @e7
+# 2. Take a snapshot to see the form
+mcp__chrome-devtools__take_snapshot
 
-# 3. Check PM2 logs for the trace ID
+# 3. Fill the form and submit (use uids from snapshot)
+mcp__chrome-devtools__fill uid: "1_4", value: "test@example.com"
+mcp__chrome-devtools__click uid: "1_5"  # Continue button
+mcp__chrome-devtools__take_snapshot     # See password field
+mcp__chrome-devtools__fill uid: "2_2", value: "wrongpassword"
+mcp__chrome-devtools__click uid: "2_5"  # Sign in button
+
+# 4. Check PM2 logs for the trace ID
 pnpm exec pm2 logs lightdash-api --lines 10 --nostream | grep POST
 
 # Output: [a1b2c3d4...] POST /api/v1/user/login/password 401 - 85ms
 
-# 4. Look up the full trace in Spotlight
+# 5. Look up the full trace in Spotlight
 mcp__spotlight__get_traces traceId: "a1b2c3d4"
 
-# 5. Check for errors
+# 6. Check for errors
 mcp__spotlight__search_errors filters: {"timeWindow": 60}
 ```
 
 ### Example: Debug a slow API call
 
-```bash
+```
 # 1. Check recent traces sorted by performance
 mcp__spotlight__search_traces filters: {"timeWindow": 300}
 
@@ -154,12 +194,12 @@ mcp__spotlight__get_traces traceId: "<trace-id>"
 
 ### Example: Debug a form submission error
 
-```bash
+```
 # 1. Watch for errors in real-time
 mcp__spotlight__search_errors filters: {"timeWindow": 60}
 
 # 2. Reproduce the issue in the browser
-agent-browser click @e10  # Submit button
+mcp__chrome-devtools__click uid: "submit_button_uid"
 
 # 3. Check errors again immediately
 mcp__spotlight__search_errors filters: {"timeWindow": 60}
@@ -171,11 +211,11 @@ mcp__spotlight__get_traces traceId: "<trace-id>"
 
 ### Example: Capture state for investigation
 
-```bash
-agent-browser screenshot /tmp/debug-state.png
-agent-browser snapshot > /tmp/debug-snapshot.txt
-agent-browser console > /tmp/debug-console.txt
-agent-browser errors > /tmp/debug-errors.txt
+```
+mcp__chrome-devtools__take_screenshot filePath: "/tmp/debug-state.png"
+mcp__chrome-devtools__take_snapshot
+mcp__chrome-devtools__list_console_messages
+mcp__chrome-devtools__list_network_requests
 ```
 
 ## Trace Attributes (Wide Events)
@@ -213,7 +253,7 @@ Traces contain contextual attributes beyond timing:
 | Recent traces | `mcp__spotlight__search_traces {"timeWindow": 300}` |
 | Trace details | `mcp__spotlight__get_traces "<8-char-prefix>"` |
 | Recent errors | `mcp__spotlight__search_errors {"timeWindow": 300}` |
-| Browser snapshot | `agent-browser snapshot -i` |
+| Browser snapshot | `mcp__chrome-devtools__take_snapshot` |
 | Open Spotlight UI | http://localhost:8969 |
 
 ## Test User Credentials
