@@ -12,6 +12,7 @@ import {
     MetricTotalComparisonType,
     MetricTotalResults,
     MetricsExplorerQueryResults,
+    QueryExecutionContext,
     TimeFrames,
     assertUnreachable,
     getDateCalcUtils,
@@ -38,6 +39,7 @@ import type { LightdashConfig } from '../../config/parseConfig';
 import { measureTime } from '../../logging/measureTime';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import type { AsyncQueryService } from '../AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../BaseService';
 import { CatalogService } from '../CatalogService/CatalogService';
 import type { ProjectService } from '../ProjectService/ProjectService';
@@ -48,6 +50,7 @@ export type MetricsExplorerArguments<T extends CatalogModel = CatalogModel> = {
     projectModel: ProjectModel;
     catalogService: CatalogService;
     projectService: ProjectService;
+    asyncQueryService: AsyncQueryService;
 };
 
 export class MetricsExplorerService<
@@ -63,12 +66,15 @@ export class MetricsExplorerService<
 
     projectService: ProjectService;
 
+    asyncQueryService: AsyncQueryService;
+
     constructor({
         lightdashConfig,
         catalogModel,
         catalogService,
         projectModel,
         projectService,
+        asyncQueryService,
     }: MetricsExplorerArguments<T>) {
         super();
         this.maxQueryLimit = lightdashConfig.query.maxLimit;
@@ -76,6 +82,7 @@ export class MetricsExplorerService<
         this.catalogService = catalogService;
         this.projectModel = projectModel;
         this.projectService = projectService;
+        this.asyncQueryService = asyncQueryService;
     }
 
     private async runComparePreviousPeriodMetricQuery(
@@ -656,12 +663,12 @@ export class MetricsExplorerService<
         };
 
         const { rows: currentRows } =
-            await this.projectService.runMetricExplorerQuery(
-                fromSession(user),
+            await this.asyncQueryService.executeMetricQueryAndGetResults({
+                account: fromSession(user),
                 projectUuid,
-                exploreName,
                 metricQuery,
-            );
+                context: QueryExecutionContext.METRICS_EXPLORER,
+            });
 
         let compareRows: Record<string, AnyType>[] | undefined;
         let compareDateRange: MetricExplorerDateRange | undefined;
@@ -686,12 +693,12 @@ export class MetricsExplorerService<
             };
 
             compareRows = (
-                await this.projectService.runMetricExplorerQuery(
-                    fromSession(user),
+                await this.asyncQueryService.executeMetricQueryAndGetResults({
+                    account: fromSession(user),
                     projectUuid,
-                    exploreName,
-                    compareMetricQuery,
-                )
+                    metricQuery: compareMetricQuery,
+                    context: QueryExecutionContext.METRICS_EXPLORER,
+                })
             ).rows;
         }
 
