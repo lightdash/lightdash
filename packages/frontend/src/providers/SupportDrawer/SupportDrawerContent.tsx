@@ -8,7 +8,7 @@ import {
     Stack,
     Text,
     Textarea,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { modals } from '@mantine/modals';
 import { IconIdOff } from '@tabler/icons-react';
 import html2canvas from 'html2canvas-pro';
@@ -108,7 +108,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
     }, [includeImage, screenshot, allowAccess, moreDetails, showToastSuccess]);
 
     return (
-        <Stack spacing="xs">
+        <Stack gap="xs">
             <Checkbox
                 label="Include this image"
                 checked={screenshotError ? false : includeImage}
@@ -126,12 +126,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                 />
             ) : (
                 <Paper p="lg" withBorder h={200}>
-                    <Stack
-                        h="100%"
-                        align="center"
-                        justify="center"
-                        spacing="xs"
-                    >
+                    <Stack h="100%" align="center" justify="center" gap="xs">
                         {screenshotError ? (
                             <>
                                 <MantineIcon icon={IconIdOff} color="ldGray" />

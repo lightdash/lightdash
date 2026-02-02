@@ -1,4 +1,4 @@
-import { Stack } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
 import { Navigate, useParams, useRoutes, type RouteObject } from 'react-router';
 import CompilationHistory from '../components/CompilationHistory';
@@ -100,7 +100,7 @@ const ProjectSettings: FC = () => {
         <>
             <DocumentTitle title="Project Settings" />
 
-            <Stack spacing="xl">
+            <Stack gap="xl">
                 <PageBreadcrumbs
                     items={[
                         {
