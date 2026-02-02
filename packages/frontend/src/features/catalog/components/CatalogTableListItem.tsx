@@ -15,6 +15,7 @@ import React, { useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineLinkButton from '../../../components/common/MantineLinkButton';
+import classes from './CatalogTableListItem.module.css';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 
 type Props = {
@@ -178,16 +179,10 @@ export const CatalogTableListItem: FC<React.PropsWithChildren<Props>> = ({
                         }}
                     >
                         <MantineLinkButton
-                            size="sm"
+                            size="compact-sm"
                             href={url}
                             target="_blank"
-                            compact
-                            sx={(theme) => ({
-                                backgroundColor: theme.colors.ldGray[8],
-                                '&:hover': {
-                                    backgroundColor: theme.colors.ldGray[9],
-                                },
-                            })}
+                            className={classes.exploreButton}
                             onClick={(e) => e.stopPropagation()}
                         >
                             Use table

@@ -1,4 +1,4 @@
-import { Anchor, Button, type ButtonProps } from '@mantine/core';
+import { Anchor, Button, type ButtonProps } from '@mantine-8/core';
 import React, { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { type EventData } from '../../providers/Tracking/types';

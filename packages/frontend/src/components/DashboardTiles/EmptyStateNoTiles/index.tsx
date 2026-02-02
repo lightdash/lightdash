@@ -94,7 +94,7 @@ const EmptyStateNoTiles: FC<SavedChartsAvailableProps> = ({
                             >
                                 <MantineLinkButton
                                     size="xs"
-                                    leftIcon={
+                                    leftSection={
                                         <MantineIcon icon={IconPlayerPlay} />
                                     }
                                     href={`/projects/${projectUuid}/tables`}

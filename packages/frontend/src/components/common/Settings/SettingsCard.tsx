@@ -1,5 +1,6 @@
-import { Paper, SimpleGrid, type PaperProps } from '@mantine/core';
+import { Paper, SimpleGrid, type PaperProps } from '@mantine-8/core';
 import { type FC } from 'react';
+import classes from './SettingsCard.module.css';
 
 const SettingsCard: FC<React.PropsWithChildren<PaperProps>> = ({
     children,
@@ -32,12 +33,8 @@ const ProjectCreationCard: FC<React.PropsWithChildren<PaperProps>> = ({
             p="lg"
             mb="lg"
             display="flex"
+            className={classes.projectCreationCard}
             {...rest}
-            sx={{
-                flexDirection: 'column',
-                textAlign: 'center',
-                ...rest.sx,
-            }}
         >
             {children}
         </SettingsCard>

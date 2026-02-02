@@ -3,6 +3,7 @@ import { IconClockCancel } from '@tabler/icons-react';
 import { BackgroundSvg } from '../../../components/common/BackgroundSvg';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MetricsVisualizationEmptyStateImage from '../../../svgs/metricsCatalog/metrics-visualization-empty-state.svg?react';
+import classes from './MetricsVisualizationEmptyState.module.css';
 
 export const MetricsVisualizationEmptyState = () => {
     return (
@@ -18,14 +19,7 @@ export const MetricsVisualizationEmptyState = () => {
         >
             <BackgroundSvg
                 SvgComponent={MetricsVisualizationEmptyStateImage}
-                sx={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}
+                className={classes.backgroundSvg}
             >
                 <Center>
                     <Stack spacing="sm" align="center">

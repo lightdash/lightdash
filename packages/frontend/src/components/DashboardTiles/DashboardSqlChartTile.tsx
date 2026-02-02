@@ -59,7 +59,7 @@ const DashboardOptions = memo(
         slug: string;
     }) => (
         <LinkMenuItem
-            icon={<MantineIcon icon={IconFilePencil} />}
+            leftSection={<MantineIcon icon={IconFilePencil} />}
             href={`/projects/${projectUuid}/sql-runner/${slug}/edit`}
             disabled={isEditMode}
             target="_blank"
