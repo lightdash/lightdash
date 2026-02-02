@@ -293,7 +293,7 @@ export const Display: FC = memo(() => {
                             />
                         </>
                     )}
-                    {isAreaMap && (
+                    {(isAreaMap || isScatterMap) && (
                         <Config.Group>
                             <Config.Label>No data color</Config.Label>
                             <ColorSelector
