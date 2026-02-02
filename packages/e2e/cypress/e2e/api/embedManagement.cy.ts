@@ -79,8 +79,38 @@ describe('Embed Management API', () => {
         // Get and save initial data for cleanup
         getEmbedConfig().then((resp) => {
             expect(resp.status).to.eq(200);
-            embedConfig = resp.body.results;
-            originalConfig = { ...embedConfig };
+            const config = resp.body.results;
+            originalConfig = { ...config };
+
+            // If dashboardUuids is empty, set up initial dashboards for testing
+            if (!config.dashboardUuids || config.dashboardUuids.length === 0) {
+                cy.request(
+                    `/api/v2/content?pageSize=10&contentTypes=dashboard`,
+                ).then((dashResp) => {
+                    expect(dashResp.status).to.eq(200);
+                    const dashboardUuids = dashResp.body.results.data
+                        .map((d: { uuid: string }) => d.uuid)
+                        .slice(0, 2); // Take first 2 dashboards
+
+                    if (dashboardUuids.length > 0) {
+                        updateEmbedConfig({
+                            dashboardUuids,
+                            allowAllDashboards: false,
+                            chartUuids: config.chartUuids || [],
+                            allowAllCharts: config.allowAllCharts || false,
+                        }).then(() => {
+                            getEmbedConfig().then((newResp) => {
+                                expect(newResp.status).to.eq(200);
+                                embedConfig = newResp.body.results;
+                            });
+                        });
+                    } else {
+                        embedConfig = config;
+                    }
+                });
+            } else {
+                embedConfig = config;
+            }
         });
     });
 

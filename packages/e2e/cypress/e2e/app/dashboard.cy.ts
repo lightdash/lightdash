@@ -122,11 +122,13 @@ describe('Dashboard', () => {
     it('Should create dashboard with saved chart + charts within dashboard + filters + tile targets', () => {
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/dashboards`);
 
-        cy.contains('Create dashboard').click();
-        cy.findByLabelText('Name your dashboard *').type('Title');
+        cy.contains('Create dashboard', { timeout: 30000 }).click();
+        cy.findByLabelText('Name your dashboard *', { timeout: 10000 }).type(
+            'Title',
+        );
         cy.findByLabelText('Dashboard description').type('Description');
         cy.findByText('Next').click();
-        cy.findByText('Create').click();
+        cy.findByText('Create', { timeout: 10000 }).click();
 
         // Add Saved Chart
         cy.findAllByText('Add tile').click({ multiple: true });

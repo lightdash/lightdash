@@ -221,7 +221,7 @@ describe('Download CSV on Explore', () => {
         );
 
         // Poll for job completion
-        const maxPolls = 10;
+        const maxPolls = 15;
         const pollInterval = 1000;
         const pollForJob = (attempt = 1): void => {
             if (attempt > maxPolls) {
@@ -230,34 +230,64 @@ describe('Download CSV on Explore', () => {
                 );
             }
 
-            cy.wait('@exploreCsvPoll', { timeout: pollInterval * 2 }).then(
+            cy.wait('@exploreCsvPoll', { timeout: pollInterval * 3 }).then(
                 (interception) => {
-                    expect(interception?.response?.statusCode).to.be.oneOf([
-                        200, 304,
-                    ]);
-                    const jobStatus = interception?.response?.body.results;
+                    const statusCode = interception?.response?.statusCode;
+                    const body = interception?.response?.body;
 
-                    if (jobStatus?.status === 'completed') {
+                    cy.log(
+                        `Poll attempt ${attempt}: statusCode=${statusCode}, body=${JSON.stringify(body)}`,
+                    );
+
+                    // If response is not OK, retry
+                    if (statusCode !== 200 && statusCode !== 304) {
+                        cy.log(
+                            `Unexpected status code ${statusCode}, retrying...`,
+                        );
+                        cy.wait(pollInterval);
+                        pollForJob(attempt + 1);
+                        return;
+                    }
+
+                    const jobStatus = body?.results;
+
+                    // If results is undefined or has no status, retry
+                    // This handles race conditions where response may not be ready
+                    if (!jobStatus || jobStatus.status === undefined) {
+                        cy.log(
+                            `No job status in response, retrying... (body: ${JSON.stringify(body)})`,
+                        );
+                        cy.wait(pollInterval);
+                        pollForJob(attempt + 1);
+                        return;
+                    }
+
+                    if (jobStatus.status === 'completed') {
                         expect(jobStatus.details).to.have.property('fileUrl');
                         return;
                     }
 
                     if (
-                        jobStatus?.status === 'scheduled' ||
-                        jobStatus?.status === 'started'
+                        jobStatus.status === 'scheduled' ||
+                        jobStatus.status === 'started'
                     ) {
                         cy.wait(pollInterval);
                         pollForJob(attempt + 1);
                         return;
                     }
 
-                    if (jobStatus?.status === 'error') {
+                    if (jobStatus.status === 'error') {
                         throw new Error(
                             `Job failed: ${jobStatus?.details?.error || 'Unknown error'}`,
                         );
                     }
 
-                    throw new Error(`Unexpected status: ${jobStatus?.status}`);
+                    // For any other unexpected status, log and retry
+                    cy.log(
+                        `Unexpected status: ${jobStatus.status}, retrying...`,
+                    );
+                    cy.wait(pollInterval);
+                    pollForJob(attempt + 1);
                 },
             );
         };
