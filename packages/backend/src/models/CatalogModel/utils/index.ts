@@ -17,7 +17,11 @@ import {
     type Metric,
 } from '@lightdash/common';
 import { uniq } from 'lodash';
-import { DbCatalogIn } from '../../../database/entities/catalog';
+import {
+    DbCatalogIn,
+    type DbCatalog,
+    type DbMetricsTreeEdgeIn,
+} from '../../../database/entities/catalog';
 import { DbTag } from '../../../database/entities/tags';
 
 const getSpotlightShow = (
@@ -392,3 +396,96 @@ export async function getChartFieldUsageChanges(
         fieldsToDecrement: [...metricsToDecrement, ...dimensionsToDecrement],
     };
 }
+
+export type InvalidYamlEdgeReason =
+    | 'self_reference'
+    | 'source_not_found'
+    | 'target_not_found'
+    | 'both_not_found';
+
+export type InvalidYamlEdge = {
+    edge: MetricTreeEdge;
+    reason: InvalidYamlEdgeReason;
+};
+
+export type BuildYamlMetricTreeEdgesResult = {
+    edges: DbMetricsTreeEdgeIn[];
+    invalidEdges: InvalidYamlEdge[];
+};
+
+export const buildYamlMetricTreeEdges = ({
+    yamlEdges,
+    catalogRows,
+    projectUuid,
+    userUuid,
+}: {
+    yamlEdges: MetricTreeEdge[];
+    catalogRows: Pick<
+        DbCatalog,
+        'field_type' | 'table_name' | 'name' | 'catalog_search_uuid'
+    >[];
+    projectUuid: string;
+    userUuid?: string | null;
+}): BuildYamlMetricTreeEdgesResult => {
+    const metricUuidMap = new Map<string, string>();
+    catalogRows
+        .filter((r) => r.field_type === FieldType.METRIC)
+        .forEach((r) => {
+            metricUuidMap.set(
+                `${r.table_name}.${r.name}`,
+                r.catalog_search_uuid,
+            );
+        });
+
+    const invalidEdges: InvalidYamlEdge[] = [];
+
+    const validYamlEdges = yamlEdges
+        .filter((edge) => {
+            const isSelfReference =
+                edge.sourceMetricName === edge.targetMetricName &&
+                edge.sourceTableName === edge.targetTableName;
+            if (isSelfReference) {
+                invalidEdges.push({ edge, reason: 'self_reference' });
+                return false;
+            }
+            return true;
+        })
+        .map((edge) => {
+            const sourceUuid = metricUuidMap.get(
+                `${edge.sourceTableName}.${edge.sourceMetricName}`,
+            );
+            const targetUuid = metricUuidMap.get(
+                `${edge.targetTableName}.${edge.targetMetricName}`,
+            );
+            if (!sourceUuid || !targetUuid) {
+                const reason: InvalidYamlEdgeReason =
+                    // eslint-disable-next-line no-nested-ternary
+                    !sourceUuid && !targetUuid
+                        ? 'both_not_found'
+                        : !sourceUuid
+                          ? 'source_not_found'
+                          : 'target_not_found';
+                invalidEdges.push({ edge, reason });
+                return null;
+            }
+            return {
+                source_metric_catalog_search_uuid: sourceUuid,
+                target_metric_catalog_search_uuid: targetUuid,
+                project_uuid: projectUuid,
+                created_by_user_uuid: userUuid ?? null,
+                source: 'yaml' as const,
+            };
+        })
+        .filter((edge): edge is NonNullable<typeof edge> => edge !== null);
+
+    const uniqueEdges = Array.from(
+        new Map(
+            validYamlEdges.map((edge) => [
+                `${edge.source_metric_catalog_search_uuid}-${edge.target_metric_catalog_search_uuid}`,
+                edge,
+            ]),
+        ).values(),
+    );
+
+    return { edges: uniqueEdges, invalidEdges };
+};
