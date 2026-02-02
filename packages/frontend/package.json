@@ -187,6 +187,7 @@
         "ts-unused-exports": "^9.0.4",
         "vite": "^7.1.10",
         "vite-plugin-compression2": "^2.3.0",
+        "vite-plugin-css-injected-by-js": "^3.5.2",
         "vite-plugin-dts": "^4.5.4",
         "vite-plugin-monaco-editor": "^1.1.0",
         "vite-plugin-svgr": "^4.5.0",

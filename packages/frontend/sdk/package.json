@@ -16,9 +16,6 @@
             "require": "./dist/sdk.cjs.js",
             "import": "./dist/sdk.es.js",
             "default": "./dist/sdk.cjs.js"
-        },
-        "./sdk.css": {
-            "default": "./dist/sdk.css"
         }
     },
     "peerDependencies": {
