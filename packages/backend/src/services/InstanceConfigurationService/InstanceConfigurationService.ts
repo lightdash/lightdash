@@ -3,6 +3,7 @@ import {
     CreateProject,
     CreateWarehouseCredentials,
     DbtProjectConfig,
+    DbtProjectType,
     isGitProjectType,
     NotFoundError,
     OrganizationMemberRole,
@@ -102,6 +103,13 @@ export class InstanceConfigurationService extends BaseService {
 
     async initializeInstance() {
         // No permissions check here, there are no users yet
+
+        // Check for DuckDB auto-setup first (simpler setup for DuckDB warehouses)
+        if (this.lightdashConfig.duckdbAutoSetup?.enabled) {
+            await this.initializeDuckdbInstance();
+            return;
+        }
+
         // No initial setup, we skip this step
         if (!this.lightdashConfig.initialSetup) {
             this.logger.debug(`No initial setup config found, skipping`);
@@ -595,5 +603,138 @@ export class InstanceConfigurationService extends BaseService {
         await this.updateOrganizationDefaultRole(config);
 
         await this.updateEmbedSettingsForInstance(config);
+    }
+
+    /**
+     * Initialize a Lightdash instance with DuckDB warehouse
+     * This is a simpler setup flow for DuckDB with local dbt projects
+     */
+    private async initializeDuckdbInstance() {
+        const setup = this.lightdashConfig.duckdbAutoSetup;
+        if (!setup) {
+            return;
+        }
+
+        try {
+            // Check if organization already exists
+            const hasOrgs = await this.organizationModel.hasOrgs();
+            if (hasOrgs) {
+                this.logger.debug(
+                    `DuckDB auto-setup: Organization already exists, skipping setup`,
+                );
+                return;
+            }
+
+            const hasAnyProjects = await this.projectModel.hasAnyProjects();
+            if (hasAnyProjects) {
+                this.logger.debug(
+                    `DuckDB auto-setup: Projects already exist, skipping setup`,
+                );
+                return;
+            }
+
+            // Create organization
+            this.logger.info(
+                `DuckDB auto-setup: Creating organization "${setup.organization.name}"`,
+            );
+            const { organizationUuid } = await this.organizationModel.create({
+                name: setup.organization.name,
+            });
+
+            // Create admin user (pending - will be activated on first OAuth login)
+            this.logger.info(
+                `DuckDB auto-setup: Creating admin user "${setup.organization.admin.email}"`,
+            );
+            const { email, name: adminName } = setup.organization.admin;
+            const user = await this.userModel.createPendingUser(
+                organizationUuid,
+                {
+                    firstName: adminName.split(' ')[0],
+                    lastName: adminName.split(' ').slice(1).join(' ') || 'User',
+                    email,
+                    role: OrganizationMemberRole.ADMIN,
+                    password: undefined,
+                },
+            );
+            await this.emailModel.verifyUserEmailIfExists(user.userUuid, email);
+
+            // Create project with DuckDB warehouse and local dbt
+            this.logger.info(
+                `DuckDB auto-setup: Creating project "${setup.project.name}" with DuckDB at ${setup.project.duckdbPath}`,
+            );
+
+            const project: CreateProject = {
+                name: setup.project.name,
+                type: ProjectType.DEFAULT,
+                warehouseConnection: {
+                    type: WarehouseTypes.DUCKDB,
+                    path: setup.project.duckdbPath,
+                },
+                dbtConnection: {
+                    type: DbtProjectType.DBT,
+                    project_dir: setup.project.dbtProjectDir,
+                    profiles_dir: setup.project.dbtProfilesDir,
+                    target: setup.project.dbtTarget,
+                },
+                copyWarehouseConnectionFromUpstreamProject: undefined,
+                upstreamProjectUuid: undefined,
+            };
+
+            const projectUuid = await this.projectModel.create(
+                user.userUuid,
+                organizationUuid,
+                project,
+            );
+
+            this.logger.info(
+                `DuckDB auto-setup: Project ${projectUuid} created successfully`,
+            );
+
+            // Schedule project compilation
+            const sessionUser =
+                await this.userModel.findSessionUserAndOrgByUuid(
+                    user.userUuid,
+                    organizationUuid,
+                );
+            await this.projectService.scheduleCompileProject(
+                sessionUser,
+                projectUuid,
+                RequestMethod.BACKEND,
+                true, // Skip permission check
+            );
+
+            // Set up allowed email domains if configured
+            if (
+                setup.organization.emailDomains &&
+                setup.organization.emailDomains.length > 0
+            ) {
+                this.logger.info(
+                    `DuckDB auto-setup: Setting allowed domains: ${setup.organization.emailDomains.join(', ')}`,
+                );
+                const error = validateOrganizationEmailDomains(
+                    setup.organization.emailDomains,
+                );
+                if (error) {
+                    this.logger.warn(`DuckDB auto-setup: Invalid domains: ${error}`);
+                } else {
+                    const allowedDomains: AllowedEmailDomains = {
+                        organizationUuid,
+                        emailDomains: setup.organization.emailDomains,
+                        role: OrganizationMemberRole.VIEWER, // Default role for domain users
+                        projectUuids: [projectUuid],
+                    };
+                    await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
+                        allowedDomains,
+                    );
+                }
+            }
+
+            this.logger.info(
+                `DuckDB auto-setup: Instance initialization complete!`,
+            );
+        } catch (error) {
+            this.logger.error(`DuckDB auto-setup failed:`, error);
+            throw error;
+        }
     }
 }

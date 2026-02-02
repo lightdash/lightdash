@@ -487,6 +487,81 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
     };
 };
 
+/**
+ * DuckDB auto-setup configuration
+ * This allows creating a Lightdash instance with a DuckDB warehouse automatically
+ * on first startup, without requiring manual project setup.
+ *
+ * Environment variables:
+ * - LD_DUCKDB_SETUP_ENABLED: Set to 'true' to enable auto-setup
+ * - LD_DUCKDB_SETUP_ORG_NAME: Organization name (required)
+ * - LD_DUCKDB_SETUP_ADMIN_EMAIL: Admin user email for OAuth login (required)
+ * - LD_DUCKDB_SETUP_ADMIN_NAME: Admin user display name (default: 'Admin')
+ * - LD_DUCKDB_SETUP_PROJECT_NAME: Project name (default: 'Analytics')
+ * - LD_DUCKDB_SETUP_DUCKDB_PATH: Path to .duckdb file (default: '/data/analytics.duckdb')
+ * - LD_DUCKDB_SETUP_DBT_PROJECT_DIR: dbt project directory (default: '/dbt')
+ * - LD_DUCKDB_SETUP_DBT_PROFILES_DIR: dbt profiles directory (default: '/dbt')
+ */
+export type DuckdbAutoSetupConfig = {
+    enabled: boolean;
+    organization: {
+        name: string;
+        admin: {
+            email: string;
+            name: string;
+        };
+        emailDomains: string[];
+    };
+    project: {
+        name: string;
+        duckdbPath: string;
+        dbtProjectDir: string;
+        dbtProfilesDir: string;
+        dbtTarget: string;
+    };
+};
+
+export const getDuckdbAutoSetupConfig = (): DuckdbAutoSetupConfig | undefined => {
+    if (process.env.LD_DUCKDB_SETUP_ENABLED !== 'true') {
+        return undefined;
+    }
+
+    const orgName = process.env.LD_DUCKDB_SETUP_ORG_NAME;
+    const adminEmail = process.env.LD_DUCKDB_SETUP_ADMIN_EMAIL;
+
+    if (!orgName || !adminEmail) {
+        console.warn(
+            'DuckDB auto-setup enabled but LD_DUCKDB_SETUP_ORG_NAME or LD_DUCKDB_SETUP_ADMIN_EMAIL not set',
+        );
+        return undefined;
+    }
+
+    return {
+        enabled: true,
+        organization: {
+            name: orgName,
+            admin: {
+                email: adminEmail,
+                name: process.env.LD_DUCKDB_SETUP_ADMIN_NAME || 'Admin',
+            },
+            emailDomains: getArrayFromCommaSeparatedList(
+                'LD_DUCKDB_SETUP_EMAIL_DOMAINS',
+            ),
+        },
+        project: {
+            name: process.env.LD_DUCKDB_SETUP_PROJECT_NAME || 'Analytics',
+            duckdbPath:
+                process.env.LD_DUCKDB_SETUP_DUCKDB_PATH ||
+                '/data/analytics.duckdb',
+            dbtProjectDir:
+                process.env.LD_DUCKDB_SETUP_DBT_PROJECT_DIR || '/dbt',
+            dbtProfilesDir:
+                process.env.LD_DUCKDB_SETUP_DBT_PROFILES_DIR || '/dbt',
+            dbtTarget: process.env.LD_DUCKDB_SETUP_DBT_TARGET || 'dev',
+        },
+    };
+};
+
 export const parseBaseS3Config = (): LightdashConfig['s3'] => {
     const endpoint = process.env.S3_ENDPOINT;
     const bucket = process.env.S3_BUCKET;
@@ -981,6 +1056,7 @@ export type LightdashConfig = {
             secret?: string;
         };
     };
+    duckdbAutoSetup?: DuckdbAutoSetupConfig;
     mcp: {
         enabled: boolean;
     };
@@ -1799,6 +1875,7 @@ export const parseConfig = (): LightdashConfig => {
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
+        duckdbAutoSetup: getDuckdbAutoSetupConfig(),
         mcp: {
             enabled: process.env.MCP_ENABLED === 'true',
         },
