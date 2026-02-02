@@ -99,7 +99,27 @@ async function main(): Promise<void> {
     );
     try {
         console.log('ℹ️ Checking database status...');
-        const migrationStatus = await database.migrate.status();
+
+        // Check if knex_migrations table exists (fresh database check)
+        let migrationStatus: number;
+        try {
+            migrationStatus = await database.migrate.status();
+        } catch (statusError) {
+            // If knex_migrations table doesn't exist, this is a fresh database
+            // Run migrations from scratch
+            if (statusError instanceof Error &&
+                statusError.message.includes('knex_migrations') &&
+                statusError.message.includes('does not exist')) {
+                console.log('ℹ️ Fresh database detected. Running initial migrations...');
+                await database.migrate.latest();
+                console.log('✅ Initial database migrations completed.');
+                cleanup();
+                return;
+            }
+            // Rethrow if it's a different error
+            throw statusError;
+        }
+
         if (migrationStatus === 0) {
             console.log('✅ Database is up to date. No action required.');
         } else if (migrationStatus < 0) {
