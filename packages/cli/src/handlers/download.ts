@@ -159,6 +159,7 @@ const writeContent = async (
 
 const isLightdashContentFile = (folder: string, entry: Dirent) =>
     entry.isFile() &&
+    entry.parentPath &&
     entry.parentPath.endsWith(path.sep + folder) &&
     entry.name.endsWith('.yml') &&
     !entry.name.endsWith('.language.map.yml');
