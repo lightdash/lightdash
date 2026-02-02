@@ -463,6 +463,7 @@ export type CompleteCartesianChartLayout = {
     showLeftYAxis?: boolean | undefined; // Controls left/primary Y-axis visibility independently
     showRightYAxis?: boolean | undefined; // Controls right/secondary Y-axis visibility independently
     stack?: boolean | string | undefined; // Support both old boolean and new StackType string for backward compatibility
+    connectNulls?: boolean | undefined; // only applicable for line series, defaults to true
 };
 
 export type CartesianChartLayout = Partial<CompleteCartesianChartLayout>;

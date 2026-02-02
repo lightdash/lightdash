@@ -77,6 +77,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setShowLeftYAxis,
         setShowRightYAxis,
         setShowAxisTicks,
+        setConnectNulls,
         setAxisLabelFontSize,
         setAxisTitleFontSize,
         setXAxisSort,
@@ -453,6 +454,25 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     />
                 </Config.Section>
             </Config>
+            {(dirtyChartType === CartesianSeriesType.LINE ||
+                dirtyChartType === CartesianSeriesType.AREA) && (
+                <Config>
+                    <Config.Section>
+                        <Config.Heading>Connect nulls</Config.Heading>
+                        <Checkbox
+                            label="Connect null values in line series"
+                            checked={
+                                dirtyLayout?.connectNulls !== undefined
+                                    ? dirtyLayout.connectNulls
+                                    : true
+                            }
+                            onChange={(e) => {
+                                setConnectNulls(e.currentTarget.checked);
+                            }}
+                        />
+                    </Config.Section>
+                </Config>
+            )}
             <Config>
                 <Config.Section>
                     <Config.Heading>Tick label size (px)</Config.Heading>
