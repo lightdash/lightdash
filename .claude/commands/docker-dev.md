@@ -8,63 +8,58 @@ Manage Docker dev environment. Args: (none) = start, `reset` = reset db, `stop` 
 
 ## State Detection
 
-Before taking action, check the current environment state. Run these checks in order:
+Before taking action, check the current environment state. **Run these checks in parallel** to quickly determine what needs to be done:
 
-### Check 1: Docker Services Running?
-
-```bash
-docker compose -f docker/docker-compose.dev.mini.yml ps --format json 2>/dev/null | grep -q '"State":"running"'
-```
-
-If no services running → Need to start Docker services
-
-### Check 2: Environment File Exists?
+### All Checks (run in parallel)
 
 ```bash
-test -f .env.development.local
+# Check 1: Docker services running
+docker compose -f docker/docker-compose.dev.mini.yml ps --format json 2>/dev/null | grep -q '"State":"running"' && echo "OK: Docker running" || echo "NEED: Start Docker services"
+
+# Check 2: Environment file exists
+test -f .env.development.local && echo "OK: Env file exists" || echo "NEED: Create .env.development.local"
+
+# Check 3: Dependencies installed
+test -d node_modules && test -d packages/common/dist && echo "OK: Dependencies installed" || echo "NEED: Run pnpm install and build"
+
+# Check 4: Python/dbt environment ready
+test -f venv/bin/dbt && test -f venv/bin/dbt1.7 && echo "OK: Python/dbt ready" || echo "NEED: Set up Python venv"
+
+# Check 5: Database migrated (requires Docker running)
+docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='sessions') THEN 'migrated' ELSE 'not_migrated' END" 2>&1 | grep -q "^migrated" && echo "OK: Database migrated" || echo "NEED: Run migrations"
+
+# Check 6: Database seeded (requires Docker running)
+docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM emails WHERE email='demo@lightdash.com') THEN 'seeded' ELSE 'not_seeded' END" 2>&1 | grep -q "^seeded" && echo "OK: Database seeded" || echo "NEED: Seed database"
+
+# Check 7: dbt models built (requires Docker running)
+docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='jaffle' AND table_name='orders') THEN 'built' ELSE 'not_built' END" 2>&1 | grep -q "^built" && echo "OK: dbt models built" || echo "NEED: Build dbt models"
 ```
 
-If missing → Need to create `.env.development.local`
+**How to interpret the output:**
+- Lines starting with `NEED:` indicate setup steps that must be run
+- Lines starting with `OK:` indicate that component is ready
+- If all lines show `OK:`, the environment is ready - just start the dev server
+- Database checks (5-7) use `docker exec` to run psql inside the PostgreSQL container
+- Run checks 1-4 in parallel first, then checks 5-7 in parallel (they depend on Docker running)
 
-### Check 3: Dependencies Installed?
+### Why Use `docker exec` for Database Checks?
 
-```bash
-test -d node_modules && test -d packages/common/dist
-```
+PostgreSQL runs inside a Docker container, so we use `docker exec docker-db-dev-1 psql` instead of a local `psql` client. This:
+- Works without requiring psql installed locally
+- Uses the exact same connection the app uses
+- Fails clearly if Docker isn't running (which is the first thing to fix anyway)
 
-If missing → Need to run `pnpm install` and build packages
+### Database Check Details
 
-### Check 4: Python/dbt Environment Ready?
+**Why `information_schema` instead of direct queries?**
+- Checking `SELECT 1 FROM tablename` can fail with "relation does not exist" errors
+- Using `information_schema.tables` always succeeds and returns a clean result
+- The `CASE WHEN EXISTS(...)` pattern returns deterministic strings for easy parsing
 
-```bash
-test -f venv/bin/dbt && test -f venv/bin/dbt1.7
-```
-
-If missing → Need to set up Python venv and install dbt
-
-### Check 5: Database Migrated?
-
-```bash
-PGHOST=localhost PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres psql -c "SELECT 1 FROM sessions LIMIT 1" 2>/dev/null
-```
-
-If fails → Need to run migrations
-
-### Check 6: Database Seeded?
-
-```bash
-PGHOST=localhost PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres psql -c "SELECT 1 FROM users WHERE email='demo@lightdash.com' LIMIT 1" 2>/dev/null
-```
-
-If fails → Need to seed database
-
-### Check 7: dbt Models Built?
-
-```bash
-PGHOST=localhost PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres psql -c "SELECT 1 FROM jaffle.orders LIMIT 1" 2>/dev/null
-```
-
-If fails → Need to build dbt models
+**Why check `emails` table for seeded status?**
+- The demo user's email (`demo@lightdash.com`) is in the `emails` table, not `users`
+- The `users` table doesn't have an `email` column (Lightdash separates user identity from emails)
+- There's also a `jaffle.users` dbt model that would cause ambiguity
 
 ## Setup Steps (Run as Needed)
 
@@ -134,13 +129,13 @@ PGHOST=localhost pnpx dotenv-cli -e .env.development -- pnpm -F backend seed
 
 ### Build dbt Models
 
+**Important**: Use the full path to `dbt` from the venv to avoid "command not found" errors:
+
 ```bash
-cd examples/full-jaffle-shop-demo/dbt
 PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
-  dbt seed --profiles-dir ../profiles
+  "$(pwd)/venv/bin/dbt" seed --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
 PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
-  dbt run --profiles-dir ../profiles
-cd ../../..
+  "$(pwd)/venv/bin/dbt" run --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
 ```
 
 ## Reset Steps (When `reset` Argument Provided)
@@ -159,12 +154,10 @@ export DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo
 PGHOST=localhost pnpx dotenv-cli -e .env.development -- ./scripts/reset-db.sh
 
 # Rebuild dbt models
-cd examples/full-jaffle-shop-demo/dbt
 PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
-  dbt seed --profiles-dir ../profiles
+  "$(pwd)/venv/bin/dbt" seed --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
 PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
-  dbt run --profiles-dir ../profiles
-cd ../../..
+  "$(pwd)/venv/bin/dbt" run --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
 ```
 
 ## Stop Steps (When `stop` Argument Provided)
@@ -186,12 +179,48 @@ docker compose -f docker/docker-compose.dev.mini.yml ps
 
 ## Start Development Server
 
-Once all checks pass or setup is complete:
+Once all checks pass or setup is complete, start the dev server using PM2:
+
+```bash
+pnpm pm2:start
+```
+
+PM2 provides process isolation, individual service restarts, and monitoring - ideal for LLM-driven development.
+
+**Useful PM2 commands:**
+
+| Command                      | Description                        |
+| ---------------------------- | ---------------------------------- |
+| `pnpm pm2:logs`              | Stream all process logs            |
+| `pnpm pm2:status`            | Show process status table          |
+| `pnpm pm2:restart:api`       | Restart only the API server        |
+| `pnpm pm2:restart:scheduler` | Restart only the scheduler         |
+| `pnpm pm2:restart:frontend`  | Restart only the frontend          |
+| `pnpm pm2:monit`             | Interactive monitoring dashboard   |
+| `pnpm pm2:stop`              | Stop all processes                 |
+| `pnpm pm2:delete`            | Stop and remove all processes      |
+
+See `scripts/pm2/README.md` for full PM2 documentation.
+
+### Alternative: Traditional Dev Server
+
+If the user specifically requests `pnpm dev`, use the traditional single-terminal approach:
 
 ```bash
 export PGHOST=localhost S3_ENDPOINT=http://localhost:9000 HEADLESS_BROWSER_HOST=localhost HEADLESS_BROWSER_PORT=3001
 pnpx dotenv-cli -e .env.development -- pnpm dev
 ```
+
+**Why PM2 is preferred:**
+
+| Feature                    | `pnpm dev`          | `pnpm pm2:start`               |
+| -------------------------- | ------------------- | ------------------------------ |
+| Process visibility         | Interleaved output  | Individual status/logs         |
+| Restart individual service | Not possible        | `pnpm pm2:restart:api`         |
+| Memory/CPU monitoring      | Not available       | `pnpm pm2:monit`               |
+| Log management             | Terminal only       | Persistent log files           |
+| Background running         | No                  | Yes (processes persist)        |
+| Best for                   | Quick terminal dev  | LLM control, debugging         |
 
 ## Access the Application
 
@@ -201,13 +230,14 @@ pnpx dotenv-cli -e .env.development -- pnpm dev
 
 ## Service Ports Reference
 
-| Service           | Port      | Description                   |
-| ----------------- | --------- | ----------------------------- |
-| Frontend (Vite)   | 3000      | React development server      |
-| Backend (Express) | 8080      | API server                    |
-| PostgreSQL        | 5432      | Database                      |
-| MinIO             | 9000/9001 | S3-compatible storage/console |
-| Headless Browser  | 3001      | PDF/image generation          |
+| Service           | Port      | Description                       |
+| ----------------- | --------- | --------------------------------- |
+| Frontend (Vite)   | 3000      | React development server          |
+| Backend (Express) | 8080      | API server                        |
+| Scheduler         | 8081      | Background job processor          |
+| PostgreSQL        | 5432      | Database                          |
+| MinIO             | 9000/9001 | S3-compatible storage/console     |
+| Headless Browser  | 3001      | PDF/image generation              |
 
 ## Troubleshooting
 

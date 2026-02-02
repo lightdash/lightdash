@@ -23,9 +23,41 @@ Lightdash is an open-source business intelligence tool (Looker alternative) that
 -   Frontend: React 19, Mantine v8 UI, Emotion styling, TanStack Query
 -   Build: pnpm workspaces, TypeScript project references, Vite
 
+## Starting Development Services
+
+### Prerequisites: Docker Services
+
+Start the Docker services (PostgreSQL, MinIO, headless browser) before running the dev server:
+
+```bash
+/docker-dev
+```
+
+### Option 1: PM2 (Recommended for LLM Development)
+
+PM2 provides process isolation, individual service restarts, and monitoring:
+
+```bash
+pnpm pm2:start          # Start all services
+pnpm pm2:logs           # Stream all logs
+pnpm pm2:status         # Check process status
+pnpm pm2:restart:api    # Restart only the API server
+pnpm pm2:monit          # Interactive monitoring dashboard
+pnpm pm2:stop           # Stop all services
+```
+
+See `scripts/pm2/README.md` for full documentation.
+
+### Option 2: Traditional Dev Server
+
+Single terminal with interleaved output:
+
+```bash
+pnpm dev
+```
+
 ## Common Development Commands
 
--   Assume the dev-server is always running
 -   Always use package-specific commands for faster linting/typechecking/testing.
 
 **Code Quality:**
