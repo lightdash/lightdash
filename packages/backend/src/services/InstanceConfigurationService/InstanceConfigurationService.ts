@@ -4,10 +4,12 @@ import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
     DbtProjectType,
+    DbtVersionOptionLatest,
     isGitProjectType,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    ProjectMemberRole,
     ProjectType,
     RequestMethod,
     ServiceAccountScope,
@@ -666,6 +668,7 @@ export class InstanceConfigurationService extends BaseService {
             const project: CreateProject = {
                 name: setup.project.name,
                 type: ProjectType.DEFAULT,
+                dbtVersion: DbtVersionOptionLatest.LATEST,
                 warehouseConnection: {
                     type: WarehouseTypes.DUCKDB,
                     path: setup.project.duckdbPath,
@@ -721,7 +724,10 @@ export class InstanceConfigurationService extends BaseService {
                         organizationUuid,
                         emailDomains: setup.organization.emailDomains,
                         role: OrganizationMemberRole.VIEWER, // Default role for domain users
-                        projectUuids: [projectUuid],
+                        projects: [{
+                            projectUuid,
+                            role: ProjectMemberRole.VIEWER,
+                        }],
                     };
                     await this.organizationAllowedEmailDomainsModel.upsertAllowedEmailDomains(
                         allowedDomains,
