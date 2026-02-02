@@ -458,6 +458,20 @@ export class GoogleSheetsTransientError extends LightdashError {
         });
     }
 }
+
+export class GoogleSheetsQuotaError extends LightdashError {
+    constructor(
+        message = 'Google Sheets API quota exceeded. The sync will be retried automatically.',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'GoogleSheetsQuotaError',
+            statusCode: 429,
+            data,
+        });
+    }
+}
 export class NotImplementedError extends LightdashError {
     constructor(message = 'Not implemented') {
         super({
