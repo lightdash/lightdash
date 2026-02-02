@@ -1,3 +1,10 @@
+# [0.2410.0](https://github.com/lightdash/lightdash/compare/0.2409.0...0.2410.0) (2026-02-02)
+
+
+### Features
+
+* allow csv import filter values ([#19903](https://github.com/lightdash/lightdash/issues/19903)) ([50f8fae](https://github.com/lightdash/lightdash/commit/50f8fae323acd9372d2cda560ca9b789be11e3af))
+
 # [0.2409.0](https://github.com/lightdash/lightdash/compare/0.2408.0...0.2409.0) (2026-02-02)
 
 
