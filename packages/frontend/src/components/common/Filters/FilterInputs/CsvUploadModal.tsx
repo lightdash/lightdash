@@ -11,7 +11,7 @@ import {
     Text,
 } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import {
     detectContentType,
     extractColumn,
@@ -39,7 +39,12 @@ const CsvUploadModal: FC<Props> = ({ opened, onClose, onAddValues }) => {
     const [selectedColumn, setSelectedColumn] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    // Track current file to prevent race conditions when user selects a new file
+    // before the previous file finishes reading
+    const currentFileRef = useRef<File | null>(null);
+
     const handleFileChange = useCallback((newFile: File | null) => {
+        currentFileRef.current = newFile;
         setFile(newFile);
         setError(null);
         setParsedCsv(null);
@@ -52,6 +57,11 @@ const CsvUploadModal: FC<Props> = ({ opened, onClose, onAddValues }) => {
 
         const reader = new FileReader();
         reader.onload = (event) => {
+            // Ignore stale callback if user has selected a different file
+            if (currentFileRef.current !== newFile) {
+                return;
+            }
+
             const content = event.target?.result;
             if (typeof content !== 'string') {
                 setError('Could not read file content');
@@ -86,6 +96,10 @@ const CsvUploadModal: FC<Props> = ({ opened, onClose, onAddValues }) => {
         };
 
         reader.onerror = () => {
+            // Ignore stale error if user has selected a different file
+            if (currentFileRef.current !== newFile) {
+                return;
+            }
             setError('Failed to read file');
         };
 
@@ -124,6 +138,7 @@ const CsvUploadModal: FC<Props> = ({ opened, onClose, onAddValues }) => {
     }, [previewValues, onAddValues, onClose]);
 
     const handleClose = useCallback(() => {
+        currentFileRef.current = null;
         setFile(null);
         setParsedCsv(null);
         setSimpleListValues(null);
