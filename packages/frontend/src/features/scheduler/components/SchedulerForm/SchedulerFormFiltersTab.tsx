@@ -111,18 +111,12 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     if (!field) {
         // show invalid dashboard filter
         return (
-            <Group gap="xs" wrap="nowrap">
+            <Group gap="xs" wrap="nowrap" justify="flex-start">
                 <ActionIcon size="xs" disabled>
                     <MantineIcon icon={IconRotate2} />
                 </ActionIcon>
 
-                <Paper
-                    key={dashboardFilter.id}
-                    w="100%"
-                    withBorder
-                    p="xs"
-                    radius="md"
-                >
+                <Paper key={dashboardFilter.id} withBorder p="xs" radius="md">
                     <Group gap="xs">
                         <MantineIcon icon={IconAlertTriangle} color="red" />
                         <Text span fw={500} fz="sm">
@@ -139,6 +133,13 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                         </Text>
                     </Group>
                 </Paper>
+                {onRemove && (
+                    <Tooltip label="Remove invalid filter" fz="xs">
+                        <ActionIcon size="xs" onClick={onRemove}>
+                            <MantineIcon icon={IconTrash} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
             </Group>
         );
     }
@@ -490,6 +491,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
                                           )
                                         : false
                                 }
+                                onRemove={() => handleRemoveFilter(filter.id)}
                             />
                         );
                     })}

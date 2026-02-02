@@ -18,7 +18,12 @@ campaign_metrics as (
         status,
         
         -- Derived fields
+        -- Athena/Trino: date subtraction returns INTERVAL not integer, use DATE_DIFF instead
+        {% if target.type == 'trino' or target.type == 'athena' %}
+        DATE_DIFF('day', start_date, end_date) + 1 as campaign_duration_days,
+        {% else %}
         end_date - start_date + 1 as campaign_duration_days,
+        {% endif %}
         case
             when channel = 'email' then budget * 0.35
             when channel = 'social' then budget * 0.25

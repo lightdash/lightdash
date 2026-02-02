@@ -29,6 +29,9 @@ models:
             ai_hint: |
               Ratio of completed orders to total orders
               Completion percentage of orders.
+            drivers:
+              - total_order_amount
+              - total_completed_order_amount
         default_time_dimension:
           field: order_date
           interval: MONTH
@@ -60,12 +63,18 @@ models:
             metrics:
               unique_order_count:
                 type: count_distinct
+                spotlight:
+                  categories: ["revenue_growth"]
               completed_order_count:
                 label: Completed order count
                 description: Total number of completed orders
                 type: count_distinct
                 filters:
                   - is_completed: "true"
+                spotlight:
+                  categories: ["revenue_growth"]
+                drivers:
+                  - unique_order_count
               completed_or_shipped_order_count:
                 label: Completed or Shipped Order Count
                 type: count_distinct
@@ -92,6 +101,9 @@ models:
                   - customers.first_name
                 spotlight:
                   owner: demo2@lightdash.com
+                  categories: ["revenue_growth"]
+                drivers:
+                  - unique_order_count
               fulfillment_rate_with_format_expression:
                 type: average
                 format: "#,##0.0%"
@@ -188,6 +200,11 @@ models:
                 type: average
                 format: usd
                 round: 2
+                spotlight:
+                  categories: ["revenue_growth"]
+                drivers:
+                  - total_order_amount
+                  - customers.unique_customer_count # cross-table driver example
               total_order_amount:
                 type: sum
                 format: usd
@@ -195,6 +212,8 @@ models:
                 default_time_dimension:
                   field: order_date
                   interval: DAY
+                spotlight:
+                  categories: ["revenue_growth"]
               amount_percent_of_previous:
                 type: percent_of_previous
                 sql: ${total_order_amount}
@@ -225,6 +244,10 @@ models:
                 round: 2
                 filters:
                   - is_completed: "true"
+                spotlight:
+                  categories: ["revenue_growth"]
+                drivers:
+                  - total_order_amount
               total_completed_order_amount_eur:
                 type: sum
                 format: eur

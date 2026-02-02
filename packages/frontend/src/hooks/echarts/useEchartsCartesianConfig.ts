@@ -972,7 +972,15 @@ const getPivotSeries = ({
         },
         xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
         yAxisIndex: flipAxes ? undefined : series.yAxisIndex,
-        connectNulls: true,
+        ...(series.type === CartesianSeriesType.LINE ||
+        series.type === CartesianSeriesType.AREA
+            ? {
+                  connectNulls:
+                      cartesianChart.layout.connectNulls !== undefined
+                          ? cartesianChart.layout.connectNulls
+                          : true,
+              }
+            : {}),
         encode: {
             x: flipAxes ? yFieldHash : xFieldHash,
             y: flipAxes ? xFieldHash : yFieldHash,
@@ -1112,6 +1120,7 @@ const applyReadableColorsToMarkLine = (
 type GetSimpleSeriesArg = {
     series: Series;
     itemsMap: ItemsMap;
+    connectNulls: boolean | undefined;
     flipAxes: boolean | undefined;
     yFieldHash: string;
     xFieldHash: string;
@@ -1123,6 +1132,7 @@ type GetSimpleSeriesArg = {
 
 const getSimpleSeries = ({
     series,
+    connectNulls = true,
     flipAxes,
     yFieldHash,
     xFieldHash,
@@ -1138,7 +1148,12 @@ const getSimpleSeries = ({
     emphasis: {
         focus: 'series',
     },
-    connectNulls: true,
+    ...(series.type === CartesianSeriesType.LINE ||
+    series.type === CartesianSeriesType.AREA
+        ? {
+              connectNulls,
+          }
+        : {}),
     encode: {
         ...series.encode,
         x: flipAxes ? yFieldHash : xFieldHash,
@@ -1298,6 +1313,7 @@ const getEchartsSeriesFromPivotedData = (
             return getSimpleSeries({
                 series,
                 itemsMap,
+                connectNulls: cartesianChart.layout.connectNulls,
                 flipAxes,
                 yFieldHash,
                 xFieldHash,
@@ -1343,6 +1359,7 @@ const getEchartsSeries = (
             return getSimpleSeries({
                 series,
                 itemsMap,
+                connectNulls: cartesianChart.layout.connectNulls,
                 flipAxes,
                 yFieldHash,
                 xFieldHash,
@@ -1569,10 +1586,20 @@ const getEchartAxes = ({
         validCartesianConfig.layout.showXAxis !== undefined
             ? validCartesianConfig.layout.showXAxis
             : true;
-    const showYAxis =
+    // Legacy showYAxis is used as fallback for independent axis controls
+    const legacyShowYAxis =
         validCartesianConfig.layout.showYAxis !== undefined
             ? validCartesianConfig.layout.showYAxis
             : true;
+    // Use independent axis controls if defined, otherwise fallback to legacy showYAxis
+    const showLeftYAxis =
+        validCartesianConfig.layout.showLeftYAxis !== undefined
+            ? validCartesianConfig.layout.showLeftYAxis
+            : legacyShowYAxis;
+    const showRightYAxis =
+        validCartesianConfig.layout.showRightYAxis !== undefined
+            ? validCartesianConfig.layout.showRightYAxis
+            : legacyShowYAxis;
 
     const hasBarChart = series.some((s) => s.type === CartesianSeriesType.BAR);
     const gridStyle = hasBarChart
@@ -1750,13 +1777,13 @@ const getEchartAxes = ({
     const leftAxisFormatterConfig = getAxisFormatterConfig({
         axisItem: leftAxisYField,
         defaultNameGap: leftYaxisGap + defaultAxisLabelGap,
-        show: showYAxis,
+        show: showLeftYAxis,
         parameters,
     });
     const leftAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
         leftAxisFormatterConfig,
-        showYAxis && leftAxisFormatterConfig.axisLabel
+        showLeftYAxis && leftAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
                       ...getAxisLabelStyle(axisLabelFontSize),
@@ -1769,13 +1796,13 @@ const getEchartAxes = ({
     const rightAxisFormatterConfig = getAxisFormatterConfig({
         axisItem: rightAxisYField,
         defaultNameGap: rightYaxisGap + defaultAxisLabelGap,
-        show: showYAxis,
+        show: showRightYAxis,
         parameters,
     });
     const rightAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
         rightAxisFormatterConfig,
-        showYAxis && rightAxisFormatterConfig.axisLabel
+        showRightYAxis && rightAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
                       ...getAxisLabelStyle(axisLabelFontSize),
@@ -2034,7 +2061,7 @@ const getEchartAxes = ({
         yAxis: [
             {
                 type: leftAxisType,
-                ...(showYAxis
+                ...(showLeftYAxis
                     ? {
                           name: validCartesianConfig.layout.flipAxes
                               ? yAxisConfiguration?.[0]?.name ||
@@ -2065,7 +2092,7 @@ const getEchartAxes = ({
                 // Override formatter for 100% stacking without flipped axes
                 ...(shouldStack100 &&
                     !validCartesianConfig.layout.flipAxes &&
-                    showYAxis && {
+                    showLeftYAxis && {
                         axisLabel: {
                             ...(leftAxisConfigWithStyle.axisLabel || {}),
                             formatter: '{value}%',
@@ -2076,7 +2103,7 @@ const getEchartAxes = ({
                     (yAxisConfiguration?.[0] as XAxis | undefined)
                         ?.enableDataZoom &&
                     leftAxisType === 'category' &&
-                    showYAxis && {
+                    showLeftYAxis && {
                         axisLabel: {
                             ...(leftAxisConfigWithStyle.axisLabel || {}),
                             interval: 0,
@@ -2101,7 +2128,7 @@ const getEchartAxes = ({
             {
                 type: rightAxisType,
                 show: showSecondaryYAxis,
-                ...(showYAxis
+                ...(showRightYAxis
                     ? {
                           name: validCartesianConfig.layout.flipAxes
                               ? yAxisConfiguration?.[1]?.name
@@ -2228,6 +2255,7 @@ const getStackTotalSeries = (
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
     isStack100: boolean,
+    connectNulls: boolean | undefined = true,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
@@ -2237,7 +2265,12 @@ const getStackTotalSeries = (
             }
             const stackSeries: EChartsSeries = {
                 type: series[0].type,
-                connectNulls: true,
+                ...(series[0].type === CartesianSeriesType.LINE ||
+                series[0].type === CartesianSeriesType.AREA
+                    ? {
+                          connectNulls,
+                      }
+                    : {}),
                 stack: stack,
                 clip: !isStack100,
                 label: {
@@ -2640,17 +2673,19 @@ const useEchartsCartesianConfig = (
                 validCartesianConfig?.layout.flipAxes,
                 validCartesianConfigLegend,
                 isStack100,
+                validCartesianConfig?.layout.connectNulls,
             ),
         ];
     }, [
         itemsMap,
         validCartesianConfig?.layout.flipAxes,
         validCartesianConfig?.layout?.stack,
+        validCartesianConfig?.layout.connectNulls,
         series,
         rows,
         validCartesianConfigLegend,
         getSeriesColor,
-        theme.colors,
+        theme.colors.background,
     ]);
     const sortedResults = useMemo(() => {
         const results =

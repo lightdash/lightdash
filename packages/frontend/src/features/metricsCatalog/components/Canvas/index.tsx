@@ -127,7 +127,7 @@ const getNodeLayout = (
     const treeGraph = new Dagre.graphlib.Graph().setDefaultEdgeLabel(
         () => ({}),
     );
-    treeGraph.setGraph({ rankdir: 'TB' });
+    treeGraph.setGraph({ rankdir: 'TB', ranksep: 100 });
 
     // Main padding
     const mainPadding = 8;

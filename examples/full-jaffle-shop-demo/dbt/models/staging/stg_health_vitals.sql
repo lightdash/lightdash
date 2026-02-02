@@ -7,7 +7,7 @@ vitals as (
         vital_id,
         patient_id,
         visit_id,
-        measurement_date::date as measurement_date,
+        {{ cast_date('measurement_date') }} as measurement_date,
         blood_pressure_systolic,
         blood_pressure_diastolic,
         heart_rate,

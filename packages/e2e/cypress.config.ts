@@ -16,6 +16,7 @@ export default defineConfig({
     },
     e2e: {
         specPattern: 'cypress/**/**/*.cy.{js,jsx,ts,tsx}',
+        excludeSpecPattern: ['cypress/e2e/experimental/**/*'],
         baseUrl: 'http://localhost:3000',
         blockHosts: [
             '*.rudderlabs.com',

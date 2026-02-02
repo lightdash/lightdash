@@ -61,7 +61,13 @@ export type LeafletMapConfig = {
     };
     minBubbleSize: number;
     maxBubbleSize: number;
-    sizeRange: { min: number; max: number } | null;
+    sizeRange: {
+        min: number;
+        max: number;
+        formattedMin: string;
+        formattedMax: string;
+    } | null;
+    sizeFieldLabel: string | null;
     heatmapConfig: {
         radius: number;
         blur: number;
@@ -272,7 +278,12 @@ const useLeafletMapConfig = ({
                             ? row[valueFieldId]?.value.raw
                             : 1;
                         const numericValue = Number(rawValue);
-                        const isNumeric = !isNaN(numericValue);
+                        // Check for null/undefined/empty explicitly since Number(null) = 0, Number('') = 0
+                        const isNumeric =
+                            rawValue !== null &&
+                            rawValue !== undefined &&
+                            rawValue !== '' &&
+                            !isNaN(numericValue);
                         const value = isNumeric ? numericValue : null;
                         const displayValue = valueFieldId
                             ? (row[valueFieldId]?.value.formatted ??
@@ -340,18 +351,25 @@ const useLeafletMapConfig = ({
             formattedMin: string;
             formattedMax: string;
         } | null = null;
-        let sizeRange: { min: number; max: number } | null = null;
+        let sizeRange: {
+            min: number;
+            max: number;
+            formattedMin: string;
+            formattedMax: string;
+        } | null = null;
         if (scatterData && scatterData.length > 0) {
             // Single pass to find min/max for both value and size
             let minPoint: (ScatterPoint & { value: number }) | null = null;
             let maxPoint: (ScatterPoint & { value: number }) | null = null;
-            let minSize = scatterData[0].sizeValue;
-            let maxSize = scatterData[0].sizeValue;
+            let minSizePoint = scatterData[0];
+            let maxSizePoint = scatterData[0];
 
             for (const point of scatterData) {
-                // Track size range
-                if (point.sizeValue < minSize) minSize = point.sizeValue;
-                if (point.sizeValue > maxSize) maxSize = point.sizeValue;
+                // Track size range (keep the point reference for formatted values)
+                if (point.sizeValue < minSizePoint.sizeValue)
+                    minSizePoint = point;
+                if (point.sizeValue > maxSizePoint.sizeValue)
+                    maxSizePoint = point;
 
                 // Track value range (only for numeric values)
                 if (point.value !== null) {
@@ -375,10 +393,21 @@ const useLeafletMapConfig = ({
                 };
             }
 
-            sizeRange = {
-                min: Math.min(minSize, 0),
-                max: Math.max(maxSize, 1),
-            };
+            // Only set sizeRange when sizeFieldId is set
+            if (sizeFieldId) {
+                const formattedMinSize =
+                    minSizePoint.rowData[sizeFieldId]?.value?.formatted ??
+                    String(minSizePoint.sizeValue);
+                const formattedMaxSize =
+                    maxSizePoint.rowData[sizeFieldId]?.value?.formatted ??
+                    String(maxSizePoint.sizeValue);
+                sizeRange = {
+                    min: Math.min(minSizePoint.sizeValue, 0),
+                    max: Math.max(maxSizePoint.sizeValue, 1),
+                    formattedMin: formattedMinSize,
+                    formattedMax: formattedMaxSize,
+                };
+            }
         } else if (regionData && regionData.length > 0 && valueFieldId) {
             // Single pass to find min/max values and their regions
             let minRegion = regionData[0];
@@ -407,6 +436,17 @@ const useLeafletMapConfig = ({
                 valueFieldLabel = valueItem.label;
             } else if ('name' in valueItem) {
                 valueFieldLabel = (valueItem as { name: string }).name;
+            }
+        }
+
+        // Get size field label for legend
+        let sizeFieldLabel: string | null = null;
+        if (sizeFieldId && itemsMap?.[sizeFieldId]) {
+            const sizeItem = itemsMap[sizeFieldId];
+            if ('label' in sizeItem) {
+                sizeFieldLabel = sizeItem.label;
+            } else if ('name' in sizeItem) {
+                sizeFieldLabel = (sizeItem as { name: string }).name;
             }
         }
 
@@ -467,6 +507,7 @@ const useLeafletMapConfig = ({
             minBubbleSize: minBubbleSize ?? 2,
             maxBubbleSize: maxBubbleSize ?? 8,
             sizeRange,
+            sizeFieldLabel,
             heatmapConfig: {
                 radius: heatmapConfig?.radius ?? 25,
                 blur: heatmapConfig?.blur ?? 15,

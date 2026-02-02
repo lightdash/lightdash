@@ -6,12 +6,12 @@ conditions as (
     select
         condition_id,
         patient_id,
-        diagnosis_date::date as diagnosis_date,
+        {{ cast_date('diagnosis_date') }} as diagnosis_date,
         icd10_code,
         condition_name,
         severity,
-        chronic::boolean as chronic,
-        managed::boolean as managed,
+        {{ cast_boolean('chronic') }} as chronic,
+        {{ cast_boolean('managed') }} as managed,
         -- Extract condition categories from ICD10 codes
         case
             when icd10_code like 'E%' then 'Endocrine/Metabolic'

@@ -20,7 +20,12 @@ visit_conditions as (
         v.visit_id,
         count(distinct c.condition_id) as active_conditions,
         count(distinct case when c.chronic then c.condition_id end) as active_chronic_conditions,
+        -- Athena/Trino: no string_agg, use array_join(array_agg(...))
+        {% if target.type == 'trino' or target.type == 'athena' %}
+        array_join(array_agg(distinct c.condition_category), ', ') as condition_categories
+        {% else %}
         string_agg(distinct c.condition_category, ', ') as condition_categories
+        {% endif %}
     from visits v
     left join conditions c 
         on v.patient_id = c.patient_id 
@@ -50,7 +55,12 @@ visit_metrics as (
         extract(year from v.visit_date) as visit_year,
         extract(quarter from v.visit_date) as visit_quarter,
         extract(month from v.visit_date) as visit_month,
+        -- Athena/Trino: no to_char, use date_format instead
+        {% if target.type == 'trino' or target.type == 'athena' %}
+        date_format(v.visit_date, '%W') as visit_day_of_week,
+        {% else %}
         to_char(v.visit_date, 'Day') as visit_day_of_week,
+        {% endif %}
         
         -- Vital signs from visit
         vit.blood_pressure_systolic,
@@ -70,7 +80,12 @@ visit_metrics as (
         
         -- Visit patterns
         lag(v.visit_date) over (partition by v.patient_id order by v.visit_date) as previous_visit_date,
+        -- Athena/Trino: date subtraction returns INTERVAL not integer, use DATE_DIFF instead
+        {% if target.type == 'trino' or target.type == 'athena' %}
+        DATE_DIFF('day', lag(v.visit_date) over (partition by v.patient_id order by v.visit_date), v.visit_date) as days_since_last_visit,
+        {% else %}
         v.visit_date - lag(v.visit_date) over (partition by v.patient_id order by v.visit_date) as days_since_last_visit,
+        {% endif %}
         
         -- Cost analysis
         case v.visit_type

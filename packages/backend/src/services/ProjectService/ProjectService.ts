@@ -1083,6 +1083,13 @@ export class ProjectService extends BaseService {
                     password: '',
                 };
             }
+            case WarehouseTypes.ATHENA: {
+                return {
+                    ...credentials,
+                    accessKeyId: '',
+                    secretAccessKey: '',
+                };
+            }
 
             default:
                 return assertUnreachable(
@@ -1273,6 +1280,7 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.BIGQUERY:
             case WarehouseTypes.TRINO:
             case WarehouseTypes.CLICKHOUSE:
+            case WarehouseTypes.ATHENA:
                 credentialsWithOverrides = warehouseSshCredentials;
                 break;
             default:
@@ -4740,6 +4748,8 @@ export class ProjectService extends BaseService {
                 return credentials.database.toLowerCase();
             case WarehouseTypes.DATABRICKS:
                 return credentials.catalog;
+            case WarehouseTypes.ATHENA:
+                return credentials.database; // Athena uses database as catalog name
             default:
                 return assertUnreachable(credentials, 'Unknown warehouse type');
         }

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
     SnowflakeAuthenticationType,
     WarehouseTypes,
+    type CreateAthenaCredentials,
     type CreateBigqueryCredentials,
     type CreateClickhouseCredentials,
     type CreateDatabricksCredentials,
@@ -27,7 +28,8 @@ export type UserWarehouseCredentials = {
               'type' | 'user'
           >
         | Pick<CreateBigqueryCredentials, 'type'>
-        | Pick<CreateDatabricksCredentials, 'type'>;
+        | Pick<CreateDatabricksCredentials, 'type'>
+        | Pick<CreateAthenaCredentials, 'type'>;
 };
 
 export type UserWarehouseCredentialsWithSecrets = Pick<
@@ -63,7 +65,11 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
                       CreateDatabricksCredentials,
                       'database' | 'serverHostName' | 'httpPath'
                   >
-              >);
+              >)
+        | Pick<
+              CreateAthenaCredentials,
+              'type' | 'accessKeyId' | 'secretAccessKey'
+          >;
 };
 
 export type UpsertUserWarehouseCredentials = {

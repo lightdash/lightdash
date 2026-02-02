@@ -74,7 +74,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         setShowGridY,
         setShowXAxis,
         setShowYAxis,
+        setShowLeftYAxis,
+        setShowRightYAxis,
         setShowAxisTicks,
+        setConnectNulls,
         setAxisLabelFontSize,
         setAxisTitleFontSize,
         setXAxisSort,
@@ -117,8 +120,27 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
     const showXAxis =
         dirtyLayout?.showXAxis !== undefined ? dirtyLayout?.showXAxis : true;
-    const showYAxis =
+    // Legacy showYAxis is used as fallback for independent axis controls
+    const legacyShowYAxis =
         dirtyLayout?.showYAxis !== undefined ? dirtyLayout?.showYAxis : true;
+    const showLeftYAxis =
+        dirtyLayout?.showLeftYAxis !== undefined
+            ? dirtyLayout?.showLeftYAxis
+            : legacyShowYAxis;
+    const showRightYAxis =
+        dirtyLayout?.showRightYAxis !== undefined
+            ? dirtyLayout?.showRightYAxis
+            : legacyShowYAxis;
+    // Determine if there are series on each Y-axis
+    const hasSeriesOnLeftAxis = (dirtyEchartsConfig?.series || []).some(
+        (series) => (series.yAxisIndex || 0) === 0,
+    );
+    const hasSeriesOnRightAxis = (dirtyEchartsConfig?.series || []).some(
+        (series) => series.yAxisIndex === 1,
+    );
+    // Only show axis controls when not flipped and there are series on that axis
+    const hasPrimaryYAxis = !dirtyLayout?.flipAxes && hasSeriesOnLeftAxis;
+    const hasSecondaryYAxis = !dirtyLayout?.flipAxes && hasSeriesOnRightAxis;
 
     return (
         <Stack>
@@ -375,29 +397,48 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         <Checkbox
                             label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
                             checked={
-                                dirtyLayout?.flipAxes ? showYAxis : showXAxis
+                                dirtyLayout?.flipAxes
+                                    ? showLeftYAxis
+                                    : showXAxis
                             }
                             onChange={() => {
                                 if (dirtyLayout?.flipAxes) {
-                                    setShowYAxis(!showYAxis);
+                                    setShowLeftYAxis(!showLeftYAxis);
                                 } else {
                                     setShowXAxis(!showXAxis);
                                 }
                             }}
                         />
-                        <Checkbox
-                            label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis`}
-                            checked={
-                                dirtyLayout?.flipAxes ? showXAxis : showYAxis
-                            }
-                            onChange={() => {
-                                if (dirtyLayout?.flipAxes) {
-                                    setShowXAxis(!showXAxis);
-                                } else {
-                                    setShowYAxis(!showYAxis);
+                        {(dirtyLayout?.flipAxes || hasPrimaryYAxis) && (
+                            <Checkbox
+                                label={
+                                    dirtyLayout?.flipAxes
+                                        ? 'X-axis'
+                                        : 'Left Y-axis'
                                 }
-                            }}
-                        />
+                                checked={
+                                    dirtyLayout?.flipAxes
+                                        ? showXAxis
+                                        : showLeftYAxis
+                                }
+                                onChange={() => {
+                                    if (dirtyLayout?.flipAxes) {
+                                        setShowXAxis(!showXAxis);
+                                    } else {
+                                        setShowLeftYAxis(!showLeftYAxis);
+                                    }
+                                }}
+                            />
+                        )}
+                        {hasSecondaryYAxis && (
+                            <Checkbox
+                                label="Right Y-axis"
+                                checked={showRightYAxis}
+                                onChange={() => {
+                                    setShowRightYAxis(!showRightYAxis);
+                                }}
+                            />
+                        )}
                     </Stack>
                 </Config.Section>
             </Config>
@@ -413,6 +454,25 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     />
                 </Config.Section>
             </Config>
+            {(dirtyChartType === CartesianSeriesType.LINE ||
+                dirtyChartType === CartesianSeriesType.AREA) && (
+                <Config>
+                    <Config.Section>
+                        <Config.Heading>Connect nulls</Config.Heading>
+                        <Checkbox
+                            label="Connect null values in line series"
+                            checked={
+                                dirtyLayout?.connectNulls !== undefined
+                                    ? dirtyLayout.connectNulls
+                                    : true
+                            }
+                            onChange={(e) => {
+                                setConnectNulls(e.currentTarget.checked);
+                            }}
+                        />
+                    </Config.Section>
+                </Config>
+            )}
             <Config>
                 <Config.Section>
                     <Config.Heading>Tick label size (px)</Config.Heading>

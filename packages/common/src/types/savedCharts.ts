@@ -482,8 +482,11 @@ export type CompleteCartesianChartLayout = {
     showGridX?: boolean | undefined;
     showGridY?: boolean | undefined;
     showXAxis?: boolean | undefined;
-    showYAxis?: boolean | undefined;
+    showYAxis?: boolean | undefined; // Legacy: controls all Y-axes together
+    showLeftYAxis?: boolean | undefined; // Controls left/primary Y-axis visibility independently
+    showRightYAxis?: boolean | undefined; // Controls right/secondary Y-axis visibility independently
     stack?: boolean | string | undefined; // Support both old boolean and new StackType string for backward compatibility
+    connectNulls?: boolean | undefined; // only applicable for line series, defaults to true
     /** Configuration for limiting visible groups and aggregating the rest into "Other" */
     groupLimit?: GroupLimitConfig | undefined;
 };

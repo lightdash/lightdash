@@ -2,7 +2,7 @@ name: PR Checks
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited]
   workflow_dispatch:
 
 concurrency:
@@ -69,6 +69,99 @@ jobs:
         with:
           token: ${{ github.token }}
           filters: .github/file-filters.yml
+
+  post-test-selection-comment:
+    name: Post Test Selection Comment
+    runs-on: depot-ubuntu-24.04-4
+    needs: files-changed
+    steps:
+      - name: Post comment with test selection info
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const marker = '<!-- test-selection-comment -->';
+
+            const tests = [
+              {
+                name: 'Preview Environment',
+                selected: ${{ needs.files-changed.outputs.preview }},
+                trigger: 'deploy-preview',
+                description: 'Deploys a preview environment for testing'
+              },
+              {
+                name: 'Frontend E2E Tests',
+                selected: ${{ needs.files-changed.outputs.frontend }},
+                trigger: 'test-frontend',
+                description: 'Runs Cypress app tests'
+              },
+              {
+                name: 'Backend API Tests',
+                selected: ${{ needs.files-changed.outputs.backend }},
+                trigger: 'test-backend',
+                description: 'Runs Cypress API tests'
+              },
+              {
+                name: 'Timezone Tests',
+                selected: ${{ needs.files-changed.outputs.timezone }},
+                trigger: 'test-timezone',
+                description: 'Runs date/timezone E2E tests across multiple timezones'
+              },
+              {
+                name: 'CLI Tests',
+                selected: ${{ needs.files-changed.outputs.cli }},
+                trigger: 'test-cli',
+                description: 'Runs CLI integration and dbt version tests'
+              }
+            ];
+
+            const selectedTests = tests.filter(t => t.selected);
+            const unselectedTests = tests.filter(t => !t.selected);
+
+            let body = `${marker}\n## 🧪 Test Selection\n\n`;
+
+            if (selectedTests.length > 0) {
+              body += `### ✅ Tests that will run\n`;
+              body += `| Test | Description |\n|------|-------------|\n`;
+              for (const test of selectedTests) {
+                body += `| ${test.name} | ${test.description} |\n`;
+              }
+              body += '\n';
+            }
+
+            if (unselectedTests.length > 0) {
+              body += `### ⏭️ Tests skipped (no relevant file changes detected)\n`;
+              body += `| Test | How to trigger manually |\n|------|-------------------------|\n`;
+              for (const test of unselectedTests) {
+                body += `| ${test.name} | Add \`${test.trigger}\` to PR description |\n`;
+              }
+              body += '\n';
+            }
+
+            body += `> **Tip:** Add \`test-all\` to your PR description to run all tests.\n`;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
 
   preview:
     name: Deploy Preview

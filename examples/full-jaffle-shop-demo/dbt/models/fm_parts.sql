@@ -26,7 +26,7 @@ final as (
         
         case 
             when total_quantity_used_ytd > 0 
-            then (stock_quantity::float / average_monthly_usage) 
+            then ({{ cast_float('stock_quantity') }} / average_monthly_usage) 
             else null 
         end as months_of_supply,
         

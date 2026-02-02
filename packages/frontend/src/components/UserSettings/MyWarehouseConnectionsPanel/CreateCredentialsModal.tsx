@@ -60,6 +60,11 @@ const defaultCredentials: Record<
         user: '',
         password: '',
     },
+    [WarehouseTypes.ATHENA]: {
+        type: WarehouseTypes.ATHENA,
+        accessKeyId: '',
+        secretAccessKey: '',
+    },
 };
 
 const FORM_ID = 'create-credentials-form';

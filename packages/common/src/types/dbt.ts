@@ -37,6 +37,7 @@ export enum SupportedDbtAdapter {
     POSTGRES = 'postgres',
     TRINO = 'trino',
     CLICKHOUSE = 'clickhouse',
+    ATHENA = 'athena',
 }
 
 export type DbtNodeConfig = {
@@ -241,6 +242,7 @@ export type DbtColumnLightdashMetric = {
         segment_by?: string[]; // dimension IDs allowlist
         owner?: string; // metric owner email
     };
+    drivers?: string[]; // metrics that drive this metric (same-table: 'name', cross-table: 'table.name')
     ai_hint?: string | string[];
 } & DbtLightdashFieldTags;
 
@@ -256,6 +258,7 @@ export const normaliseModelDatabase = (
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.SNOWFLAKE:
         case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
         case SupportedDbtAdapter.REDSHIFT:
             if (model.database === null) {
                 throw new ParseError(
@@ -611,6 +614,7 @@ export const convertModelMetric = ({
             segmentBy: metric.spotlight?.segment_by,
             owner,
         }),
+        ...(metric.drivers ? { drivers: metric.drivers } : {}),
         ...(metric.ai_hint ? { aiHint: convertToAiHints(metric.ai_hint) } : {}),
     };
 };

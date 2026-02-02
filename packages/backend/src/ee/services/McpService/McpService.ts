@@ -2,13 +2,18 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AiResultType,
     AnyType,
     ApiKeyAccount,
     CatalogType,
     CommercialFeatureFlags,
+    convertAiTableCalcsSchemaToTableCalcs,
     Explore,
     filterExploreByTags,
     ForbiddenError,
+    getItemLabelWithoutTableName,
+    getSlackAiEchartsConfig,
+    getValidAiQueryLimit,
     isExploreError,
     mcpToolListExploresArgsSchema,
     MissingConfigError,
@@ -24,8 +29,8 @@ import {
     ToolFindExploresArgsV3,
     ToolFindFieldsArgs,
     toolFindFieldsArgsSchema,
-    ToolRunMetricQueryArgs,
-    toolRunMetricQueryArgsSchema,
+    toolRunQueryArgsSchema,
+    toolRunQueryArgsSchemaTransformed,
     ToolSearchFieldValuesArgs,
     toolSearchFieldValuesArgsSchema,
     UserAttributeValueMap,
@@ -38,6 +43,9 @@ import {
     ServerRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import * as Sentry from '@sentry/node';
+import { stringify } from 'csv-stringify/sync';
+import fs from 'fs/promises';
+import path from 'path';
 import { z, ZodRawShape } from 'zod';
 import {
     LightdashAnalytics,
@@ -52,6 +60,7 @@ import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
+import { CsvService } from '../../../services/CsvService/CsvService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
@@ -63,11 +72,12 @@ import {
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { VERSION } from '../../../version';
+import { NO_RESULTS_RETRY_PROMPT } from '../ai/prompts/noResultsRetry';
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
-import { getRunMetricQuery } from '../ai/tools/runMetricQuery';
+import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import {
     FindContentFn,
@@ -77,6 +87,14 @@ import {
     SearchFieldValuesFn,
 } from '../ai/types/aiAgentDependencies';
 import { AgentContext } from '../ai/utils/AgentContext';
+import { getPivotedResults } from '../ai/utils/getPivotedResults';
+import { populateCustomMetricsSQL } from '../ai/utils/populateCustomMetricsSQL';
+import { serializeData } from '../ai/utils/serializeData';
+import {
+    registerAppResource,
+    registerAppTool,
+    RESOURCE_MIME_TYPE,
+} from './mcpAppHelpers';
 import { McpSchemaCompatLayer } from './McpSchemaCompatLayer';
 
 export enum McpToolName {
@@ -710,25 +728,52 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
+        // Register chart app resource for the MCP App UI
+        const chartResourceUri = 'ui://run-metric-query/chart.html';
+        registerAppResource(
+            this.mcpServer,
+            chartResourceUri,
+            chartResourceUri,
+            { mimeType: RESOURCE_MIME_TYPE },
+            async () => {
+                const htmlPath = path.join(
+                    __dirname,
+                    'mcp-chart-app',
+                    'dist',
+                    'chart-app.html',
+                );
+                const html = await fs.readFile(htmlPath, 'utf-8');
+                return {
+                    contents: [
+                        {
+                            uri: chartResourceUri,
+                            mimeType: RESOURCE_MIME_TYPE,
+                            text: html,
+                        },
+                    ],
+                };
+            },
+        );
+
+        registerAppTool(
+            this.mcpServer,
             McpToolName.RUN_METRIC_QUERY,
             {
-                description: toolRunMetricQueryArgsSchema.description,
+                description: toolRunQueryArgsSchema.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    toolRunMetricQueryArgsSchema,
+                    toolRunQueryArgsSchema,
                 ),
+                _meta: { ui: { resourceUri: chartResourceUri } },
             },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             async (
                 _args: AnyType,
                 extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
             ) => {
-                const args = _args as Omit<ToolRunMetricQueryArgs, 'type'>;
-
                 const projectUuid = await this.resolveProjectUuid(
                     extra as McpProtocolContext,
                 );
-                const argsWithProject = { ...args, projectUuid };
+                const argsWithProject = { ..._args, projectUuid };
 
                 this.trackToolCall(
                     extra as McpProtocolContext,
@@ -736,34 +781,179 @@ export class McpService extends BaseService {
                     projectUuid,
                 );
 
-                const { agentContext, runAsyncQuery } =
-                    await this.getRunMetricQueryDependencies(
-                        argsWithProject,
-                        extra as McpProtocolContext,
+                try {
+                    const { agentContext, runAsyncQuery } =
+                        await this.getRunMetricQueryDependencies(
+                            { projectUuid },
+                            extra as McpProtocolContext,
+                        );
+
+                    const queryTool =
+                        toolRunQueryArgsSchemaTransformed.parse(
+                            argsWithProject,
+                        );
+                    const explore = agentContext.getExplore(
+                        queryTool.queryConfig.exploreName,
                     );
 
-                const runMetricQueryTool = getRunMetricQuery({
-                    runAsyncQuery,
-                    maxLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
-                });
+                    // Full validation including groupBy, axis, and tableCalcs
+                    validateRunQueryTool(queryTool, explore);
 
-                const result = await runMetricQueryTool.execute!(
-                    argsWithProject,
-                    {
-                        toolCallId: '',
-                        messages: [],
-                        experimental_context: agentContext,
-                    },
-                );
+                    const maxLimit =
+                        this.lightdashConfig.ai.copilot.maxQueryLimit;
+                    const query = {
+                        exploreName: queryTool.queryConfig.exploreName,
+                        dimensions: queryTool.queryConfig.dimensions,
+                        metrics: queryTool.queryConfig.metrics,
+                        sorts: queryTool.queryConfig.sorts.map((sort) => ({
+                            ...sort,
+                            nullsFirst: sort.nullsFirst ?? undefined,
+                        })),
+                        limit: getValidAiQueryLimit(
+                            queryTool.queryConfig.limit,
+                            maxLimit,
+                        ),
+                        filters: queryTool.filters,
+                        additionalMetrics: queryTool.customMetrics ?? [],
+                        tableCalculations:
+                            convertAiTableCalcsSchemaToTableCalcs(
+                                queryTool.tableCalculations,
+                            ),
+                    };
 
-                return {
-                    content: [
-                        {
-                            type: 'text',
-                            text: await McpService.streamToolResult(result),
+                    const results = await runAsyncQuery(
+                        query,
+                        populateCustomMetricsSQL(
+                            queryTool.customMetrics,
+                            explore,
+                        ),
+                    );
+
+                    if (results.rows.length === 0) {
+                        return {
+                            content: [
+                                {
+                                    type: 'text' as const,
+                                    text: NO_RESULTS_RETRY_PROMPT,
+                                },
+                            ],
+                        };
+                    }
+
+                    // Generate CSV text (backward compatible for non-UI clients)
+                    const fieldIds = Object.keys(results.rows[0]);
+                    const csvHeaders = fieldIds.map((fieldId) => {
+                        const item = results.fields[fieldId];
+                        if (!item) return fieldId;
+                        return getItemLabelWithoutTableName(item);
+                    });
+                    const csvRows = results.rows.map((row) =>
+                        CsvService.convertRowToCsv(
+                            row,
+                            results.fields,
+                            true,
+                            fieldIds,
+                        ),
+                    );
+                    const csv = stringify(csvRows, {
+                        header: true,
+                        columns: csvHeaders,
+                    });
+
+                    // Generate ECharts config using the shared AI chart
+                    // config — supports bar, line, scatter, pie, funnel,
+                    // horizontal bar, groupBy pivots, and secondary axes.
+                    const echartsOption = await getSlackAiEchartsConfig({
+                        toolArgs: {
+                            type: AiResultType.QUERY_RESULT,
+                            tool: queryTool,
                         },
-                    ],
-                };
+                        queryResults: {
+                            rows: results.rows,
+                            fields: results.fields,
+                        },
+                        getPivotedResults,
+                    });
+
+                    // Override Slack-specific settings for interactive MCP App
+                    const mcpEchartsOption = echartsOption
+                        ? {
+                              ...echartsOption,
+                              animation: true,
+                              backgroundColor: 'transparent',
+                              tooltip: {
+                                  ...(typeof echartsOption.tooltip === 'object'
+                                      ? echartsOption.tooltip
+                                      : {}),
+                                  show: true,
+                              },
+                          }
+                        : null;
+
+                    // Build "Explore from here" URL
+                    const exploreConfigState = {
+                        tableName: queryTool.queryConfig.exploreName,
+                        metricQuery: {
+                            exploreName: queryTool.queryConfig.exploreName,
+                            dimensions: queryTool.queryConfig.dimensions,
+                            metrics: queryTool.queryConfig.metrics,
+                            sorts: queryTool.queryConfig.sorts,
+                            limit: query.limit,
+                            filters: queryTool.filters ?? {},
+                            additionalMetrics: query.additionalMetrics,
+                            tableCalculations: query.tableCalculations,
+                        },
+                        tableConfig: {
+                            columnOrder: Object.keys(results.rows[0] ?? {}),
+                        },
+                        chartConfig: {
+                            type: 'table' as const,
+                            config: {
+                                showColumnCalculation: false,
+                                showRowCalculation: false,
+                                showTableNames: true,
+                                showResultsTotal: false,
+                                showSubtotals: false,
+                                columns: {},
+                                hideRowNumbers: false,
+                                conditionalFormattings: [],
+                                metricsAsRows: false,
+                            },
+                        },
+                    };
+                    const explorePath = `/projects/${projectUuid}/tables/${queryTool.queryConfig.exploreName}`;
+                    const exploreParams = `?create_saved_chart_version=${encodeURIComponent(
+                        JSON.stringify(exploreConfigState),
+                    )}&isExploreFromHere=true`;
+                    const exploreUrl = `${this.lightdashConfig.siteUrl}${explorePath}${exploreParams}`;
+
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: serializeData(csv, 'csv'),
+                            },
+                        ],
+                        structuredContent: {
+                            rows: results.rows,
+                            fields: results.fields,
+                            echartsOption: mcpEchartsOption,
+                            exploreUrl,
+                        },
+                    };
+                } catch (e) {
+                    const errorMessage =
+                        e instanceof Error ? e.message : String(e);
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: `Error running metric query: ${errorMessage}`,
+                            },
+                        ],
+                        isError: true,
+                    };
+                }
             },
         );
 
@@ -1251,9 +1441,7 @@ export class McpService extends BaseService {
     }
 
     async getRunMetricQueryDependencies(
-        toolArgs: Omit<ToolRunMetricQueryArgs, 'type'> & {
-            projectUuid: string;
-        },
+        toolArgs: { projectUuid: string },
         context: McpProtocolContext,
     ): Promise<{
         agentContext: AgentContext;

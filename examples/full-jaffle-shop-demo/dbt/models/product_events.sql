@@ -10,14 +10,14 @@ select
     event_properties,
 
     -- Extracted properties for common use cases
-    event_properties::json->>'product_id' as product_id,
-    event_properties::json->>'product_name' as product_name,
-    event_properties::json->>'product_category' as product_category,
-    (event_properties::json->>'product_price')::numeric as product_price,
-    (event_properties::json->>'quantity')::integer as quantity,
-    (event_properties::json->>'cart_total')::numeric as cart_total,
-    (event_properties::json->>'order_total')::numeric as order_total,
-    event_properties::json->>'payment_method' as payment_method,
-    event_properties::json->>'page_url' as page_url
+    {{ json_extract_string('event_properties', 'product_id') }} as product_id,
+    {{ json_extract_string('event_properties', 'product_name') }} as product_name,
+    {{ json_extract_string('event_properties', 'product_category') }} as product_category,
+    {{ cast_numeric(json_extract_string('event_properties', 'product_price')) }} as product_price,
+    {{ cast_integer(json_extract_string('event_properties', 'quantity')) }} as quantity,
+    {{ cast_numeric(json_extract_string('event_properties', 'cart_total')) }} as cart_total,
+    {{ cast_numeric(json_extract_string('event_properties', 'order_total')) }} as order_total,
+    {{ json_extract_string('event_properties', 'payment_method') }} as payment_method,
+    {{ json_extract_string('event_properties', 'page_url') }} as page_url
 
 from {{ ref('raw_product_events') }}

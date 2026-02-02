@@ -286,6 +286,64 @@ ${serializeData(filterRule, 'json')}`;
     }
 }
 
+/**
+ * Validate custom metric filters
+ */
+export function validateCustomMetricFilters(
+    explore: Explore,
+    customMetrics: CustomMetricBaseTransformed[] | null,
+) {
+    if (!customMetrics || customMetrics.length === 0) {
+        return;
+    }
+
+    const exploreFields = getFields(explore);
+    const errors: string[] = [];
+
+    customMetrics.forEach((metric) => {
+        if (!metric.filters || metric.filters.length === 0) {
+            return;
+        }
+
+        metric.filters.forEach((filter) => {
+            // Convert fieldRef (table.field) to fieldId (table_field)
+            const fieldId = filter.target.fieldRef.replace('.', '_');
+            const field = exploreFields.find((f) => getItemId(f) === fieldId);
+
+            if (!field) {
+                errors.push(
+                    `Custom metric "${metric.name}": filter field "${filter.target.fieldRef}" does not exist.`,
+                );
+                return;
+            }
+
+            const filterRule: FilterRule = {
+                id: filter.id,
+                target: { fieldId },
+                operator: filter.operator,
+                values: filter.values,
+                settings: filter.settings,
+            };
+
+            try {
+                validateFilterRule(filterRule, field);
+            } catch (e) {
+                errors.push(
+                    `Custom metric "${metric.name}": ${getErrorMessage(e)}`,
+                );
+            }
+        });
+    });
+
+    if (errors.length > 0) {
+        const errorMessage = `Invalid custom metric filters:\n\n${errors.join('\n\n')}`;
+        Logger.error(
+            `[AiAgent][Validate Custom Metric Filters] ${errorMessage}`,
+        );
+        throw new AiAgentValidatorError(errorMessage);
+    }
+}
+
 export function validateFilterRules(
     explore: Explore,
     filterRules: FilterRule[],

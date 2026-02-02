@@ -8,6 +8,8 @@ import {
     getErrorMessage,
     getItemLabel,
     getItemLabelWithoutTableName,
+    GoogleSheetsQuotaError,
+    GoogleSheetsScopeError,
     GoogleSheetsTransientError,
     isDimension,
     isField,
@@ -122,6 +124,13 @@ export class GoogleDriveClient {
                     `Google Drive internal error encountered. Please try again later.`,
                 );
             }
+
+            // Detect quota/rate limit errors - these should be retried, not permanently disabled
+            // like: Write requests per minute per user
+            if (err?.message && err.message.includes('Quota exceeded')) {
+                throw new GoogleSheetsQuotaError(getErrorMessage(err));
+            }
+
             throw new UnexpectedGoogleSheetsError(getErrorMessage(err));
         }
     }

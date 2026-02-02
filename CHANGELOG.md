@@ -1,3 +1,61 @@
+# [0.2409.0](https://github.com/lightdash/lightdash/compare/0.2408.0...0.2409.0) (2026-02-02)
+
+
+### Bug Fixes
+
+* check for parentPath existence in isLightdashContentFile ([#19909](https://github.com/lightdash/lightdash/issues/19909)) ([474b184](https://github.com/lightdash/lightdash/commit/474b18492415975971fc35d086237520e081947c))
+
+
+### Features
+
+* generate api ([#19906](https://github.com/lightdash/lightdash/issues/19906)) ([863e904](https://github.com/lightdash/lightdash/commit/863e9048da533c3064d9575e51cddd650f5b0861))
+
+# [0.2408.0](https://github.com/lightdash/lightdash/compare/0.2407.0...0.2408.0) (2026-02-02)
+
+
+### Features
+
+* add drivers examples into jaffle shop models ([#19841](https://github.com/lightdash/lightdash/issues/19841)) ([b070fd6](https://github.com/lightdash/lightdash/commit/b070fd6abfc219c3a9632d9264933e9060187eaf))
+* introduce drivers in models to define relationships in canvas ([#19840](https://github.com/lightdash/lightdash/issues/19840)) ([014719b](https://github.com/lightdash/lightdash/commit/014719b51afb2bbbfd4435c00b2c92c2b81cd731))
+
+# [0.2407.0](https://github.com/lightdash/lightdash/compare/0.2406.0...0.2407.0) (2026-02-02)
+
+
+### Bug Fixes
+
+* add LANG=en_US.UTF-8 to test commands for consistent locale ([#19900](https://github.com/lightdash/lightdash/issues/19900)) ([4614c54](https://github.com/lightdash/lightdash/commit/4614c5436f1a5379083657ed45ed03f547616a24))
+* invalidate tags, owner and metric-tree  queries after catalog indexing ([#19876](https://github.com/lightdash/lightdash/issues/19876)) ([f2fc4d1](https://github.com/lightdash/lightdash/commit/f2fc4d126f3ac232dbd44daf5b3d29af5b436610))
+* make charts schema a discriminator type instead of null ([#19899](https://github.com/lightdash/lightdash/issues/19899)) ([0b96744](https://github.com/lightdash/lightdash/commit/0b96744dd2770502088de15995002f419172ce36))
+* packages/sdk-next-test-app/package.json to reduce vulnerabilities ([#19867](https://github.com/lightdash/lightdash/issues/19867)) ([38b09e3](https://github.com/lightdash/lightdash/commit/38b09e3ffd225f43696a444c9b5cce3d85a8d15c))
+* remove conditional styling for node borders ([#19874](https://github.com/lightdash/lightdash/issues/19874)) ([fed874a](https://github.com/lightdash/lightdash/commit/fed874aa4946951d404ed7468cafd086f6b39d2c))
+* update catalog e2e test for new geo demo metric ([#19901](https://github.com/lightdash/lightdash/issues/19901)) ([c7b2995](https://github.com/lightdash/lightdash/commit/c7b2995506ec5c9db6edfcd243544386b7b11df0))
+
+
+### Features
+
+* add bubble size info to map legend ([#19879](https://github.com/lightdash/lightdash/issues/19879)) ([90dd907](https://github.com/lightdash/lightdash/commit/90dd9075e6e5fe997207ecb3762fe8fbfb6753c7))
+* add connectNulls option for line and area charts ([#19817](https://github.com/lightdash/lightdash/issues/19817)) ([89072f1](https://github.com/lightdash/lightdash/commit/89072f1c29cd03c7fa072aeae0d97777cb396e7e))
+* add directional arrows between connected metrics ([#19877](https://github.com/lightdash/lightdash/issues/19877)) ([7b736c3](https://github.com/lightdash/lightdash/commit/7b736c37318a8baa1f4343bb93b6f4c42012f46e))
+* add Google Sheets scope error handling with re-authentication UI ([#19882](https://github.com/lightdash/lightdash/issues/19882)) ([e37376f](https://github.com/lightdash/lightdash/commit/e37376f95edbc301db37d1e30bea27f8a7c326f8))
+* Add independent left/right Y-axis visibility controls ([#19861](https://github.com/lightdash/lightdash/issues/19861)) ([5651718](https://github.com/lightdash/lightdash/commit/565171808e2fd11ad7e68d018acf0bc910513388)), closes [#19851](https://github.com/lightdash/lightdash/issues/19851)
+* add remove button for invalid filters in scheduler form ([#19816](https://github.com/lightdash/lightdash/issues/19816)) ([1d975b3](https://github.com/lightdash/lightdash/commit/1d975b32052564b6e8b84f9520bb998c45eca542))
+* add unified /docker-dev command for local development ([#19890](https://github.com/lightdash/lightdash/issues/19890)) ([a563576](https://github.com/lightdash/lightdash/commit/a56357651bba17de58ac2cf4983550b4d4260940))
+* add validation for custom metric filters ([#19854](https://github.com/lightdash/lightdash/issues/19854)) ([65a1930](https://github.com/lightdash/lightdash/commit/65a1930281f04963395384ac6658d7b42bf999b0))
+* allow multiple pop metrics if different config ([#19878](https://github.com/lightdash/lightdash/issues/19878)) ([ab8c9f3](https://github.com/lightdash/lightdash/commit/ab8c9f3f4a17f6e44172625ad0c0b689de91f242))
+* allow setting no-data color in scatter maps ([#19895](https://github.com/lightdash/lightdash/issues/19895)) ([39337cd](https://github.com/lightdash/lightdash/commit/39337cd11b1a6697444d493a01461fe658f84416))
+* handle Google Sheets quota errors with automatic delayed retry ([#19889](https://github.com/lightdash/lightdash/issues/19889)) ([2fbd760](https://github.com/lightdash/lightdash/commit/2fbd7604d538e6d2e5251117cb77298dee00177b))
+* increase tree node spacing in metrics canvas ([#19896](https://github.com/lightdash/lightdash/issues/19896)) ([6c16b64](https://github.com/lightdash/lightdash/commit/6c16b64346c92cb1e4a9b049d1ea38e165b23b32))
+* introduce MCP App for ai charts ([#19747](https://github.com/lightdash/lightdash/issues/19747)) ([724838c](https://github.com/lightdash/lightdash/commit/724838ca2a85441b39ba76cae9acafe19ab8cee4))
+* support non-aggregate metrics with SQL aggregation functions ([#19837](https://github.com/lightdash/lightdash/issues/19837)) ([3ce326e](https://github.com/lightdash/lightdash/commit/3ce326e35e7085a9d189bc321d2452bfe64e187a))
+
+# [0.2406.0](https://github.com/lightdash/lightdash/compare/0.2405.0...0.2406.0) (2026-02-02)
+
+
+### Features
+
+* add Athena warehouse support ([#19752](https://github.com/lightdash/lightdash/issues/19752)) ([b7039a7](https://github.com/lightdash/lightdash/commit/b7039a773d6dd3ac0a7f49298201f4548259e3b8))
+* add dbt-athena adapter ([#19751](https://github.com/lightdash/lightdash/issues/19751)) ([6f41ce6](https://github.com/lightdash/lightdash/commit/6f41ce668bbb61597a8e2ea5de94379cae0d6b01))
+
 # [0.2405.0](https://github.com/lightdash/lightdash/compare/0.2404.0...0.2405.0) (2026-01-30)
 
 

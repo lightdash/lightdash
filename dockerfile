@@ -114,7 +114,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-databricks~=1.9.0" \
     "dbt-trino~=1.9.0" \
     "dbt-clickhouse~=1.9.0" \
-    && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \ 
+    "dbt-athena~=1.9.0" \
+    && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \
     && python3 -m venv /usr/local/dbt1.10 \
     && /usr/local/dbt1.10/bin/pip install \
     "dbt-core~=1.10.0" \
@@ -125,6 +126,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-databricks~=1.10.0" \
     "dbt-trino~=1.10.0" \
     "dbt-clickhouse~=1.9.0" \
+    "dbt-athena~=1.10.0" \
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10 \
     && python3 -m venv /usr/local/dbt1.11 \
     && /usr/local/dbt1.11/bin/pip install \
@@ -136,6 +138,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-databricks~=1.11.0" \
     "dbt-trino~=1.10.0" \
     "dbt-clickhouse~=1.9.0" \
+    "dbt-athena~=1.10.0" \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11
 
 # -----------------------------
@@ -217,6 +220,12 @@ COPY --from=build-warehouses /usr/app/packages/warehouses/ ./packages/warehouses
 COPY packages/backend/tsconfig.json ./packages/backend/
 COPY packages/backend/tsconfig.sentry.json ./packages/backend/
 COPY packages/backend/src/ ./packages/backend/src/
+
+# Build MCP chart app (standalone Vite project, not in pnpm workspace)
+RUN cd packages/backend/src/ee/services/McpService/mcp-chart-app \
+    && npm install --ignore-scripts \
+    && npm run build \
+    && rm -rf node_modules
 
 ARG SENTRY_AUTH_TOKEN=""
 ARG SENTRY_ORG=""

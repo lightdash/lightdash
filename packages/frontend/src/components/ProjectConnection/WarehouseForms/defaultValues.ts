@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 
 import type {
+    CreateAthenaCredentials,
     CreateBigqueryCredentials,
     CreateClickhouseCredentials,
     CreateDatabricksCredentials,
@@ -142,6 +143,19 @@ export const ClickhouseDefaultValues: CreateClickhouseCredentials = {
     timeoutSeconds: 300,
 };
 
+export const AthenaDefaultValues: CreateAthenaCredentials = {
+    type: WarehouseTypes.ATHENA,
+    region: '',
+    database: 'AwsDataCatalog',
+    schema: '',
+    s3StagingDir: '',
+    accessKeyId: '',
+    secretAccessKey: '',
+    threads: 1,
+    numRetries: 5,
+    startOfWeek: undefined,
+};
+
 export const warehouseDefaultValues = {
     [WarehouseTypes.BIGQUERY]: BigQueryDefaultValues,
     [WarehouseTypes.POSTGRES]: PostgresDefaultValues,
@@ -150,4 +164,5 @@ export const warehouseDefaultValues = {
     [WarehouseTypes.DATABRICKS]: DatabricksDefaultValues,
     [WarehouseTypes.TRINO]: TrinoDefaultValues,
     [WarehouseTypes.CLICKHOUSE]: ClickhouseDefaultValues,
+    [WarehouseTypes.ATHENA]: AthenaDefaultValues,
 };

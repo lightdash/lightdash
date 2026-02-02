@@ -41,7 +41,8 @@ seeds:
         numberrange14: integer
         numberrange15: integer
         primary_key: integer
-        time: time
+        # Athena's Hive metastore doesn't support TIME type
+        time: "{{ 'varchar' if target.type == 'athena' else 'time' }}"
   - name: raw_subscriptions
     config:
       column_types:
@@ -57,4 +58,64 @@ seeds:
         event_id: integer
         user_id: integer
         event_timestamp: timestamp
-        event_properties: "{{ 'variant' if target.type == 'snowflake' else 'jsonb' }}"
+        event_properties: "{{ 'variant' if target.type == 'snowflake' else ('varchar' if target.type in ['athena', 'trino'] else 'jsonb') }}"
+  - name: raw_plan
+    config:
+      column_types:
+        metadata: "{{ 'variant' if target.type == 'snowflake' else ('varchar' if target.type in ['athena', 'trino'] else 'jsonb') }}"
+  - name: raw_orders
+    config:
+      column_types:
+        shipping_cost: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        tax_rate: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+  - name: raw_health_visits
+    config:
+      column_types:
+        visit_cost: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+  - name: raw_parts
+    config:
+      column_types:
+        unit_cost: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        retail_price: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        markup_percent: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        average_monthly_usage: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        weight_lbs: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        import_duty_percent: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        total_value_in_stock: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        inventory_turnover_ratio: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        carrying_cost_annual: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        storage_cost_monthly: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        insurance_value: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        shrinkage_rate_percent: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        damage_rate_percent: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        failure_rate_percent: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        return_rate_percent: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        customer_rating: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        supplier_rating: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        supplier_lead_time_reliability: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+  - name: raw_technicians
+    config:
+      column_types:
+        base_salary: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        hourly_rate: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        overtime_rate: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        current_location_lat: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        current_location_lon: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        average_rating: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        average_resolution_time_hours: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        first_time_fix_rate: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        customer_satisfaction_score: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        utilization_rate: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        billable_hours_ytd: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        non_billable_hours_ytd: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        overtime_hours_ytd: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+  - name: raw_work_orders
+    config:
+      column_types:
+        labor_hours: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        labor_cost: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        materials_cost: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        total_cost: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        resolution_time_hours: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        sla_resolution_target_hours: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"
+        discount_percent: "{{ 'double' if target.type in ['athena', 'trino'] else 'numeric' }}"

@@ -1007,16 +1007,11 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                             scatterColorScale &&
                             scatterData.map((point, idx) => {
                                 const radius = sizeScale(point.sizeValue);
-                                // Use interpolated color for numeric values, middle of scale for non-numeric
+                                // Use interpolated color for numeric values, noDataColor for non-numeric
                                 const color =
                                     point.value !== null
                                         ? scatterColorScale(point.value)
-                                        : mapConfig.colors.scale[
-                                              Math.floor(
-                                                  mapConfig.colors.scale
-                                                      .length / 2,
-                                              )
-                                          ];
+                                        : mapConfig.noDataColor;
 
                                 return (
                                     <MapMarker
@@ -1031,15 +1026,45 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                             })
                         )}
                     </MapContainer>
-                    {mapConfig.showLegend && mapConfig.valueRange && (
-                        <MapLegend
-                            colors={mapConfig.colors.scale}
-                            formattedMin={mapConfig.valueRange.formattedMin}
-                            formattedMax={mapConfig.valueRange.formattedMax}
-                            label={mapConfig.valueFieldLabel ?? undefined}
-                            opacity={fillOpacityWithData}
-                        />
-                    )}
+                    {mapConfig.showLegend &&
+                        (mapConfig.valueRange || mapConfig.sizeRange) && (
+                            <MapLegend
+                                color={
+                                    mapConfig.valueRange
+                                        ? {
+                                              colors: mapConfig.colors.scale,
+                                              formattedMin:
+                                                  mapConfig.valueRange
+                                                      .formattedMin,
+                                              formattedMax:
+                                                  mapConfig.valueRange
+                                                      .formattedMax,
+                                              label:
+                                                  mapConfig.valueFieldLabel ??
+                                                  undefined,
+                                              opacity: fillOpacityWithData,
+                                          }
+                                        : undefined
+                                }
+                                bubbleSize={
+                                    mapConfig.sizeRange
+                                        ? {
+                                              minSize: mapConfig.minBubbleSize,
+                                              maxSize: mapConfig.maxBubbleSize,
+                                              formattedMin:
+                                                  mapConfig.sizeRange
+                                                      .formattedMin,
+                                              formattedMax:
+                                                  mapConfig.sizeRange
+                                                      .formattedMax,
+                                              label:
+                                                  mapConfig.sizeFieldLabel ??
+                                                  undefined,
+                                          }
+                                        : undefined
+                                }
+                            />
+                        )}
                 </div>
             );
         }
@@ -1102,11 +1127,13 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                     </MapContainer>
                     {mapConfig.showLegend && mapConfig.valueRange && (
                         <MapLegend
-                            colors={mapConfig.colors.scale}
-                            formattedMin={mapConfig.valueRange.formattedMin}
-                            formattedMax={mapConfig.valueRange.formattedMax}
-                            label={mapConfig.valueFieldLabel ?? undefined}
-                            opacity={fillOpacityWithData}
+                            color={{
+                                colors: mapConfig.colors.scale,
+                                formattedMin: mapConfig.valueRange.formattedMin,
+                                formattedMax: mapConfig.valueRange.formattedMax,
+                                label: mapConfig.valueFieldLabel ?? undefined,
+                                opacity: fillOpacityWithData,
+                            }}
                         />
                     )}
                 </div>

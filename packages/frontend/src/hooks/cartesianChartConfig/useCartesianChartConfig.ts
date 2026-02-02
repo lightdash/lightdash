@@ -408,10 +408,29 @@ const useCartesianChartConfig = ({
             showYAxis: hide,
         }));
     }, []);
+    const setShowLeftYAxis = useCallback((show: boolean) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            showLeftYAxis: show,
+        }));
+    }, []);
+    const setShowRightYAxis = useCallback((show: boolean) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            showRightYAxis: show,
+        }));
+    }, []);
     const setShowAxisTicks = useCallback((show: boolean) => {
         setDirtyEchartsConfig((prev) => ({
             ...prev,
             showAxisTicks: show,
+        }));
+    }, []);
+
+    const setConnectNulls = useCallback((connect: boolean) => {
+        setDirtyLayout((prev) => ({
+            ...prev,
+            connectNulls: connect,
         }));
     }, []);
 
@@ -1162,7 +1181,10 @@ const useCartesianChartConfig = ({
         setShowGridY,
         setShowXAxis,
         setShowYAxis,
+        setShowLeftYAxis,
+        setShowRightYAxis,
         setShowAxisTicks,
+        setConnectNulls,
         setAxisLabelFontSize,
         setAxisTitleFontSize,
         setXAxisSort,

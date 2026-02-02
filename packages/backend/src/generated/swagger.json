@@ -3743,6 +3743,12 @@
                     "showYAxis": {
                         "type": "boolean"
                     },
+                    "showLeftYAxis": {
+                        "type": "boolean"
+                    },
+                    "showRightYAxis": {
+                        "type": "boolean"
+                    },
                     "stack": {
                         "anyOf": [
                             {
@@ -3752,6 +3758,9 @@
                                 "type": "boolean"
                             }
                         ]
+                    },
+                    "connectNulls": {
+                        "type": "boolean"
                     }
                 },
                 "type": "object",
@@ -5718,6 +5727,12 @@
                         "required": ["visibility"],
                         "type": "object"
                     },
+                    "drivers": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "aiHint": {
                         "anyOf": [
                             {
@@ -5920,7 +5935,8 @@
                     "redshift",
                     "postgres",
                     "trino",
-                    "clickhouse"
+                    "clickhouse",
+                    "athena"
                 ],
                 "type": "string"
             },
@@ -8192,6 +8208,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -8207,12 +8236,12 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -8220,10 +8249,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -8232,8 +8261,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -8243,16 +8272,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -8327,12 +8356,12 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "chartUsage": {
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "searchRank": {
+                                                                                    "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -8340,10 +8369,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -8352,8 +8381,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "tableName",
                                                                                     "label",
+                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -9648,7 +9677,8 @@
                     "snowflake",
                     "databricks",
                     "trino",
-                    "clickhouse"
+                    "clickhouse",
+                    "athena"
                 ],
                 "type": "string"
             },
@@ -10155,6 +10185,70 @@
             "ClickhouseCredentials": {
                 "$ref": "#/components/schemas/Omit_CreateClickhouseCredentials.SensitiveCredentialsFieldNames_"
             },
+            "WarehouseTypes.ATHENA": {
+                "enum": ["athena"],
+                "type": "string"
+            },
+            "Pick_CreateAthenaCredentials.Exclude_keyofCreateAthenaCredentials.SensitiveCredentialsFieldNames__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.ATHENA"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "s3StagingDir": {
+                        "type": "string"
+                    },
+                    "s3DataDir": {
+                        "type": "string"
+                    },
+                    "workGroup": {
+                        "type": "string"
+                    },
+                    "numRetries": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "type",
+                    "database",
+                    "schema",
+                    "region",
+                    "s3StagingDir"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateAthenaCredentials.SensitiveCredentialsFieldNames_": {
+                "$ref": "#/components/schemas/Pick_CreateAthenaCredentials.Exclude_keyofCreateAthenaCredentials.SensitiveCredentialsFieldNames__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "AthenaCredentials": {
+                "$ref": "#/components/schemas/Omit_CreateAthenaCredentials.SensitiveCredentialsFieldNames_"
+            },
             "WarehouseCredentials": {
                 "anyOf": [
                     {
@@ -10177,6 +10271,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/ClickhouseCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AthenaCredentials"
                     }
                 ]
             },
@@ -10814,6 +10911,66 @@
                 ],
                 "type": "object"
             },
+            "CreateAthenaCredentials": {
+                "properties": {
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "numRetries": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "workGroup": {
+                        "type": "string"
+                    },
+                    "secretAccessKey": {
+                        "type": "string"
+                    },
+                    "accessKeyId": {
+                        "type": "string"
+                    },
+                    "s3DataDir": {
+                        "type": "string"
+                    },
+                    "s3StagingDir": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string"
+                    },
+                    "region": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.ATHENA"
+                    }
+                },
+                "required": [
+                    "secretAccessKey",
+                    "accessKeyId",
+                    "s3StagingDir",
+                    "schema",
+                    "database",
+                    "region",
+                    "type"
+                ],
+                "type": "object"
+            },
             "CreateWarehouseCredentials": {
                 "anyOf": [
                     {
@@ -10836,6 +10993,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/CreateClickhouseCredentials"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateAthenaCredentials"
                     }
                 ]
             },
@@ -11873,6 +12033,16 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "Pick_CreateAthenaCredentials.type_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.ATHENA"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "UserWarehouseCredentials": {
                 "properties": {
                     "credentials": {
@@ -11885,6 +12055,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateDatabricksCredentials.type_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateAthenaCredentials.type_"
                             }
                         ]
                     },
@@ -12052,6 +12225,22 @@
                 "type": "object",
                 "description": "Make all properties in T optional"
             },
+            "Pick_CreateAthenaCredentials.type-or-accessKeyId-or-secretAccessKey_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.ATHENA"
+                    },
+                    "accessKeyId": {
+                        "type": "string"
+                    },
+                    "secretAccessKey": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "accessKeyId", "secretAccessKey"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
             "UpsertUserWarehouseCredentials": {
                 "properties": {
                     "credentials": {
@@ -12083,6 +12272,9 @@
                                         "$ref": "#/components/schemas/Partial_Pick_CreateDatabricksCredentials.database-or-serverHostName-or-httpPath__"
                                     }
                                 ]
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateAthenaCredentials.type-or-accessKeyId-or-secretAccessKey_"
                             }
                         ]
                     },
@@ -14328,6 +14520,9 @@
                     "isPrivate": {
                         "type": "boolean"
                     },
+                    "inheritParentPermissions": {
+                        "type": "boolean"
+                    },
                     "pinnedListUuid": {
                         "type": "string",
                         "nullable": true
@@ -14363,6 +14558,7 @@
                     "uuid",
                     "access",
                     "isPrivate",
+                    "inheritParentPermissions",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
@@ -14397,6 +14593,9 @@
                     },
                     "path": {
                         "type": "string"
+                    },
+                    "inheritParentPermissions": {
+                        "type": "boolean"
                     },
                     "parentSpaceUuid": {
                         "type": "string",
@@ -14462,6 +14661,7 @@
                 },
                 "required": [
                     "path",
+                    "inheritParentPermissions",
                     "parentSpaceUuid",
                     "childSpaces",
                     "slug",
@@ -17140,7 +17340,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_": {
+            "Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -17155,6 +17355,9 @@
                         "type": "string"
                     },
                     "isPrivate": {
+                        "type": "boolean"
+                    },
+                    "inheritParentPermissions": {
                         "type": "boolean"
                     },
                     "pinnedListUuid": {
@@ -17183,6 +17386,7 @@
                     "organizationUuid",
                     "uuid",
                     "isPrivate",
+                    "inheritParentPermissions",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
@@ -17195,7 +17399,7 @@
             "SpaceSummary": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_"
+                        "$ref": "#/components/schemas/Pick_Space.organizationUuid-or-projectUuid-or-uuid-or-name-or-isPrivate-or-inheritParentPermissions-or-pinnedListUuid-or-pinnedListOrder-or-slug-or-parentSpaceUuid-or-path_"
                     },
                     {
                         "properties": {
@@ -18451,22 +18655,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__chartName-string--title-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -24251,6 +24455,9 @@
                     "isPrivate": {
                         "type": "boolean"
                     },
+                    "inheritParentPermissions": {
+                        "type": "boolean"
+                    },
                     "access": {
                         "items": {
                             "type": "string"
@@ -24290,6 +24497,7 @@
                     "views",
                     "firstViewedAt",
                     "isPrivate",
+                    "inheritParentPermissions",
                     "access",
                     "dashboardCount",
                     "chartCount",
@@ -24465,7 +24673,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2403.0",
+        "version": "0.2407.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -43,7 +43,7 @@
           dbtVersions = {
             dbt1_4 = {
               dbtCoreVersion = "1.4.9";
-              dbtAliasName = "dbt";
+              dbtAliasName = "dbt1.4";
               adapterVersions = {
                 postgres = "1.4.9";
                 redshift = "1.4.1";
@@ -117,6 +117,35 @@
                 databricks = "1.9.0";
                 trino = "1.9.0";
                 clickhouse = "1.9.0";
+                athena = "1.9.0";
+              };
+            };
+            dbt1_10 = {
+              dbtCoreVersion = "1.10.0";
+              dbtAliasName = "dbt1.10";
+              adapterVersions = {
+                postgres = "1.10.0";
+                redshift = "1.10.0";
+                snowflake = "1.10.0";
+                bigquery = "1.10.0";
+                databricks = "1.10.0";
+                trino = "1.10.0";
+                clickhouse = "1.9.0";
+                athena = "1.10.0";
+              };
+            };
+            dbt1_11 = {
+              dbtCoreVersion = "1.11.0";
+              dbtAliasName = "dbt1.11";
+              adapterVersions = {
+                postgres = "1.10.0";
+                redshift = "1.10.0";
+                snowflake = "1.11.0";
+                bigquery = "1.11.0";
+                databricks = "1.11.0";
+                trino = "1.10.0";
+                clickhouse = "1.9.0";
+                athena = "1.10.0";
               };
             };
           };
@@ -165,6 +194,7 @@
                   "dbt-databricks~=${adapterVersions.databricks}" \
                   "dbt-trino~=${adapterVersions.trino}" \
                   "dbt-clickhouse~=${adapterVersions.clickhouse}" \
+                  ${pkgs.lib.optionalString (adapterVersions ? athena) "\"dbt-athena~=${adapterVersions.athena}\""} \
                   "pytz" \
                   "psycopg2-binary==2.9.10" \
                   --disable-pip-version-check --no-warn-script-location || { echo "Failed to install adapters"; exit 1; }
@@ -253,6 +283,9 @@
 
               # This single variable now expands to all the setup scripts
               ${dbtSetupScripts}
+
+              # Create 'dbt' alias pointing to dbt1.9 (default version)
+              ln -sf "dbt1.9" "${dbtAliasesDir}/dbt"
 
               # Add the alias directory to the PATH to make dbt commands directly available
               export PATH="$PWD/${dbtAliasesDir}:$PATH"

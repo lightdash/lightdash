@@ -67,7 +67,7 @@
         "forceConsistentCasingInFileNames": true /* Disallow inconsistently-cased references to the same file. */
     },
     "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.json"],
-    "exclude": ["dist", "node_modules"],
+    "exclude": ["dist", "node_modules", "src/ee/services/McpService/mcp-chart-app"],
     "references": [
         {
             "path": "../common"

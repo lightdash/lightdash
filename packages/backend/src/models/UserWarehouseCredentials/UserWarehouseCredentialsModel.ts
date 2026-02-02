@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     NotFoundError,
     SnowflakeAuthenticationType,
     snowflakeSsoUserCredentialsSchema,
@@ -71,10 +72,18 @@ export class UserWarehouseCredentialsModel {
                         user: credentialsWithSecrets.user,
                     };
                     break;
-                default:
+                case WarehouseTypes.BIGQUERY:
+                case WarehouseTypes.DATABRICKS:
+                case WarehouseTypes.ATHENA:
                     credentials = {
                         type: credentialsWithSecrets.type,
                     };
+                    break;
+                default:
+                    return assertUnreachable(
+                        credentialsWithSecrets,
+                        'Unknown warehouse type',
+                    );
             }
         } catch (e) {
             throw new UnexpectedServerError(

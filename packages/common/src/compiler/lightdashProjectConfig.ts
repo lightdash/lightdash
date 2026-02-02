@@ -13,11 +13,12 @@ type SpotlightConfigArgs = {
 
 const validateOwner = (owner: unknown): string | null => {
     if (typeof owner === 'string') return owner;
-    if (owner === undefined)
+    if (owner !== undefined) {
         // eslint-disable-next-line no-console
         console.warn(
             `Invalid spotlight owner: expected string, got ${typeof owner}`,
         );
+    }
     return null;
 };
 
