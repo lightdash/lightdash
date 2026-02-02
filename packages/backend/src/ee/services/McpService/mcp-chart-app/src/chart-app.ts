@@ -100,9 +100,11 @@ function itemTooltipFormatter(
     const value = formatValue(
         Array.isArray(p.value)
             ? p.value[1]
-            : (p.value as Record<string, unknown>)?.[
-                  Object.keys(p.value as object)[1] ?? ''
-              ] ?? p.value,
+            : typeof p.value === 'object' && p.value !== null
+                ? (p.value as Record<string, unknown>)[
+                      Object.keys(p.value)[1] ?? ''
+                  ] ?? p.value
+                : p.value,
     );
     const percent = (p as { percent?: number }).percent;
     const display =
