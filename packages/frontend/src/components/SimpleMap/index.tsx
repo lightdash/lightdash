@@ -1007,16 +1007,11 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                             scatterColorScale &&
                             scatterData.map((point, idx) => {
                                 const radius = sizeScale(point.sizeValue);
-                                // Use interpolated color for numeric values, middle of scale for non-numeric
+                                // Use interpolated color for numeric values, noDataColor for non-numeric
                                 const color =
                                     point.value !== null
                                         ? scatterColorScale(point.value)
-                                        : mapConfig.colors.scale[
-                                              Math.floor(
-                                                  mapConfig.colors.scale
-                                                      .length / 2,
-                                              )
-                                          ];
+                                        : mapConfig.noDataColor;
 
                                 return (
                                     <MapMarker

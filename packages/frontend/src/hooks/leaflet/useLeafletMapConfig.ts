@@ -278,7 +278,12 @@ const useLeafletMapConfig = ({
                             ? row[valueFieldId]?.value.raw
                             : 1;
                         const numericValue = Number(rawValue);
-                        const isNumeric = !isNaN(numericValue);
+                        // Check for null/undefined/empty explicitly since Number(null) = 0, Number('') = 0
+                        const isNumeric =
+                            rawValue !== null &&
+                            rawValue !== undefined &&
+                            rawValue !== '' &&
+                            !isNaN(numericValue);
                         const value = isNumeric ? numericValue : null;
                         const displayValue = valueFieldId
                             ? (row[valueFieldId]?.value.formatted ??
