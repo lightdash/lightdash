@@ -400,7 +400,7 @@ export class SchedulerClient {
             payload,
             date,
             JobPriority.LOW,
-            3,
+            6, // Max attempts, 6 retries with natural backoff means it can be retried during the next ~10mins, useful when triggering max quota errors
         );
 
         this.analytics.track({
