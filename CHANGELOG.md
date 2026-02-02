@@ -1,3 +1,11 @@
+# [0.2406.0](https://github.com/lightdash/lightdash/compare/0.2405.0...0.2406.0) (2026-02-02)
+
+
+### Features
+
+* add Athena warehouse support ([#19752](https://github.com/lightdash/lightdash/issues/19752)) ([b7039a7](https://github.com/lightdash/lightdash/commit/b7039a773d6dd3ac0a7f49298201f4548259e3b8))
+* add dbt-athena adapter ([#19751](https://github.com/lightdash/lightdash/issues/19751)) ([6f41ce6](https://github.com/lightdash/lightdash/commit/6f41ce668bbb61597a8e2ea5de94379cae0d6b01))
+
 # [0.2405.0](https://github.com/lightdash/lightdash/compare/0.2404.0...0.2405.0) (2026-01-30)
 
 
