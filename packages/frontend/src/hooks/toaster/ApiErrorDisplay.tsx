@@ -1,6 +1,7 @@
 import type { ApiErrorDetail } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     CopyButton,
     Group,
     Modal,
@@ -12,6 +13,24 @@ import {
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SnowflakeFormInput } from '../../components/UserSettings/MyWarehouseConnectionsPanel/WarehouseFormInputs';
+import { useGoogleLoginPopup } from '../gdrive/useGdrive';
+
+const GoogleSheetsReauthMessage = ({ message }: { message: string }) => {
+    const { mutate: openLoginPopup } = useGoogleLoginPopup('gdrive');
+
+    return (
+        <Text mb={0}>
+            {message}{' '}
+            <Anchor
+                component="button"
+                type="button"
+                onClick={() => openLoginPopup()}
+            >
+                Re-authenticate with Google
+            </Anchor>
+        </Text>
+    );
+};
 
 const ApiErrorDisplay = ({
     apiError,
@@ -24,6 +43,8 @@ const ApiErrorDisplay = ({
     const isDark = theme.colorScheme === 'dark';
 
     switch (apiError.name) {
+        case 'GoogleSheetsScopeError':
+            return <GoogleSheetsReauthMessage message={apiError.message} />;
         case 'SnowflakeTokenError':
             return (
                 <>

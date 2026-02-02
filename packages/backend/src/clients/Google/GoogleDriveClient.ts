@@ -8,6 +8,7 @@ import {
     getErrorMessage,
     getItemLabel,
     getItemLabelWithoutTableName,
+    GoogleSheetsScopeError,
     GoogleSheetsTransientError,
     isDimension,
     isField,
