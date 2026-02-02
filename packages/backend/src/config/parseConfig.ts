@@ -816,6 +816,7 @@ export type LightdashConfig = {
         connectionUri: string | undefined;
         maxConnections: number | undefined;
         minConnections: number | undefined;
+        sslmode: string | undefined;
     };
     allowMultiOrgs: boolean;
     maxPayloadSize: string;
@@ -1388,6 +1389,7 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable('PGMAXCONNECTIONS'),
             minConnections:
                 getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
+            sslmode: process.env.PGSSLMODE,
         },
         auth: {
             pat: {
