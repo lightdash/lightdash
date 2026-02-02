@@ -961,7 +961,7 @@ const applyReadableColorsToMarkLine = (
 type GetSimpleSeriesArg = {
     series: Series;
     itemsMap: ItemsMap;
-    cartesianChart: CartesianChart;
+    connectNulls: boolean | undefined;
     flipAxes: boolean | undefined;
     yFieldHash: string;
     xFieldHash: string;
@@ -973,7 +973,7 @@ type GetSimpleSeriesArg = {
 
 const getSimpleSeries = ({
     series,
-    cartesianChart,
+    connectNulls = true,
     flipAxes,
     yFieldHash,
     xFieldHash,
@@ -992,10 +992,7 @@ const getSimpleSeries = ({
     ...(series.type === CartesianSeriesType.LINE ||
     series.type === CartesianSeriesType.AREA
         ? {
-              connectNulls:
-                  cartesianChart.layout.connectNulls !== undefined
-                      ? cartesianChart.layout.connectNulls
-                      : true,
+              connectNulls,
           }
         : {}),
     encode: {
@@ -1157,7 +1154,7 @@ const getEchartsSeriesFromPivotedData = (
             return getSimpleSeries({
                 series,
                 itemsMap,
-                cartesianChart,
+                connectNulls: cartesianChart.layout.connectNulls,
                 flipAxes,
                 yFieldHash,
                 xFieldHash,
@@ -1203,7 +1200,7 @@ const getEchartsSeries = (
             return getSimpleSeries({
                 series,
                 itemsMap,
-                cartesianChart,
+                connectNulls: cartesianChart.layout.connectNulls,
                 flipAxes,
                 yFieldHash,
                 xFieldHash,
@@ -2099,7 +2096,7 @@ const getStackTotalSeries = (
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
     isStack100: boolean,
-    cartesianChart: CartesianChart,
+    connectNulls: boolean | undefined = true,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
@@ -2112,10 +2109,7 @@ const getStackTotalSeries = (
                 ...(series[0].type === CartesianSeriesType.LINE ||
                 series[0].type === CartesianSeriesType.AREA
                     ? {
-                          connectNulls:
-                              cartesianChart.layout.connectNulls !== undefined
-                                  ? cartesianChart.layout.connectNulls
-                                  : true,
+                          connectNulls,
                       }
                     : {}),
                 stack: stack,
@@ -2404,17 +2398,19 @@ const useEchartsCartesianConfig = (
                 validCartesianConfig?.layout.flipAxes,
                 validCartesianConfigLegend,
                 isStack100,
-                validCartesianConfig!,
+                validCartesianConfig?.layout.connectNulls,
             ),
         ];
     }, [
         itemsMap,
-        validCartesianConfig,
+        validCartesianConfig?.layout.flipAxes,
+        validCartesianConfig?.layout?.stack,
+        validCartesianConfig?.layout.connectNulls,
         series,
         rows,
         validCartesianConfigLegend,
         getSeriesColor,
-        theme.colors,
+        theme.colors.background,
     ]);
     const sortedResults = useMemo(() => {
         const results =
