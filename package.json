@@ -8,18 +8,12 @@
         "packages/*",
         "packages/frontend/sdk"
     ],
-    "resolutions": {
-        "react-is": "19.2.0",
-        "@types/react": "19.2.2",
-        "@types/react-dom": "19.2.2",
-        "typescript": "5.5.4"
-    },
-    "overrides": {
-        "@mantine/core@8.0.0>@mantine/hooks": "$@mantine-8/hooks",
-        "echarts-for-react@3.0.1": "$echarts-6"
-    },
     "pnpm": {
         "overrides": {
+            "react-is": "19.2.0",
+            "@types/react": "19.2.2",
+            "@types/react-dom": "19.2.2",
+            "typescript": "5.5.4",
             "linkifyjs": "^4.3.2",
             "axios": "^1.12.0",
             "form-data@2.5.3": "2.5.5",
