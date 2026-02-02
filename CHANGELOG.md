@@ -1,3 +1,11 @@
+# [0.2408.0](https://github.com/lightdash/lightdash/compare/0.2407.0...0.2408.0) (2026-02-02)
+
+
+### Features
+
+* add drivers examples into jaffle shop models ([#19841](https://github.com/lightdash/lightdash/issues/19841)) ([b070fd6](https://github.com/lightdash/lightdash/commit/b070fd6abfc219c3a9632d9264933e9060187eaf))
+* introduce drivers in models to define relationships in canvas ([#19840](https://github.com/lightdash/lightdash/issues/19840)) ([014719b](https://github.com/lightdash/lightdash/commit/014719b51afb2bbbfd4435c00b2c92c2b81cd731))
+
 # [0.2407.0](https://github.com/lightdash/lightdash/compare/0.2406.0...0.2407.0) (2026-02-02)
 
 
