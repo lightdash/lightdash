@@ -22,14 +22,12 @@ const CollapsedNode: React.FC<NodeProps<CollapsedNodeData>> = ({
             miw={150}
             fz="xs"
             p="xs"
-            bg="white"
             sx={(theme) => ({
-                '&[data-with-border]': {
-                    borderRadius: theme.radius.md,
-                    border: `1px dashed ${
-                        selected ? theme.colors.blue[5] : theme.colors.ldGray[3]
-                    }`,
-                },
+                backgroundColor: theme.colors.background[0],
+                borderRadius: theme.radius.md,
+                border: `1px dashed ${
+                    selected ? theme.colors.blue[5] : theme.colors.ldGray[3]
+                }`,
             })}
         >
             <Group position="apart">
@@ -51,7 +49,7 @@ const CollapsedNode: React.FC<NodeProps<CollapsedNodeData>> = ({
                     <MantineIcon
                         icon={IconInfoCircle}
                         size={12}
-                        color="ldDark.3"
+                        color="ldGray.7"
                     />
                 </Tooltip>
             </Group>
