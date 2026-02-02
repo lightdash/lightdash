@@ -63,7 +63,11 @@ import {
     getFullTextSearchRankCalcSql,
     getWebSearchRankCalcSql,
 } from '../SearchModel/utils/search';
-import { MetricTreeEdge, convertExploresToCatalog } from './utils';
+import {
+    MetricTreeEdge,
+    buildYamlMetricTreeEdges,
+    convertExploresToCatalog,
+} from './utils';
 import { parseCatalog } from './utils/parser';
 
 export enum CatalogSearchContext {
@@ -290,60 +294,19 @@ export class CatalogModel {
             .where({ project_uuid: projectUuid, source: 'yaml' })
             .delete();
 
-        const metricUuidMap = new Map<string, string>();
-        catalogRows
-            .filter((r) => r.field_type === FieldType.METRIC)
-            .forEach((r) => {
-                metricUuidMap.set(
-                    `${r.table_name}.${r.name}`,
-                    r.catalog_search_uuid,
-                );
-            });
+        const { edges: uniqueEdges, invalidEdges } = buildYamlMetricTreeEdges({
+            yamlEdges,
+            catalogRows,
+            projectUuid,
+            userUuid,
+        });
 
-        const validYamlEdges = yamlEdges
-            .filter(
-                (edge) =>
-                    // No self-references (same metric on same table)
-                    !(
-                        edge.sourceMetricName === edge.targetMetricName &&
-                        edge.sourceTableName === edge.targetTableName
-                    ),
-            )
-            .map((edge) => {
-                const sourceUuid = metricUuidMap.get(
-                    `${edge.sourceTableName}.${edge.sourceMetricName}`,
-                );
-                const targetUuid = metricUuidMap.get(
-                    `${edge.targetTableName}.${edge.targetMetricName}`,
-                );
-                if (!sourceUuid || !targetUuid) {
-                    Logger.warn(
-                        `Invalid YAML metric relationship: ${
-                            edge.sourceTableName
-                        }.${edge.sourceMetricName} -> ${edge.targetTableName}.${
-                            edge.targetMetricName
-                        } (source found: ${!!sourceUuid}, target found: ${!!targetUuid})`,
-                    );
-                    return null;
-                }
-                return {
-                    source_metric_catalog_search_uuid: sourceUuid,
-                    target_metric_catalog_search_uuid: targetUuid,
-                    project_uuid: projectUuid,
-                    created_by_user_uuid: userUuid ?? null,
-                    source: 'yaml' as const,
-                };
-            })
-            .filter((edge): edge is NonNullable<typeof edge> => edge !== null);
+        invalidEdges.forEach(({ edge, reason }) => {
+            Logger.warn(
+                `Invalid YAML metric relationship: ${edge.sourceTableName}.${edge.sourceMetricName} -> ${edge.targetTableName}.${edge.targetMetricName} (reason: ${reason})`,
+            );
+        });
 
-        const uniqueEdges = Array.from(
-            new Map(
-                validYamlEdges.map((edge) => [
-                    `${edge.source_metric_catalog_search_uuid}-${edge.target_metric_catalog_search_uuid}`,
-                    edge,
-                ]),
-            ).values(),
-        );
         if (uniqueEdges.length > 0) {
             // YAML is source of truth so if edge exists from UI, convert it to YAML-managed
             // This way, removing from YAML will delete the edge on next sync
