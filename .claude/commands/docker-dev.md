@@ -4,6 +4,7 @@ Start the Lightdash development environment. Automatically detects current state
 
 - **No arguments**: Auto-detect state and run what's needed (fresh setup, migrations, or just start)
 - **`reset`**: Force reset database and rebuild dbt models
+- **`stop`**: Stop Docker services (preserves data volumes)
 
 ## State Detection
 
@@ -165,6 +166,23 @@ PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=post
   dbt run --profiles-dir ../profiles
 cd ../../..
 ```
+
+## Stop Steps (When `stop` Argument Provided)
+
+If the user passes `stop` as an argument, stop Docker services and exit:
+
+```bash
+docker compose -f docker/docker-compose.dev.mini.yml down
+```
+
+This stops and removes the containers but **preserves the data volumes** (database data, MinIO files).
+
+To verify services are stopped:
+```bash
+docker compose -f docker/docker-compose.dev.mini.yml ps
+```
+
+**Note**: When `stop` is passed, do not proceed to "Start Development Server" - just stop the services and report the status.
 
 ## Start Development Server
 
