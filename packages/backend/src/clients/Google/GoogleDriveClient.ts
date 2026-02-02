@@ -9,6 +9,7 @@ import {
     getItemLabel,
     getItemLabelWithoutTableName,
     GoogleSheetsQuotaError,
+    GoogleSheetsScopeError,
     GoogleSheetsTransientError,
     isDimension,
     isField,

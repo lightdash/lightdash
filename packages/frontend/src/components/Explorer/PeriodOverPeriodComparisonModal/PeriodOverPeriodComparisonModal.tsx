@@ -1,9 +1,9 @@
 import {
     buildPopAdditionalMetric,
-    buildPopAdditionalMetricName,
     getGranularityRank,
     getItemId,
     getPopPeriodLabel,
+    hasPeriodOverPeriodAdditionalMetricWithConfig,
     isDimension,
     isSupportedPeriodOverPeriodGranularity,
     timeFrameConfigs,
@@ -29,6 +29,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import Callout from '../../common/Callout';
 import MantineModal from '../../common/MantineModal';
 
 const PeriodOverPeriodComparisonModalContent: FC<{
@@ -135,18 +136,23 @@ const PeriodOverPeriodComparisonModalContent: FC<{
         return getItemId(selectedDimensionObj);
     }, [selectedDimensionObj]);
 
-    const popMetricIdForSelection = useMemo(() => {
-        if (!timeDimensionId || !selectedGranularity) return null;
-        const name = buildPopAdditionalMetricName(metric.name);
-        return `${metric.table}.${name}`;
-    }, [metric.name, metric.table, selectedGranularity, timeDimensionId]);
-
     const popAlreadyExists = useMemo(() => {
-        if (!popMetricIdForSelection) return false;
-        return additionalMetrics.some(
-            (am) => getItemId(am) === popMetricIdForSelection,
-        );
-    }, [additionalMetrics, popMetricIdForSelection]);
+        if (!timeDimensionId || !selectedGranularity) return false;
+        const baseMetricId = getItemId(metric);
+        return hasPeriodOverPeriodAdditionalMetricWithConfig({
+            additionalMetrics,
+            baseMetricId,
+            timeDimensionId,
+            granularity: selectedGranularity,
+            periodOffset: effectivePeriodOffset,
+        });
+    }, [
+        additionalMetrics,
+        effectivePeriodOffset,
+        metric,
+        selectedGranularity,
+        timeDimensionId,
+    ]);
 
     const closeModal = useCallback(() => {
         dispatch(
@@ -157,17 +163,15 @@ const PeriodOverPeriodComparisonModalContent: FC<{
     const handleAddComparison = useCallback(() => {
         if (!selectedDimensionObj || !timeDimensionId || !selectedGranularity)
             return;
-        if (!popMetricIdForSelection) return;
+        if (popAlreadyExists) return;
 
-        if (!popAlreadyExists) {
-            const { additionalMetric } = buildPopAdditionalMetric({
-                metric,
-                timeDimensionId,
-                granularity: selectedGranularity,
-                periodOffset: effectivePeriodOffset,
-            });
-            dispatch(explorerActions.addAdditionalMetric(additionalMetric));
-        }
+        const { additionalMetric } = buildPopAdditionalMetric({
+            metric,
+            timeDimensionId,
+            granularity: selectedGranularity,
+            periodOffset: effectivePeriodOffset,
+        });
+        dispatch(explorerActions.addAdditionalMetric(additionalMetric));
 
         dispatch(explorerActions.requestQueryExecution());
         dispatch(
@@ -177,7 +181,6 @@ const PeriodOverPeriodComparisonModalContent: FC<{
         dispatch,
         effectivePeriodOffset,
         popAlreadyExists,
-        popMetricIdForSelection,
         selectedDimensionObj,
         selectedGranularity,
         timeDimensionId,
@@ -191,9 +194,25 @@ const PeriodOverPeriodComparisonModalContent: FC<{
             title="Add period comparison"
             confirmLabel="Add comparison"
             onConfirm={handleAddComparison}
+            confirmDisabled={
+                !selectedDimensionObj ||
+                !timeDimensionId ||
+                !selectedGranularity ||
+                popAlreadyExists
+            }
             icon={IconTimelineEvent}
         >
             <Stack>
+                {selectedGranularity && timeDimensionId && popAlreadyExists ? (
+                    <Callout
+                        variant="warning"
+                        title="This comparison already exists"
+                    >
+                        A period comparison with the same time dimension and
+                        offset already exists for this metric. Choose a
+                        different time dimension or offset.
+                    </Callout>
+                ) : null}
                 <Select
                     label="Time dimension"
                     placeholder={

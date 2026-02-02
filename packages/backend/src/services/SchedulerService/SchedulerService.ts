@@ -8,6 +8,7 @@ import {
     ForbiddenError,
     getTimezoneLabel,
     getTzMinutesOffset,
+    GoogleSheetsScopeError,
     GoogleSheetsTransientError,
     InvalidUser,
     isChartCreateScheduler,
@@ -476,6 +477,14 @@ export class SchedulerService extends BaseService {
                 }
                 if (error instanceof GoogleSheetsTransientError) {
                     throw error; // Allow transient errors to propagate for retry
+                }
+                if (error instanceof GoogleSheetsScopeError) {
+                    throw error; // Allow scope errors to propagate for frontend re-auth handling
+                }
+                if (error instanceof NotFoundError) {
+                    throw new GoogleSheetsScopeError(
+                        `Google sheet not found or you don't have permission to access it.`,
+                    );
                 }
                 throw new MissingConfigError(
                     'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',

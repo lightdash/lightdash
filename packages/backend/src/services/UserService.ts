@@ -1569,10 +1569,13 @@ export class UserService extends BaseService {
                         if (
                             scopes.includes(
                                 'https://www.googleapis.com/auth/drive.file',
-                            ) &&
-                            scopes.includes(
-                                'https://www.googleapis.com/auth/spreadsheets',
                             )
+                            // This scope is now optional
+                            // Not grating this scope will prevent users from overwritting
+                            // existing sheets that were not created by this app, throwing GoogleSheetsScopeError on scheduler
+                            /* scopes.includes(
+                                'https://www.googleapis.com/auth/spreadsheets',
+                            ) */
                         ) {
                             resolve(accessToken);
                         }

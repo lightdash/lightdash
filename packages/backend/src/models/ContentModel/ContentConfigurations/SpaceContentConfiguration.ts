@@ -25,6 +25,7 @@ type SpaceContentRow = SummaryContentRow<{
     path: string;
     access: string[];
     isPrivate: boolean;
+    inheritParentPermissions: boolean;
     pinnedListOrder: number;
 }>;
 
@@ -120,6 +121,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                         'shared_with',
                                     )}),
                                     'isPrivate', (${SpaceModel.getRootSpaceIsPrivateQuery()}),
+                                    'inheritParentPermissions', ${SpaceTableName}.inherit_parent_permissions,
                                     'pinnedListOrder', ${PinnedSpaceTableName}.order
                                 ) as metadata`,
                     ),
@@ -215,6 +217,8 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                 parentSpaceUuid: value.metadata.parentSpaceUuid,
                 path: value.metadata.path,
                 isPrivate: value.metadata.isPrivate,
+                inheritParentPermissions:
+                    value.metadata.inheritParentPermissions,
                 access: value.metadata.access,
                 dashboardCount: value.metadata.dashboardCount,
                 chartCount: value.metadata.chartCount,

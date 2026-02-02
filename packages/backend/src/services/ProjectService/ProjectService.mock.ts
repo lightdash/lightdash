@@ -345,7 +345,7 @@ export const spacesWithSavedCharts: Space[] = [
         slug: 'space',
         parentSpaceUuid: null,
         path: 'space',
-
+        inheritParentPermissions: true,
         isPrivate: false,
         uuid: 'uuid',
         pinnedListUuid: null,
@@ -385,12 +385,12 @@ export const spacesWithNoSavedCharts: Space[] = [
         slug: 'space',
         parentSpaceUuid: null,
         path: 'space',
-
         uuid: 'uuid',
         pinnedListUuid: null,
         pinnedListOrder: null,
         queries: [],
         projectUuid,
+        inheritParentPermissions: true,
         isPrivate: false,
         dashboards: [],
         access: [],

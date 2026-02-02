@@ -428,6 +428,23 @@ export class UnexpectedGoogleSheetsError extends LightdashError {
     }
 }
 
+/* This specific error will be used in the frontend
+to show a "Re-authenticate" button in the UI for Google Sheets scope issues
+*/
+export class GoogleSheetsScopeError extends LightdashError {
+    constructor(
+        message = 'Unable to validate Google Sheets file. Please re-authenticate with Google to grant the required permissions.',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'GoogleSheetsScopeError',
+            statusCode: 403,
+            data,
+        });
+    }
+}
+
 export class GoogleSheetsTransientError extends LightdashError {
     constructor(
         message = 'Unexpected error in Google Sheets API',
