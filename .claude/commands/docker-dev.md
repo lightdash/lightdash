@@ -1,4 +1,4 @@
-Start the Lightdash development environment. Automatically detects current state and runs setup/migrations as needed.
+Manage Docker dev environment. Args: (none) = start, `reset` = reset db, `stop` = stop services.
 
 ## Arguments
 
