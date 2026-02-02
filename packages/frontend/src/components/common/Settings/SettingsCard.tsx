@@ -26,16 +26,9 @@ const SettingsGridCard: FC<React.PropsWithChildren<PaperProps>> = ({
 
 const ProjectCreationCard: FC<React.PropsWithChildren<PaperProps>> = ({
     children,
-    ...rest
 }) => {
     return (
-        <SettingsCard
-            p="lg"
-            mb="lg"
-            display="flex"
-            className={classes.projectCreationCard}
-            {...rest}
-        >
+        <SettingsCard className={classes.projectCreationCard}>
             {children}
         </SettingsCard>
     );

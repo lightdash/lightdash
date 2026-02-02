@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Button, Menu } from '@mantine/core';
+import { Button, Menu } from '@mantine-8/core';
 import {
     IconFolder,
     IconFolderPlus,
@@ -54,11 +54,8 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             variant="default"
                             size="xs"
                             fz="sm"
-                            leftIcon={
-                                <MantineIcon
-                                    color="#adb5bd"
-                                    icon={IconSquareRoundedPlus}
-                                />
+                            leftSection={
+                                <MantineIcon icon={IconSquareRoundedPlus} />
                             }
                             onClick={() => setIsOpen(!isOpen)}
                             data-testid="ExploreMenu/NewButton"

@@ -1,0 +1,21 @@
+.leftGroup {
+    flex-shrink: 0;
+}
+
+.rightGroup {
+    flex-shrink: 0;
+}
+
+.logoButton {
+    width: auto;
+    height: 34px;
+
+    & svg {
+        height: 32px;
+        width: auto;
+    }
+}
+
+.spacer {
+    flex-grow: 1;
+}

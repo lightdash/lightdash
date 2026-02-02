@@ -1,4 +1,4 @@
-import { Box, Button, Center, Loader, Menu, ScrollArea } from '@mantine/core';
+import { Box, Button, Center, Loader, Menu, ScrollArea } from '@mantine-8/core';
 import {
     IconCategory,
     IconChartAreaLine,
@@ -52,8 +52,8 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     variant="default"
                     size="xs"
                     fz="sm"
-                    leftIcon={
-                        <MantineIcon color="#adb5bd" icon={IconCategory} />
+                    leftSection={
+                        <MantineIcon c="ldGray.5" icon={IconCategory} />
                     }
                 >
                     Browse
@@ -64,7 +64,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 <Menu.Item
                     component={Link}
                     to={`/projects/${projectUuid}/spaces`}
-                    icon={<MantineIcon icon={IconFolders} />}
+                    leftSection={<MantineIcon icon={IconFolders} />}
                 >
                     All Spaces
                 </Menu.Item>
@@ -72,7 +72,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 <Menu.Item
                     component={Link}
                     to={`/projects/${projectUuid}/dashboards`}
-                    icon={<MantineIcon icon={IconLayoutDashboard} />}
+                    leftSection={<MantineIcon icon={IconLayoutDashboard} />}
                 >
                     All dashboards
                 </Menu.Item>
@@ -80,7 +80,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                 <Menu.Item
                     component={Link}
                     to={`/projects/${projectUuid}/saved`}
-                    icon={<MantineIcon icon={IconChartAreaLine} />}
+                    leftSection={<MantineIcon icon={IconChartAreaLine} />}
                 >
                     All saved charts
                 </Menu.Item>
@@ -116,7 +116,9 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                     key={space.uuid}
                                     component={Link}
                                     to={`/projects/${projectUuid}/spaces/${space.uuid}`}
-                                    icon={<MantineIcon icon={IconFolder} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconFolder} />
+                                    }
                                 >
                                     {space.name}
                                 </Menu.Item>

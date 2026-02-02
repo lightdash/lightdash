@@ -1,4 +1,4 @@
-import { Menu } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
 import { IconLogout, IconUserCircle, IconUserPlus } from '@tabler/icons-react';
 import posthog from 'posthog-js';
 import { type FC } from 'react';
@@ -35,7 +35,7 @@ const UserMenu: FC = () => {
                     role="menuitem"
                     component={Link}
                     to="/generalSettings"
-                    icon={<MantineIcon icon={IconUserCircle} />}
+                    leftSection={<MantineIcon icon={IconUserCircle} />}
                 >
                     User settings
                 </Menu.Item>
@@ -45,7 +45,7 @@ const UserMenu: FC = () => {
                         role="menuitem"
                         component={Link}
                         to="/generalSettings/userManagement?to=invite"
-                        icon={<MantineIcon icon={IconUserPlus} />}
+                        leftSection={<MantineIcon icon={IconUserPlus} />}
                     >
                         Invite user
                     </Menu.Item>
@@ -54,7 +54,7 @@ const UserMenu: FC = () => {
                 <Menu.Item
                     role="menuitem"
                     onClick={() => logout()}
-                    icon={<MantineIcon icon={IconLogout} />}
+                    leftSection={<MantineIcon icon={IconLogout} />}
                 >
                     Logout
                 </Menu.Item>

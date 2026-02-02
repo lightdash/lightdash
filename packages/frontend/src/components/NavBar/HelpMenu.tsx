@@ -1,5 +1,5 @@
 import { LightdashMode } from '@lightdash/common';
-import { Button, Menu } from '@mantine/core';
+import { Button, Menu } from '@mantine-8/core';
 import { modals } from '@mantine/modals';
 import {
     IconBook,

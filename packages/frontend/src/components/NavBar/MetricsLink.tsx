@@ -1,4 +1,4 @@
-import { Button, Menu } from '@mantine/core';
+import { Button, Menu } from '@mantine-8/core';
 import { IconHash } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
 import { Link, useNavigate } from 'react-router';
@@ -43,7 +43,7 @@ export const MetricsLink: FC<Props> = ({ projectUuid, asMenu }) => {
             <Menu.Item
                 component={Link}
                 to={`/projects/${projectUuid}/metrics`}
-                icon={<MantineIcon icon={IconHash} />}
+                leftSection={<MantineIcon icon={IconHash} />}
                 onClick={trackMetricsCatalogClick}
             >
                 Metrics
@@ -56,7 +56,7 @@ export const MetricsLink: FC<Props> = ({ projectUuid, asMenu }) => {
             variant="default"
             size="xs"
             fz="sm"
-            leftIcon={<Hash />}
+            leftSection={<Hash />}
             onClick={handleMetricsCatalogClick}
         >
             Metrics

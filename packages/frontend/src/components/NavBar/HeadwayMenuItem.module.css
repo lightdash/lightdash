@@ -1,0 +1,31 @@
+.badge {
+    pointer-events: none;
+
+    :global(.HW_badge) {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        top: 4px;
+        left: 12px;
+        width: 12px;
+        height: 12px;
+        font-size: var(--mantine-font-size-xs);
+        background: var(--mantine-color-red-8);
+    }
+
+    :global(.HW_badge.HW_softHidden) {
+        background: transparent !important;
+    }
+
+    :global(.HW_badge.HW_bounce) {
+        animation: none !important;
+    }
+
+    :global(.HW_badge.HW_shake) {
+        animation: none !important;
+    }
+
+    :global(.HW_badge.HW_wobble) {
+        animation: none !important;
+    }
+}

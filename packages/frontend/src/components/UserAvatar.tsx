@@ -18,10 +18,11 @@ export const UserAvatar = forwardRef<HTMLDivElement, AvatarProps>(
                 ref={ref}
                 variant="light"
                 size={theme.spacing.xxl}
-                radius="xl"
-                color="ldGray.8"
-                bg="ldGray.3"
-                className={classes.avatar}
+                radius="lg"
+                classNames={{
+                    root: classes.avatar,
+                    placeholder: classes.placeholder,
+                }}
                 {...props}
             >
                 {initials}

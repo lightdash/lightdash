@@ -18,7 +18,7 @@ import {
     TextInput,
     Tooltip,
     UnstyledButton,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconArrowRight,
@@ -41,6 +41,7 @@ import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
+import classes from './ProjectSwitcher.module.css';
 
 const MENU_TEXT_PROPS = {
     c: 'gray.1',
@@ -67,18 +68,9 @@ const GroupHeader: FC<{
     const isExpanded = isVisible;
 
     return (
-        <UnstyledButton
-            onClick={onToggle}
-            w="100%"
-            p="xs"
-            sx={(theme) => ({
-                '&:hover': {
-                    backgroundColor: theme.colors.ldDark[6],
-                },
-            })}
-        >
-            <Group spacing="xs" position="apart" noWrap>
-                <Group spacing="xs" noWrap>
+        <UnstyledButton onClick={onToggle} className={classes.groupHeader}>
+            <Group gap="xs" justify="space-between" wrap="nowrap">
+                <Group gap="xs" wrap="nowrap">
                     <Text {...MENU_TEXT_PROPS} fw={600} c="gray.4">
                         {title}
                     </Text>
@@ -88,9 +80,7 @@ const GroupHeader: FC<{
                         size="xs"
                         radius="sm"
                         fw={700}
-                        sx={{
-                            textTransform: 'none',
-                        }}
+                        className={classes.badge}
                     >
                         {count}
                     </Badge>
@@ -98,7 +88,7 @@ const GroupHeader: FC<{
                 <MantineIcon
                     icon={isExpanded ? IconChevronDown : IconChevronRight}
                     size="sm"
-                    color="gray.5"
+                    c="gray.5"
                 />
             </Group>
         </UnstyledButton>
@@ -119,14 +109,12 @@ const ProjectItem: FC<{
             onClick={() => !isActive && handleProjectChange(item.projectUuid)}
             disabled={isActive}
         >
-            <Group spacing="sm" position="apart" noWrap>
+            <Group gap="sm" justify="space-between" wrap="nowrap">
                 <Tooltip
                     withinPortal
-                    variant="xs"
                     label={item.name}
                     maw={300}
                     disabled={!isTruncated}
-                    color="dark"
                     multiline
                 >
                     <Highlight
@@ -137,7 +125,7 @@ const ProjectItem: FC<{
                                 : ''
                         }
                         {...MENU_TEXT_PROPS}
-                        truncate
+                        truncate="end"
                         maw={350}
                         fw={isActive ? 600 : 500}
                         c={isActive ? 'gray.5' : 'inherit'}
@@ -153,9 +141,7 @@ const ProjectItem: FC<{
                         size="xs"
                         radius="sm"
                         fw={400}
-                        sx={{
-                            textTransform: 'none',
-                        }}
+                        className={classes.badge}
                     >
                         {isActive ? 'Active' : 'Preview'}
                     </Badge>
@@ -426,26 +412,13 @@ const ProjectSwitcher = () => {
                 offset={-2}
                 opened={isMenuOpen}
                 onChange={setIsMenuOpen}
-                styles={{
-                    dropdown: {
-                        minWidth: 250,
-                        maxHeight: 450,
-                        overflow: 'auto',
-                    },
-                }}
+                classNames={{ dropdown: classes.dropdown }}
             >
                 <Menu.Target>
                     <Button
-                        maw={200}
                         variant="default"
                         size="xs"
-                        sx={(theme) => ({
-                            '&:disabled': {
-                                color: theme.white,
-                                backgroundColor: theme.colors.ldDark[6],
-                                borderColor: theme.colors.ldDark[4],
-                            },
-                        })}
+                        className={classes.targetButton}
                     >
                         <Text truncate>
                             {activeProject?.name ?? 'Select a project'}
@@ -455,23 +428,16 @@ const ProjectSwitcher = () => {
 
                 <Menu.Dropdown maw={400}>
                     {/* Search Header */}
-                    <Box
-                        pos="sticky"
-                        top={0}
-                        bg="gray.9"
-                        p="sm"
-                        sx={(theme) => ({
-                            boxShadow: `0 2px 8px ${theme.colors.gray[9]}`,
-                            borderBottom: `1px solid ${theme.colors.dark[4]}`,
-                        })}
-                    >
+                    <Box className={classes.searchHeader}>
                         <TextInput
                             placeholder="Search projects..."
                             value={searchQuery}
                             onChange={(e) =>
                                 setSearchQuery(e.currentTarget.value)
                             }
-                            icon={<MantineIcon icon={IconSearch} size="sm" />}
+                            leftSection={
+                                <MantineIcon icon={IconSearch} size="sm" />
+                            }
                             rightSection={
                                 searchQuery ? (
                                     <ActionIcon
@@ -484,20 +450,11 @@ const ProjectSwitcher = () => {
                                 ) : null
                             }
                             size="xs"
-                            styles={{
-                                input: {
-                                    backgroundColor: 'transparent',
-                                    border: `1px solid var(--mantine-color-dark-4)`,
-                                    '&:focus': {
-                                        borderColor:
-                                            'var(--mantine-color-blue-6)',
-                                    },
-                                },
-                            }}
+                            classNames={{ input: classes.searchInput }}
                         />
                     </Box>
 
-                    <Stack spacing={0}>
+                    <Stack gap={0}>
                         {/* Loading State */}
                         {isLoadingProjects && (
                             <Box p="lg" ta="center">
@@ -519,13 +476,8 @@ const ProjectSwitcher = () => {
                                     isVisible={shouldShowBase}
                                 />
                                 <Collapse in={shouldShowBase}>
-                                    <Box
-                                        sx={{
-                                            maxHeight: 200,
-                                            overflow: 'auto',
-                                        }}
-                                    >
-                                        <Stack spacing={0}>
+                                    <Box className={classes.projectsScroll}>
+                                        <Stack gap={0}>
                                             {baseProjects.map((item) => (
                                                 <ProjectItem
                                                     key={item.projectUuid}
@@ -563,13 +515,8 @@ const ProjectSwitcher = () => {
                                     isVisible={shouldShowPreview}
                                 />
                                 <Collapse in={shouldShowPreview}>
-                                    <Box
-                                        sx={{
-                                            maxHeight: 200,
-                                            overflow: 'auto',
-                                        }}
-                                    >
-                                        <Stack spacing={0}>
+                                    <Box className={classes.projectsScroll}>
+                                        <Stack gap={0}>
                                             {previewProjects.map((item) => (
                                                 <ProjectItem
                                                     key={item.projectUuid}
@@ -597,11 +544,11 @@ const ProjectSwitcher = () => {
                             baseProjects.length === 0 &&
                             previewProjects.length === 0 && (
                                 <Box p="lg" ta="center">
-                                    <Stack spacing="xs" align="center">
+                                    <Stack gap="xs" align="center">
                                         <MantineIcon
                                             icon={IconSearch}
                                             size="lg"
-                                            color="gray.5"
+                                            c="gray.5"
                                         />
                                         <Text {...MENU_TEXT_PROPS}>
                                             {debouncedSearchQuery.length >= 2
@@ -614,15 +561,7 @@ const ProjectSwitcher = () => {
                     </Stack>
 
                     {userCanCreatePreview && (
-                        <Box
-                            pos="sticky"
-                            bottom={0}
-                            bg="gray.9"
-                            sx={(theme) => ({
-                                // fixes scroll overlap
-                                boxShadow: `0 4px ${theme.colors.gray[9]}`,
-                            })}
-                        >
+                        <Box className={classes.stickyFooter}>
                             {(baseProjects.length > 0 ||
                                 previewProjects.length > 0) && <Menu.Divider />}
 
@@ -633,7 +572,9 @@ const ProjectSwitcher = () => {
                                     setIsCreatePreview(!isCreatePreviewOpen);
                                     e.stopPropagation();
                                 }}
-                                icon={<MantineIcon icon={IconPlus} size="md" />}
+                                leftSection={
+                                    <MantineIcon icon={IconPlus} size="md" />
+                                }
                             >
                                 <Text {...MENU_TEXT_PROPS}>Create Preview</Text>
                             </Menu.Item>

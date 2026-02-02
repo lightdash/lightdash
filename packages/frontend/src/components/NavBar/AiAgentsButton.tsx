@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core';
+import { Button } from '@mantine-8/core';
 import { IconMessageCircleStar } from '@tabler/icons-react';
 import { useNavigate } from 'react-router';
 import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
@@ -18,8 +18,8 @@ export const AiAgentsButton = () => {
             size="xs"
             variant="default"
             fz="sm"
-            leftIcon={
-                <MantineIcon icon={IconMessageCircleStar} color="#adb5bd" />
+            leftSection={
+                <MantineIcon icon={IconMessageCircleStar} c="ldGray.5" />
             }
             onClick={() => navigate(`/projects/${projectUuid}/ai-agents`)}
         >

@@ -99,6 +99,7 @@ components: {
 ```
 
 Common inline-style props:
+
 - Layout: `mt`, `mb`, `ml`, `mr`, `m`, `p`, `pt`, `pb`, `pl`, `pr`
 - Sizing: `w`, `h`, `maw`, `mah`, `miw`, `mih`
 - Colors: `c` (color), `bg` (background)
@@ -153,12 +154,12 @@ When you need custom colors, use our custom scales for dark mode compatibility:
 
 ### Custom Color Scales
 
-| Token | Purpose |
-|-------|---------|
-| `ldGray.0-9` | Borders, subtle text, neutral UI elements |
+| Token        | Purpose                                            |
+| ------------ | -------------------------------------------------- |
+| `ldGray.0-9` | Borders, subtle text, neutral UI elements          |
 | `ldDark.0-9` | Buttons/badges with dark backgrounds in light mode |
-| `background` | Page/card backgrounds |
-| `foreground` | Primary text color |
+| `background` | Page/card backgrounds                              |
+| `foreground` | Primary text color                                 |
 
 ### Dark Mode in CSS Modules
 
@@ -180,7 +181,10 @@ Alternative: use CSS `light-dark()` function for single-line theme switching:
 
 ```css
 .clickableRow:hover {
-    background-color: light-dark(var(--mantine-color-ldGray-0), var(--mantine-color-ldDark-5));
+    background-color: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-ldDark-5)
+    );
 }
 ```
 
@@ -193,6 +197,10 @@ Alternative: use CSS `light-dark()` function for single-line theme switching:
 // ✅ Good - Theme tokens
 <Box p="md" mt="lg">
 ```
+
+## Beware of dependencies
+
+If a component is migrated to use Mantine 8 Menu.Item, ensure its parent also uses Mantine 8 Menu
 
 ## Remove Dead Styles
 
