@@ -6,13 +6,13 @@ visits as (
     select
         visit_id,
         patient_id,
-        visit_date::date as visit_date,
+        {{ cast_date('visit_date') }} as visit_date,
         visit_type,
         provider,
         chief_complaint,
         duration_minutes,
-        follow_up_required::boolean as follow_up_required,
-        visit_cost::numeric as visit_cost
+        {{ cast_boolean('follow_up_required') }} as follow_up_required,
+        {{ cast_numeric('visit_cost') }} as visit_cost
     from source
 )
 

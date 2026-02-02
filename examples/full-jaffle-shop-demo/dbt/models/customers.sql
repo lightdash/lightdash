@@ -56,7 +56,12 @@ customer_payments as (
 final as (
 
     select
+        -- Athena/Trino: USING joins create unqualified columns, can't reference as table.col
+        {% if target.type == 'trino' or target.type == 'athena' %}
+        customer_id,
+        {% else %}
         customers.customer_id,
+        {% endif %}
         customers.first_name,
         customers.last_name,
         30 as age, -- fixed age is filtered using required_attributes on schema.yml
@@ -65,8 +70,8 @@ final as (
         customer_orders.most_recent_order,
         customer_orders.number_of_orders,
         customer_payments.total_amount as customer_lifetime_value,
-        customer_orders.first_order::date - customers.created::date AS days_between_created_and_first_order,
-        EXTRACT(day FROM customer_orders.most_recent_order::timestamp - customer_orders_latest.latest_order::timestamp) AS days_since_last_order
+        {{ date_diff_days('customer_orders.first_order', 'customers.created') }} AS days_between_created_and_first_order,
+        {{ timestamp_diff_days('customer_orders.most_recent_order', 'customer_orders_latest.latest_order') }} AS days_since_last_order
 
     from customers
 

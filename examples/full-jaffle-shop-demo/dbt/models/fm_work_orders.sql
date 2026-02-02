@@ -38,10 +38,15 @@ final as (
         contracts.service_level,
         
         -- Calculated fields
-        case 
-            when work_orders.completed_at is not null 
+        -- Athena/Trino: no EXTRACT(epoch FROM ...), use DATE_DIFF instead
+        case
+            when work_orders.completed_at is not null
+            {% if target.type == 'trino' or target.type == 'athena' %}
+            then DATE_DIFF('second', work_orders.request_date, work_orders.completed_at) / 3600.0
+            {% else %}
             then extract(epoch from (work_orders.completed_at - work_orders.request_date))/3600
-            else null 
+            {% endif %}
+            else null
         end as total_duration_hours,
         
         case 

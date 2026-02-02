@@ -20,10 +20,16 @@ final as (
         buildings.total_square_feet,
         
         -- Calculated fields
-        case 
+        -- Athena/Trino: use DATE_ADD instead of date + interval
+        case
             when contracts.end_date < current_date then 'Expired'
+            {% if target.type == 'trino' or target.type == 'athena' %}
+            when contracts.end_date <= DATE_ADD('day', 90, current_date) then 'Expiring Soon'
+            when contracts.end_date <= DATE_ADD('day', 180, current_date) then 'Renewal Period'
+            {% else %}
             when contracts.end_date <= current_date + interval '90 days' then 'Expiring Soon'
             when contracts.end_date <= current_date + interval '180 days' then 'Renewal Period'
+            {% endif %}
             else 'Active'
         end as contract_lifecycle_stage,
         
@@ -37,7 +43,7 @@ final as (
         
         case 
             when contracts.total_work_orders_ytd > 0 
-            then contracts.completed_work_orders_ytd::float / contracts.total_work_orders_ytd 
+            then {{ cast_float('contracts.completed_work_orders_ytd') }} / contracts.total_work_orders_ytd 
             else 0 
         end as completion_rate,
         
