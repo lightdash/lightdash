@@ -2,6 +2,8 @@
 
 Treemap charts visualize hierarchical data using nested rectangles. Each rectangle's size represents a quantitative metric (like revenue or count), and the nesting shows hierarchical relationships (like category > subcategory > product).
 
+For full schema details, see [chart-as-code-1.0.json](schemas/chart-as-code-1.0.json) under `$defs/treemapChart`.
+
 ## When to Use Treemap Charts
 
 Treemap charts are ideal for:
@@ -34,9 +36,7 @@ chartConfig:
     sizeMetricId: size_metric
 ```
 
-## Configuration Options
-
-### Core Settings
+## Key Properties
 
 | Property | Type | Description | Required |
 |----------|------|-------------|----------|
@@ -44,53 +44,16 @@ chartConfig:
 | `sizeMetricId` | string | Field ID that determines rectangle size | Yes |
 | `colorMetricId` | string | Field ID that determines rectangle color value | No |
 | `visibleMin` | number | Minimum size threshold for displaying nodes | No |
-| `leafDepth` | number | Depth level to display as leaf nodes | No |
-
-### Color Configuration
-
-| Property | Type | Description | Default |
-|----------|------|-------------|---------|
-| `startColor` | string | Start color for gradient (hex code) | System default |
-| `endColor` | string | End color for gradient (hex code) | System default |
-| `useDynamicColors` | boolean | Enable dynamic color scaling based on values | false |
-| `startColorThreshold` | number | Value threshold for start color | Auto |
-| `endColorThreshold` | number | Value threshold for end color | Auto |
+| `maxLeafDepth` | number | Depth level to display as leaf nodes | No |
+| `startColor` | string | Start color for gradient (hex code) | No |
+| `endColor` | string | End color for gradient (hex code) | No |
+| `useDynamicColors` | boolean | Enable dynamic color scaling based on values | No |
+| `startColorThreshold` | number | Value threshold for start color | No |
+| `endColorThreshold` | number | Value threshold for end color | No |
 
 ## Examples
 
-### Example 1: Basic Single-Level Treemap
-
-Visualize revenue by product category with a simple one-level hierarchy.
-
-```yaml
-version: 1
-name: "Revenue by Category"
-slug: revenue-by-category
-spaceSlug: sales
-tableName: products
-
-metricQuery:
-  exploreName: products
-  dimensions:
-    - products_category
-  metrics:
-    - products_total_revenue
-  sorts:
-    - fieldId: products_total_revenue
-      descending: true
-  limit: 20
-
-chartConfig:
-  type: treemap
-  config:
-    groupFieldIds:
-      - products_category
-    sizeMetricId: products_total_revenue
-```
-
-**Use case**: Quick overview of which product categories generate the most revenue.
-
-### Example 2: Two-Level Hierarchical Treemap
+### Example 1: Two-Level Hierarchical Treemap
 
 Show category and subcategory revenue with nested rectangles.
 
@@ -125,44 +88,7 @@ chartConfig:
 
 **Use case**: Understand revenue composition at both category and subcategory levels. The `visibleMin` setting prevents tiny rectangles from cluttering the view.
 
-### Example 3: Three-Level Deep Hierarchy
-
-Display category > subcategory > product with maximum depth.
-
-```yaml
-version: 1
-name: "Product Hierarchy Revenue"
-slug: product-hierarchy-revenue
-spaceSlug: sales
-tableName: products
-
-metricQuery:
-  exploreName: products
-  dimensions:
-    - products_category
-    - products_subcategory
-    - products_product_name
-  metrics:
-    - products_total_revenue
-  sorts:
-    - fieldId: products_total_revenue
-      descending: true
-  limit: 100
-
-chartConfig:
-  type: treemap
-  config:
-    groupFieldIds:
-      - products_category
-      - products_subcategory
-      - products_product_name
-    sizeMetricId: products_total_revenue
-    leafDepth: 2               # Show subcategory level as leaves
-```
-
-**Use case**: Drill down from high-level categories to individual products. Setting `leafDepth: 2` controls which level shows as final leaf nodes.
-
-### Example 4: Color Gradient Based on Metric
+### Example 2: Color Gradient Based on Second Metric
 
 Size by revenue, color by profit margin to show profitability.
 
@@ -198,86 +124,6 @@ chartConfig:
 
 **Use case**: Quickly identify large revenue categories (big rectangles) with poor margins (red color) that need attention.
 
-### Example 5: Dynamic Color Thresholds
-
-Use specific thresholds to highlight performance ranges.
-
-```yaml
-version: 1
-name: "Sales Performance by Region"
-slug: sales-performance-by-region
-spaceSlug: sales
-tableName: sales
-
-metricQuery:
-  exploreName: sales
-  dimensions:
-    - sales_region
-    - sales_territory
-  metrics:
-    - sales_total_revenue
-    - sales_quota_attainment
-  sorts:
-    - fieldId: sales_total_revenue
-      descending: true
-  limit: 40
-
-chartConfig:
-  type: treemap
-  config:
-    groupFieldIds:
-      - sales_region
-      - sales_territory
-    sizeMetricId: sales_total_revenue
-    colorMetricId: sales_quota_attainment
-    useDynamicColors: true
-    startColor: "#fef3c7"      # Light yellow
-    endColor: "#166534"        # Dark green
-    startColorThreshold: 0     # 0% quota attainment
-    endColorThreshold: 150     # 150% quota attainment
-```
-
-**Use case**: See both revenue size and quota performance. Territories with large revenue (big rectangles) below quota (yellow/light color) need intervention.
-
-### Example 6: Customer Segmentation Treemap
-
-Visualize customer segments and their sub-segments by customer count.
-
-```yaml
-version: 1
-name: "Customer Segmentation"
-slug: customer-segmentation
-spaceSlug: marketing
-tableName: customers
-
-metricQuery:
-  exploreName: customers
-  dimensions:
-    - customers_segment
-    - customers_subsegment
-  metrics:
-    - customers_customer_count
-    - customers_lifetime_value
-  sorts:
-    - fieldId: customers_customer_count
-      descending: true
-  limit: 30
-
-chartConfig:
-  type: treemap
-  config:
-    groupFieldIds:
-      - customers_segment
-      - customers_subsegment
-    sizeMetricId: customers_customer_count
-    colorMetricId: customers_lifetime_value
-    startColor: "#dbeafe"      # Light blue
-    endColor: "#1e3a8a"        # Dark blue
-    visibleMin: 5              # Hide segments with fewer than 5 customers
-```
-
-**Use case**: Understand customer distribution (count) while identifying high-value segments (color intensity).
-
 ## Best Practices
 
 ### Hierarchy Design
@@ -285,89 +131,24 @@ chartConfig:
 1. **Limit depth to 2-3 levels**: More levels become unreadable
 2. **Order groups logically**: Most important or largest first
 3. **Use meaningful groupings**: Natural hierarchies (Geography > State > City)
-4. **Ensure complete hierarchy**: All levels should have parent-child relationships
 
 ### Size Metric Selection
 
 1. **Choose additive metrics**: Sum, count (not averages or ratios)
 2. **Use positive values**: Negative values don't render well
-3. **Consider data range**: Very small or very large ranges can be hard to compare
-4. **Add `visibleMin`**: Hide tiny rectangles that clutter the view
+3. **Add `visibleMin`**: Hide tiny rectangles that clutter the view
 
 ### Color Strategy
 
 1. **Single color for simple hierarchy**: Let size tell the story
 2. **Gradient for performance metrics**: Red-to-green for good/bad ranges
-3. **Sequential for magnitude**: Light-to-dark for low-to-high values
-4. **Diverging for comparison**: Two colors meeting at a midpoint (target, average)
-5. **Set explicit thresholds**: `startColorThreshold` and `endColorThreshold` for clear ranges
+3. **Set explicit thresholds**: `startColorThreshold` and `endColorThreshold` for clear ranges
 
 ### Data Preparation
 
 1. **Limit total rectangles**: 20-100 for readability (use `limit` in metricQuery)
 2. **Sort by size metric**: Largest first for visual hierarchy
 3. **Filter outliers**: Very small or large values can distort visualization
-4. **Use consistent granularity**: All leaf nodes at same hierarchy level
-
-### Labeling
-
-1. **Top levels show labels**: Category names appear in larger rectangles
-2. **Small rectangles omit labels**: Below `visibleMin` threshold
-3. **Tooltips show details**: Hover for exact values
-4. **Keep names concise**: Long names get truncated
-
-## Common Patterns
-
-### Portfolio Analysis
-
-Size by assets under management, color by performance:
-
-```yaml
-chartConfig:
-  type: treemap
-  config:
-    groupFieldIds:
-      - portfolio_asset_class
-      - portfolio_fund
-    sizeMetricId: portfolio_aum
-    colorMetricId: portfolio_ytd_return
-    startColor: "#dc2626"
-    endColor: "#16a34a"
-```
-
-### Inventory Management
-
-Size by stock quantity, color by days of supply:
-
-```yaml
-chartConfig:
-  type: treemap
-  config:
-    groupFieldIds:
-      - inventory_warehouse
-      - inventory_product_category
-    sizeMetricId: inventory_units_on_hand
-    colorMetricId: inventory_days_of_supply
-    startColor: "#22c55e"      # Green = healthy stock
-    endColor: "#ef4444"        # Red = low stock
-```
-
-### Website Analytics
-
-Size by page views, color by bounce rate:
-
-```yaml
-chartConfig:
-  type: treemap
-  config:
-    groupFieldIds:
-      - pages_section
-      - pages_page_name
-    sizeMetricId: pages_page_views
-    colorMetricId: pages_bounce_rate
-    startColor: "#10b981"      # Low bounce = good
-    endColor: "#f59e0b"        # High bounce = needs attention
-```
 
 ## Troubleshooting
 
@@ -378,7 +159,6 @@ chartConfig:
 - Increase `visibleMin` to hide small values
 - Reduce `limit` in metricQuery
 - Add filters to exclude low-value categories
-- Aggregate small categories into "Other"
 
 ### Hierarchy Not Displaying
 
@@ -386,8 +166,7 @@ chartConfig:
 **Solutions**:
 - Verify `groupFieldIds` array has multiple fields
 - Check that dimensions are in metricQuery
-- Ensure parent-child relationships exist in data
-- Confirm `leafDepth` setting if specified
+- Confirm `maxLeafDepth` setting if specified
 
 ### Colors Not Showing
 
@@ -396,16 +175,6 @@ chartConfig:
 - Verify `colorMetricId` is in metricQuery metrics
 - Check that color metric has varying values
 - Set explicit `startColor` and `endColor`
-- Confirm thresholds align with actual data range
-
-### Rectangles Too Large/Small
-
-**Problem**: Size proportions seem off
-**Solutions**:
-- Check for outliers in size metric
-- Use filters to remove extreme values
-- Verify `sizeMetricId` uses appropriate aggregation
-- Consider log scale for wide value ranges (requires custom config)
 
 ## Comparison: Treemap vs Other Charts
 
@@ -417,39 +186,6 @@ chartConfig:
 | Many categories | Yes | Table (for exact values) |
 | Dual metrics | Yes | Bubble chart (for 2 metrics + category) |
 | Trends over time | No | Line/Area chart |
-
-## Advanced: Dynamic Color Ranges
-
-For metrics where you want precise control over color mapping:
-
-```yaml
-chartConfig:
-  type: treemap
-  config:
-    groupFieldIds:
-      - products_category
-    sizeMetricId: products_sales
-    colorMetricId: products_growth_rate
-    useDynamicColors: true
-    startColor: "#dc2626"      # Red for negative growth
-    endColor: "#16a34a"        # Green for high growth
-    startColorThreshold: -10   # -10% growth
-    endColorThreshold: 20      # +20% growth
-```
-
-**How thresholds work:**
-- Values below `startColorThreshold` get `startColor`
-- Values above `endColorThreshold` get `endColor`
-- Values between interpolate along the gradient
-- Without `useDynamicColors`, colors map to min/max in dataset
-
-## Performance Considerations
-
-1. **Limit data points**: 100-200 rectangles maximum for performance
-2. **Use aggregated data**: Pre-aggregate at appropriate level
-3. **Set appropriate `limit`**: Query only what can be displayed
-4. **Avoid deep hierarchies**: 3+ levels slow rendering
-5. **Cache results**: Treemaps on dashboards with refresh schedules
 
 ## Related Documentation
 
