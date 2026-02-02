@@ -41,12 +41,11 @@ export const warehouseClientMock: WarehouseClient = {
         pageCount: 0,
         rows: [],
     }),
-    streamQuery: (_query, streamCallback) => {
-        streamCallback({
+    streamQuery: async (_query, streamCallback) => {
+        await streamCallback({
             fields: {},
             rows: [],
         });
-        return Promise.resolve();
     },
     executeAsyncQuery: async () => ({
         queryId: null,
@@ -1574,6 +1573,203 @@ export const exploreWithMetricNumberCompiled: Explore = {
     },
 };
 
+/**
+ * Test case for non-aggregate metric (type: NUMBER) that has an aggregation
+ * function in its SQL and references a dimension. This pattern is common in
+ * Looker where type:number measures have sql like "count(distinct ${user_id})".
+ */
+export const exploreWithNonAggregateMetricWithAggregationInSql: UncompiledExplore =
+    {
+        ...exploreBase,
+        baseTable: 'events',
+        spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+        meta: {},
+        tables: {
+            events: {
+                name: 'events',
+                label: 'events',
+                database: 'database',
+                schema: 'schema',
+                sqlTable: 'test.events',
+                sqlWhere: undefined,
+                dimensions: {
+                    user_id: {
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.STRING,
+                        name: 'user_id',
+                        label: 'user_id',
+                        table: 'events',
+                        tableLabel: 'events',
+                        sql: '${TABLE}.user_id',
+                        source: sourceMock,
+                        hidden: false,
+                    },
+                    amount: {
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.NUMBER,
+                        name: 'amount',
+                        label: 'amount',
+                        table: 'events',
+                        tableLabel: 'events',
+                        sql: '${TABLE}.amount',
+                        source: sourceMock,
+                        hidden: false,
+                    },
+                    status: {
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.STRING,
+                        name: 'status',
+                        label: 'status',
+                        table: 'events',
+                        tableLabel: 'events',
+                        sql: '${TABLE}.status',
+                        source: sourceMock,
+                        hidden: false,
+                    },
+                },
+                metrics: {
+                    // Non-aggregate (NUMBER) with count(distinct) - should allow dimension ref
+                    user_count: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.NUMBER,
+                        name: 'user_count',
+                        label: 'user_count',
+                        table: 'events',
+                        tableLabel: 'events',
+                        sql: 'count(distinct ${user_id})',
+                        source: sourceMock,
+                        hidden: false,
+                    },
+                    // Non-aggregate (NUMBER) with stddev - should allow dimension ref
+                    amount_stddev: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.NUMBER,
+                        name: 'amount_stddev',
+                        label: 'amount_stddev',
+                        table: 'events',
+                        tableLabel: 'events',
+                        sql: 'stddev(${amount})',
+                        source: sourceMock,
+                        hidden: false,
+                    },
+                    // Non-aggregate (NUMBER) with CASE containing aggregation
+                    conditional_count: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.NUMBER,
+                        name: 'conditional_count',
+                        label: 'conditional_count',
+                        table: 'events',
+                        tableLabel: 'events',
+                        sql: "CASE WHEN ${status} = 'active' THEN count(distinct ${user_id}) ELSE 0 END",
+                        source: sourceMock,
+                        hidden: false,
+                    },
+                    // Non-aggregate (NUMBER) with COALESCE-wrapped aggregation
+                    safe_avg: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.NUMBER,
+                        name: 'safe_avg',
+                        label: 'safe_avg',
+                        table: 'events',
+                        tableLabel: 'events',
+                        sql: 'COALESCE(avg(${amount}), 0)',
+                        source: sourceMock,
+                        hidden: false,
+                    },
+                },
+                lineageGraph: {},
+                groupLabel: undefined,
+                source: sourceMock,
+            },
+        },
+    };
+
+export const exploreWithNonAggregateMetricWithAggregationInSqlCompiled: Explore =
+    {
+        name: exploreWithNonAggregateMetricWithAggregationInSql.name,
+        label: exploreWithNonAggregateMetricWithAggregationInSql.label,
+        baseTable: exploreWithNonAggregateMetricWithAggregationInSql.baseTable,
+        tags: exploreWithNonAggregateMetricWithAggregationInSql.tags,
+        targetDatabase:
+            exploreWithNonAggregateMetricWithAggregationInSql.targetDatabase,
+        warehouse: exploreWithNonAggregateMetricWithAggregationInSql.warehouse,
+        ymlPath: exploreWithNonAggregateMetricWithAggregationInSql.ymlPath,
+        sqlPath: exploreWithNonAggregateMetricWithAggregationInSql.sqlPath,
+        groupLabel:
+            exploreWithNonAggregateMetricWithAggregationInSql.groupLabel,
+        databricksCompute:
+            exploreWithNonAggregateMetricWithAggregationInSql.databricksCompute,
+        spotlight: {
+            visibility: 'show',
+            categories: [],
+        },
+        joinedTables: [],
+        tables: {
+            events: {
+                name: 'events',
+                label: 'events',
+                database: 'database',
+                schema: 'schema',
+                sqlTable: 'test.events',
+                sqlWhere: undefined,
+                uncompiledSqlWhere: undefined,
+                dimensions: {
+                    user_id: {
+                        ...exploreWithNonAggregateMetricWithAggregationInSql
+                            .tables.events.dimensions.user_id,
+                        compiledSql: '"events".user_id',
+                        tablesReferences: ['events'],
+                    },
+                    amount: {
+                        ...exploreWithNonAggregateMetricWithAggregationInSql
+                            .tables.events.dimensions.amount,
+                        compiledSql: '"events".amount',
+                        tablesReferences: ['events'],
+                    },
+                    status: {
+                        ...exploreWithNonAggregateMetricWithAggregationInSql
+                            .tables.events.dimensions.status,
+                        compiledSql: '"events".status',
+                        tablesReferences: ['events'],
+                    },
+                },
+                metrics: {
+                    user_count: {
+                        ...exploreWithNonAggregateMetricWithAggregationInSql
+                            .tables.events.metrics.user_count,
+                        compiledSql: 'count(distinct ("events".user_id))',
+                        tablesReferences: ['events'],
+                        showUnderlyingValues: undefined,
+                    },
+                    amount_stddev: {
+                        ...exploreWithNonAggregateMetricWithAggregationInSql
+                            .tables.events.metrics.amount_stddev,
+                        compiledSql: 'stddev(("events".amount))',
+                        tablesReferences: ['events'],
+                        showUnderlyingValues: undefined,
+                    },
+                    conditional_count: {
+                        ...exploreWithNonAggregateMetricWithAggregationInSql
+                            .tables.events.metrics.conditional_count,
+                        compiledSql: `CASE WHEN ("events".status) = 'active' THEN count(distinct ("events".user_id)) ELSE 0 END`,
+                        tablesReferences: ['events'],
+                        showUnderlyingValues: undefined,
+                    },
+                    safe_avg: {
+                        ...exploreWithNonAggregateMetricWithAggregationInSql
+                            .tables.events.metrics.safe_avg,
+                        compiledSql: 'COALESCE(avg(("events".amount)), 0)',
+                        tablesReferences: ['events'],
+                        showUnderlyingValues: undefined,
+                    },
+                },
+                lineageGraph: {},
+                groupLabel: undefined,
+                source: sourceMock,
+            },
+        },
+    };
+
 export const tablesWithMetricsWithFilters: Record<string, Table> = {
     table1: {
         name: 'table1',
@@ -2156,6 +2352,147 @@ export const compiledJoinedExploreOverridingJoinDescription: Explore = {
         b: {
             ...compiledSimpleJoinedExplore.tables.b,
             description: 'Custom join description',
+        },
+    },
+};
+
+/**
+ * Test case for non-aggregate metric (type: NUMBER) that has aggregation
+ * in SQL and references BOTH dimensions AND metrics. This pattern is common
+ * in Looker where type:number measures have sql like "sum(${dim}) / ${metric}".
+ */
+export const exploreWithMixedDimensionAndMetricReferences: UncompiledExplore = {
+    ...exploreBase,
+    baseTable: 'events',
+    spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,
+    meta: {},
+    tables: {
+        events: {
+            name: 'events',
+            label: 'events',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: 'test.events',
+            sqlWhere: undefined,
+            dimensions: {
+                user_id: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.STRING,
+                    name: 'user_id',
+                    label: 'user_id',
+                    table: 'events',
+                    tableLabel: 'events',
+                    sql: '${TABLE}.user_id',
+                    source: sourceMock,
+                    hidden: false,
+                },
+                amount: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.NUMBER,
+                    name: 'amount',
+                    label: 'amount',
+                    table: 'events',
+                    tableLabel: 'events',
+                    sql: '${TABLE}.amount',
+                    source: sourceMock,
+                    hidden: false,
+                },
+            },
+            metrics: {
+                // Non-aggregate (NUMBER) metric with aggregation in SQL (Looker pattern)
+                user_count: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.NUMBER,
+                    name: 'user_count',
+                    label: 'user_count',
+                    table: 'events',
+                    tableLabel: 'events',
+                    sql: 'count(distinct ${user_id})',
+                    source: sourceMock,
+                    hidden: false,
+                },
+                // Non-aggregate (NUMBER) with BOTH dimension AND metric references
+                // This pattern is: sum(${dim}) / ${metric}
+                amount_per_user: {
+                    fieldType: FieldType.METRIC,
+                    type: MetricType.NUMBER,
+                    name: 'amount_per_user',
+                    label: 'amount_per_user',
+                    table: 'events',
+                    tableLabel: 'events',
+                    sql: 'sum(${amount}) / NULLIF(${user_count}, 0)',
+                    source: sourceMock,
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+            groupLabel: undefined,
+            source: sourceMock,
+        },
+    },
+};
+
+export const exploreWithMixedDimensionAndMetricReferencesCompiled: Explore = {
+    name: exploreWithMixedDimensionAndMetricReferences.name,
+    label: exploreWithMixedDimensionAndMetricReferences.label,
+    baseTable: exploreWithMixedDimensionAndMetricReferences.baseTable,
+    tags: exploreWithMixedDimensionAndMetricReferences.tags,
+    targetDatabase: exploreWithMixedDimensionAndMetricReferences.targetDatabase,
+    warehouse: exploreWithMixedDimensionAndMetricReferences.warehouse,
+    ymlPath: exploreWithMixedDimensionAndMetricReferences.ymlPath,
+    sqlPath: exploreWithMixedDimensionAndMetricReferences.sqlPath,
+    groupLabel: exploreWithMixedDimensionAndMetricReferences.groupLabel,
+    databricksCompute:
+        exploreWithMixedDimensionAndMetricReferences.databricksCompute,
+    spotlight: {
+        visibility: 'show',
+        categories: [],
+    },
+    joinedTables: [],
+    tables: {
+        events: {
+            name: 'events',
+            label: 'events',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: 'test.events',
+            sqlWhere: undefined,
+            uncompiledSqlWhere: undefined,
+            dimensions: {
+                user_id: {
+                    ...exploreWithMixedDimensionAndMetricReferences.tables
+                        .events.dimensions.user_id,
+                    compiledSql: '"events".user_id',
+                    tablesReferences: ['events'],
+                },
+                amount: {
+                    ...exploreWithMixedDimensionAndMetricReferences.tables
+                        .events.dimensions.amount,
+                    compiledSql: '"events".amount',
+                    tablesReferences: ['events'],
+                },
+            },
+            metrics: {
+                user_count: {
+                    ...exploreWithMixedDimensionAndMetricReferences.tables
+                        .events.metrics.user_count,
+                    compiledSql: 'count(distinct ("events".user_id))',
+                    tablesReferences: ['events'],
+                    showUnderlyingValues: undefined,
+                },
+                amount_per_user: {
+                    ...exploreWithMixedDimensionAndMetricReferences.tables
+                        .events.metrics.amount_per_user,
+                    // amount is a dimension, user_count is a metric
+                    compiledSql:
+                        'sum(("events".amount)) / NULLIF((count(distinct ("events".user_id))), 0)',
+                    tablesReferences: ['events'],
+                    showUnderlyingValues: undefined,
+                },
+            },
+            lineageGraph: {},
+            groupLabel: undefined,
+            source: sourceMock,
         },
     },
 };
