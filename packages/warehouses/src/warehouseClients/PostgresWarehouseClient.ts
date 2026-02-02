@@ -206,6 +206,47 @@ export class PostgresClient<
         return alteredQuery;
     }
 
+    private enrichCertificateError(err: Error): Error {
+        const errorMessage = err.message || '';
+        const isCertificateError =
+            errorMessage.includes('self-signed certificate') ||
+            errorMessage.includes('unable to verify') ||
+            errorMessage.includes('certificate has expired') ||
+            errorMessage.includes('Hostname/IP does not match certificate') ||
+            (err as NodeJS.ErrnoException).code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' ||
+            (err as NodeJS.ErrnoException).code === 'DEPTH_ZERO_SELF_SIGNED_CERT' ||
+            (err as NodeJS.ErrnoException).code === 'CERT_HAS_EXPIRED' ||
+            (err as NodeJS.ErrnoException).code === 'CERT_NOT_YET_VALID';
+
+        if (isCertificateError) {
+            const sslMode = (this.credentials as CreatePostgresCredentials).sslmode || 'prefer';
+            const isUsingCustomCert = !!(this.credentials as CreatePostgresCredentials).sslrootcert;
+
+            let guidance = '\n\nTLS Certificate Validation Error. Possible solutions:\n';
+            guidance += '1. Verify your database SSL configuration in the Lightdash UI (Project Settings > Warehouse Connection > Advanced Configuration)\n';
+            guidance += `2. Current SSL mode: "${sslMode}". Available modes:\n`;
+            guidance += '   - "require": Requires SSL but does not verify certificates (recommended for most use cases)\n';
+            guidance += '   - "verify-ca": Requires SSL and verifies the certificate against trusted CAs\n';
+            guidance += '   - "verify-full": Most secure - verifies certificate and hostname\n';
+            guidance += '   - "no-verify": Uses SSL but disables certificate verification (less secure)\n';
+
+            if (!isUsingCustomCert && errorMessage.includes('self-signed certificate')) {
+                guidance += '3. Note: AWS RDS certificates are included by default. This error may indicate:\n';
+                guidance += '   - A proxy or VPN is intercepting connections with a self-signed certificate\n';
+                guidance += '   - The database is using a custom CA certificate not in the default bundle\n';
+                guidance += '4. To use a custom CA certificate, upload it in the Lightdash UI under SSL Certificate Authority (CA)\n';
+            }
+
+            guidance += '\nIMPORTANT: Do NOT set NODE_TLS_REJECT_UNAUTHORIZED=0 as this disables ALL certificate verification and creates a security vulnerability.';
+
+            const enrichedError = new Error(`${errorMessage}${guidance}`);
+            enrichedError.stack = err.stack;
+            return enrichedError;
+        }
+
+        return err;
+    }
+
     static convertQueryResultFields(
         fields: QueryResult<AnyType>['fields'],
     ): Record<string, { type: DimensionType }> {
@@ -243,7 +284,7 @@ export class PostgresClient<
 
             pool.on('error', (err) => {
                 console.error(`Postgres pool error ${getErrorMessage(err)}`);
-                reject(err);
+                reject(this.enrichCertificateError(err));
             });
 
             pool.on('connect', (_client: pg.PoolClient) => {
@@ -252,7 +293,7 @@ export class PostgresClient<
                     console.error(
                         `Postgres client connect error ${getErrorMessage(err)}`,
                     );
-                    reject(err);
+                    reject(this.enrichCertificateError(err));
                 });
             });
 
@@ -261,7 +302,7 @@ export class PostgresClient<
                 closeClient = done;
 
                 if (err) {
-                    reject(err);
+                    reject(this.enrichCertificateError(err));
                     return;
                 }
                 if (!client) {
@@ -273,7 +314,7 @@ export class PostgresClient<
                     console.error(
                         `Postgres client error ${getErrorMessage(e)}`,
                     );
-                    reject(e);
+                    reject(this.enrichCertificateError(e));
                 });
 
                 const runQuery = () => {
