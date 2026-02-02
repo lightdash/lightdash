@@ -7,7 +7,6 @@
 import {
     SEED_PROJECT,
     Space,
-    SpaceDeleteImpact,
     SpaceMemberRole,
     SpaceShare,
     SpaceSummary,
@@ -250,7 +249,7 @@ export const removeSpaceGroupAccess = (
 export const getDeleteImpact = (
     spaceUuid: string,
     projectUuid?: string,
-): Cypress.Chainable<SpaceDeleteImpact> => {
+): Cypress.Chainable<{ childSpaces: SpaceSummary[] }> => {
     const pUuid = projectUuid ?? SEED_PROJECT.project_uuid;
 
     return cy
@@ -259,7 +258,7 @@ export const getDeleteImpact = (
         })
         .then((resp) => {
             expect(resp.status).to.eq(200);
-            return resp.body.results as SpaceDeleteImpact;
+            return resp.body.results as { childSpaces: SpaceSummary[] };
         });
 };
 
@@ -355,21 +354,27 @@ export const createSpaceHierarchy = (
         projectUuid: pUuid,
         isPrivate: options?.isPrivate ?? true,
     }).then((root) => {
-        const childPromises = childNames.map((name) =>
-            createSpace({
-                name,
-                projectUuid: pUuid,
-                parentSpaceUuid: root.uuid,
-                inheritParentPermissions: options?.childInheritance ?? true,
-            }),
-        );
+        // Chain child space creation sequentially (Cypress chainables don't work with Promise.all)
+        const childUuids: string[] = [];
 
-        return cy
-            .wrap(Promise.all(childPromises))
-            .then((children: Space[]) => ({
-                root: root.uuid,
-                children: children.map((c: Space) => c.uuid),
-            }));
+        let chain: Cypress.Chainable<unknown> = cy.wrap(null);
+        childNames.forEach((name) => {
+            chain = chain.then(() =>
+                createSpace({
+                    name,
+                    projectUuid: pUuid,
+                    parentSpaceUuid: root.uuid,
+                    inheritParentPermissions: options?.childInheritance ?? true,
+                }).then((child) => {
+                    childUuids.push(child.uuid);
+                }),
+            );
+        });
+
+        return chain.then(() => ({
+            root: root.uuid,
+            children: childUuids,
+        }));
     });
 };
 
