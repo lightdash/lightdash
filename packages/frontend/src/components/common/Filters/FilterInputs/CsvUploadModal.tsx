@@ -130,13 +130,6 @@ const CsvUploadModal: FC<Props> = ({ opened, onClose, onAddValues }) => {
 
     const isMultiColumn = parsedCsv && parsedCsv.headers.length > 1;
 
-    const handleAddValues = useCallback(() => {
-        if (previewValues.length === 0) return;
-
-        onAddValues(previewValues);
-        onClose();
-    }, [previewValues, onAddValues, onClose]);
-
     const handleClose = useCallback(() => {
         currentFileRef.current = null;
         setFile(null);
@@ -146,6 +139,13 @@ const CsvUploadModal: FC<Props> = ({ opened, onClose, onAddValues }) => {
         setError(null);
         onClose();
     }, [onClose]);
+
+    const handleAddValues = useCallback(() => {
+        if (previewValues.length === 0) return;
+
+        onAddValues(previewValues);
+        handleClose();
+    }, [previewValues, onAddValues, handleClose]);
 
     const showLargeFileWarning = previewValues.length > MAX_RECOMMENDED_VALUES;
 

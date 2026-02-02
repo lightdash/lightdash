@@ -17,6 +17,7 @@ export interface ParsedCsv {
 
 /**
  * Parse a single CSV line, handling quoted values with embedded commas.
+ * Throws an error if a quote is unclosed.
  */
 function parseCsvLine(line: string): string[] {
     const values: string[] = [];
@@ -50,6 +51,11 @@ function parseCsvLine(line: string): string[] {
                 current += char;
             }
         }
+    }
+
+    // Check for unclosed quotes
+    if (inQuotes) {
+        throw new Error('Unclosed quote in CSV line');
     }
 
     // Don't forget the last value
