@@ -60,4 +60,10 @@ export const warehouseValueValidators: Record<
         host: hasNoWhiteSpaces('Host'),
         user: hasNoWhiteSpaces('User'),
     },
+    [WarehouseTypes.ATHENA]: {
+        region: hasNoWhiteSpaces('Region'),
+        database: hasNoWhiteSpaces('Catalog'),
+        schema: hasNoWhiteSpaces('Database'),
+        s3StagingDir: hasNoWhiteSpaces('S3 Staging Directory'),
+    },
 } as const;

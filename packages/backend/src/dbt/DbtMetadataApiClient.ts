@@ -19,6 +19,7 @@ const quoteChars: Record<SupportedDbtAdapter, string> = {
     postgres: `"`,
     trino: `"`,
     clickhouse: `"`,
+    athena: `"`,
 };
 
 const PAGE_SIZE = 500;

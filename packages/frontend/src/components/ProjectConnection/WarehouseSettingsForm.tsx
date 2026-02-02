@@ -2,6 +2,7 @@ import { WarehouseTypes } from '@lightdash/common';
 import { Select } from '@mantine/core';
 import { type FC } from 'react';
 import { useFormContext } from './formContext';
+import AthenaForm from './WarehouseForms/AthenaForm';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
 import ClickhouseForm from './WarehouseForms/ClickhouseForm';
 import DatabricksForm from './WarehouseForms/DatabricksForm';
@@ -19,6 +20,7 @@ const WarehouseTypeLabels = {
     [WarehouseTypes.DATABRICKS]: 'Databricks',
     [WarehouseTypes.TRINO]: 'Trino',
     [WarehouseTypes.CLICKHOUSE]: 'ClickHouse',
+    [WarehouseTypes.ATHENA]: 'Athena',
 };
 
 const WarehouseTypeForms = {
@@ -29,6 +31,7 @@ const WarehouseTypeForms = {
     [WarehouseTypes.DATABRICKS]: DatabricksForm,
     [WarehouseTypes.TRINO]: TrinoForm,
     [WarehouseTypes.CLICKHOUSE]: ClickhouseForm,
+    [WarehouseTypes.ATHENA]: AthenaForm,
 };
 
 interface WarehouseSettingsFormProps {

@@ -106,10 +106,9 @@ const getDbtCloudConnectionType = async (): Promise<SupportedDbtAdapter> => {
 function getMockCredentials(
     dbtAdaptorType: SupportedDbtAdapter,
 ): CreateWarehouseCredentials {
-    let credentials: CreateWarehouseCredentials;
     switch (dbtAdaptorType) {
         case SupportedDbtAdapter.BIGQUERY:
-            credentials = {
+            return {
                 type: WarehouseTypes.BIGQUERY,
                 project: '',
                 dataset: '',
@@ -120,9 +119,8 @@ function getMockCredentials(
                 location: undefined,
                 maximumBytesBilled: undefined,
             };
-            break;
         case SupportedDbtAdapter.POSTGRES:
-            credentials = {
+            return {
                 type: WarehouseTypes.POSTGRES,
                 host: '',
                 user: '',
@@ -131,9 +129,8 @@ function getMockCredentials(
                 dbname: '',
                 schema: '',
             };
-            break;
         case SupportedDbtAdapter.REDSHIFT:
-            credentials = {
+            return {
                 type: WarehouseTypes.REDSHIFT,
                 host: '',
                 user: '',
@@ -142,9 +139,8 @@ function getMockCredentials(
                 dbname: '',
                 schema: '',
             };
-            break;
         case SupportedDbtAdapter.SNOWFLAKE:
-            credentials = {
+            return {
                 type: WarehouseTypes.SNOWFLAKE,
                 account: '',
                 user: '',
@@ -154,10 +150,8 @@ function getMockCredentials(
                 schema: '',
                 role: '',
             };
-            break;
-
         case SupportedDbtAdapter.DATABRICKS:
-            credentials = {
+            return {
                 type: WarehouseTypes.DATABRICKS,
                 catalog: '',
                 database: '',
@@ -165,9 +159,8 @@ function getMockCredentials(
                 httpPath: '',
                 personalAccessToken: '',
             };
-            break;
         case SupportedDbtAdapter.TRINO:
-            credentials = {
+            return {
                 type: WarehouseTypes.TRINO,
                 host: '',
                 user: '',
@@ -177,9 +170,8 @@ function getMockCredentials(
                 schema: '',
                 http_scheme: '',
             };
-            break;
         case SupportedDbtAdapter.CLICKHOUSE:
-            credentials = {
+            return {
                 type: WarehouseTypes.CLICKHOUSE,
                 host: '',
                 user: '',
@@ -189,14 +181,22 @@ function getMockCredentials(
                 secure: true,
                 timeoutSeconds: 300,
             };
-            break;
+        case SupportedDbtAdapter.ATHENA:
+            return {
+                type: WarehouseTypes.ATHENA,
+                region: '',
+                database: '',
+                schema: '',
+                s3StagingDir: '',
+                accessKeyId: '',
+                secretAccessKey: '',
+            };
         default:
-            assertUnreachable(
+            return assertUnreachable(
                 dbtAdaptorType,
                 `Unsupported dbt adaptor type ${dbtAdaptorType}`,
             );
     }
-    return credentials;
 }
 
 type GetWarehouseClientOptions = {

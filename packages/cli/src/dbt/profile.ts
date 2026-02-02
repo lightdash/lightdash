@@ -7,6 +7,7 @@ import { accessSync, constants, promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import { homedir } from 'os';
 import * as path from 'path';
+import { convertAthenaSchema } from './targets/athena';
 import { convertBigquerySchema } from './targets/Bigquery';
 import { convertClickhouseSchema } from './targets/clickhouse';
 import { convertDatabricksSchema } from './targets/databricks';
@@ -71,6 +72,8 @@ export const warehouseCredentialsFromDbtTarget = async (
             return convertTrinoSchema(target);
         case 'clickhouse':
             return convertClickhouseSchema(target);
+        case 'athena':
+            return convertAthenaSchema(target);
         default:
             throw new ParseError(
                 `Sorry! Lightdash doesn't yet support ${target.type} dbt targets`,
