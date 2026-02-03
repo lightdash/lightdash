@@ -58,7 +58,7 @@ type Reference = {
 /**
  * Regex pattern to detect SQL aggregation functions.
  * Used to allow dimension references in non-aggregate metrics when
- * the SQL itself contains an aggregation function (common Looker pattern).
+ * the SQL itself contains an aggregation function (common pattern).
  *
  * Matches: sum(, count(, avg(, etc. with word boundary to avoid false positives
  * like "summary" matching "sum".
@@ -70,7 +70,7 @@ const SQL_AGGREGATION_FUNCTIONS_PATTERN =
  * Check if the SQL contains any aggregation functions.
  *
  * This is used to determine if a non-aggregate metric with dimension references
- * should be allowed. In Looker, it's common to define metrics as type:number
+ * should be allowed. It's common to define metrics as type:number
  * with aggregation functions in the SQL field. These are valid in Lightdash
  * because the aggregation happens in the SQL itself.
  *
@@ -797,7 +797,7 @@ export class ExploreCompiler {
                 // - Post-calculation metrics can ONLY reference other metrics
                 // - Non-aggregate metrics without aggregation can only reference other metrics
                 // - Non-aggregate metrics that have aggregation in their SQL can
-                //   reference BOTH dimensions AND metrics (common Looker pattern like
+                //   reference BOTH dimensions AND metrics (common pattern like
                 //   type:number with sql: "sum(${dim}) / ${metric}")
                 // - Aggregate metrics can only reference dimensions
                 const isNonAggregate = isNonAggregateMetric(metric);
@@ -842,7 +842,15 @@ export class ExploreCompiler {
                 } else if (hasAggregationInSql) {
                     // Non-aggregate metrics WITH SQL aggregation can reference both
                     // dimensions and metrics - detect based on what the reference actually is
-                    if (isDimensionRef) {
+                    // Handle TABLE reference first (common pattern: ${TABLE}.column)
+                    if (p1 === 'TABLE') {
+                        compiledReference = this.compileDimensionReference(
+                            p1,
+                            tables,
+                            metric.table,
+                            fieldContext,
+                        );
+                    } else if (isDimensionRef) {
                         compiledReference = this.compileDimensionReference(
                             p1,
                             tables,
