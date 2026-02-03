@@ -1156,56 +1156,67 @@ export class SpaceModel {
         userUuid: string,
         spaceUuids: string[],
     ): Promise<Record<string, SpaceShare[]>> {
-        // Get a normalized list of root space UUIDs if the spaces are nested
-        const spacesWithRootSpaceUuid = (
-            await Promise.all(
-                spaceUuids.map(async (spaceUuid) => {
-                    try {
-                        const { spaceRoot: root } =
-                            await this.getSpaceRootFromCacheOrDB(spaceUuid);
+        return wrapSentryTransaction(
+            'SpaceModel.getUserSpacesAccess',
+            { spaceUuidsCount: spaceUuids.length },
+            async () => {
+                // Get a normalized list of root space UUIDs if the spaces are nested
+                const spacesWithRootSpaceUuid = (
+                    await Promise.all(
+                        spaceUuids.map(async (spaceUuid) => {
+                            try {
+                                const { spaceRoot: root } =
+                                    await this.getSpaceRootFromCacheOrDB(
+                                        spaceUuid,
+                                    );
 
-                        return { rootSpaceUuid: root, spaceUuid };
-                    } catch (e) {
-                        // Prevent one of the spaces from causing the entire request to fail
-                        if (e instanceof InvalidSpaceStateError) {
-                            return null;
-                        }
-                        throw e;
-                    }
-                }),
-            )
-        ).filter((space) => space !== null);
+                                return { rootSpaceUuid: root, spaceUuid };
+                            } catch (e) {
+                                // Prevent one of the spaces from causing the entire request to fail
+                                if (e instanceof InvalidSpaceStateError) {
+                                    return null;
+                                }
+                                throw e;
+                            }
+                        }),
+                    )
+                ).filter((space) => space !== null);
 
-        const rootSpaceUuids = Array.from(
-            new Set(
-                spacesWithRootSpaceUuid.map(
-                    ({ rootSpaceUuid }) => rootSpaceUuid,
-                ),
-            ),
+                const rootSpaceUuids = Array.from(
+                    new Set(
+                        spacesWithRootSpaceUuid.map(
+                            ({ rootSpaceUuid }) => rootSpaceUuid,
+                        ),
+                    ),
+                );
+
+                // Fetch access for all root spaces - we can get the access for all descendants from this
+                const rootSpacesAccess = await this._getSpaceAccess(
+                    rootSpaceUuids,
+                    {
+                        userUuid,
+                    },
+                );
+
+                return Object.entries(rootSpacesAccess).reduce<
+                    Record<string, SpaceShare[]>
+                >((acc, [spaceUuid, spaceAccess]) => {
+                    // Get descendants of a current space and return the access of the root space for all descendants
+                    const descendants = spacesWithRootSpaceUuid.filter(
+                        ({ rootSpaceUuid }) => rootSpaceUuid === spaceUuid,
+                    );
+                    // Add the access of the root space for all descendants
+                    descendants.forEach(({ spaceUuid: s }) => {
+                        acc[s] = spaceAccess;
+                    });
+
+                    // Otherwise, return the access of the root space
+                    acc[spaceUuid] = spaceAccess;
+
+                    return acc;
+                }, {});
+            },
         );
-
-        // Fetch access for all root spaces - we can get the access for all descendants from this
-        const rootSpacesAccess = await this._getSpaceAccess(rootSpaceUuids, {
-            userUuid,
-        });
-
-        return Object.entries(rootSpacesAccess).reduce<
-            Record<string, SpaceShare[]>
-        >((acc, [spaceUuid, spaceAccess]) => {
-            // Get descendants of a current space and return the access of the root space for all descendants
-            const descendants = spacesWithRootSpaceUuid.filter(
-                ({ rootSpaceUuid }) => rootSpaceUuid === spaceUuid,
-            );
-            // Add the access of the root space for all descendants
-            descendants.forEach(({ spaceUuid: s }) => {
-                acc[s] = spaceAccess;
-            });
-
-            // Otherwise, return the access of the root space
-            acc[spaceUuid] = spaceAccess;
-
-            return acc;
-        }, {});
     }
 
     /**
@@ -1218,14 +1229,22 @@ export class SpaceModel {
         userUuid: string,
         spaceUuids: string[],
     ): Promise<Record<string, SpaceShare[]>> {
-        // getEffectiveSpaceAccess for each space in the inheritance chain
-        const accessBySpace = await Promise.all(
-            spaceUuids.map(async (spaceUuid) =>
-                this.getEffectiveSpaceAccess(spaceUuid, { userUuid }),
-            ),
-        );
-        return Object.fromEntries(
-            accessBySpace.map((access, index) => [spaceUuids[index], access]),
+        return wrapSentryTransaction(
+            'SpaceModel.getUserSpacesAccessWithInheritanceChain',
+            { spaceUuidsCount: spaceUuids.length },
+            async () => {
+                const accessBySpace = await Promise.all(
+                    spaceUuids.map(async (spaceUuid) =>
+                        this.getEffectiveSpaceAccess(spaceUuid, { userUuid }),
+                    ),
+                );
+                return Object.fromEntries(
+                    accessBySpace.map((access, index) => [
+                        spaceUuids[index],
+                        access,
+                    ]),
+                );
+            },
         );
     }
 
