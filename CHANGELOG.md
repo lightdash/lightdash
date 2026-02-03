@@ -1,3 +1,10 @@
+## [0.2411.1](https://github.com/lightdash/lightdash/compare/0.2411.0...0.2411.1) (2026-02-03)
+
+
+### Bug Fixes
+
+* inject css into js for sdk build output ([#19918](https://github.com/lightdash/lightdash/issues/19918)) ([f604e87](https://github.com/lightdash/lightdash/commit/f604e877a8feb8e4c0bc58c556ff78db25d86908))
+
 # [0.2411.0](https://github.com/lightdash/lightdash/compare/0.2410.1...0.2411.0) (2026-02-03)
 
 
