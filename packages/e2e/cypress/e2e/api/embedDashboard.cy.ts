@@ -3,6 +3,7 @@ import {
     getEmbedConfig,
     getEmbedUrl,
     updateEmbedConfig,
+    waitForEmbedConfigWithDashboards,
 } from '../../support/embedUtils';
 
 describe('Embed Dashboard JWT API', () => {
@@ -41,17 +42,9 @@ describe('Embed Dashboard JWT API', () => {
                     allowAllCharts: originalEmbedConfig.allowAllCharts || false,
                 }).then((updateResp) => {
                     expect(updateResp.status).to.eq(200);
-                    // Wait a moment for database commit/replication, especially important
-                    // in preview environments where there might be replication lag
-                    cy.wait(500);
-                    // Verify the config was updated before proceeding
-                    getEmbedConfig().then((verifyResp) => {
-                        expect(verifyResp.status).to.eq(200);
-                        const updatedConfig = verifyResp.body.results;
-                        expect(updatedConfig.dashboardUuids).to.include(
-                            testDashboardUuid,
-                        );
-                    });
+                    // Wait for the config to be updated with retry logic
+                    // Preview environments may have eventual consistency delays
+                    waitForEmbedConfigWithDashboards([testDashboardUuid]);
                 });
             });
         });

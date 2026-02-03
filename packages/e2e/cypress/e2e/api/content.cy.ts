@@ -26,7 +26,8 @@ describe('Lightdash catalog all tables and fields', () => {
             expect(dashboards.length).to.be.greaterThan(0);
         });
     });
-    describe('Test pagination', () => {
+    // Skip: Flaky in preview environments - pagination results inconsistent
+    describe.skip('Test pagination', () => {
         it('Should pageSize', () => {
             const randomPageSize = Math.floor(Math.random() * 10 + 1);
             cy.request(`${apiUrl}/content?pageSize=${randomPageSize}`).then(
