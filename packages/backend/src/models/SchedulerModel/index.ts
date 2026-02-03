@@ -1748,6 +1748,7 @@ export class SchedulerModel {
             .whereRaw(
                 `${SchedulerLogTableName}.job_id = ${SchedulerLogTableName}.job_group`,
             )
+            .whereNot(`${SchedulerLogTableName}.scheduler_uuid`, null)
             .orderBy(`${SchedulerLogTableName}.created_at`, 'asc');
 
         if (!parentJobs || parentJobs.length === 0) {
