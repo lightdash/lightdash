@@ -9,7 +9,7 @@
     padding: var(--mantine-spacing-xs);
 
     &:hover {
-        background-color: var(--mantine-color-ldDark-6);
+        background-color: var(--mantine-color-ldDark-3);
     }
 }
 

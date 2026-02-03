@@ -19,7 +19,7 @@ export const AiAgentsButton = () => {
             variant="default"
             fz="sm"
             leftSection={
-                <MantineIcon icon={IconMessageCircleStar} c="ldGray.5" />
+                <MantineIcon icon={IconMessageCircleStar} color="ldGray.5" />
             }
             onClick={() => navigate(`/projects/${projectUuid}/ai-agents`)}
         >

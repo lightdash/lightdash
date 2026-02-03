@@ -4,7 +4,7 @@ import {
     type DashboardTab,
     type Dashboard as IDashboard,
 } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { Box } from '@mantine-8/core';
 import { memo, type FC } from 'react';
 import ChartTile from '../../components/DashboardTiles/DashboardChartTile';
 import HeadingTile from '../../components/DashboardTiles/DashboardHeadingTile';

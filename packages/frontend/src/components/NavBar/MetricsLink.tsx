@@ -5,7 +5,6 @@ import { Link, useNavigate } from 'react-router';
 import { useProject } from '../../hooks/useProject';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
-import { Hash } from '../../svgs/metricsCatalog';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
 
@@ -56,7 +55,7 @@ export const MetricsLink: FC<Props> = ({ projectUuid, asMenu }) => {
             variant="default"
             size="xs"
             fz="sm"
-            leftSection={<Hash />}
+            leftSection={<MantineIcon icon={IconHash} color="ldGray.5" />}
             onClick={handleMetricsCatalogClick}
         >
             Metrics

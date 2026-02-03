@@ -26,11 +26,11 @@ const LargeMenuItem: ReturnType<
                 <Menu.Item
                     ref={ref}
                     leftSection={
-                        <Card p="sm" bg="ldDark.6" radius="sm">
+                        <Card p="sm" bg="ldDark.6" radius="md">
                             <MantineIcon
                                 icon={icon}
                                 size="lg"
-                                color="ldDark.9"
+                                color="white"
                                 {...iconProps}
                             />
                         </Card>
@@ -38,10 +38,12 @@ const LargeMenuItem: ReturnType<
                     {...rest}
                 >
                     <Stack gap="xxs">
-                        <Text c="white" fw={600}>
+                        <Text c="white" fw={600} fz="sm">
                             {title}
                         </Text>
-                        <Text c="dimmed">{description}</Text>
+                        <Text c="ldDark.8" fz="xs">
+                            {description}
+                        </Text>
                     </Stack>
                 </Menu.Item>
             );

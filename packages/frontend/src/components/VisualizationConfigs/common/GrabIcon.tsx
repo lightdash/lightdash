@@ -1,5 +1,5 @@
 import type { DraggableProvidedDragHandleProps } from '@hello-pangea/dnd';
-import { Box } from '@mantine/core';
+import { Box } from '@mantine-8/core';
 import { IconGripVertical } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -12,7 +12,7 @@ type Props = {
 export const GrabIcon: FC<Props> = ({ dragHandleProps, hovered }) => (
     <Box
         {...dragHandleProps}
-        sx={{
+        style={{
             ...(hovered !== undefined && {
                 visibility: hovered ? 'visible' : 'hidden',
             }),

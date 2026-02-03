@@ -150,7 +150,6 @@ export const getMantine8ThemeOverride = (
                     root: {
                         fontFamily: theme.fontFamily,
                         fontWeight: 500,
-                        borderRadius: theme.radius.md,
                     },
                 }),
                 defaultProps: {

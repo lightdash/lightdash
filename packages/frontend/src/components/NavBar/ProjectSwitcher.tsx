@@ -17,7 +17,6 @@ import {
     Text,
     TextInput,
     Tooltip,
-    UnstyledButton,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
@@ -40,11 +39,12 @@ import { useProject } from '../../hooks/useProject';
 import { useProjects } from '../../hooks/useProjects';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
+import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import { CreatePreviewModal } from './CreatePreviewProjectModal';
 import classes from './ProjectSwitcher.module.css';
 
 const MENU_TEXT_PROPS = {
-    c: 'gray.1',
+    c: 'ldGray.9',
     fz: 'xs',
     fw: 500,
 };
@@ -68,30 +68,34 @@ const GroupHeader: FC<{
     const isExpanded = isVisible;
 
     return (
-        <UnstyledButton onClick={onToggle} className={classes.groupHeader}>
-            <Group gap="xs" justify="space-between" wrap="nowrap">
-                <Group gap="xs" wrap="nowrap">
-                    <Text {...MENU_TEXT_PROPS} fw={600} c="gray.4">
-                        {title}
-                    </Text>
-                    <Badge
-                        color={badgeColor}
-                        variant="light"
-                        size="xs"
-                        radius="sm"
-                        fw={700}
-                        className={classes.badge}
-                    >
-                        {count}
-                    </Badge>
-                </Group>
-                <MantineIcon
-                    icon={isExpanded ? IconChevronDown : IconChevronRight}
-                    size="sm"
-                    c="gray.5"
-                />
+        <PolymorphicGroupButton
+            onClick={onToggle}
+            className={classes.groupHeader}
+            gap="xs"
+            justify="space-between"
+            wrap="nowrap"
+        >
+            <Group gap="xs" wrap="nowrap">
+                <Text {...MENU_TEXT_PROPS} fw={600} c="ldDark.9">
+                    {title}
+                </Text>
+                <Badge
+                    color={badgeColor}
+                    variant="light"
+                    size="xs"
+                    radius="sm"
+                    fw={700}
+                    className={classes.badge}
+                >
+                    {count}
+                </Badge>
             </Group>
-        </UnstyledButton>
+            <MantineIcon
+                icon={isExpanded ? IconChevronDown : IconChevronRight}
+                size="sm"
+                color="ldGray.5"
+            />
+        </PolymorphicGroupButton>
     );
 };
 
@@ -128,19 +132,19 @@ const ProjectItem: FC<{
                         truncate="end"
                         maw={350}
                         fw={isActive ? 600 : 500}
-                        c={isActive ? 'gray.5' : 'inherit'}
+                        c={isActive ? 'ldGray.9' : 'inherit'}
                     >
                         {item.name}
                     </Highlight>
                 </Tooltip>
 
-                {(item.type === ProjectType.PREVIEW || isActive) && (
+                {isActive && (
                     <Badge
                         color={isActive ? 'green' : 'yellow.1'}
                         variant="light"
-                        size="xs"
+                        size="sm"
                         radius="sm"
-                        fw={400}
+                        fw={450}
                         className={classes.badge}
                     >
                         {isActive ? 'Active' : 'Preview'}
@@ -189,7 +193,9 @@ const ProjectSwitcher = () => {
 
     // Only fetch all projects when menu is opened
     const { isInitialLoading: isLoadingProjects, data: projects } = useProjects(
-        { enabled: isMenuOpen },
+        {
+            enabled: isMenuOpen,
+        },
     );
     const { isLoading: isLoadingActiveProjectUuid, activeProjectUuid } =
         useActiveProjectUuid();
@@ -303,82 +309,88 @@ const ProjectSwitcher = () => {
         );
     }, [user.data]);
 
-    const { baseProjects, previewProjects, shouldShowBase, shouldShowPreview } =
-        useMemo(() => {
-            if (!activeProjectUuid || !projects)
-                return {
-                    baseProjects: [],
-                    previewProjects: [],
-                    shouldShowBase: false,
-                    shouldShowPreview: false,
-                };
-
-            const availableProjects = projects.filter((project) => {
-                switch (project.type) {
-                    case ProjectType.DEFAULT:
-                        return true;
-                    case ProjectType.PREVIEW:
-                        // check if user has permission to create preview project on an organization level (developer, admin)
-                        // or check if user has permission to create preview project on a project level
-                        // - they should have permission (developer, admin) to the upstream project
-                        return (
-                            orgRoleCanCreatePreviews ||
-                            user.data?.ability.can(
-                                'create',
-                                subject('Project', {
-                                    upstreamProjectUuid: project.projectUuid,
-                                    type: ProjectType.PREVIEW,
-                                }),
-                            )
-                        );
-                    default:
-                        return assertUnreachable(
-                            project.type,
-                            `Unknown project type: ${project.type}`,
-                        );
-                }
-            });
-
-            // Apply search filter if query exists
-            const searchFiltered =
-                debouncedSearchQuery.length >= 2
-                    ? availableProjects.filter((project) =>
-                          project.name
-                              .toLowerCase()
-                              .includes(debouncedSearchQuery.toLowerCase()),
-                      )
-                    : availableProjects;
-
-            const base = searchFiltered.filter(
-                (p) => p.type === ProjectType.DEFAULT,
-            );
-            const preview = searchFiltered.filter(
-                (p) => p.type === ProjectType.PREVIEW,
-            );
-
-            // Determine visibility based on group states and search
-            const hasSearchResults = debouncedSearchQuery.length >= 2;
-            const showBase =
-                groupStates.base !== 'collapsed' ||
-                (hasSearchResults && base.length > 0);
-            const showPreview =
-                groupStates.preview !== 'collapsed' ||
-                (hasSearchResults && preview.length > 0);
-
+    const {
+        baseProjects,
+        previewProjects,
+        shouldShowBase,
+        shouldShowPreview,
+        showSearchInput,
+    } = useMemo(() => {
+        if (!activeProjectUuid || !projects)
             return {
-                baseProjects: base,
-                previewProjects: preview,
-                shouldShowBase: showBase && base.length > 0,
-                shouldShowPreview: showPreview && preview.length > 0,
+                baseProjects: [],
+                previewProjects: [],
+                shouldShowBase: false,
+                shouldShowPreview: false,
             };
-        }, [
-            activeProjectUuid,
-            projects,
-            orgRoleCanCreatePreviews,
-            user.data,
-            groupStates,
-            debouncedSearchQuery,
-        ]);
+
+        const availableProjects = projects.filter((project) => {
+            switch (project.type) {
+                case ProjectType.DEFAULT:
+                    return true;
+                case ProjectType.PREVIEW:
+                    // check if user has permission to create preview project on an organization level (developer, admin)
+                    // or check if user has permission to create preview project on a project level
+                    // - they should have permission (developer, admin) to the upstream project
+                    return (
+                        orgRoleCanCreatePreviews ||
+                        user.data?.ability.can(
+                            'create',
+                            subject('Project', {
+                                upstreamProjectUuid: project.projectUuid,
+                                type: ProjectType.PREVIEW,
+                            }),
+                        )
+                    );
+                default:
+                    return assertUnreachable(
+                        project.type,
+                        `Unknown project type: ${project.type}`,
+                    );
+            }
+        });
+
+        // Apply search filter if query exists
+        const searchFiltered =
+            debouncedSearchQuery.length >= 2
+                ? availableProjects.filter((project) =>
+                      project.name
+                          .toLowerCase()
+                          .includes(debouncedSearchQuery.toLowerCase()),
+                  )
+                : availableProjects;
+
+        const base = searchFiltered.filter(
+            (p) => p.type === ProjectType.DEFAULT,
+        );
+        const preview = searchFiltered.filter(
+            (p) => p.type === ProjectType.PREVIEW,
+        );
+
+        // Determine visibility based on group states and search
+        const hasSearchResults = debouncedSearchQuery.length >= 2;
+        const showBase =
+            groupStates.base !== 'collapsed' ||
+            (hasSearchResults && base.length > 0);
+        const showPreview =
+            groupStates.preview !== 'collapsed' ||
+            (hasSearchResults && preview.length > 0);
+
+        return {
+            baseProjects: base,
+            previewProjects: preview,
+            shouldShowBase: showBase && base.length > 0,
+            shouldShowPreview: showPreview && preview.length > 0,
+            showSearchInput: base.length + preview.length > 2,
+        };
+    }, [
+        activeProjectUuid,
+        projects,
+        orgRoleCanCreatePreviews,
+        user.data,
+        groupStates,
+        debouncedSearchQuery,
+    ]);
 
     const userCanCreatePreview = useMemo(() => {
         if (isLoadingProjects || !projects || !user.data) return false;
@@ -413,6 +425,7 @@ const ProjectSwitcher = () => {
                 opened={isMenuOpen}
                 onChange={setIsMenuOpen}
                 classNames={{ dropdown: classes.dropdown }}
+                portalProps={{ target: '#navbar-header' }}
             >
                 <Menu.Target>
                     <Button
@@ -420,15 +433,18 @@ const ProjectSwitcher = () => {
                         size="xs"
                         className={classes.targetButton}
                     >
-                        <Text truncate>
+                        <Text truncate fw={500} fz="xs">
                             {activeProject?.name ?? 'Select a project'}
                         </Text>
                     </Button>
                 </Menu.Target>
 
-                <Menu.Dropdown maw={400}>
+                <Menu.Dropdown w={400}>
                     {/* Search Header */}
-                    <Box className={classes.searchHeader}>
+                    <Box
+                        className={classes.searchHeader}
+                        display={showSearchInput ? 'block' : 'none'}
+                    >
                         <TextInput
                             placeholder="Search projects..."
                             value={searchQuery}
@@ -548,7 +564,7 @@ const ProjectSwitcher = () => {
                                         <MantineIcon
                                             icon={IconSearch}
                                             size="lg"
-                                            c="gray.5"
+                                            color="ldGray.5"
                                         />
                                         <Text {...MENU_TEXT_PROPS}>
                                             {debouncedSearchQuery.length >= 2

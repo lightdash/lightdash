@@ -1,5 +1,5 @@
 import { assertUnreachable } from '@lightdash/common';
-import { Button, Text, Tooltip } from '@mantine/core';
+import { Button, Text, Tooltip } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -98,7 +98,7 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
         <>
             <MantineIcon icon={IconInfoCircle} color="white" size="sm" />
 
-            <Text color="white" fw={500} fz="xs" mx="xxs">
+            <Text c="white" fw={500} fz="xs" mx={4}>
                 {isCancelling
                     ? `Cancelling...`
                     : `You are ${action} this chart from within ${
@@ -116,10 +116,9 @@ export const DashboardExplorerBanner: FC<Props> = ({ projectUuid }) => {
             >
                 <Button
                     onClick={handleOnCancel}
-                    size="xs"
+                    size="compact-xs"
                     ml="md"
                     variant="white"
-                    compact
                 >
                     {cancelButtonText}
                 </Button>

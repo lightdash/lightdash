@@ -1,5 +1,5 @@
 import { LightdashMode } from '@lightdash/common';
-import { Button, Menu } from '@mantine-8/core';
+import { Button, getDefaultZIndex, Menu } from '@mantine-8/core';
 import { modals } from '@mantine/modals';
 import {
     IconBook,
@@ -49,6 +49,8 @@ const HelpMenu: FC = () => {
             position="bottom-end"
             arrowOffset={16}
             offset={-2}
+            zIndex={getDefaultZIndex('max')}
+            portalProps={{ target: '#navbar-header' }}
         >
             <Menu.Target>
                 <Button aria-label="Help" variant="default" size="xs">

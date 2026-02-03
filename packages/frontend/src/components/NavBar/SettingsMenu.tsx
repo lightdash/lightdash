@@ -6,7 +6,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 
-import { Button, Menu } from '@mantine-8/core';
+import { Button, getDefaultZIndex, Menu } from '@mantine-8/core';
 import { Link } from 'react-router';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import useApp from '../../providers/App/useApp';
@@ -46,6 +46,8 @@ const SettingsMenu: FC = () => {
             position="bottom-end"
             arrowOffset={16}
             offset={-2}
+            zIndex={getDefaultZIndex('max')}
+            portalProps={{ target: '#navbar-header' }}
         >
             <Menu.Target>
                 <Button

@@ -1,0 +1,21 @@
+.fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+}
+
+.header {
+    align-items: center;
+    box-shadow: var(--mantine-shadow-lg);
+    justify-content: flex-start;
+    background-color: var(--mantine-color-dark-7);
+}
+
+.headerEditingDashboardChart {
+    justify-content: center;
+    border-bottom: none;
+    background-color: var(--mantine-color-blue-6);
+    color: white;
+}

@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { Button, Menu } from '@mantine-8/core';
+import { Button, getDefaultZIndex, Menu } from '@mantine-8/core';
 import {
     IconFolder,
     IconFolderPlus,
@@ -47,7 +47,8 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     position="bottom-start"
                     arrowOffset={16}
                     offset={-2}
-                    withinPortal
+                    zIndex={getDefaultZIndex('max')}
+                    portalProps={{ target: '#navbar-header' }}
                 >
                     <Menu.Target>
                         <Button
@@ -55,7 +56,10 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             size="xs"
                             fz="sm"
                             leftSection={
-                                <MantineIcon icon={IconSquareRoundedPlus} />
+                                <MantineIcon
+                                    icon={IconSquareRoundedPlus}
+                                    color="ldGray.5"
+                                />
                             }
                             onClick={() => setIsOpen(!isOpen)}
                             data-testid="ExploreMenu/NewButton"
@@ -67,7 +71,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                     <Menu.Dropdown>
                         <LargeMenuItem
                             component={Link}
-                            title="Query from tables"
+                            title="Chart"
                             description="Build queries and save them as charts."
                             to={`/projects/${projectUuid}/tables`}
                             icon={IconTable}

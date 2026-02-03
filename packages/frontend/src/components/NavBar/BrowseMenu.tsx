@@ -1,4 +1,12 @@
-import { Box, Button, Center, Loader, Menu, ScrollArea } from '@mantine-8/core';
+import {
+    Box,
+    Button,
+    Center,
+    getDefaultZIndex,
+    Loader,
+    Menu,
+    ScrollArea,
+} from '@mantine-8/core';
 import {
     IconCategory,
     IconChartAreaLine,
@@ -36,11 +44,12 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
     return (
         <Menu
             withArrow
-            withinPortal
             shadow="lg"
             position="bottom-start"
             arrowOffset={16}
             offset={-2}
+            zIndex={getDefaultZIndex('max')}
+            portalProps={{ target: '#navbar-header' }}
             onChange={(opened) => {
                 if (opened && !hasBeenOpened) {
                     setHasBeenOpened(true);
@@ -53,7 +62,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     size="xs"
                     fz="sm"
                     leftSection={
-                        <MantineIcon c="ldGray.5" icon={IconCategory} />
+                        <MantineIcon color="ldGray.5" icon={IconCategory} />
                     }
                 >
                     Browse
