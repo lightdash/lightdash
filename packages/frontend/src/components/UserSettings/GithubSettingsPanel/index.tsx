@@ -76,7 +76,7 @@ const GithubSettingsPanel: FC = () => {
             </Box>
 
             <Stack>
-                <Text color="dimmed" fz="xs">
+                <Text c="dimmed" fz="xs">
                     Installing GitHub App allows Lightdash to access your GitHub
                     repositories and create pull requests.
                 </Text>
@@ -91,15 +91,25 @@ const GithubSettingsPanel: FC = () => {
                     </Alert>
                 )}
                 {isValidGithubInstallation && data && data.length > 0 && (
-                    <Text color="dimmed" fz="xs">
-                        Your GitHub integration has access to the following
-                        repositories:
-                        <ul>
-                            {data.map((repo) => (
-                                <li key={repo.fullName}>{repo.fullName}</li>
-                            ))}
-                        </ul>
-                    </Text>
+                    <Stack spacing="xs">
+                        <Text c="dimmed" fz="xs">
+                            Your GitHub integration has access to the following
+                            repositories ({data.length}):
+                        </Text>
+                        <Box mah={200} style={{ overflowY: 'auto' }}>
+                            <Text
+                                component="ul"
+                                fz="xs"
+                                c="dimmed"
+                                m={0}
+                                pl="md"
+                            >
+                                {data.map((repo) => (
+                                    <li key={repo.fullName}>{repo.fullName}</li>
+                                ))}
+                            </Text>
+                        </Box>
+                    </Stack>
                 )}
 
                 {isValidGithubInstallation ? (
