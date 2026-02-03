@@ -1,3 +1,16 @@
+# [0.2415.0](https://github.com/lightdash/lightdash/compare/0.2414.1...0.2415.0) (2026-02-03)
+
+
+### Bug Fixes
+
+* upgrade jspdf from 4.0.0 to 4.1.0 ([#19926](https://github.com/lightdash/lightdash/issues/19926)) ([4e68877](https://github.com/lightdash/lightdash/commit/4e68877641cd4a40339073f68622878de578742b))
+
+
+### Features
+
+* prevent deletion of YAML-defined metric tree edges ([#19932](https://github.com/lightdash/lightdash/issues/19932)) ([89d1f98](https://github.com/lightdash/lightdash/commit/89d1f98369a1a3145366748e468bd3ca936b42fa))
+* use AsyncQueryService for metrics tree queries ([#19894](https://github.com/lightdash/lightdash/issues/19894)) ([007ae8f](https://github.com/lightdash/lightdash/commit/007ae8f526eb74db8f218cf623ddd6e27e92d09d))
+
 ## [0.2414.1](https://github.com/lightdash/lightdash/compare/0.2414.0...0.2414.1) (2026-02-03)
 
 
