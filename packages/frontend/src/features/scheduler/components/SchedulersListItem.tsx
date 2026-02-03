@@ -68,7 +68,15 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
             }),
         );
     }, [user.data, activeProjectUuid, scheduler.createdBy]);
-
+    const userCanCreateScheduledDelivery = useMemo(() => {
+        return user.data?.ability?.can(
+            'create',
+            subject('ScheduledDeliveries', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid: activeProjectUuid,
+            }),
+        );
+    }, [user.data, activeProjectUuid]);
     if (!project) {
         return null;
     }
@@ -97,6 +105,19 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                         </Text>
                     </Group>
                 </Stack>
+                {!userCanManageScheduledDelivery &&
+                    userCanCreateScheduledDelivery && (
+                        <Tooltip withinPortal label="Send now">
+                            <ActionIcon
+                                variant="light"
+                                onClick={() => setIsConfirmSendNowOpen(true)}
+                                radius="md"
+                                color="ldDark.9"
+                            >
+                                <MantineIcon color="ldDark.9" icon={IconSend} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
                 {userCanManageScheduledDelivery && (
                     <Group wrap="nowrap" gap="xs">
                         <Tooltip

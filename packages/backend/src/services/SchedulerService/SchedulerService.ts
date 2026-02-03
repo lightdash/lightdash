@@ -168,6 +168,7 @@ export class SchedulerService extends BaseService {
     private async checkUserCanUpdateSchedulerResource(
         user: SessionUser,
         schedulerUuid: string,
+        sendNow: boolean = false,
     ): Promise<{
         scheduler: Scheduler;
         resource: ChartSummary | DashboardDAO;
@@ -178,8 +179,11 @@ export class SchedulerService extends BaseService {
         const resource = await this.getSchedulerResource(scheduler);
         const { organizationUuid, projectUuid } = resource;
 
+        // If sendNow is true, we need to check if the user has permissions to `create` instead of `manage`
+        // This allows editors to send schedulers they didn't create themselves
+        const action = sendNow ? 'create' : 'manage';
         const canManageDeliveries = user.ability.can(
-            'manage',
+            action,
             subject('ScheduledDeliveries', {
                 organizationUuid,
                 projectUuid,
@@ -192,7 +196,7 @@ export class SchedulerService extends BaseService {
         }
 
         const canManageGoogleSheets = user.ability.can(
-            'manage',
+            action,
             subject('GoogleSheets', {
                 organizationUuid,
                 projectUuid,
@@ -939,7 +943,11 @@ export class SchedulerService extends BaseService {
         const {
             scheduler,
             resource: { organizationUuid, projectUuid },
-        } = await this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+        } = await this.checkUserCanUpdateSchedulerResource(
+            user,
+            schedulerUuid,
+            true,
+        );
 
         return this.schedulerClient.addScheduledDeliveryJob(
             new Date(),
