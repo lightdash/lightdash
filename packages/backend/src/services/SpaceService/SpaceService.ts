@@ -170,10 +170,26 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             }
         }
 
+        // you can either set isPrivate or inheritParentPermissions while we temporarily
+        // support both. Keeping the other property in sync in the meantime.
+        let { isPrivate, inheritParentPermissions } = space;
+        if (inheritParentPermissions !== undefined) {
+            isPrivate = !inheritParentPermissions;
+        } else if (isPrivate !== undefined) {
+            inheritParentPermissions = !isPrivate;
+        } else if (space.parentSpaceUuid) {
+            isPrivate = false;
+            inheritParentPermissions = true;
+        } else {
+            isPrivate = true;
+            inheritParentPermissions = false;
+        }
+
         const newSpace = await this.spaceModel.createSpace(
             {
                 name: space.name,
-                isPrivate: space.isPrivate !== false,
+                isPrivate,
+                inheritParentPermissions,
                 parentSpaceUuid: space.parentSpaceUuid ?? null,
             },
             {

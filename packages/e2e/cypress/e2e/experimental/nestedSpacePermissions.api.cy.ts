@@ -42,6 +42,39 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             }
         });
 
+        it('should create root space with inheritParentPermissions=false by default', () => {
+            const timestamp = Date.now();
+
+            cy.request({
+                url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+                method: 'POST',
+                body: { name: `Test Parent ${timestamp}` },
+            }).then((parentResp) => {
+                parentSpace = parentResp.body.results;
+                expect(parentSpace.inheritParentPermissions).to.eq(false);
+                expect(parentSpace.isPrivate).to.eq(true);
+                expect(parentSpace.parentSpaceUuid).to.eq(null);
+            });
+        });
+
+        it('should create root space with explicit inheritParentPermissions=true', () => {
+            const timestamp = Date.now();
+
+            cy.request({
+                url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+                method: 'POST',
+                body: {
+                    name: `Test Parent ${timestamp}`,
+                    inheritParentPermissions: true,
+                },
+            }).then((parentResp) => {
+                parentSpace = parentResp.body.results;
+                expect(parentSpace.inheritParentPermissions).to.eq(true);
+                expect(parentSpace.isPrivate).to.eq(false);
+                expect(parentSpace.parentSpaceUuid).to.eq(null);
+            });
+        });
+
         it('should create nested space with inheritParentPermissions=true by default', () => {
             const timestamp = Date.now();
 

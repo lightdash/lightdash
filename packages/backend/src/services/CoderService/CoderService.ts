@@ -1228,7 +1228,11 @@ export class CoderService extends BaseService {
 
         let parentSpaceUuid = closestAncestorSpaceUuid;
         let parentPath = closestAncestorSpace?.path ?? '';
+        const isPrivate =
+            closestAncestorSpace?.isPrivate ?? publicSpaceCreate !== true;
+        const inheritParentPermissions = !isPrivate;
         const newSpaces: Space[] = [];
+
         for await (const currentPath of remainingPath) {
             if (!parentPath) {
                 parentPath = currentPath;
@@ -1238,9 +1242,8 @@ export class CoderService extends BaseService {
 
             const newSpace = await this.spaceModel.createSpace(
                 {
-                    isPrivate:
-                        closestAncestorSpace?.isPrivate ??
-                        publicSpaceCreate !== true,
+                    isPrivate,
+                    inheritParentPermissions,
                     name: friendlyName(currentPath),
                     parentSpaceUuid,
                 },
