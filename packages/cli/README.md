@@ -85,6 +85,8 @@ The `--non-interactive` flag is designed for environments where interactive prom
 | Command | Flag | Description |
 |---------|------|-------------|
 | `login` | `--token <token>` | Authenticate with personal access token (bypasses OAuth) |
+| `login` | `--email <email>` | Login with email/password (local development only) |
+| `login` | `--password <password>` | Password for email login (requires `--email`) |
 | `login` | `--project <uuid>` | Select a specific project by UUID after login |
 | `deploy` | `-y, --assume-yes` | Answer yes to all confirmation prompts |
 | `generate` | `-y, --assume-yes` | Answer yes to prompts |
@@ -112,6 +114,12 @@ lightdash login https://app.lightdash.cloud \
   --project abc-123-uuid \
   --non-interactive
 
+# Login with email/password (local development only)
+# ⚠️ Credentials may be visible in shell history - use only for local dev
+lightdash login http://localhost:3000 \
+  --email demo@lightdash.com \
+  --password demo_password!
+
 # Deploy to existing project non-interactively
 lightdash deploy \
   --project-dir ./dbt \
@@ -132,4 +140,16 @@ lightdash deploy \
 When `--non-interactive` is set (or `CI=true`):
 - **Project selection**: Automatically selects the first available project
 - **Confirmation prompts**: Fail with descriptive error unless `--assume-yes` is provided
-- **OAuth login**: Not available - use `--token` instead
+- **OAuth login**: Not available - use `--token` or `--email`/`--password` instead
+
+### Local Development Login
+
+For local development environments, you can use email/password authentication:
+
+```bash
+lightdash login http://localhost:3000 \
+  --email demo@lightdash.com \
+  --password demo_password!
+```
+
+**⚠️ Security Warning**: Email/password login should only be used for local development. Credentials may be visible in shell history. For production environments, use OAuth or `--token` with a personal access token.

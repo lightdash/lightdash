@@ -207,6 +207,11 @@ ${styles.bold('Examples:')}
   )} --token 12345 ${styles.secondary(
       '-- Logs in with API token using saved URL (bypasses OAuth)',
   )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+      'login',
+  )} http://localhost:3000 --email demo@lightdash.com --password demo_password! ${styles.secondary(
+      '-- Local dev only: login with email/password',
+  )}
 `,
     )
     .option('--token <token>', 'Login with an API access token', undefined)
@@ -214,6 +219,16 @@ ${styles.bold('Examples:')}
         '--project <project uuid>',
         'Select a project by UUID after login',
         parseProjectArgument,
+        undefined,
+    )
+    .option(
+        '--email <email>',
+        'Login with email/password (local development only)',
+        undefined,
+    )
+    .option(
+        '--password <password>',
+        'Password for email login (local development only)',
         undefined,
     )
     .option('--verbose', undefined, false)
