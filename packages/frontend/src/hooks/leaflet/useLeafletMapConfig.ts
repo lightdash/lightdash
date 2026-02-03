@@ -428,25 +428,29 @@ const useLeafletMapConfig = ({
             };
         }
 
-        // Get value field label for tooltips
+        // Get value field label for legend (use custom label from fieldConfig if set)
         let valueFieldLabel: string | null = null;
         if (valueFieldId && itemsMap?.[valueFieldId]) {
-            const valueItem = itemsMap[valueFieldId];
-            if ('label' in valueItem) {
-                valueFieldLabel = valueItem.label;
-            } else if ('name' in valueItem) {
-                valueFieldLabel = (valueItem as { name: string }).name;
+            const customLabel = fieldConfig?.[valueFieldId]?.label;
+            if (customLabel) {
+                valueFieldLabel = customLabel;
+            } else {
+                valueFieldLabel = getItemLabelWithoutTableName(
+                    itemsMap[valueFieldId],
+                );
             }
         }
 
-        // Get size field label for legend
+        // Get size field label for legend (use custom label from fieldConfig if set)
         let sizeFieldLabel: string | null = null;
         if (sizeFieldId && itemsMap?.[sizeFieldId]) {
-            const sizeItem = itemsMap[sizeFieldId];
-            if ('label' in sizeItem) {
-                sizeFieldLabel = sizeItem.label;
-            } else if ('name' in sizeItem) {
-                sizeFieldLabel = (sizeItem as { name: string }).name;
+            const customLabel = fieldConfig?.[sizeFieldId]?.label;
+            if (customLabel) {
+                sizeFieldLabel = customLabel;
+            } else {
+                sizeFieldLabel = getItemLabelWithoutTableName(
+                    itemsMap[sizeFieldId],
+                );
             }
         }
 
