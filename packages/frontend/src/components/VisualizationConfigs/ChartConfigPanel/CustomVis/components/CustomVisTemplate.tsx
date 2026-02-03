@@ -3,7 +3,8 @@ import {
     sortedItemsForXAxis,
     sortedItemsForYAxis,
 } from '@lightdash/common';
-import { Button, Menu } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import {
     IconChartBar,
     IconChartBubble,
@@ -14,7 +15,6 @@ import {
     IconWorld,
 } from '@tabler/icons-react';
 import { useCallback } from 'react';
-import { COLLAPSABLE_CARD_POPOVER_PROPS } from '../../../../common/CollapsableCard/constants';
 import MantineIcon from '../../../../common/MantineIcon';
 import { generateVegaTemplate } from '../utils/templates';
 import { TemplateType } from '../utils/vegaTemplates';
@@ -66,13 +66,24 @@ export const SelectTemplate = ({
     );
 
     return (
-        <Menu {...COLLAPSABLE_CARD_POPOVER_PROPS} width={183} closeOnItemClick>
+        <Menu
+            shadow="md"
+            position="bottom"
+            withArrow
+            closeOnClickOutside
+            closeOnEscape
+            offset={2}
+            width={183}
+            closeOnItemClick
+        >
             <Menu.Dropdown>
                 {Object.values(TemplateType).map((template) => (
                     <Menu.Item
                         key={template}
                         onClick={() => loadTemplate(template)}
-                        icon={<MantineIcon icon={getTemplateIcon(template)} />}
+                        leftSection={
+                            <MantineIcon icon={getTemplateIcon(template)} />
+                        }
                     >
                         {template}
                     </Menu.Item>

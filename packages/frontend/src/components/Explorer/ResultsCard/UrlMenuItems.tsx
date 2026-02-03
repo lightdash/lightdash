@@ -11,7 +11,8 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Menu, Tooltip } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
+import { Box, Tooltip } from '@mantine/core';
 import { IconExclamationCircle, IconLink } from '@tabler/icons-react';
 import { type Cell } from '@tanstack/react-table';
 import { useMemo, type FC } from 'react';
@@ -89,7 +90,7 @@ const UrlMenuItem: FC<{
         >
             <Box>
                 <Menu.Item
-                    icon={<MantineIcon icon={IconLink} />}
+                    leftSection={<MantineIcon icon={IconLink} />}
                     rightSection={
                         error && (
                             <Box ml="sm">

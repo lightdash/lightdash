@@ -1,5 +1,6 @@
 import { type Notification } from '@lightdash/common';
-import { Menu, Text, Tooltip, useMantineTheme } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
+import { Text, Tooltip, useMantineTheme } from '@mantine/core';
 import { IconCircleFilled } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, type FC } from 'react';
@@ -80,7 +81,7 @@ export const DashboardCommentsNotifications: FC<Props> = ({
                 <Menu.Item
                     p="xs"
                     key={notification.notificationId}
-                    icon={
+                    leftSection={
                         <MantineIcon
                             size={10}
                             icon={IconCircleFilled}

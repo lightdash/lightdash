@@ -1,12 +1,11 @@
 import { subject } from '@casl/ability';
+import { Button, getDefaultZIndex, Menu } from '@mantine-8/core';
 import {
     IconBuildingBank,
     IconDatabase,
     IconSettings,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
-
-import { Button, getDefaultZIndex, Menu } from '@mantine-8/core';
 import { Link } from 'react-router';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import useApp from '../../providers/App/useApp';

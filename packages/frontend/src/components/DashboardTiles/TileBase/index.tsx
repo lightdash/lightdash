@@ -10,13 +10,14 @@ import {
     Card,
     Flex,
     Group,
+    Menu,
     Paper,
     rem,
     Text,
     Tooltip,
 } from '@mantine-8/core';
 import { useDebouncedValue, useHover, useToggle } from '@mantine-8/hooks';
-import { clsx, Menu } from '@mantine/core';
+import { clsx } from '@mantine/core';
 import {
     IconArrowAutofitContent,
     IconDots,

@@ -1,5 +1,5 @@
 import { isField, type FieldUrl, type ResultValue } from '@lightdash/common';
-import { Menu } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
@@ -33,7 +33,7 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
             <UrlMenuItems urls={urls} cell={cell} />
             {urls && urls.length > 0 && <Menu.Divider />}
             <Menu.Item
-                icon={<MantineIcon icon={IconCopy} />}
+                leftSection={<MantineIcon icon={IconCopy} />}
                 onClick={handleCopyToClipboard}
             >
                 Copy value

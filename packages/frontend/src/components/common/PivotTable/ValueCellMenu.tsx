@@ -5,7 +5,8 @@ import {
     type ItemsMap,
     type ResultValue,
 } from '@lightdash/common';
-import { Menu, Text, type MenuProps } from '@mantine/core';
+import { Menu, type MenuProps } from '@mantine-8/core';
+import { Text } from '@mantine/core';
 import { IconArrowBarToDown, IconCopy } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation, useParams } from 'react-router';
@@ -161,7 +162,7 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
 
             <Menu.Dropdown>
                 <Menu.Item
-                    icon={
+                    leftSection={
                         <MantineIcon
                             icon={IconCopy}
                             size="md"
@@ -185,7 +186,7 @@ const ValueCellMenu: FC<React.PropsWithChildren<ValueCellMenuProps>> = ({
 
                 {!isMinimal && hasDrillInto && canDrillInto && project && (
                     <Menu.Item
-                        icon={
+                        leftSection={
                             <MantineIcon
                                 icon={IconArrowBarToDown}
                                 size="md"

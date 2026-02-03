@@ -6,7 +6,7 @@ import {
     isVizTableConfig,
     type DashboardSqlChartTile,
 } from '@lightdash/common';
-import { Box, Menu } from '@mantine/core';
+import { Box, Menu } from '@mantine-8/core';
 import {
     IconAlertCircle,
     IconFilePencil,
@@ -34,11 +34,10 @@ import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import ExportDataModal from './ExportDataModal';
 import TileBase from './TileBase';
 
-interface Props
-    extends Pick<
-        React.ComponentProps<typeof TileBase>,
-        'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
-    > {
+interface Props extends Pick<
+    React.ComponentProps<typeof TileBase>,
+    'tile' | 'onEdit' | 'onDelete' | 'isEditMode'
+> {
     tile: DashboardSqlChartTile;
     minimal?: boolean;
 }
@@ -275,7 +274,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                             />
                         )}
                         <Menu.Item
-                            icon={<MantineIcon icon={IconTableExport} />}
+                            leftSection={<MantineIcon icon={IconTableExport} />}
                             disabled={isEditMode}
                             onClick={() => setIsDataExportModalOpen(true)}
                         >

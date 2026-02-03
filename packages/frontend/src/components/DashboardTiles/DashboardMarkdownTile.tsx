@@ -2,7 +2,8 @@ import {
     MARKDOWN_TILE_CLASS,
     type DashboardMarkdownTile,
 } from '@lightdash/common';
-import { Menu, Text, useMantineTheme } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
+import { Text, useMantineTheme } from '@mantine/core';
 import { IconCopy } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import React, { useCallback, useMemo, useState, type FC } from 'react';
@@ -94,7 +95,7 @@ const MarkdownTile: FC<Props> = (props) => {
             extraMenuItems={
                 isEditMode && (
                     <Menu.Item
-                        icon={<MantineIcon icon={IconCopy} />}
+                        leftSection={<MantineIcon icon={IconCopy} />}
                         onClick={handleDuplicate}
                     >
                         Duplicate

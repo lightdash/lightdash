@@ -4,7 +4,8 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { ActionIcon, Flex, Menu, Text } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
+import { ActionIcon, Flex, Text } from '@mantine/core';
 import { IconCheck, IconChevronDown } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -39,7 +40,7 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, tileUuid }) => {
                 getSortDirectionOrder(item).map((sortDirection) => (
                     <Menu.Item
                         key={sortDirection}
-                        icon={
+                        leftSection={
                             isSorted(sortDirection) ? (
                                 <MantineIcon icon={IconCheck} />
                             ) : undefined
