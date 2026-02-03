@@ -41,8 +41,11 @@ const askToRememberAnswer = async (): Promise<void> => {
     }
 };
 
-const askPermissionToStoreWarehouseCredentials = async (): Promise<boolean> => {
-    if (process.env.CI === 'true') {
+const askPermissionToStoreWarehouseCredentials = async (
+    assumeYes: boolean = false,
+): Promise<boolean> => {
+    if (GlobalState.isNonInteractive() || assumeYes) {
+        GlobalState.debug('> Auto-accepting warehouse credentials storage');
         return true;
     }
 
@@ -131,6 +134,7 @@ type CreateProjectOptions = {
     warehouseCredentials?: boolean;
     organizationCredentials?: string;
     targetPath?: string;
+    assumeYes?: boolean;
 };
 
 const isSnowflakeSsoEnabled = async (): Promise<boolean> => {
@@ -225,7 +229,7 @@ export const createProject = async (
         });
         GlobalState.debug(`> Using target name ${targetName}`);
         const canStoreWarehouseCredentials =
-            await askPermissionToStoreWarehouseCredentials();
+            await askPermissionToStoreWarehouseCredentials(options.assumeYes);
         if (!canStoreWarehouseCredentials) {
             GlobalState.debug(
                 '> User declined to store warehouse credentials use --no-warehouse-credentials to create a project without warehouse credentials',
@@ -247,26 +251,42 @@ export const createProject = async (
         credentials.keyfileContents.project_id &&
         credentials.keyfileContents.project_id !== credentials.project
     ) {
-        const spinner = GlobalState.getActiveSpinner();
-        spinner?.stop();
-        const answers = await inquirer.prompt([
-            {
-                type: 'confirm',
-                name: 'isConfirm',
-                message: `${styles.title(
-                    'Warning',
-                )}: Your project on your credentials file ${styles.title(
-                    credentials.keyfileContents.project_id,
-                )} does not match your project on your profiles.yml ${styles.title(
-                    credentials.project,
-                )}, this might cause permission issues when accessing data on the warehouse. Are you sure you want to continue?`,
-            },
-        ]);
-
-        if (!answers.isConfirm) {
-            process.exit(1);
+        // In non-interactive mode without --assume-yes, fail with clear error
+        if (GlobalState.isNonInteractive() && !options.assumeYes) {
+            throw new Error(
+                `BigQuery project mismatch: credentials file uses "${credentials.keyfileContents.project_id}" ` +
+                    `but profiles.yml specifies "${credentials.project}". ` +
+                    'This may cause permission issues. Use --assume-yes to bypass this warning.',
+            );
         }
-        spinner?.start();
+
+        // With --assume-yes, continue without prompting
+        if (options.assumeYes) {
+            GlobalState.debug(
+                `> Auto-accepting BigQuery project mismatch (credentials: ${credentials.keyfileContents.project_id}, profiles: ${credentials.project})`,
+            );
+        } else {
+            const spinner = GlobalState.getActiveSpinner();
+            spinner?.stop();
+            const answers = await inquirer.prompt([
+                {
+                    type: 'confirm',
+                    name: 'isConfirm',
+                    message: `${styles.title(
+                        'Warning',
+                    )}: Your project on your credentials file ${styles.title(
+                        credentials.keyfileContents.project_id,
+                    )} does not match your project on your profiles.yml ${styles.title(
+                        credentials.project,
+                    )}, this might cause permission issues when accessing data on the warehouse. Are you sure you want to continue?`,
+                },
+            ]);
+
+            if (!answers.isConfirm) {
+                process.exit(1);
+            }
+            spinner?.start();
+        }
     }
 
     if (

@@ -185,7 +185,8 @@ export const login = async (
     try {
         if (options.project) {
             await setProjectCommand(undefined, options.project);
-        } else if (process.env.CI === 'true') {
+        } else if (GlobalState.isNonInteractive()) {
+            // In non-interactive mode, auto-select the first project (same as CI=true)
             await setFirstProject();
         } else {
             const project = await setProjectCommand();
