@@ -1805,6 +1805,7 @@ export class SpaceModel {
         spaceData: {
             name: string;
             isPrivate: boolean;
+            inheritParentPermissions: boolean;
             parentSpaceUuid: string | null;
         },
         {
@@ -1846,12 +1847,6 @@ export class SpaceModel {
             );
         }
 
-        // While the feature isn't fully built, we still depend on the `isPrivate`
-        // and `parent_space_uuid` to set the `inherit_parent_permissions` column
-        const inheritParentPermissions = spaceData.parentSpaceUuid
-            ? true
-            : !spaceData.isPrivate;
-
         const [space] = await trx(SpaceTableName)
             .insert({
                 project_id: project.project_id,
@@ -1861,7 +1856,7 @@ export class SpaceModel {
                 slug: spaceSlug,
                 parent_space_uuid: spaceData.parentSpaceUuid ?? null,
                 path: spacePath,
-                inherit_parent_permissions: inheritParentPermissions,
+                inherit_parent_permissions: spaceData.inheritParentPermissions,
             })
             .returning('*');
 
