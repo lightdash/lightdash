@@ -143,7 +143,7 @@ test('Should compile with a reference to a metric in a non-aggregate metric', ()
 });
 
 test('Should compile non-aggregate metrics with aggregation in SQL referencing dimensions', () => {
-    // This tests the Looker pattern where type:number metrics have aggregation
+    // This tests the pattern where type:number metrics have aggregation
     // functions in their SQL (e.g., "count(distinct ${user_id})").
     // These should be allowed to reference dimensions.
     expect(
@@ -154,7 +154,7 @@ test('Should compile non-aggregate metrics with aggregation in SQL referencing d
 });
 
 test('Should compile non-aggregate metrics with aggregation in SQL referencing BOTH dimensions AND metrics', () => {
-    // This tests the Looker pattern where type:number metrics have aggregation
+    // This tests the pattern where type:number metrics have aggregation
     // and reference both dimensions and other metrics in the same SQL.
     // For example: "sum(${amount}) / ${user_count}" where amount is a dimension
     // and user_count is a metric.
