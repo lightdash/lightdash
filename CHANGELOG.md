@@ -1,3 +1,11 @@
+## [0.2412.1](https://github.com/lightdash/lightdash/compare/0.2412.0...0.2412.1) (2026-02-03)
+
+
+### Bug Fixes
+
+* enable subtotals/totals on SDK + charts ([#19925](https://github.com/lightdash/lightdash/issues/19925)) ([aaa5df0](https://github.com/lightdash/lightdash/commit/aaa5df0ed1b6f8ab59a1590feb0a89b7025f1f8d))
+* respect metric order in pivoted table ([#19910](https://github.com/lightdash/lightdash/issues/19910)) ([401b28c](https://github.com/lightdash/lightdash/commit/401b28c3518bbc493db919c9dfc9dd07f8523268))
+
 # [0.2412.0](https://github.com/lightdash/lightdash/compare/0.2411.1...0.2412.0) (2026-02-03)
 
 
