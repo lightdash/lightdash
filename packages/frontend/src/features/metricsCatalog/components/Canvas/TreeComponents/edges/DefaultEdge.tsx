@@ -1,10 +1,20 @@
+import { type CatalogMetricsTreeEdgeSource } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
-import { BaseEdge, getSimpleBezierPath, type EdgeProps } from '@xyflow/react';
+import {
+    BaseEdge,
+    getSimpleBezierPath,
+    type Edge,
+    type EdgeProps,
+} from '@xyflow/react';
 import type { FC } from 'react';
 
 const ARROW_SIZE = 8;
 
-const DefaultEdge: FC<EdgeProps> = ({
+type DefaultEdgeData = Edge<{
+    createdFrom?: CatalogMetricsTreeEdgeSource;
+}>;
+
+const DefaultEdge: FC<EdgeProps<DefaultEdgeData>> = ({
     sourceX,
     sourceY,
     targetX,
@@ -40,7 +50,9 @@ const DefaultEdge: FC<EdgeProps> = ({
                     markerUnits="strokeWidth"
                 >
                     <path
-                        d={`M0,0 L0,${ARROW_SIZE} L${ARROW_SIZE},${ARROW_SIZE / 2} z`}
+                        d={`M0,0 L0,${ARROW_SIZE} L${ARROW_SIZE},${
+                            ARROW_SIZE / 2
+                        } z`}
                         fill={strokeColor}
                     />
                 </marker>

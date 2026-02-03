@@ -121,12 +121,15 @@ export type CatalogMetricsTreeNode = Pick<
     'catalogSearchUuid' | 'name' | 'tableName'
 >;
 
+export type CatalogMetricsTreeEdgeSource = 'ui' | 'yaml';
+
 export type CatalogMetricsTreeEdge = {
     source: CatalogMetricsTreeNode;
     target: CatalogMetricsTreeNode;
     createdAt: Date;
     createdByUserUuid: string | null;
     projectUuid: string;
+    createdFrom: CatalogMetricsTreeEdgeSource;
 };
 
 export type ApiCatalogResults = CatalogItem[];

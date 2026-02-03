@@ -1586,6 +1586,7 @@ export class CatalogModel {
                 target_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
                 created_at: `${MetricsTreeEdgesTableName}.created_at`,
                 created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
+                source: `${MetricsTreeEdgesTableName}.source`,
                 source_metric_name: `source_metric.name`,
                 source_metric_table_name: `source_metric.table_name`,
                 target_metric_name: `target_metric.name`,
@@ -1631,6 +1632,7 @@ export class CatalogModel {
                 createdAt: e.created_at,
                 createdByUserUuid: e.created_by_user_uuid,
                 projectUuid,
+                createdFrom: e.source,
             })),
         };
     }
@@ -1652,6 +1654,7 @@ export class CatalogModel {
                 project_uuid: `${MetricsTreeEdgesTableName}.project_uuid`,
                 created_at: `${MetricsTreeEdgesTableName}.created_at`,
                 created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
+                source: `${MetricsTreeEdgesTableName}.source`,
                 source_metric_name: `source_metric.name`,
                 source_metric_table_name: `source_metric.table_name`,
                 target_metric_name: `target_metric.name`,
@@ -1683,6 +1686,7 @@ export class CatalogModel {
             createdAt: e.created_at,
             createdByUserUuid: e.created_by_user_uuid,
             projectUuid: e.project_uuid,
+            createdFrom: e.source,
         }));
     }
 
