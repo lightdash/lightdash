@@ -606,4 +606,82 @@ describe('derivePivotConfigurationFromChart', () => {
             ]);
         });
     });
+
+    describe('Scatter Chart with Metrics on Both Axes', () => {
+        it('includes x-axis metric as index column for grouped scatter charts', () => {
+            // This tests the fix for GitHub issue #19911
+            // Scatter charts can have metrics on both x and y axes
+            const itemsWithTwoMetrics: ItemsMap = {
+                ...mockItems,
+                orders_count: {
+                    sql: 'COUNT(${TABLE}.order_id)',
+                    name: 'count',
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    label: 'Order Count',
+                    hidden: false,
+                    index: 0,
+                    filters: [],
+                    groups: [],
+                },
+            };
+
+            const scatterChartConfig: CartesianChartConfig = {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'orders_count', // metric on x-axis
+                        yField: ['payments_total_revenue'], // metric on y-axis
+                    },
+                    eChartsConfig: { series: [] },
+                },
+            };
+
+            const metricQueryForScatter: MetricQuery = {
+                exploreName: 'payments',
+                dimensions: ['payments_payment_method'], // used as groupBy
+                metrics: ['orders_count', 'payments_total_revenue'],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                metricOverrides: {},
+            };
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: scatterChartConfig,
+                pivotConfig: { columns: ['payments_payment_method'] }, // groupBy dimension
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                metricQueryForScatter,
+                itemsWithTwoMetrics,
+            );
+
+            // The x-axis metric (orders_count) should be included as an index column
+            expect(result).toBeDefined();
+            expect(result?.indexColumn).toEqual([
+                {
+                    reference: 'orders_count',
+                    type: VizIndexType.CATEGORY,
+                },
+            ]);
+            expect(result?.valuesColumns).toEqual([
+                {
+                    reference: 'payments_total_revenue',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ]);
+            expect(result?.groupByColumns).toEqual([
+                { reference: 'payments_payment_method' },
+            ]);
+        });
+    });
 });
