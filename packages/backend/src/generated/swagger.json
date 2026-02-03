@@ -8223,12 +8223,12 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -8236,10 +8236,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -8248,8 +8248,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -8259,16 +8259,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -8343,12 +8343,12 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "searchRank": {
+                                                                                    "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -8356,10 +8356,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -8368,8 +8368,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -21152,6 +21152,30 @@
                 "enum": ["none", "previous_period"],
                 "type": "string"
             },
+            "ApiCompiledQueryResults": {
+                "properties": {
+                    "compilationErrors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "pivotQuery": {
+                        "type": "string"
+                    },
+                    "query": {
+                        "type": "string"
+                    }
+                },
+                "required": ["parameterReferences", "query"],
+                "type": "object"
+            },
             "ApiGroupResponse": {
                 "properties": {
                     "results": {
@@ -21854,30 +21878,6 @@
             },
             "ApiExploreResults": {
                 "$ref": "#/components/schemas/Omit_Explore.unfilteredTables_"
-            },
-            "ApiCompiledQueryResults": {
-                "properties": {
-                    "compilationErrors": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "parameterReferences": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "pivotQuery": {
-                        "type": "string"
-                    },
-                    "query": {
-                        "type": "string"
-                    }
-                },
-                "required": ["parameterReferences", "query"],
-                "type": "object"
             },
             "ApiPromoteDashboardResponse": {
                 "properties": {
@@ -22675,8 +22675,15 @@
             "CatalogMetricsTreeNode": {
                 "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_"
             },
+            "CatalogMetricsTreeEdgeSource": {
+                "type": "string",
+                "enum": ["ui", "yaml"]
+            },
             "CatalogMetricsTreeEdge": {
                 "properties": {
+                    "createdFrom": {
+                        "$ref": "#/components/schemas/CatalogMetricsTreeEdgeSource"
+                    },
                     "projectUuid": {
                         "type": "string"
                     },
@@ -22696,6 +22703,7 @@
                     }
                 },
                 "required": [
+                    "createdFrom",
                     "projectUuid",
                     "createdByUserUuid",
                     "createdAt",
@@ -24663,7 +24671,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2410.1",
+        "version": "0.2415.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -35464,6 +35472,121 @@
                 },
                 "description": "Run a metric total query with comparison",
                 "summary": "Run metric total query",
+                "tags": ["Metrics Explorer", "Metrics", "Explorer"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "explore",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "metric",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "timeFrame",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/TimeFrames"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "granularity",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/TimeFrames"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "startDate",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "endDate",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": false,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "comparisonType": {
+                                        "$ref": "#/components/schemas/MetricTotalComparisonType"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/metricsExplorer/{explore}/{metric}/compileMetricTotalQuery": {
+            "post": {
+                "operationId": "compileMetricTotalQuery",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "results": {
+                                            "$ref": "#/components/schemas/ApiCompiledQueryResults"
+                                        },
+                                        "status": {
+                                            "type": "string",
+                                            "enum": ["ok"],
+                                            "nullable": false
+                                        }
+                                    },
+                                    "required": ["results", "status"],
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Compile the metric total query SQL",
+                "summary": "Compile metric total query",
                 "tags": ["Metrics Explorer", "Metrics", "Explorer"],
                 "security": [],
                 "parameters": [

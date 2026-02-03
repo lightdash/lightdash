@@ -749,4 +749,49 @@ export class MetricsExplorerService<
             tableCalculations: [],
         };
     }
+
+    async compileMetricTotalQuery(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+        metricName: string,
+        timeFrame: TimeFrames,
+        granularity: TimeFrames,
+        startDate: string,
+        endDate: string,
+        comparisonType: MetricTotalComparisonType = MetricTotalComparisonType.NONE,
+    ) {
+        const metric = await this.catalogService.getMetric(
+            user,
+            projectUuid,
+            exploreName,
+            metricName,
+            granularity,
+        );
+
+        if (!metric.timeDimension) {
+            throw new Error(
+                `Metric ${metricName} does not have a valid time dimension`,
+            );
+        }
+
+        const dateRange = getDateRangeFromString([startDate, endDate]);
+        const metricQuery = this.buildMetricTotalQuery({
+            exploreName,
+            metric,
+            timeFrame,
+            granularity,
+            dateRange,
+            comparisonType,
+        });
+
+        const compiledQuery = await this.projectService.compileQuery({
+            account: fromSession(user),
+            projectUuid,
+            exploreName,
+            body: metricQuery,
+        });
+
+        return compiledQuery;
+    }
 }
