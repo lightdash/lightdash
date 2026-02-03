@@ -1,3 +1,10 @@
+# [0.2411.0](https://github.com/lightdash/lightdash/compare/0.2410.1...0.2411.0) (2026-02-03)
+
+
+### Features
+
+* implement pagination for GitHub repositories and improve UI display ([#19922](https://github.com/lightdash/lightdash/issues/19922)) ([6fb49e6](https://github.com/lightdash/lightdash/commit/6fb49e634397d36e57376374aa3d68147dd6a050))
+
 ## [0.2410.1](https://github.com/lightdash/lightdash/compare/0.2410.0...0.2410.1) (2026-02-03)
 
 
