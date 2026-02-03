@@ -1,3 +1,10 @@
+## [0.2410.1](https://github.com/lightdash/lightdash/compare/0.2410.0...0.2410.1) (2026-02-03)
+
+
+### Bug Fixes
+
+* add missing check when filtering scheduler logs ([#19921](https://github.com/lightdash/lightdash/issues/19921)) ([db15bfc](https://github.com/lightdash/lightdash/commit/db15bfc748036c2bd2fe5bd8d0aa2b5a4838b77e))
+
 # [0.2410.0](https://github.com/lightdash/lightdash/compare/0.2409.0...0.2410.0) (2026-02-02)
 
 
