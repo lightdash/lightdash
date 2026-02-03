@@ -229,11 +229,51 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                             : {
                                                   show: true,
                                                   position: value as any,
+                                                  showValue:
+                                                      series.label?.showValue ??
+                                                      true,
+                                                  showSeriesName:
+                                                      series.label
+                                                          ?.showSeriesName ??
+                                                      false,
                                               },
                                 });
                             }}
                         />
                     </Group>
+                    {series.label?.show && (
+                        <Group spacing="xs">
+                            <Checkbox
+                                checked={series.label?.showValue ?? true}
+                                label="Show value"
+                                onChange={() => {
+                                    updateSingleSeries({
+                                        ...series,
+                                        label: {
+                                            ...series.label,
+                                            showValue: !(
+                                                series.label?.showValue ?? true
+                                            ),
+                                        },
+                                    });
+                                }}
+                            />
+                            <Checkbox
+                                checked={series.label?.showSeriesName ?? false}
+                                label="Show series name"
+                                onChange={() => {
+                                    updateSingleSeries({
+                                        ...series,
+                                        label: {
+                                            ...series.label,
+                                            showSeriesName:
+                                                !series.label?.showSeriesName,
+                                        },
+                                    });
+                                }}
+                            />
+                        </Group>
+                    )}
                     {(type === CartesianSeriesType.LINE ||
                         type === CartesianSeriesType.AREA) && (
                         <Group spacing="xs">

@@ -31,6 +31,8 @@ type SingleSeriesConfigurationProps = {
     type: NonNullable<CartesianChartDisplay['series']>[number]['type'];
     whichYAxis?: number;
     valueLabelPosition: ValueLabelPositionOptions | undefined;
+    showValue?: boolean;
+    showSeriesName?: boolean;
     selectedChartType: ChartKind;
     onColorChange: (reference: string, color: string) => void;
     onLabelChange: (reference: string, label: string) => void;
@@ -43,6 +45,11 @@ type SingleSeriesConfigurationProps = {
         reference: string,
         position: ValueLabelPositionOptions,
     ) => void;
+    onShowValueChange?: (reference: string, showValue: boolean) => void;
+    onShowSeriesNameChange?: (
+        reference: string,
+        showSeriesName: boolean,
+    ) => void;
 };
 
 export const SingleSeriesConfiguration = ({
@@ -53,12 +60,16 @@ export const SingleSeriesConfiguration = ({
     type,
     whichYAxis = 0,
     valueLabelPosition,
+    showValue = true,
+    showSeriesName = false,
     selectedChartType,
     onColorChange,
     onLabelChange,
     onTypeChange,
     onAxisChange,
     onValueLabelPositionChange,
+    onShowValueChange,
+    onShowSeriesNameChange,
 }: SingleSeriesConfigurationProps) => {
     return (
         <Stack key={reference} spacing="xs">
@@ -170,15 +181,33 @@ export const SingleSeriesConfiguration = ({
                         }
                     />
                 </Flex>
-                <Flex justify="flex-start" align="center" wrap="nowrap">
+                <Flex
+                    justify="flex-start"
+                    align="flex-start"
+                    wrap="nowrap"
+                    pt="xs"
+                >
                     <Config.Label w={LABEL_WIDTH}>Value labels</Config.Label>
                     <CartesianChartValueLabelConfig
                         valueLabelPosition={
                             valueLabelPosition ??
                             ValueLabelPositionOptions.HIDDEN
                         }
+                        showValue={showValue}
+                        showSeriesName={showSeriesName}
                         onChangeValueLabelPosition={(position) =>
                             onValueLabelPositionChange(reference, position)
+                        }
+                        onChangeShowValue={
+                            onShowValueChange
+                                ? (value) => onShowValueChange(reference, value)
+                                : undefined
+                        }
+                        onChangeShowSeriesName={
+                            onShowSeriesNameChange
+                                ? (value) =>
+                                      onShowSeriesNameChange(reference, value)
+                                : undefined
                         }
                     />
                 </Flex>

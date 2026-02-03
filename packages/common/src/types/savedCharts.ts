@@ -336,6 +336,8 @@ export type Series = {
         show?: boolean;
         position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
         showOverlappingLabels?: boolean;
+        showValue?: boolean; // Show the metric value (default: true when labels are shown)
+        showSeriesName?: boolean; // Show the series/pivot name (e.g., "United States")
     };
     hidden?: boolean;
     areaStyle?: Record<string, unknown>;

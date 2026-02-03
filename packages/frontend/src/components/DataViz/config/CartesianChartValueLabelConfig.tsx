@@ -1,5 +1,5 @@
 import { ValueLabelPositionOptions } from '@lightdash/common';
-import { Box, Group, Select, Text } from '@mantine/core';
+import { Box, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowLeft,
@@ -47,7 +47,11 @@ const ValueLabelIcon: FC<{
 
 type Props = {
     valueLabelPosition: ValueLabelPositionOptions | undefined;
+    showValue?: boolean;
+    showSeriesName?: boolean;
     onChangeValueLabelPosition: (value: ValueLabelPositionOptions) => void;
+    onChangeShowValue?: (value: boolean) => void;
+    onChangeShowSeriesName?: (value: boolean) => void;
 };
 
 const ValueLabelItem = forwardRef<
@@ -68,43 +72,77 @@ const ValueLabelItem = forwardRef<
 export const CartesianChartValueLabelConfig: FC<Props> = ({
     onChangeValueLabelPosition,
     valueLabelPosition,
+    showValue = true,
+    showSeriesName = false,
+    onChangeShowValue,
+    onChangeShowSeriesName,
 }) => {
+    const isVisible =
+        valueLabelPosition &&
+        valueLabelPosition !== ValueLabelPositionOptions.HIDDEN;
+
     return (
-        <Select
-            radius="md"
-            data={Object.values(ValueLabelPositionOptions).map((option) => ({
-                value: option,
-                label: capitalize(option),
-            }))}
-            itemComponent={ValueLabelItem}
-            icon={<ValueLabelIcon position={valueLabelPosition} />}
-            value={valueLabelPosition}
-            onChange={(value) =>
-                value &&
-                onChangeValueLabelPosition(value as ValueLabelPositionOptions)
-            }
-            styles={(theme) => ({
-                root: {
-                    flex: 1,
-                },
-                input: {
-                    fontWeight: 500,
-                    borderColor: theme.colors.ldGray[2],
-                },
-                item: {
-                    '&[data-selected="true"]': {
-                        color: theme.colors.ldGray[7],
+        <Stack spacing="xs" sx={{ flex: 1 }}>
+            <Select
+                radius="md"
+                data={Object.values(ValueLabelPositionOptions).map(
+                    (option) => ({
+                        value: option,
+                        label: capitalize(option),
+                    }),
+                )}
+                itemComponent={ValueLabelItem}
+                icon={<ValueLabelIcon position={valueLabelPosition} />}
+                value={valueLabelPosition}
+                onChange={(value) =>
+                    value &&
+                    onChangeValueLabelPosition(
+                        value as ValueLabelPositionOptions,
+                    )
+                }
+                styles={(theme) => ({
+                    root: {
+                        flex: 1,
+                    },
+                    input: {
                         fontWeight: 500,
-                        backgroundColor: theme.colors.ldGray[2],
+                        borderColor: theme.colors.ldGray[2],
                     },
-                    '&[data-selected="true"]:hover': {
-                        backgroundColor: theme.colors.ldGray[3],
+                    item: {
+                        '&[data-selected="true"]': {
+                            color: theme.colors.ldGray[7],
+                            fontWeight: 500,
+                            backgroundColor: theme.colors.ldGray[2],
+                        },
+                        '&[data-selected="true"]:hover': {
+                            backgroundColor: theme.colors.ldGray[3],
+                        },
+                        '&:hover': {
+                            backgroundColor: theme.colors.ldGray[1],
+                        },
                     },
-                    '&:hover': {
-                        backgroundColor: theme.colors.ldGray[1],
-                    },
-                },
-            })}
-        />
+                })}
+            />
+            {isVisible && onChangeShowValue && onChangeShowSeriesName && (
+                <Group spacing="md">
+                    <Checkbox
+                        size="xs"
+                        checked={showValue}
+                        onChange={(e) =>
+                            onChangeShowValue(e.currentTarget.checked)
+                        }
+                        label="Show value"
+                    />
+                    <Checkbox
+                        size="xs"
+                        checked={showSeriesName}
+                        onChange={(e) =>
+                            onChangeShowSeriesName(e.currentTarget.checked)
+                        }
+                        label="Show series name"
+                    />
+                </Group>
+            )}
+        </Stack>
     );
 };

@@ -688,6 +688,39 @@ const formatStack100Value = (value: unknown): string => {
 };
 
 /**
+ * Format the label based on showValue and showSeriesName options
+ * @param formattedValue - The formatted metric value
+ * @param seriesName - The name of the series
+ * @param showValue - Whether to show the value (default: true)
+ * @param showSeriesName - Whether to show the series name (default: false)
+ * @returns The formatted label string
+ */
+const formatLabelWithOptions = (
+    formattedValue: string,
+    seriesName: string | undefined,
+    showValue: boolean = true,
+    showSeriesName: boolean = false,
+): string => {
+    const parts: string[] = [];
+
+    if (showSeriesName && seriesName) {
+        parts.push(seriesName);
+    }
+
+    if (showValue) {
+        parts.push(formattedValue);
+    }
+
+    // If nothing to show, return empty string
+    if (parts.length === 0) {
+        return '';
+    }
+
+    // Join parts with ": " if both are present
+    return parts.join(': ');
+};
+
+/**
  * Get the metric from the param
  * @param param - The param
  * @param series - The series
@@ -877,11 +910,21 @@ const getPivotSeries = ({
 
                             // For 100% stacked bar charts on the primary axis, values are already percentages (0-100)
                             // Only apply stack100 formatting if this series is on yAxisIndex 0
-                            if (isStack100 && isPrimaryYAxis(series)) {
-                                return formatStack100Value(raw);
-                            }
+                            const formattedValue =
+                                isStack100 && isPrimaryYAxis(series)
+                                    ? formatStack100Value(raw)
+                                    : seriesValueFormatter(
+                                          field,
+                                          raw,
+                                          parameters,
+                                      );
 
-                            return seriesValueFormatter(field, raw, parameters);
+                            return formatLabelWithOptions(
+                                formattedValue,
+                                param?.seriesName,
+                                series.label?.showValue ?? true,
+                                series.label?.showSeriesName ?? false,
+                            );
                         },
                     }),
             },
@@ -1044,14 +1087,20 @@ const getSimpleSeries = ({
 
                         // For 100% stacked charts on the primary axis, values are already percentages (0-100)
                         // Only apply stack100 formatting if this series is on yAxisIndex 0
-                        if (isStack100 && (series.yAxisIndex ?? 0) === 0) {
-                            return formatStack100Value(rawValue);
-                        }
+                        const formattedValue =
+                            isStack100 && (series.yAxisIndex ?? 0) === 0
+                                ? formatStack100Value(rawValue)
+                                : seriesValueFormatter(
+                                      field,
+                                      rawValue,
+                                      parameters,
+                                  );
 
-                        return seriesValueFormatter(
-                            field,
-                            rawValue,
-                            parameters,
+                        return formatLabelWithOptions(
+                            formattedValue,
+                            param?.seriesName,
+                            series.label?.showValue ?? true,
+                            series.label?.showSeriesName ?? false,
                         );
                     },
                 }),
