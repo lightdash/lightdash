@@ -921,7 +921,8 @@ export const convertSqlPivotedRowsToPivotData = ({
     // Get unique base metrics from valuesColumns, preserving order
     const baseMetricsArray = filteredValuesColumns
         .map((col) => col.referenceField)
-        .filter((field, index, self) => self.indexOf(field) === index);
+        .filter((field, index, self) => self.indexOf(field) === index)
+        .sort((a, b) => columnOrder.indexOf(a) - columnOrder.indexOf(b));
 
     const headerValueTypes = getHeaderValueTypes({
         metricsAsRows: pivotConfig.metricsAsRows,
