@@ -77,6 +77,7 @@ export type SpaceShare = {
         | 'project'
         | 'group'
         | 'space_group'
+        | 'parent_space'
         | undefined;
 };
 

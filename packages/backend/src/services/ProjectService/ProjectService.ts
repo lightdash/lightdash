@@ -5060,6 +5060,15 @@ export class ProjectService extends BaseService {
                     return [];
                 }
 
+                const nestedPermissionsFlag = await this.featureFlagModel.get({
+                    user: {
+                        userUuid: account.user.id,
+                        organizationUuid: account.organization.organizationUuid,
+                        organizationName: account.organization.name,
+                    },
+                    featureFlagId: FeatureFlags.NestedSpacesPermissions,
+                });
+
                 const [spaceAccessMap, exploresMap, userSpacesAccess] =
                     await Promise.all([
                         this.spaceModel.getSpacesForAccessCheck(
@@ -5074,10 +5083,15 @@ export class ProjectService extends BaseService {
                             organizationUuid:
                                 account.organization.organizationUuid,
                         }),
-                        this.spaceModel.getUserSpacesAccess(
-                            account.user.id,
-                            uniqueSpaceUuids,
-                        ),
+                        nestedPermissionsFlag.enabled
+                            ? this.spaceModel.getUserSpacesAccessWithInheritanceChain(
+                                  account.user.id,
+                                  uniqueSpaceUuids,
+                              )
+                            : this.spaceModel.getUserSpacesAccess(
+                                  account.user.id,
+                                  uniqueSpaceUuids,
+                              ),
                     ]);
 
                 return savedCharts.map((savedChart) => {
