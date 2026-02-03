@@ -1,3 +1,16 @@
+# [0.2414.0](https://github.com/lightdash/lightdash/compare/0.2413.1...0.2414.0) (2026-02-03)
+
+
+### Bug Fixes
+
+* stabilize flaky e2e tests for catalog and embed APIs ([#19884](https://github.com/lightdash/lightdash/issues/19884)) ([12fe319](https://github.com/lightdash/lightdash/commit/12fe31979c7dc51e618668c843e94844dc54aa5e))
+
+
+### Features
+
+* allow editors to send scheduled deliveries they didn't create ([#19929](https://github.com/lightdash/lightdash/issues/19929)) ([fd86177](https://github.com/lightdash/lightdash/commit/fd8617718cfc78ff5f59dafd07dea186b81abbaa))
+* use user label for map legend ([#19930](https://github.com/lightdash/lightdash/issues/19930)) ([fe88ea8](https://github.com/lightdash/lightdash/commit/fe88ea89ddf71d0b3e739f30c18051dc03de592a))
+
 ## [0.2413.1](https://github.com/lightdash/lightdash/compare/0.2413.0...0.2413.1) (2026-02-03)
 
 
