@@ -35,6 +35,7 @@ import {
     DEFAULT_ANTHROPIC_MODEL_NAME,
     DEFAULT_BEDROCK_MODEL_NAME,
     DEFAULT_DEFAULT_AI_PROVIDER,
+    DEFAULT_GEMINI_MODEL_NAME,
     DEFAULT_OPENAI_EMBEDDING_MODEL,
     DEFAULT_OPENAI_MODEL_NAME,
     DEFAULT_OPENROUTER_MODEL_NAME,
@@ -741,6 +742,17 @@ export const getAiConfig = () => ({
               }
             : undefined,
         bedrock: getBedrockConfig(),
+        gemini: process.env.GEMINI_API_KEY
+            ? {
+                  apiKey: process.env.GEMINI_API_KEY,
+                  modelName:
+                      process.env.GEMINI_MODEL_NAME ||
+                      DEFAULT_GEMINI_MODEL_NAME,
+                  availableModels: getArrayFromCommaSeparatedList(
+                      'GEMINI_AVAILABLE_MODELS',
+                  ),
+              }
+            : undefined,
     },
     maxQueryLimit:
         getIntegerFromEnvironmentVariable('AI_COPILOT_MAX_QUERY_LIMIT') ||

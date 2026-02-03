@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-4.1';
 export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-4-5';
+export const DEFAULT_GEMINI_MODEL_NAME = 'gemini-2.5-flash';
 export const DEFAULT_DEFAULT_AI_PROVIDER = 'openai';
 export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-4.1-2025-04-14';
 export const DEFAULT_BEDROCK_MODEL_NAME = 'claude-sonnet-4-5';
@@ -13,7 +14,14 @@ export const DEFAULT_BEDROCK_EMBEDDING_MODEL = 'cohere.embed-english-v3';
 export const aiCopilotConfigSchema = z
     .object({
         defaultProvider: z
-            .enum(['openai', 'azure', 'anthropic', 'openrouter', 'bedrock'])
+            .enum([
+                'openai',
+                'azure',
+                'anthropic',
+                'openrouter',
+                'bedrock',
+                'gemini',
+            ])
             .default(DEFAULT_DEFAULT_AI_PROVIDER),
         defaultEmbeddingModelProvider: z
             .enum(['openai', 'bedrock', 'azure'])
@@ -94,6 +102,13 @@ export const aiCopilotConfigSchema = z
                         availableModels: z.array(z.string()).optional(),
                     }),
                 ])
+                .optional(),
+            gemini: z
+                .object({
+                    apiKey: z.string(),
+                    modelName: z.string().default(DEFAULT_GEMINI_MODEL_NAME),
+                    availableModels: z.array(z.string()).optional(),
+                })
                 .optional(),
         }),
         enabled: z.boolean(),

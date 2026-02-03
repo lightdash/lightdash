@@ -3,6 +3,7 @@ import { LightdashConfig } from '../../../../config/parseConfig';
 import { getAnthropicModel } from './anthropic-claude';
 import { getAzureGpt41Model } from './azure-openai-gpt-4.1';
 import { getBedrockModel } from './bedrock';
+import { getGeminiModel } from './google-gemini';
 import { getOpenaiGptmodel } from './openai-gpt';
 import { getOpenRouterModel } from './openrouter';
 import {
@@ -60,7 +61,7 @@ export const getAvailableModels = (
 ): ModelPreset<'openai' | 'anthropic' | 'bedrock'>[] => {
     const { defaultProvider, providers } = config;
 
-    if (['azure', 'openrouter'].includes(defaultProvider)) {
+    if (['azure', 'openrouter', 'gemini'].includes(defaultProvider)) {
         return [];
     }
 
@@ -193,6 +194,14 @@ export const getModel = (
             return getBedrockModel(bedrockConfig, preset, {
                 enableReasoning: options?.enableReasoning,
             });
+        }
+        case 'gemini': {
+            const geminiConfig = config.providers.gemini;
+            if (!geminiConfig) {
+                throw new ParameterError('Gemini configuration is required');
+            }
+            // Gemini doesn't use presets - uses model name directly
+            return getGeminiModel(geminiConfig);
         }
         default:
             return assertUnreachable(provider, `Invalid provider: ${provider}`);

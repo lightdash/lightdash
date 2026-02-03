@@ -61,9 +61,13 @@ const dateFilterSchema = z.union([
             z.literal(FilterOperator.IN_THE_CURRENT),
             z.literal(FilterOperator.NOT_IN_THE_CURRENT),
         ]),
-        values: z.array(z.literal(1)).length(1),
+        // Use z.number() instead of z.literal(1) for Gemini API compatibility
+        // Note: values field is not used by the filter compiler for IN_THE_CURRENT
+        values: z.array(z.number()).length(1),
         settings: z.object({
-            completed: z.literal(false),
+            // Use z.boolean() instead of z.literal(false) for Gemini API compatibility
+            // Note: completed field is not used by the filter compiler for IN_THE_CURRENT
+            completed: z.boolean(),
             unitOfTime: z.union([
                 z.literal(UnitOfTime.days),
                 z.literal(UnitOfTime.weeks),

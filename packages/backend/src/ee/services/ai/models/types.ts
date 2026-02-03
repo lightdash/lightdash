@@ -1,5 +1,6 @@
 import { BedrockProviderOptions } from '@ai-sdk/amazon-bedrock';
 import { AnthropicProviderOptions } from '@ai-sdk/anthropic';
+import { GoogleGenerativeAIProviderOptions } from '@ai-sdk/google';
 import { OpenAIResponsesProviderOptions } from '@ai-sdk/openai';
 import { JSONValue, LanguageModel, type CallSettings } from 'ai';
 import { AiCopilotConfigSchemaType } from '../../../../config/aiConfigSchema';
@@ -12,6 +13,7 @@ export type ProviderOptionsMap = {
     anthropic: AnthropicProviderOptions;
     openrouter: Record<string, JSONValue>;
     bedrock: BedrockProviderOptions;
+    gemini: GoogleGenerativeAIProviderOptions;
 };
 
 export type AiModel<P extends AiProvider> = {
