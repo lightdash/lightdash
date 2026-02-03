@@ -643,24 +643,15 @@ export class MetricsExplorerService<
         }
 
         const dateRange = getDateRangeFromString([startDate, endDate]);
-
-        const metricQuery: MetricQuery = {
+        const baseMetricId = getItemId(metric);
+        const metricQuery = this.buildMetricTotalQuery({
             exploreName,
-            dimensions: [],
-            metrics: [getItemId(metric)],
-            filters: {
-                dimensions: {
-                    id: uuidv4(),
-                    and: getMetricExplorerDateRangeFilters(
-                        metric.timeDimension,
-                        dateRange,
-                    ),
-                },
-            },
-            sorts: [],
-            limit: 1,
-            tableCalculations: [],
-        };
+            metric,
+            timeFrame,
+            granularity,
+            dateRange,
+            comparisonType,
+        });
 
         const { rows: currentRows } =
             await this.asyncQueryService.executeMetricQueryAndGetResults({
@@ -670,44 +661,92 @@ export class MetricsExplorerService<
                 context: QueryExecutionContext.METRICS_EXPLORER,
             });
 
-        let compareRows: Record<string, AnyType>[] | undefined;
-        let compareDateRange: MetricExplorerDateRange | undefined;
+        return {
+            value: parseMetricValue(currentRows[0]?.[baseMetricId]),
+            comparisonValue: parseMetricValue(currentRows[1]?.[baseMetricId]),
+            metric,
+        };
+    }
 
-        if (comparisonType === MetricTotalComparisonType.PREVIOUS_PERIOD) {
-            compareDateRange = [
-                getDateCalcUtils(timeFrame, granularity).back(dateRange[0]),
-                getDateCalcUtils(timeFrame, granularity).back(dateRange[1]),
-            ];
-
-            const compareMetricQuery = {
-                ...metricQuery,
-                filters: {
-                    dimensions: {
-                        id: uuidv4(),
-                        and: getMetricExplorerDateRangeFilters(
-                            metric.timeDimension,
-                            compareDateRange,
-                        ),
-                    },
-                },
-            };
-
-            compareRows = (
-                await this.asyncQueryService.executeMetricQueryAndGetResults({
-                    account: fromSession(user),
-                    projectUuid,
-                    metricQuery: compareMetricQuery,
-                    context: QueryExecutionContext.METRICS_EXPLORER,
-                })
-            ).rows;
+    // eslint-disable-next-line class-methods-use-this
+    private buildMetricTotalQuery({
+        exploreName,
+        metric,
+        timeFrame,
+        granularity,
+        dateRange,
+        comparisonType,
+    }: {
+        exploreName: string;
+        metric: MetricWithAssociatedTimeDimension;
+        timeFrame: TimeFrames;
+        granularity: TimeFrames;
+        dateRange: MetricExplorerDateRange;
+        comparisonType: MetricTotalComparisonType;
+    }): MetricQuery {
+        const baseMetricId = getItemId(metric);
+        const metricTimeDimension = metric.timeDimension;
+        if (!metricTimeDimension) {
+            throw new Error('Time dimension not found');
         }
+        const groupByTimeDimensionFieldId = getFieldIdForDateDimension(
+            metricTimeDimension.field,
+            timeFrame,
+        );
+        const groupByTimeDimensionId = getItemId({
+            table: metricTimeDimension.table,
+            name: groupByTimeDimensionFieldId,
+        });
+
+        const compareDateRange =
+            comparisonType === MetricTotalComparisonType.PREVIOUS_PERIOD
+                ? ([
+                      getDateCalcUtils(timeFrame, granularity).back(
+                          dateRange[0],
+                      ),
+                      getDateCalcUtils(timeFrame, granularity).back(
+                          dateRange[1],
+                      ),
+                  ] as MetricExplorerDateRange)
+                : null;
+
+        const filterTimeDimension = {
+            table: metricTimeDimension.table,
+            field: metricTimeDimension.field,
+            interval: TimeFrames.DAY,
+        };
+
+        const currentDateFilters = getMetricExplorerDateRangeFilters(
+            filterTimeDimension,
+            dateRange,
+        );
+        const compareDateFilters = compareDateRange
+            ? getMetricExplorerDateRangeFilters(
+                  filterTimeDimension,
+                  compareDateRange,
+              )
+            : [];
 
         return {
-            value: parseMetricValue(currentRows[0]?.[getItemId(metric)]),
-            comparisonValue: parseMetricValue(
-                compareRows?.[0]?.[getItemId(metric)],
-            ),
-            metric,
+            exploreName,
+            dimensions: [groupByTimeDimensionId],
+            metrics: [baseMetricId],
+            filters: {
+                dimensions: {
+                    id: uuidv4(),
+                    ...(compareDateRange
+                        ? { or: [currentDateFilters[0], compareDateFilters[0]] }
+                        : { and: currentDateFilters }),
+                },
+            },
+            sorts: [
+                {
+                    fieldId: groupByTimeDimensionId,
+                    descending: true,
+                },
+            ],
+            limit: 2,
+            tableCalculations: [],
         };
     }
 }
