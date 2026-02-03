@@ -1,3 +1,10 @@
+# [0.2413.0](https://github.com/lightdash/lightdash/compare/0.2412.1...0.2413.0) (2026-02-03)
+
+
+### Features
+
+* respect metic order in table sidebar ([#19912](https://github.com/lightdash/lightdash/issues/19912)) ([fb1eb21](https://github.com/lightdash/lightdash/commit/fb1eb2171c5017bd3fbd47112ade6716347ec8df))
+
 ## [0.2412.1](https://github.com/lightdash/lightdash/compare/0.2412.0...0.2412.1) (2026-02-03)
 
 
