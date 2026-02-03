@@ -45,8 +45,37 @@ type EnterpriseAppArguments = Pick<
 >;
 
 export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArguments> {
+    // Always provide instanceConfigurationService for auto-setup (works without license)
+    const baseProviders: EnterpriseAppArguments = {
+        serviceProviders: {
+            instanceConfigurationService: ({
+                models,
+                context,
+                repository,
+                utils,
+            }) =>
+                new InstanceConfigurationService({
+                    lightdashConfig: context.lightdashConfig,
+                    analytics: context.lightdashAnalytics,
+                    organizationModel: models.getOrganizationModel(),
+                    projectModel: models.getProjectModel(),
+                    userModel: models.getUserModel(),
+                    organizationAllowedEmailDomainsModel:
+                        models.getOrganizationAllowedEmailDomainsModel(),
+                    personalAccessTokenModel:
+                        models.getPersonalAccessTokenModel(),
+                    emailModel: models.getEmailModel(),
+                    projectService: repository.getProjectService(),
+                    encryptionUtil: utils.getEncryptionUtil(),
+                    // EE-only features (undefined for community)
+                    serviceAccountModel: undefined,
+                    embedModel: undefined,
+                }),
+        },
+    };
+
     if (!lightdashConfig.license.licenseKey) {
-        return {};
+        return baseProviders;
     }
 
     const licenseClient = new LicenseClient({});
@@ -64,6 +93,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
+            // Include base providers (like instanceConfigurationService for auto-setup)
+            ...baseProviders.serviceProviders,
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
                     analytics: context.lightdashAnalytics,
