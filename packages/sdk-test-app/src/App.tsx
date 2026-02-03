@@ -1,5 +1,4 @@
 import Lightdash from '@lightdash/sdk';
-import '@lightdash/sdk/sdk.css';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SavedChart } from '../../common/src';
