@@ -1,3 +1,10 @@
+# [0.2412.0](https://github.com/lightdash/lightdash/compare/0.2411.1...0.2412.0) (2026-02-03)
+
+
+### Features
+
+* support ${TABLE} references in non-aggregate metrics ([#19924](https://github.com/lightdash/lightdash/issues/19924)) ([60d362d](https://github.com/lightdash/lightdash/commit/60d362dcfeda8a60dad75b5249973feaa4ac9866))
+
 ## [0.2411.1](https://github.com/lightdash/lightdash/compare/0.2411.0...0.2411.1) (2026-02-03)
 
 
