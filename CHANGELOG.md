@@ -1,3 +1,10 @@
+## [0.2414.1](https://github.com/lightdash/lightdash/compare/0.2414.0...0.2414.1) (2026-02-03)
+
+
+### Bug Fixes
+
+* default cahrt legend to scroll ([#19927](https://github.com/lightdash/lightdash/issues/19927)) ([44fbf56](https://github.com/lightdash/lightdash/commit/44fbf565b422ae4f1632882e129427387a55eb7b))
+
 # [0.2414.0](https://github.com/lightdash/lightdash/compare/0.2413.1...0.2414.0) (2026-02-03)
 
 
