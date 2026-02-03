@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     DashboardSearchResult,
     DashboardTabResult,
+    FeatureFlags,
     FieldSearchResult,
     ForbiddenError,
     isTableErrorSearchResult,
@@ -14,6 +15,7 @@ import {
     TableSearchResult,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -28,6 +30,7 @@ type SearchServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     userAttributesModel: UserAttributesModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class SearchService extends BaseService {
@@ -41,6 +44,8 @@ export class SearchService extends BaseService {
 
     private readonly userAttributesModel: UserAttributesModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     constructor(args: SearchServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -48,6 +53,7 @@ export class SearchService extends BaseService {
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.userAttributesModel = args.userAttributesModel;
+        this.featureFlagModel = args.featureFlagModel;
     }
 
     async getSearchResults(
@@ -96,10 +102,25 @@ export class SearchService extends BaseService {
                 this.spaceModel.getSpaceSummary(spaceUuid),
             ),
         );
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                organizationName: user.organizationName,
+            },
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+
+        const spacesAccess = nestedPermissionsFlag.enabled
+            ? await this.spaceModel.getUserSpacesAccessWithInheritanceChain(
+                  user.userUuid,
+                  spaces.map((s) => s.uuid),
+              )
+            : await this.spaceModel.getUserSpacesAccess(
+                  user.userUuid,
+                  spaces.map((s) => s.uuid),
+              );
 
         const filterItem = async (
             item:

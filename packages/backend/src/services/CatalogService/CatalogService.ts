@@ -15,6 +15,7 @@ import {
     DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
     Explore,
     ExploreError,
+    FeatureFlags,
     FieldType,
     ForbiddenError,
     InlineErrorType,
@@ -59,6 +60,7 @@ import {
 } from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ChangesetModel } from '../../models/ChangesetModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -82,6 +84,7 @@ export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     spaceModel: SpaceModel;
     tagsModel: TagsModel;
     changesetModel: ChangesetModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class CatalogService<
@@ -105,6 +108,8 @@ export class CatalogService<
 
     changesetModel: ChangesetModel;
 
+    featureFlagModel: FeatureFlagModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -115,6 +120,7 @@ export class CatalogService<
         spaceModel,
         tagsModel,
         changesetModel,
+        featureFlagModel,
     }: CatalogArguments<T>) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -126,6 +132,7 @@ export class CatalogService<
         this.spaceModel = spaceModel;
         this.tagsModel = tagsModel;
         this.changesetModel = changesetModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private static async getCatalogFields(
@@ -731,10 +738,26 @@ export class CatalogService<
     ) => {
         // TODO move to space utils ?
         const spaces = await this.spaceModel.find({ projectUuid });
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-        );
+        const spaceUuids = spaces.map((s) => s.uuid);
+
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                organizationName: user.organizationName,
+            },
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+
+        const spacesAccess = nestedPermissionsFlag.enabled
+            ? await this.spaceModel.getUserSpacesAccessWithInheritanceChain(
+                  user.userUuid,
+                  spaceUuids,
+              )
+            : await this.spaceModel.getUserSpacesAccess(
+                  user.userUuid,
+                  spaceUuids,
+              );
 
         const allowedSpaceUuids = spaces
             .filter((space) =>
