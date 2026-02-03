@@ -810,10 +810,14 @@ export class EmbedService extends BaseService {
         projectUuid: string;
         metricQuery: MetricQuery;
         explore: Explore;
-        queryTags: Omit<Required<RunQueryTags>, 'user_uuid' | 'chart_uuid'> & {
+        queryTags: Omit<
+            Required<RunQueryTags>,
+            'user_uuid' | 'chart_uuid' | 'dashboard_uuid'
+        > & {
             embed: 'true';
             external_id: string;
             chart_uuid?: string; // optional because query for filter autocomplete doesn't have chart uuid
+            dashboard_uuid?: string; // optional for standalone chart embeds
         };
         account: AnonymousAccount;
         dateZoomGranularity?: DateGranularity;
@@ -1172,7 +1176,8 @@ export class EmbedService extends BaseService {
     }
 
     /**
-     * Common setup logic for saved chart calculations in embed context
+     * Common setup logic for saved chart calculations in embed context.
+     * Supports both chart embeds (direct chart access) and dashboard embeds (chart via tile).
      */
     private async _prepareSavedChartForCalculation(
         account: AnonymousAccount,
@@ -1180,7 +1185,45 @@ export class EmbedService extends BaseService {
         savedChartUuid: string,
         dashboardFilters?: DashboardFilters,
     ) {
-        const { dashboardUuid } = account.access.content;
+        const { type, dashboardUuid, chartUuids } = account.access.content;
+
+        // Handle chart embeds (direct chart access)
+        if (type === 'chart') {
+            // Validate that the requested chart matches the embedded chart
+            if (!chartUuids.includes(savedChartUuid)) {
+                throw new ForbiddenError(
+                    `Not authorized to access chart ${savedChartUuid}`,
+                );
+            }
+
+            const chart = await this.savedChartModel.get(savedChartUuid);
+
+            if (chart.projectUuid !== projectUuid) {
+                throw new NotFoundError(
+                    `Chart ${savedChartUuid} not found in project ${projectUuid}`,
+                );
+            }
+
+            const explore = await this.projectModel.getExploreFromCache(
+                projectUuid,
+                chart.tableName,
+            );
+
+            if (isExploreError(explore)) {
+                throw new ForbiddenError(
+                    `Explore ${chart.tableName} on project ${projectUuid} has errors : ${explore.errors}`,
+                );
+            }
+
+            return {
+                dashboardUuid: undefined,
+                chart,
+                explore,
+                metricQuery: chart.metricQuery,
+            };
+        }
+
+        // Handle dashboard embeds (chart via tile)
 
         if (!dashboardUuid) {
             throw new ParameterError(
@@ -1272,9 +1315,12 @@ export class EmbedService extends BaseService {
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
+        // For chart embeds, dashboardUuid is undefined - use empty parameters
+        const dashboardParameters = dashboardUuid
+            ? getDashboardParametersValuesMap(
+                  await this.dashboardModel.getByIdOrSlug(dashboardUuid),
+              )
+            : {};
 
         const acceptedUserParameters =
             isParameterInteractivityEnabled(account.access.parameters) &&
@@ -1365,9 +1411,12 @@ export class EmbedService extends BaseService {
             ...(metricQuery.additionalMetrics?.map((m) => m.name) || []),
         ];
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
+        // For chart embeds, dashboardUuid is undefined - use empty parameters
+        const dashboardParameters = dashboardUuid
+            ? getDashboardParametersValuesMap(
+                  await this.dashboardModel.getByIdOrSlug(dashboardUuid),
+              )
+            : {};
 
         const acceptedUserParameters =
             isParameterInteractivityEnabled(account.access.parameters) &&
