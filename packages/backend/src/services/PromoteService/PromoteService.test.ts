@@ -604,6 +604,7 @@ describe('PromoteService promoting and mutating changes', () => {
         expect(spaceModel.createSpace).toHaveBeenCalledWith(
             {
                 isPrivate: true,
+                inheritParentPermissions: false,
                 name: 'Private space',
                 parentSpaceUuid: null,
             },

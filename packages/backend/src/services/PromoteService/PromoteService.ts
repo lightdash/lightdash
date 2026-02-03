@@ -957,6 +957,7 @@ export class PromoteService extends BaseService {
                 const space = await this.spaceModel.createSpace(
                     {
                         isPrivate: data.isPrivate,
+                        inheritParentPermissions: !data.isPrivate,
                         name: data.name,
                         parentSpaceUuid,
                     },
