@@ -1708,7 +1708,10 @@ export class SpaceModel {
         return breadcrumbs;
     }
 
-    async getFullSpace(spaceUuid: string): Promise<Space> {
+    async getFullSpace(
+        spaceUuid: string,
+        options: { useInheritedAccess: boolean },
+    ): Promise<Space> {
         const space = await this.get(spaceUuid);
         const { spaceRoot: rootSpaceUuid } =
             await this.getSpaceRootFromCacheOrDB(spaceUuid);
@@ -1716,6 +1719,15 @@ export class SpaceModel {
             spaceUuid,
             space.projectUuid,
         );
+
+        // If useInheritedAccess is true, use getEffectiveSpaceAccess which resolves
+        // permissions through the inheritance chain. Otherwise, use the root space's
+        // direct access only (legacy behavior).
+        const access = options.useInheritedAccess
+            ? await this.getEffectiveSpaceAccess(spaceUuid)
+            : ((await this._getSpaceAccess([rootSpaceUuid]))[rootSpaceUuid] ??
+              []);
+
         return {
             organizationUuid: space.organizationUuid,
             name: space.name,
@@ -1729,9 +1741,7 @@ export class SpaceModel {
             childSpaces: await this.find({
                 parentSpaceUuid: spaceUuid,
             }),
-            access:
-                (await this._getSpaceAccess([rootSpaceUuid]))[rootSpaceUuid] ??
-                [],
+            access,
             groupsAccess: await this._getGroupAccess(rootSpaceUuid),
             slug: space.slug,
             parentSpaceUuid: space.parentSpaceUuid,
@@ -2037,6 +2047,7 @@ export class SpaceModel {
     async update(
         spaceUuid: string,
         space: Partial<UpdateSpace>,
+        options: { useInheritedAccess: boolean },
     ): Promise<Space> {
         await this.database(SpaceTableName)
             .update({
@@ -2052,7 +2063,7 @@ export class SpaceModel {
                 }),
             })
             .where('space_uuid', spaceUuid);
-        return this.getFullSpace(spaceUuid);
+        return this.getFullSpace(spaceUuid, options);
     }
 
     async moveToSpace(

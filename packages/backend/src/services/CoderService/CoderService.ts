@@ -1293,8 +1293,19 @@ export class CoderService extends BaseService {
 
             if (newSpace.isPrivate) {
                 if (parentSpaceUuid) {
+                    const nestedPermissionsFlag =
+                        await this.featureFlagModel.get({
+                            user: {
+                                userUuid: user.userUuid,
+                                organizationUuid: user.organizationUuid,
+                                organizationName: user.organizationName,
+                            },
+                            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+                        });
                     const newSpaceWithAccess =
-                        await this.spaceModel.getFullSpace(parentSpaceUuid);
+                        await this.spaceModel.getFullSpace(parentSpaceUuid, {
+                            useInheritedAccess: nestedPermissionsFlag.enabled,
+                        });
 
                     const userAccessPromises = newSpaceWithAccess.access
                         .filter((access) => access.hasDirectAccess)
