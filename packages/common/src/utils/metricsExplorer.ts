@@ -107,7 +107,11 @@ export const getFieldIdForDateDimension = (
 export const getDateCalcUtils = (timeFrame: TimeFrames, grain?: TimeFrames) => {
     switch (timeFrame) {
         case TimeFrames.MONTH:
-            if (grain && grain !== TimeFrames.DAY) {
+            if (
+                grain &&
+                grain !== TimeFrames.DAY &&
+                grain !== TimeFrames.MONTH
+            ) {
                 throw new Error(
                     `Granularity "${grain}" is not supported yet for this timeframe "${timeFrame}"`,
                 );
@@ -116,6 +120,26 @@ export const getDateCalcUtils = (timeFrame: TimeFrames, grain?: TimeFrames) => {
             return {
                 forward: (date: Date) => dayjs(date).add(1, 'month').toDate(),
                 back: (date: Date) => dayjs(date).subtract(1, 'month').toDate(),
+            };
+        case TimeFrames.DAY:
+            if (grain && grain !== TimeFrames.DAY) {
+                throw new Error(
+                    `Granularity "${grain}" is not supported yet for this timeframe "${timeFrame}"`,
+                );
+            }
+            return {
+                forward: (date: Date) => dayjs(date).add(1, 'day').toDate(),
+                back: (date: Date) => dayjs(date).subtract(1, 'day').toDate(),
+            };
+        case TimeFrames.WEEK:
+            if (grain && grain !== TimeFrames.WEEK) {
+                throw new Error(
+                    `Granularity "${grain}" is not supported yet for this timeframe "${timeFrame}"`,
+                );
+            }
+            return {
+                forward: (date: Date) => dayjs(date).add(1, 'week').toDate(),
+                back: (date: Date) => dayjs(date).subtract(1, 'week').toDate(),
             };
         case TimeFrames.YEAR:
             // Handle week shift for previous year comparison and subtract what the amount of weeks is in a year
@@ -139,9 +163,6 @@ export const getDateCalcUtils = (timeFrame: TimeFrames, grain?: TimeFrames) => {
                 forward: (date: Date) => dayjs(date).add(1, 'year').toDate(),
                 back: (date: Date) => dayjs(date).subtract(1, 'year').toDate(),
             };
-        case TimeFrames.DAY:
-        case TimeFrames.WEEK:
-            throw new Error(`Timeframe "${timeFrame}" is not supported yet`);
         default:
             return assertUnimplementedTimeframe(timeFrame);
     }

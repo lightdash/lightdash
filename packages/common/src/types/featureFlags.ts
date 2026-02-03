@@ -85,6 +85,11 @@ export enum FeatureFlags {
      * inherit permissions from their root space.
      */
     NestedSpacesPermissions = 'nested-spaces-permissions',
+
+    /**
+     * Enable tree/list mode switcher in Metrics Catalog
+     */
+    MetricsCatalogTreeModeSwitcher = 'metrics-catalog-tree-mode-switcher',
 }
 
 export type FeatureFlag = {
