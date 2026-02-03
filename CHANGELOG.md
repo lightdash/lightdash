@@ -1,3 +1,10 @@
+## [0.2413.1](https://github.com/lightdash/lightdash/compare/0.2413.0...0.2413.1) (2026-02-03)
+
+
+### Bug Fixes
+
+* handle metrics as index columns in pivot configuration ([#19916](https://github.com/lightdash/lightdash/issues/19916)) ([7be107d](https://github.com/lightdash/lightdash/commit/7be107d2d912b58718336a13dd56aadc6b2cf37e)), closes [#19911](https://github.com/lightdash/lightdash/issues/19911)
+
 # [0.2413.0](https://github.com/lightdash/lightdash/compare/0.2412.1...0.2413.0) (2026-02-03)
 
 
