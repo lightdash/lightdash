@@ -24,6 +24,7 @@ import {
     useReactFlow,
     type Connection,
     type Edge,
+    type EdgeChange,
     type EdgeTypes,
     type NodeAddChange,
     type NodeChange,
@@ -33,8 +34,10 @@ import {
     type NodeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import partition from 'lodash/partition';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import useToaster from '../../../../hooks/toaster/useToaster';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
@@ -270,9 +273,10 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
     const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
     const { mutateAsync: deleteMetricsTreeEdge } = useDeleteMetricsTreeEdge();
-    const { fitView, getNode } = useReactFlow<MetricTreeNode, Edge>();
+    const { fitView, getNode, getEdge } = useReactFlow<MetricTreeNode, Edge>();
     const nodesInitialized = useNodesInitialized();
     const [isLayoutReady, setIsLayoutReady] = useState(false);
+    const { showToastInfo } = useToaster();
 
     const { containsNode: unconnectGroupContainsNode } = useTreeNodePosition(
         STATIC_NODE_TYPES.UNCONNECTED,
@@ -301,6 +305,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 source: edge.source.catalogSearchUuid,
                 target: edge.target.catalogSearchUuid,
                 type: MetricTreeEdgeType.DEFAULT,
+                data: { createdFrom: edge.createdFrom },
             }));
         }
 
@@ -348,6 +353,28 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
             );
         },
         [currentEdges],
+    );
+
+    const handleEdgesChange = useCallback(
+        (changes: EdgeChange[]) => {
+            const [blockedYamlChanges, allowedChanges] = partition(
+                changes,
+                (change) => {
+                    if (change.type !== 'remove') return false;
+                    return getEdge(change.id)?.data?.createdFrom === 'yaml';
+                },
+            );
+            if (blockedYamlChanges.length > 0) {
+                showToastInfo({
+                    title: 'Cannot delete YAML-defined edge',
+                    subtitle:
+                        'This connection is defined in your dbt YAML files. Update your YAML to remove it.',
+                });
+            }
+
+            onEdgesChange(allowedChanges);
+        },
+        [getEdge, onEdgesChange, showToastInfo],
     );
 
     const applyLayout = useCallback(
@@ -475,7 +502,10 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const handleEdgesDelete = useCallback(
         async (edgesToDelete: Edge[]) => {
             if (projectUuid) {
-                const promises = edgesToDelete.map(async (edge) => {
+                const deletableEdges = edgesToDelete.filter(
+                    (edge) => edge.data?.createdFrom !== 'yaml',
+                );
+                const promises = deletableEdges.map(async (edge) => {
                     await deleteMetricsTreeEdge({
                         projectUuid,
                         sourceCatalogSearchUuid: edge.source,
@@ -548,7 +578,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 fitView
                 attributionPosition="top-right"
                 onNodesChange={handleNodeChange}
-                onEdgesChange={onEdgesChange}
+                onEdgesChange={handleEdgesChange}
                 onConnect={handleConnect}
                 edgesReconnectable={false}
                 onEdgesDelete={handleEdgesDelete}
