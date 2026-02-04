@@ -39,9 +39,9 @@ module.exports = {
         // ─────────────────────────────────────────────────────────────────
         {
             name: 'lightdash-api',
-            script: '../../node_modules/.bin/tsx',
-            args: 'watch --clear-screen=false --inspect=0.0.0.0:9229 src/index.ts',
-            interpreter: 'none',
+            script: 'src/index.ts',
+            interpreter: 'node',
+            node_args: '--import tsx --inspect=0.0.0.0:9229',
             cwd: path.join(__dirname, 'packages/backend'),
             env: {
                 ...env,
@@ -50,12 +50,9 @@ module.exports = {
                 NODE_ENV: 'development',
                 SENTRY_SPOTLIGHT: 'http://localhost:8969/stream',
             },
-            // tsx watch handles file watching and restarts
             watch: false,
-            autorestart: false,
-            // Graceful shutdown
+            autorestart: true,
             kill_timeout: 5000,
-            // Use PM2 default log location for better monit compatibility
             merge_logs: true,
             time: true,
         },
@@ -65,17 +62,19 @@ module.exports = {
         // ─────────────────────────────────────────────────────────────────
         {
             name: 'lightdash-scheduler',
-            script: '../../node_modules/.bin/tsx',
-            args: 'watch --clear-screen=false src/scheduler.ts',
-            interpreter: 'none',
+            script: 'src/scheduler.ts',
+            interpreter: 'node',
+            node_args: '--import tsx',
             cwd: path.join(__dirname, 'packages/backend'),
             env: {
                 ...env,
                 NODE_ENV: 'development',
                 SENTRY_SPOTLIGHT: 'http://localhost:8969/stream',
+                // Override PORT to avoid conflict with API (which uses 8080)
+                PORT: '8081',
             },
             watch: false,
-            autorestart: false,
+            autorestart: true,
             kill_timeout: 5000,
             merge_logs: true,
             time: true,
@@ -137,15 +136,14 @@ module.exports = {
         // ─────────────────────────────────────────────────────────────────
         {
             name: 'lightdash-spotlight',
-            script: 'pnpm',
-            args: 'dlx @spotlightjs/spotlight@latest',
+            script: 'node_modules/.bin/spotlight',
             interpreter: 'none',
             cwd: __dirname,
             env: {
                 NODE_ENV: 'development',
             },
             watch: false,
-            autorestart: false,
+            autorestart: true,
             kill_timeout: 3000,
             merge_logs: true,
             time: true,
