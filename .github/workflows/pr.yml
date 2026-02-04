@@ -255,7 +255,7 @@ jobs:
   build-cypress-e2e-image:
     runs-on: depot-ubuntu-24.04-4
     needs: files-changed
-    if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.timezone == 'true'
+    if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.timezone == 'true' || needs.files-changed.outputs.backend == 'true'
     name: Build E2E Image
     steps:
       - name: Checkout
