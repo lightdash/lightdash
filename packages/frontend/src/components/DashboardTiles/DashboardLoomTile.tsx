@@ -1,5 +1,5 @@
 import { type DashboardLoomTile } from '@lightdash/common';
-import { Box } from '@mantine/core';
+import { Box } from '@mantine-8/core';
 import React, { useMemo, useState, type FC } from 'react';
 import { DashboardTileComments } from '../../features/comments';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';

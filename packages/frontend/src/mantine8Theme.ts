@@ -139,7 +139,7 @@ export const getMantine8ThemeOverride = (
                             root: {
                                 '--button-bg': theme.colors.ldDark[9],
                                 '--button-hover': theme.colors.ldDark[8],
-                                '--button-color': theme.colors.ldDark[0],
+                                '--button-color': theme.colors.ldGray[0],
                                 '--button-bd': `none`,
                             },
                         };
@@ -150,7 +150,6 @@ export const getMantine8ThemeOverride = (
                     root: {
                         fontFamily: theme.fontFamily,
                         fontWeight: 500,
-                        borderRadius: theme.radius.md,
                     },
                 }),
                 defaultProps: {

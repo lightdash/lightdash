@@ -5,7 +5,8 @@ import {
     ResourceViewItemType,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Tooltip } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
+import { ActionIcon, Box, Tooltip } from '@mantine/core';
 import {
     IconCopy,
     IconDatabaseExport,
@@ -41,8 +42,7 @@ export interface ResourceViewActionMenuCommonProps {
     onAction: (newAction: ResourceViewItemActionState) => void;
 }
 
-interface ResourceViewActionMenuProps
-    extends ResourceViewActionMenuCommonProps {
+interface ResourceViewActionMenuProps extends ResourceViewActionMenuCommonProps {
     disabled?: boolean;
     item: ResourceViewItem;
     allowDelete?: boolean;
@@ -202,14 +202,14 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     <Menu.Item
                         component="button"
                         role="menuitem"
-                        icon={<IconEdit size={18} />}
+                        leftSection={<IconEdit size={18} />}
                         onClick={() => {
                             onAction({
                                 type: ResourceViewItemAction.UPDATE,
                                 item,
                             });
                         }}
-                        sx={isSqlChart ? { display: 'none' } : {}}
+                        style={isSqlChart ? { display: 'none' } : {}}
                     >
                         Rename
                     </Menu.Item>
@@ -219,14 +219,14 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         <Menu.Item
                             component="button"
                             role="menuitem"
-                            icon={<IconCopy size={18} />}
+                            leftSection={<IconCopy size={18} />}
                             onClick={() => {
                                 onAction({
                                     type: ResourceViewItemAction.DUPLICATE,
                                     item,
                                 });
                             }}
-                            sx={isSqlChart ? { display: 'none' } : {}}
+                            style={isSqlChart ? { display: 'none' } : {}}
                         >
                             Duplicate
                         </Menu.Item>
@@ -237,7 +237,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             <Menu.Item
                                 component="button"
                                 role="menuitem"
-                                icon={<IconLayoutGridAdd size={18} />}
+                                leftSection={<IconLayoutGridAdd size={18} />}
                                 onClick={() => {
                                     onAction({
                                         type: ResourceViewItemAction.ADD_TO_DASHBOARD,
@@ -264,7 +264,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                             project?.upstreamProjectUuid ===
                                             undefined
                                         }
-                                        icon={
+                                        leftSection={
                                             <MantineIcon
                                                 icon={IconDatabaseExport}
                                             />
@@ -303,7 +303,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         <Menu.Item
                             component="button"
                             role="menuitem"
-                            icon={
+                            leftSection={
                                 isPinned ? (
                                     <IconPinnedOff size={18} />
                                 ) : (
@@ -316,7 +316,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     item,
                                 });
                             }}
-                            sx={isSqlChart ? { display: 'none' } : {}}
+                            style={isSqlChart ? { display: 'none' } : {}}
                         >
                             {isPinned
                                 ? 'Unpin from homepage'
@@ -329,7 +329,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     <Menu.Item
                         component="button"
                         role="menuitem"
-                        icon={<IconFolderSymlink size={18} />}
+                        leftSection={<IconFolderSymlink size={18} />}
                         onClick={() => {
                             onAction({
                                 type: ResourceViewItemAction.TRANSFER_TO_SPACE,
@@ -348,7 +348,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 component="button"
                                 role="menuitem"
                                 color="red"
-                                icon={
+                                leftSection={
                                     <MantineIcon icon={IconTrash} size={18} />
                                 }
                                 onClick={() => {

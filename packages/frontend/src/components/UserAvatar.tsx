@@ -1,7 +1,8 @@
-import { Avatar, useMantineTheme, type AvatarProps } from '@mantine/core';
+import { Avatar, useMantineTheme, type AvatarProps } from '@mantine-8/core';
 import { forwardRef } from 'react';
 
 import useApp from '../providers/App/useApp';
+import classes from './UserAvatar.module.css';
 
 export const UserAvatar = forwardRef<HTMLDivElement, AvatarProps>(
     (props, ref) => {
@@ -17,10 +18,11 @@ export const UserAvatar = forwardRef<HTMLDivElement, AvatarProps>(
                 ref={ref}
                 variant="light"
                 size={theme.spacing.xxl}
-                radius="xl"
-                color="ldGray.8"
-                bg="ldGray.3"
-                sx={{ cursor: 'pointer' }}
+                radius="lg"
+                classNames={{
+                    root: classes.avatar,
+                    placeholder: classes.placeholder,
+                }}
                 {...props}
             >
                 {initials}

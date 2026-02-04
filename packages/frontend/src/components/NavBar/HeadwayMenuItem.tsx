@@ -1,4 +1,4 @@
-import { Box, Button, Tooltip, useMantineTheme } from '@mantine/core';
+import { Box, Button, Tooltip } from '@mantine-8/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import useHeadway from '../../hooks/thirdPartyServices/useHeadway';
@@ -6,13 +6,13 @@ import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import MantineIcon from '../common/MantineIcon';
+import classes from './HeadwayMenuItem.module.css';
 
 type Props = {
     projectUuid?: string;
 };
 
 const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
-    const theme = useMantineTheme();
     const { track } = useTracking();
     const { user } = useApp();
     const isHeadwayloaded = useHeadway();
@@ -65,7 +65,7 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
     if (!isHeadwayloaded || !projectUuid) return null;
 
     return (
-        <Tooltip color="dark" label="What's new?" withinPortal>
+        <Tooltip label="What's new?" withinPortal>
             <Button
                 variant="default"
                 size="xs"
@@ -76,32 +76,7 @@ const HeadwayMenuItem: FC<Props> = ({ projectUuid }) => {
                 <Box
                     id="headway-badge"
                     pos="absolute"
-                    sx={{
-                        pointerEvents: 'none',
-                        '.HW_badge': {
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            top: '4px',
-                            left: '12px',
-                            width: '12px',
-                            height: '12px',
-                            fontSize: theme.fontSizes.xs,
-                            background: theme.colors.red[8],
-                        },
-                        '.HW_badge.HW_softHidden': {
-                            background: 'transparent !important',
-                        },
-                        '.HW_badge.HW_bounce': {
-                            animation: 'none !important',
-                        },
-                        '.HW_badge.HW_shake': {
-                            animation: 'none !important',
-                        },
-                        '.HW_badge.HW_wobble': {
-                            animation: 'none !important',
-                        },
-                    }}
+                    className={classes.badge}
                 />
             </Button>
         </Tooltip>

@@ -7,7 +7,7 @@ import {
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
 import { useCallback, type FC } from 'react';
 import {
     explorerActions,

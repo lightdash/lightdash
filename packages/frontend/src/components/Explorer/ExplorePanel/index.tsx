@@ -6,7 +6,8 @@ import {
     findReplaceableCustomMetrics,
     getMetrics,
 } from '@lightdash/common';
-import { ActionIcon, Group, HoverCard, Menu, Stack, Text } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
+import { ActionIcon, Group, HoverCard, Stack, Text } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconCode,
@@ -249,7 +250,9 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                 </Menu.Target>
                                 <Menu.Dropdown>
                                     <Menu.Item
-                                        icon={<MantineIcon icon={IconPencil} />}
+                                        leftSection={
+                                            <MantineIcon icon={IconPencil} />
+                                        }
                                         onClick={handleEditVirtualView}
                                     >
                                         <Text fz="xs" fw={500}>
@@ -265,7 +268,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                         })}
                                     >
                                         <Menu.Item
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon icon={IconTrash} />
                                             }
                                             color="red"
@@ -300,7 +303,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                     </Menu.Target>
                                     <Menu.Dropdown>
                                         <Menu.Item
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon icon={IconCode} />
                                             }
                                             onClick={handleViewSourceCode}

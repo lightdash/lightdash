@@ -28,6 +28,7 @@ import { useNavigate } from 'react-router';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
 import LinkButton from '../../../components/common/LinkButton';
 import MantineIcon from '../../../components/common/MantineIcon';
+import classes from './CatalogPanel.module.css';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import { useCatalogContext } from '../context/useCatalogContext';
 import { useCatalog } from '../hooks/useCatalog';
@@ -473,14 +474,7 @@ export const CatalogPanel: FC = () => {
                                     href="https://docs.lightdash.com/guides/adding-tables-to-lightdash"
                                     mt="md"
                                     target="_blank"
-                                    sx={(theme) => ({
-                                        color: theme.colors.ldGray[0],
-                                        backgroundColor: theme.colors.ldGray[8],
-                                        '&:hover': {
-                                            backgroundColor:
-                                                theme.colors.ldGray[9],
-                                        },
-                                    })}
+                                    className={classes.learnMoreButton}
                                 >
                                     Learn more
                                 </LinkButton>

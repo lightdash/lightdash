@@ -4,6 +4,7 @@ import { Icon123, IconAbc } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineLinkButton from '../../../components/common/MantineLinkButton';
+import classes from './CatalogFieldListItem.module.css';
 import {
     DEFAULT_EMPTY_EXPLORE_CONFIG,
     getExplorerUrlFromCreateSavedChartVersion,
@@ -134,16 +135,10 @@ export const CatalogFieldListItem: FC<React.PropsWithChildren<Props>> = ({
                     }}
                 >
                     <MantineLinkButton
-                        size="xs"
+                        size="compact-xs"
                         href={exploreWithFieldUrl}
                         target="_blank"
-                        compact
-                        sx={(theme) => ({
-                            backgroundColor: theme.colors.ldGray[8],
-                            '&:hover': {
-                                backgroundColor: theme.colors.ldGray[9],
-                            },
-                        })}
+                        className={classes.exploreButton}
                         onClick={(e) => e.stopPropagation()}
                     >
                         Use field

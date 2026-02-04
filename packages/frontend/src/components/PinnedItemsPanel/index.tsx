@@ -66,7 +66,7 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
                     href="https://docs.lightdash.com/guides/pinning/"
                     target="_blank"
                     variant="subtle"
-                    compact
+                    size="compact-sm"
                     color="ldGray.6"
                 >
                     View docs

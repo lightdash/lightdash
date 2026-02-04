@@ -1,4 +1,4 @@
-import { Menu, UnstyledButton, type MenuItemProps } from '@mantine/core';
+import { Menu, UnstyledButton, type MenuItemProps } from '@mantine-8/core';
 import React, { type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { type EventData } from '../../providers/Tracking/types';

@@ -3,7 +3,7 @@ import {
     Tooltip,
     type AnchorProps,
     type TooltipProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon, { type MantineIconProps } from './common/MantineIcon';

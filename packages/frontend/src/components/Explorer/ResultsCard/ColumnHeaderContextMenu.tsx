@@ -15,7 +15,8 @@ import {
     isTimeBasedDimension,
     type TableCalculation,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Text } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Text } from '@mantine/core';
 import {
     IconChevronDown,
     IconFilter,
@@ -104,7 +105,9 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 {isMetric(item) && !isPopAdditionalMetric ? (
                     <>
                         <Menu.Item
-                            icon={<MantineIcon icon={IconTimelineEvent} />}
+                            leftSection={
+                                <MantineIcon icon={IconTimelineEvent} />
+                            }
                             rightSection={
                                 <Box ml="sm">
                                     <BetaBadge tooltipLabel="" />
@@ -131,7 +134,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 {isFilterableField(item) && !isPopAdditionalMetric && (
                     <>
                         <Menu.Item
-                            icon={<MantineIcon icon={IconFilter} />}
+                            leftSection={<MantineIcon icon={IconFilter} />}
                             onClick={() => {
                                 track({ name: EventName.ADD_FILTER_CLICKED });
                                 addFilter(item, undefined);
@@ -180,7 +183,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
 
                 {isItemAdditionalMetric && !isPopAdditionalMetric ? (
                     <Menu.Item
-                        icon={<MantineIcon icon={IconPencil} />}
+                        leftSection={<MantineIcon icon={IconPencil} />}
                         onClick={() => {
                             dispatch(
                                 explorerActions.toggleAdditionalMetricModal({
@@ -196,7 +199,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 ) : null}
 
                 <Menu.Item
-                    icon={<MantineIcon icon={IconTrash} />}
+                    leftSection={<MantineIcon icon={IconTrash} />}
                     color="red"
                     onClick={() => {
                         dispatch(explorerActions.removeField(itemFieldId));
@@ -210,7 +213,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
         return (
             <>
                 <Menu.Item
-                    icon={<MantineIcon icon={IconTrash} />}
+                    leftSection={<MantineIcon icon={IconTrash} />}
                     color="red"
                     onClick={() => {
                         dispatch(explorerActions.removeField(header.column.id));
@@ -226,7 +229,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 {isFilterableField(item) && (
                     <>
                         <Menu.Item
-                            icon={<MantineIcon icon={IconFilter} />}
+                            leftSection={<MantineIcon icon={IconFilter} />}
                             onClick={() => {
                                 track({ name: EventName.ADD_FILTER_CLICKED });
                                 addFilter(item, undefined);
@@ -243,7 +246,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 )}
 
                 <Menu.Item
-                    icon={<MantineIcon icon={IconPencil} />}
+                    leftSection={<MantineIcon icon={IconPencil} />}
                     onClick={() => {
                         dispatch(
                             explorerActions.toggleCustomDimensionModal({
@@ -262,7 +265,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <Menu.Divider />
 
                 <Menu.Item
-                    icon={<MantineIcon icon={IconTrash} />}
+                    leftSection={<MantineIcon icon={IconTrash} />}
                     color="red"
                     onClick={() => {
                         dispatch(explorerActions.removeField(getItemId(item)));
@@ -276,7 +279,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
         return (
             <>
                 <Menu.Item
-                    icon={<MantineIcon icon={IconFilter} />}
+                    leftSection={<MantineIcon icon={IconFilter} />}
                     onClick={() => {
                         track({ name: EventName.ADD_FILTER_CLICKED });
                         addFilter(item, undefined);
@@ -291,7 +294,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <Menu.Divider />
 
                 <Menu.Item
-                    icon={<MantineIcon icon={IconPencil} />}
+                    leftSection={<MantineIcon icon={IconPencil} />}
                     onClick={() => {
                         track({
                             name: EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED,
@@ -310,7 +313,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
                 <Menu.Divider />
 
                 <Menu.Item
-                    icon={<MantineIcon icon={IconTrash} />}
+                    leftSection={<MantineIcon icon={IconTrash} />}
                     color="red"
                     onClick={() => {
                         track({

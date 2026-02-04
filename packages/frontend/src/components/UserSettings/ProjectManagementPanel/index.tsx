@@ -278,7 +278,7 @@ const ProjectManagementPanel: FC = () => {
                 </Can>
             </Group>
 
-            <SettingsCard sx={{ overflow: 'hidden' }} shadow="none" p={0}>
+            <SettingsCard style={{ overflow: 'hidden' }} shadow="none" p={0}>
                 <Group position="apart">
                     <Tabs
                         classNames={tableTabStyles.classes}

@@ -5,7 +5,8 @@ import {
     ResourceViewItemType,
     type ResourceViewSpaceItem,
 } from '@lightdash/common';
-import { ActionIcon, Box, Button, Group, Menu, Stack } from '@mantine/core';
+import { Menu } from '@mantine-8/core';
+import { ActionIcon, Box, Button, Group, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconDots,
@@ -208,7 +209,7 @@ const Space: FC = () => {
                                         {userCanManageSpace && (
                                             <>
                                                 <Menu.Item
-                                                    icon={
+                                                    leftSection={
                                                         <MantineIcon
                                                             icon={
                                                                 IconFolderPlus
@@ -229,7 +230,7 @@ const Space: FC = () => {
 
                                         {userCanCreateDashboards ? (
                                             <Menu.Item
-                                                icon={
+                                                leftSection={
                                                     <MantineIcon
                                                         icon={IconPlus}
                                                     />
@@ -246,7 +247,7 @@ const Space: FC = () => {
 
                                         {userCanCreateCharts ? (
                                             <Menu.Item
-                                                icon={
+                                                leftSection={
                                                     <MantineIcon
                                                         icon={IconPlus}
                                                     />

@@ -1,9 +1,10 @@
 import { type SearchItemType } from '@lightdash/common';
-import { Accordion, Text } from '@mantine/core';
+import { Accordion, Text } from '@mantine-8/core';
 import { useEffect, type FC, type MutableRefObject } from 'react';
 import { type FocusedItemIndex, type SearchItem } from '../types/searchItem';
 import { getSearchItemLabel } from '../utils/getSearchItemLabel';
 import OmnibarItem from './OmnibarItem';
+import classes from './OmnibarItemGroups.module.css';
 
 type Props = {
     openPanels: SearchItemType[];
@@ -50,33 +51,21 @@ const OmnibarItemGroups: FC<Props> = ({
 
     return (
         <Accordion
-            styles={(theme) => ({
-                control: {
-                    height: theme.spacing.xxl,
-                    paddingLeft: theme.spacing.md,
-                    paddingRight: theme.spacing.md,
-                    backgroundColor: theme.colors.ldGray[0],
-                    '&:hover': {
-                        backgroundColor: theme.colors.ldGray[1],
-                    },
-                },
-                label: {
-                    padding: 0,
-                },
-                content: {
-                    padding: theme.spacing.xs,
-                },
-            })}
+            classNames={{
+                control: classes.accordionControl,
+                label: classes.accordionLabel,
+                content: classes.accordionContent,
+            }}
             multiple
             value={openPanels}
-            onChange={(newPanels: SearchItemType[]) =>
-                onOpenPanelsChange(newPanels)
+            onChange={(newPanels) =>
+                onOpenPanelsChange(newPanels as SearchItemType[])
             }
         >
             {groupedItems.map(([groupType, groupItems], groupIndex) => (
                 <Accordion.Item key={groupType} value={groupType}>
                     <Accordion.Control>
-                        <Text color="dimmed" fw={500} fz="xs">
+                        <Text c="dimmed" fw={500} fz="xs">
                             {getSearchItemLabel(groupType)}
                         </Text>
                     </Accordion.Control>

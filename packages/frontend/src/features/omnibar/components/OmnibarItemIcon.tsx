@@ -1,4 +1,4 @@
-import { Anchor } from '@mantine/core';
+import { Anchor } from '@mantine-8/core';
 import { IconAlertTriangleFilled } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
