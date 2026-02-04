@@ -41,7 +41,11 @@ import {
     useCreateMetricsTreeEdge,
     useDeleteMetricsTreeEdge,
 } from '../../hooks/useMetricsTree';
-import { TimeFramePicker } from '../visualization/TimeFramePicker';
+import { CanvasTimeFramePicker } from '../visualization/CanvasTimeFramePicker';
+import {
+    DEFAULT_CANVAS_TIME_OPTION,
+    type CanvasTimeOption,
+} from '../visualization/canvasTimeFramePickerOptions';
 import MetricsSidebar from './MetricsSidebar';
 import DefaultEdge from './TreeComponents/edges/DefaultEdge';
 import ExpandedNode, {
@@ -56,8 +60,6 @@ type Props = {
     edges: CatalogMetricsTreeEdge[];
     viewOnly?: boolean;
 };
-
-const DEFAULT_TIME_FRAME = TimeFrames.MONTH; // TODO: this should be dynamic
 
 function getEdgeId(edge: Pick<CatalogMetricsTreeEdge, 'source' | 'target'>) {
     return `${edge.source.catalogSearchUuid}_${edge.target.catalogSearchUuid}`;
@@ -152,7 +154,19 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const nodesInitialized = useNodesInitialized();
     const [isLayoutReady, setIsLayoutReady] = useState(false);
     const { showToastInfo } = useToaster();
-    const [timeFrame, setTimeFrame] = useState<TimeFrames>(DEFAULT_TIME_FRAME);
+    const [canvasTimeOption, setCanvasTimeOption] = useState<CanvasTimeOption>(
+        DEFAULT_CANVAS_TIME_OPTION,
+    );
+
+    // Derive timeFrame and rollingDays from the canvas time option
+    const timeFrame =
+        canvasTimeOption.type === 'calendar'
+            ? canvasTimeOption.timeFrame
+            : TimeFrames.DAY; // Default for rolling (used for granularity)
+    const rollingDays =
+        canvasTimeOption.type === 'rolling'
+            ? canvasTimeOption.rollingDays
+            : undefined;
 
     const initialEdges = useMemo<Edge[]>(() => {
         // If there are saved edges, use them
@@ -203,12 +217,13 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     tableName: metric.tableName,
                     metricName: metric.name,
                     timeFrame,
+                    rollingDays,
                     isEdgeTarget,
                     isEdgeSource,
                 },
             };
         });
-    }, [metrics, initialEdges, timeFrame]);
+    }, [metrics, initialEdges, timeFrame, rollingDays]);
 
     // Only connected nodes for initial canvas render
     const initialNodes = useMemo<ExpandedNodeData[]>(() => {
@@ -465,11 +480,11 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 ...node,
                 data:
                     'timeFrame' in node.data
-                        ? { ...node.data, timeFrame }
+                        ? { ...node.data, timeFrame, rollingDays }
                         : node.data,
             })),
         );
-    }, [timeFrame, setCurrentNodes]);
+    }, [timeFrame, rollingDays, setCurrentNodes]);
 
     // Remove nodes from canvas if they no longer exist in metrics
     const removeNodeChanges = useMemo<NodeRemoveChange[]>(() => {
@@ -525,9 +540,9 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                                     Canvas mode:
                                 </Text>
                                 {isTreeModeSwitcherEnabled ? (
-                                    <TimeFramePicker
-                                        value={timeFrame}
-                                        onChange={setTimeFrame}
+                                    <CanvasTimeFramePicker
+                                        value={canvasTimeOption}
+                                        onChange={setCanvasTimeOption}
                                     />
                                 ) : (
                                     <Text span fw={500} c="ldGray.7">

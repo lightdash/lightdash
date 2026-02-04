@@ -102,6 +102,7 @@ export class MetricsExplorerController extends BaseController {
         @Body()
         body?: {
             comparisonType?: MetricTotalComparisonType;
+            rollingDays?: number;
         },
     ): Promise<ApiMetricsExplorerTotalResults> {
         this.setStatus(200);
@@ -118,6 +119,7 @@ export class MetricsExplorerController extends BaseController {
                 startDate,
                 endDate,
                 body?.comparisonType,
+                body?.rollingDays,
             );
 
         return {
@@ -146,6 +148,7 @@ export class MetricsExplorerController extends BaseController {
         @Body()
         body?: {
             comparisonType?: MetricTotalComparisonType;
+            rollingDays?: number;
         },
     ): Promise<{ status: 'ok'; results: ApiCompiledQueryResults }> {
         this.setStatus(200);
@@ -162,6 +165,7 @@ export class MetricsExplorerController extends BaseController {
                 startDate,
                 endDate,
                 body?.comparisonType,
+                body?.rollingDays,
             );
 
         return {

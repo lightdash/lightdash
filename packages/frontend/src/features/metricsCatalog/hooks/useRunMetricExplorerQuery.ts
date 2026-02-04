@@ -141,6 +141,7 @@ type RunMetricTotalArgs = {
     timeFrame: TimeFrames;
     granularity: TimeFrames;
     comparisonType: MetricTotalComparisonType;
+    rollingDays?: number;
 };
 
 const postRunMetricTotal = async ({
@@ -151,6 +152,7 @@ const postRunMetricTotal = async ({
     timeFrame,
     granularity,
     comparisonType,
+    rollingDays,
 }: RunMetricTotalArgs) => {
     const queryString = getUrlParams({
         dateRange,
@@ -165,6 +167,7 @@ const postRunMetricTotal = async ({
         method: 'POST',
         body: JSON.stringify({
             comparisonType,
+            rollingDays,
         }),
     });
 };
@@ -177,6 +180,7 @@ const postCompileMetricTotalQuery = async ({
     timeFrame,
     granularity,
     comparisonType,
+    rollingDays,
 }: RunMetricTotalArgs) => {
     const queryString = getUrlParams({
         dateRange,
@@ -191,6 +195,7 @@ const postCompileMetricTotalQuery = async ({
         method: 'POST',
         body: JSON.stringify({
             comparisonType,
+            rollingDays,
         }),
     });
 };
@@ -203,6 +208,7 @@ export const useRunMetricTotal = ({
     timeFrame,
     granularity,
     comparisonType,
+    rollingDays,
     options,
 }: Partial<RunMetricTotalArgs> & {
     options?: UseQueryOptions<ApiMetricsExplorerTotalResults['results']>;
@@ -218,6 +224,7 @@ export const useRunMetricTotal = ({
             timeFrame,
             granularity,
             comparisonType,
+            rollingDays,
         ],
         queryFn: () =>
             postRunMetricTotal({
@@ -228,6 +235,7 @@ export const useRunMetricTotal = ({
                 timeFrame: timeFrame!,
                 granularity: granularity!,
                 comparisonType: comparisonType!,
+                rollingDays,
             }),
         ...options,
     });
@@ -241,6 +249,7 @@ export const useCompileMetricTotalQuery = ({
     timeFrame,
     granularity,
     comparisonType,
+    rollingDays,
     options,
 }: Partial<RunMetricTotalArgs> & {
     options?: UseQueryOptions<ApiCompiledQueryResults>;
@@ -256,6 +265,7 @@ export const useCompileMetricTotalQuery = ({
             timeFrame,
             granularity,
             comparisonType,
+            rollingDays,
         ],
         queryFn: () =>
             postCompileMetricTotalQuery({
@@ -266,6 +276,7 @@ export const useCompileMetricTotalQuery = ({
                 timeFrame: timeFrame!,
                 granularity: granularity!,
                 comparisonType: comparisonType!,
+                rollingDays,
             }),
         ...options,
     });

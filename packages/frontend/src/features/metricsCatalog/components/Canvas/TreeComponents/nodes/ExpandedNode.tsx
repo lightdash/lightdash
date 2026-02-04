@@ -5,6 +5,7 @@ import {
     formatItemValue,
     friendlyName,
     getDefaultMetricTreeNodeDateRange,
+    getRollingPeriodDates,
     MetricTotalComparisonType,
     TimeFrames,
 } from '@lightdash/common';
@@ -28,7 +29,13 @@ import { useRunMetricTotal } from '../../../../hooks/useRunMetricExplorerQuery';
 import { MetricDetailPopover } from '../../../MetricDetailPopover';
 import classes from './ChangeIndicator.module.css';
 
-const getComparisonLabel = (timeFrame: TimeFrames) => {
+const getComparisonLabel = (
+    timeFrame: TimeFrames,
+    rollingDays?: number,
+): string => {
+    if (rollingDays) {
+        return `Last ${rollingDays} days vs. previous ${rollingDays} days`;
+    }
     switch (timeFrame) {
         case TimeFrames.DAY:
             return 'Current day vs. last day to date';
@@ -52,13 +59,14 @@ const ChangeIndicator: FC<{
     change: number;
     formattedChange: string;
     timeFrame: TimeFrames;
-}> = ({ change, formattedChange, timeFrame }) => {
+    rollingDays?: number;
+}> = ({ change, formattedChange, timeFrame, rollingDays }) => {
     const variant = useMemo(() => getVariant(change), [change]);
 
     return (
         <Tooltip
             position="bottom"
-            label={getComparisonLabel(timeFrame)}
+            label={getComparisonLabel(timeFrame, rollingDays)}
             withinPortal
         >
             <Badge
@@ -85,6 +93,7 @@ export type ExpandedNodeData = Node<{
     isEdgeTarget?: boolean;
     isEdgeSource?: boolean;
     timeFrame: TimeFrames;
+    rollingDays?: number; // When set, uses ROLLING_DAYS comparison instead of calendar-based
 }>;
 
 const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
@@ -98,10 +107,24 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
         (state) => state.metricsCatalog.projectUuid,
     );
 
-    const dateRange = useMemo(
-        () => getDefaultMetricTreeNodeDateRange(data.timeFrame),
-        [data.timeFrame],
-    );
+    // For rolling periods, we calculate a date range that covers both periods
+    // The server will use rollingDays to calculate the exact periods
+    const dateRange = useMemo(() => {
+        if (data.rollingDays) {
+            const { current, previous } = getRollingPeriodDates(
+                data.rollingDays,
+            );
+            return [previous.start.toDate(), current.end.toDate()] as [
+                Date,
+                Date,
+            ];
+        }
+        return getDefaultMetricTreeNodeDateRange(data.timeFrame);
+    }, [data.timeFrame, data.rollingDays]);
+
+    const comparisonType = data.rollingDays
+        ? MetricTotalComparisonType.ROLLING_DAYS
+        : MetricTotalComparisonType.PREVIOUS_PERIOD;
 
     const totalQuery = useRunMetricTotal({
         projectUuid,
@@ -109,7 +132,8 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
         metricName: data.metricName,
         timeFrame: data.timeFrame,
         granularity: data.timeFrame,
-        comparisonType: MetricTotalComparisonType.PREVIOUS_PERIOD,
+        comparisonType,
+        rollingDays: data.rollingDays,
         dateRange,
         options: {
             enabled: Boolean(projectUuid && dateRange),
@@ -122,11 +146,12 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                 ? {
                       timeFrame: data.timeFrame,
                       granularity: data.timeFrame,
-                      comparisonType: MetricTotalComparisonType.PREVIOUS_PERIOD,
+                      comparisonType,
                       dateRange,
+                      rollingDays: data.rollingDays,
                   }
                 : undefined,
-        [data.timeFrame, dateRange],
+        [data.timeFrame, dateRange, comparisonType, data.rollingDays],
     );
 
     const change = useMemo(() => {
@@ -211,6 +236,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                                     change={change}
                                     formattedChange={formattedChange}
                                     timeFrame={data.timeFrame}
+                                    rollingDays={data.rollingDays}
                                 />
                             )}
                         </Group>

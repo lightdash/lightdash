@@ -21163,7 +21163,7 @@
                 "type": "object"
             },
             "MetricTotalComparisonType": {
-                "enum": ["none", "previous_period"],
+                "enum": ["none", "previous_period", "rolling_days"],
                 "type": "string"
             },
             "ApiCompiledQueryResults": {
@@ -35564,6 +35564,10 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "rollingDays": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
                                     "comparisonType": {
                                         "$ref": "#/components/schemas/MetricTotalComparisonType"
                                     }
@@ -35679,6 +35683,10 @@
                         "application/json": {
                             "schema": {
                                 "properties": {
+                                    "rollingDays": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
                                     "comparisonType": {
                                         "$ref": "#/components/schemas/MetricTotalComparisonType"
                                     }

@@ -61,6 +61,7 @@ export type ApiMetricsExplorerQueryResults = {
 export enum MetricTotalComparisonType {
     NONE = 'none',
     PREVIOUS_PERIOD = 'previous_period',
+    ROLLING_DAYS = 'rolling_days',
 }
 
 export type MetricTotalResults = {
