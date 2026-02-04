@@ -19,7 +19,6 @@ import {
     FieldType,
     ForbiddenError,
     InlineErrorType,
-    MAX_METRICS_TREE_NODE_COUNT,
     MetricWithAssociatedTimeDimension,
     NotFoundError,
     ParameterError,
@@ -1236,12 +1235,6 @@ export class CatalogService<
             )
         ) {
             throw new ForbiddenError();
-        }
-
-        if (metricUuids.length > MAX_METRICS_TREE_NODE_COUNT) {
-            throw new ParameterError(
-                `Cannot get more than ${MAX_METRICS_TREE_NODE_COUNT} metrics in the metrics tree`,
-            );
         }
 
         return this.catalogModel.getMetricsTree(projectUuid, metricUuids);

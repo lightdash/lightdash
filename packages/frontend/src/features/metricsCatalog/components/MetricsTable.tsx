@@ -1,5 +1,4 @@
 import {
-    MAX_METRICS_TREE_NODE_COUNT,
     SpotlightTableColumns,
     assertUnreachable,
     type CatalogCategoryFilterMode,
@@ -276,15 +275,13 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         [isFetching, isPreviousData, isMutating],
     );
 
-    const isValidMetricsNodeCount =
-        selectedMetricUuids.length > 0 &&
-        selectedMetricUuids.length <= MAX_METRICS_TREE_NODE_COUNT;
+    const hasMetricsSelected = selectedMetricUuids.length > 0;
 
     const { data: metricsTree } = useMetricsTree(
         projectUuid,
         selectedMetricUuids,
         {
-            enabled: !!projectUuid && isValidMetricsNodeCount,
+            enabled: !!projectUuid && hasMetricsSelected,
         },
     );
 
@@ -295,8 +292,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     );
 
     const isValidMetricsTree = useMemo(
-        () => isValidMetricsNodeCount && isValidMetricsEdgeCount,
-        [isValidMetricsNodeCount, isValidMetricsEdgeCount],
+        () => hasMetricsSelected && isValidMetricsEdgeCount,
+        [hasMetricsSelected, isValidMetricsEdgeCount],
     );
 
     const dataHasCategories = useMemo(() => {
@@ -544,7 +541,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
                     isValidMetricsTree={isValidMetricsTree}
-                    isValidMetricsNodeCount={isValidMetricsNodeCount}
+                    hasMetricsSelected={hasMetricsSelected}
                     isValidMetricsEdgeCount={isValidMetricsEdgeCount}
                     metricCatalogView={metricCatalogView}
                     table={table}
@@ -702,7 +699,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                                 canManageTags || dataHasCategories
                             }
                             isValidMetricsTree={isValidMetricsTree}
-                            isValidMetricsNodeCount={isValidMetricsNodeCount}
+                            hasMetricsSelected={hasMetricsSelected}
                             isValidMetricsEdgeCount={isValidMetricsEdgeCount}
                             metricCatalogView={metricCatalogView}
                             table={table}
@@ -721,10 +718,9 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                                 <SuboptimalState
                                     title="Canvas mode not available"
                                     description={
-                                        !isValidMetricsEdgeCount &&
-                                        isValidMetricsNodeCount
+                                        hasMetricsSelected
                                             ? 'There are no connections between the selected metrics'
-                                            : 'Please narrow your search to display up to 30 metrics'
+                                            : 'No metrics available to display'
                                     }
                                     action={
                                         <Button

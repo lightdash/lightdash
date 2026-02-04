@@ -155,6 +155,10 @@ export type ApiGetMetricPeek = {
     results: MetricWithAssociatedTimeDimension;
 };
 
+export type ApiGetMetricsTreePayload = {
+    metricUuids: string[];
+};
+
 export type ApiGetMetricsTree = {
     status: 'ok';
     results: {
