@@ -1,3 +1,11 @@
+# [0.2421.0](https://github.com/lightdash/lightdash/compare/0.2420.0...0.2421.0) (2026-02-04)
+
+
+### Features
+
+* add conditional inheritance chain check to model and fix all calls ([#19947](https://github.com/lightdash/lightdash/issues/19947)) ([205f4e4](https://github.com/lightdash/lightdash/commit/205f4e41248736d7cd0829b7c3ff93f069263726))
+* **cli:** add non-interactive mode and email/password login ([#19946](https://github.com/lightdash/lightdash/issues/19946)) ([866fa14](https://github.com/lightdash/lightdash/commit/866fa14d5a603952125bcaeb4d32cdaa18b48e4f))
+
 # [0.2420.0](https://github.com/lightdash/lightdash/compare/0.2419.0...0.2420.0) (2026-02-04)
 
 
