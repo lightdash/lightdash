@@ -121,7 +121,10 @@ export const isStringDimension = (
     if (!item) {
         return false;
     }
-    return isDimension(item) && getItemType(item) === DimensionType.STRING;
+    return (
+        (isDimension(item) || isCustomDimension(item)) &&
+        getItemType(item) === DimensionType.STRING
+    );
 };
 
 export const getItemIcon = (
