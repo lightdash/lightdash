@@ -244,10 +244,14 @@ export const login = async (
         );
     }
 
+    // Support environment variables for credentials (workaround for shell escaping issues)
+    const email = options.email || process.env.LIGHTDASH_CLI_EMAIL;
+    const password = options.password || process.env.LIGHTDASH_CLI_PASSWORD;
+
     let loginResult;
     if (options.token) {
         loginResult = await loginWithToken(url, options.token);
-    } else if (options.email) {
+    } else if (email) {
         // Warn that email/password login should only be used for local development
         console.error(
             `\n${styles.warning(
@@ -258,16 +262,12 @@ export const login = async (
                 `   ${styles.bold('⚡️ lightdash login <url> --token <pat>')} (Personal Access Token)\n`,
         );
 
-        if (!options.password) {
+        if (!password) {
             throw new AuthorizationError(
-                'Password is required when using --email. Use --password <password>',
+                'Password is required when using --email. Use --password <password> or set LIGHTDASH_CLI_PASSWORD env var',
             );
         }
-        loginResult = await loginWithEmailPassword(
-            url,
-            options.email,
-            options.password,
-        );
+        loginResult = await loginWithEmailPassword(url, email, password);
     } else {
         loginResult = await loginWithOauth(url);
     }

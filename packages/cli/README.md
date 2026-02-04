@@ -118,7 +118,7 @@ lightdash login https://app.lightdash.cloud \
 # ⚠️ Credentials may be visible in shell history - use only for local dev
 lightdash login http://localhost:3000 \
   --email demo@lightdash.com \
-  --password demo_password!
+  --password your_password
 
 # Deploy to existing project non-interactively
 lightdash deploy \
@@ -149,7 +149,37 @@ For local development environments, you can use email/password authentication:
 ```bash
 lightdash login http://localhost:3000 \
   --email demo@lightdash.com \
-  --password demo_password!
+  --password demo_password
 ```
 
 **⚠️ Security Warning**: Email/password login should only be used for local development. Credentials may be visible in shell history. For production environments, use OAuth or `--token` with a personal access token.
+
+### Claude Code / Agentic Tools: Passwords with Special Characters
+
+When using Claude Code or similar agentic coding tools, passwords containing special characters like `!` may fail due to a [known shell escaping issue](https://github.com/anthropics/claude-code/issues/2941).
+
+**Workaround**: Use environment variables with a heredoc to bypass shell escaping:
+
+```bash
+# Create a file with your password using heredoc (bypasses shell escaping)
+cat > /tmp/lightdash_pass.txt << 'EOF'
+your_password_with_special_chars!
+EOF
+
+# Set environment variables from the file
+export LIGHTDASH_CLI_EMAIL=demo@lightdash.com
+export LIGHTDASH_CLI_PASSWORD=$(cat /tmp/lightdash_pass.txt)
+
+# Login using environment variables
+lightdash login http://localhost:3000 --non-interactive
+
+# Clean up
+rm /tmp/lightdash_pass.txt
+```
+
+The CLI supports these environment variables for authentication:
+
+| Variable | Description |
+|----------|-------------|
+| `LIGHTDASH_CLI_EMAIL` | Email for login (alternative to `--email`) |
+| `LIGHTDASH_CLI_PASSWORD` | Password for login (alternative to `--password`) |

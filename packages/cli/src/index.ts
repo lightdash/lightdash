@@ -209,7 +209,7 @@ ${styles.bold('Examples:')}
   )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
       'login',
-  )} http://localhost:3000 --email demo@lightdash.com --password demo_password! ${styles.secondary(
+  )} http://localhost:3000 --email demo@lightdash.com --password demo_password ${styles.secondary(
       '-- Local dev only: login with email/password',
   )}
 `,
