@@ -1,3 +1,10 @@
+## [0.2418.1](https://github.com/lightdash/lightdash/compare/0.2418.0...0.2418.1) (2026-02-04)
+
+
+### Bug Fixes
+
+* improve docker-dev to check all services are running ([#19953](https://github.com/lightdash/lightdash/issues/19953)) ([4b0cd39](https://github.com/lightdash/lightdash/commit/4b0cd394b9a4bff8ba3343d58a7c71a503cd8d35))
+
 # [0.2418.0](https://github.com/lightdash/lightdash/compare/0.2417.1...0.2418.0) (2026-02-04)
 
 
