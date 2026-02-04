@@ -86,7 +86,6 @@ The `--non-interactive` flag is designed for environments where interactive prom
 |---------|------|-------------|
 | `login` | `--token <token>` | Authenticate with personal access token (bypasses OAuth) |
 | `login` | `--email <email>` | Login with email/password (local development only) |
-| `login` | `--password <password>` | Password for email login (requires `--email`) |
 | `login` | `--project <uuid>` | Select a specific project by UUID after login |
 | `deploy` | `-y, --assume-yes` | Answer yes to all confirmation prompts |
 | `generate` | `-y, --assume-yes` | Answer yes to prompts |
@@ -144,7 +143,7 @@ lightdash deploy \
 When `--non-interactive` is set (or `CI=true`):
 - **Project selection**: Automatically selects the first available project
 - **Confirmation prompts**: Fail with descriptive error unless `--assume-yes` is provided
-- **OAuth login**: Not available - use `--token` or `--email`/`--password` instead
+- **OAuth login**: Not available - use `--token` or `--email` with `LIGHTDASH_CLI_PASSWORD` env var instead
 
 ### Local Development Login
 
@@ -191,4 +190,4 @@ The CLI supports these environment variables for authentication:
 | Variable | Description |
 |----------|-------------|
 | `LIGHTDASH_CLI_EMAIL` | Email for login (alternative to `--email`) |
-| `LIGHTDASH_CLI_PASSWORD` | Password for login (alternative to `--password`) |
+| `LIGHTDASH_CLI_PASSWORD` | Password for email login (used with `--email`) |

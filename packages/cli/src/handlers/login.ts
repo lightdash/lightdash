@@ -21,8 +21,6 @@ type LoginOptions = {
     token?: string;
     /** Email for password-based login (local development only) */
     email?: string;
-    /** Password for password-based login (local development only) */
-    password?: string;
     /** Project UUID to select after login */
     project?: string;
     interactive?: boolean;
@@ -245,9 +243,9 @@ export const login = async (
         );
     }
 
-    // Support environment variables for credentials (workaround for shell escaping issues)
+    // Support environment variables for credentials
     const email = options.email || process.env.LIGHTDASH_CLI_EMAIL;
-    const password = options.password || process.env.LIGHTDASH_CLI_PASSWORD;
+    const password = process.env.LIGHTDASH_CLI_PASSWORD;
 
     let loginResult;
     if (options.token) {

@@ -226,11 +226,6 @@ ${styles.bold('Examples:')}
         'Login with email/password (local development only)',
         undefined,
     )
-    .option(
-        '--password <password>',
-        'Password for email login (local development only)',
-        undefined,
-    )
     .option('--verbose', undefined, false)
     .action(login);
 
