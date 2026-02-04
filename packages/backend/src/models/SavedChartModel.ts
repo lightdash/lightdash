@@ -1321,6 +1321,8 @@ export class SavedChartModel {
             pivotDimensions: string[];
         }>
     > {
+        // Optimized: Use scalar subqueries instead of multiple LEFT JOINs to avoid cartesian product.
+        // Previously, joining 6 child tables caused row explosion (e.g., 5 fields × 2 calcs × 3 metrics = 30+ rows per chart)
         const cteName = 'chart_last_version_cte';
         const savedCharts = await this.database
             .with(cteName, (qb) =>
@@ -1337,31 +1339,31 @@ export class SavedChartModel {
                 chartConfig: 'saved_queries_versions.chart_config',
                 pivotDimensions: 'saved_queries_versions.pivot_dimensions',
                 dimensions: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT svf.name) FILTER (WHERE svf.field_type = 'dimension'), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT svf.name) FROM saved_queries_version_fields svf WHERE svf.saved_queries_version_id = saved_queries_versions.saved_queries_version_id AND svf.field_type = 'dimension'), '{}')`,
                 ),
                 metrics: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT svf.name) FILTER (WHERE svf.field_type = 'metric'), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT svf.name) FROM saved_queries_version_fields svf WHERE svf.saved_queries_version_id = saved_queries_versions.saved_queries_version_id AND svf.field_type = 'metric'), '{}')`,
                 ),
                 tableCalculations: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT sqvtc.name) FILTER (WHERE sqvtc.name IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT sqvtc.name) FROM saved_queries_version_table_calculations sqvtc WHERE sqvtc.saved_queries_version_id = saved_queries_versions.saved_queries_version_id), '{}')`,
                 ),
                 customMetrics: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT (sqvam.table || '_' || sqvam.name)) FILTER (WHERE sqvam.name IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT (sqvam.table || '_' || sqvam.name)) FROM saved_queries_version_additional_metrics sqvam WHERE sqvam.saved_queries_version_id = saved_queries_versions.saved_queries_version_id), '{}')`,
                 ),
                 customMetricsFilters: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT (sqvam.filters)) FILTER (WHERE sqvam.filters IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(sqvam.filters) FROM saved_queries_version_additional_metrics sqvam WHERE sqvam.saved_queries_version_id = saved_queries_versions.saved_queries_version_id AND sqvam.filters IS NOT NULL), '{}')`,
                 ),
                 customMetricsBaseDimensions: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT (sqvam.table || '_' || sqvam.base_dimension_name)) FILTER (WHERE sqvam.base_dimension_name IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT (sqvam.table || '_' || sqvam.base_dimension_name)) FROM saved_queries_version_additional_metrics sqvam WHERE sqvam.saved_queries_version_id = saved_queries_versions.saved_queries_version_id AND sqvam.base_dimension_name IS NOT NULL), '{}')`,
                 ),
                 customBinDimensions: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT sqvcd.id) FILTER (WHERE sqvcd.id IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT sqvcd.id) FROM saved_queries_version_custom_dimensions sqvcd WHERE sqvcd.saved_queries_version_id = saved_queries_versions.saved_queries_version_id), '{}')`,
                 ),
                 customSqlDimensions: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT sqvcsd.id) FILTER (WHERE sqvcsd.id IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT sqvcsd.id) FROM saved_queries_version_custom_sql_dimensions sqvcsd WHERE sqvcsd.saved_queries_version_id = saved_queries_versions.saved_queries_version_id), '{}')`,
                 ),
                 sorts: this.database.raw(
-                    "COALESCE(ARRAY_AGG(DISTINCT sqvs.field_name) FILTER (WHERE sqvs.field_name IS NOT NULL), '{}')",
+                    `COALESCE((SELECT ARRAY_AGG(DISTINCT sqvs.field_name) FROM saved_queries_version_sorts sqvs WHERE sqvs.saved_queries_version_id = saved_queries_versions.saved_queries_version_id), '{}')`,
                 ),
             })
             .from(cteName)
@@ -1369,38 +1371,7 @@ export class SavedChartModel {
                 SavedChartVersionsTableName,
                 `${cteName}.saved_queries_version_id`,
                 'saved_queries_versions.saved_queries_version_id',
-            )
-            .leftJoin(
-                'saved_queries_version_fields as svf',
-                'saved_queries_versions.saved_queries_version_id',
-                'svf.saved_queries_version_id',
-            )
-            .leftJoin(
-                'saved_queries_version_table_calculations as sqvtc',
-                'saved_queries_versions.saved_queries_version_id',
-                'sqvtc.saved_queries_version_id',
-            )
-            .leftJoin(
-                'saved_queries_version_additional_metrics as sqvam',
-                'saved_queries_versions.saved_queries_version_id',
-                'sqvam.saved_queries_version_id',
-            )
-            .leftJoin(
-                'saved_queries_version_custom_dimensions as sqvcd',
-                'saved_queries_versions.saved_queries_version_id',
-                'sqvcd.saved_queries_version_id',
-            )
-            .leftJoin(
-                'saved_queries_version_custom_sql_dimensions as sqvcsd',
-                'saved_queries_versions.saved_queries_version_id',
-                'sqvcsd.saved_queries_version_id',
-            )
-            .leftJoin(
-                'saved_queries_version_sorts as sqvs',
-                'saved_queries_versions.saved_queries_version_id',
-                'sqvs.saved_queries_version_id',
-            )
-            .groupBy(1, 2, 3, 4, 5, 6, 7, 8, 9);
+            );
 
         // Filter out charts that are saved in a dashboard and don't belong to any tile in their dashboard last version
         const chartsNotInTilesUuids =
