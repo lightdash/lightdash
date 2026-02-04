@@ -27,7 +27,6 @@ import {
     type Edge,
     type EdgeChange,
     type EdgeTypes,
-    type NodeAddChange,
     type NodeChange,
     type NodePositionChange,
     type NodeRemoveChange,
@@ -95,16 +94,14 @@ const getNodeLayout = (
 ): {
     nodes: ExpandedNodeData[];
     edges: Edge[];
-    freeNodes: ExpandedNodeData[];
 } => {
-    console.log('nodes', nodes);
     const { connectedNodes, freeNodes } = getNodeGroups(nodes, edges);
     const treeGraph = new Dagre.graphlib.Graph().setDefaultEdgeLabel(
         () => ({}),
     );
     treeGraph.setGraph({ rankdir: 'TB', ranksep: 100 });
 
-    // Draw the connected tree
+    // Layout connected nodes with Dagre
     edges.forEach((edge) => treeGraph.setEdge(edge.source, edge.target));
 
     connectedNodes.forEach((node) =>
@@ -117,24 +114,24 @@ const getNodeLayout = (
 
     Dagre.layout(treeGraph);
 
-    // Draw the connected tree
-    const tree = connectedNodes.map<ExpandedNodeData>((node) => {
-        const position = treeGraph.node(node.id);
-        const x = position.x - (node.measured?.width ?? 0) / 2;
-        const y = position.y - (node.measured?.height ?? 0) / 2;
+    const layoutedConnectedNodes = connectedNodes.map<ExpandedNodeData>(
+        (node) => {
+            const position = treeGraph.node(node.id);
+            const x = position.x - (node.measured?.width ?? 0) / 2;
+            const y = position.y - (node.measured?.height ?? 0) / 2;
 
-        return {
-            ...node,
-            type: 'expanded',
-            position: { x, y },
-        };
-    });
+            return {
+                ...node,
+                type: 'expanded',
+                position: { x, y },
+            };
+        },
+    );
 
-    console.log('free nodes', freeNodes);
+    // Return both connected (laid out) and free nodes (keep their positions)
     return {
-        nodes: tree,
+        nodes: [...layoutedConnectedNodes, ...freeNodes],
         edges,
-        freeNodes,
     };
 };
 
@@ -153,13 +150,12 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
     );
     const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
     const { mutateAsync: deleteMetricsTreeEdge } = useDeleteMetricsTreeEdge();
-    const { fitView, getNode, getEdge } = useReactFlow<
+    const { fitView, getNode, getEdge, screenToFlowPosition } = useReactFlow<
         ExpandedNodeData,
         Edge
     >();
     const nodesInitialized = useNodesInitialized();
     const [isLayoutReady, setIsLayoutReady] = useState(false);
-    const [sidebarNodes, setSidebarNodes] = useState<ExpandedNodeData[]>([]);
     const { showToastInfo } = useToaster();
     const [timeFrame, setTimeFrame] = useState<TimeFrames>(DEFAULT_TIME_FRAME);
 
@@ -192,7 +188,8 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
         return [];
     }, [edges, metrics]);
 
-    const initialNodes = useMemo<ExpandedNodeData[]>(() => {
+    // All metrics as nodes (for sidebar and drag-drop)
+    const allNodes = useMemo<ExpandedNodeData[]>(() => {
         return metrics.map((metric) => {
             const isEdgeTarget = initialEdges.some(
                 (edge) => edge.target === metric.catalogSearchUuid,
@@ -216,6 +213,14 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
             };
         });
     }, [metrics, initialEdges, timeFrame]);
+
+    // Only connected nodes for initial canvas render
+    const initialNodes = useMemo<ExpandedNodeData[]>(() => {
+        const connectedNodeIds = new Set(
+            initialEdges.flatMap((edge) => [edge.source, edge.target]),
+        );
+        return allNodes.filter((node) => connectedNodeIds.has(node.id));
+    }, [allNodes, initialEdges]);
 
     const [currentNodes, setCurrentNodes, onNodesChange] =
         useNodesState(initialNodes);
@@ -247,12 +252,23 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
     const applyLayout = useCallback(
         ({ renderTwice = true }: { renderTwice?: boolean } = {}) => {
+            // Skip layout if nodes aren't measured yet
+            const allNodesMeasured = currentNodes.every(
+                (node) => node.measured?.width && node.measured?.height,
+            );
+            if (!allNodesMeasured && renderTwice) {
+                // Wait for nodes to be measured
+                setTimeout(() => {
+                    applyLayout({ renderTwice: true });
+                }, 50);
+                return;
+            }
+
             const layout = getNodeLayout(currentNodes, currentEdges);
 
             setCurrentNodes(layout.nodes);
             setCurrentEdges(layout.edges);
-            setSidebarNodes(layout.freeNodes);
-            setIsLayoutReady(true); // Prevent layout from being applied again - relevant to be set before renderTwice because of setTimeout otherwise it goes into an infinite loop
+            setIsLayoutReady(true);
 
             if (renderTwice) {
                 setTimeout(() => {
@@ -293,8 +309,9 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
     const handleNodeChange = useCallback(
         (changes: NodeChange<ExpandedNodeData>[]) => {
+            // Only prevent 'replace' changes, allow 'remove' so users can delete nodes
             const preventedChangeTypes: NodeChange<ExpandedNodeData>['type'][] =
-                ['replace', 'remove'];
+                ['replace'];
 
             const changesWithoutPreventedTypes = changes.filter(
                 (c) => !preventedChangeTypes.includes(c.type),
@@ -376,18 +393,53 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
         [projectUuid, deleteMetricsTreeEdge, track, organizationUuid, userUuid],
     );
 
+    const handleDragOver = useCallback((event: React.DragEvent) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+    }, []);
+
+    const handleDrop = useCallback(
+        (event: React.DragEvent) => {
+            event.preventDefault();
+
+            const data = event.dataTransfer.getData('application/reactflow');
+            if (!data) return;
+
+            const { catalogSearchUuid } = JSON.parse(data);
+
+            if (currentNodes.some((n) => n.id === catalogSearchUuid)) return;
+
+            const nodeData = allNodes.find((n) => n.id === catalogSearchUuid);
+            if (!nodeData) return;
+
+            const position = screenToFlowPosition({
+                x: event.clientX,
+                y: event.clientY,
+            });
+
+            const newNode: ExpandedNodeData = {
+                ...nodeData,
+                position,
+            };
+
+            setCurrentNodes((nodes) => [...nodes, newNode]);
+        },
+        [currentNodes, allNodes, screenToFlowPosition, setCurrentNodes],
+    );
+
     // Reset layout when initial edges or nodes change
     useEffect(() => {
+        setCurrentNodes(initialNodes);
         setCurrentEdges(initialEdges);
         setIsLayoutReady(false);
-    }, [initialEdges, setCurrentEdges]);
+    }, [initialNodes, initialEdges, setCurrentNodes, setCurrentEdges]);
 
     // Only apply layout when nodes are initialized and the initial layout is not ready
     useEffect(() => {
-        if (nodesInitialized && !isLayoutReady) {
+        if (nodesInitialized && !isLayoutReady && currentNodes.length > 0) {
             applyLayout();
         }
-    }, [applyLayout, nodesInitialized, isLayoutReady]);
+    }, [applyLayout, nodesInitialized, isLayoutReady, currentNodes.length]);
 
     useEffect(() => {
         setCurrentNodes((nodes) =>
@@ -401,30 +453,27 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
         );
     }, [timeFrame, setCurrentNodes]);
 
-    const addNodeChanges = useMemo<NodeAddChange<ExpandedNodeData>[]>(() => {
-        return initialNodes
-            .filter((node) => !currentNodes.some((n) => n.id === node.id))
-            .map((node) => ({
-                id: node.id,
-                type: 'add',
-                item: node,
-            }));
-    }, [initialNodes, currentNodes]);
-
+    // Remove nodes from canvas if they no longer exist in metrics
     const removeNodeChanges = useMemo<NodeRemoveChange[]>(() => {
         return currentNodes
-            .filter((node) => !initialNodes.some((n) => n.id === node.id))
+            .filter((node) => !allNodes.some((n) => n.id === node.id))
             .map((node) => ({
                 id: node.id,
                 type: 'remove',
             }));
-    }, [currentNodes, initialNodes]);
+    }, [currentNodes, allNodes]);
 
     useEffect(() => {
-        if (addNodeChanges.length > 0 || removeNodeChanges.length > 0) {
-            onNodesChange([...addNodeChanges, ...removeNodeChanges]);
+        if (removeNodeChanges.length > 0) {
+            onNodesChange(removeNodeChanges);
         }
-    }, [addNodeChanges, removeNodeChanges, onNodesChange]);
+    }, [removeNodeChanges, onNodesChange]);
+
+    const sidebarNodes = useMemo(() => {
+        return allNodes.filter(
+            (node) => !currentNodes.some((n) => n.id === node.id),
+        );
+    }, [currentNodes, allNodes]);
 
     return (
         <Group h="100%" spacing={0} noWrap align="stretch">
@@ -438,6 +487,8 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     onNodesChange={handleNodeChange}
                     onEdgesChange={handleEdgesChange}
                     onConnect={handleConnect}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
                     edgesReconnectable={false}
                     onEdgesDelete={handleEdgesDelete}
                     nodeTypes={nodeTypes}
