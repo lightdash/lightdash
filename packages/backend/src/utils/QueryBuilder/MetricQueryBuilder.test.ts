@@ -2827,4 +2827,88 @@ describe('Query Structure Tests', () => {
         expect(metricFiltersIndex).toBeLessThan(tcAIndex);
         expect(tcAIndex).toBeLessThan(tcBIndex);
     });
+
+    test('Should return NULL for table calculations with pivot functions', () => {
+        const metricQueryWithPivotTableCalcs = {
+            ...METRIC_QUERY,
+            tableCalculations: [
+                {
+                    name: 'pivot_calc_offset',
+                    displayName: 'Pivot Calculation with Offset',
+                    sql: 'revenue - pivot_offset(revenue, -1)',
+                },
+                {
+                    name: 'pivot_calc_column',
+                    displayName: 'Pivot Calculation with Column',
+                    sql: 'pivot_column()',
+                },
+                {
+                    name: 'normal_calc',
+                    displayName: 'Normal Calculation',
+                    sql: '${table1.metric1} * 2',
+                },
+                {
+                    name: 'row_calc',
+                    displayName: 'Row Calculation',
+                    sql: 'offset(${table1.metric1}, -1)',
+                },
+            ],
+            compiledTableCalculations: [
+                {
+                    name: 'pivot_calc_offset',
+                    displayName: 'Pivot Calculation with Offset',
+                    sql: 'revenue - pivot_offset(revenue, -1)',
+                    compiledSql: 'revenue - pivot_offset(revenue, -1)',
+                    dependsOn: [],
+                },
+                {
+                    name: 'pivot_calc_column',
+                    displayName: 'Pivot Calculation with Column',
+                    sql: 'pivot_column()',
+                    compiledSql: 'pivot_column()',
+                    dependsOn: [],
+                },
+                {
+                    name: 'normal_calc',
+                    displayName: 'Normal Calculation',
+                    sql: '${table1.metric1} * 2',
+                    compiledSql: '"table1_metric1" * 2',
+                    dependsOn: [],
+                },
+                {
+                    name: 'row_calc',
+                    displayName: 'Row Calculation',
+                    sql: 'offset(${table1.metric1}, -1)',
+                    compiledSql: 'offset("table1_metric1", -1)',
+                    dependsOn: [],
+                },
+            ],
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE,
+            compiledMetricQuery: metricQueryWithPivotTableCalcs,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // Should return NULL for table calculations with pivot functions (case-insensitive)
+        expect(result.query.toLowerCase()).toContain(
+            'null as "pivot_calc_offset"',
+        );
+        expect(result.query.toLowerCase()).toContain(
+            'null as "pivot_calc_column"',
+        );
+
+        // Should return normal SQL for table calculations without pivot functions
+        expect(result.query).toContain('"table1_metric1" * 2 AS "normal_calc"');
+        expect(result.query).toContain(
+            'offset("table1_metric1", -1) AS "row_calc"',
+        );
+
+        // Verify that the pivot function SQL is not in the query
+        expect(result.query).not.toContain('pivot_offset(revenue, -1)');
+        expect(result.query).not.toContain('pivot_column()');
+    });
 });
