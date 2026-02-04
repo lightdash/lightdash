@@ -1,3 +1,10 @@
+# [0.2423.0](https://github.com/lightdash/lightdash/compare/0.2422.1...0.2423.0) (2026-02-04)
+
+
+### Features
+
+* add support for pivot table calculations with pivot_offset function ([#19969](https://github.com/lightdash/lightdash/issues/19969)) ([8885c75](https://github.com/lightdash/lightdash/commit/8885c75e2827eb0b05df5eedeabcd2e492483ef7))
+
 ## [0.2422.1](https://github.com/lightdash/lightdash/compare/0.2422.0...0.2422.1) (2026-02-04)
 
 
