@@ -1,3 +1,10 @@
+## [0.2417.1](https://github.com/lightdash/lightdash/compare/0.2417.0...0.2417.1) (2026-02-04)
+
+
+### Performance Improvements
+
+* optimize chart query to prevent cartesian product explosion ([#19943](https://github.com/lightdash/lightdash/issues/19943)) ([f0b2b92](https://github.com/lightdash/lightdash/commit/f0b2b922804b7340945f31a7abcf32ee697e102d))
+
 # [0.2417.0](https://github.com/lightdash/lightdash/compare/0.2416.0...0.2417.0) (2026-02-04)
 
 
