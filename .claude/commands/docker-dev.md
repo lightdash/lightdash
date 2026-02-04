@@ -163,20 +163,25 @@ PGHOST=localhost PGPORT=5432 PGUSER=postgres PGPASSWORD=password PGDATABASE=post
 
 ## Stop Steps (When `stop` Argument Provided)
 
-If the user passes `stop` as an argument, stop Docker services and exit:
+If the user passes `stop` as an argument, stop both the Lightdash app and Docker services:
 
 ```bash
+# Stop PM2 processes first
+pnpm pm2:stop
+
+# Then stop Docker services
 docker compose -f docker/docker-compose.dev.mini.yml down
 ```
 
-This stops and removes the containers but **preserves the data volumes** (database data, MinIO files).
+This stops PM2 processes (keeps them registered for quick restart) and removes Docker containers but **preserves the data volumes** (database data, MinIO files).
 
-To verify services are stopped:
+To verify everything is stopped:
 ```bash
+pnpm pm2:status
 docker compose -f docker/docker-compose.dev.mini.yml ps
 ```
 
-**Note**: When `stop` is passed, do not proceed to "Start Development Server" - just stop the services and report the status.
+**Note**: When `stop` is passed, do not proceed to "Start Development Server" - just stop services and report the status.
 
 ## Start Development Server
 
