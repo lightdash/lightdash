@@ -1,3 +1,10 @@
+# [0.2419.0](https://github.com/lightdash/lightdash/compare/0.2418.4...0.2419.0) (2026-02-04)
+
+
+### Features
+
+* **dev:** auto-setup CLAUDE.local.md in docker-dev skill ([#19966](https://github.com/lightdash/lightdash/issues/19966)) ([3d99ca6](https://github.com/lightdash/lightdash/commit/3d99ca6e807a2cc8ad30dcbaf484b1938d2550f9))
+
 ## [0.2418.4](https://github.com/lightdash/lightdash/compare/0.2418.3...0.2418.4) (2026-02-04)
 
 
