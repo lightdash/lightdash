@@ -358,6 +358,11 @@ export class TableCalculationFunctionCompiler {
                     processedSql = processedSql.replace(func.rawSql, compiled);
                     break;
                 }
+                case TableCalculationFunctionType.PIVOT_COLUMN: {
+                    const compiled = this.compilePivotColumn();
+                    processedSql = processedSql.replace(func.rawSql, compiled);
+                    break;
+                }
                 default:
                     // Not implemented yet
                     break;
@@ -399,5 +404,15 @@ export class TableCalculationFunctionCompiler {
 
         // Build the guarded expression that returns NULL for non-adjacent time periods
         return `CASE WHEN ${windowFunction}(${q}row_index${q}, ${offsetValue}) ${windowClause} = ${q}row_index${q} + (${expectedDiff}) THEN ${windowFunction}(${expression}, ${offsetValue}) ${windowClause} ELSE NULL END`;
+    }
+
+    /**
+     * Compiles a pivot_column function call to return the current column index.
+     * The pivot_column() function returns the index of the current pivot column.
+     * @returns SQL expression that retrieves the column_index value
+     */
+    private compilePivotColumn(): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        return `${q}column_index${q}`;
     }
 }
