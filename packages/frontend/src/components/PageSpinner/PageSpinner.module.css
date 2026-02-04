@@ -1,3 +1,5 @@
-.loader :global(g g) {
-    stroke-width: 0.125rem;
+.loader {
+    &::after {
+        border-width: 8px;
+    }
 }
