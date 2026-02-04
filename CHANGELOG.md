@@ -1,3 +1,10 @@
+## [0.2418.2](https://github.com/lightdash/lightdash/compare/0.2418.1...0.2418.2) (2026-02-04)
+
+
+### Bug Fixes
+
+* **dev:** stop PM2 when stopping Docker dev environment ([#19954](https://github.com/lightdash/lightdash/issues/19954)) ([4b99082](https://github.com/lightdash/lightdash/commit/4b99082fc6d3bb9132aaec6bd5e906a3304b589d))
+
 ## [0.2418.1](https://github.com/lightdash/lightdash/compare/0.2418.0...0.2418.1) (2026-02-04)
 
 
