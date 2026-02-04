@@ -92,7 +92,7 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
         const message = `We don't currently support version ${verboseVersion} on Lightdash. We'll interpret it as version ${fallbackVersionOption} instead, which might cause unexpected errors or behavior. For the best experience, please use a supported version (${supportedVersionsRangeMessage}).`;
         const spinner = GlobalState.getActiveSpinner();
         spinner?.stop();
-        if (process.env.CI === 'true') {
+        if (GlobalState.isNonInteractive()) {
             console.error(styles.warning(message));
         } else {
             const answers = await inquirer.prompt([
@@ -124,7 +124,7 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
         const message = `Support for dbt Cloud CLI is still experimental and might not work as expected.`;
         const spinner = GlobalState.getActiveSpinner();
         spinner?.stop();
-        if (process.env.CI === 'true') {
+        if (GlobalState.isNonInteractive()) {
             console.error(styles.warning(message));
         } else {
             const answers = await inquirer.prompt([

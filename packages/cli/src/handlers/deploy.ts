@@ -41,6 +41,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     startOfWeek?: number;
     warehouseCredentials?: boolean;
     organizationCredentials?: string;
+    assumeYes?: boolean;
 };
 
 type DeployArgs = DeployHandlerOptions & {
@@ -173,7 +174,7 @@ const createNewProject = async (
 
     // If interactive and no name provided, prompt for project name
     let projectName = defaultProjectName;
-    if (options.create === true && process.env.CI !== 'true') {
+    if (options.create === true && !GlobalState.isNonInteractive()) {
         const answers = await inquirer.prompt([
             {
                 type: 'input',
@@ -209,6 +210,7 @@ const createNewProject = async (
             name: projectName,
             type: ProjectType.DEFAULT,
             warehouseCredentials: options.warehouseCredentials,
+            assumeYes: options.assumeYes,
         });
 
         const project = results?.project;
