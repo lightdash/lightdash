@@ -4,6 +4,7 @@ import {
     ApiCreateSqlChart,
     BulkActionable,
     CreateSqlChart,
+    FeatureFlags,
     ForbiddenError,
     isVizBarChartConfig,
     isVizLineChartConfig,
@@ -28,6 +29,7 @@ import {
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -41,6 +43,7 @@ type SavedSqlServiceArguments = {
     savedSqlModel: SavedSqlModel;
     schedulerClient: SchedulerClient;
     analyticsModel: AnalyticsModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 // TODO: Rename to SqlRunnerService
@@ -61,6 +64,8 @@ export class SavedSqlService
 
     private readonly analyticsModel: AnalyticsModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     constructor(args: SavedSqlServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -69,6 +74,14 @@ export class SavedSqlService
         this.savedSqlModel = args.savedSqlModel;
         this.schedulerClient = args.schedulerClient;
         this.analyticsModel = args.analyticsModel;
+        this.featureFlagModel = args.featureFlagModel;
+    }
+
+    private async getNestedPermissionsFlag(user: SessionUser) {
+        return this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
     }
 
     static getCreateVersionEventProperties(
@@ -147,9 +160,13 @@ export class SavedSqlService
         }
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(
+            actor.user,
+        );
         const spaceAccess = await this.spaceModel.getUserSpaceAccess(
             actor.user.userUuid,
             spaceUuid,
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
         );
 
         const hasPermission = actor.user.ability.can(
@@ -175,6 +192,7 @@ export class SavedSqlService
             const newSpaceAccess = await this.spaceModel.getUserSpaceAccess(
                 actor.user.userUuid,
                 resource.spaceUuid,
+                { useInheritedAccess: nestedPermissionsFlag.enabled },
             );
 
             const hasPermissionInNewSpace = actor.user.ability.can(

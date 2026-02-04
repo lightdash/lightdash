@@ -102,6 +102,13 @@ export class PromoteService extends BaseService {
         this.featureFlagModel = args.featureFlagModel;
     }
 
+    private async getNestedPermissionsFlag(user: SessionUser) {
+        return this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+    }
+
     private async trackAnalytics(
         user: SessionUser,
         event: 'promote.executed' | 'promote.error',
@@ -197,6 +204,7 @@ export class PromoteService extends BaseService {
         const upstreamSpace =
             upstreamSpaces.length === 1 ? upstreamSpaces[0] : undefined;
 
+        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
         return {
             promotedChart: {
                 chart: savedChart,
@@ -206,6 +214,7 @@ export class PromoteService extends BaseService {
                 access: await this.spaceModel.getUserSpaceAccess(
                     user.userUuid,
                     promotedSpace.uuid,
+                    { useInheritedAccess: nestedPermissionsFlag.enabled },
                 ),
             },
             upstreamChart: {
@@ -216,6 +225,7 @@ export class PromoteService extends BaseService {
                     ? await this.spaceModel.getUserSpaceAccess(
                           user.userUuid,
                           upstreamSpace.uuid,
+                          { useInheritedAccess: nestedPermissionsFlag.enabled },
                       )
                     : [],
             },
@@ -1403,6 +1413,7 @@ export class PromoteService extends BaseService {
             );
         }
 
+        const nestedPermissionsFlag = await this.getNestedPermissionsFlag(user);
         const promotedDashboard: PromotedDashboard = {
             dashboard,
             projectUuid: dashboard.projectUuid,
@@ -1411,6 +1422,7 @@ export class PromoteService extends BaseService {
             access: await this.spaceModel.getUserSpaceAccess(
                 user.userUuid,
                 promotedSpace.uuid,
+                { useInheritedAccess: nestedPermissionsFlag.enabled },
             ),
         };
         const upstreamSpace =
@@ -1427,6 +1439,7 @@ export class PromoteService extends BaseService {
                 ? await this.spaceModel.getUserSpaceAccess(
                       user.userUuid,
                       upstreamSpace.uuid,
+                      { useInheritedAccess: nestedPermissionsFlag.enabled },
                   )
                 : [],
         };

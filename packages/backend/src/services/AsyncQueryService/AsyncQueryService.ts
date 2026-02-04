@@ -35,6 +35,7 @@ import {
     type ExecuteAsyncUnderlyingDataRequestParams,
     Explore,
     ExploreCompiler,
+    FeatureFlags,
     type Field,
     FieldType,
     ForbiddenError,
@@ -223,9 +224,18 @@ export class AsyncQueryService extends ProjectService {
         }: { spaceUuid: string; projectUuid: string; organizationUuid: string },
     ): Promise<{ hasAccess: boolean; userAccess: SpaceShare | undefined }> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+                organizationName: account.organization.name,
+            },
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
         const access = await this.spaceModel.getUserSpaceAccess(
             account.user.id,
             spaceUuid,
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
         );
 
         const hasPermission = account.user.ability.can(
@@ -2150,9 +2160,18 @@ export class AsyncQueryService extends ProjectService {
             //       https://linear.app/lightdash/issue/CENG-110/front-load-available-charts-for-dashboard-requests
             access = [{ chartUuid: savedChart.uuid }];
         } else {
+            const nestedPermissionsFlag = await this.featureFlagModel.get({
+                user: {
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                    organizationName: account.organization.name,
+                },
+                featureFlagId: FeatureFlags.NestedSpacesPermissions,
+            });
             access = await this.spaceModel.getUserSpaceAccess(
                 account.user.id,
                 space.uuid,
+                { useInheritedAccess: nestedPermissionsFlag.enabled },
             );
         }
 
@@ -2306,9 +2325,18 @@ export class AsyncQueryService extends ProjectService {
                 savedChartUuid,
             );
         } else {
+            const nestedPermissionsFlag = await this.featureFlagModel.get({
+                user: {
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                    organizationName: account.organization.name,
+                },
+                featureFlagId: FeatureFlags.NestedSpacesPermissions,
+            });
             const access = await this.spaceModel.getUserSpaceAccess(
                 account.user.id,
                 space.uuid,
+                { useInheritedAccess: nestedPermissionsFlag.enabled },
             );
 
             if (
