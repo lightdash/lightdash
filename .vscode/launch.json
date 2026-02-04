@@ -8,8 +8,12 @@
             "port": 9229,
             "restart": true,
             "skipFiles": ["<node_internals>/**"],
-            "localRoot": "${workspaceFolder}",
-            "remoteRoot": "/usr/app"
+            "cwd": "${workspaceFolder}/packages/backend",
+            "sourceMaps": true,
+            "resolveSourceMapLocations": [
+                "${workspaceFolder}/**",
+                "!**/node_modules/**"
+            ]
         }
     ]
 }
