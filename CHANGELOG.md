@@ -1,3 +1,10 @@
+## [0.2422.1](https://github.com/lightdash/lightdash/compare/0.2422.0...0.2422.1) (2026-02-04)
+
+
+### Bug Fixes
+
+* getEffectiveSpaceAccess always adding org/project permissions when child had inherit set to true ([#19971](https://github.com/lightdash/lightdash/issues/19971)) ([7decf44](https://github.com/lightdash/lightdash/commit/7decf44c2513da608be3cccb84fdace5b9f5fb17))
+
 # [0.2422.0](https://github.com/lightdash/lightdash/compare/0.2421.0...0.2422.0) (2026-02-04)
 
 
