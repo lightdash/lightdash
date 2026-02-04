@@ -103,7 +103,13 @@ echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.lo
 
 ### Add Local Dev Instructions to CLAUDE.local.md
 
-Append local development instructions to `CLAUDE.local.md` (creates file if it doesn't exist, appends if it does):
+**IMPORTANT: You MUST ask the user for permission before modifying CLAUDE.local.md.** Use AskUserQuestion to confirm:
+
+> "The docker-dev setup can add PM2 commands and debugging instructions to CLAUDE.local.md. This includes PM2 start/stop/restart commands and guidance on using the /debug skill with Spotlight. May I add these instructions?"
+
+**Only proceed with this step after the user confirms.** If declined, skip this step and continue with the remaining setup.
+
+Once permission is granted, append local development instructions to `CLAUDE.local.md` (creates file if it doesn't exist, appends if it does):
 ```bash
 cat >> CLAUDE.local.md << 'EOF'
 # Local Development Environment
