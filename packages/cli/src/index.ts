@@ -221,11 +221,7 @@ ${styles.bold('Examples:')}
         parseProjectArgument,
         undefined,
     )
-    .option(
-        '--email <email>',
-        'Login with email/password (local development only)',
-        undefined,
-    )
+    .option('--email <email>', 'Login with email and password', undefined)
     .option('--verbose', undefined, false)
     .action(login);
 

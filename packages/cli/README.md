@@ -85,7 +85,7 @@ The `--non-interactive` flag is designed for environments where interactive prom
 | Command | Flag | Description |
 |---------|------|-------------|
 | `login` | `--token <token>` | Authenticate with personal access token (bypasses OAuth) |
-| `login` | `--email <email>` | Login with email/password (local development only) |
+| `login` | `--email <email>` | Login with email and password |
 | `login` | `--project <uuid>` | Select a specific project by UUID after login |
 | `deploy` | `-y, --assume-yes` | Answer yes to all confirmation prompts |
 | `generate` | `-y, --assume-yes` | Answer yes to prompts |
@@ -113,7 +113,7 @@ lightdash login https://app.lightdash.cloud \
   --project abc-123-uuid \
   --non-interactive
 
-# Login with email/password (local development only)
+# Login with email/password
 # Option 1: Use environment variables (recommended - avoids shell history)
 export LIGHTDASH_CLI_EMAIL=demo@lightdash.com
 export LIGHTDASH_CLI_PASSWORD='your_password'
@@ -145,9 +145,9 @@ When `--non-interactive` is set (or `CI=true`):
 - **Confirmation prompts**: Fail with descriptive error unless `--assume-yes` is provided
 - **OAuth login**: Not available - use `--token` or `--email` with `LIGHTDASH_CLI_PASSWORD` env var instead
 
-### Local Development Login
+### Email/Password Login
 
-For local development environments, you can use email/password authentication:
+You can use email/password authentication with the CLI:
 
 ```bash
 # Option 1: Environment variables (recommended)
@@ -160,7 +160,7 @@ lightdash login http://localhost:3000 --email demo@lightdash.com
 # Password will be prompted securely (not visible in shell history)
 ```
 
-**⚠️ Security Warning**: Email/password login should only be used for local development. For production environments, use OAuth or `--token` with a personal access token.
+**Note**: For production CI/CD pipelines, consider using `--token` with a personal access token instead.
 
 ### Claude Code / Agentic Tools: Passwords with Special Characters
 

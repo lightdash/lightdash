@@ -19,7 +19,7 @@ import { buildRequestHeaders } from './utils';
 type LoginOptions = {
     /** Associated with a Personal Access Token or Service Account Token */
     token?: string;
-    /** Email for password-based login (local development only) */
+    /** Email for password-based login */
     email?: string;
     /** Project UUID to select after login */
     project?: string;
@@ -251,16 +251,6 @@ export const login = async (
     if (options.token) {
         loginResult = await loginWithToken(url, options.token);
     } else if (email) {
-        // Warn that email/password login should only be used for local development
-        console.error(
-            `\n${styles.warning(
-                '⚠️  Warning:',
-            )} Email/password login should only be used for local development.\n` +
-                `   Credentials may be visible in shell history. For production, use:\n` +
-                `   ${styles.bold('⚡️ lightdash login <url>')} (OAuth)\n` +
-                `   ${styles.bold('⚡️ lightdash login <url> --token <pat>')} (Personal Access Token)\n`,
-        );
-
         let finalPassword = password;
         if (!finalPassword) {
             if (GlobalState.isNonInteractive()) {
