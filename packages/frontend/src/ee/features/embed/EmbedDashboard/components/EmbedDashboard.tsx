@@ -27,6 +27,7 @@ import { EmbedMarkdownTile } from './EmbedMarkdownTile';
 
 // eslint-disable-next-line css-modules/no-unused-class
 import { dashboardCSSVars } from '../../../../../components/common/Dashboard/dashboard.constants';
+// eslint-disable-next-line css-modules/no-unused-class
 import tabStyles from '../../../../../features/dashboardTabs/tabs.module.css';
 import '../../../../../styles/react-grid.css';
 
@@ -317,6 +318,8 @@ const EmbedDashboard: FC<{
 
     return (
         <div
+            // Used by EmbedDashboardExportPdf to temporarily set height:auto for multipage PDF printing
+            id="embed-scroll-container"
             style={
                 containerStyles ?? {
                     height: '100vh',
