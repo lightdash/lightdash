@@ -1129,24 +1129,31 @@ export class SpaceModel {
 
     /**
      * Get the access for a space
-     * Nested Spaces MVP - inherit access from root space
      * @param userUuid - The UUID of the user to get access for
      * @param spaceUuid - The UUID of the space to get access for
+     * @param options - Options for access resolution
+     * @param options.useInheritedAccess - If true, uses inheritance chain; if false, uses root space access (legacy)
      * @returns The access for the space
      */
     async getUserSpaceAccess(
         userUuid: string,
         spaceUuid: string,
+        options: { useInheritedAccess: boolean },
     ): Promise<SpaceShare[]> {
-        const { spaceRoot: spaceOrRootUuid } =
-            await this.getSpaceRootFromCacheOrDB(spaceUuid);
-        return (
-            (
-                await this._getSpaceAccess([spaceOrRootUuid], {
-                    userUuid,
-                })
-            )[spaceOrRootUuid] ?? []
-        );
+        if (!options.useInheritedAccess) {
+            // Legacy behavior: get access from root space
+            const { spaceRoot: spaceOrRootUuid } =
+                await this.getSpaceRootFromCacheOrDB(spaceUuid);
+            return (
+                (
+                    await this._getSpaceAccess([spaceOrRootUuid], {
+                        userUuid,
+                    })
+                )[spaceOrRootUuid] ?? []
+            );
+        }
+
+        return this.getEffectiveSpaceAccess(spaceUuid, { userUuid });
     }
 
     async getUserSpacesAccess(

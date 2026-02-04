@@ -73,9 +73,14 @@ export class CommentService extends BaseService {
 
         try {
             space = await this.spaceModel.getSpaceSummary(spaceUuid);
+            const nestedPermissionsFlag = await this.featureFlagModel.get({
+                user,
+                featureFlagId: FeatureFlags.NestedSpacesPermissions,
+            });
             spaceAccess = await this.spaceModel.getUserSpaceAccess(
                 user.userUuid,
                 spaceUuid,
+                { useInheritedAccess: nestedPermissionsFlag.enabled },
             );
         } catch (e) {
             Sentry.captureException(e);

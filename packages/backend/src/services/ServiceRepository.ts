@@ -636,6 +636,7 @@ export class ServiceRepository
                     permissionsService: this.getPermissionsService(),
                     googleDriveClient: this.clients.getGoogleDriveClient(),
                     userService: this.getUserService(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -658,6 +659,7 @@ export class ServiceRepository
                     googleDriveClient: this.clients.getGoogleDriveClient(),
                     userService: this.getUserService(),
                     jobModel: this.models.getJobModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -743,6 +745,7 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     slackAuthenticationModel:
                         this.models.getSlackAuthenticationModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -915,6 +918,7 @@ export class ServiceRepository
                     savedSqlModel: this.models.getSavedSqlModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     analyticsModel: this.models.getAnalyticsModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

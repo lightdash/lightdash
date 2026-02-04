@@ -6,6 +6,7 @@ import {
     ChartType,
     DashboardTileTypes,
     DownloadFileType,
+    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     HealthState,
@@ -54,6 +55,7 @@ import { slackErrorHandler } from '../../errors';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
@@ -159,6 +161,7 @@ type UnfurlServiceArguments = {
     downloadFileModel: DownloadFileModel;
     analytics: LightdashAnalytics;
     slackAuthenticationModel: SlackAuthenticationModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class UnfurlService extends BaseService {
@@ -184,6 +187,8 @@ export class UnfurlService extends BaseService {
 
     slackAuthenticationModel: SlackAuthenticationModel;
 
+    featureFlagModel: FeatureFlagModel;
+
     constructor({
         lightdashConfig,
         dashboardModel,
@@ -196,6 +201,7 @@ export class UnfurlService extends BaseService {
         slackClient,
         analytics,
         slackAuthenticationModel,
+        featureFlagModel,
     }: UnfurlServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -209,6 +215,7 @@ export class UnfurlService extends BaseService {
         this.downloadFileModel = downloadFileModel;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     async getTitleAndDescription(
@@ -462,9 +469,14 @@ export class UnfurlService extends BaseService {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const { isPrivate } = await this.spaceModel.get(dashboard.spaceUuid);
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
         const access = await this.spaceModel.getUserSpaceAccess(
             user.userUuid,
             dashboard.spaceUuid,
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
         );
 
         validateSelectedTabs(selectedTabs, dashboard.tiles);

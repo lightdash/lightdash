@@ -5,6 +5,7 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     DashboardDAO,
+    FeatureFlags,
     ForbiddenError,
     getTimezoneLabel,
     getTzMinutesOffset,
@@ -59,8 +60,8 @@ import {
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { JobModel } from '../../models/JobModel/JobModel';
-import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
@@ -85,6 +86,7 @@ type SchedulerServiceArguments = {
     googleDriveClient: GoogleDriveClient;
     userService: UserService;
     jobModel: JobModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class SchedulerService extends BaseService {
@@ -114,6 +116,8 @@ export class SchedulerService extends BaseService {
 
     jobModel: JobModel;
 
+    featureFlagModel: FeatureFlagModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -128,6 +132,7 @@ export class SchedulerService extends BaseService {
         googleDriveClient,
         userService,
         jobModel,
+        featureFlagModel,
     }: SchedulerServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -143,6 +148,7 @@ export class SchedulerService extends BaseService {
         this.googleDriveClient = googleDriveClient;
         this.userService = userService;
         this.jobModel = jobModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private async getSchedulerResource(
@@ -217,6 +223,11 @@ export class SchedulerService extends BaseService {
         user: SessionUser,
         scheduler: CreateSchedulerAndTargets,
     ) {
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+
         if (scheduler.savedChartUuid) {
             const { organizationUuid, spaceUuid, projectUuid } =
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
@@ -225,6 +236,7 @@ export class SchedulerService extends BaseService {
             const access = await this.spaceModel.getUserSpaceAccess(
                 user.userUuid,
                 spaceUuid,
+                { useInheritedAccess: nestedPermissionsFlag.enabled },
             );
             if (
                 user.ability.cannot(
@@ -247,6 +259,7 @@ export class SchedulerService extends BaseService {
             const spaceAccess = await this.spaceModel.getUserSpaceAccess(
                 user.userUuid,
                 spaceUuid,
+                { useInheritedAccess: nestedPermissionsFlag.enabled },
             );
 
             if (
