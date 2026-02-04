@@ -251,7 +251,6 @@ export const createProject = async (
         credentials.keyfileContents.project_id &&
         credentials.keyfileContents.project_id !== credentials.project
     ) {
-        // In non-interactive mode without --assume-yes, fail with clear error
         if (GlobalState.isNonInteractive() && !options.assumeYes) {
             throw new Error(
                 `BigQuery project mismatch: credentials file uses "${credentials.keyfileContents.project_id}" ` +
@@ -260,7 +259,6 @@ export const createProject = async (
             );
         }
 
-        // With --assume-yes, continue without prompting
         if (options.assumeYes) {
             GlobalState.debug(
                 `> Auto-accepting BigQuery project mismatch (credentials: ${credentials.keyfileContents.project_id}, profiles: ${credentials.project})`,

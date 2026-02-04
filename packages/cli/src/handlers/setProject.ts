@@ -32,10 +32,8 @@ export const setProjectCommand = async (name?: string, uuid?: string) => {
             (project) => project.name === name || project.projectUuid === uuid,
         );
     } else if (GlobalState.isNonInteractive()) {
-        // In non-interactive mode, auto-select the first project
         GlobalState.debug('> Non-interactive mode: selecting first project');
         [selectedProject] = projects;
-        // Select project interactively
     } else {
         const answers = await inquirer.prompt([
             {
