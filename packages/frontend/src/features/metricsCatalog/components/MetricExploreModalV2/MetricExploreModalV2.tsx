@@ -31,13 +31,15 @@ import {
     IconChevronUp,
     IconInfoCircle,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import LightdashVisualization from '../../../../components/LightdashVisualization';
 import VisualizationProvider from '../../../../components/LightdashVisualization/VisualizationProvider';
 import MetricQueryDataProvider from '../../../../components/MetricQueryData/MetricQueryDataProvider';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
+import useTracking from '../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../types/Events';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useCatalogFilterDimensions } from '../../hooks/useCatalogFilterDimensions';
 import { useCatalogMetricsWithTimeDimensions } from '../../hooks/useCatalogMetricsWithTimeDimensions';
@@ -65,8 +67,15 @@ export const MetricExploreModalV2: FC<Props> = ({
     onClose,
     metrics,
 }) => {
+    const { track } = useTracking();
     const { data: organization } = useOrganization();
 
+    const userUuid = useAppSelector(
+        (state) => state.metricsCatalog.user?.userUuid,
+    );
+    const organizationUuid = useAppSelector(
+        (state) => state.metricsCatalog.organizationUuid,
+    );
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,
     );
@@ -255,8 +264,28 @@ export const MetricExploreModalV2: FC<Props> = ({
                 comparison: MetricExplorerComparison.NONE,
                 segmentDimension: value,
             });
+
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_SEGMENT_BY_APPLIED,
+                properties: {
+                    userId: userUuid,
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                    segmentDimension: value,
+                },
+            });
         },
-        [setQuery],
+        [
+            setQuery,
+            track,
+            userUuid,
+            organizationUuid,
+            projectUuid,
+            metricName,
+            tableName,
+        ],
     );
 
     const handleFilterApply = useCallback(
@@ -266,9 +295,98 @@ export const MetricExploreModalV2: FC<Props> = ({
         [setFilterRule],
     );
 
-    const handleTimeIntervalChange = useCallback((timeInterval: TimeFrames) => {
-        setDateRange(getDefaultDateRangeFromInterval(timeInterval));
-    }, []);
+    const handleTimeIntervalChange = useCallback(
+        (timeInterval: TimeFrames) => {
+            setDateRange(getDefaultDateRangeFromInterval(timeInterval));
+
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_GRANULARITY_APPLIED,
+                properties: {
+                    userId: userUuid,
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                    granularity: timeInterval,
+                },
+            });
+        },
+        [
+            track,
+            userUuid,
+            organizationUuid,
+            projectUuid,
+            metricName,
+            tableName,
+        ],
+    );
+
+    // Track time dimension override changes
+    useEffect(() => {
+        if (timeDimensionOverride) {
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_TIME_DIMENSION_OVERRIDE_APPLIED,
+                properties: {
+                    userId: userUuid,
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                },
+            });
+        }
+    }, [
+        timeDimensionOverride,
+        organizationUuid,
+        projectUuid,
+        metricName,
+        tableName,
+        track,
+        userUuid,
+    ]);
+
+    // Track comparison changes
+    useEffect(() => {
+        if (query.comparison === MetricExplorerComparison.PREVIOUS_PERIOD) {
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_COMPARE_LAST_PERIOD,
+                properties: {
+                    userId: userUuid,
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                },
+            });
+        }
+
+        if (
+            query.comparison === MetricExplorerComparison.DIFFERENT_METRIC &&
+            query.metric.name !== '' &&
+            query.metric.table !== ''
+        ) {
+            track({
+                name: EventName.METRICS_CATALOG_EXPLORE_COMPARE_ANOTHER_METRIC,
+                properties: {
+                    userId: userUuid,
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    metricName,
+                    tableName,
+                    compareMetricName: query.metric.name,
+                    compareTableName: query.metric.table,
+                },
+            });
+        }
+    }, [
+        query,
+        organizationUuid,
+        projectUuid,
+        metricName,
+        tableName,
+        track,
+        userUuid,
+    ]);
 
     const showEmptyState = !isLoading && resultsData.totalResults === 0;
 
