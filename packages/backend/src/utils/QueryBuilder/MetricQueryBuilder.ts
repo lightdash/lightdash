@@ -22,6 +22,7 @@ import {
     getParsedReference,
     getPopComparisonConfigKey,
     hashPopComparisonConfigKeyToSuffix,
+    hasPivotFunctions,
     IntrinsicUserAttributes,
     isAndFilterGroup,
     isCompiledCustomSqlDimension,
@@ -36,6 +37,7 @@ import {
     lightdashVariablePattern,
     MetricFilterRule,
     parseAllReferences,
+    parseTableCalculationFunctions,
     PivotConfiguration,
     QueryWarning,
     renderFilterRuleSqlFromField,
@@ -793,7 +795,16 @@ export class MetricQueryBuilder {
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
         return simpleTableCalcs.map((tableCalculation) => {
             const alias = tableCalculation.name;
-            return `  ${tableCalculation.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
+
+            // Check if table calculation contains pivot functions
+            const functions = parseTableCalculationFunctions(
+                tableCalculation.compiledSql,
+            );
+            // Return NULL for table calculations with pivot functions
+            const tablCalcSql = hasPivotFunctions(functions)
+                ? null
+                : tableCalculation.compiledSql;
+            return `  ${tablCalcSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
         });
     }
 
