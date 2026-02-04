@@ -1,4 +1,5 @@
 import { AuthorizationError } from '@lightdash/common';
+import inquirer from 'inquirer';
 import fetch from 'node-fetch';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
@@ -262,12 +263,37 @@ export const login = async (
                 `   ${styles.bold('⚡️ lightdash login <url> --token <pat>')} (Personal Access Token)\n`,
         );
 
-        if (!password) {
-            throw new AuthorizationError(
-                'Password is required when using --email. Use --password <password> or set LIGHTDASH_CLI_PASSWORD env var',
+        let finalPassword = password;
+        if (!finalPassword) {
+            if (GlobalState.isNonInteractive()) {
+                throw new AuthorizationError(
+                    'Password is required when using --email in non-interactive mode.\n' +
+                        'Set the LIGHTDASH_CLI_PASSWORD environment variable:\n\n' +
+                        `  export LIGHTDASH_CLI_PASSWORD='your_password'\n` +
+                        `  lightdash login ${url} --email ${email} --non-interactive\n`,
+                );
+            }
+
+            // Show guidance for coding agents before prompting
+            console.error(
+                `\n${styles.secondary(
+                    '💡 Tip for coding agents:',
+                )} To avoid interactive prompts, exit and run:\n` +
+                    `   export LIGHTDASH_CLI_PASSWORD='your_password'\n` +
+                    `   lightdash login ${url} --email ${email}\n`,
             );
+
+            const answers = await inquirer.prompt<{ password: string }>([
+                {
+                    type: 'password',
+                    name: 'password',
+                    message: 'Enter your password:',
+                    mask: '*',
+                },
+            ]);
+            finalPassword = answers.password;
         }
-        loginResult = await loginWithEmailPassword(url, email, password);
+        loginResult = await loginWithEmailPassword(url, email, finalPassword);
     } else {
         loginResult = await loginWithOauth(url);
     }

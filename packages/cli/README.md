@@ -115,10 +115,14 @@ lightdash login https://app.lightdash.cloud \
   --non-interactive
 
 # Login with email/password (local development only)
-# ⚠️ Credentials may be visible in shell history - use only for local dev
-lightdash login http://localhost:3000 \
-  --email demo@lightdash.com \
-  --password your_password
+# Option 1: Use environment variables (recommended - avoids shell history)
+export LIGHTDASH_CLI_EMAIL=demo@lightdash.com
+export LIGHTDASH_CLI_PASSWORD='your_password'
+lightdash login http://localhost:3000
+
+# Option 2: Interactive password prompt (password not in shell history)
+lightdash login http://localhost:3000 --email demo@lightdash.com
+# You will be prompted to enter your password securely
 
 # Deploy to existing project non-interactively
 lightdash deploy \
@@ -147,12 +151,17 @@ When `--non-interactive` is set (or `CI=true`):
 For local development environments, you can use email/password authentication:
 
 ```bash
-lightdash login http://localhost:3000 \
-  --email demo@lightdash.com \
-  --password demo_password
+# Option 1: Environment variables (recommended)
+export LIGHTDASH_CLI_EMAIL=demo@lightdash.com
+export LIGHTDASH_CLI_PASSWORD='your_password'
+lightdash login http://localhost:3000
+
+# Option 2: Interactive password prompt
+lightdash login http://localhost:3000 --email demo@lightdash.com
+# Password will be prompted securely (not visible in shell history)
 ```
 
-**⚠️ Security Warning**: Email/password login should only be used for local development. Credentials may be visible in shell history. For production environments, use OAuth or `--token` with a personal access token.
+**⚠️ Security Warning**: Email/password login should only be used for local development. For production environments, use OAuth or `--token` with a personal access token.
 
 ### Claude Code / Agentic Tools: Passwords with Special Characters
 
