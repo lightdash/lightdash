@@ -1,3 +1,11 @@
+# [0.2418.0](https://github.com/lightdash/lightdash/compare/0.2417.1...0.2418.0) (2026-02-04)
+
+
+### Features
+
+* add PM2-based development environment ([#19914](https://github.com/lightdash/lightdash/issues/19914)) ([927ae93](https://github.com/lightdash/lightdash/commit/927ae9367d7dfb616710430b8f900430e2a1bd4e))
+* check for inheritance chain space access ([#19937](https://github.com/lightdash/lightdash/issues/19937)) ([1aee92d](https://github.com/lightdash/lightdash/commit/1aee92d349d078b73c5dbf713b33bfcd48f48eb1))
+
 ## [0.2417.1](https://github.com/lightdash/lightdash/compare/0.2417.0...0.2417.1) (2026-02-04)
 
 
