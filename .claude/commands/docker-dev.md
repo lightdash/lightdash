@@ -20,19 +20,22 @@ RUNNING_COUNT=$(docker compose -f docker/docker-compose.dev.mini.yml ps --format
 # Check 2: Environment file exists
 test -f .env.development.local && echo "OK: Env file exists" || echo "NEED: Create .env.development.local"
 
-# Check 3: Dependencies installed
+# Check 3: CLAUDE.local.md has local dev instructions
+grep -q "## Starting Development Services" CLAUDE.local.md 2>/dev/null && echo "OK: CLAUDE.local.md has local dev instructions" || echo "NEED: Add local dev instructions to CLAUDE.local.md"
+
+# Check 4: Dependencies installed
 test -d node_modules && test -d packages/common/dist && echo "OK: Dependencies installed" || echo "NEED: Run pnpm install and build"
 
-# Check 4: Python/dbt environment ready
+# Check 5: Python/dbt environment ready
 test -f venv/bin/dbt && test -f venv/bin/dbt1.7 && echo "OK: Python/dbt ready" || echo "NEED: Set up Python venv"
 
-# Check 5: Database migrated (requires Docker running)
+# Check 6: Database migrated (requires Docker running)
 docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='sessions') THEN 'migrated' ELSE 'not_migrated' END" 2>&1 | grep -q "^migrated" && echo "OK: Database migrated" || echo "NEED: Run migrations"
 
-# Check 6: Database seeded (requires Docker running)
+# Check 7: Database seeded (requires Docker running)
 docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM emails WHERE email='demo@lightdash.com') THEN 'seeded' ELSE 'not_seeded' END" 2>&1 | grep -q "^seeded" && echo "OK: Database seeded" || echo "NEED: Seed database"
 
-# Check 7: dbt models built (requires Docker running)
+# Check 8: dbt models built (requires Docker running)
 docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='jaffle' AND table_name='orders') THEN 'built' ELSE 'not_built' END" 2>&1 | grep -q "^built" && echo "OK: dbt models built" || echo "NEED: Build dbt models"
 ```
 
@@ -40,8 +43,8 @@ docker exec docker-db-dev-1 psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELEC
 - Lines starting with `NEED:` indicate setup steps that must be run
 - Lines starting with `OK:` indicate that component is ready
 - If all lines show `OK:`, the environment is ready - just start the dev server
-- Database checks (5-7) use `docker exec` to run psql inside the PostgreSQL container
-- Run checks 1-4 in parallel first, then checks 5-7 in parallel (they depend on Docker running)
+- Database checks (6-8) use `docker exec` to run psql inside the PostgreSQL container
+- Run checks 1-5 in parallel first, then checks 6-8 in parallel (they depend on Docker running)
 
 ### Why Use `docker exec` for Database Checks?
 
@@ -96,6 +99,51 @@ EOF
 Then add the DBT_DEMO_DIR with the actual path:
 ```bash
 echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.local
+```
+
+### Add Local Dev Instructions to CLAUDE.local.md
+
+Append local development instructions to `CLAUDE.local.md` (creates file if it doesn't exist, appends if it does):
+```bash
+cat >> CLAUDE.local.md << 'EOF'
+# Local Development Environment
+
+## Starting Development Services
+
+### Prerequisites: Docker Services
+
+Start the Docker services (PostgreSQL, MinIO, headless browser) before running the dev server:
+
+```bash
+/docker-dev
+```
+
+### PM2 (Recommended for LLM Development)
+
+PM2 provides process isolation, individual service restarts, and monitoring:
+
+```bash
+pnpm pm2:start          # Start all services
+pnpm pm2:logs           # Stream all logs
+pnpm pm2:logs:api --lines 50 --nostream  # View last 50 lines without streaming
+pnpm pm2:status         # Check process status
+pnpm pm2:restart:api    # Restart only the API server
+pnpm pm2:monit          # Interactive monitoring dashboard
+pnpm pm2:stop           # Stop all services
+```
+
+## Debugging
+
+**When facing problems, the first step is always to use the `/debug` skill** to understand what's happening. This skill provides a comprehensive debugging workflow.
+
+Use the `/debug` skill for comprehensive debugging workflows combining:
+
+-   **PM2 logs**: `pnpm pm2:logs:api` to view API server logs with trace IDs
+-   **Spotlight MCP**: Query traces and errors programmatically via `mcp__spotlight__search_traces`, `mcp__spotlight__get_traces`, `mcp__spotlight__search_errors`
+-   **Browser automation**: Use Chrome DevTools MCP (`mcp__chrome-devtools__*`) for UI debugging
+
+Spotlight UI is available at http://localhost:8969 when running `pnpm pm2:start`.
+EOF
 ```
 
 ### Install Dependencies
