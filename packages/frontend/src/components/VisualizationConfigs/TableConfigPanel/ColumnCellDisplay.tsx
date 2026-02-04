@@ -29,6 +29,7 @@ export const ColumnCellDisplay: FC = () => {
             ...resultsData.metricQuery.dimensions,
             ...resultsData.metricQuery.metrics,
             ...resultsData.metricQuery.tableCalculations.map((tc) => tc.name),
+            ...(resultsData.metricQuery.customDimensions?.map((cd) => cd.id) ?? []),
         ]);
     }, [resultsData]);
 
