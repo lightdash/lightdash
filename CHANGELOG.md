@@ -1,3 +1,11 @@
+# [0.2420.0](https://github.com/lightdash/lightdash/compare/0.2419.0...0.2420.0) (2026-02-04)
+
+
+### Features
+
+* allow switching time frames on metric tree ([#19936](https://github.com/lightdash/lightdash/issues/19936)) ([8a845e0](https://github.com/lightdash/lightdash/commit/8a845e03feed5d99d295f703e215000abfee2cf2))
+* view compiled sql for metric tree metric total ([#19935](https://github.com/lightdash/lightdash/issues/19935)) ([5a697db](https://github.com/lightdash/lightdash/commit/5a697db216bf14e2c33ec4638c132f5c2f77bc15))
+
 # [0.2419.0](https://github.com/lightdash/lightdash/compare/0.2418.4...0.2419.0) (2026-02-04)
 
 
