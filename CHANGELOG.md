@@ -1,3 +1,10 @@
+# [0.2416.0](https://github.com/lightdash/lightdash/compare/0.2415.0...0.2416.0) (2026-02-04)
+
+
+### Features
+
+* add ID to embed dashboard scroll container ([#19942](https://github.com/lightdash/lightdash/issues/19942)) ([77b387f](https://github.com/lightdash/lightdash/commit/77b387f531aee2dcdb499753716169b3a85ca96c))
+
 # [0.2415.0](https://github.com/lightdash/lightdash/compare/0.2414.1...0.2415.0) (2026-02-03)
 
 
