@@ -1,3 +1,11 @@
+## [0.2418.4](https://github.com/lightdash/lightdash/compare/0.2418.3...0.2418.4) (2026-02-04)
+
+
+### Bug Fixes
+
+* **dev:** resolve PM2 port conflicts and orphan processes ([#19963](https://github.com/lightdash/lightdash/issues/19963)) ([8c436eb](https://github.com/lightdash/lightdash/commit/8c436eb46a671b21c1085d6393f6d8ee17e4b8b1))
+* prevent duplicate results in Trino query processing ([#19961](https://github.com/lightdash/lightdash/issues/19961)) ([4aad0e4](https://github.com/lightdash/lightdash/commit/4aad0e449febfa3531108577e48e955165b00fb9))
+
 ## [0.2418.3](https://github.com/lightdash/lightdash/compare/0.2418.2...0.2418.3) (2026-02-04)
 
 
