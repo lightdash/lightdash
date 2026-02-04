@@ -3,6 +3,8 @@
  * Supporting both row-based and pivot-based functions
  */
 
+import type { WarehouseSqlBuilder } from '../types/warehouse';
+
 // ============================================================================
 // Function Type Enums
 // ============================================================================
@@ -321,4 +323,81 @@ export function hasRowFunctions(
     functions: TableCalculationFunctionCall[],
 ): boolean {
     return functions.some((f) => isRowFunction(f.type));
+}
+
+// ============================================================================
+// Function Compiler Class
+// ============================================================================
+
+/**
+ * Compiler for table calculation functions to SQL
+ */
+export class TableCalculationFunctionCompiler {
+    constructor(private warehouseSqlBuilder: WarehouseSqlBuilder) {}
+
+    /**
+     * Compiles all functions in a SQL expression.
+     * @param sql - The SQL expression containing pivot functions
+     * @param functions - Array of parsed table calculation functions
+     * @returns SQL with functions compiled to their SQL equivalents
+     */
+    compileFunctions(
+        sql: string,
+        functions: TableCalculationFunctionCall[],
+    ): string {
+        let processedSql = sql;
+
+        for (const func of functions) {
+            switch (func.type) {
+                case TableCalculationFunctionType.PIVOT_OFFSET: {
+                    const pivotOffsetFunc = func as PivotOffsetFunctionCall;
+                    const compiled = this.compilePivotOffset(
+                        pivotOffsetFunc.expression,
+                        pivotOffsetFunc.columnOffset,
+                    );
+                    processedSql = processedSql.replace(func.rawSql, compiled);
+                    break;
+                }
+                default:
+                    // Not implemented yet
+                    break;
+            }
+        }
+
+        return processedSql;
+    }
+
+    /**
+     * Compiles a pivot_offset function call to a guarded SQL window function.
+     * Converts pivot_offset(expression, n) to LAG or LEAD with adjacency checks.
+     * Returns NULL if the offset row is not exactly n time periods away.
+     * @param expression - The SQL expression inside pivot_offset
+     * @param columnOffset - The offset value (negative for LAG/previous, positive for LEAD/next)
+     * @returns Compiled SQL with CASE statement checking for adjacent time periods
+     */
+    private compilePivotOffset(
+        expression: string,
+        columnOffset: number,
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+
+        if (columnOffset === 0) {
+            // No offset, return expression as-is
+            return expression;
+        }
+
+        const windowFunction = columnOffset < 0 ? 'LAG' : 'LEAD';
+        const offsetValue = Math.abs(columnOffset);
+
+        // The window partitions by column_index (pivot dimension like status)
+        // and orders by row_index
+        const windowClause = `OVER (PARTITION BY ${q}column_index${q} ORDER BY ${q}row_index${q})`;
+
+        // For offset of 1, check if the previous/next row_index is exactly 1 away
+        // For offset of n, check if the nth row_index is exactly n away
+        const expectedDiff = columnOffset < 0 ? -offsetValue : offsetValue;
+
+        // Build the guarded expression that returns NULL for non-adjacent time periods
+        return `CASE WHEN ${windowFunction}(${q}row_index${q}, ${offsetValue}) ${windowClause} = ${q}row_index${q} + (${expectedDiff}) THEN ${windowFunction}(${expression}, ${offsetValue}) ${windowClause} ELSE NULL END`;
+    }
 }
