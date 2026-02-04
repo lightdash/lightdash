@@ -5,6 +5,7 @@ import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import RouterNavLink from '../../../components/common/RouterNavLink';
+import classes from './CatalogAnalyticCharts.module.css';
 
 type Props = {
     projectUuid: string;
@@ -68,12 +69,7 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
                                                     {chart.name}
                                                 </Text>
                                             }
-                                            sx={{
-                                                '&:hover': {
-                                                    backgroundColor:
-                                                        'transparent',
-                                                },
-                                            }}
+                                            className={classes.transparentHover}
                                             p={0}
                                         />
 
@@ -92,12 +88,7 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
                                                     }
                                                     p={0}
                                                     c="ldGray.6"
-                                                    sx={{
-                                                        '&:hover': {
-                                                            backgroundColor:
-                                                                'transparent',
-                                                        },
-                                                    }}
+                                                    className={classes.transparentHover}
                                                 />
                                             </Group>
                                             {chart.dashboardUuid && (
@@ -125,12 +116,7 @@ export const CatalogAnalyticCharts: FC<React.PropsWithChildren<Props>> = ({
                                                         }
                                                         p={0}
                                                         c="ldGray.6"
-                                                        sx={{
-                                                            '&:hover': {
-                                                                backgroundColor:
-                                                                    'transparent',
-                                                            },
-                                                        }}
+                                                        className={classes.transparentHover}
                                                     />
                                                 </Group>
                                             )}
