@@ -28,10 +28,26 @@ import { useRunMetricTotal } from '../../../../hooks/useRunMetricExplorerQuery';
 import { useChangeIndicatorStyles } from '../../../../styles/useChangeIndicatorStyles';
 import { MetricDetailPopover } from '../../../MetricDetailPopover';
 
-const ChangeIndicator: FC<{ change: number; formattedChange: string }> = ({
-    change,
-    formattedChange,
-}) => {
+const getComparisonLabel = (timeFrame: TimeFrames) => {
+    switch (timeFrame) {
+        case TimeFrames.DAY:
+            return 'Current day vs. last day to date';
+        case TimeFrames.WEEK:
+            return 'Current week vs. last week to date';
+        case TimeFrames.MONTH:
+            return 'Current month vs. last month to date';
+        case TimeFrames.YEAR:
+            return 'Current year vs. last year to date';
+        default:
+            return 'Current vs. previous period';
+    }
+};
+
+const ChangeIndicator: FC<{
+    change: number;
+    formattedChange: string;
+    timeFrame: TimeFrames;
+}> = ({ change, formattedChange, timeFrame }) => {
     const { classes } = useChangeIndicatorStyles();
     const indicatorClasses = useMemo(() => {
         if (change === 0) {
@@ -41,7 +57,11 @@ const ChangeIndicator: FC<{ change: number; formattedChange: string }> = ({
     }, [change, classes]);
 
     return (
-        <Tooltip position="bottom" label={'Current vs. Last Month-to-date'}>
+        <Tooltip
+            position="bottom"
+            label={getComparisonLabel(timeFrame)}
+            withinPortal
+        >
             <Badge
                 fz={13}
                 fw={500}
@@ -87,7 +107,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
         exploreName: data.tableName,
         metricName: data.metricName,
         timeFrame: data.timeFrame,
-        granularity: TimeFrames.DAY, // TODO: this should be dynamic
+        granularity: data.timeFrame,
         comparisonType: MetricTotalComparisonType.PREVIOUS_PERIOD,
         dateRange,
         options: {
@@ -100,7 +120,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
             dateRange
                 ? {
                       timeFrame: data.timeFrame,
-                      granularity: TimeFrames.DAY, // TODO: this should be dynamic
+                      granularity: data.timeFrame,
                       comparisonType: MetricTotalComparisonType.PREVIOUS_PERIOD,
                       dateRange,
                   }
@@ -192,6 +212,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                                 <ChangeIndicator
                                     change={change}
                                     formattedChange={formattedChange}
+                                    timeFrame={data.timeFrame}
                                 />
                             )}
                         </Group>

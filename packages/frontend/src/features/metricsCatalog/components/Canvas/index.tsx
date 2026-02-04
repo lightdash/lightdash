@@ -1,5 +1,6 @@
 import Dagre from '@dagrejs/dagre';
 import {
+    FeatureFlags,
     TimeFrames,
     type CatalogField,
     type CatalogMetricsTreeEdge,
@@ -38,6 +39,7 @@ import partition from 'lodash/partition';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { useClientFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
@@ -46,6 +48,7 @@ import {
     useDeleteMetricsTreeEdge,
 } from '../../hooks/useMetricsTree';
 import { useTreeNodePosition } from '../../hooks/useTreeNodePosition';
+import { TimeFramePicker } from '../visualization/TimeFramePicker';
 import DefaultEdge from './TreeComponents/edges/DefaultEdge';
 import CollapsedNode, {
     type CollapsedNodeData,
@@ -261,6 +264,9 @@ const getNodeLayout = (
 const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const { track } = useTracking();
     const theme = useMantineTheme();
+    const isTreeModeSwitcherEnabled = useClientFeatureFlag(
+        FeatureFlags.MetricsCatalogTreeModeSwitcher,
+    );
     const userUuid = useAppSelector(
         (state) => state.metricsCatalog.user?.userUuid,
     );
@@ -277,6 +283,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const nodesInitialized = useNodesInitialized();
     const [isLayoutReady, setIsLayoutReady] = useState(false);
     const { showToastInfo } = useToaster();
+    const [timeFrame, setTimeFrame] = useState<TimeFrames>(DEFAULT_TIME_FRAME);
 
     const { containsNode: unconnectGroupContainsNode } = useTreeNodePosition(
         STATIC_NODE_TYPES.UNCONNECTED,
@@ -332,13 +339,13 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     label: metric.name,
                     tableName: metric.tableName,
                     metricName: metric.name,
-                    timeFrame: DEFAULT_TIME_FRAME,
+                    timeFrame,
                     isEdgeTarget,
                     isEdgeSource,
                 },
             };
         });
-    }, [metrics, initialEdges]);
+    }, [metrics, initialEdges, timeFrame]);
 
     const [currentNodes, setCurrentNodes, onNodesChange] =
         useNodesState(initialNodes);
@@ -541,6 +548,18 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
         }
     }, [applyLayout, nodesInitialized, isLayoutReady]);
 
+    useEffect(() => {
+        setCurrentNodes((nodes) =>
+            nodes.map((node) => ({
+                ...node,
+                data:
+                    'timeFrame' in node.data
+                        ? { ...node.data, timeFrame }
+                        : node.data,
+            })),
+        );
+    }, [timeFrame, setCurrentNodes]);
+
     const addNodeChanges = useMemo<NodeAddChange<MetricTreeNode>[]>(() => {
         return initialNodes
             .filter((node) => !currentNodes.some((n) => n.id === node.id))
@@ -590,12 +609,24 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
             >
                 <Panel position="top-left" style={{ margin: '14px 27px' }}>
                     <Group spacing="xs">
-                        <Text fz={14} fw={600} c="ldGray.7">
-                            <Text span fw={500} c="ldGray.6">
-                                Canvas mode:
-                            </Text>{' '}
-                            Current month to date
-                        </Text>
+                        {isTreeModeSwitcherEnabled ? (
+                            <>
+                                <Text fz={14} fw={500} c="ldGray.6">
+                                    Canvas mode:
+                                </Text>
+                                <TimeFramePicker
+                                    value={timeFrame}
+                                    onChange={setTimeFrame}
+                                />
+                            </>
+                        ) : (
+                            <Text fz={14} fw={600} c="ldGray.7">
+                                <Text span fw={500} c="ldGray.6">
+                                    Canvas mode:
+                                </Text>{' '}
+                                Current month to date
+                            </Text>
+                        )}
                         <ActionIcon
                             component="a"
                             href="https://docs.lightdash.com/guides/metrics-catalog/" // TODO: add link to canvas docs
