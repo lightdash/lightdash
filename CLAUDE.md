@@ -23,39 +23,9 @@ Lightdash is an open-source business intelligence tool (Looker alternative) that
 -   Frontend: React 19, Mantine v8 UI, Emotion styling, TanStack Query
 -   Build: pnpm workspaces, TypeScript project references, Vite
 
-## Starting Development Services
-
-### Prerequisites: Docker Services
-
-Start the Docker services (PostgreSQL, MinIO, headless browser) before running the dev server:
-
-```bash
-/docker-dev
-```
-
-### Option 1: PM2 (Recommended for LLM Development)
-
-PM2 provides process isolation, individual service restarts, and monitoring:
-
-```bash
-pnpm pm2:start          # Start all services
-pnpm pm2:logs           # Stream all logs
-pnpm pm2:status         # Check process status
-pnpm pm2:restart:api    # Restart only the API server
-pnpm pm2:monit          # Interactive monitoring dashboard
-pnpm pm2:stop           # Stop all services
-```
-
-### Option 2: Traditional Dev Server
-
-Single terminal with interleaved output:
-
-```bash
-pnpm dev
-```
-
 ## Common Development Commands
 
+-   Assume the dev-server is always running
 -   Always use package-specific commands for faster linting/typechecking/testing.
 
 **Code Quality:**
@@ -151,16 +121,6 @@ pnpm -F backend rollback-last
 -   Use Chrome DevTools MCP to interact with the frontend web app
 -   Test user login is demo@lightdash.com and 'demo_password!'
 -   Use ./scripts/reset-db.sh to reset the database, run migrations, and seed the database with dev data
-
-## Debugging
-
-Use the `/debug` skill for comprehensive debugging workflows combining:
-
--   **PM2 logs**: `pnpm pm2:logs:api` to view API server logs with trace IDs
--   **Spotlight MCP**: Query traces and errors programmatically via `mcp__spotlight__search_traces`, `mcp__spotlight__get_traces`, `mcp__spotlight__search_errors`
--   **Browser automation**: Use Chrome DevTools MCP (`mcp__chrome-devtools__*`) for UI debugging
-
-Spotlight UI is available at http://localhost:8969 when running `pnpm pm2:start`.
 
 ## Current Project Status
 
