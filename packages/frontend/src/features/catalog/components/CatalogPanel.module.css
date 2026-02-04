@@ -1,8 +1,0 @@
-.learnMoreButton {
-    color: var(--mantine-color-ldGray-0);
-    background-color: var(--mantine-color-ldGray-8);
-}
-
-.learnMoreButton:hover {
-    background-color: var(--mantine-color-ldGray-9);
-}

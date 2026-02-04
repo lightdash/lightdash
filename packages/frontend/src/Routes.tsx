@@ -11,7 +11,6 @@ import UserCompletionModal from './components/UserCompletionModal';
 import FunnelBuilder from './features/funnelBuilder/FunnelBuilderPage';
 import { MetricCatalogView } from './features/metricsCatalog/types';
 import AuthPopupResult from './pages/AuthPopupResult';
-import Catalog from './pages/Catalog';
 import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
 import CreateProjectSettings from './pages/CreateProjectSettings';
@@ -392,17 +391,6 @@ const APP_ROUTES: RouteObject[] = [
                                 <NavBar />
                                 <TrackPage name={PageName.USER_ACTIVITY}>
                                     <UnusedContent />
-                                </TrackPage>
-                            </>
-                        ),
-                    },
-                    {
-                        path: '/projects/:projectUuid/catalog',
-                        element: (
-                            <>
-                                <NavBar />
-                                <TrackPage name={PageName.CATALOG}>
-                                    <Catalog />
                                 </TrackPage>
                             </>
                         ),
