@@ -1149,10 +1149,25 @@ export class SpaceModel {
         );
     }
 
+    async getUserSpacesAccess(
+        userUuid: string,
+        spaceUuids: string[],
+        options: { useInheritedAccess: boolean },
+    ): Promise<Record<string, SpaceShare[]>> {
+        if (!options.useInheritedAccess) {
+            return this.getUserSpacesAccessLegacy(userUuid, spaceUuids);
+        }
+
+        return this.getUserSpacesAccessWithInheritanceChain(
+            userUuid,
+            spaceUuids,
+        );
+    }
+
     /**
      * @deprecated Use `getUserSpacesAccessWithInheritanceChain` instead
      */
-    async getUserSpacesAccess(
+    private async getUserSpacesAccessLegacy(
         userUuid: string,
         spaceUuids: string[],
     ): Promise<Record<string, SpaceShare[]>> {
@@ -1225,7 +1240,7 @@ export class SpaceModel {
      * @param spaceUuids - The UUIDs of the spaces to get access for
      * @returns The access for the spaces
      */
-    async getUserSpacesAccessWithInheritanceChain(
+    private async getUserSpacesAccessWithInheritanceChain(
         userUuid: string,
         spaceUuids: string[],
     ): Promise<Record<string, SpaceShare[]>> {

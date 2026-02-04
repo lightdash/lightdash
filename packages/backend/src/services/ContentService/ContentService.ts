@@ -129,15 +129,12 @@ export class ContentService extends BaseService {
             featureFlagId: FeatureFlags.NestedSpacesPermissions,
         });
 
-        const spacesAccess = nestedPermissionsFlag.enabled
-            ? await this.spaceModel.getUserSpacesAccessWithInheritanceChain(
-                  user.userUuid,
-                  spaceUuids,
-              )
-            : await this.spaceModel.getUserSpacesAccess(
-                  user.userUuid,
-                  spaceUuids,
-              );
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaceUuids,
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
+        );
+
         const allowedSpaceUuids = spaces
             .filter((space) =>
                 hasViewAccessToSpace(

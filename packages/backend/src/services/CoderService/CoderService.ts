@@ -523,15 +523,11 @@ export class CoderService extends BaseService {
             featureFlagId: FeatureFlags.NestedSpacesPermissions,
         });
 
-        const spacesAccess = nestedPermissionsFlag.enabled
-            ? await this.spaceModel.getUserSpacesAccessWithInheritanceChain(
-                  user.userUuid,
-                  spaceUuids,
-              )
-            : await this.spaceModel.getUserSpacesAccess(
-                  user.userUuid,
-                  spaceUuids,
-              );
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaceUuids,
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
+        );
 
         return content.filter((c) => {
             const space = spaces.find((s) => s.uuid === c.spaceUuid);
@@ -1220,14 +1216,12 @@ export class CoderService extends BaseService {
                 featureFlagId: FeatureFlags.NestedSpacesPermissions,
             });
 
-            const spacesAccess = nestedPermissionsFlag.enabled
-                ? await this.spaceModel.getUserSpacesAccessWithInheritanceChain(
-                      user.userUuid,
-                      [existingSpace.uuid],
-                  )
-                : await this.spaceModel.getUserSpacesAccess(user.userUuid, [
-                      existingSpace.uuid,
-                  ]);
+            const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+                user.userUuid,
+                [existingSpace.uuid],
+                { useInheritedAccess: nestedPermissionsFlag.enabled },
+            );
+
             if (
                 hasViewAccessToSpace(
                     user,

@@ -719,15 +719,9 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         // Fetch space summaries and user access
         const [spaces, spacesAccess] = await Promise.all([
             this.spaceModel.find({ spaceUuids }),
-            nestedPermissionsFlag.enabled
-                ? this.spaceModel.getUserSpacesAccessWithInheritanceChain(
-                      user.userUuid,
-                      spaceUuids,
-                  )
-                : this.spaceModel.getUserSpacesAccess(
-                      user.userUuid,
-                      spaceUuids,
-                  ),
+            this.spaceModel.getUserSpacesAccess(user.userUuid, spaceUuids, {
+                useInheritedAccess: nestedPermissionsFlag.enabled,
+            }),
         ]);
 
         // Filter function to check space access

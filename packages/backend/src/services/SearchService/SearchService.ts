@@ -112,15 +112,11 @@ export class SearchService extends BaseService {
             featureFlagId: FeatureFlags.NestedSpacesPermissions,
         });
 
-        const spacesAccess = nestedPermissionsFlag.enabled
-            ? await this.spaceModel.getUserSpacesAccessWithInheritanceChain(
-                  user.userUuid,
-                  spaces.map((s) => s.uuid),
-              )
-            : await this.spaceModel.getUserSpacesAccess(
-                  user.userUuid,
-                  spaces.map((s) => s.uuid),
-              );
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
+        );
 
         const filterItem = async (
             item:

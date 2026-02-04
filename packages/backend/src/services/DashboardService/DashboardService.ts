@@ -306,15 +306,12 @@ export class DashboardService
             featureFlagId: FeatureFlags.NestedSpacesPermissions,
         });
 
-        const spacesAccess = nestedPermissionsFlag.enabled
-            ? await this.spaceModel.getUserSpacesAccessWithInheritanceChain(
-                  user.userUuid,
-                  spaces.map((s) => s.uuid),
-              )
-            : await this.spaceModel.getUserSpacesAccess(
-                  user.userUuid,
-                  spaces.map((s) => s.uuid),
-              );
+        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
+            user.userUuid,
+            spaces.map((s) => s.uuid),
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
+        );
+
         return dashboards.filter((dashboard) => {
             const dashboardSpace = spaces.find(
                 (space) => space.uuid === dashboard.spaceUuid,
