@@ -279,6 +279,53 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
                 });
             });
         });
+
+        it('should inherit project/org permissions when both child and root created with inheritParentPermissions=true', () => {
+            const timestamp = Date.now();
+
+            // Create root
+            cy.request({
+                url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+                method: 'POST',
+                body: {
+                    name: `Root ${timestamp}`,
+                    inheritParentPermissions: true,
+                },
+            }).then((rootResp) => {
+                rootSpace = rootResp.body.results;
+
+                // Create child and break inheritance
+                cy.request({
+                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+                    method: 'POST',
+                    body: {
+                        name: `Child ${timestamp}`,
+                        parentSpaceUuid: rootSpace.uuid,
+                        inheritParentPermissions: true,
+                    },
+                }).then((childResp) => {
+                    const child = childResp.body.results as Space;
+
+                    // Check child - editor should NOT have access
+                    cy.request({
+                        url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
+                    }).then((resp) => {
+                        const childSpace = resp.body.results as Space;
+
+                        // Editor should NOT have access to unsynced child
+                        const editorAccess = childSpace.access.find(
+                            (a: SpaceShare) =>
+                                a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
+                        );
+
+                        expect(editorAccess).to.not.be.undefined;
+                        expect(editorAccess?.role).to.eq(
+                            SpaceMemberRole.EDITOR,
+                        );
+                    });
+                });
+            });
+        });
     });
 
     describe('Breaking Inheritance', () => {
@@ -369,7 +416,102 @@ describe('Nested Space Permission Inheritance - API Tests', () => {
             });
         });
 
-        it('should not inherit new parent permissions after breaking inheritance', () => {
+        it('should not inherit project/org permissions when child is created with inheritParentPermissions=true and root has inheritParentPermissions=false', () => {
+            const timestamp = Date.now();
+
+            // Create root
+            cy.request({
+                url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+                method: 'POST',
+                body: {
+                    name: `Root ${timestamp}`,
+                    inheritParentPermissions: false,
+                },
+            }).then((rootResp) => {
+                rootSpace = rootResp.body.results;
+
+                // Create child and break inheritance
+                cy.request({
+                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+                    method: 'POST',
+                    body: {
+                        name: `Child ${timestamp}`,
+                        parentSpaceUuid: rootSpace.uuid,
+                        inheritParentPermissions: true,
+                    },
+                }).then((childResp) => {
+                    const child = childResp.body.results as Space;
+
+                    // Check child - editor should NOT have access
+                    cy.request({
+                        url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
+                    }).then((resp) => {
+                        const childSpace = resp.body.results as Space;
+
+                        // Editor should NOT have access to unsynced child
+                        const editorAccess = childSpace.access.find(
+                            (a: SpaceShare) =>
+                                a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
+                        );
+
+                        expect(editorAccess).to.be.undefined;
+                    });
+                });
+            });
+        });
+
+        it('should not inherit new parent permissions when child is created with inheritParentPermissions=false', () => {
+            const timestamp = Date.now();
+
+            // Create root
+            cy.request({
+                url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+                method: 'POST',
+                body: { name: `Root ${timestamp}` },
+            }).then((rootResp) => {
+                rootSpace = rootResp.body.results;
+
+                // Create child and break inheritance
+                cy.request({
+                    url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+                    method: 'POST',
+                    body: {
+                        name: `Child ${timestamp}`,
+                        parentSpaceUuid: rootSpace.uuid,
+                        inheritParentPermissions: false,
+                    },
+                }).then((childResp) => {
+                    const child = childResp.body.results as Space;
+
+                    // Now add editor to root AFTER breaking inheritance
+                    cy.request({
+                        url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${rootSpace.uuid}/share`,
+                        method: 'POST',
+                        body: {
+                            userUuid: SEED_ORG_1_EDITOR.user_uuid,
+                            spaceRole: SpaceMemberRole.EDITOR,
+                        },
+                    }).then(() => {
+                        // Check child - editor should NOT have access
+                        cy.request({
+                            url: `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${child.uuid}`,
+                        }).then((resp) => {
+                            const childSpace = resp.body.results as Space;
+
+                            // Editor should NOT have access to unsynced child
+                            const editorAccess = childSpace.access.find(
+                                (a: SpaceShare) =>
+                                    a.userUuid === SEED_ORG_1_EDITOR.user_uuid,
+                            );
+
+                            expect(editorAccess).to.be.undefined;
+                        });
+                    });
+                });
+            });
+        });
+
+        it('should not inherit new parent permissions after breaking inheritance with PATCH', () => {
             const timestamp = Date.now();
 
             // Create root
