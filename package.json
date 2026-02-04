@@ -31,6 +31,7 @@
         "tslib": "^2.8.1"
     },
     "devDependencies": {
+        "@spotlightjs/spotlight": "^4.10.0",
         "@types/jest": "^29.5.5",
         "@types/node": "^22.13.1",
         "@types/pegjs": "^0.10.3",
