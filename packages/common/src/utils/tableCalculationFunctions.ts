@@ -276,3 +276,49 @@ export function parseTableCalculationFunctions(
 
     return functions;
 }
+
+/**
+ * Checks if the given function type is a pivot function.
+ * Pivot functions operate across pivot columns (horizontal).
+ * @param type - The table calculation function type
+ * @returns True if the function is a pivot function
+ */
+export function isPivotFunction(type: TableCalculationFunctionType): boolean {
+    return (
+        PIVOT_FUNCTIONS as readonly TableCalculationFunctionType[]
+    ).includes(type);
+}
+
+/**
+ * Checks if the given function type is a row function.
+ * Row functions operate across rows (vertical).
+ * @param type - The table calculation function type
+ * @returns True if the function is a row function
+ */
+export function isRowFunction(type: TableCalculationFunctionType): boolean {
+    return (ROW_FUNCTIONS as readonly TableCalculationFunctionType[]).includes(
+        type,
+    );
+}
+
+/**
+ * Checks if any of the parsed functions are pivot functions.
+ * @param functions - Array of parsed table calculation functions
+ * @returns True if any function is a pivot function
+ */
+export function hasPivotFunctions(
+    functions: TableCalculationFunctionCall[],
+): boolean {
+    return functions.some((f) => isPivotFunction(f.type));
+}
+
+/**
+ * Checks if any of the parsed functions are row functions.
+ * @param functions - Array of parsed table calculation functions
+ * @returns True if any function is a row function
+ */
+export function hasRowFunctions(
+    functions: TableCalculationFunctionCall[],
+): boolean {
+    return functions.some((f) => isRowFunction(f.type));
+}
