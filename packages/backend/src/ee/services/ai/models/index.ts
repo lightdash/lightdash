@@ -1,5 +1,6 @@
 import { assertUnreachable, ParameterError } from '@lightdash/common';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import Logger from '../../../../logging/logger';
 import { getAnthropicModel } from './anthropic-claude';
 import { getAzureGpt41Model } from './azure-openai-gpt-4.1';
 import { getBedrockModel } from './bedrock';
@@ -17,7 +18,7 @@ export { MODEL_PRESETS };
 // Fast models for lightweight tasks (text generation, summaries, etc.)
 // These are cheaper and faster than default models
 const FAST_MODELS: Record<ModelPresetProvider, string> = {
-    openai: 'gpt-4o-mini',
+    openai: 'gpt-5-mini',
     anthropic: 'claude-haiku-4-5',
     bedrock: 'claude-haiku-4-5',
 };
@@ -104,13 +105,26 @@ export const getModelPreset = <T extends 'openai' | 'anthropic' | 'bedrock'>(
     }
 
     const modelNameToFind = modelName ?? providerConfig.modelName;
-    const preset = getAvailableModels(config).find(
+    const availableModels = getAvailableModels(config);
+    let preset = availableModels.find(
         (p) => p.provider === provider && matchesPreset(p, modelNameToFind),
     );
+
+    // Fallback to first available model for provider if requested model not found
+    // This handles deprecated models in env vars or stored in conversations
     if (!preset) {
-        throw new ParameterError(
-            `Model preset not found for model: ${modelNameToFind}`,
+        const fallbackPreset = availableModels.find(
+            (p) => p.provider === provider,
         );
+        if (!fallbackPreset) {
+            throw new ParameterError(
+                `No model presets available for provider: ${provider}`,
+            );
+        }
+        Logger.warn(
+            `Model preset not found for "${modelNameToFind}", falling back to "${fallbackPreset.name}"`,
+        );
+        preset = fallbackPreset;
     }
 
     return {
@@ -137,13 +151,9 @@ export const getModel = (
     // Resolve model name: explicit > fast > default
     const resolveModelName = (
         providerKey: ModelPresetProvider,
-    ): string | undefined => {
-        if (options?.modelName) return options.modelName;
-        if (options?.useFastModel) {
-            return FAST_MODELS[providerKey];
-        }
-        return undefined;
-    };
+    ): string | undefined =>
+        options?.modelName ??
+        (options?.useFastModel ? FAST_MODELS[providerKey] : undefined);
 
     switch (provider) {
         case 'openai': {
