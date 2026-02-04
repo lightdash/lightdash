@@ -1,6 +1,7 @@
-import { Box, Center, Loader, Overlay, rem } from '@mantine/core';
+import { Box, Center, Loader, Overlay, rem } from '@mantine-8/core';
 import { type FC } from 'react';
 import Logo from '../../svgs/grey-icon-logo.svg?react';
+import classes from './PageSpinner.module.css';
 
 const PageSpinner: FC = () => (
     <Center
@@ -15,7 +16,7 @@ const PageSpinner: FC = () => (
             <Loader
                 color="ldGray.6"
                 size={100}
-                sx={{ g: { g: { strokeWidth: rem(2) } } }}
+                className={classes.loader}
             />
             <Overlay component={Center} bg="transparent">
                 <Logo width={rem(32)} height={rem(32)} />
