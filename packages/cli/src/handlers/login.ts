@@ -112,11 +112,13 @@ const loginWithEmailPassword = async (
 
     if (loginResponse.status !== 200) {
         const errorBody = await loginResponse.json().catch(() => ({}));
+        const errorMessage =
+            (errorBody as { error?: { message?: string } }).error?.message ||
+            'Invalid credentials';
         throw new AuthorizationError(
-            `Cannot sign in with email/password: ${
-                (errorBody as { error?: { message?: string } }).error
-                    ?.message || 'Invalid credentials'
-            }`,
+            `Cannot sign in with email/password: ${errorMessage}\n\n` +
+                `🤖 Coding agents: If your password has special characters (like !), read:\n` +
+                `   packages/cli/README.md#claude-code--agentic-tools-passwords-with-special-characters`,
         );
     }
 

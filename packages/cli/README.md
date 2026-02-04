@@ -164,12 +164,14 @@ lightdash login http://localhost:3000 --email demo@lightdash.com
 
 ### Claude Code / Agentic Tools: Passwords with Special Characters
 
-When using Claude Code or similar agentic coding tools, passwords containing special characters like `!` may fail due to a [known shell escaping issue](https://github.com/anthropics/claude-code/issues/2941).
+When using Claude Code or similar agentic coding tools, passwords containing special characters like `!` will fail with "Email and password not recognized" even when the credentials are correct.
 
-**Workaround**: Use environment variables with a heredoc to bypass shell escaping:
+**Why this happens**: Characters like `!` have special meaning in bash (history expansion). Even with single quotes, some shells still interpret them, causing the password to be mangled before it reaches the CLI.
+
+**Solution**: Write the password to a file using a heredoc, which treats content as completely literal:
 
 ```bash
-# Create a file with your password using heredoc (bypasses shell escaping)
+# Write password to file using heredoc (bypasses all shell escaping)
 cat > /tmp/lightdash_pass.txt << 'EOF'
 your_password_with_special_chars!
 EOF
@@ -184,6 +186,8 @@ lightdash login http://localhost:3000 --non-interactive
 # Clean up
 rm /tmp/lightdash_pass.txt
 ```
+
+**Important**: The `<< 'EOF'` syntax (with quotes around EOF) is critical - it prevents any shell interpretation of the content.
 
 The CLI supports these environment variables for authentication:
 
