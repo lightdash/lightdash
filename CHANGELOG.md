@@ -1,3 +1,10 @@
+## [0.2418.3](https://github.com/lightdash/lightdash/compare/0.2418.2...0.2418.3) (2026-02-04)
+
+
+### Bug Fixes
+
+* clarify user access description in agent settings ([#19956](https://github.com/lightdash/lightdash/issues/19956)) ([8e1988c](https://github.com/lightdash/lightdash/commit/8e1988c58f3568908c120748957cae41f0a6ee3e))
+
 ## [0.2418.2](https://github.com/lightdash/lightdash/compare/0.2418.1...0.2418.2) (2026-02-04)
 
 
