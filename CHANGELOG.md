@@ -1,3 +1,10 @@
+# [0.2422.0](https://github.com/lightdash/lightdash/compare/0.2421.0...0.2422.0) (2026-02-04)
+
+
+### Features
+
+* return NULL for table calculations with pivot functions ([#19968](https://github.com/lightdash/lightdash/issues/19968)) ([0a96f6b](https://github.com/lightdash/lightdash/commit/0a96f6bd6137bef46af5e9500d9937118ddea724))
+
 # [0.2421.0](https://github.com/lightdash/lightdash/compare/0.2420.0...0.2421.0) (2026-02-04)
 
 
