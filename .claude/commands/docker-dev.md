@@ -13,8 +13,9 @@ Before taking action, check the current environment state. **Run these checks in
 ### All Checks (run in parallel)
 
 ```bash
-# Check 1: Docker services running
-docker compose -f docker/docker-compose.dev.mini.yml ps --format json 2>/dev/null | grep -q '"State":"running"' && echo "OK: Docker running" || echo "NEED: Start Docker services"
+# Check 1: All Docker services running (db, minio, headless-browser)
+RUNNING_COUNT=$(docker compose -f docker/docker-compose.dev.mini.yml ps --format json 2>/dev/null | grep -c '"State":"running"' || echo 0)
+[ "$RUNNING_COUNT" -ge 3 ] && echo "OK: All Docker services running ($RUNNING_COUNT)" || echo "NEED: Start Docker services (only $RUNNING_COUNT/3 running)"
 
 # Check 2: Environment file exists
 test -f .env.development.local && echo "OK: Env file exists" || echo "NEED: Create .env.development.local"
@@ -255,6 +256,19 @@ docker compose -f docker/docker-compose.dev.mini.yml ps
 ```
 
 All services should show "running" state.
+
+### MinIO Connection Refused / Query Results Error
+
+If queries fail with `ECONNREFUSED` when uploading results, MinIO isn't running:
+```bash
+# Check if MinIO is running
+docker compose -f docker/docker-compose.dev.mini.yml ps | grep minio
+
+# If not running, start all services
+docker compose -f docker/docker-compose.dev.mini.yml --env-file .env.development up -d
+```
+
+MinIO is required for storing async query results. The app will fail to load query results without it.
 
 ### "relation does not exist" Errors
 
