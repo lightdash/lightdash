@@ -1,20 +1,7 @@
 import { friendlyName } from '@lightdash/common';
-import {
-    Box,
-    Group,
-    Paper,
-    ScrollArea,
-    Stack,
-    Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
-import {
-    IconGripVertical,
-    IconInfoCircle,
-    IconSearch,
-} from '@tabler/icons-react';
-import { useMemo, useState, type DragEvent, type FC } from 'react';
+import { Group, Paper, ScrollArea, Stack, Text, Tooltip } from '@mantine/core';
+import { IconGripVertical, IconInfoCircle } from '@tabler/icons-react';
+import { useMemo, type DragEvent, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { type ExpandedNodeData } from './TreeComponents/nodes/ExpandedNode';
 
@@ -91,20 +78,6 @@ const DraggableMetricItem: FC<DraggableMetricItemProps> = ({
 };
 
 const MetricsSidebar: FC<MetricsSidebarProps> = ({ nodes }) => {
-    const [searchQuery, setSearchQuery] = useState('');
-
-    const filteredNodes = useMemo(() => {
-        if (!searchQuery.trim()) {
-            return nodes;
-        }
-        const query = searchQuery.toLowerCase();
-        return nodes.filter(
-            (node) =>
-                node.data.label.toLowerCase().includes(query) ||
-                node.data.tableName?.toLowerCase().includes(query),
-        );
-    }, [nodes, searchQuery]);
-
     const handleDragStart = (
         event: DragEvent<HTMLDivElement>,
         node: ExpandedNodeData,
@@ -132,32 +105,17 @@ const MetricsSidebar: FC<MetricsSidebarProps> = ({ nodes }) => {
             })}
         >
             <Stack spacing="sm" h="100%">
-                <Box>
-                    <Text fz="xs" fw={500} c="ldGray.6" mb="xs">
-                        Drag metrics to the canvas to add them to trees
+                {nodes.length > 0 && (
+                    <Text fz="xs" c="ldGray.5">
+                        {nodes.length} metric
+                        {nodes.length !== 1 ? 's' : ''} available
                     </Text>
-                    <TextInput
-                        placeholder="Search metrics..."
-                        size="xs"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.currentTarget.value)}
-                        icon={
-                            <MantineIcon
-                                icon={IconSearch}
-                                size={14}
-                                color="ldGray.5"
-                            />
-                        }
-                    />
-                </Box>
-                <Text fz="xs" c="ldGray.5">
-                    {filteredNodes.length} metric
-                    {filteredNodes.length !== 1 ? 's' : ''} available
-                </Text>
+                )}
+
                 <ScrollArea sx={{ flex: 1 }} offsetScrollbars>
-                    {filteredNodes.length > 0 ? (
+                    {nodes.length > 0 ? (
                         <Stack spacing="xs">
-                            {filteredNodes.map((node) => (
+                            {nodes.map((node) => (
                                 <DraggableMetricItem
                                     key={node.id}
                                     node={node}
