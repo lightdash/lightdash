@@ -26,6 +26,7 @@ import { calculateComparisonValue } from '../../../../../../hooks/useBigNumberCo
 import { useAppSelector } from '../../../../../sqlRunner/store/hooks';
 import { useRunMetricTotal } from '../../../../hooks/useRunMetricExplorerQuery';
 import { useChangeIndicatorStyles } from '../../../../styles/useChangeIndicatorStyles';
+import { MetricDetailPopover } from '../../../MetricDetailPopover';
 
 const ChangeIndicator: FC<{ change: number; formattedChange: string }> = ({
     change,
@@ -94,6 +95,19 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
         },
     });
 
+    const compiledQueryConfig = useMemo(
+        () =>
+            dateRange
+                ? {
+                      timeFrame: data.timeFrame,
+                      granularity: TimeFrames.DAY, // TODO: this should be dynamic
+                      comparisonType: MetricTotalComparisonType.PREVIOUS_PERIOD,
+                      dateRange,
+                  }
+                : undefined,
+        [data.timeFrame, dateRange],
+    );
+
     const change = useMemo(() => {
         const value = totalQuery.data?.value;
         const compareValue = totalQuery.data?.comparisonValue;
@@ -150,24 +164,20 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                     <Title fz={14} fw={500} c="ldGray.7">
                         {title}
                     </Title>
-                    <Tooltip
-                        label={
-                            <>
-                                <Text size="xs" fw="bold">
-                                    Table:{' '}
-                                    <Text span fw="normal">
-                                        {data.tableName}
-                                    </Text>
-                                </Text>
-                            </>
-                        }
-                    >
-                        <MantineIcon
-                            icon={IconInfoCircle}
-                            size={12}
-                            color="ldGray.7"
-                        />
-                    </Tooltip>
+                    {projectUuid && (
+                        <MetricDetailPopover
+                            projectUuid={projectUuid}
+                            tableName={data.tableName}
+                            metricName={data.metricName}
+                            compiledQueryConfig={compiledQueryConfig}
+                        >
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                size={12}
+                                color="ldGray.7"
+                            />
+                        </MetricDetailPopover>
+                    )}
                 </Group>
 
                 {totalQuery.isFetching ? (

@@ -1,4 +1,5 @@
 import {
+    ApiCompiledQueryResults,
     ApiErrorPayload,
     MetricExplorerQuery,
     MetricTotalComparisonType,
@@ -108,6 +109,50 @@ export class MetricsExplorerController extends BaseController {
         const results = await this.services
             .getMetricsExplorerService()
             .getMetricTotal(
+                req.user!,
+                projectUuid,
+                explore,
+                metric,
+                timeFrame,
+                granularity,
+                startDate,
+                endDate,
+                body?.comparisonType,
+            );
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Compile the metric total query SQL
+     * @summary Compile metric total query
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{explore}/{metric}/compileMetricTotalQuery')
+    @OperationId('compileMetricTotalQuery')
+    async compileMetricTotalQuery(
+        @Path() projectUuid: string,
+        @Path() explore: string,
+        @Path() metric: string,
+        @Request() req: express.Request,
+        @Query() timeFrame: TimeFrames,
+        @Query() granularity: TimeFrames,
+        @Query() startDate: string,
+        @Query() endDate: string,
+        @Body()
+        body?: {
+            comparisonType?: MetricTotalComparisonType;
+        },
+    ): Promise<{ status: 'ok'; results: ApiCompiledQueryResults }> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getMetricsExplorerService()
+            .compileMetricTotalQuery(
                 req.user!,
                 projectUuid,
                 explore,
