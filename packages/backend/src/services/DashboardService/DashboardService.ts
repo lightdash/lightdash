@@ -12,6 +12,7 @@ import {
     DashboardTileTypes,
     DashboardVersionedFields,
     ExploreType,
+    FeatureFlags,
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -56,6 +57,7 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -80,6 +82,7 @@ type DashboardServiceArguments = {
     slackClient: SlackClient;
     projectModel: ProjectModel;
     catalogModel: CatalogModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class DashboardService
@@ -110,6 +113,8 @@ export class DashboardService
 
     slackClient: SlackClient;
 
+    featureFlagModel: FeatureFlagModel;
+
     constructor({
         analytics,
         dashboardModel,
@@ -123,6 +128,7 @@ export class DashboardService
         slackClient,
         projectModel,
         catalogModel,
+        featureFlagModel,
     }: DashboardServiceArguments) {
         super();
         this.analytics = analytics;
@@ -137,6 +143,7 @@ export class DashboardService
         this.catalogModel = catalogModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
+        this.featureFlagModel = featureFlagModel;
     }
 
     static getCreateEventProperties(
@@ -289,10 +296,22 @@ export class DashboardService
                 this.spaceModel.getSpaceSummary(spaceUuid),
             ),
         );
+
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                organizationName: user.organizationName,
+            },
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+
         const spacesAccess = await this.spaceModel.getUserSpacesAccess(
             user.userUuid,
             spaces.map((s) => s.uuid),
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
         );
+
         return dashboards.filter((dashboard) => {
             const dashboardSpace = spaces.find(
                 (space) => space.uuid === dashboard.spaceUuid,

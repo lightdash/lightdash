@@ -6,6 +6,7 @@ import {
     ChartSourceType,
     ContentActionMove,
     ContentType,
+    FeatureFlags,
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -20,6 +21,7 @@ import {
     ContentArgs,
     ContentFilters,
 } from '../../models/ContentModel/ContentModelTypes';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { wrapSentryTransaction } from '../../utils';
@@ -41,6 +43,7 @@ type ContentServiceArguments = {
     dashboardService: DashboardService;
     savedChartService: SavedChartService;
     savedSqlService: SavedSqlService;
+    featureFlagModel: FeatureFlagModel;
 };
 
 export class ContentService extends BaseService {
@@ -60,6 +63,8 @@ export class ContentService extends BaseService {
 
     savedSqlService: SavedSqlService;
 
+    featureFlagModel: FeatureFlagModel;
+
     constructor(args: ContentServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -72,6 +77,7 @@ export class ContentService extends BaseService {
         this.dashboardService = args.dashboardService;
         this.savedChartService = args.savedChartService;
         this.savedSqlService = args.savedSqlService;
+        this.featureFlagModel = args.featureFlagModel;
     }
 
     async find(
@@ -112,10 +118,23 @@ export class ContentService extends BaseService {
             projectUuids: allowedProjectUuids,
             spaceUuids: filters.spaceUuids,
         });
+        const spaceUuids = spaces.map((p) => p.uuid);
+
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                organizationName: user.organizationName,
+            },
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+
         const spacesAccess = await this.spaceModel.getUserSpacesAccess(
             user.userUuid,
-            spaces.map((p) => p.uuid),
+            spaceUuids,
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
         );
+
         const allowedSpaceUuids = spaces
             .filter((space) =>
                 hasViewAccessToSpace(

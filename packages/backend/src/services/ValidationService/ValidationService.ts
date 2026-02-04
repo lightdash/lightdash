@@ -904,9 +904,21 @@ export class ValidationService extends BaseService {
         if (user.role === OrganizationMemberRole.ADMIN) return validations;
 
         const spaces = await this.spaceModel.find({ projectUuid });
+        const spaceUuids = spaces.map((s) => s.uuid);
+
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                organizationName: user.organizationName,
+            },
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+
         const spacesAccess = await this.spaceModel.getUserSpacesAccess(
             user.userUuid,
-            spaces.map((s) => s.uuid),
+            spaceUuids,
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
         );
 
         const allowedSpaceUuids = spaces

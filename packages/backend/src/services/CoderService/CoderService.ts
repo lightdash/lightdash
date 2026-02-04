@@ -14,6 +14,7 @@ import {
     DashboardTileAsCode,
     DashboardTileTarget,
     DashboardTileTypes,
+    FeatureFlags,
     ForbiddenError,
     friendlyName,
     getContentAsCodePathFromLtreePath,
@@ -37,6 +38,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -56,6 +58,7 @@ type CoderServiceArguments = {
     spaceModel: SpaceModel;
     schedulerClient: SchedulerClient;
     promoteService: PromoteService;
+    featureFlagModel: FeatureFlagModel;
 };
 
 const isAnyChartTile = (
@@ -85,6 +88,8 @@ export class CoderService extends BaseService {
 
     promoteService: PromoteService;
 
+    featureFlagModel: FeatureFlagModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -95,6 +100,7 @@ export class CoderService extends BaseService {
         spaceModel,
         schedulerClient,
         promoteService,
+        featureFlagModel,
     }: CoderServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -106,6 +112,7 @@ export class CoderService extends BaseService {
         this.spaceModel = spaceModel;
         this.schedulerClient = schedulerClient;
         this.promoteService = promoteService;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private static transformChart(
@@ -504,9 +511,22 @@ export class CoderService extends BaseService {
             // User is an admin, return all content
             return content;
         }
+
+        const spaceUuids = spaces.map((s) => s.uuid);
+
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                organizationName: user.organizationName,
+            },
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+
         const spacesAccess = await this.spaceModel.getUserSpacesAccess(
             user.userUuid,
-            spaces.map((s) => s.uuid),
+            spaceUuids,
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
         );
 
         return content.filter((c) => {
@@ -1187,10 +1207,21 @@ export class CoderService extends BaseService {
         });
 
         if (existingSpace !== undefined) {
+            const nestedPermissionsFlag = await this.featureFlagModel.get({
+                user: {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                    organizationName: user.organizationName,
+                },
+                featureFlagId: FeatureFlags.NestedSpacesPermissions,
+            });
+
             const spacesAccess = await this.spaceModel.getUserSpacesAccess(
                 user.userUuid,
                 [existingSpace.uuid],
+                { useInheritedAccess: nestedPermissionsFlag.enabled },
             );
+
             if (
                 hasViewAccessToSpace(
                     user,
@@ -1256,8 +1287,19 @@ export class CoderService extends BaseService {
 
             if (newSpace.isPrivate) {
                 if (parentSpaceUuid) {
+                    const nestedPermissionsFlag =
+                        await this.featureFlagModel.get({
+                            user: {
+                                userUuid: user.userUuid,
+                                organizationUuid: user.organizationUuid,
+                                organizationName: user.organizationName,
+                            },
+                            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+                        });
                     const newSpaceWithAccess =
-                        await this.spaceModel.getFullSpace(parentSpaceUuid);
+                        await this.spaceModel.getFullSpace(parentSpaceUuid, {
+                            useInheritedAccess: nestedPermissionsFlag.enabled,
+                        });
 
                     const userAccessPromises = newSpaceWithAccess.access
                         .filter((access) => access.hasDirectAccess)

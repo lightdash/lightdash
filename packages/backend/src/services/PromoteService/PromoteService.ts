@@ -3,6 +3,7 @@ import {
     AlreadyExistsError,
     ChartSummary,
     DashboardDAO,
+    FeatureFlags,
     ForbiddenError,
     getDeepestPaths,
     getErrorMessage,
@@ -25,6 +26,7 @@ import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -68,6 +70,7 @@ type PromoteServiceArguments = {
     spaceModel: SpaceModel;
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 const isChartWithinDashboard = (chart: Pick<SavedChartDAO, 'dashboardUuid'>) =>
@@ -86,6 +89,8 @@ export class PromoteService extends BaseService {
 
     private readonly dashboardModel: DashboardModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     constructor(args: PromoteServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -94,6 +99,7 @@ export class PromoteService extends BaseService {
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.dashboardModel = args.dashboardModel;
+        this.featureFlagModel = args.featureFlagModel;
     }
 
     private async trackAnalytics(
@@ -885,11 +891,25 @@ export class PromoteService extends BaseService {
         const updatedSpaces = spaceChanges.filter(
             (change) => change.action === PromotionAction.UPDATE,
         );
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                organizationName: user.organizationName,
+            },
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
         const updatedSpacePromises = updatedSpaces.map((spaceChange) =>
             // Only update name, promotion should not change permissions
-            this.spaceModel.update(spaceChange.data.uuid, {
-                name: spaceChange.data.name,
-            }),
+            this.spaceModel.update(
+                spaceChange.data.uuid,
+                {
+                    name: spaceChange.data.name,
+                },
+                {
+                    useInheritedAccess: nestedPermissionsFlag.enabled,
+                },
+            ),
         );
         await Promise.all(updatedSpacePromises);
 
@@ -971,7 +991,9 @@ export class PromoteService extends BaseService {
 
                 if (data.isPrivate) {
                     const promotedSpaceWithAccess =
-                        await this.spaceModel.getFullSpace(data.uuid);
+                        await this.spaceModel.getFullSpace(data.uuid, {
+                            useInheritedAccess: nestedPermissionsFlag.enabled,
+                        });
 
                     const userAccessPromises = promotedSpaceWithAccess.access
                         .filter((access) => access.hasDirectAccess)

@@ -2,6 +2,7 @@ import { DashboardTileTypes, PromotionAction } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -45,6 +46,9 @@ const spaceModel = {
 const dashboardModel = {
     create: jest.fn(async () => existingUpstreamDashboard.dashboard),
 };
+const featureFlagModel = {
+    get: jest.fn(async () => ({ enabled: false })),
+};
 describe('PromoteService chart changes', () => {
     const service = new PromoteService({
         lightdashConfig: lightdashConfigMock,
@@ -54,6 +58,7 @@ describe('PromoteService chart changes', () => {
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         spaceModel: spaceModel as unknown as SpaceModel,
         dashboardModel: {} as DashboardModel,
+        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -228,6 +233,7 @@ describe('PromoteService dashboard changes', () => {
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         spaceModel: spaceModel as unknown as SpaceModel,
         dashboardModel: {} as DashboardModel,
+        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -478,6 +484,7 @@ describe('PromoteService promoting and mutating changes', () => {
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         spaceModel: spaceModel as unknown as SpaceModel,
         dashboardModel: dashboardModel as unknown as DashboardModel,
+        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -648,9 +655,13 @@ describe('PromoteService promoting and mutating changes', () => {
         );
 
         expect(spaceModel.update).toHaveBeenCalledTimes(1);
-        expect(spaceModel.update).toHaveBeenCalledWith('upstream-space-uuid', {
-            name: promotedDashboardWithNewPrivateSpace.space.name,
-        });
+        expect(spaceModel.update).toHaveBeenCalledWith(
+            'upstream-space-uuid',
+            {
+                name: promotedDashboardWithNewPrivateSpace.space.name,
+            },
+            { useInheritedAccess: false },
+        );
         expect(spaceModel.addSpaceAccess).toHaveBeenCalledTimes(0);
         expect(spaceModel.addSpaceGroupAccess).toHaveBeenCalledTimes(0);
     });

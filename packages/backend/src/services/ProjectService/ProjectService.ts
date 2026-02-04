@@ -5060,6 +5060,15 @@ export class ProjectService extends BaseService {
                     return [];
                 }
 
+                const nestedPermissionsFlag = await this.featureFlagModel.get({
+                    user: {
+                        userUuid: account.user.id,
+                        organizationUuid: account.organization.organizationUuid,
+                        organizationName: account.organization.name,
+                    },
+                    featureFlagId: FeatureFlags.NestedSpacesPermissions,
+                });
+
                 const [spaceAccessMap, exploresMap, userSpacesAccess] =
                     await Promise.all([
                         this.spaceModel.getSpacesForAccessCheck(
@@ -5077,6 +5086,10 @@ export class ProjectService extends BaseService {
                         this.spaceModel.getUserSpacesAccess(
                             account.user.id,
                             uniqueSpaceUuids,
+                            {
+                                useInheritedAccess:
+                                    nestedPermissionsFlag.enabled,
+                            },
                         ),
                     ]);
 
@@ -5385,10 +5398,16 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+
         const spaces = await this.spaceModel.find({ projectUuid });
         const spacesAccess = await this.spaceModel.getUserSpacesAccess(
             user.userUuid,
             spaces.map((s) => s.uuid),
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
         );
 
         const allowedSpaceUuids = spaces
@@ -5427,10 +5446,16 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+
         const spaces = await this.spaceModel.find({ projectUuid });
         const spacesAccess = await this.spaceModel.getUserSpacesAccess(
             user.userUuid,
             spaces.map((s) => s.uuid),
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
         );
 
         const allowedSpaceUuids = spaces
@@ -5469,10 +5494,16 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+
         const spaces = await this.spaceModel.find({ projectUuid });
         const spacesAccess = await this.spaceModel.getUserSpacesAccess(
             user.userUuid,
             spaces.map((s) => s.uuid),
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
         );
         const allowedSpaces = spaces.filter(
             (space) =>
@@ -5578,10 +5609,16 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const nestedPermissionsFlag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.NestedSpacesPermissions,
+        });
+
         const spaces = await this.spaceModel.find({ projectUuid });
         const spacesAccess = await this.spaceModel.getUserSpacesAccess(
             user.userUuid,
             spaces.map((s) => s.uuid),
+            { useInheritedAccess: nestedPermissionsFlag.enabled },
         );
 
         const spacesWithUserAccess = spaces

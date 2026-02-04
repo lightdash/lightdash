@@ -13,6 +13,7 @@ import { SlackClient } from '../../clients/Slack/SlackClient';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -72,6 +73,10 @@ const savedChartModel = {
     })),
 };
 
+const featureFlagModel = {
+    get: jest.fn(async () => ({ enabled: false })),
+};
+
 jest.spyOn(analyticsMock, 'track');
 describe('DashboardService', () => {
     const projectUuid = 'projectUuid';
@@ -89,6 +94,7 @@ describe('DashboardService', () => {
         slackClient: {} as SlackClient,
         schedulerClient: {} as SchedulerClient,
         catalogModel: {} as CatalogModel,
+        featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
     });
     afterEach(() => {
         jest.clearAllMocks();
