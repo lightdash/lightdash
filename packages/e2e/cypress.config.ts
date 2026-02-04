@@ -6,12 +6,15 @@ import { unlinkSync } from 'fs';
 // to be added to Cypress.env()
 const env = process.env.RUNTIME === 'native' ? process.env : {};
 
+// Allow configuring retries via environment variable
+const runModeRetries = parseInt(process.env.CYPRESS_RETRIES ?? '2', 10);
+
 export default defineConfig({
     viewportWidth: 1920,
     viewportHeight: 1080,
     defaultCommandTimeout: 10000,
     retries: {
-        runMode: 2,
+        runMode: runModeRetries,
         openMode: 0,
     },
     e2e: {
