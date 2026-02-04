@@ -1,0 +1,19 @@
+.badge {
+    &[data-variant='positive'] {
+        border: 1px solid var(--mantine-color-teal-outline);
+        background: var(--mantine-color-teal-light);
+        color: var(--mantine-color-teal-light-color);
+    }
+
+    &[data-variant='negative'] {
+        border: 1px solid var(--mantine-color-red-outline);
+        background: var(--mantine-color-red-light);
+        color: var(--mantine-color-red-light-color);
+    }
+
+    &[data-variant='neutral'] {
+        border: 1px solid var(--mantine-color-ldGray-3);
+        background: var(--mantine-color-ldGray-0);
+        color: var(--mantine-color-ldGray-7);
+    }
+}

@@ -1,5 +1,5 @@
 import { type CatalogMetricsTreeEdgeSource } from '@lightdash/common';
-import { useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine-8/core';
 import {
     BaseEdge,
     getSimpleBezierPath,
