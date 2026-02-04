@@ -1,0 +1,5 @@
+.loader {
+    &::after {
+        border-width: 8px;
+    }
+}

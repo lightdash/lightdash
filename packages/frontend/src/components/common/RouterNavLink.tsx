@@ -1,4 +1,4 @@
-import { NavLink, type NavLinkProps } from '@mantine/core';
+import { NavLink, type NavLinkProps } from '@mantine-8/core';
 import { type FC } from 'react';
 import {
     NavLink as ReactRouterNavLink,

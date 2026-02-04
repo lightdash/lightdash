@@ -143,28 +143,28 @@ export const MobileNavBar: FC = () => {
                     exact
                     label="Home"
                     to={`/`}
-                    icon={<MantineIcon icon={IconHome} />}
+                    leftSection={<MantineIcon icon={IconHome} />}
                     onClick={toggleMenu}
                 />
                 <RouterNavLink
                     exact
                     label="Spaces"
                     to={`/projects/${activeProjectUuid}/spaces`}
-                    icon={<MantineIcon icon={IconFolders} />}
+                    leftSection={<MantineIcon icon={IconFolders} />}
                     onClick={toggleMenu}
                 />
                 <RouterNavLink
                     exact
                     label="Dashboards"
                     to={`/projects/${activeProjectUuid}/dashboards`}
-                    icon={<MantineIcon icon={IconLayoutDashboard} />}
+                    leftSection={<MantineIcon icon={IconLayoutDashboard} />}
                     onClick={toggleMenu}
                 />
                 <RouterNavLink
                     exact
                     label="Charts"
                     to={`/projects/${activeProjectUuid}/saved`}
-                    icon={<MantineIcon icon={IconChartAreaLine} />}
+                    leftSection={<MantineIcon icon={IconChartAreaLine} />}
                     onClick={toggleMenu}
                 />
                 {isAiAgentButtonVisible && (
@@ -172,7 +172,7 @@ export const MobileNavBar: FC = () => {
                         exact
                         label="Ask AI"
                         to={`/projects/${activeProjectUuid}/ai-agents`}
-                        icon={<MantineIcon icon={IconRobot} />}
+                        leftSection={<MantineIcon icon={IconRobot} />}
                         onClick={toggleMenu}
                     />
                 )}
@@ -182,7 +182,7 @@ export const MobileNavBar: FC = () => {
                     exact
                     label="Logout"
                     to={`/`}
-                    icon={<MantineIcon icon={IconLogout} />}
+                    leftSection={<MantineIcon icon={IconLogout} />}
                     onClick={() => logout()}
                 />
             </Drawer>

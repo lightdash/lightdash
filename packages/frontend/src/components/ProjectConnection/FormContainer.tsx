@@ -1,8 +1,8 @@
-import { Stack } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
 
 export const FormContainer = ({ children }: { children: React.ReactNode }) => {
     return (
-        <Stack spacing={20} w="100%">
+        <Stack gap={20} w="100%">
             {children}
         </Stack>
     );
