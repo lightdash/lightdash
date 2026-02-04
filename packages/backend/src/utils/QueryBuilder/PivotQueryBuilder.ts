@@ -15,7 +15,6 @@ import {
     TimeFrames,
     VizSortBy,
     WarehouseSqlBuilder,
-    type CompiledTableCalculation,
     type ItemsMap,
     type PivotConfiguration,
     type TableCalculation,
@@ -48,6 +47,8 @@ export class PivotQueryBuilder {
 
     private readonly itemsMap: ItemsMap;
 
+    private readonly pivotTableCalculations: Record<string, TableCalculation>;
+
     /**
      * Creates a new PivotQueryBuilder instance.
      * @param sql - The base SQL query to transform
@@ -68,6 +69,28 @@ export class PivotQueryBuilder {
         this.limit = limit;
         this.warehouseSqlBuilder = warehouseSqlBuilder;
         this.itemsMap = itemsMap ?? {};
+        this.pivotTableCalculations = this.identifyPivotTableCalculations();
+    }
+
+    /**
+     * Identifies table calculations that contain pivot functions.
+     * @returns Record of table calculations keyed by their ID that use pivot functions
+     */
+    private identifyPivotTableCalculations(): Record<string, TableCalculation> {
+        return Object.values(this.itemsMap).reduce<
+            Record<string, TableCalculation>
+        >((acc, item) => {
+            // Only include if there are pivot functions
+            if (
+                isTableCalculation(item) &&
+                isSqlTableCalculation(item) &&
+                hasPivotFunctions(parseTableCalculationFunctions(item.sql))
+            ) {
+                const tcId = getItemId(item);
+                acc[tcId] = item;
+            }
+            return acc;
+        }, {});
     }
 
     /**
@@ -864,19 +887,11 @@ export class PivotQueryBuilder {
 
     /**
      * Compiles pivot table calculations into SQL.
-     * Only processes table calculations that contain pivot functions.
      * @returns SQL for table calculations CTE or undefined if no pivot calculations
      */
     private getPivotTableCalculationsSQL(): string | undefined {
-        const tableCalculations: TableCalculation[] = Object.values(
-            this.itemsMap,
-        ).reduce<TableCalculation[]>((acc, item) => {
-            if (isTableCalculation(item)) {
-                acc.push(item);
-            }
-            return acc;
-        }, []);
-        if (tableCalculations.length === 0) {
+        const pivotTableCalcs = Object.values(this.pivotTableCalculations);
+        if (pivotTableCalcs.length === 0) {
             return undefined;
         }
 
@@ -887,27 +902,21 @@ export class PivotQueryBuilder {
 
         const pivotCalculations: string[] = [];
 
-        for (const tc of tableCalculations) {
+        for (const tc of pivotTableCalcs) {
             if (isSqlTableCalculation(tc)) {
                 // Parse functions from the table calculation SQL
                 const functions = parseTableCalculationFunctions(tc.sql);
 
-                // Only process if there are pivot functions
-                if (hasPivotFunctions(functions)) {
-                    // Use the compiler to replace all functions
-                    let processedSql = compiler.compileFunctions(
-                        tc.sql,
-                        functions,
-                    );
+                // Use the compiler to replace all functions
+                let processedSql = compiler.compileFunctions(tc.sql, functions);
 
-                    // Replace field references with their aliased names from pivot_query
-                    processedSql =
-                        this.replaceFieldReferencesWithAliases(processedSql);
+                // Replace field references with their aliased names from pivot_query
+                processedSql =
+                    this.replaceFieldReferencesWithAliases(processedSql);
 
-                    pivotCalculations.push(
-                        `${processedSql} AS ${q}${tc.name}${q}`,
-                    );
-                }
+                pivotCalculations.push(
+                    `${processedSql} AS ${q}${tc.name}_any${q}`, // todo: can we handle dynamic aggregation? hardcode prefix for now.
+                );
             }
         }
 
@@ -990,6 +999,11 @@ export class PivotQueryBuilder {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const rowLimit = this.limit ?? DEFAULT_PIVOT_ROW_LIMIT;
 
+        // Exclude Pivot table calculations from valuesColumns - they are handled separately
+        const valuesColumnsWithoutPivotTableCalculations = valuesColumns.filter(
+            (col) => !this.pivotTableCalculations[col.reference],
+        );
+
         // Get all metric anchor CTEs in the correct order
         const {
             columnAnchorCTEs,
@@ -999,14 +1013,14 @@ export class PivotQueryBuilder {
             metricFirstValueQueries,
         } = this.getMetricAnchorCTEs(
             indexColumns,
-            valuesColumns,
+            valuesColumnsWithoutPivotTableCalculations,
             groupByColumns,
             sortBy,
         );
 
         const pivotQuery = this.getPivotQuerySQL(
             indexColumns,
-            valuesColumns,
+            valuesColumnsWithoutPivotTableCalculations,
             groupByColumns,
             sortBy,
             metricFirstValueQueries,
