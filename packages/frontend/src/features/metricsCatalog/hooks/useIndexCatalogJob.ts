@@ -11,14 +11,11 @@ import { getSchedulerJobStatus } from '../../scheduler/hooks/useScheduler';
 const getIndexCatalogCompleteJob = async (
     jobId: string,
 ): Promise<ApiJobStatusResponse['results']> => {
-    const job = await getSchedulerJobStatus<ApiJobStatusResponse['results']>(
-        jobId,
-    );
-
+    const job =
+        await getSchedulerJobStatus<ApiJobStatusResponse['results']>(jobId);
     if (job.status === SchedulerJobStatus.COMPLETED) {
         return job;
     }
-
     if (job.status === SchedulerJobStatus.ERROR) {
         throw <ApiError>{
             status: SchedulerJobStatus.ERROR,
@@ -30,7 +27,6 @@ const getIndexCatalogCompleteJob = async (
             },
         };
     }
-
     return new Promise((resolve) => {
         setTimeout(async () => {
             resolve(await getIndexCatalogCompleteJob(jobId));
@@ -44,7 +40,6 @@ export const useIndexCatalogJob = (
 ) => {
     const { showToastApiError, showToastError } = useToaster();
     const queryClient = useQueryClient();
-
     return useQuery<ApiJobStatusResponse['results'], ApiError>({
         queryKey: ['index-catalog-job', jobId],
         queryFn: () => getIndexCatalogCompleteJob(jobId || ''),
