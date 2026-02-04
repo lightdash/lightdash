@@ -1,3 +1,10 @@
+# [0.2417.0](https://github.com/lightdash/lightdash/compare/0.2416.0...0.2417.0) (2026-02-04)
+
+
+### Features
+
+* mantine 8 migration part 2 ([#19907](https://github.com/lightdash/lightdash/issues/19907)) ([8314ff1](https://github.com/lightdash/lightdash/commit/8314ff1974c68aad12ff3fbcee7f06805db07611))
+
 # [0.2416.0](https://github.com/lightdash/lightdash/compare/0.2415.0...0.2416.0) (2026-02-04)
 
 
