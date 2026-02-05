@@ -320,7 +320,8 @@ export class SpaceModel {
                 ),
             ])
             .orderBy('saved_queries.last_version_updated_at', 'desc')
-            .where('saved_queries.space_id', space.space_id);
+            .where('saved_queries.space_id', space.space_id)
+            .whereNull('saved_queries.deleted_at');
 
         return {
             organizationUuid: space.organization_uuid,
@@ -442,7 +443,8 @@ export class SpaceModel {
                             .from(SavedChartsTableName)
                             .whereRaw(
                                 `${SavedChartsTableName}.space_id = ${SpaceTableName}.space_id`,
-                            ),
+                            )
+                            .whereNull(`${SavedChartsTableName}.deleted_at`),
                         dashboardCount: trx
                             .countDistinct(
                                 `${DashboardsTableName}.dashboard_id`,
@@ -1909,6 +1911,7 @@ export class SpaceModel {
     ): Promise<SpaceQuery[]> {
         let spaceQueriesQuery = this.database(SavedChartsTableName)
             .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
             .leftJoin(
                 SpaceTableName,
                 `${SavedChartsTableName}.space_id`,

@@ -669,6 +669,7 @@ export class ServiceRepository
             () =>
                 new SavedChartService({
                     analytics: this.context.lightdashAnalytics,
+                    lightdashConfig: this.context.lightdashConfig,
                     projectModel: this.models.getProjectModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),

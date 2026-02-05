@@ -215,8 +215,13 @@ export class SearchModel {
             // Join with charts that belong directly to dashboard
             .leftJoin(
                 `${SavedChartsTableName} as direct_charts`,
-                `${DashboardsTableName}.dashboard_uuid`,
-                'direct_charts.dashboard_uuid',
+                function nonDeletedChartJoin() {
+                    this.on(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        '=',
+                        'direct_charts.dashboard_uuid',
+                    ).andOnNull('direct_charts.deleted_at');
+                },
             )
             // Join with charts that are in dashboard through tiles
             .leftJoin('dashboard_tiles', function joinDashboardTiles() {
@@ -242,8 +247,13 @@ export class SearchModel {
             )
             .leftJoin(
                 `${SavedChartsTableName} as tile_charts`,
-                'tile_charts.saved_query_id',
-                'dashboard_tile_charts.saved_chart_id',
+                function nonDeletedChartJoin() {
+                    this.on(
+                        'tile_charts.saved_query_id',
+                        '=',
+                        'dashboard_tile_charts.saved_chart_id',
+                    ).andOnNull('tile_charts.deleted_at');
+                },
             )
             .column(
                 { uuid: `${DashboardsTableName}.dashboard_uuid` },
@@ -253,7 +263,7 @@ export class SearchModel {
                 { spaceUuid: `${SpaceTableName}.space_uuid` },
                 this.database.raw(
                     `GREATEST(
-                        ${dashboardSearchRankRawSql}, 
+                        ${dashboardSearchRankRawSql},
                         COALESCE(MAX(${directChartSearchRankRawSql}), 0),
                         COALESCE(MAX(${tileChartSearchRankRawSql}), 0)
                     ) as search_rank`,
@@ -342,7 +352,8 @@ export class SearchModel {
                 { chartType: 'last_version_chart_kind' },
                 'views_count',
             )
-            .whereIn('dashboard_uuid', dashboardUuids);
+            .whereIn('dashboard_uuid', dashboardUuids)
+            .whereNull('deleted_at');
 
         const tileChartsQuery = this.database('dashboards')
             .join(
@@ -366,11 +377,13 @@ export class SearchModel {
                     'dashboard_tiles.dashboard_tile_uuid',
                 );
             })
-            .join(
-                SavedChartsTableName,
-                `${SavedChartsTableName}.saved_query_id`,
-                'dashboard_tile_charts.saved_chart_id',
-            )
+            .join(SavedChartsTableName, function nonDeletedChartJoin() {
+                this.on(
+                    `${SavedChartsTableName}.saved_query_id`,
+                    '=',
+                    'dashboard_tile_charts.saved_chart_id',
+                ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
             .select(
                 'dashboards.dashboard_uuid',
                 { uuid: `${SavedChartsTableName}.saved_query_uuid` },
@@ -384,8 +397,8 @@ export class SearchModel {
             .whereIn('dashboards.dashboard_uuid', dashboardUuids)
             .whereRaw(
                 `dashboard_versions.dashboard_version_id = (
-                        SELECT MAX(dashboard_version_id) 
-                        FROM dashboard_versions dv2 
+                        SELECT MAX(dashboard_version_id)
+                        FROM dashboard_versions dv2
                         WHERE dv2.dashboard_id = dashboards.dashboard_id
                     )`,
             );
@@ -724,6 +737,7 @@ export class SearchModel {
                 { lastUpdatedByUserUuid: 'updated_by_user.user_uuid' },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
             .whereRaw(searchFilterSql)
             .orderBy('search_rank', 'desc');
 
@@ -882,6 +896,7 @@ export class SearchModel {
                 this.database.raw('? as chart_source', ['saved']),
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
             .whereRaw(savedChartsSearchFilterSql);
 
         const savedSqlSearchRankRawSql = getFullTextSearchRankCalcSql({

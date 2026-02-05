@@ -1522,7 +1522,7 @@ export class PromoteService extends BaseService {
                     );
                 await Promise.all(
                     orphanedCharts.map((chart) =>
-                        this.savedChartModel.delete(chart.uuid),
+                        this.savedChartModel.permanentDelete(chart.uuid),
                     ),
                 );
             }

@@ -241,11 +241,13 @@ export class ValidationModel {
         const chartValidationErrorsRows = await this.database(
             ValidationTableName,
         )
-            .leftJoin(
-                SavedChartsTableName,
-                `${SavedChartsTableName}.saved_query_uuid`,
-                `${ValidationTableName}.saved_chart_uuid`,
-            )
+            .leftJoin(SavedChartsTableName, function nonDeletedChartJoin() {
+                this.on(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    '=',
+                    `${ValidationTableName}.saved_chart_uuid`,
+                ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
             // Join to chart's direct space (for charts saved directly in a space)
             .leftJoin(
                 SpaceTableName,
