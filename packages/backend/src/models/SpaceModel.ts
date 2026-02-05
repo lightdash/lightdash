@@ -5,7 +5,6 @@ import {
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToSpaceRole,
     convertSpaceRoleToProjectRole,
-    DirectSpaceAccessOrigin,
     getHighestProjectRole,
     getHighestSpaceRole,
     getLtreePathFromSlug,
@@ -26,7 +25,6 @@ import {
     SpaceShare,
     SpaceSummary,
     UpdateSpace,
-    type DirectSpaceAccess,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
@@ -714,9 +712,6 @@ export class SpaceModel {
         );
     }
 
-    /**
-     * @deprecated builds full space access for a list of spaces, including project/org permissions, use _getDirectSpaceAccess instead and build the full access from there
-     */
     private async _getSpaceAccess(
         spaceUuids: string[],
         filters?: { userUuid?: string },
