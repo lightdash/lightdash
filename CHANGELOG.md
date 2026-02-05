@@ -1,3 +1,10 @@
+# [0.2424.0](https://github.com/lightdash/lightdash/compare/0.2423.0...0.2424.0) (2026-02-05)
+
+
+### Features
+
+* add better error logging for sql charts ([#19976](https://github.com/lightdash/lightdash/issues/19976)) ([eb0cf39](https://github.com/lightdash/lightdash/commit/eb0cf39200dfb7bdbc63515d34756abc75c3b742))
+
 # [0.2423.0](https://github.com/lightdash/lightdash/compare/0.2422.1...0.2423.0) (2026-02-04)
 
 
