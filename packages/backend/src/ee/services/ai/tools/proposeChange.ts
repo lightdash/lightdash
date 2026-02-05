@@ -198,5 +198,5 @@ export const getProposeChange = ({
                 };
             }
         },
-        toModelOutput: (output) => toModelOutput(output),
+        toModelOutput: ({ output }) => toModelOutput(output),
     });

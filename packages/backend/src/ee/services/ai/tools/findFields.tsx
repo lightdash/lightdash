@@ -181,5 +181,5 @@ export const getFindFields = ({
                 };
             }
         },
-        toModelOutput: (output) => toModelOutput(output),
+        toModelOutput: ({ output }) => toModelOutput(output),
     });

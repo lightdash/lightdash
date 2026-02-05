@@ -6,6 +6,8 @@ import {
     smoothStream,
     stepCountIs,
     streamText,
+    StreamTextResult,
+    type Output,
 } from 'ai';
 import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
@@ -357,7 +359,8 @@ export const streamAgentResponse = async ({
 }: {
     args: AiStreamAgentResponseArgs;
     dependencies: AiAgentDependencies;
-}) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+}): Promise<StreamTextResult<any, Output.Output>> => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
         'Stream Agent Response',

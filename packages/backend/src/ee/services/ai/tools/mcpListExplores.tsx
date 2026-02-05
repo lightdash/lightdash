@@ -61,5 +61,5 @@ export const getMcpListExplores = ({ listExplores }: Dependencies) =>
                 };
             }
         },
-        toModelOutput: (output) => toModelOutput(output),
+        toModelOutput: ({ output }) => toModelOutput(output),
     });
