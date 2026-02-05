@@ -1,3 +1,10 @@
+## [0.2427.1](https://github.com/lightdash/lightdash/compare/0.2427.0...0.2427.1) (2026-02-05)
+
+
+### Bug Fixes
+
+* added string customDimensions to isStringDimension type guard ([#19975](https://github.com/lightdash/lightdash/issues/19975)) ([c9a1062](https://github.com/lightdash/lightdash/commit/c9a1062c2113da4967b19090cd97defb04ecad66))
+
 # [0.2427.0](https://github.com/lightdash/lightdash/compare/0.2426.0...0.2427.0) (2026-02-05)
 
 
