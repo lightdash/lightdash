@@ -16,6 +16,7 @@ import {
 import { IconInfoCircle, IconLayoutGridRemove } from '@tabler/icons-react';
 import {
     Background,
+    MarkerType,
     ReactFlow,
     Panel as ReactFlowPanel,
     addEdge,
@@ -183,6 +184,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 source: edge.source.catalogSearchUuid,
                 target: edge.target.catalogSearchUuid,
                 type: edge.createdFrom,
+                markerEnd: { type: MarkerType.ArrowClosed },
             }));
         }
 
@@ -357,7 +359,15 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     targetCatalogSearchUuid: params.target,
                 });
 
-                setCurrentEdges((edg) => addEdge(params, edg));
+                setCurrentEdges((edg) =>
+                    addEdge(
+                        {
+                            ...params,
+                            markerEnd: { type: MarkerType.ArrowClosed },
+                        },
+                        edg,
+                    ),
+                );
                 track({
                     name: EventName.METRICS_CATALOG_TREES_EDGE_CREATED,
                     properties: {
