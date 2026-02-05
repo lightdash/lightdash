@@ -11,9 +11,11 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 
 | Task | Commands | References |
 |------|----------|------------|
+| Explore data warehouse | `lightdash sql` to execute raw sql, read .csv results | [CLI Reference](./resources/cli-reference.md) |
 | Define metrics & dimensions | Edit dbt YAML or Lightdash YAML | [Metrics](./resources/metrics-reference.md), [Dimensions](./resources/dimensions-reference.md) |
 | Create charts | `lightdash download`, edit YAML, `lightdash upload` | [Chart Types](#chart-types) |
 | Build dashboards | `lightdash download`, edit YAML, `lightdash upload` | [Dashboard Reference](./resources/dashboard-reference.md) |
+| Lint yaml files | `lightdash lint` | [CLI Reference](./resources/cli-reference.md) |
 | Deploy changes | `lightdash deploy` (semantic layer), `lightdash upload` (content) | [CLI Reference](./resources/cli-reference.md) |
 | Test changes | `lightdash preview` | [Workflows](./resources/workflows-reference.md) |
 
