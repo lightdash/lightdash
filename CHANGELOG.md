@@ -1,3 +1,10 @@
+## [0.2430.2](https://github.com/lightdash/lightdash/compare/0.2430.1...0.2430.2) (2026-02-05)
+
+
+### Bug Fixes
+
+* validate preset exists before displaying in metrics explorer date picker ([#20006](https://github.com/lightdash/lightdash/issues/20006)) ([e5c09c2](https://github.com/lightdash/lightdash/commit/e5c09c21d47af4dd068f2951c4d6c6ea482937e2))
+
 ## [0.2430.1](https://github.com/lightdash/lightdash/compare/0.2430.0...0.2430.1) (2026-02-05)
 
 
