@@ -1,3 +1,10 @@
+# [0.2425.0](https://github.com/lightdash/lightdash/compare/0.2424.0...0.2425.0) (2026-02-05)
+
+
+### Features
+
+* implement `space.inherit_parent_permissions` update functionality ([#19985](https://github.com/lightdash/lightdash/issues/19985)) ([d18da7f](https://github.com/lightdash/lightdash/commit/d18da7f3c76a4ed986145537e124b3b905793ba9))
+
 # [0.2424.0](https://github.com/lightdash/lightdash/compare/0.2423.0...0.2424.0) (2026-02-05)
 
 
