@@ -1,3 +1,10 @@
+# [0.2426.0](https://github.com/lightdash/lightdash/compare/0.2425.0...0.2426.0) (2026-02-05)
+
+
+### Features
+
+* add pivot_column table calculation function ([#19974](https://github.com/lightdash/lightdash/issues/19974)) ([4284c3e](https://github.com/lightdash/lightdash/commit/4284c3e238dfb90f0396bb61788e13e798d7f1db))
+
 # [0.2425.0](https://github.com/lightdash/lightdash/compare/0.2424.0...0.2425.0) (2026-02-05)
 
 
