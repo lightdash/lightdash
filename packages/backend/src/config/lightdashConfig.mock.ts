@@ -322,4 +322,7 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         expirationSeconds: 604800,
     },
+    softDelete: {
+        enabled: false,
+    },
 };
