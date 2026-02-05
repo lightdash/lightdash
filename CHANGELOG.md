@@ -1,3 +1,10 @@
+## [0.2430.1](https://github.com/lightdash/lightdash/compare/0.2430.0...0.2430.1) (2026-02-05)
+
+
+### Bug Fixes
+
+* disable image export for maps ([#20003](https://github.com/lightdash/lightdash/issues/20003)) ([8de93b2](https://github.com/lightdash/lightdash/commit/8de93b29b57657ba2fb04a14513042c9dc2c5c93))
+
 # [0.2430.0](https://github.com/lightdash/lightdash/compare/0.2429.0...0.2430.0) (2026-02-05)
 
 
