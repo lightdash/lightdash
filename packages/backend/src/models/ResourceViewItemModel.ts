@@ -58,11 +58,13 @@ const getCharts = async (
             'pinned_list.pinned_list_uuid',
             'pinned_chart.pinned_list_uuid',
         )
-        .innerJoin(
-            'saved_queries',
-            'pinned_chart.saved_chart_uuid',
-            'saved_queries.saved_query_uuid',
-        )
+        .innerJoin('saved_queries', function nonDeletedChartJoin() {
+            this.on(
+                'pinned_chart.saved_chart_uuid',
+                '=',
+                'saved_queries.saved_query_uuid',
+            ).andOnNull('saved_queries.deleted_at');
+        })
         .innerJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
         .leftJoin(
             'users',
@@ -203,11 +205,13 @@ const getAllSpaces = async (
                     `${DashboardsTableName}.space_id`,
                     `${SpaceTableName}.space_id`,
                 )
-                .leftJoin(
-                    SavedChartsTableName,
-                    `${SavedChartsTableName}.space_id`,
-                    `${SpaceTableName}.space_id`,
-                )
+                .leftJoin(SavedChartsTableName, function nonDeletedChartJoin() {
+                    this.on(
+                        `${SavedChartsTableName}.space_id`,
+                        '=',
+                        `${SpaceTableName}.space_id`,
+                    ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+                })
                 .whereIn(
                     `${SpaceTableName}.space_uuid`,
                     function getSpacesByPinnedListUuid() {

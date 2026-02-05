@@ -109,6 +109,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                         SELECT count(DISTINCT ${SavedChartsTableName}.saved_query_id)
                                         FROM ${SavedChartsTableName}
                                         WHERE ${SavedChartsTableName}.space_id = ${SpaceTableName}.space_id
+                                        AND ${SavedChartsTableName}.deleted_at IS NULL
                                     ),
                                     'dashboardCount', (
                                         SELECT count(DISTINCT ${DashboardsTableName}.dashboard_id)

@@ -61,6 +61,7 @@ import {
 } from '../../analytics/LightdashAnalytics';
 import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
+import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -80,6 +81,7 @@ import { UserService } from '../UserService';
 
 type SavedChartServiceArguments = {
     analytics: LightdashAnalytics;
+    lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
@@ -101,6 +103,8 @@ export class SavedChartService
     implements BulkActionable<Knex>
 {
     private readonly analytics: LightdashAnalytics;
+
+    private readonly lightdashConfig: LightdashConfig;
 
     private readonly projectModel: ProjectModel;
 
@@ -133,6 +137,7 @@ export class SavedChartService
     constructor(args: SavedChartServiceArguments) {
         super();
         this.analytics = args.analytics;
+        this.lightdashConfig = args.lightdashConfig;
         this.projectModel = args.projectModel;
         this.savedChartModel = args.savedChartModel;
         this.spaceModel = args.spaceModel;
@@ -751,7 +756,12 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        const deletedChart = await this.savedChartModel.delete(savedChartUuid);
+        const deletedChart = this.lightdashConfig.softDelete.enabled
+            ? await this.savedChartModel.softDelete(
+                  savedChartUuid,
+                  user.userUuid,
+              )
+            : await this.savedChartModel.permanentDelete(savedChartUuid);
 
         try {
             const cachedExplore = await this.projectModel.getExploreFromCache(

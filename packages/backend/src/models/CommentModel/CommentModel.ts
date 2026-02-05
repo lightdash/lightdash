@@ -125,11 +125,13 @@ export class CommentModel {
                 'dashboard_tile_charts.dashboard_tile_uuid',
                 'dashboard_tiles.dashboard_tile_uuid',
             )
-            .leftJoin(
-                'saved_queries',
-                'saved_queries.saved_query_id',
-                'dashboard_tile_charts.saved_chart_id',
-            )
+            .leftJoin('saved_queries', function nonDeletedChartJoin() {
+                this.on(
+                    'saved_queries.saved_query_id',
+                    '=',
+                    'dashboard_tile_charts.saved_chart_id',
+                ).andOnNull('saved_queries.deleted_at');
+            })
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .andWhere(
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,

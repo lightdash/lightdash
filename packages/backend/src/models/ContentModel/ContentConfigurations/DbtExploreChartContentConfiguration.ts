@@ -122,6 +122,7 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                     'dashboard_name', ${DashboardsTableName}.name
                  ) as metadata`),
                 ])
+                .whereNull(`${SavedChartsTableName}.deleted_at`)
                 .where((builder) => {
                     if (filters.projectUuids) {
                         void builder.whereIn(
