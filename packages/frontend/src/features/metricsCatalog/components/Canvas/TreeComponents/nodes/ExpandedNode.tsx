@@ -11,13 +11,13 @@ import {
 import {
     Badge,
     Group,
-    Loader,
     Paper,
+    Skeleton,
     Stack,
     Text,
     Title,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react';
 import React, { useMemo, type FC } from 'react';
@@ -25,8 +25,8 @@ import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { calculateComparisonValue } from '../../../../../../hooks/useBigNumberConfig';
 import { useAppSelector } from '../../../../../sqlRunner/store/hooks';
 import { useRunMetricTotal } from '../../../../hooks/useRunMetricExplorerQuery';
-import { useChangeIndicatorStyles } from '../../../../styles/useChangeIndicatorStyles';
 import { MetricDetailPopover } from '../../../MetricDetailPopover';
+import classes from './ChangeIndicator.module.css';
 
 const getComparisonLabel = (timeFrame: TimeFrames) => {
     switch (timeFrame) {
@@ -43,18 +43,17 @@ const getComparisonLabel = (timeFrame: TimeFrames) => {
     }
 };
 
+const getVariant = (change: number): 'positive' | 'negative' | 'neutral' => {
+    if (change === 0) return 'neutral';
+    return change > 0 ? 'positive' : 'negative';
+};
+
 const ChangeIndicator: FC<{
     change: number;
     formattedChange: string;
     timeFrame: TimeFrames;
 }> = ({ change, formattedChange, timeFrame }) => {
-    const { classes } = useChangeIndicatorStyles();
-    const indicatorClasses = useMemo(() => {
-        if (change === 0) {
-            return classes.neutral;
-        }
-        return change > 0 ? classes.positive : classes.negative;
-    }, [change, classes]);
+    const variant = useMemo(() => getVariant(change), [change]);
 
     return (
         <Tooltip
@@ -69,7 +68,9 @@ const ChangeIndicator: FC<{
                 radius="md"
                 py="two"
                 px="xs"
-                className={indicatorClasses}
+                variant="transparent"
+                className={classes.badge}
+                data-variant={variant}
             >
                 {formattedChange}
             </Badge>
@@ -166,12 +167,11 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
         <Paper
             p="md"
             fz={14}
-            sx={(theme) => ({
-                backgroundColor: theme.colors.background[0],
-                borderRadius: theme.radius.md,
-                border: `1px solid ${
-                    selected ? theme.colors.blue[5] : theme.colors.ldGray[3]
-                }`,
+            withBorder
+            style={(theme) => ({
+                borderColor: selected
+                    ? theme.colors.blue[5]
+                    : theme.colors.ldGray[3],
             })}
         >
             <Handle
@@ -179,8 +179,8 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                 position={Position.Top}
                 hidden={!isConnectable && !data.isEdgeTarget}
             />
-            <Stack key={data.label} spacing="xs">
-                <Group>
+            <Stack key={data.label} gap="xs">
+                <Group justify="space-between">
                     <Title fz={14} fw={500} c="ldGray.7">
                         {title}
                     </Title>
@@ -194,17 +194,15 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                             <MantineIcon
                                 icon={IconInfoCircle}
                                 size={12}
-                                color="ldGray.7"
+                                color="ldGray.5"
                             />
                         </MetricDetailPopover>
                     )}
                 </Group>
 
-                {totalQuery.isFetching ? (
-                    <Loader size="xs" color="ldGray.5" />
-                ) : (
-                    <Stack spacing="two">
-                        <Group position="apart">
+                <Stack gap="xxs">
+                    <Skeleton visible={totalQuery.isFetching}>
+                        <Group justify="space-between">
                             <Text fz={24} fw={500} c="ldGray.8">
                                 {formattedValue}
                             </Text>
@@ -216,8 +214,8 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
                                 />
                             )}
                         </Group>
-                    </Stack>
-                )}
+                    </Skeleton>
+                </Stack>
             </Stack>
             <Handle
                 type="source"
