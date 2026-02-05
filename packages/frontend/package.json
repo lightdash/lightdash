@@ -119,7 +119,6 @@
         "react-use": "^17.6.0",
         "react-use-intercom": "^4.1.0",
         "react-vega": "^8.0.0",
-        "recharts": "^2.15.0",
         "rehype-external-links": "^3.0.0",
         "reselect": "5.1.1",
         "rudder-sdk-js": "^2.8.0",

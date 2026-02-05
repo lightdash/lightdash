@@ -51,7 +51,7 @@ import { MetricExploreDatePicker } from '../visualization/MetricExploreDatePicke
 import { MetricExploreFilter } from '../visualization/MetricExploreFilter';
 import { MetricExploreSegmentationPicker } from '../visualization/MetricExploreSegmentationPicker';
 import { ExploreFromHereButton } from './ExploreFromHereButton';
-import styles from './MetricExploreModalV2.module.css';
+import styles from './MetricExploreModal.module.css';
 import { SaveChartButton } from './SaveChartButton';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
@@ -59,14 +59,9 @@ type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
 };
 
 /**
- * V2: MetricExploreModal implementation using echarts via VisualizationProvider
- * This is enabled when the MetricsCatalogEchartsVisualization feature flag is ON
+ * MetricExploreModal implementation using echarts via VisualizationProvider
  */
-export const MetricExploreModalV2: FC<Props> = ({
-    opened,
-    onClose,
-    metrics,
-}) => {
+export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
     const { track } = useTracking();
     const { data: organization } = useOrganization();
 
@@ -311,14 +306,7 @@ export const MetricExploreModalV2: FC<Props> = ({
                 },
             });
         },
-        [
-            track,
-            userUuid,
-            organizationUuid,
-            projectUuid,
-            metricName,
-            tableName,
-        ],
+        [track, userUuid, organizationUuid, projectUuid, metricName, tableName],
     );
 
     // Track time dimension override changes
