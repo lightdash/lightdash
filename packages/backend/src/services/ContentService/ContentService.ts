@@ -6,6 +6,9 @@ import {
     ChartSourceType,
     ContentActionMove,
     ContentType,
+    DeletedContentFilters,
+    DeletedContentItem,
+    DeletedContentSummary,
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -293,6 +296,153 @@ export class ContentService extends BaseService {
                     user,
                     moveToSpaceArgs,
                     moveToSpaceOptions,
+                );
+            default:
+                return assertUnreachable(item, 'Unknown content type');
+        }
+    }
+
+    /**
+     * Find deleted content in a project
+     */
+    async findDeleted(
+        user: SessionUser,
+        filters: DeletedContentFilters,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<KnexPaginatedData<DeletedContentSummary[]>> {
+        const { organizationUuid } = user;
+        if (organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
+
+        // For now, only support one project at a time
+        const [projectUuid] = filters.projectUuids;
+        if (!projectUuid) {
+            throw new NotFoundError('Project UUID is required');
+        }
+
+        // Only return charts for now (can be extended later)
+        const contentTypes = filters.contentTypes ?? [ContentType.CHART];
+
+        // Aggregate results from all content type services
+        // For now, only charts are supported
+        if (contentTypes.includes(ContentType.CHART)) {
+            return this.savedChartService.getDeletedCharts(
+                user,
+                projectUuid,
+                filters,
+                paginateArgs,
+            );
+        }
+
+        // Return empty results if no supported content types
+        return { data: [] };
+    }
+
+    /**
+     * Restore deleted content
+     */
+    async restoreContent(
+        user: SessionUser,
+        projectUuid: string,
+        item: DeletedContentItem,
+    ): Promise<void> {
+        if (user.organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        switch (item.contentType) {
+            case ContentType.CHART:
+                switch (item.source) {
+                    case ChartSourceType.DBT_EXPLORE:
+                        return this.savedChartService.restoreChart(
+                            user,
+                            item.uuid,
+                        );
+                    case ChartSourceType.SQL:
+                        // TODO: Implement SQL chart restore
+                        throw new NotFoundError(
+                            'SQL chart restore not yet supported',
+                        );
+                    default:
+                        return assertUnreachable(
+                            item.source,
+                            `Unknown chart source: ${item.source}`,
+                        );
+                }
+            case ContentType.DASHBOARD:
+                // TODO: Implement dashboard restore
+                throw new NotFoundError('Dashboard restore not yet supported');
+            case ContentType.SPACE:
+                // TODO: Implement space restore
+                throw new NotFoundError('Space restore not yet supported');
+            default:
+                return assertUnreachable(item, 'Unknown content type');
+        }
+    }
+
+    /**
+     * Permanently delete content
+     */
+    async permanentlyDeleteContent(
+        user: SessionUser,
+        projectUuid: string,
+        item: DeletedContentItem,
+    ): Promise<void> {
+        if (user.organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        switch (item.contentType) {
+            case ContentType.CHART:
+                switch (item.source) {
+                    case ChartSourceType.DBT_EXPLORE:
+                        return this.savedChartService.permanentlyDeleteChart(
+                            user,
+                            item.uuid,
+                        );
+                    case ChartSourceType.SQL:
+                        // TODO: Implement SQL chart permanent delete
+                        throw new NotFoundError(
+                            'SQL chart permanent delete not yet supported',
+                        );
+                    default:
+                        return assertUnreachable(
+                            item.source,
+                            `Unknown chart source: ${item.source}`,
+                        );
+                }
+            case ContentType.DASHBOARD:
+                // TODO: Implement dashboard permanent delete
+                throw new NotFoundError(
+                    'Dashboard permanent delete not yet supported',
+                );
+            case ContentType.SPACE:
+                // TODO: Implement space permanent delete
+                throw new NotFoundError(
+                    'Space permanent delete not yet supported',
                 );
             default:
                 return assertUnreachable(item, 'Unknown content type');

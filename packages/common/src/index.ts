@@ -153,6 +153,7 @@ export * from './types/search';
 export * from './types/share';
 export * from './types/slack';
 export * from './types/slackSettings';
+export * from './types/softDelete';
 export * from './types/space';
 export * from './types/spotlightTableConfig';
 export * from './types/sqlRunner';

@@ -448,6 +448,10 @@ export type HealthState = {
     funnelBuilder: {
         enabled: boolean;
     };
+    softDelete: {
+        enabled: boolean;
+        retentionDays: number;
+    };
 };
 
 export enum DBFieldTypes {

@@ -16,6 +16,7 @@ import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import SettingsEmbed from '../ee/features/embed/SettingsEmbed';
 import { ProjectChangesets } from '../features/changesets/components/ProjectChangesets';
+import RecentlyDeletedPage from '../features/recentlyDeleted/components/RecentlyDeletedPage';
 import { useProject } from '../hooks/useProject';
 
 const ProjectSettings: FC = () => {
@@ -63,6 +64,10 @@ const ProjectSettings: FC = () => {
             {
                 path: `/dataOps`,
                 element: <DataOps projectUuid={projectUuid} />,
+            },
+            {
+                path: `/recentlyDeleted`,
+                element: <RecentlyDeletedPage projectUuid={projectUuid} />,
             },
             {
                 path: `/parameters`,
