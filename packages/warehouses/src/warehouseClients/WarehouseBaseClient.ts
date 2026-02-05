@@ -50,6 +50,14 @@ export default abstract class WarehouseBaseClient<
         return this.sqlBuilder.getFloatingType();
     }
 
+    buildArrayAgg(expression: string, orderBy?: string): string {
+        return this.sqlBuilder.buildArrayAgg(expression, orderBy);
+    }
+
+    buildArray(elements: string[]): string {
+        return this.sqlBuilder.buildArray(elements);
+    }
+
     abstract getCatalog(
         config: { database: string; schema: string; table: string }[],
     ): Promise<WarehouseCatalog>;
