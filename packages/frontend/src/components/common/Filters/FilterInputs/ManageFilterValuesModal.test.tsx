@@ -102,4 +102,25 @@ describe('ManageFilterValuesModal', () => {
         ]);
         expect(parseDelimitedValues('alpha\tbeta')).toEqual(['alpha', 'beta']);
     });
+
+    it('strips surrounding double quotes from CSV values', () => {
+        expect(parseDelimitedValues('"ID_123","ID_456"')).toEqual([
+            'ID_123',
+            'ID_456',
+        ]);
+        expect(
+            parseDelimitedValues('value\n"ID_123"\n"ID_456"\n"ID_789"'),
+        ).toEqual(['ID_123', 'ID_456', 'ID_789']);
+        expect(parseDelimitedValues('"alpha"\nbeta\n"gamma"')).toEqual([
+            'alpha',
+            'beta',
+            'gamma',
+        ]);
+    });
+
+    it('unescapes doubled quotes inside quoted CSV values', () => {
+        expect(parseDelimitedValues('"value ""with"" quotes"')).toEqual([
+            'value "with" quotes',
+        ]);
+    });
 });
