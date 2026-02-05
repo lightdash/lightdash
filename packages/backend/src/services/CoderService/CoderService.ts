@@ -145,6 +145,7 @@ export class CoderService extends BaseService {
             spaceSlug,
             version: currentVersion,
             downloadedAt: new Date(),
+            parameters: chart.parameters,
         };
     }
 
