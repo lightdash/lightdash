@@ -6,7 +6,7 @@ export const getOpenAIEmbeddingModel = (
     config: NonNullable<
         LightdashConfig['ai']['copilot']['providers']['openai']
     >,
-): EmbeddingModel<string> => {
+): EmbeddingModel => {
     const openai = createOpenAI({
         apiKey: config.apiKey,
         ...(config.baseUrl ? { baseURL: config.baseUrl } : {}),

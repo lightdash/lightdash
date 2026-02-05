@@ -135,5 +135,5 @@ export const getGenerateDashboardV2 = ({
                 };
             }
         },
-        toModelOutput: (output) => toModelOutput(output),
+        toModelOutput: ({ output }) => toModelOutput(output),
     });

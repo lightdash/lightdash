@@ -300,5 +300,5 @@ export const getRunQuery = ({
                 };
             }
         },
-        toModelOutput: (output) => toModelOutput(output),
+        toModelOutput: ({ output }) => toModelOutput(output),
     });

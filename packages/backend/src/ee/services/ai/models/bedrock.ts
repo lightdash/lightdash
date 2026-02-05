@@ -81,7 +81,7 @@ export const getBedrockEmbeddingModel = (
     config: NonNullable<
         LightdashConfig['ai']['copilot']['providers']['bedrock']
     >,
-): EmbeddingModel<string> => {
+): EmbeddingModel => {
     const bedrock = getBedrockProvider(config);
     return bedrock.embedding(config.embeddingModelName);
 };
