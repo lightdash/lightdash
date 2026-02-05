@@ -570,9 +570,8 @@ describe('tableCalculationFunctions', () => {
                     const sql = 'pivot_row(revenue)';
                     const functions = parseTableCalculationFunctions(sql);
                     const compiled = compiler.compileFunctions(sql, functions);
-                    // Returns PostgreSQL ARRAY_AGG to collect all values from current row
                     const expectedSql =
-                        'ARRAY_AGG(revenue ORDER BY "column_index") OVER (PARTITION BY "row_index")';
+                        'ARRAY_AGG(revenue) OVER (PARTITION BY "row_index" ORDER BY "column_index")';
                     expect(compiled).toBe(expectedSql);
                 });
 
@@ -582,7 +581,7 @@ describe('tableCalculationFunctions', () => {
                     const compiled = compiler.compileFunctions(sql, functions);
 
                     const expectedSql =
-                        'ARRAY_AGG(revenue * 100 ORDER BY "column_index") OVER (PARTITION BY "row_index")';
+                        'ARRAY_AGG(revenue * 100) OVER (PARTITION BY "row_index" ORDER BY "column_index")';
                     expect(compiled).toBe(expectedSql);
                 });
 
@@ -592,7 +591,7 @@ describe('tableCalculationFunctions', () => {
                     const compiled = compiler.compileFunctions(sql, functions);
 
                     const expectedSql =
-                        'ARRAY_LENGTH(ARRAY_AGG(status ORDER BY "column_index") OVER (PARTITION BY "row_index"), 1)';
+                        'ARRAY_LENGTH(ARRAY_AGG(status) OVER (PARTITION BY "row_index" ORDER BY "column_index"), 1)';
                     expect(compiled).toBe(expectedSql);
                 });
             });

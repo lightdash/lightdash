@@ -608,12 +608,9 @@ export class TableCalculationFunctionCompiler {
     private compilePivotRow(expression: string): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
-        // Use warehouse-specific array aggregation with window function
-        // Order by column_index to maintain consistent ordering
-        const baseAgg = this.warehouseSqlBuilder.buildArrayAgg(
-            expression,
-            `${q}column_index${q}`,
-        );
-        return `${baseAgg} OVER (PARTITION BY ${q}row_index${q})`;
+        // Array aggregation with window functions doesn't support ORDER BY inside the aggregate
+        // We need to use the base array aggregation without ordering and put ORDER BY in the window clause
+        const baseAgg = this.warehouseSqlBuilder.buildArrayAgg(expression);
+        return `${baseAgg} OVER (PARTITION BY ${q}row_index${q} ORDER BY ${q}column_index${q})`;
     }
 }
