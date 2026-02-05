@@ -110,7 +110,10 @@ describe('Dashboard', () => {
 
         cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
 
-        cy.contains('1,961.5').click();
+        cy.get('[data-testid="big-number-value"]')
+            .first()
+            .scrollIntoView()
+            .click();
         cy.contains('View underlying data').click();
 
         cy.get('section[role="dialog"]').within(() => {
