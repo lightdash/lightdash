@@ -1,3 +1,15 @@
+# [0.2429.0](https://github.com/lightdash/lightdash/compare/0.2428.1...0.2429.0) (2026-02-05)
+
+
+### Bug Fixes
+
+* strip surrounding double quotes when importing CSV filter values ([#19997](https://github.com/lightdash/lightdash/issues/19997)) ([ba64a7d](https://github.com/lightdash/lightdash/commit/ba64a7d36e3b18bfe8f4612c07778135db0a6a79))
+
+
+### Features
+
+* migrate from ai sdk v5 to v6 ([#19989](https://github.com/lightdash/lightdash/issues/19989)) ([963202b](https://github.com/lightdash/lightdash/commit/963202b632fee0115f0dc020a8802a07c7f31320))
+
 ## [0.2428.1](https://github.com/lightdash/lightdash/compare/0.2428.0...0.2428.1) (2026-02-05)
 
 
