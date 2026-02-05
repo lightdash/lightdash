@@ -1,4 +1,8 @@
-import { ContentType, type DeletedContentSummary } from '@lightdash/common';
+import {
+    assertUnreachable,
+    ContentType,
+    type DeletedContentSummary,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -16,6 +20,7 @@ import {
     IconCalendar,
     IconChartBar,
     IconClock,
+    IconLayoutDashboard,
     IconRefresh,
     IconSearch,
     IconTag,
@@ -82,7 +87,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
     const retentionDays = health.data?.softDelete?.retentionDays ?? 30;
 
     const [selectedContentType, setSelectedContentType] = useState<
-        'all' | ContentType.CHART
+        'all' | ContentType.CHART | ContentType.DASHBOARD
     >('all');
 
     const {
@@ -184,18 +189,33 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                         {column.columnDef.header}
                     </Group>
                 ),
-                Cell: ({ row }) => (
-                    <Group gap="xs" wrap="nowrap">
-                        <MantineIcon
-                            icon={IconChartBar}
-                            size="md"
-                            color="ldGray.6"
-                        />
-                        <Text fw={600} fz="xs" lineClamp={1}>
-                            {row.original.name}
-                        </Text>
-                    </Group>
-                ),
+                Cell: ({ row }) => {
+                    const icon = (() => {
+                        switch (row.original.contentType) {
+                            case ContentType.CHART:
+                                return IconChartBar;
+                            case ContentType.DASHBOARD:
+                                return IconLayoutDashboard;
+                            default:
+                                return assertUnreachable(
+                                    row.original,
+                                    `Unknown content type`,
+                                );
+                        }
+                    })();
+                    return (
+                        <Group gap="xs" wrap="nowrap">
+                            <MantineIcon
+                                icon={icon}
+                                size="md"
+                                color="ldGray.6"
+                            />
+                            <Text fw={600} fz="xs" lineClamp={1}>
+                                {row.original.name}
+                            </Text>
+                        </Group>
+                    );
+                },
             },
             {
                 accessorKey: 'contentType',
@@ -207,13 +227,26 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                         {column.columnDef.header}
                     </Group>
                 ),
-                Cell: ({ row }) => (
-                    <Badge variant="light" size="sm" radius="sm" fw={400}>
-                        {row.original.contentType === ContentType.CHART
-                            ? 'Chart'
-                            : row.original.contentType}
-                    </Badge>
-                ),
+                Cell: ({ row }) => {
+                    const label = (() => {
+                        switch (row.original.contentType) {
+                            case ContentType.CHART:
+                                return 'Chart';
+                            case ContentType.DASHBOARD:
+                                return 'Dashboard';
+                            default:
+                                return assertUnreachable(
+                                    row.original,
+                                    `Unknown content type`,
+                                );
+                        }
+                    })();
+                    return (
+                        <Badge variant="light" size="sm" radius="sm" fw={400}>
+                            {label}
+                        </Badge>
+                    );
+                },
             },
             ...(isAdmin
                 ? [
@@ -306,20 +339,52 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                     >
                         <DeletedContentActionMenu
                             item={row.original}
-                            onRestore={() =>
-                                restoreContent({
-                                    uuid: row.original.uuid,
-                                    contentType: row.original.contentType,
-                                    source: row.original.source,
-                                })
-                            }
-                            onPermanentlyDelete={() =>
-                                permanentlyDelete({
-                                    uuid: row.original.uuid,
-                                    contentType: row.original.contentType,
-                                    source: row.original.source,
-                                })
-                            }
+                            onRestore={() => {
+                                const item = row.original;
+                                switch (item.contentType) {
+                                    case ContentType.CHART:
+                                        restoreContent({
+                                            uuid: item.uuid,
+                                            contentType: item.contentType,
+                                            source: item.source,
+                                        });
+                                        break;
+                                    case ContentType.DASHBOARD:
+                                        restoreContent({
+                                            uuid: item.uuid,
+                                            contentType: item.contentType,
+                                        });
+                                        break;
+                                    default:
+                                        assertUnreachable(
+                                            item,
+                                            `Unknown content type`,
+                                        );
+                                }
+                            }}
+                            onPermanentlyDelete={() => {
+                                const item = row.original;
+                                switch (item.contentType) {
+                                    case ContentType.CHART:
+                                        permanentlyDelete({
+                                            uuid: item.uuid,
+                                            contentType: item.contentType,
+                                            source: item.source,
+                                        });
+                                        break;
+                                    case ContentType.DASHBOARD:
+                                        permanentlyDelete({
+                                            uuid: item.uuid,
+                                            contentType: item.contentType,
+                                        });
+                                        break;
+                                    default:
+                                        assertUnreachable(
+                                            item,
+                                            `Unknown content type`,
+                                        );
+                                }
+                            }}
                             isLoading={isRestoring || isDeleting}
                         />
                     </Box>

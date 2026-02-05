@@ -29,6 +29,8 @@ export type DbDashboard = {
     slug: string;
     views_count: number;
     first_viewed_at: Date | null;
+    deleted_at: Date | null;
+    deleted_by_user_uuid: string | null;
 };
 
 type DbDashboardVersion = {
@@ -82,6 +84,8 @@ export type DashboardTable = Knex.CompositeTableType<
             | 'first_viewed_at'
             | 'space_id'
             | 'slug'
+            | 'deleted_at'
+            | 'deleted_by_user_uuid'
         >
     >
 >;

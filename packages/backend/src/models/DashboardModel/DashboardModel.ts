@@ -36,6 +36,7 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
+
 import {
     DashboardTable,
     DashboardTabsTableName,
@@ -442,7 +443,8 @@ export class DashboardModel {
                         },
                     ])
                     .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
-                    .where(`${ProjectTableName}.project_uuid`, projectUuid);
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .whereNull(`${DashboardsTableName}.deleted_at`);
             })
             .select(`${cteTableName}.*`);
 
@@ -577,6 +579,7 @@ export class DashboardModel {
                             `${DashboardVersionsTableName}.dashboard_id`,
                         )
                         .where('projects.project_uuid', projectUuid)
+                        .whereNull(`${DashboardsTableName}.deleted_at`)
                         .groupBy(
                             'dashboards.dashboard_uuid',
                             'dashboards.name',
@@ -616,7 +619,8 @@ export class DashboardModel {
         // Uuids are globally unique, so no need to filter by project
         const dashboards = await this.database(DashboardsTableName)
             .select('slug', 'dashboard_uuid')
-            .whereIn('dashboard_uuid', uuids);
+            .whereIn('dashboard_uuid', uuids)
+            .whereNull('deleted_at');
         return Object.fromEntries(
             dashboards.map((dashboard) => [
                 dashboard.dashboard_uuid,
@@ -639,13 +643,15 @@ export class DashboardModel {
             'uuid' | 'name' | 'spaceUuid' | 'description' | 'slug'
         >[]
     > {
-        const query = this.database(DashboardsTableName).select(
-            `${DashboardsTableName}.name`,
-            `${DashboardsTableName}.dashboard_uuid`,
-            `${SpaceTableName}.space_uuid`,
-            `${DashboardsTableName}.description`,
-            `${DashboardsTableName}.slug`,
-        );
+        const query = this.database(DashboardsTableName)
+            .select(
+                `${DashboardsTableName}.name`,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SpaceTableName}.space_uuid`,
+                `${DashboardsTableName}.description`,
+                `${DashboardsTableName}.slug`,
+            )
+            .whereNull(`${DashboardsTableName}.deleted_at`);
 
         if (projectUuid) {
             void query
@@ -691,7 +697,10 @@ export class DashboardModel {
         );
     }
 
-    async getByIdOrSlug(dashboardUuidOrSlug: string): Promise<DashboardDAO> {
+    async getByIdOrSlug(
+        dashboardUuidOrSlug: string,
+        options?: { deleted?: boolean },
+    ): Promise<DashboardDAO> {
         const query = this.database(DashboardsTableName)
             .leftJoin(
                 DashboardVersionsTableName,
@@ -728,10 +737,20 @@ export class DashboardModel {
                 `${PinnedListTableName}.pinned_list_uuid`,
                 `${PinnedDashboardTableName}.pinned_list_uuid`,
             )
+            // Join for deleted_by user info
+            .leftJoin(
+                `${UserTableName} as deleted_by_user`,
+                `${DashboardsTableName}.deleted_by_user_uuid`,
+                'deleted_by_user.user_uuid',
+            )
             .select<
                 (GetDashboardQuery & {
                     space_uuid: string;
                     space_name: string;
+                    deleted_at: Date | null;
+                    deleted_by_user_uuid: string | null;
+                    deleted_by_user_first_name: string | null;
+                    deleted_by_user_last_name: string | null;
                 })[]
             >([
                 `${ProjectTableName}.project_uuid`,
@@ -754,9 +773,20 @@ export class DashboardModel {
                 `${PinnedDashboardTableName}.order`,
                 `${DashboardsTableName}.views_count`,
                 `${DashboardsTableName}.first_viewed_at`,
+                `${DashboardsTableName}.deleted_at`,
+                `${DashboardsTableName}.deleted_by_user_uuid`,
+                'deleted_by_user.first_name as deleted_by_user_first_name',
+                'deleted_by_user.last_name as deleted_by_user_last_name',
             ])
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
             .limit(1);
+
+        // Filter by deleted status
+        if (options?.deleted) {
+            void query.whereNotNull(`${DashboardsTableName}.deleted_at`);
+        } else {
+            void query.whereNull(`${DashboardsTableName}.deleted_at`);
+        }
 
         if (isValidUuid(dashboardUuidOrSlug)) {
             void query.where((builder) => {
@@ -1091,6 +1121,20 @@ export class DashboardModel {
             },
             slug: dashboard.slug,
             config: dashboard?.config,
+            ...(dashboard.deleted_at
+                ? {
+                      deletedAt: dashboard.deleted_at,
+                      deletedBy: dashboard.deleted_by_user_uuid
+                          ? {
+                                userUuid: dashboard.deleted_by_user_uuid,
+                                firstName:
+                                    dashboard.deleted_by_user_first_name ?? '',
+                                lastName:
+                                    dashboard.deleted_by_user_last_name ?? '',
+                            }
+                          : null,
+                  }
+                : {}),
         };
     }
 
@@ -1155,11 +1199,13 @@ export class DashboardModel {
                   )?.spaceId,
               }
             : {};
-        const query = this.database(DashboardsTableName).update({
-            name: dashboard.name,
-            description: dashboard.description,
-            ...withSpaceId,
-        });
+        const query = this.database(DashboardsTableName)
+            .update({
+                name: dashboard.name,
+                description: dashboard.description,
+                ...withSpaceId,
+            })
+            .whereNull('deleted_at');
 
         if (isValidUuid(dashboardUuidOrSlug)) {
             void query.where((builder) => {
@@ -1199,7 +1245,8 @@ export class DashboardModel {
                             description: dashboard.description,
                             ...withSpaceId,
                         })
-                        .where('dashboard_uuid', dashboard.uuid);
+                        .where('dashboard_uuid', dashboard.uuid)
+                        .whereNull('deleted_at');
                 }),
             );
         });
@@ -1211,12 +1258,73 @@ export class DashboardModel {
         );
     }
 
-    async delete(dashboardUuid: string): Promise<DashboardDAO> {
+    async permanentDelete(dashboardUuid: string): Promise<DashboardDAO> {
         const dashboard = await this.getByIdOrSlug(dashboardUuid);
         await this.database(DashboardsTableName)
             .where('dashboard_uuid', dashboardUuid)
             .delete();
         return dashboard;
+    }
+
+    async softDelete(
+        dashboardUuid: string,
+        userUuid: string,
+    ): Promise<DashboardDAO> {
+        const dashboard = await this.getByIdOrSlug(dashboardUuid);
+        const now = new Date();
+        await this.database(DashboardsTableName)
+            .update({
+                deleted_at: now,
+                deleted_by_user_uuid: userUuid,
+            })
+            .where('dashboard_uuid', dashboardUuid);
+
+        // Cascade: soft-delete dashboard-scoped charts (space_id IS NULL)
+        await this.database(SavedChartsTableName)
+            .update({
+                deleted_at: now,
+                deleted_by_user_uuid: userUuid,
+            })
+            .where('dashboard_uuid', dashboardUuid)
+            .whereNull('space_id')
+            .whereNull('deleted_at');
+
+        return dashboard;
+    }
+
+    async restore(dashboardUuid: string): Promise<void> {
+        // Get the dashboard to find who deleted it (for cascade restore)
+        const [dashboardRow] = await this.database(DashboardsTableName)
+            .select('deleted_by_user_uuid')
+            .where('dashboard_uuid', dashboardUuid)
+            .whereNotNull('deleted_at');
+
+        if (!dashboardRow) {
+            throw new NotFoundError('Deleted dashboard not found');
+        }
+
+        // Restore the dashboard
+        await this.database(DashboardsTableName)
+            .update({
+                deleted_at: null,
+                deleted_by_user_uuid: null,
+            })
+            .where('dashboard_uuid', dashboardUuid);
+
+        // Cascade: restore dashboard-scoped charts that were cascade-deleted by the same user
+        if (dashboardRow.deleted_by_user_uuid) {
+            await this.database(SavedChartsTableName)
+                .update({
+                    deleted_at: null,
+                    deleted_by_user_uuid: null,
+                })
+                .where('dashboard_uuid', dashboardUuid)
+                .whereNull('space_id')
+                .where(
+                    'deleted_by_user_uuid',
+                    dashboardRow.deleted_by_user_uuid,
+                );
+        }
     }
 
     async addVersion(
@@ -1228,6 +1336,7 @@ export class DashboardModel {
         const [dashboard] = await this.database(DashboardsTableName)
             .select(['dashboard_id'])
             .where('dashboard_uuid', dashboardUuid)
+            .whereNull('deleted_at')
             .limit(1);
         if (!dashboard) {
             throw new NotFoundError('Dashboard not found');
@@ -1262,7 +1371,8 @@ export class DashboardModel {
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardVersionsTableName}.dashboard_id`,
             )
-            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid);
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`);
 
         const orphanedCharts = await this.database(SavedChartsTableName)
             .select(`saved_query_uuid`)
@@ -1315,6 +1425,7 @@ export class DashboardModel {
                         dashboardUuid,
                     )
                     .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .whereNull(`${DashboardsTableName}.deleted_at`)
                     .groupBy(`${DashboardsTableName}.dashboard_uuid`);
             })
             .select<
@@ -1412,7 +1523,8 @@ export class DashboardModel {
                 `${DashboardVersionsTableName}.created_at`,
             )
             .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
-            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`);
     }
 
     private getLastVersionUuidQuery(dashboardUuid: string) {
@@ -1938,7 +2050,8 @@ export class DashboardModel {
 
         const updateCount = await tx(DashboardsTableName)
             .update({ space_id: space.space_id })
-            .where('dashboard_uuid', dashboardUuid);
+            .where('dashboard_uuid', dashboardUuid)
+            .whereNull('deleted_at');
 
         if (updateCount !== 1) {
             throw new Error('Failed to move dashboard to space');

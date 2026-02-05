@@ -32,6 +32,7 @@ type SpaceContentRow = SummaryContentRow<{
 export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
     {
         shouldQueryBeIncluded: (filters: ContentFilters) => {
+            if (filters.deleted) return false; // Spaces don't support soft delete
             if (filters.contentTypes?.includes(ContentType.SPACE)) {
                 return true;
             }
@@ -103,6 +104,10 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     knex.raw(`null as last_updated_by_user_last_name`),
                     knex.raw(`0 as views`),
                     knex.raw(`null as first_viewed_at`),
+                    knex.raw(`NULL::timestamp as deleted_at`),
+                    knex.raw(`NULL as deleted_by_user_uuid`),
+                    knex.raw(`NULL as deleted_by_user_first_name`),
+                    knex.raw(`NULL as deleted_by_user_last_name`),
                     knex.raw(
                         `json_build_object(
                                     'chartCount', (
@@ -115,6 +120,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                                         SELECT count(DISTINCT ${DashboardsTableName}.dashboard_id)
                                         FROM ${DashboardsTableName}
                                         WHERE ${DashboardsTableName}.space_id = ${SpaceTableName}.space_id
+                                        AND ${DashboardsTableName}.deleted_at IS NULL
                                     ),
                                     'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
                                     'path', ${SpaceTableName}.path,
