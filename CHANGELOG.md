@@ -1,3 +1,10 @@
+## [0.2428.1](https://github.com/lightdash/lightdash/compare/0.2428.0...0.2428.1) (2026-02-05)
+
+
+### Bug Fixes
+
+* remove 'edited' trigger from PR workflow ([#19988](https://github.com/lightdash/lightdash/issues/19988)) ([d87e053](https://github.com/lightdash/lightdash/commit/d87e053c8e3e92c5721b5b3f20c3672217e4dbe4))
+
 # [0.2428.0](https://github.com/lightdash/lightdash/compare/0.2427.1...0.2428.0) (2026-02-05)
 
 
