@@ -21,6 +21,7 @@ import {
 import {
     BinType,
     CustomDimensionType,
+    DimensionType,
     FieldType,
     MetricType,
     type ItemsMap,
@@ -603,6 +604,125 @@ describe('derivePivotConfigurationFromChart', () => {
                     reference: 'payments_total_revenue',
                     aggregation: VizAggregationOptions.ANY,
                 },
+            ]);
+        });
+    });
+
+    describe('Stacked Bar Chart with Table Calculations', () => {
+        it('does not include metrics as index columns when table calculation is on y-axis', () => {
+            // This tests that metrics used by table calculations but not on the x-axis
+            // are not incorrectly added as index columns, which would break stacking
+            const itemsWithTableCalc: ItemsMap = {
+                ...mockItems,
+                orders_shipping_method: {
+                    sql: '${TABLE}.shipping_method',
+                    name: 'shipping_method',
+                    type: DimensionType.STRING,
+                    fieldType: FieldType.DIMENSION,
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    label: 'Shipping method',
+                    hidden: false,
+                    index: 0,
+                    groups: [],
+                },
+                orders_order_source: {
+                    sql: '${TABLE}.order_source',
+                    name: 'order_source',
+                    type: DimensionType.STRING,
+                    fieldType: FieldType.DIMENSION,
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    label: 'Order source',
+                    hidden: false,
+                    index: 1,
+                    groups: [],
+                },
+                orders_total_order_amount: {
+                    sql: 'SUM(${TABLE}.amount)',
+                    name: 'total_order_amount',
+                    type: MetricType.SUM,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    label: 'Total order amount',
+                    hidden: false,
+                    index: 0,
+                    filters: [],
+                    groups: [],
+                },
+                _or_total: {
+                    index: 0,
+                    name: '_or_total',
+                    displayName: '% or total',
+                    sql: '${orders.total_order_amount} / sum(${orders.total_order_amount}) over(partition by ${orders.order_source})',
+                },
+            };
+
+            const stackedBarChartConfig: CartesianChartConfig = {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'orders_shipping_method', // dimension on x-axis
+                        yField: ['_or_total'], // table calculation on y-axis (uses the metric)
+                    },
+                    eChartsConfig: { series: [] },
+                },
+            };
+
+            const metricQueryForStackedBar: MetricQuery = {
+                exploreName: 'orders',
+                dimensions: ['orders_shipping_method', 'orders_order_source'],
+                metrics: ['orders_total_order_amount'], // metric used by table calc
+                filters: {},
+                sorts: [
+                    { fieldId: 'orders_shipping_method', descending: false },
+                ],
+                limit: 500,
+                tableCalculations: [
+                    {
+                        name: '_or_total',
+                        displayName: '% or total',
+                        sql: '${orders.total_order_amount} / sum(${orders.total_order_amount}) over(partition by ${orders.order_source})',
+                    },
+                ],
+                additionalMetrics: [],
+                metricOverrides: {},
+            };
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: stackedBarChartConfig,
+                pivotConfig: { columns: ['orders_order_source'] }, // pivot on order_source
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                metricQueryForStackedBar,
+                itemsWithTableCalc,
+            );
+
+            expect(result).toBeDefined();
+            // The metric (orders_total_order_amount) should NOT be in index columns
+            // Only the x-axis dimension should be an index column
+            expect(result?.indexColumn).toEqual([
+                {
+                    reference: 'orders_shipping_method',
+                    type: VizIndexType.CATEGORY,
+                },
+            ]);
+            // The table calculation should be the value column
+            expect(result?.valuesColumns).toEqual([
+                {
+                    reference: '_or_total',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ]);
+            // The pivot dimension should be the groupBy column
+            expect(result?.groupByColumns).toEqual([
+                { reference: 'orders_order_source' },
             ]);
         });
     });

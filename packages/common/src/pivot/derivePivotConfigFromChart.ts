@@ -142,7 +142,9 @@ const getIndexColumn = (
             }
 
             // Metrics can be used as x-axis in scatter charts, so we need to handle them as index columns
-            if (isMetric(field)) {
+            // Only include metrics if they are explicitly the x-axis field, otherwise they would
+            // incorrectly become index columns and break pivoted charts (e.g., stacked bar charts)
+            if (isMetric(field) && dim === xField) {
                 return {
                     reference: dim,
                     type: VizIndexType.CATEGORY,
