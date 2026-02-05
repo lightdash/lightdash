@@ -46,6 +46,7 @@ import {
     DEFAULT_CANVAS_TIME_OPTION,
     type CanvasTimeOption,
 } from '../visualization/canvasTimeFramePickerOptions';
+import styles from './Canvas.module.css';
 import MetricsSidebar from './MetricsSidebar';
 import DefaultEdge from './TreeComponents/edges/DefaultEdge';
 import ExpandedNode, {
@@ -191,7 +192,9 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 source: edge.source.catalogSearchUuid,
                 target: edge.target.catalogSearchUuid,
                 type: edge.createdFrom,
-                markerEnd: { type: MarkerType.ArrowClosed },
+                markerEnd: {
+                    type: MarkerType.ArrowClosed,
+                },
             }));
         }
 
@@ -371,7 +374,9 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     addEdge(
                         {
                             ...params,
-                            markerEnd: { type: MarkerType.ArrowClosed },
+                            markerEnd: {
+                                type: MarkerType.ArrowClosed,
+                            },
                         },
                         edg,
                     ),
@@ -514,6 +519,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
             <Panel id="metrics-canvas" order={2}>
                 <Box h="100%">
                     <ReactFlow
+                        className={styles.reactFlow}
                         nodes={currentNodes}
                         edges={currentEdges}
                         fitView
