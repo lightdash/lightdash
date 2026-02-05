@@ -159,7 +159,12 @@ export const MetricExploreDatePicker: FC<Props> = ({
                         value={
                             isOpen ||
                             !timeDimensionBaseField ||
-                            !effectiveMatchingPresetLabel
+                            !effectiveMatchingPresetLabel ||
+                            !presets.some(
+                                (p) =>
+                                    p.controlLabel ===
+                                    effectiveMatchingPresetLabel,
+                            )
                                 ? 'custom'
                                 : effectiveMatchingPresetLabel
                         }
