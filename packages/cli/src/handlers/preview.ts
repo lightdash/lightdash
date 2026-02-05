@@ -15,6 +15,7 @@ import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setPreviewProject, unsetPreviewProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
+import { findLightdashModelFiles } from '../lightdash/loader';
 import * as styles from '../styles';
 import { compile } from './compile';
 import { createProject } from './createProject';
@@ -118,6 +119,18 @@ export const previewHandler = async (
     GlobalState.setVerbose(options.verbose);
     const executionId = uuidv4();
     await checkLightdashVersion();
+
+    // Check if this is a Lightdash YAML-only project (no dbt required)
+    const absoluteProjectPath = path.resolve(options.projectDir);
+    const yamlModelFiles = await findLightdashModelFiles(absoluteProjectPath);
+    const isYamlOnlyProject =
+        yamlModelFiles.length > 0 && !options.organizationCredentials;
+    if (isYamlOnlyProject) {
+        GlobalState.debug(
+            `> Found ${yamlModelFiles.length} Lightdash YAML models, skipping dbt requirements`,
+        );
+    }
+
     let name = options?.name;
     if (name === undefined) {
         name = uniqueNamesGenerator({
@@ -220,6 +233,7 @@ export const previewHandler = async (
                     ? config.context.project
                     : undefined,
             copyContent: !options.skipCopyContent && upstreamProjectValid,
+            warehouseCredentials: isYamlOnlyProject ? false : undefined,
         });
 
         project = results?.project;
@@ -293,7 +307,6 @@ export const previewHandler = async (
             },
         });
 
-        const absoluteProjectPath = path.resolve(options.projectDir);
         const context = await getDbtContext({
             projectDir: absoluteProjectPath,
             targetPath: options.targetPath,
@@ -369,6 +382,17 @@ export const startPreviewHandler = async (
         return;
     }
 
+    // Check if this is a Lightdash YAML-only project (no dbt required)
+    const absoluteProjectPath = path.resolve(options.projectDir);
+    const yamlModelFiles = await findLightdashModelFiles(absoluteProjectPath);
+    const isYamlOnlyProject =
+        yamlModelFiles.length > 0 && !options.organizationCredentials;
+    if (isYamlOnlyProject) {
+        GlobalState.debug(
+            `> Found ${yamlModelFiles.length} Lightdash YAML models, skipping dbt requirements`,
+        );
+    }
+
     const projectName = options.name;
     const config = await getConfig();
 
@@ -442,6 +466,7 @@ export const startPreviewHandler = async (
             type: ProjectType.PREVIEW,
             upstreamProjectUuid: config.context?.project,
             copyContent: !options.skipCopyContent,
+            warehouseCredentials: isYamlOnlyProject ? false : undefined,
         });
 
         const project = results?.project;
