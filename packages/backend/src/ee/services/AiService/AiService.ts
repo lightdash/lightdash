@@ -21,7 +21,6 @@ import {
     isDashboardChartTileType,
     isField,
 } from '@lightdash/common';
-import { LanguageModel } from 'ai';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -109,9 +108,9 @@ export class AiService {
      * 2. Falls back to AI Copilot if the feature flag is enabled for the user,
      *    using their configured model.
      *
-     * @returns The language model
+     * @returns The full AiModel with model, callOptions, and providerOptions
      */
-    private async getAmbientAiModel(user: SessionUser): Promise<LanguageModel> {
+    private async getAmbientAiModel(user: SessionUser) {
         const anthropicConfig =
             this.lightdashConfig.ai.copilot.providers.anthropic;
 
@@ -122,10 +121,9 @@ export class AiService {
                     'claude-haiku-4-5 preset not found',
                 );
             }
-            const aiModel = getAnthropicModel(anthropicConfig, preset, {
+            return getAnthropicModel(anthropicConfig, preset, {
                 enableReasoning: false,
             });
-            return aiModel.model;
         }
 
         const aiCopilotFlag = await this.featureFlagService.get({
@@ -137,11 +135,10 @@ export class AiService {
             throw new ForbiddenError('Ambient AI is not available');
         }
 
-        const aiModel = getModel(this.lightdashConfig.ai.copilot, {
+        return getModel(this.lightdashConfig.ai.copilot, {
             enableReasoning: false,
             useFastModel: true,
         });
-        return aiModel.model;
     }
 
     private static async throwOnFeatureDisabled(user: SessionUser) {
@@ -448,9 +445,9 @@ export class AiService {
         projectUuid: string,
         payload: GenerateChartMetadataRequest,
     ): Promise<GeneratedChartMetadata> {
-        const model = await this.getAmbientAiModel(user);
+        const modelOptions = await this.getAmbientAiModel(user);
 
-        const result = await generateChartMetadataFromContext(model, {
+        const result = await generateChartMetadataFromContext(modelOptions, {
             tableName: payload.tableName,
             chartType: payload.chartType,
             dimensions: payload.dimensions,
@@ -478,7 +475,7 @@ export class AiService {
         projectUuid: string,
         payload: GenerateTableCalculationRequest,
     ): Promise<GeneratedTableCalculation> {
-        const model = await this.getAmbientAiModel(user);
+        const modelOptions = await this.getAmbientAiModel(user);
         const project = await this.projectService.getProject(
             projectUuid,
             fromSession(user),
@@ -489,7 +486,7 @@ export class AiService {
             throw new ForbiddenError('Warehouse type is not available');
         }
 
-        const result = await generateTableCalculationFromContext(model, {
+        const result = await generateTableCalculationFromContext(modelOptions, {
             prompt: payload.prompt,
             tableName: payload.tableName,
             warehouseType,
@@ -512,7 +509,7 @@ export class AiService {
             sql: result.sql,
             displayName: result.displayName,
             type: result.type as TableCalculationType,
-            format: sanitizeCustomFormat(result.format),
+            format: sanitizeCustomFormat(result.format ?? undefined),
         };
     }
 
@@ -521,9 +518,9 @@ export class AiService {
         projectUuid: string,
         payload: GenerateTooltipRequest,
     ): Promise<GeneratedTooltip> {
-        const model = await this.getAmbientAiModel(user);
+        const modelOptions = await this.getAmbientAiModel(user);
 
-        const result = await generateTooltipFromContext(model, {
+        const result = await generateTooltipFromContext(modelOptions, {
             prompt: payload.prompt,
             fieldsContext: payload.fieldsContext,
             currentHtml: payload.currentHtml,

@@ -27,7 +27,7 @@ export const MODEL_PRESETS: {
             displayName: 'GPT-5.2',
             description: 'Flagship reasoning model for agentic tasks',
             supportsReasoning: true,
-            callOptions: { temperature: 0.2 },
+            callOptions: {},
             providerOptions: {
                 strictJsonSchema: true,
                 parallelToolCalls: false,
@@ -40,7 +40,7 @@ export const MODEL_PRESETS: {
             displayName: 'GPT-5.1',
             description: 'Intelligent reasoning model',
             supportsReasoning: true,
-            callOptions: { temperature: 0.2 },
+            callOptions: {},
             providerOptions: {
                 strictJsonSchema: true,
                 parallelToolCalls: false,
@@ -57,6 +57,7 @@ export const MODEL_PRESETS: {
             providerOptions: {
                 strictJsonSchema: true,
                 parallelToolCalls: false,
+                reasoningEffort: 'minimal',
             },
         },
     ],

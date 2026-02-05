@@ -12,7 +12,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { lightdashApi } from '../../../../api';
 
 // 5 second timeout for AI metadata generation - anything longer is too disruptive
-const METADATA_GENERATION_TIMEOUT_MS = 5000;
+const METADATA_GENERATION_TIMEOUT_MS = 6000;
 
 const generateChartMetadataApi = async (
     projectUuid: string,
