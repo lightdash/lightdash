@@ -1,3 +1,10 @@
+# [0.2433.0](https://github.com/lightdash/lightdash/compare/0.2432.1...0.2433.0) (2026-02-05)
+
+
+### Features
+
+* migrate 10 components from @mantine/core to @mantine-8/core ([#20020](https://github.com/lightdash/lightdash/issues/20020)) ([7c5053d](https://github.com/lightdash/lightdash/commit/7c5053d3bf659939b4bfaf43466460b61e9050aa))
+
 ## [0.2432.1](https://github.com/lightdash/lightdash/compare/0.2432.0...0.2432.1) (2026-02-05)
 
 
