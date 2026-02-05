@@ -1,3 +1,10 @@
+## [0.2431.1](https://github.com/lightdash/lightdash/compare/0.2431.0...0.2431.1) (2026-02-05)
+
+
+### Bug Fixes
+
+* include parameters in ChartAsCode for CLI round-trip ([#20011](https://github.com/lightdash/lightdash/issues/20011)) ([d7f8f06](https://github.com/lightdash/lightdash/commit/d7f8f06b434d30f5a2358bbf4227b6dd7090f253))
+
 # [0.2431.0](https://github.com/lightdash/lightdash/compare/0.2430.3...0.2431.0) (2026-02-05)
 
 
