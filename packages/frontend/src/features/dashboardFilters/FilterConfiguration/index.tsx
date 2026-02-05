@@ -7,6 +7,7 @@ import {
     getFilterTypeFromItem,
     getFilterTypeFromItemType,
     getItemId,
+    isDashboardFieldTarget,
     isField,
     isFilterableField,
     matchFieldByType,
@@ -62,6 +63,7 @@ interface Props {
     isCreatingNew?: boolean;
     isTemporary?: boolean;
     onSave: (value: DashboardFilterRule) => void;
+    activeTabUuid?: string;
 }
 
 const getDefaultField = (
@@ -73,6 +75,42 @@ const getDefaultField = (
         fields.find(matchFieldByTypeAndName(selectedField)) ??
         fields.find(matchFieldByType(selectedField))
     );
+};
+
+/**
+ * Returns the set of tile UUIDs that are relevant for the field dropdown.
+ *
+ * This includes tiles from the active tab, plus any tiles from other tabs
+ * that the user has explicitly targeted in the filter's tileTargets.
+ */
+const getRelevantTileUuids = (
+    activeTabUuid: string | undefined,
+    tiles: DashboardTile[],
+    draftFilterRule: DashboardFilterRule | undefined,
+): Set<string> | null => {
+    if (!activeTabUuid) return null; // No tab filtering when no active tab
+
+    const relevantTileUuids = new Set<string>();
+
+    // Always include tiles from the active tab
+    for (const tile of tiles) {
+        if (tile.tabUuid === activeTabUuid) {
+            relevantTileUuids.add(tile.uuid);
+        }
+    }
+
+    // Also include tiles that are explicitly targeted in the filter rule
+    if (draftFilterRule?.tileTargets) {
+        for (const [tileUuid, target] of Object.entries(
+            draftFilterRule.tileTargets,
+        )) {
+            if (target !== false && isDashboardFieldTarget(target)) {
+                relevantTileUuids.add(tileUuid);
+            }
+        }
+    }
+
+    return relevantTileUuids;
 };
 
 const FilterConfiguration: FC<Props> = ({
@@ -88,6 +126,7 @@ const FilterConfiguration: FC<Props> = ({
     defaultFilterRule,
     popoverProps,
     onSave,
+    activeTabUuid,
 }) => {
     const [selectedTabId, setSelectedTabId] = useState<FilterTabs>(DEFAULT_TAB);
     const [selectedField, setSelectedField] = useState<
@@ -103,6 +142,36 @@ const FilterConfiguration: FC<Props> = ({
 
         return hasSavedFilterValueChanged(originalFilterRule, draftFilterRule);
     }, [originalFilterRule, draftFilterRule]);
+
+    // Compute which tile UUIDs are relevant for the field dropdown
+    // (active tab tiles + explicitly targeted tiles from other tabs)
+    const relevantTileUuids = useMemo(
+        () => getRelevantTileUuids(activeTabUuid, tiles, draftFilterRule),
+        [activeTabUuid, tiles, draftFilterRule],
+    );
+
+    // Filter fields to only show those from relevant tiles
+    const displayedFields = useMemo(() => {
+        if (!fields || !relevantTileUuids) return fields;
+
+        const seenFieldIds = new Set<string>();
+        const result: FilterableDimension[] = [];
+
+        for (const [tileUuid, tileFields] of Object.entries(
+            availableTileFilters,
+        )) {
+            if (!relevantTileUuids.has(tileUuid)) continue;
+            for (const f of tileFields) {
+                const fieldId = getItemId(f);
+                if (!seenFieldIds.has(fieldId)) {
+                    seenFieldIds.add(fieldId);
+                    result.push(f);
+                }
+            }
+        }
+
+        return result;
+    }, [fields, relevantTileUuids, availableTileFilters]);
 
     const handleChangeField = (newField: FilterableDimension) => {
         const isCreatingTemporary = isCreatingNew && !isEditMode;
@@ -157,15 +226,25 @@ const FilterConfiguration: FC<Props> = ({
     const sqlChartTilesMetadata = useDashboardContext(
         (c) => c.sqlChartTilesMetadata,
     );
+
+    // Filter SQL columns to only show those from relevant tiles
     const columnsOptions = useMemo(() => {
-        const allColumns = Object.values(sqlChartTilesMetadata).flatMap(
+        const filteredMetadata = relevantTileUuids
+            ? Object.fromEntries(
+                  Object.entries(sqlChartTilesMetadata).filter(([tileUuid]) =>
+                      relevantTileUuids.has(tileUuid),
+                  ),
+              )
+            : sqlChartTilesMetadata;
+
+        const allColumns = Object.values(filteredMetadata).flatMap(
             (tileMetadata) => tileMetadata.columns,
         );
         const uniqueColumnsMap = new Map(
             allColumns.map((column) => [column.reference, column]),
         );
         return Array.from(uniqueColumnsMap.values());
-    }, [sqlChartTilesMetadata]);
+    }, [sqlChartTilesMetadata, relevantTileUuids]);
 
     const handleChangeColumn = useCallback(
         (newColumn: ResultColumn) => {
@@ -377,7 +456,7 @@ const FilterConfiguration: FC<Props> = ({
                 <Tabs.Panel value={FilterTabs.SETTINGS} miw={350} maw={520}>
                     <Stack spacing="sm">
                         {isCreatingNew ? (
-                            !!fields && fields.length > 0 ? (
+                            !!displayedFields && displayedFields.length > 0 ? (
                                 <FieldSelect
                                     data-testid="FilterConfiguration/FieldSelect"
                                     size="xs"
@@ -395,7 +474,7 @@ const FilterConfiguration: FC<Props> = ({
                                     onDropdownClose={popoverProps?.onClose}
                                     hasGrouping
                                     item={selectedField}
-                                    items={fields}
+                                    items={displayedFields}
                                     onChange={(newField) => {
                                         if (!newField) return;
 
