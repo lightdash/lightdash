@@ -61,6 +61,7 @@ export type CreateSpace = {
 export type UpdateSpace = {
     name: string;
     isPrivate?: boolean;
+    inheritParentPermissions?: boolean;
 };
 
 export type SpaceShare = {

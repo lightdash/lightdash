@@ -2566,14 +2566,7 @@ export class SpaceModel {
             .update({
                 name: space.name,
                 is_private: space.isPrivate,
-                ...(space.isPrivate !== undefined && {
-                    // While the feature isn't fully built, we still depend on the `isPrivate`
-                    // and `parent_space_uuid` to set the `inherit_parent_permissions` column
-                    inherit_parent_permissions: this.database.raw(
-                        `CASE WHEN parent_space_uuid IS NULL THEN ? ELSE inherit_parent_permissions END`,
-                        [!space.isPrivate],
-                    ),
-                }),
+                inherit_parent_permissions: space.inheritParentPermissions,
             })
             .where('space_uuid', spaceUuid);
         return this.getFullSpace(spaceUuid, options);
