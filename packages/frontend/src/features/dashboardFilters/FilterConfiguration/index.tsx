@@ -38,6 +38,7 @@ import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
 import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
@@ -461,6 +462,21 @@ const FilterConfiguration: FC<Props> = ({
                                 popoverProps={popoverProps}
                             />
                         )}
+
+                        {isCreatingNew &&
+                            draftFilterRule &&
+                            tabs.length > 1 && (
+                                <FilterCoverageSummary
+                                    draftFilterRule={draftFilterRule}
+                                    tiles={tiles}
+                                    tabs={tabs}
+                                    activeTabUuid={activeTabUuid}
+                                    availableTileFilters={availableTileFilters}
+                                    onNavigateToTilesTab={() =>
+                                        setSelectedTabId(FilterTabs.TILES)
+                                    }
+                                />
+                            )}
                     </Stack>
                 </Tabs.Panel>
 
