@@ -1,7 +1,9 @@
+import type { WarehouseSqlBuilder } from '../types/warehouse';
 import {
     parseTableCalculationFunctions,
     PIVOT_FUNCTIONS,
     ROW_FUNCTIONS,
+    TableCalculationFunctionCompiler,
     TableCalculationFunctionType,
 } from './tableCalculationFunctions';
 
@@ -326,6 +328,291 @@ describe('tableCalculationFunctions', () => {
                 expect(result[0].type).toBe(
                     TableCalculationFunctionType.OFFSET,
                 );
+            });
+        });
+
+        describe('pivot_where parsing', () => {
+            it('should parse simple pivot_where', () => {
+                const sql = 'pivot_where(status = "completed", revenue)';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.PIVOT_WHERE,
+                );
+                if (
+                    result[0].type === TableCalculationFunctionType.PIVOT_WHERE
+                ) {
+                    expect(result[0].selectExpression).toBe(
+                        'status = "completed"',
+                    );
+                    expect(result[0].valueExpression).toBe('revenue');
+                    expect(result[0].rawSql).toBe(
+                        'pivot_where(status = "completed", revenue)',
+                    );
+                }
+            });
+
+            it('should parse pivot_where with complex condition', () => {
+                const sql =
+                    'pivot_where(revenue > 1000 AND orders > 10, status)';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.PIVOT_WHERE,
+                );
+                if (
+                    result[0].type === TableCalculationFunctionType.PIVOT_WHERE
+                ) {
+                    expect(result[0].selectExpression).toBe(
+                        'revenue > 1000 AND orders > 10',
+                    );
+                    expect(result[0].valueExpression).toBe('status');
+                }
+            });
+
+            it('should parse pivot_where with nested function calls', () => {
+                const sql =
+                    'pivot_where(LOWER(status) = "active", ROUND(revenue, 2))';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.PIVOT_WHERE,
+                );
+                if (
+                    result[0].type === TableCalculationFunctionType.PIVOT_WHERE
+                ) {
+                    expect(result[0].selectExpression).toBe(
+                        'LOWER(status) = "active"',
+                    );
+                    expect(result[0].valueExpression).toBe('ROUND(revenue, 2)');
+                }
+            });
+
+            it('should parse multiple pivot_where calls', () => {
+                const sql =
+                    'pivot_where(status = "active", revenue) + pivot_where(status = "pending", revenue)';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(2);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.PIVOT_WHERE,
+                );
+                expect(result[1].type).toBe(
+                    TableCalculationFunctionType.PIVOT_WHERE,
+                );
+            });
+
+            it('should handle whitespace in pivot_where', () => {
+                const sql = 'pivot_where(  status = "active"  ,  revenue  )';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.PIVOT_WHERE,
+                );
+                if (
+                    result[0].type === TableCalculationFunctionType.PIVOT_WHERE
+                ) {
+                    expect(result[0].selectExpression).toBe(
+                        'status = "active"',
+                    );
+                    expect(result[0].valueExpression).toBe('revenue');
+                }
+            });
+        });
+    });
+
+    describe('TableCalculationFunctionCompiler', () => {
+        describe('compileFunctions', () => {
+            let compiler: TableCalculationFunctionCompiler;
+            let mockWarehouseSqlBuilder: WarehouseSqlBuilder;
+
+            beforeEach(() => {
+                mockWarehouseSqlBuilder = {
+                    getFieldQuoteChar: jest.fn().mockReturnValue('"'),
+                } as unknown as WarehouseSqlBuilder;
+                compiler = new TableCalculationFunctionCompiler(
+                    mockWarehouseSqlBuilder,
+                );
+            });
+
+            describe('pivot_offset compilation', () => {
+                it('should compile pivot_offset with positive offset', () => {
+                    const sql = 'pivot_offset(revenue, 1)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'CASE WHEN LEAD("row_index", 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") = "row_index" + (1) THEN LEAD(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") ELSE NULL END';
+                    expect(compiled).toBe(expectedSql);
+                });
+
+                it('should compile pivot_offset with negative offset', () => {
+                    const sql = 'pivot_offset(revenue, -1)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'CASE WHEN LAG("row_index", 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") = "row_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") ELSE NULL END';
+                    expect(compiled).toBe(expectedSql);
+                });
+
+                it('should compile pivot_offset with zero offset', () => {
+                    const sql = 'pivot_offset(revenue, 0)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql = 'revenue';
+                    expect(compiled).toBe(expectedSql);
+                });
+
+                it('should compile expression with pivot_offset', () => {
+                    const sql = 'revenue - pivot_offset(revenue, -1)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'revenue - CASE WHEN LAG("row_index", 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") = "row_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") ELSE NULL END';
+                    expect(compiled).toBe(expectedSql);
+                });
+            });
+
+            describe('pivot_column compilation', () => {
+                it('should compile pivot_column to column_index', () => {
+                    const sql = 'pivot_column()';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql = '"column_index"';
+                    expect(compiled).toBe(expectedSql);
+                });
+
+                it('should compile expression with pivot_column', () => {
+                    const sql = 'pivot_column() + 1';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql = '"column_index" + 1';
+                    expect(compiled).toBe(expectedSql);
+                });
+            });
+
+            describe('pivot_index compilation', () => {
+                it('should compile pivot_index to get value from specific column', () => {
+                    const sql = 'pivot_index(revenue, 0)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'MAX(CASE WHEN "column_index" = 0 THEN revenue ELSE NULL END) OVER (PARTITION BY "row_index")';
+                    expect(compiled).toBe(expectedSql);
+                });
+
+                it('should compile expression with pivot_index', () => {
+                    const sql = 'revenue / pivot_index(revenue, 0)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'revenue / MAX(CASE WHEN "column_index" = 0 THEN revenue ELSE NULL END) OVER (PARTITION BY "row_index")';
+                    expect(compiled).toBe(expectedSql);
+                });
+            });
+
+            describe('pivot_offset_list compilation', () => {
+                it('should compile pivot_offset_list to NULL placeholder', () => {
+                    const sql = 'pivot_offset_list(revenue, -2, 3)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    // Currently returns NULL as array construction varies by warehouse
+                    const expectedSql = 'NULL';
+                    expect(compiled).toBe(expectedSql);
+                });
+            });
+
+            describe('pivot_row compilation', () => {
+                it('should compile pivot_row to NULL placeholder', () => {
+                    const sql = 'pivot_row(revenue)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    // Currently returns NULL as array construction varies by warehouse
+                    const expectedSql = 'NULL';
+                    expect(compiled).toBe(expectedSql);
+                });
+            });
+
+            describe('pivot_where compilation', () => {
+                it('should compile simple pivot_where to SQL', () => {
+                    const sql = 'pivot_where(status = "active", revenue)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'MAX(CASE WHEN "column_index" = (SELECT MIN("column_index") FROM (SELECT "column_index", status = "active" AS condition FROM DUAL) WHERE condition = TRUE) THEN revenue ELSE NULL END) OVER (PARTITION BY "row_index")';
+                    expect(compiled).toBe(expectedSql);
+                });
+
+                it('should replace pivot_where with compiled SQL', () => {
+                    const sql =
+                        'pivot_where(status = "completed", revenue) + 100';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'MAX(CASE WHEN "column_index" = (SELECT MIN("column_index") FROM (SELECT "column_index", status = "completed" AS condition FROM DUAL) WHERE condition = TRUE) THEN revenue ELSE NULL END) OVER (PARTITION BY "row_index") + 100';
+                    expect(compiled).toBe(expectedSql);
+                });
+
+                it('should compile multiple pivot_where calls', () => {
+                    const sql =
+                        'pivot_where(status = "active", revenue) + pivot_where(status = "pending", orders)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'MAX(CASE WHEN "column_index" = (SELECT MIN("column_index") FROM (SELECT "column_index", status = "active" AS condition FROM DUAL) WHERE condition = TRUE) THEN revenue ELSE NULL END) OVER (PARTITION BY "row_index") + MAX(CASE WHEN "column_index" = (SELECT MIN("column_index") FROM (SELECT "column_index", status = "pending" AS condition FROM DUAL) WHERE condition = TRUE) THEN orders ELSE NULL END) OVER (PARTITION BY "row_index")';
+                    expect(compiled).toBe(expectedSql);
+                });
+
+                it('should handle pivot_where with complex expressions', () => {
+                    const sql =
+                        'COALESCE(pivot_where(revenue > 1000, status), "none")';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'COALESCE(MAX(CASE WHEN "column_index" = (SELECT MIN("column_index") FROM (SELECT "column_index", revenue > 1000 AS condition FROM DUAL) WHERE condition = TRUE) THEN status ELSE NULL END) OVER (PARTITION BY "row_index"), "none")';
+                    expect(compiled).toBe(expectedSql);
+                });
+            });
+
+            describe('mixed function compilation', () => {
+                it('should compile multiple different pivot functions together', () => {
+                    const sql =
+                        'pivot_column() * pivot_offset(revenue, -1) + pivot_index(revenue, 0)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        '"column_index" * CASE WHEN LAG("row_index", 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") = "row_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") ELSE NULL END + MAX(CASE WHEN "column_index" = 0 THEN revenue ELSE NULL END) OVER (PARTITION BY "row_index")';
+                    expect(compiled).toBe(expectedSql);
+                });
+
+                it('should handle complex nested expressions', () => {
+                    const sql =
+                        'CASE WHEN pivot_column() = 0 THEN pivot_where(status = "active", revenue) ELSE pivot_offset(revenue, -1) END';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'CASE WHEN "column_index" = 0 THEN MAX(CASE WHEN "column_index" = (SELECT MIN("column_index") FROM (SELECT "column_index", status = "active" AS condition FROM DUAL) WHERE condition = TRUE) THEN revenue ELSE NULL END) OVER (PARTITION BY "row_index") ELSE CASE WHEN LAG("row_index", 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") = "row_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") ELSE NULL END END';
+                    expect(compiled).toBe(expectedSql);
+                });
             });
         });
     });
