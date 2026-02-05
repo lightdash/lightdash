@@ -1038,6 +1038,26 @@ export class AiAgentService {
             version: body.version,
         });
 
+        // Join agent Slack channels
+        const slackIntegrations =
+            body.integrations?.filter((i) => i.type === 'slack') ?? [];
+        if (slackIntegrations.length > 0) {
+            const channelIds = slackIntegrations.map((i) => i.channelId);
+            try {
+                await this.slackClient.joinChannels(
+                    organizationUuid,
+                    channelIds,
+                );
+            } catch (error) {
+                // Log but don't fail agent creation if channels:join scope is missing
+                // The bot can still be manually added to channels
+                Logger.warn(
+                    `Could not auto-join channels for agent ${agent.uuid}:`,
+                    error,
+                );
+            }
+        }
+
         this.analytics.track<AiAgentCreatedEvent>({
             event: 'ai_agent.created',
             userId: user.userUuid,
@@ -1098,6 +1118,36 @@ export class AiAgentService {
             enableReasoning: body.enableReasoning,
             version: body.version,
         });
+
+        // Join new agent Slack channels
+        const newSlackIntegrations =
+            body.integrations?.filter((i) => i.type === 'slack') ?? [];
+        const oldSlackIntegrations =
+            agent.integrations?.filter((i) => i.type === 'slack') ?? [];
+
+        // Get channel IDs that are new (not in old integrations)
+        const newChannelIds = newSlackIntegrations
+            .map((i) => i.channelId)
+            .filter(
+                (channelId) =>
+                    !oldSlackIntegrations.some(
+                        (old) => old.channelId === channelId,
+                    ),
+            );
+
+        if (newChannelIds.length > 0) {
+            try {
+                await this.slackClient.joinChannels(
+                    organizationUuid,
+                    newChannelIds,
+                );
+            } catch (error) {
+                Logger.warn(
+                    `Could not auto-join channels for agent ${agentUuid}:`,
+                    error,
+                );
+            }
+        }
 
         this.analytics.track<AiAgentUpdatedEvent>({
             event: 'ai_agent.updated',
