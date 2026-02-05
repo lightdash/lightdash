@@ -341,6 +341,9 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'ScheduledDeliveries', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'DeletedContent', {
+            organizationUuid: member.organizationUuid,
+        });
     },
 };
 

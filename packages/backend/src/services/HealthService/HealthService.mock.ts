@@ -119,6 +119,10 @@ export const BaseResponse: HealthState = {
     funnelBuilder: {
         enabled: false,
     },
+    softDelete: {
+        enabled: false,
+        retentionDays: 30,
+    },
 };
 
 export const userMock = {
