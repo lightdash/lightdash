@@ -264,12 +264,11 @@ const DashboardHeader = ({
                 px: 'xl',
                 py: 0,
                 h: DASHBOARD_HEADER_HEIGHT,
-                bg: 'background',
-                sx: { zIndex: DASHBOARD_HEADER_ZINDEX },
+                style: { zIndex: DASHBOARD_HEADER_ZINDEX },
                 className,
             }}
         >
-            <Group gap="xs" flex={1}>
+            <Group gap="xs" flex={1} wrap="nowrap">
                 <Title order={6}>{dashboard.name}</Title>
 
                 <Popover

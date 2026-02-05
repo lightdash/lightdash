@@ -189,6 +189,7 @@ export const getMantineThemeOverride = (
         shadows: {
             subtle: '0px 1px 2px 0px rgba(10, 13, 18, 0.05)',
             heavy: '0px 12px 16px -4px rgba(10, 13, 18, 0.08), 0px 4px 6px -2px rgba(10, 13, 18, 0.03), 0px 2px 2px -1px rgba(10, 13, 18, 0.04)',
+            bottomFade: '0 0 0 1px #bec1c426',
         },
 
         components: {

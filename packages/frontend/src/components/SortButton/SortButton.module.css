@@ -1,0 +1,15 @@
+.badge {
+    text-transform: unset;
+}
+
+.interactive {
+    cursor: pointer;
+}
+
+.interactive:hover {
+    opacity: 0.8;
+}
+
+.interactive:active {
+    opacity: 0.9;
+}

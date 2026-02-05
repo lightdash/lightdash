@@ -3,8 +3,15 @@ import {
     type DraggableProvidedDragHandleProps,
 } from '@hello-pangea/dnd';
 import { isField, type SortField } from '@lightdash/common';
-import { ActionIcon, Box, Group, SegmentedControl, Text } from '@mantine/core';
-import { IconGripVertical, IconX } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Box,
+    Group,
+    SegmentedControl,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
+import { IconGripVertical, IconMinus } from '@tabler/icons-react';
 import { forwardRef } from 'react';
 import {
     getSortDirectionOrder,
@@ -16,6 +23,7 @@ import {
 } from '../../utils/sortUtils';
 import MantineIcon from '../common/MantineIcon';
 import { type TableColumn } from '../common/Table/types';
+import classes from './SortItem.module.css';
 
 interface SortItemProps {
     isFirstItem: boolean;
@@ -64,57 +72,53 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
             <Group
                 ref={ref}
                 {...draggableProps}
-                noWrap
-                position="apart"
+                wrap="nowrap"
+                justify="space-between"
                 pl="xs"
                 pr="xxs"
                 py="two"
                 miw={560}
-                sx={(theme) => ({
-                    borderRadius: theme.radius.sm,
-                    transition: 'all 100ms ease',
-                    boxShadow: isDragging ? theme.shadows.md : 'none',
-                })}
+                className={`${classes.sortItem} ${isDragging ? classes.sortItemDragging : ''}`}
             >
-                <Group spacing="sm">
+                <Group gap="xs">
                     {isEditMode && !isOnlyItem && (
                         <Box
                             {...dragHandleProps}
-                            sx={{
-                                opacity: 0.6,
-                                '&:hover': { opacity: 1 },
-                            }}
+                            className={classes.dragHandle}
                         >
                             <MantineIcon icon={IconGripVertical} />
                         </Box>
                     )}
 
-                    <Text>{isFirstItem ? 'Sort by' : 'then by'}</Text>
+                    <Text fz="xs">{isFirstItem ? 'Sort by' : 'then by'}</Text>
 
-                    <Text fw={500}>
+                    <Text fz="sm" fw={500}>
                         {(isField(item) ? item.label : item.name) ||
                             sort.fieldId}
                     </Text>
                 </Group>
 
-                <Group spacing="xs">
+                <Group gap="xs">
                     <SegmentedControl
                         disabled={!isEditMode}
                         value={selectedSortDirection}
                         size="xs"
-                        color="blue"
+                        radius="md"
+                        color="ldDark.5"
                         data={getSortDirectionOrder(item).map((direction) => ({
                             label: getSortLabel(item, direction),
                             value: direction,
                         }))}
                         onChange={(value) => {
-                            onAddSortField({
-                                descending: value === SortDirection.DESC,
-                            });
+                            if (value) {
+                                onAddSortField({
+                                    descending: value === SortDirection.DESC,
+                                });
+                            }
                         }}
                     />
 
-                    <Text ml="lg" fw={500}>
+                    <Text ml="lg" fz="xs" fw={500}>
                         Nulls
                     </Text>
 
@@ -122,7 +126,8 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                         disabled={!isEditMode}
                         value={selectedSortNullsFirst}
                         size="xs"
-                        color="blue"
+                        radius="md"
+                        color="ldDark.5"
                         data={Object.entries(sortNullsFirstLabels).map(
                             ([value, label]) => ({
                                 label,
@@ -130,20 +135,29 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                             }),
                         )}
                         onChange={(value) => {
-                            onSetSortFieldNullsFirst(
-                                value === SortNullsFirst.FIRST
-                                    ? true
-                                    : value === SortNullsFirst.LAST
-                                      ? false
-                                      : undefined,
-                            );
+                            if (value) {
+                                onSetSortFieldNullsFirst(
+                                    value === SortNullsFirst.FIRST
+                                        ? true
+                                        : value === SortNullsFirst.LAST
+                                          ? false
+                                          : undefined,
+                                );
+                            }
                         }}
                     />
 
                     {isEditMode && (
-                        <ActionIcon onClick={onRemoveSortField} size="sm">
-                            <MantineIcon icon={IconX} />
-                        </ActionIcon>
+                        <Tooltip label="Remove sort">
+                            <ActionIcon
+                                onClick={onRemoveSortField}
+                                size="xs"
+                                variant="subtle"
+                                color="ldGray.6"
+                            >
+                                <MantineIcon icon={IconMinus} />
+                            </ActionIcon>
+                        </Tooltip>
                     )}
                 </Group>
             </Group>
