@@ -1,3 +1,10 @@
+## [0.2432.1](https://github.com/lightdash/lightdash/compare/0.2432.0...0.2432.1) (2026-02-05)
+
+
+### Bug Fixes
+
+* update data attribute from data-combobox-selected to data-checked ([#20023](https://github.com/lightdash/lightdash/issues/20023)) ([dc801aa](https://github.com/lightdash/lightdash/commit/dc801aaf4973da49dce59efedf77f2b68b1d6f71))
+
 # [0.2432.0](https://github.com/lightdash/lightdash/compare/0.2431.1...0.2432.0) (2026-02-05)
 
 
