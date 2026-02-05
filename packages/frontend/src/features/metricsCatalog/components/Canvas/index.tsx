@@ -29,7 +29,14 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import partition from 'lodash/partition';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { Panel, PanelGroup } from 'react-resizable-panels';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -168,6 +175,11 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
             ? canvasTimeOption.rollingDays
             : undefined;
 
+    const timeValuesRef = useRef({ timeFrame, rollingDays });
+    useEffect(() => {
+        timeValuesRef.current = { timeFrame, rollingDays };
+    }, [timeFrame, rollingDays]);
+
     const initialEdges = useMemo<Edge[]>(() => {
         // If there are saved edges, use them
         // Only use edges where both source and target are in the metrics array
@@ -216,14 +228,14 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                     label: metric.name,
                     tableName: metric.tableName,
                     metricName: metric.name,
-                    timeFrame,
-                    rollingDays,
+                    timeFrame: TimeFrames.MONTH, // Default, will be updated by effect
+                    rollingDays: undefined,
                     isEdgeTarget,
                     isEdgeSource,
                 },
             };
         });
-    }, [metrics, initialEdges, timeFrame, rollingDays]);
+    }, [metrics, initialEdges]);
 
     // Only connected nodes for initial canvas render
     const initialNodes = useMemo<ExpandedNodeData[]>(() => {
@@ -453,16 +465,38 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 const newNode: ExpandedNodeData = {
                     ...nodeData,
                     position,
+                    data: {
+                        ...nodeData.data,
+                        timeFrame,
+                        rollingDays,
+                    },
                 };
                 return [...nodes, newNode];
             });
         },
-        [allNodes, screenToFlowPosition, setCurrentNodes],
+        [
+            allNodes,
+            screenToFlowPosition,
+            setCurrentNodes,
+            timeFrame,
+            rollingDays,
+        ],
     );
 
     // Reset layout when initial edges or nodes change
     useEffect(() => {
-        setCurrentNodes(initialNodes);
+        // Apply current timeFrame and rollingDays to initial nodes (using ref to avoid dependency)
+        const { timeFrame: currentTimeFrame, rollingDays: currentRollingDays } =
+            timeValuesRef.current;
+        const nodesWithTimeData = initialNodes.map((node) => ({
+            ...node,
+            data: {
+                ...node.data,
+                timeFrame: currentTimeFrame,
+                rollingDays: currentRollingDays,
+            },
+        }));
+        setCurrentNodes(nodesWithTimeData);
         setCurrentEdges(initialEdges);
         setIsLayoutReady(false);
     }, [initialNodes, initialEdges, setCurrentNodes, setCurrentEdges]);
