@@ -363,6 +363,15 @@ export class TableCalculationFunctionCompiler {
                     processedSql = processedSql.replace(func.rawSql, compiled);
                     break;
                 }
+                case TableCalculationFunctionType.PIVOT_INDEX: {
+                    const pivotIndexFunc = func as PivotIndexFunctionCall;
+                    const compiled = this.compilePivotIndex(
+                        pivotIndexFunc.expression,
+                        pivotIndexFunc.pivotIndex,
+                    );
+                    processedSql = processedSql.replace(func.rawSql, compiled);
+                    break;
+                }
                 default:
                     // Not implemented yet
                     break;
@@ -414,5 +423,22 @@ export class TableCalculationFunctionCompiler {
     private compilePivotColumn(): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         return `${q}column_index${q}`;
+    }
+
+    /**
+     * Compiles a pivot_index function call to return a value from a specific pivot column.
+     * Uses a window function to find the value from the row with the same row_index
+     * but the specified column_index.
+     * @param expression - The SQL expression to evaluate
+     * @param pivotIndex - The specific pivot column index (0-based)
+     * @returns SQL with window function to retrieve value from specified column
+     */
+    private compilePivotIndex(expression: string, pivotIndex: number): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+
+        // Use MAX (or any aggregate) with a CASE to get the value from the row
+        // with matching row_index and the specified column_index
+        // The window partitions by row_index to group all columns of the same row
+        return `MAX(CASE WHEN ${q}column_index${q} = ${pivotIndex} THEN ${expression} ELSE NULL END) OVER (PARTITION BY ${q}row_index${q})`;
     }
 }
