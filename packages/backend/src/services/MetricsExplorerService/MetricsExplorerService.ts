@@ -1,20 +1,11 @@
 import { subject } from '@casl/ability';
 import {
     AnyType,
+    assertUnreachable,
+    buildRollingPeriodCustomDimension,
     Dimension,
     FilterRule,
     ForbiddenError,
-    ItemsMap,
-    MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
-    MetricExploreDataPoint,
-    MetricExplorerComparison,
-    MetricExplorerQuery,
-    MetricTotalComparisonType,
-    MetricTotalResults,
-    MetricsExplorerQueryResults,
-    QueryExecutionContext,
-    TimeFrames,
-    assertUnreachable,
     getDateCalcUtils,
     getDateRangeFromString,
     getFieldIdForDateDimension,
@@ -24,8 +15,19 @@ import {
     getMetricExplorerDataPointsWithCompare,
     getMetricExplorerDateRangeFilters,
     getMetricsExplorerSegmentFilters,
+    getRollingPeriodDates,
     isDimension,
+    ItemsMap,
+    MAX_SEGMENT_DIMENSION_UNIQUE_VALUES,
+    MetricExploreDataPoint,
+    MetricExplorerComparison,
+    MetricExplorerQuery,
+    MetricsExplorerQueryResults,
+    MetricTotalComparisonType,
+    MetricTotalResults,
     parseMetricValue,
+    QueryExecutionContext,
+    TimeFrames,
     type MetricExplorerDateRange,
     type MetricQuery,
     type MetricWithAssociatedTimeDimension,
@@ -592,6 +594,7 @@ export class MetricsExplorerService<
         startDate: string,
         endDate: string,
         comparisonType: MetricTotalComparisonType = MetricTotalComparisonType.NONE,
+        rollingDays?: number,
     ): Promise<MetricTotalResults> {
         const { result } = await measureTime(
             () =>
@@ -605,12 +608,14 @@ export class MetricsExplorerService<
                     startDate,
                     endDate,
                     comparisonType,
+                    rollingDays,
                 ),
             'getMetricTotal',
             this.logger,
             {
                 timeFrame,
                 comparisonType,
+                rollingDays,
             },
         );
 
@@ -627,6 +632,7 @@ export class MetricsExplorerService<
         startDate: string,
         endDate: string,
         comparisonType: MetricTotalComparisonType = MetricTotalComparisonType.NONE,
+        rollingDays?: number,
     ): Promise<MetricTotalResults> {
         const metric = await this.catalogService.getMetric(
             user,
@@ -644,13 +650,15 @@ export class MetricsExplorerService<
 
         const dateRange = getDateRangeFromString([startDate, endDate]);
         const baseMetricId = getItemId(metric);
-        const metricQuery = this.buildMetricTotalQuery({
+        const metricQuery = await this.buildMetricTotalQuery({
+            projectUuid,
             exploreName,
             metric,
             timeFrame,
             granularity,
             dateRange,
             comparisonType,
+            rollingDays,
         });
 
         const { rows: currentRows } =
@@ -668,27 +676,46 @@ export class MetricsExplorerService<
         };
     }
 
-    // eslint-disable-next-line class-methods-use-this
-    private buildMetricTotalQuery({
+    private async buildMetricTotalQuery({
+        projectUuid,
         exploreName,
         metric,
         timeFrame,
         granularity,
         dateRange,
         comparisonType,
+        rollingDays,
     }: {
+        projectUuid: string;
         exploreName: string;
         metric: MetricWithAssociatedTimeDimension;
         timeFrame: TimeFrames;
         granularity: TimeFrames;
         dateRange: MetricExplorerDateRange;
         comparisonType: MetricTotalComparisonType;
-    }): MetricQuery {
+        rollingDays?: number;
+    }): Promise<MetricQuery> {
         const baseMetricId = getItemId(metric);
         const metricTimeDimension = metric.timeDimension;
         if (!metricTimeDimension) {
             throw new Error('Time dimension not found');
         }
+
+        // Handle rolling days comparison with custom SQL dimension
+        if (comparisonType === MetricTotalComparisonType.ROLLING_DAYS) {
+            if (!rollingDays) {
+                throw new Error(
+                    'rollingDays is required for ROLLING_DAYS comparison type',
+                );
+            }
+            return this.buildRollingComparisonQuery({
+                projectUuid,
+                exploreName,
+                metric,
+                rollingDays,
+            });
+        }
+
         const groupByTimeDimensionFieldId = getFieldIdForDateDimension(
             metricTimeDimension.field,
             timeFrame,
@@ -750,6 +777,81 @@ export class MetricsExplorerService<
         };
     }
 
+    /**
+     * Build a query for rolling period comparisons using custom SQL dimension.
+     * Groups by a 'period' custom dimension (0=current, 1=previous) instead of time.
+     */
+    private async buildRollingComparisonQuery({
+        projectUuid,
+        exploreName,
+        metric,
+        rollingDays,
+    }: {
+        projectUuid: string;
+        exploreName: string;
+        metric: MetricWithAssociatedTimeDimension;
+        rollingDays: number;
+    }): Promise<MetricQuery> {
+        const baseMetricId = getItemId(metric);
+        const metricTimeDimension = metric.timeDimension;
+        if (!metricTimeDimension) {
+            throw new Error('Time dimension not found');
+        }
+
+        const credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        const adapterType = credentials.type;
+
+        const { current, previous } = getRollingPeriodDates(rollingDays);
+        const timeDimensionFieldRef = `\${${metricTimeDimension.table}.${metricTimeDimension.field}}`;
+
+        const periodDimension = buildRollingPeriodCustomDimension(
+            timeDimensionFieldRef,
+            metricTimeDimension.table,
+            rollingDays,
+            adapterType,
+        );
+
+        const filterTimeDimension = {
+            table: metricTimeDimension.table,
+            field: metricTimeDimension.field,
+            interval: TimeFrames.DAY,
+        };
+
+        // Use OR filter on date ranges (same pattern as calendar comparisons)
+        const currentDateFilters = getMetricExplorerDateRangeFilters(
+            filterTimeDimension,
+            [current.start.toDate(), current.end.toDate()],
+        );
+        const previousDateFilters = getMetricExplorerDateRangeFilters(
+            filterTimeDimension,
+            [previous.start.toDate(), previous.end.toDate()],
+        );
+
+        return {
+            exploreName,
+            dimensions: [periodDimension.id],
+            metrics: [baseMetricId],
+            customDimensions: [periodDimension],
+            filters: {
+                dimensions: {
+                    id: uuidv4(),
+                    or: [currentDateFilters[0], previousDateFilters[0]],
+                },
+            },
+            sorts: [
+                {
+                    fieldId: periodDimension.id,
+                    descending: false, // 0 (current) first, then 1 (previous)
+                },
+            ],
+            limit: 2,
+            tableCalculations: [],
+        };
+    }
+
     async compileMetricTotalQuery(
         user: SessionUser,
         projectUuid: string,
@@ -760,6 +862,7 @@ export class MetricsExplorerService<
         startDate: string,
         endDate: string,
         comparisonType: MetricTotalComparisonType = MetricTotalComparisonType.NONE,
+        rollingDays?: number,
     ) {
         const metric = await this.catalogService.getMetric(
             user,
@@ -776,13 +879,15 @@ export class MetricsExplorerService<
         }
 
         const dateRange = getDateRangeFromString([startDate, endDate]);
-        const metricQuery = this.buildMetricTotalQuery({
+        const metricQuery = await this.buildMetricTotalQuery({
+            projectUuid,
             exploreName,
             metric,
             timeFrame,
             granularity,
             dateRange,
             comparisonType,
+            rollingDays,
         });
 
         const compiledQuery = await this.projectService.compileQuery({

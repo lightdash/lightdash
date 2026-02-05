@@ -21,6 +21,7 @@ import {
     type DateFilterRule,
     type FilterRule,
 } from '../types/filter';
+import { type WarehouseTypes } from '../types/projects';
 import assertUnreachable from '../utils/assertUnreachable';
 import { convertToBooleanValue } from '../utils/booleanConverter';
 import { formatDate } from '../utils/formatting';
@@ -34,6 +35,23 @@ import { type WeekDay } from '../utils/timeFrames';
 // Calling .utc() here makes it safe to drop the tz.
 const formatTimestampAsUTCWithNoTimezone = (date: Date): string =>
     moment(date).utc().format('YYYY-MM-DD HH:mm:ss');
+
+/**
+ * Cast a date/timestamp string to warehouse-specific SQL literal.
+ * Trino/Athena require explicit timestamp casting; others work with bare strings.
+ */
+export const castDateLiteral = (
+    dateString: string,
+    adapterType: SupportedDbtAdapter | WarehouseTypes,
+): string => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.TRINO:
+        case SupportedDbtAdapter.ATHENA:
+            return `CAST('${dateString}' AS timestamp)`;
+        default:
+            return `'${dateString}'`;
+    }
+};
 
 const raiseInvalidFilterError = (
     type: string,

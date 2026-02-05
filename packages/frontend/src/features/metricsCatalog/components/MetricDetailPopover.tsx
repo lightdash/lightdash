@@ -28,6 +28,7 @@ export type CompiledQueryConfig = {
     granularity: TimeFrames;
     comparisonType: MetricTotalComparisonType;
     dateRange: MetricExplorerDateRange;
+    rollingDays?: number;
 };
 
 type Props = {
@@ -55,6 +56,7 @@ const CompiledQuerySection: FC<{
         granularity: config.granularity,
         comparisonType: config.comparisonType,
         dateRange: config.dateRange,
+        rollingDays: config.rollingDays,
         options: {
             enabled: isOpen && showSql,
         },

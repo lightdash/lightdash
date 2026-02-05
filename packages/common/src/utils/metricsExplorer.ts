@@ -5,6 +5,7 @@ import { type Dictionary } from 'lodash';
 import groupBy from 'lodash/groupBy';
 import mapKeys from 'lodash/mapKeys';
 import { v4 as uuidv4 } from 'uuid';
+import { castDateLiteral } from '../compiler/filtersCompiler';
 import { type AnyType } from '../types/any';
 import type {
     CatalogField,
@@ -12,10 +13,12 @@ import type {
 } from '../types/catalog';
 import { type CompiledTable } from '../types/explore';
 import {
+    CustomDimensionType,
     DimensionType,
     MetricType,
     type CompiledDimension,
     type CompiledMetric,
+    type CustomSqlDimension,
     type Dimension,
 } from '../types/field';
 import {
@@ -30,6 +33,7 @@ import {
     type MetricExplorerDateRange,
     type MetricExplorerQuery,
 } from '../types/metricsExplorer';
+import { type WarehouseTypes } from '../types/projects';
 import type { ResultRow } from '../types/results';
 import { TimeFrames, type DefaultTimeDimension } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
@@ -642,3 +646,61 @@ export const getAvailableCompareMetrics = (
                 metric.type !== MetricType.DATE &&
                 metric.type !== MetricType.TIMESTAMP,
         );
+
+/**
+ * Calculate date ranges for rolling period comparisons.
+ * Current period: yesterday - (days-1) days ago to yesterday
+ * Previous period: (days*2) days ago to (days+1) days ago
+ *
+ * Example for 7 days (if today is Feb 4):
+ * Current:  Jan 28 - Feb 3
+ * Previous: Jan 21 - Jan 27
+ */
+export const getRollingPeriodDates = (days: number) => {
+    const now = dayjs();
+    const yesterday = now.subtract(1, 'day').endOf('day');
+
+    return {
+        current: {
+            start: now.subtract(days, 'day').startOf('day'),
+            end: yesterday,
+        },
+        previous: {
+            start: now.subtract(days * 2, 'day').startOf('day'),
+            end: now.subtract(days + 1, 'day').endOf('day'),
+        },
+    };
+};
+
+/**
+ * Build a custom SQL dimension that buckets data into periods:
+ * - 0 = current period
+ * - 1 = previous period
+ * - NULL = outside both periods
+ */
+export const buildRollingPeriodCustomDimension = (
+    timeDimensionFieldRef: string, // e.g., "${orders.order_date_day}"
+    table: string,
+    rollingDays: number,
+    adapterType: WarehouseTypes,
+): CustomSqlDimension => {
+    const { current, previous } = getRollingPeriodDates(rollingDays);
+
+    const cast = (d: dayjs.Dayjs) =>
+        castDateLiteral(d.format(METRICS_EXPLORER_DATE_FORMAT), adapterType);
+
+    const id = 'lightdash_metric_total_period';
+
+    return {
+        id,
+        name: id,
+        table,
+        type: CustomDimensionType.SQL,
+        sql: `CASE
+  WHEN ${timeDimensionFieldRef} >= ${cast(current.start)} AND ${timeDimensionFieldRef} <= ${cast(current.end)} THEN 0
+  WHEN ${timeDimensionFieldRef} >= ${cast(previous.start)} AND ${timeDimensionFieldRef} <= ${cast(previous.end)} THEN 1
+  ELSE NULL
+END`,
+        dimensionType: DimensionType.NUMBER,
+    };
+};
