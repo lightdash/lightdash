@@ -1728,8 +1728,7 @@ export class MetricQueryBuilder {
             ];
             const hasUnaffectedCte: boolean =
                 unaffectedMetrics.length > 0 ||
-                Object.keys(dimensionSelects).length > 0 ||
-                !!dimensionFilters;
+                Object.keys(dimensionSelects).length > 0;
 
             if (hasUnaffectedCte) {
                 ctes.push(
