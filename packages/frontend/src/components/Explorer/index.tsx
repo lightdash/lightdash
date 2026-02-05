@@ -132,14 +132,10 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
         useEffect(() => {
             if (isError) {
-                // If there's an error, we set the parameter references to an empty array
                 dispatch(explorerActions.setParameterReferences([]));
-            } else {
-                // While there's no parameter references array the request hasn't run, so we set it explicitly to null
+            } else if (parameterReferences?.length) {
                 dispatch(
-                    explorerActions.setParameterReferences(
-                        parameterReferences ?? null,
-                    ),
+                    explorerActions.setParameterReferences(parameterReferences),
                 );
             }
         }, [parameterReferences, dispatch, isError]);
