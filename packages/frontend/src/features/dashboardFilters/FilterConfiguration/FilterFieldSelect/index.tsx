@@ -277,6 +277,7 @@ const FilterFieldSelect: FC<FilterFieldSelectProps> = ({
                         leftSection={
                             <MantineIcon icon={IconSearch} color="ldGray.6" />
                         }
+                        data-testid="FilterConfiguration/FieldSelectSearch"
                         styles={{
                             input: {
                                 border: `1px solid var(--mantine-color-ldGray-1)`,

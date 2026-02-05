@@ -51,9 +51,15 @@ describe('Dashboard', () => {
         // Add filter
         cy.contains('Add filter').click();
 
-        cy.findByTestId('FilterConfiguration/FieldSelect')
+        cy.findByTestId('FilterConfiguration/FieldSelect').click();
+        cy.findByTestId('FilterConfiguration/FieldSelectSearch')
             .click()
-            .type('payment method{downArrow}{enter}');
+            .type('payment');
+        cy.wait(200);
+
+        cy.get(
+            '[data-combobox-option="true"][value="payments_payment_method"]',
+        ).click();
         cy.findByPlaceholderText('Start typing to filter results').type(
             'credit_card',
         );
@@ -104,7 +110,7 @@ describe('Dashboard', () => {
 
         cy.findAllByText('Loading chart').should('have.length', 0); // Finish loading
 
-        cy.contains('1,682').click();
+        cy.contains('1,961.5').click();
         cy.contains('View underlying data').click();
 
         cy.get('section[role="dialog"]').within(() => {
@@ -170,10 +176,15 @@ describe('Dashboard', () => {
 
         // Add filter Payment method is credit_card and apply
         cy.contains('Add filter').click();
-        cy.findByTestId('FilterConfiguration/FieldSelect')
+        cy.findByTestId('FilterConfiguration/FieldSelect').click();
+        cy.findByTestId('FilterConfiguration/FieldSelectSearch')
             .click()
-            .type('payment method{downArrow}{enter}');
-        // using force click here because this is a mantine switch and the actual checkbox is hidden
+            .type('payment');
+        cy.wait(200);
+        cy.get(
+            '[data-combobox-option="true"][value="payments_payment_method"]',
+        ).click();
+        // using force click here because this is a     mantine switch and the actual checkbox is hidden
         cy.findByLabelText('Provide default value').click({ force: true });
         cy.findByPlaceholderText('Start typing to filter results').type(
             'credit_card',
@@ -380,9 +391,14 @@ describe('Dashboard', () => {
         // Add filter
         cy.contains('Add filter').click();
 
-        cy.findByTestId('FilterConfiguration/FieldSelect')
+        cy.findByTestId('FilterConfiguration/FieldSelect').click();
+        cy.findByTestId('FilterConfiguration/FieldSelectSearch')
             .click()
-            .type('payment method{downArrow}{enter}');
+            .type('payment');
+        cy.wait(200);
+        cy.get(
+            '[data-combobox-option="true"][value="payments_payment_method"]',
+        ).click();
         cy.findByPlaceholderText('Start typing to filter results').type(
             'credit_card',
         );
