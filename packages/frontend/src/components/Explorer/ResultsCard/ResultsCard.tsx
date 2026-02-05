@@ -20,7 +20,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
-import AddColumnButton from '../../AddColumnButton';
+import AddTableCalculationButton from '../../AddTableCalculationButton';
 import ExportSelector from '../../ExportSelector';
 import SortButton from '../../SortButton';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
@@ -111,7 +111,7 @@ const ResultsCard: FC = memo(() => {
                                 projectUuid,
                             })}
                         >
-                            {isEditMode && <AddColumnButton />}
+                            {isEditMode && <AddTableCalculationButton />}
                         </Can>
 
                         <Can

@@ -1,0 +1,24 @@
+.breadcrumbs {
+    display: block;
+    flex-wrap: wrap;
+}
+
+.separator {
+    display: inline-block;
+}
+
+.anchor {
+    white-space: normal;
+}
+
+.anchorClickable {
+    cursor: pointer;
+}
+
+.anchorStatic {
+    cursor: text;
+}
+
+.anchorStatic:hover {
+    text-decoration: none;
+}
