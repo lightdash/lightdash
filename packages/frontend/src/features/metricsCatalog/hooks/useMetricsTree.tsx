@@ -1,39 +1,34 @@
 import type {
     ApiError,
-    ApiGetMetricsTree,
-    ApiGetMetricsTreePayload,
+    ApiGetAllMetricsTreeEdges,
     ApiMetricsTreeEdgePayload,
     ApiSuccessEmpty,
 } from '@lightdash/common';
 import {
     useMutation,
     useQuery,
+    useQueryClient,
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
-const getMetricsTree = async (
-    projectUuid: string | undefined,
-    metricUuids: string[],
-) => {
-    const payload: ApiGetMetricsTreePayload = { metricUuids };
-
-    return lightdashApi<ApiGetMetricsTree['results']>({
-        url: `/projects/${projectUuid}/dataCatalog/metrics/tree`,
-        method: 'POST',
-        body: JSON.stringify(payload),
+const getAllMetricsTreeEdges = async (projectUuid: string | undefined) => {
+    return lightdashApi<ApiGetAllMetricsTreeEdges['results']>({
+        url: `/projects/${projectUuid}/dataCatalog/metrics/tree/edges`,
+        method: 'GET',
+        body: undefined,
     });
 };
 
-export const useMetricsTree = (
+export const useAllMetricsTreeEdges = (
     projectUuid: string | undefined,
-    metricUuids: string[],
-    options?: UseQueryOptions<ApiGetMetricsTree['results'], ApiError>,
+    options?: UseQueryOptions<ApiGetAllMetricsTreeEdges['results'], ApiError>,
 ) => {
-    return useQuery<ApiGetMetricsTree['results'], ApiError>({
-        queryKey: ['metrics-tree', projectUuid, metricUuids],
-        queryFn: () => getMetricsTree(projectUuid, metricUuids),
+    return useQuery<ApiGetAllMetricsTreeEdges['results'], ApiError>({
+        queryKey: ['all-metrics-tree-edges', projectUuid],
+        queryFn: () => getAllMetricsTreeEdges(projectUuid),
         enabled: !!projectUuid,
+        staleTime: 1000 * 60 * 5, // 5 minutes - edges don't change often
         ...options,
     });
 };
@@ -58,6 +53,8 @@ export const useCreateMetricsTreeEdge = () => {
     >({
         mutationKey: ['create-metrics-tree-edge'],
         mutationFn: createMetricsTreeEdge,
+        // No cache invalidation - the edge is already visible in react-flow's UI
+        // Cache will be updated on next page load or navigation
     });
 };
 
@@ -72,6 +69,7 @@ const deleteMetricsTreeEdge = async (
 };
 
 export const useDeleteMetricsTreeEdge = () => {
+    const queryClient = useQueryClient();
     return useMutation<
         ApiSuccessEmpty,
         ApiError,
@@ -79,5 +77,26 @@ export const useDeleteMetricsTreeEdge = () => {
     >({
         mutationKey: ['delete-metrics-tree-edge'],
         mutationFn: deleteMetricsTreeEdge,
+        onSuccess: (_, variables) => {
+            // Optimistically remove the edge from cache without refetching
+            // This keeps nodes visible even after their edges are deleted
+            queryClient.setQueryData<ApiGetAllMetricsTreeEdges['results']>(
+                ['all-metrics-tree-edges', variables.projectUuid],
+                (oldData) => {
+                    if (!oldData) return oldData;
+                    return {
+                        edges: oldData.edges.filter(
+                            (edge) =>
+                                !(
+                                    edge.source.catalogSearchUuid ===
+                                        variables.sourceCatalogSearchUuid &&
+                                    edge.target.catalogSearchUuid ===
+                                        variables.targetCatalogSearchUuid
+                                ),
+                        ),
+                    };
+                },
+            );
+        },
     });
 };

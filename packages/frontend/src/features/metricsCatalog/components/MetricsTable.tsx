@@ -49,7 +49,7 @@ import {
     MIN_METRICS_CATALOG_SEARCH_LENGTH,
     useMetricsCatalog,
 } from '../hooks/useMetricsCatalog';
-import { useMetricsTree } from '../hooks/useMetricsTree';
+import { useAllMetricsTreeEdges } from '../hooks/useMetricsTree';
 import { useSpotlightTableConfig } from '../hooks/useSpotlightTable';
 import {
     setCategoryFilterMode,
@@ -258,9 +258,9 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         [data],
     );
 
-    // Fetch metric tree data
-    const selectedMetricUuids = useMemo(() => {
-        return flatData.map((metric) => metric.catalogSearchUuid);
+    // Get set of loaded metric UUIDs for efficient lookup
+    const loadedMetricUuids = useMemo(() => {
+        return new Set(flatData.map((metric) => metric.catalogSearchUuid));
     }, [flatData]);
 
     const totalResults = useMemo(() => {
@@ -275,25 +275,38 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         [isFetching, isPreviousData, isMutating],
     );
 
-    const hasMetricsSelected = selectedMetricUuids.length > 0;
+    const hasMetricsLoaded = loadedMetricUuids.size > 0;
 
-    const { data: metricsTree } = useMetricsTree(
-        projectUuid,
-        selectedMetricUuids,
-        {
-            enabled: !!projectUuid && hasMetricsSelected,
-        },
-    );
+    const isCanvasMode = metricCatalogView === MetricCatalogView.CANVAS;
+
+    // Fetch ALL edges for the project only when in canvas mode
+    const { data: allEdgesData } = useAllMetricsTreeEdges(projectUuid, {
+        enabled: !!projectUuid && isCanvasMode,
+    });
+
+    // Filter edges client-side to only include edges where both source AND target are in loaded metrics
+    const filteredEdges = useMemo(() => {
+        if (!allEdgesData?.edges) return [];
+        return allEdgesData.edges.filter(
+            (edge) =>
+                loadedMetricUuids.has(edge.source.catalogSearchUuid) &&
+                loadedMetricUuids.has(edge.target.catalogSearchUuid),
+        );
+    }, [allEdgesData?.edges, loadedMetricUuids]);
 
     // Viewers cannot access metrics tree if there are no edges
+    // In list mode, we don't know yet if edges exist, so we allow access (will show message in canvas if no edges)
     const isValidMetricsEdgeCount = useMemo(
-        () => canManageMetricsTree || (metricsTree?.edges.length ?? 0) > 0,
-        [canManageMetricsTree, metricsTree],
+        () =>
+            canManageMetricsTree ||
+            !isCanvasMode ||
+            filteredEdges.length > 0,
+        [canManageMetricsTree, isCanvasMode, filteredEdges],
     );
 
     const isValidMetricsTree = useMemo(
-        () => hasMetricsSelected && isValidMetricsEdgeCount,
-        [hasMetricsSelected, isValidMetricsEdgeCount],
+        () => hasMetricsLoaded && isValidMetricsEdgeCount,
+        [hasMetricsLoaded, isValidMetricsEdgeCount],
     );
 
     const dataHasCategories = useMemo(() => {
@@ -541,7 +554,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
                     isValidMetricsTree={isValidMetricsTree}
-                    hasMetricsSelected={hasMetricsSelected}
+                    hasMetricsSelected={hasMetricsLoaded}
                     isValidMetricsEdgeCount={isValidMetricsEdgeCount}
                     metricCatalogView={metricCatalogView}
                     table={table}
@@ -699,7 +712,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                                 canManageTags || dataHasCategories
                             }
                             isValidMetricsTree={isValidMetricsTree}
-                            hasMetricsSelected={hasMetricsSelected}
+                            hasMetricsSelected={hasMetricsLoaded}
                             isValidMetricsEdgeCount={isValidMetricsEdgeCount}
                             metricCatalogView={metricCatalogView}
                             table={table}
@@ -711,14 +724,14 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                             {isValidMetricsTree ? (
                                 <Canvas
                                     metrics={flatData}
-                                    edges={metricsTree?.edges ?? []}
+                                    edges={filteredEdges}
                                     viewOnly={!canManageMetricsTree}
                                 />
                             ) : (
                                 <SuboptimalState
                                     title="Canvas mode not available"
                                     description={
-                                        hasMetricsSelected
+                                        hasMetricsLoaded
                                             ? 'There are no connections between the selected metrics'
                                             : 'No metrics available to display'
                                     }

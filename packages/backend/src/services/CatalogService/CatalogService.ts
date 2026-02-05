@@ -1211,6 +1211,24 @@ export class CatalogService<
         return this.catalogModel.getMetricsTree(projectUuid, metricUuids);
     }
 
+    async getAllMetricsTreeEdges(user: SessionUser, projectUuid: string) {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('MetricsTree', { projectUuid, organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const edges =
+            await this.catalogModel.getAllMetricsTreeEdges(projectUuid);
+        return { edges };
+    }
+
     private async validateMetricsTreeEdge(
         projectUuid: string,
         edgePayload: ApiMetricsTreeEdgePayload,
