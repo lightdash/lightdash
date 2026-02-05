@@ -39,8 +39,6 @@ export class FeatureFlagModel {
             [FeatureFlags.DashboardComments]:
                 this.getDashboardComments.bind(this),
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
-            [FeatureFlags.MetricsCatalogEchartsVisualization]:
-                this.getMetricsCatalogEchartsVisualizationEnabled.bind(this),
             [FeatureFlags.Maps]: this.getMapsEnabled.bind(this),
             [FeatureFlags.ShowExecutionTime]:
                 this.getShowExecutionTimeEnabled.bind(this),
@@ -186,32 +184,6 @@ export class FeatureFlagModel {
                       organizationUuid: user.organizationUuid,
                   })
                 : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getMetricsCatalogEchartsVisualizationEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.metricsCatalog.echartsVisualizationEnabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.MetricsCatalogEchartsVisualization,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-
         return {
             id: featureFlagId,
             enabled,

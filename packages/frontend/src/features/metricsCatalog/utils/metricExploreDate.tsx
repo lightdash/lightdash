@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
-import { type NameType } from 'recharts/types/component/DefaultTooltipContent';
 import { type DateRangePreset } from '../hooks/useDateRangePicker';
 
 dayjs.extend(isoWeek);
@@ -293,86 +292,3 @@ export const getMatchingPresetLabel = (
     return matchingPreset?.controlLabel;
 };
 
-/**
- * Gets the granularity formatted label for a given date range - on tooltips
- */
-export const getGranularityLabel = (
-    dateLabel: string,
-    granularity: TimeFrames | undefined,
-    showFullDate: boolean,
-): string | undefined => {
-    if (!granularity) {
-        return undefined;
-    }
-
-    switch (granularity) {
-        case TimeFrames.DAY:
-            if (showFullDate) {
-                return dayjs(dateLabel).format('MMM D, YYYY');
-            }
-            return dayjs(dateLabel).format('MMM D');
-        case TimeFrames.WEEK:
-            if (showFullDate) {
-                return dayjs(dateLabel).format('MMM D, YYYY');
-            }
-            return dayjs(dateLabel).format('MMM D');
-        case TimeFrames.MONTH:
-            if (showFullDate) {
-                return dayjs(dateLabel).format('MMM, YYYY');
-            }
-            return dayjs(dateLabel).format('MMM');
-        case TimeFrames.YEAR:
-            return dayjs(dateLabel).format('YYYY');
-        default:
-            return assertUnimplementedTimeframe(granularity);
-    }
-};
-
-export const getGranularitySublabel = (
-    entryName: NameType | 'metric' | 'compareMetric' | undefined,
-    dateLabel: string | undefined,
-): string | undefined => {
-    if (!entryName || !dateLabel) {
-        return undefined;
-    }
-
-    switch (entryName) {
-        case 'metric':
-            return dayjs(dateLabel).format('YYYY');
-        case 'compareMetric':
-            return dayjs(dateLabel).subtract(1, 'year').format('YYYY');
-        default:
-            return undefined;
-    }
-};
-
-export const is5YearDateRange = (
-    dateRange: [Date | null, Date | null],
-    timeInterval: TimeFrames,
-): boolean => {
-    const preset = getMatchingPresetLabel(dateRange, timeInterval);
-    return preset === '5Y';
-};
-
-export const isInCurrentTimeFrame = (
-    date: Date,
-    timeInterval: TimeFrames | undefined,
-): boolean => {
-    if (!timeInterval) {
-        return false;
-    }
-
-    const now = dayjs();
-    switch (timeInterval) {
-        case TimeFrames.DAY:
-            return dayjs(date).isSame(now, 'day');
-        case TimeFrames.WEEK:
-            return dayjs(date).isSame(now, 'week');
-        case TimeFrames.MONTH:
-            return dayjs(date).isSame(now, 'month');
-        case TimeFrames.YEAR:
-            return dayjs(date).isSame(now, 'year');
-        default:
-            return assertUnimplementedTimeframe(timeInterval);
-    }
-};

@@ -1009,9 +1009,6 @@ export type LightdashConfig = {
     funnelBuilder: {
         enabled: boolean;
     };
-    metricsCatalog: {
-        echartsVisualizationEnabled: boolean | undefined;
-    };
     maps: {
         enabled: boolean | undefined;
     };
@@ -1822,15 +1819,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled:
                 process.env.FUNNEL_BUILDER_ENABLED === 'true' ||
                 lightdashMode === LightdashMode.PR,
-        },
-        metricsCatalog: {
-            echartsVisualizationEnabled:
-                process.env.METRICS_CATALOG_ECHARTS_VISUALIZATION_ENABLED !==
-                undefined
-                    ? process.env
-                          .METRICS_CATALOG_ECHARTS_VISUALIZATION_ENABLED ===
-                      'true'
-                    : undefined,
         },
         maps: {
             enabled:
