@@ -112,6 +112,9 @@ export interface WarehouseSqlBuilder {
         endTimestampSql: string,
     ) => string;
     getMedianSql: (valueSql: string) => string;
+    // Array construction methods for table calculations
+    buildArray: (elements: string[]) => string;
+    buildArrayAgg: (expression: string, orderBy?: string) => string;
 }
 
 export interface WarehouseClient extends WarehouseSqlBuilder {
