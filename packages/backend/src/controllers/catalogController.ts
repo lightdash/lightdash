@@ -11,6 +11,7 @@ import {
     getItemId,
     type ApiFilterDimensionsResponse,
     type ApiGetMetricsTree,
+    type ApiGetMetricsTreePayload,
     type ApiMetricsTreeEdgePayload,
     type ApiMetricsWithAssociatedTimeDimensionResponse,
     type ApiSort,
@@ -470,14 +471,15 @@ export class CatalogController extends BaseController {
     }
 
     /**
-     * Get the metrics tree structure
+     * Get the metrics tree structure (deprecated, use POST instead)
      * @summary Get metrics tree
+     * @deprecated Use POST /metrics/tree instead for large metric lists
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/metrics/tree')
-    @OperationId('getMetricsTree')
-    async getMetricsTree(
+    @OperationId('getMetricsTreeLegacy')
+    async getMetricsTreeLegacy(
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Query() metricUuids: string[],
@@ -487,6 +489,31 @@ export class CatalogController extends BaseController {
         const results = await this.services
             .getCatalogService()
             .getMetricsTree(req.user!, projectUuid, metricUuids);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get the metrics tree structure
+     * @summary Get metrics tree
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/metrics/tree')
+    @OperationId('getMetricsTree')
+    async getMetricsTree(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ApiGetMetricsTreePayload,
+    ): Promise<ApiGetMetricsTree> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetricsTree(req.user!, projectUuid, body.metricUuids);
 
         return {
             status: 'ok',

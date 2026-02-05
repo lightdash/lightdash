@@ -10,38 +10,22 @@ import { useMemo, type FC, type PropsWithChildren } from 'react';
 
 type SegmentedControlHoverCardProps = PropsWithChildren<HoverCardProps> & {
     totalMetricsCount: number;
-    isValidMetricsNodeCount: boolean;
+    hasMetricsSelected: boolean;
     isValidMetricsEdgeCount: boolean;
 };
 
 const SegmentedControlHoverCard: FC<SegmentedControlHoverCardProps> = ({
     children,
     totalMetricsCount,
-    isValidMetricsNodeCount,
+    hasMetricsSelected,
     isValidMetricsEdgeCount,
     ...props
 }) => {
     const segmentedControlTooltipLabel = useMemo(() => {
-        if (totalMetricsCount === 0) {
+        if (totalMetricsCount === 0 || !hasMetricsSelected) {
             return (
                 <Text size="xs" c="white">
                     There are no metrics to display in canvas mode.
-                </Text>
-            );
-        }
-
-        if (!isValidMetricsNodeCount) {
-            return (
-                <Text size="xs" c="white">
-                    Canvas mode is only available for lists with fewer than{' '}
-                    <Text span fw="bold">
-                        30 metrics
-                    </Text>
-                    . Use{' '}
-                    <Text span fw="bold">
-                        Categories
-                    </Text>{' '}
-                    to filter your list down to access it.
                 </Text>
             );
         }
@@ -55,7 +39,7 @@ const SegmentedControlHoverCard: FC<SegmentedControlHoverCardProps> = ({
         }
 
         return null;
-    }, [isValidMetricsEdgeCount, isValidMetricsNodeCount, totalMetricsCount]);
+    }, [isValidMetricsEdgeCount, hasMetricsSelected, totalMetricsCount]);
 
     return (
         <HoverCard

@@ -1,6 +1,7 @@
 import type {
     ApiError,
     ApiGetMetricsTree,
+    ApiGetMetricsTreePayload,
     ApiMetricsTreeEdgePayload,
     ApiSuccessEmpty,
 } from '@lightdash/common';
@@ -15,16 +16,12 @@ const getMetricsTree = async (
     projectUuid: string | undefined,
     metricUuids: string[],
 ) => {
-    const queryParams = metricUuids.length
-        ? `?${new URLSearchParams(
-              metricUuids.map((metricUuid) => ['metricUuids', metricUuid]),
-          ).toString()}`
-        : '';
+    const payload: ApiGetMetricsTreePayload = { metricUuids };
 
     return lightdashApi<ApiGetMetricsTree['results']>({
-        url: `/projects/${projectUuid}/dataCatalog/metrics/tree${queryParams}`,
-        method: 'GET',
-        body: undefined,
+        url: `/projects/${projectUuid}/dataCatalog/metrics/tree`,
+        method: 'POST',
+        body: JSON.stringify(payload),
     });
 };
 
