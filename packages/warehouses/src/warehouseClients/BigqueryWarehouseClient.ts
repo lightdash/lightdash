@@ -203,6 +203,19 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
         // BigQuery uses APPROX_QUANTILES for median
         return `APPROX_QUANTILES(${valueSql}, 100)[OFFSET(50)]`;
     }
+
+    buildArray(elements: string[]): string {
+        // BigQuery array construction syntax
+        return `[${elements.join(', ')}]`;
+    }
+
+    buildArrayAgg(expression: string, orderBy?: string): string {
+        // BigQuery uses ARRAY_AGG function
+        if (orderBy) {
+            return `ARRAY_AGG(${expression} ORDER BY ${orderBy})`;
+        }
+        return `ARRAY_AGG(${expression})`;
+    }
 }
 
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
