@@ -1,3 +1,10 @@
+# [0.2428.0](https://github.com/lightdash/lightdash/compare/0.2427.1...0.2428.0) (2026-02-05)
+
+
+### Features
+
+* add missing event tracking to MetricExploreModalV2 ([#19945](https://github.com/lightdash/lightdash/issues/19945)) ([78adbc5](https://github.com/lightdash/lightdash/commit/78adbc56033b94ba1d6afcd91d5a6263d80aa715))
+
 ## [0.2427.1](https://github.com/lightdash/lightdash/compare/0.2427.0...0.2427.1) (2026-02-05)
 
 
