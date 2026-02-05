@@ -98,6 +98,11 @@ export const warehouseClientMock: WarehouseClient = {
         `EXTRACT(EPOCH FROM (${endTimestampSql} - ${startTimestampSql}))`,
     getMedianSql: (valueSql) =>
         `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ${valueSql})`,
+    buildArray: (elements) => `ARRAY[${elements.join(', ')}]`,
+    buildArrayAgg: (expression, orderBy) =>
+        orderBy
+            ? `ARRAY_AGG(${expression} ORDER BY ${orderBy})`
+            : `ARRAY_AGG(${expression})`,
 };
 
 const sourceMock: Source = {

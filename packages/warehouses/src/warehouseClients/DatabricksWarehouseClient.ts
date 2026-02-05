@@ -242,6 +242,20 @@ export class DatabricksSqlBuilder extends WarehouseBaseSqlBuilder {
         // Databricks uses PERCENTILE function
         return `PERCENTILE(${valueSql}, 0.5)`;
     }
+
+    buildArray(elements: string[]): string {
+        // Databricks/Spark SQL array construction syntax
+        return `ARRAY(${elements.join(', ')})`;
+    }
+
+    buildArrayAgg(expression: string, orderBy?: string): string {
+        // Databricks uses COLLECT_LIST for array aggregation
+        // Note: COLLECT_LIST doesn't support ORDER BY directly, need to sort array after collection
+        if (orderBy) {
+            return `SORT_ARRAY(COLLECT_LIST(${expression}))`;
+        }
+        return `COLLECT_LIST(${expression})`;
+    }
 }
 
 const DATABRICKS_SOCKET_TIMEOUT_MS = 60000;
