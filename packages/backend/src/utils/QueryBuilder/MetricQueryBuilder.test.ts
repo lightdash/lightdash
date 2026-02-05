@@ -21,6 +21,7 @@ import {
 } from './MetricQueryBuilder';
 import {
     bigqueryClientMock,
+    EXPECTED_SQL_NO_DIMENSIONS_WITH_FILTER,
     EXPECTED_SQL_WITH_CROSS_JOIN,
     EXPECTED_SQL_WITH_CROSS_TABLE_METRICS,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_AND_TABLE_CALCULATION,
@@ -1838,11 +1839,9 @@ LIMIT 10`;
                 timezone: QUERY_BUILDER_UTC_TIMEZONE,
             });
 
-            expect(result.query).toContain('cte_keys_table2');
-            expect(result.query).toContain('cte_metrics_table2');
-            expect(result.query).toContain('("table1".dim1) IN (2025)');
-            expect(result.query).not.toContain('cte_unaffected');
-            expect(result.query).toContain('FROM cte_metrics_table2');
+            expect(replaceWhitespace(result.query)).toBe(
+                replaceWhitespace(EXPECTED_SQL_NO_DIMENSIONS_WITH_FILTER),
+            );
         });
     });
 
