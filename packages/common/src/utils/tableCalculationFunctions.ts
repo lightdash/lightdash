@@ -259,6 +259,34 @@ export function parseTableCalculationFunctions(
         pivotMatch = pivotWhereRegex.exec(sql);
     }
 
+    // Parse pivot_offset_list function calls
+    const pivotOffsetListRegex =
+        /pivot_offset_list\s*\(\s*([^,()]+(?:\([^)]*\))?[^,()]*)\s*,\s*(-?\d+)\s*,\s*(\d+)\s*\)/gi;
+    match = pivotOffsetListRegex.exec(sql);
+    while (match !== null) {
+        functions.push({
+            type: TableCalculationFunctionType.PIVOT_OFFSET_LIST,
+            expression: match[1].trim(),
+            columnOffset: parseInt(match[2], 10),
+            numValues: parseInt(match[3], 10),
+            rawSql: match[0],
+        });
+        match = pivotOffsetListRegex.exec(sql);
+    }
+
+    // Parse pivot_row function calls
+    const pivotRowRegex =
+        /pivot_row\s*\(\s*([^()]+(?:\([^)]*\))?[^()]*)\s*\)/gi;
+    match = pivotRowRegex.exec(sql);
+    while (match !== null) {
+        functions.push({
+            type: TableCalculationFunctionType.PIVOT_ROW,
+            expression: match[1].trim(),
+            rawSql: match[0],
+        });
+        match = pivotRowRegex.exec(sql);
+    }
+
     // Parse row function calls
     const rowRegex = /row\s*\(\s*\)/gi;
     match = rowRegex.exec(sql);
@@ -422,6 +450,25 @@ export class TableCalculationFunctionCompiler {
                     processedSql = processedSql.replace(func.rawSql, compiled);
                     break;
                 }
+                case TableCalculationFunctionType.PIVOT_OFFSET_LIST: {
+                    const pivotOffsetListFunc =
+                        func as PivotOffsetListFunctionCall;
+                    const compiled = this.compilePivotOffsetList(
+                        pivotOffsetListFunc.expression,
+                        pivotOffsetListFunc.columnOffset,
+                        pivotOffsetListFunc.numValues,
+                    );
+                    processedSql = processedSql.replace(func.rawSql, compiled);
+                    break;
+                }
+                case TableCalculationFunctionType.PIVOT_ROW: {
+                    const pivotRowFunc = func as PivotRowFunctionCall;
+                    const compiled = this.compilePivotRow(
+                        pivotRowFunc.expression,
+                    );
+                    processedSql = processedSql.replace(func.rawSql, compiled);
+                    break;
+                }
                 default:
                     // Not implemented yet
                     break;
@@ -509,5 +556,64 @@ export class TableCalculationFunctionCompiler {
         // Use MIN with column_index to get the first matching column
         // Then use that column_index to get the value
         return `MAX(CASE WHEN ${q}column_index${q} = (SELECT MIN(${q}column_index${q}) FROM (SELECT ${q}column_index${q}, ${selectExpression} AS condition FROM DUAL) WHERE condition = TRUE) THEN ${valueExpression} ELSE NULL END) OVER (PARTITION BY ${q}row_index${q})`;
+    }
+
+    /**
+     * Compiles a pivot_offset_list function call to return an array of values from consecutive pivot columns.
+     * Uses PostgreSQL array construction syntax with window functions.
+     * @param expression - The SQL expression to evaluate
+     * @param columnOffset - Starting column offset (negative = previous, positive = next)
+     * @param numValues - Number of consecutive values to return
+     * @returns SQL array construction with window functions
+     */
+    private compilePivotOffsetList(
+        expression: string,
+        columnOffset: number,
+        numValues: number,
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+
+        // Build array of values from consecutive pivot columns
+        const arrayElements: string[] = [];
+
+        for (let i = 0; i < numValues; i += 1) {
+            const offset = columnOffset + i;
+
+            if (offset === 0) {
+                // Current column
+                arrayElements.push(expression);
+            } else {
+                // Use LAG or LEAD for other columns
+                const windowFunction = offset < 0 ? 'LAG' : 'LEAD';
+                const offsetValue = Math.abs(offset);
+                const windowClause = `OVER (PARTITION BY ${q}column_index${q} ORDER BY ${q}row_index${q})`;
+
+                // Add the window function to get value at the offset
+                arrayElements.push(
+                    `${windowFunction}(${expression}, ${offsetValue}) ${windowClause}`,
+                );
+            }
+        }
+
+        // Use warehouse-specific array construction
+        return this.warehouseSqlBuilder.buildArray(arrayElements);
+    }
+
+    /**
+     * Compiles a pivot_row function call to return all values from the current row across all pivot columns.
+     * Uses warehouse-specific array aggregation to collect all values for the expression across pivot columns.
+     * @param expression - The SQL expression to evaluate for each pivot column
+     * @returns SQL array aggregation for all pivot values in current row
+     */
+    private compilePivotRow(expression: string): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+
+        // Use warehouse-specific array aggregation with window function
+        // Order by column_index to maintain consistent ordering
+        const baseAgg = this.warehouseSqlBuilder.buildArrayAgg(
+            expression,
+            `${q}column_index${q}`,
+        );
+        return `${baseAgg} OVER (PARTITION BY ${q}row_index${q})`;
     }
 }

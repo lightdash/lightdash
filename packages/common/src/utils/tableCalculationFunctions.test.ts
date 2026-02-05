@@ -433,6 +433,15 @@ describe('tableCalculationFunctions', () => {
             beforeEach(() => {
                 mockWarehouseSqlBuilder = {
                     getFieldQuoteChar: jest.fn().mockReturnValue('"'),
+                    buildArray: jest.fn(
+                        (elements: string[]) => `ARRAY[${elements.join(', ')}]`,
+                    ),
+                    buildArrayAgg: jest.fn(
+                        (expression: string, orderBy?: string) =>
+                            orderBy
+                                ? `ARRAY_AGG(${expression} ORDER BY ${orderBy})`
+                                : `ARRAY_AGG(${expression})`,
+                    ),
                 } as unknown as WarehouseSqlBuilder;
                 compiler = new TableCalculationFunctionCompiler(
                     mockWarehouseSqlBuilder,
@@ -523,24 +532,68 @@ describe('tableCalculationFunctions', () => {
             });
 
             describe('pivot_offset_list compilation', () => {
-                it('should pass through pivot_offset_list as-is (not yet implemented)', () => {
+                it('should compile pivot_offset_list to PostgreSQL array', () => {
                     const sql = 'pivot_offset_list(revenue, -2, 3)';
                     const functions = parseTableCalculationFunctions(sql);
                     const compiled = compiler.compileFunctions(sql, functions);
+                    // Returns PostgreSQL array with LAG and current values
+                    const expectedSql =
+                        'ARRAY[LAG(revenue, 2) OVER (PARTITION BY "column_index" ORDER BY "row_index"), LAG(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index"), revenue]';
+                    expect(compiled).toBe(expectedSql);
+                });
 
-                    // pivot_offset_list is not yet parsed/compiled, so the SQL is returned unchanged
-                    expect(compiled).toBe(sql);
+                it('should compile pivot_offset_list with positive offset', () => {
+                    const sql = 'pivot_offset_list(orders, 0, 3)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    // Returns array starting from current column and going forward
+                    const expectedSql =
+                        'ARRAY[orders, LEAD(orders, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index"), LEAD(orders, 2) OVER (PARTITION BY "column_index" ORDER BY "row_index")]';
+                    expect(compiled).toBe(expectedSql);
+                });
+
+                it('should compile pivot_offset_list spanning both directions', () => {
+                    const sql = 'pivot_offset_list(revenue, -1, 3)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    // Returns array from previous to next column
+                    const expectedSql =
+                        'ARRAY[LAG(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index"), revenue, LEAD(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index")]';
+                    expect(compiled).toBe(expectedSql);
                 });
             });
 
             describe('pivot_row compilation', () => {
-                it('should pass through pivot_row as-is (not yet implemented)', () => {
+                it('should compile pivot_row to PostgreSQL array aggregation', () => {
                     const sql = 'pivot_row(revenue)';
                     const functions = parseTableCalculationFunctions(sql);
                     const compiled = compiler.compileFunctions(sql, functions);
+                    // Returns PostgreSQL ARRAY_AGG to collect all values from current row
+                    const expectedSql =
+                        'ARRAY_AGG(revenue ORDER BY "column_index") OVER (PARTITION BY "row_index")';
+                    expect(compiled).toBe(expectedSql);
+                });
 
-                    // pivot_row is not yet parsed/compiled, so the SQL is returned unchanged
-                    expect(compiled).toBe(sql);
+                it('should compile pivot_row with expression', () => {
+                    const sql = 'pivot_row(revenue * 100)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'ARRAY_AGG(revenue * 100 ORDER BY "column_index") OVER (PARTITION BY "row_index")';
+                    expect(compiled).toBe(expectedSql);
+                });
+
+                it('should compile pivot_row in complex expression', () => {
+                    const sql = 'ARRAY_LENGTH(pivot_row(status), 1)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'ARRAY_LENGTH(ARRAY_AGG(status ORDER BY "column_index") OVER (PARTITION BY "row_index"), 1)';
+                    expect(compiled).toBe(expectedSql);
                 });
             });
 
