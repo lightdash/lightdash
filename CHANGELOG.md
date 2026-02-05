@@ -1,3 +1,17 @@
+# [0.2431.0](https://github.com/lightdash/lightdash/compare/0.2430.3...0.2431.0) (2026-02-05)
+
+
+### Bug Fixes
+
+* stacking not working with extra metrics ([#20013](https://github.com/lightdash/lightdash/issues/20013)) ([34d4edd](https://github.com/lightdash/lightdash/commit/34d4edd2455e44b787bbde319aa66c47eb60be28))
+
+
+### Features
+
+* add Notify Support button to the error toast ([#19860](https://github.com/lightdash/lightdash/issues/19860)) ([bafa235](https://github.com/lightdash/lightdash/commit/bafa235890ab793266a78e9552d1dd7e066ceb39))
+* add rolling days comparison option to metrics explorer ([#19959](https://github.com/lightdash/lightdash/issues/19959)) ([d913502](https://github.com/lightdash/lightdash/commit/d9135022243d12b62f0b52d34a66493f513aea2f))
+* show current/previous periods in metrics canvas ([#20014](https://github.com/lightdash/lightdash/issues/20014)) ([ab39196](https://github.com/lightdash/lightdash/commit/ab39196b14b220844421e298095f3dca3dae1657))
+
 ## [0.2430.3](https://github.com/lightdash/lightdash/compare/0.2430.2...0.2430.3) (2026-02-05)
 
 
