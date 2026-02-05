@@ -1801,6 +1801,55 @@ LIMIT 10`;
             expect(result.query).toContain('("table2_metric3") IN (100)');
             expect(result.query).toContain('("calc1") IS NOT NULL');
         });
+
+        test('Should not create cte_unaffected with empty SELECT when only dimension filters exist', () => {
+            // This test reproduces a bug where cte_unaffected was created with an empty SELECT clause
+            // when there were dimension filters but no dimensions selected and all metrics were in CTEs
+            const result = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    dimensions: [], // No dimensions selected
+                    metrics: ['table2_metric3'], // Only metric from joined table (goes into CTE)
+                    filters: {
+                        dimensions: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: '1',
+                                    target: {
+                                        fieldId: 'table1_dim1', // Dimension filter
+                                    },
+                                    operator: FilterOperator.EQUALS,
+                                    values: [2025],
+                                },
+                            ],
+                        },
+                    },
+                    sorts: [{ fieldId: 'table2_metric3', descending: true }],
+                    limit: 500,
+                    tableCalculations: [],
+                    compiledTableCalculations: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should have metric CTEs for fanout protection
+            expect(result.query).toContain('cte_keys_table2');
+            expect(result.query).toContain('cte_metrics_table2');
+
+            // Dimension filters should be applied in the keys CTE
+            expect(result.query).toContain('("table1".dim1) IN (2025)');
+
+            // Should NOT create cte_unaffected since there's nothing to select in it
+            // (no dimensions and no unaffected metrics)
+            expect(result.query).not.toContain('cte_unaffected');
+
+            // The final query should select directly from the metric CTEs
+            expect(result.query).toContain('FROM cte_metrics_table2');
+        });
     });
 
     describe('Table Calculations', () => {
