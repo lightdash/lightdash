@@ -1,3 +1,10 @@
+# [0.2427.0](https://github.com/lightdash/lightdash/compare/0.2426.0...0.2427.0) (2026-02-05)
+
+
+### Features
+
+* add PIVOT_INDEX table calculation function ([#19977](https://github.com/lightdash/lightdash/issues/19977)) ([3683e41](https://github.com/lightdash/lightdash/commit/3683e41875690330d9b3f6f3af69691c578eba95))
+
 # [0.2426.0](https://github.com/lightdash/lightdash/compare/0.2425.0...0.2426.0) (2026-02-05)
 
 
