@@ -7,9 +7,15 @@ import { type SpaceQuery } from './savedCharts';
 
 // Permissions added directly to a space (not inherited from parent/orgs/projects)
 export enum DirectSpaceAccessOrigin {
-    USER_ACCESS = 'user_access',
-    GROUP_ACCESS = 'group_access',
+    USER = 'user_access',
+    GROUP = 'group_access',
 }
+
+export enum ProjectRoleOrigin {
+    USER = 'user_role',
+    GROUP = 'group_role',
+}
+
 export type DirectSpaceAccess = {
     userUuid: string;
     spaceUuid: string;
@@ -27,6 +33,7 @@ export type ProjectSpaceAccess = {
     userUuid: string;
     spaceUuid: string;
     role: ProjectMemberRole;
+    from: ProjectRoleOrigin;
 };
 
 export type Space = {
