@@ -1,3 +1,12 @@
+# [0.2432.0](https://github.com/lightdash/lightdash/compare/0.2431.1...0.2432.0) (2026-02-05)
+
+
+### Features
+
+* add callout if filter being applied won't affect current tab ([#20015](https://github.com/lightdash/lightdash/issues/20015)) ([4c05fbb](https://github.com/lightdash/lightdash/commit/4c05fbb571c7e25fbccd8c86ea623030b77a9840))
+* improve filter selection based on dashboard tab ([#20012](https://github.com/lightdash/lightdash/issues/20012)) ([3fd103b](https://github.com/lightdash/lightdash/commit/3fd103b6e0124b4ea6e35c042d099f3aa8734037))
+* use CSS variables for canvas edge styling ([#20021](https://github.com/lightdash/lightdash/issues/20021)) ([7f4eacf](https://github.com/lightdash/lightdash/commit/7f4eacfbae393cd4db508a9b5e0135d92c76cf1e))
+
 ## [0.2431.1](https://github.com/lightdash/lightdash/compare/0.2431.0...0.2431.1) (2026-02-05)
 
 
