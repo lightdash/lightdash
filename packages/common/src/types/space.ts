@@ -13,8 +13,20 @@ export enum DirectSpaceAccessOrigin {
 export type DirectSpaceAccess = {
     userUuid: string;
     spaceUuid: string;
-    spaceRole: SpaceMemberRole;
+    role: SpaceMemberRole;
     from: DirectSpaceAccessOrigin;
+};
+
+export type OrganizationSpaceAccess = {
+    userUuid: string;
+    spaceUuid: string;
+    role: OrganizationMemberRole;
+};
+
+export type ProjectSpaceAccess = {
+    userUuid: string;
+    spaceUuid: string;
+    role: ProjectMemberRole;
 };
 
 export type Space = {
