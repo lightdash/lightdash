@@ -27,7 +27,6 @@ import {
     type Edge,
     type EdgeChange,
     type EdgeTypes,
-    type NodeAddChange,
     type NodeChange,
     type NodePositionChange,
     type NodeRemoveChange,
@@ -47,38 +46,15 @@ import {
     useCreateMetricsTreeEdge,
     useDeleteMetricsTreeEdge,
 } from '../../hooks/useMetricsTree';
-import { useTreeNodePosition } from '../../hooks/useTreeNodePosition';
 import { TimeFramePicker } from '../visualization/TimeFramePicker';
+import MetricsSidebar from './MetricsSidebar';
 import DefaultEdge from './TreeComponents/edges/DefaultEdge';
-import CollapsedNode, {
-    type CollapsedNodeData,
-} from './TreeComponents/nodes/CollapsedNode';
 import ExpandedNode, {
     type ExpandedNodeData,
 } from './TreeComponents/nodes/ExpandedNode';
-import FreeGroupNode, {
-    type FreeGroupNodeData,
-} from './TreeComponents/nodes/FreeGroupNode';
 
-enum MetricTreeEdgeType {
-    DEFAULT = 'default',
-}
-
-const metricTreeEdgeTypes: EdgeTypes = {
-    [MetricTreeEdgeType.DEFAULT]: DefaultEdge,
-};
-
-enum MetricTreeNodeType {
-    EXPANDED = 'expanded',
-    COLLAPSED = 'collapsed',
-    FREE_GROUP = 'free_group',
-}
-
-const metricTreeNodeTypes: NodeTypes = {
-    [MetricTreeNodeType.EXPANDED]: ExpandedNode,
-    [MetricTreeNodeType.COLLAPSED]: CollapsedNode,
-    [MetricTreeNodeType.FREE_GROUP]: FreeGroupNode,
-};
+const edgeTypes: EdgeTypes = { yaml: DefaultEdge, ui: DefaultEdge };
+const nodeTypes: NodeTypes = { expanded: ExpandedNode };
 
 type Props = {
     metrics: CatalogField[];
@@ -86,19 +62,13 @@ type Props = {
     viewOnly?: boolean;
 };
 
-enum STATIC_NODE_TYPES {
-    UNCONNECTED = 'UNCONNECTED',
-}
-
 const DEFAULT_TIME_FRAME = TimeFrames.MONTH; // TODO: this should be dynamic
-
-type MetricTreeNode = ExpandedNodeData | CollapsedNodeData | FreeGroupNodeData;
 
 function getEdgeId(edge: Pick<CatalogMetricsTreeEdge, 'source' | 'target'>) {
     return `${edge.source.catalogSearchUuid}_${edge.target.catalogSearchUuid}`;
 }
 
-const getNodeGroups = (nodes: MetricTreeNode[], edges: Edge[]) => {
+const getNodeGroups = (nodes: ExpandedNodeData[], edges: Edge[]) => {
     const connectedNodeIds = new Set();
 
     edges.forEach((edge) => {
@@ -106,15 +76,11 @@ const getNodeGroups = (nodes: MetricTreeNode[], edges: Edge[]) => {
         connectedNodeIds.add(edge.target);
     });
 
-    const connectedNodes = nodes.filter((node): node is ExpandedNodeData =>
+    const connectedNodes = nodes.filter((node) =>
         connectedNodeIds.has(node.id),
     );
 
-    const freeNodes = nodes.filter(
-        (node): node is CollapsedNodeData =>
-            !connectedNodeIds.has(node.id) &&
-            node.id !== STATIC_NODE_TYPES.UNCONNECTED,
-    );
+    const freeNodes = nodes.filter((node) => !connectedNodeIds.has(node.id));
 
     return {
         connectedNodes,
@@ -123,10 +89,10 @@ const getNodeGroups = (nodes: MetricTreeNode[], edges: Edge[]) => {
 };
 
 const getNodeLayout = (
-    nodes: MetricTreeNode[],
+    nodes: ExpandedNodeData[],
     edges: Edge[],
 ): {
-    nodes: MetricTreeNode[];
+    nodes: ExpandedNodeData[];
     edges: Edge[];
 } => {
     const { connectedNodes, freeNodes } = getNodeGroups(nodes, edges);
@@ -135,95 +101,7 @@ const getNodeLayout = (
     );
     treeGraph.setGraph({ rankdir: 'TB', ranksep: 100 });
 
-    // Main padding
-    const mainPadding = 8;
-    const freeGroupTextHeight = 50;
-
-    // Organize nodes into a 2D grid array first
-    const GRID_COLUMNS = 2;
-    const freeNodesGridArray: CollapsedNodeData[][] = [];
-
-    freeNodes.forEach((node, index) => {
-        const row = Math.floor(index / GRID_COLUMNS);
-        if (!freeNodesGridArray[row]) {
-            freeNodesGridArray[row] = [];
-        }
-        freeNodesGridArray[row].push(node);
-    });
-
-    // Draw the unconnected grid
-    const free = freeNodesGridArray.flatMap((row, rowIndex) =>
-        row.map<CollapsedNodeData>((node, colIndex) => {
-            // Calculate x position based on widths of nodes in same row
-            const allPrevNodesInRowWidths = row
-                .slice(0, colIndex)
-                .map((n) => n.measured?.width ?? 0)
-                .reduce((acc, width) => acc + width + mainPadding, 0);
-
-            const x = 1 * colIndex + allPrevNodesInRowWidths;
-
-            // Calculate y position based on sum of previous rows' max height
-            const allPrevRowsMaxHeights = freeNodesGridArray
-                .slice(0, rowIndex)
-                .map((r) => Math.max(...r.map((n) => n.measured?.height ?? 0)))
-                .reduce((acc, height) => acc + height + mainPadding, 0);
-
-            const y =
-                1 * rowIndex +
-                allPrevRowsMaxHeights +
-                freeGroupTextHeight +
-                mainPadding;
-
-            return {
-                ...node,
-                type: MetricTreeNodeType.COLLAPSED,
-                position: { x, y },
-            } satisfies CollapsedNodeData;
-        }),
-    );
-
-    let unconnectedGroup: FreeGroupNodeData | undefined;
-    let unconnectedGroupWidth = 0;
-    let unconnectedGroupHeight = 0;
-
-    if (free.length) {
-        // Group bounds
-        unconnectedGroupWidth = Math.max(
-            Math.max(
-                ...free.map(
-                    (node) => node.position.x + (node.measured?.width ?? 0),
-                ),
-            ) +
-                mainPadding * 2,
-            300, // Don't allow the free group to be too small, otherwise it will make the text overflow too much
-        );
-
-        unconnectedGroupHeight =
-            Math.max(
-                ...free.map(
-                    (node) => node.position.y + (node.measured?.height ?? 0),
-                ),
-            ) +
-            mainPadding * 2;
-
-        unconnectedGroup = free.length
-            ? ({
-                  id: STATIC_NODE_TYPES.UNCONNECTED,
-                  position: { x: -mainPadding, y: -mainPadding },
-                  data: {},
-                  style: {
-                      height: unconnectedGroupHeight,
-                      width: unconnectedGroupWidth,
-                  },
-                  type: MetricTreeNodeType.FREE_GROUP,
-                  selectable: false,
-              } satisfies FreeGroupNodeData)
-            : undefined;
-    }
-
-    const groups = unconnectedGroup ? [unconnectedGroup] : [];
-
-    // Draw the connected tree
+    // Layout connected nodes with Dagre
     edges.forEach((edge) => treeGraph.setEdge(edge.source, edge.target));
 
     connectedNodes.forEach((node) =>
@@ -236,27 +114,23 @@ const getNodeLayout = (
 
     Dagre.layout(treeGraph);
 
-    // Draw the connected tree
-    const tree = connectedNodes.map<MetricTreeNode>((node) => {
-        const position = treeGraph.node(node.id);
-        const x = position.x - (node.measured?.width ?? 0) / 2;
-        const y = position.y - (node.measured?.height ?? 0) / 2;
-        const xFromUnconnectedGroup =
-            unconnectedGroupWidth + x + freeGroupTextHeight;
-        const yFromUnconnectedGroup = -mainPadding + y;
+    const layoutedConnectedNodes = connectedNodes.map<ExpandedNodeData>(
+        (node) => {
+            const position = treeGraph.node(node.id);
+            const x = position.x - (node.measured?.width ?? 0) / 2;
+            const y = position.y - (node.measured?.height ?? 0) / 2;
 
-        return {
-            ...node,
-            type: MetricTreeNodeType.EXPANDED,
-            position: {
-                x: xFromUnconnectedGroup,
-                y: yFromUnconnectedGroup,
-            },
-        };
-    });
+            return {
+                ...node,
+                type: 'expanded',
+                position: { x, y },
+            };
+        },
+    );
 
+    // Return both connected (laid out) and free nodes (keep their positions)
     return {
-        nodes: [...groups, ...tree, ...free],
+        nodes: [...layoutedConnectedNodes, ...freeNodes],
         edges,
     };
 };
@@ -267,27 +141,23 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
     const isTreeModeSwitcherEnabled = useClientFeatureFlag(
         FeatureFlags.MetricsCatalogTreeModeSwitcher,
     );
-    const userUuid = useAppSelector(
-        (state) => state.metricsCatalog.user?.userUuid,
+    const [userUuid, projectUuid, organizationUuid] = useAppSelector(
+        ({ metricsCatalog }) => [
+            metricsCatalog.user?.userUuid,
+            metricsCatalog.projectUuid,
+            metricsCatalog.organizationUuid,
+        ],
     );
-    const projectUuid = useAppSelector(
-        (state) => state.metricsCatalog.projectUuid,
-    );
-    const organizationUuid = useAppSelector(
-        (state) => state.metricsCatalog.organizationUuid,
-    );
-
     const { mutateAsync: createMetricsTreeEdge } = useCreateMetricsTreeEdge();
     const { mutateAsync: deleteMetricsTreeEdge } = useDeleteMetricsTreeEdge();
-    const { fitView, getNode, getEdge } = useReactFlow<MetricTreeNode, Edge>();
+    const { fitView, getNode, getEdge, screenToFlowPosition } = useReactFlow<
+        ExpandedNodeData,
+        Edge
+    >();
     const nodesInitialized = useNodesInitialized();
     const [isLayoutReady, setIsLayoutReady] = useState(false);
     const { showToastInfo } = useToaster();
     const [timeFrame, setTimeFrame] = useState<TimeFrames>(DEFAULT_TIME_FRAME);
-
-    const { containsNode: unconnectGroupContainsNode } = useTreeNodePosition(
-        STATIC_NODE_TYPES.UNCONNECTED,
-    );
 
     const initialEdges = useMemo<Edge[]>(() => {
         // If there are saved edges, use them
@@ -311,15 +181,15 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 id: getEdgeId(edge),
                 source: edge.source.catalogSearchUuid,
                 target: edge.target.catalogSearchUuid,
-                type: MetricTreeEdgeType.DEFAULT,
-                data: { createdFrom: edge.createdFrom },
+                type: edge.createdFrom,
             }));
         }
 
         return [];
     }, [edges, metrics]);
 
-    const initialNodes = useMemo<MetricTreeNode[]>(() => {
+    // All metrics as nodes (for sidebar and drag-drop)
+    const allNodes = useMemo<ExpandedNodeData[]>(() => {
         return metrics.map((metric) => {
             const isEdgeTarget = initialEdges.some(
                 (edge) => edge.target === metric.catalogSearchUuid,
@@ -331,10 +201,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
             return {
                 id: metric.catalogSearchUuid,
                 position: { x: 0, y: 0 },
-                type:
-                    isEdgeTarget || isEdgeSource
-                        ? MetricTreeNodeType.EXPANDED
-                        : MetricTreeNodeType.COLLAPSED,
+                type: 'expanded',
                 data: {
                     label: metric.name,
                     tableName: metric.tableName,
@@ -347,20 +214,19 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
         });
     }, [metrics, initialEdges, timeFrame]);
 
+    // Only connected nodes for initial canvas render
+    const initialNodes = useMemo<ExpandedNodeData[]>(() => {
+        const connectedNodeIds = new Set(
+            initialEdges.flatMap((edge) => [edge.source, edge.target]),
+        );
+        return allNodes.filter((node) => connectedNodeIds.has(node.id));
+    }, [allNodes, initialEdges]);
+
     const [currentNodes, setCurrentNodes, onNodesChange] =
         useNodesState(initialNodes);
 
     const [currentEdges, setCurrentEdges, onEdgesChange] =
         useEdgesState(initialEdges);
-
-    const getNodeEdges = useCallback(
-        (id: string) => {
-            return currentEdges.filter(
-                (e) => e.source === id || e.target === id,
-            );
-        },
-        [currentEdges],
-    );
 
     const handleEdgesChange = useCallback(
         (changes: EdgeChange[]) => {
@@ -368,7 +234,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                 changes,
                 (change) => {
                     if (change.type !== 'remove') return false;
-                    return getEdge(change.id)?.data?.createdFrom === 'yaml';
+                    return getEdge(change.id)?.type === 'yaml';
                 },
             );
             if (blockedYamlChanges.length > 0) {
@@ -386,11 +252,23 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
     const applyLayout = useCallback(
         ({ renderTwice = true }: { renderTwice?: boolean } = {}) => {
+            // Skip layout if nodes aren't measured yet
+            const allNodesMeasured = currentNodes.every(
+                (node) => node.measured?.width && node.measured?.height,
+            );
+            if (!allNodesMeasured && renderTwice) {
+                // Wait for nodes to be measured
+                setTimeout(() => {
+                    applyLayout({ renderTwice: true });
+                }, 50);
+                return;
+            }
+
             const layout = getNodeLayout(currentNodes, currentEdges);
 
             setCurrentNodes(layout.nodes);
             setCurrentEdges(layout.edges);
-            setIsLayoutReady(true); // Prevent layout from being applied again - relevant to be set before renderTwice because of setTimeout otherwise it goes into an infinite loop
+            setIsLayoutReady(true);
 
             if (renderTwice) {
                 setTimeout(() => {
@@ -409,51 +287,31 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
     const handleNodePositionChange = useCallback(
         (changes: NodePositionChange[]) => {
-            const changesToApply = changes
-                .filter((c) => c.id !== STATIC_NODE_TYPES.UNCONNECTED)
-                .map((c) => {
-                    const node = getNode(c.id);
+            return changes.map((c) => {
+                const node = getNode(c.id);
 
-                    if (!node) {
-                        return c;
-                    }
+                if (!node) {
+                    return c;
+                }
 
-                    const nodeEdges = getNodeEdges(c.id);
-
-                    if (unconnectGroupContainsNode(c.id) && !nodeEdges.length) {
-                        return {
-                            id: c.id,
-                            type: 'replace',
-                            item: {
-                                ...node,
-                                type: MetricTreeNodeType.COLLAPSED,
-                                position: c.position ?? node.position,
-                            },
-                        } satisfies NodeReplaceChange<MetricTreeNode>;
-                    }
-
-                    return {
-                        id: c.id,
-                        type: 'replace',
-                        item: {
-                            ...node,
-                            type: MetricTreeNodeType.EXPANDED,
-                            position: c.position ?? node.position,
-                        },
-                    } satisfies NodeReplaceChange<MetricTreeNode>;
-                });
-
-            return changesToApply;
+                return {
+                    id: c.id,
+                    type: 'replace',
+                    item: {
+                        ...node,
+                        position: c.position ?? node.position,
+                    },
+                } satisfies NodeReplaceChange<ExpandedNodeData>;
+            });
         },
-        [getNode, getNodeEdges, unconnectGroupContainsNode],
+        [getNode],
     );
 
     const handleNodeChange = useCallback(
-        (changes: NodeChange<MetricTreeNode>[]) => {
-            const preventedChangeTypes: NodeChange<MetricTreeNode>['type'][] = [
-                'replace',
-                'remove',
-            ];
+        (changes: NodeChange<ExpandedNodeData>[]) => {
+            // Only prevent 'replace' changes, allow 'remove' so users can delete nodes
+            const preventedChangeTypes: NodeChange<ExpandedNodeData>['type'][] =
+                ['replace'];
 
             const changesWithoutPreventedTypes = changes.filter(
                 (c) => !preventedChangeTypes.includes(c.type),
@@ -510,7 +368,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
         async (edgesToDelete: Edge[]) => {
             if (projectUuid) {
                 const deletableEdges = edgesToDelete.filter(
-                    (edge) => edge.data?.createdFrom !== 'yaml',
+                    (edge) => edge.type !== 'yaml',
                 );
                 const promises = deletableEdges.map(async (edge) => {
                     await deleteMetricsTreeEdge({
@@ -535,18 +393,54 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
         [projectUuid, deleteMetricsTreeEdge, track, organizationUuid, userUuid],
     );
 
+    const handleDragOver = useCallback((event: React.DragEvent) => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+    }, []);
+
+    const handleDrop = useCallback(
+        (event: React.DragEvent) => {
+            event.preventDefault();
+
+            const data = event.dataTransfer.getData('application/reactflow');
+            if (!data) return;
+
+            const { catalogSearchUuid } = JSON.parse(data);
+
+            const nodeData = allNodes.find((n) => n.id === catalogSearchUuid);
+            if (!nodeData) return;
+
+            const position = screenToFlowPosition({
+                x: event.clientX,
+                y: event.clientY,
+            });
+
+            setCurrentNodes((nodes) => {
+                if (nodes.some((n) => n.id === catalogSearchUuid)) return nodes;
+
+                const newNode: ExpandedNodeData = {
+                    ...nodeData,
+                    position,
+                };
+                return [...nodes, newNode];
+            });
+        },
+        [allNodes, screenToFlowPosition, setCurrentNodes],
+    );
+
     // Reset layout when initial edges or nodes change
     useEffect(() => {
+        setCurrentNodes(initialNodes);
         setCurrentEdges(initialEdges);
         setIsLayoutReady(false);
-    }, [initialEdges, setCurrentEdges]);
+    }, [initialNodes, initialEdges, setCurrentNodes, setCurrentEdges]);
 
     // Only apply layout when nodes are initialized and the initial layout is not ready
     useEffect(() => {
-        if (nodesInitialized && !isLayoutReady) {
+        if (nodesInitialized && !isLayoutReady && currentNodes.length > 0) {
             applyLayout();
         }
-    }, [applyLayout, nodesInitialized, isLayoutReady]);
+    }, [applyLayout, nodesInitialized, isLayoutReady, currentNodes.length]);
 
     useEffect(() => {
         setCurrentNodes((nodes) =>
@@ -560,111 +454,105 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
         );
     }, [timeFrame, setCurrentNodes]);
 
-    const addNodeChanges = useMemo<NodeAddChange<MetricTreeNode>[]>(() => {
-        return initialNodes
-            .filter((node) => !currentNodes.some((n) => n.id === node.id))
-            .map((node) => ({
-                id: node.id,
-                type: 'add',
-                item: node,
-            }));
-    }, [initialNodes, currentNodes]);
-
+    // Remove nodes from canvas if they no longer exist in metrics
     const removeNodeChanges = useMemo<NodeRemoveChange[]>(() => {
         return currentNodes
-            .filter(
-                (node) =>
-                    node.id !== STATIC_NODE_TYPES.UNCONNECTED &&
-                    !initialNodes.some((n) => n.id === node.id),
-            )
+            .filter((node) => !allNodes.some((n) => n.id === node.id))
             .map((node) => ({
                 id: node.id,
                 type: 'remove',
             }));
-    }, [currentNodes, initialNodes]);
+    }, [currentNodes, allNodes]);
 
     useEffect(() => {
-        if (addNodeChanges.length > 0 || removeNodeChanges.length > 0) {
-            onNodesChange([...addNodeChanges, ...removeNodeChanges]);
+        if (removeNodeChanges.length > 0) {
+            onNodesChange(removeNodeChanges);
         }
-    }, [addNodeChanges, removeNodeChanges, onNodesChange]);
+    }, [removeNodeChanges, onNodesChange]);
+
+    const sidebarNodes = useMemo(() => {
+        return allNodes.filter(
+            (node) => !currentNodes.some((n) => n.id === node.id),
+        );
+    }, [currentNodes, allNodes]);
 
     return (
-        <Box h="100%">
-            <ReactFlow
-                nodes={currentNodes}
-                edges={currentEdges}
-                fitView
-                attributionPosition="top-right"
-                onNodesChange={handleNodeChange}
-                onEdgesChange={handleEdgesChange}
-                onConnect={handleConnect}
-                edgesReconnectable={false}
-                onEdgesDelete={handleEdgesDelete}
-                nodeTypes={metricTreeNodeTypes}
-                edgeTypes={metricTreeEdgeTypes}
-                nodesConnectable={!viewOnly}
-                nodesDraggable={!viewOnly}
-                elementsSelectable={!viewOnly}
-            >
-                <Panel position="top-left" style={{ margin: '14px 27px' }}>
-                    <Group spacing="xs">
-                        {isTreeModeSwitcherEnabled ? (
-                            <>
-                                <Text fz={14} fw={500} c="ldGray.6">
-                                    Canvas mode:
-                                </Text>
+        <Group h="100%" spacing={0} noWrap align="stretch">
+            {!viewOnly && <MetricsSidebar nodes={sidebarNodes} />}
+            <Box h="100%" sx={{ flex: 1 }}>
+                <ReactFlow
+                    nodes={currentNodes}
+                    edges={currentEdges}
+                    fitView
+                    attributionPosition="top-right"
+                    onNodesChange={handleNodeChange}
+                    onEdgesChange={handleEdgesChange}
+                    onConnect={handleConnect}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    edgesReconnectable={false}
+                    onEdgesDelete={handleEdgesDelete}
+                    nodeTypes={nodeTypes}
+                    edgeTypes={edgeTypes}
+                    nodesConnectable={!viewOnly}
+                    nodesDraggable={!viewOnly}
+                    elementsSelectable={!viewOnly}
+                >
+                    <Panel position="top-left" style={{ margin: '14px 27px' }}>
+                        <Group spacing="xs">
+                            <Text fz={14} fw={500} c="ldGray.6">
+                                Canvas mode:
+                            </Text>
+                            {isTreeModeSwitcherEnabled ? (
                                 <TimeFramePicker
                                     value={timeFrame}
                                     onChange={setTimeFrame}
                                 />
-                            </>
-                        ) : (
-                            <Text fz={14} fw={600} c="ldGray.7">
-                                <Text span fw={500} c="ldGray.6">
-                                    Canvas mode:
-                                </Text>{' '}
-                                Current month to date
-                            </Text>
-                        )}
-                        <ActionIcon
-                            component="a"
-                            href="https://docs.lightdash.com/guides/metrics-catalog/" // TODO: add link to canvas docs
-                            target="_blank"
-                            variant="transparent"
-                            size="xs"
-                        >
-                            <MantineIcon
-                                icon={IconInfoCircle}
-                                color="ldGray.6"
-                            />
-                        </ActionIcon>
-                    </Group>
-                </Panel>
-                {!viewOnly && (
-                    <Panel position="bottom-left">
-                        <Button
-                            variant="default"
-                            radius="md"
-                            onClick={applyLayout}
-                            size="xs"
-                            sx={{
-                                boxShadow: theme.shadows.subtle,
-                            }}
-                            leftIcon={
+                            ) : (
+                                <Text span fw={500} c="ldGray.7">
+                                    Current month to date
+                                </Text>
+                            )}
+
+                            <ActionIcon
+                                component="a"
+                                href="https://docs.lightdash.com/guides/metrics-catalog/" // TODO: add link to canvas docs
+                                target="_blank"
+                                variant="transparent"
+                                size="xs"
+                            >
                                 <MantineIcon
-                                    color="ldGray.5"
-                                    icon={IconLayoutGridRemove}
+                                    icon={IconInfoCircle}
+                                    color="ldGray.6"
                                 />
-                            }
-                        >
-                            Clean up
-                        </Button>
+                            </ActionIcon>
+                        </Group>
                     </Panel>
-                )}
-                {!viewOnly && <Background />}
-            </ReactFlow>
-        </Box>
+                    {!viewOnly && (
+                        <Panel position="bottom-left">
+                            <Button
+                                variant="default"
+                                radius="md"
+                                onClick={applyLayout}
+                                size="xs"
+                                sx={{
+                                    boxShadow: theme.shadows.subtle,
+                                }}
+                                leftIcon={
+                                    <MantineIcon
+                                        color="ldGray.5"
+                                        icon={IconLayoutGridRemove}
+                                    />
+                                }
+                            >
+                                Clean up
+                            </Button>
+                        </Panel>
+                    )}
+                    {!viewOnly && <Background />}
+                </ReactFlow>
+            </Box>
+        </Group>
     );
 };
 
