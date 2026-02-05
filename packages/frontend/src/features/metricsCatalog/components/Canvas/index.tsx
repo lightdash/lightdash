@@ -16,8 +16,8 @@ import {
 import { IconInfoCircle, IconLayoutGridRemove } from '@tabler/icons-react';
 import {
     Background,
-    Panel,
     ReactFlow,
+    Panel as ReactFlowPanel,
     addEdge,
     useEdgesState,
     useNodesInitialized,
@@ -36,6 +36,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import partition from 'lodash/partition';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { Panel, PanelGroup } from 'react-resizable-panels';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useClientFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
@@ -490,84 +491,89 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
     }, [currentNodes, allNodes]);
 
     return (
-        <Group h="100%" spacing={0} noWrap align="stretch">
+        <PanelGroup direction="horizontal" style={{ height: '100%' }}>
             {!viewOnly && <MetricsSidebar nodes={sidebarNodes} />}
-            <Box h="100%" sx={{ flex: 1 }}>
-                <ReactFlow
-                    nodes={currentNodes}
-                    edges={currentEdges}
-                    fitView
-                    attributionPosition="top-right"
-                    onNodesChange={handleNodeChange}
-                    onEdgesChange={handleEdgesChange}
-                    onConnect={handleConnect}
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                    edgesReconnectable={false}
-                    onEdgesDelete={handleEdgesDelete}
-                    nodeTypes={nodeTypes}
-                    edgeTypes={edgeTypes}
-                    nodesConnectable={!viewOnly}
-                    nodesDraggable={!viewOnly}
-                    elementsSelectable={!viewOnly}
-                >
-                    <Panel position="top-left" style={{ margin: '14px 27px' }}>
-                        <Group spacing="xs">
-                            <Text fz={14} fw={500} c="ldGray.6">
-                                Canvas mode:
-                            </Text>
-                            {isTreeModeSwitcherEnabled ? (
-                                <TimeFramePicker
-                                    value={timeFrame}
-                                    onChange={setTimeFrame}
-                                />
-                            ) : (
-                                <Text span fw={500} c="ldGray.7">
-                                    Current month to date
+            <Panel id="metrics-canvas" order={2}>
+                <Box h="100%">
+                    <ReactFlow
+                        nodes={currentNodes}
+                        edges={currentEdges}
+                        fitView
+                        attributionPosition="top-right"
+                        onNodesChange={handleNodeChange}
+                        onEdgesChange={handleEdgesChange}
+                        onConnect={handleConnect}
+                        onDragOver={handleDragOver}
+                        onDrop={handleDrop}
+                        edgesReconnectable={false}
+                        onEdgesDelete={handleEdgesDelete}
+                        nodeTypes={nodeTypes}
+                        edgeTypes={edgeTypes}
+                        nodesConnectable={!viewOnly}
+                        nodesDraggable={!viewOnly}
+                        elementsSelectable={!viewOnly}
+                    >
+                        <ReactFlowPanel
+                            position="top-left"
+                            style={{ margin: '14px 27px' }}
+                        >
+                            <Group spacing="xs">
+                                <Text fz={14} fw={500} c="ldGray.6">
+                                    Canvas mode:
                                 </Text>
-                            )}
-
-                            <ActionIcon
-                                component="a"
-                                href="https://docs.lightdash.com/guides/metrics-catalog/" // TODO: add link to canvas docs
-                                target="_blank"
-                                variant="transparent"
-                                size="xs"
-                            >
-                                <MantineIcon
-                                    icon={IconInfoCircle}
-                                    color="ldGray.6"
-                                />
-                            </ActionIcon>
-                        </Group>
-                    </Panel>
-                    {!viewOnly && (
-                        <Panel position="bottom-left">
-                            <Button
-                                variant="default"
-                                radius="md"
-                                onClick={() =>
-                                    applyLayout({ removeUnconnected: true })
-                                }
-                                size="xs"
-                                sx={{
-                                    boxShadow: theme.shadows.subtle,
-                                }}
-                                leftIcon={
-                                    <MantineIcon
-                                        color="ldGray.5"
-                                        icon={IconLayoutGridRemove}
+                                {isTreeModeSwitcherEnabled ? (
+                                    <TimeFramePicker
+                                        value={timeFrame}
+                                        onChange={setTimeFrame}
                                     />
-                                }
-                            >
-                                Clean up
-                            </Button>
-                        </Panel>
-                    )}
-                    {!viewOnly && <Background />}
-                </ReactFlow>
-            </Box>
-        </Group>
+                                ) : (
+                                    <Text span fw={500} c="ldGray.7">
+                                        Current month to date
+                                    </Text>
+                                )}
+
+                                <ActionIcon
+                                    component="a"
+                                    href="https://docs.lightdash.com/guides/metrics-catalog/" // TODO: add link to canvas docs
+                                    target="_blank"
+                                    variant="transparent"
+                                    size="xs"
+                                >
+                                    <MantineIcon
+                                        icon={IconInfoCircle}
+                                        color="ldGray.6"
+                                    />
+                                </ActionIcon>
+                            </Group>
+                        </ReactFlowPanel>
+                        {!viewOnly && (
+                            <ReactFlowPanel position="bottom-left">
+                                <Button
+                                    variant="default"
+                                    radius="md"
+                                    onClick={() =>
+                                        applyLayout({ removeUnconnected: true })
+                                    }
+                                    size="xs"
+                                    sx={{
+                                        boxShadow: theme.shadows.subtle,
+                                    }}
+                                    leftIcon={
+                                        <MantineIcon
+                                            color="ldGray.5"
+                                            icon={IconLayoutGridRemove}
+                                        />
+                                    }
+                                >
+                                    Clean up
+                                </Button>
+                            </ReactFlowPanel>
+                        )}
+                        {!viewOnly && <Background />}
+                    </ReactFlow>
+                </Box>
+            </Panel>
+        </PanelGroup>
     );
 };
 
