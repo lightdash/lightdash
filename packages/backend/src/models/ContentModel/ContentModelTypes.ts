@@ -26,6 +26,8 @@ export type ContentFilters = {
     space?: {
         rootSpaces: boolean;
     };
+    deleted?: boolean;
+    deletedByUserUuids?: string[];
 };
 
 export type ContentArgs = {
@@ -59,6 +61,10 @@ export type SummaryContentRow<
     last_updated_by_user_last_name: string | null;
     views: number;
     first_viewed_at: Date | null;
+    deleted_at: Date | null;
+    deleted_by_user_uuid: string | null;
+    deleted_by_user_first_name: string | null;
+    deleted_by_user_last_name: string | null;
     metadata: T;
 };
 

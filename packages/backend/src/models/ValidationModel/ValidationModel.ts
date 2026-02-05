@@ -232,11 +232,13 @@ export class ValidationModel {
             )
             // Join to dashboard's space for charts saved in dashboards (space_id is NULL)
             // Uses saved_charts.dashboard_uuid which directly references the dashboard
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .leftJoin(
                 `${SpaceTableName} as ${dashboardSpaceAlias}`,
                 `${dashboardSpaceAlias}.space_id`,
@@ -330,17 +332,16 @@ export class ValidationModel {
                 source: ValidationSourceType.Chart,
             }));
 
-        const dashboardValidationErrorsRows: (DbValidationTable &
-            Pick<DashboardTable['base'], 'name' | 'views_count'> &
-            Pick<UserTable['base'], 'first_name' | 'last_name'> &
-            Pick<DbSpace, 'space_uuid'> & {
-                last_updated_at: Date;
-            })[] = await this.database(ValidationTableName)
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${ValidationTableName}.dashboard_uuid`,
-            )
+        const dashboardValidationErrorsRows = await this.database(
+            ValidationTableName,
+        )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${ValidationTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .leftJoin(
                 SpaceTableName,
                 `${DashboardsTableName}.space_id`,
@@ -368,7 +369,14 @@ export class ValidationModel {
                 `${ValidationTableName}.source`,
                 ValidationSourceType.Dashboard,
             )
-            .select([
+            .select<
+                (DbValidationTable &
+                    Pick<DashboardTable['base'], 'name' | 'views_count'> &
+                    Pick<UserTable['base'], 'first_name' | 'last_name'> &
+                    Pick<DbSpace, 'space_uuid'> & {
+                        last_updated_at: Date;
+                    })[]
+            >([
                 `${ValidationTableName}.*`,
                 `${DashboardsTableName}.name`,
                 `${DashboardVersionsTableName}.created_at as last_updated_at`,

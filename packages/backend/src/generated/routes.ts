@@ -2022,6 +2022,30 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                deletedBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                lastName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                firstName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                userUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
+                deletedAt: { dataType: 'datetime' },
                 config: { ref: 'DashboardConfig' },
                 slug: { dataType: 'string', required: true },
                 access: {
@@ -15941,6 +15965,37 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                deletedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                deletedBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                lastName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                firstName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                userUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 dashboardVersionId: { dataType: 'double', required: true },
                 tiles: {
                     dataType: 'array',
@@ -23814,9 +23869,66 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DeletedDashboardContentSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                organizationUuid: { dataType: 'string', required: true },
+                projectUuid: { dataType: 'string', required: true },
+                spaceName: { dataType: 'string', required: true },
+                spaceUuid: { dataType: 'string', required: true },
+                deletedBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                lastName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                firstName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                userUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                deletedAt: { dataType: 'datetime', required: true },
+                contentType: { ref: 'ContentType.DASHBOARD', required: true },
+                description: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DeletedContentSummary: {
         dataType: 'refAlias',
-        type: { ref: 'DeletedChartContentSummary', validators: {} },
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { ref: 'DeletedChartContentSummary' },
+                { ref: 'DeletedDashboardContentSummary' },
+            ],
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'KnexPaginatedData_DeletedContentSummary-Array_': {

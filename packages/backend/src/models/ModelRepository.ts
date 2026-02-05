@@ -230,7 +230,10 @@ export class ModelRepository
     public getDashboardModel(): DashboardModel {
         return this.getModel(
             'dashboardModel',
-            () => new DashboardModel({ database: this.database }),
+            () =>
+                new DashboardModel({
+                    database: this.database,
+                }),
         );
     }
 

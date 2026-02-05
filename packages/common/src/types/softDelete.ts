@@ -21,8 +21,26 @@ export type DeletedChartContentSummary = {
     organizationUuid: string;
 };
 
-// Union type for future extensibility (dashboards, spaces, etc.)
-export type DeletedContentSummary = DeletedChartContentSummary;
+export type DeletedDashboardContentSummary = {
+    uuid: string;
+    name: string;
+    description: string | null;
+    contentType: ContentType.DASHBOARD;
+    deletedAt: Date;
+    deletedBy: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null;
+    spaceUuid: string;
+    spaceName: string;
+    projectUuid: string;
+    organizationUuid: string;
+};
+
+export type DeletedContentSummary =
+    | DeletedChartContentSummary
+    | DeletedDashboardContentSummary;
 
 export type DeletedContentFilters = {
     projectUuids: string[];

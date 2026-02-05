@@ -267,11 +267,13 @@ export class SpaceModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .select<
                 {
                     saved_query_uuid: string;
@@ -452,7 +454,8 @@ export class SpaceModel {
                             .from(DashboardsTableName)
                             .whereRaw(
                                 `${DashboardsTableName}.space_id = ${SpaceTableName}.space_id`,
-                            ),
+                            )
+                            .whereNull(`${DashboardsTableName}.deleted_at`),
                         slug: `${SpaceTableName}.slug`,
                         parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
                         path: `${SpaceTableName}.path`,
@@ -644,6 +647,7 @@ export class SpaceModel {
             ])
             .distinctOn(`${DashboardVersionsTableName}.dashboard_id`)
             .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
             .orderBy([
                 {
                     column: `dashboard_id`,
@@ -1942,11 +1946,13 @@ export class SpaceModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedChartsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .select<
                 {
                     saved_query_uuid: string;

@@ -115,11 +115,13 @@ const getDashboards = async (
             'pinned_list.pinned_list_uuid',
             'pinned_dashboard.pinned_list_uuid',
         )
-        .innerJoin(
-            'dashboards',
-            'pinned_dashboard.dashboard_uuid',
-            'dashboards.dashboard_uuid',
-        )
+        .innerJoin('dashboards', function nonDeletedDashboardJoin() {
+            this.on(
+                'pinned_dashboard.dashboard_uuid',
+                '=',
+                'dashboards.dashboard_uuid',
+            ).andOnNull('dashboards.deleted_at');
+        })
         .innerJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
         .innerJoin(
             knex('dashboard_versions')
@@ -202,8 +204,13 @@ const getAllSpaces = async (
                 .from(SpaceTableName)
                 .leftJoin(
                     DashboardsTableName,
-                    `${DashboardsTableName}.space_id`,
-                    `${SpaceTableName}.space_id`,
+                    function nonDeletedDashboardJoin() {
+                        this.on(
+                            `${DashboardsTableName}.space_id`,
+                            '=',
+                            `${SpaceTableName}.space_id`,
+                        ).andOnNull(`${DashboardsTableName}.deleted_at`);
+                    },
                 )
                 .leftJoin(SavedChartsTableName, function nonDeletedChartJoin() {
                     this.on(

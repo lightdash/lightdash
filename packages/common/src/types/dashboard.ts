@@ -195,6 +195,12 @@ export type Dashboard = {
     access: SpaceShare[] | null;
     slug: string;
     config?: DashboardConfig;
+    deletedAt?: Date;
+    deletedBy?: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null;
 };
 
 export enum DashboardSummaryTone {
