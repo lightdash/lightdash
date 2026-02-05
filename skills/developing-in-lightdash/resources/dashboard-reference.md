@@ -256,9 +256,43 @@ filters:
         completed: true        # Only completed periods
 ```
 
-### Per-Tile Filter Targeting
+### Per-Tile Filter Targeting (tileTargets)
 
-Control which tiles a filter applies to:
+Use `tileTargets` when a single dashboard filter needs to apply to tiles from different explores, mapping the filter to the equivalent field in each explore. This is essential for dashboards that combine data from multiple explores.
+
+**Key concept:** A single conceptual filter (e.g., "Time Period") can target different physical fields across different explores. The default `target` applies to tiles using that explore; use `tileTargets` keyed by tile slug to override for tiles using different explores.
+
+#### Cross-Explore Filter Example
+
+When your dashboard has tiles from multiple explores (e.g., orders and customers), map the filter to the equivalent field in each:
+
+```yaml
+filters:
+  dimensions:
+    - target:
+        fieldId: orders_created_at    # Default: for tiles using orders explore
+        tableName: orders
+      operator: inThePast
+      values: [30]
+      settings:
+        unitOfTime: days
+        completed: false
+      label: "Date Range"
+      tileTargets:
+        sales-by-region:              # Tile slug - uses orders explore (matches default)
+          fieldId: orders_created_at
+          tableName: orders
+        customer-metrics:             # Tile slug - uses customers explore (different field!)
+          fieldId: customers_signup_date
+          tableName: customers
+        revenue-summary:              # Tile slug - uses orders explore
+          fieldId: orders_created_at
+          tableName: orders
+```
+
+#### Excluding Tiles from a Filter
+
+Set a tile target to `false` to exclude it from the filter entirely:
 
 ```yaml
 filters:
@@ -267,13 +301,29 @@ filters:
         fieldId: orders_region
         tableName: orders
       operator: equals
-      values: []               # User selects value
+      values: []
       label: "Region"
       tileTargets:
-        "tile-uuid-1":         # Apply to this tile
-          fieldId: orders_region
-          tableName: orders
-        "tile-uuid-2": false   # Exclude this tile
+        company-overview: false       # This tile ignores the region filter
+```
+
+#### Empty tileTargets
+
+When all tiles use the same explore, you can leave `tileTargets` empty - the filter will apply to all tiles that have the matching field:
+
+```yaml
+filters:
+  dimensions:
+    - target:
+        fieldId: orders_created_at
+        tableName: orders
+      operator: inThePast
+      values: [12]
+      settings:
+        unitOfTime: months
+        completed: true
+      label: "Time Period"
+      tileTargets: {}                 # Applies to all tiles with orders_created_at
 ```
 
 ### Required Filters
@@ -502,6 +552,36 @@ filters:
 3. **Use appropriate operators**: Date ranges vs. exact matches
 4. **Consider required filters**: When context is needed
 5. **Target filters correctly**: Not all filters apply to all charts
+6. **Use tileTargets for multi-explore dashboards**: When tiles come from different explores, use `tileTargets` to map the filter to the equivalent field in each explore
+
+### Filter Troubleshooting
+
+**Problem: Dashboard filter isn't applying to some tiles**
+
+This usually happens when those tiles use a different explore than the filter's `target`. The filter only auto-applies to tiles with a matching `fieldId` and `tableName`.
+
+**Solution:** Add `tileTargets` entries for tiles using different explores:
+
+```yaml
+filters:
+  dimensions:
+    - target:
+        fieldId: orders_date        # Works for orders explore tiles
+        tableName: orders
+      tileTargets:
+        customer-chart:             # This tile uses customers explore
+          fieldId: customers_date   # Map to equivalent field
+          tableName: customers
+```
+
+**Problem: Filter applies to a tile when it shouldn't**
+
+**Solution:** Explicitly exclude the tile:
+
+```yaml
+tileTargets:
+  summary-tile: false               # This tile ignores the filter
+```
 
 ### Performance
 
