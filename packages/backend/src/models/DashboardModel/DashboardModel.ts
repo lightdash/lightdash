@@ -211,7 +211,8 @@ export class DashboardModel {
                     chartTiles.map(
                         ({ properties }) => properties.savedChartUuid,
                     ),
-                );
+                )
+                .whereNull('deleted_at');
 
             const getChartId = (savedChartUuid: string): number => {
                 const matchingChartId = chartIds.find(
@@ -472,6 +473,7 @@ export class DashboardModel {
                     `${SavedChartsTableName}.saved_query_id`,
                     `${DashboardTileChartTableName}.saved_chart_id`,
                 )
+                .whereNull(`${SavedChartsTableName}.deleted_at`)
                 .distinctOn(`${cteTableName}.dashboard_uuid`)
                 .andWhere(
                     `${SavedChartsTableName}.saved_query_uuid`,
@@ -605,6 +607,7 @@ export class DashboardModel {
                     `${DashboardTileChartTableName}.saved_chart_id`,
                     `${SavedChartsTableName}.saved_query_id`,
                 )
+                .whereNull(`${SavedChartsTableName}.deleted_at`)
                 .groupBy(1, 2, 3, 4)
         );
     }
@@ -923,11 +926,13 @@ export class DashboardModel {
                 `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
                 `${SavedSqlTableName}.saved_sql_uuid`,
             )
-            .leftJoin(
-                SavedChartsTableName,
-                `${DashboardTileChartTableName}.saved_chart_id`,
-                `${SavedChartsTableName}.saved_query_id`,
-            )
+            .leftJoin(SavedChartsTableName, function savedChartsJoin() {
+                this.on(
+                    `${DashboardTileChartTableName}.saved_chart_id`,
+                    '=',
+                    `${SavedChartsTableName}.saved_query_id`,
+                ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
             .where(
                 `${DashboardTilesTableName}.dashboard_version_id`,
                 dashboard.dashboard_version_id,
@@ -1262,6 +1267,7 @@ export class DashboardModel {
         const orphanedCharts = await this.database(SavedChartsTableName)
             .select(`saved_query_uuid`)
             .where(`${SavedChartsTableName}.dashboard_uuid`, dashboardUuid)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
             .whereNotIn(`saved_query_id`, getChartsInTilesQuery);
 
         return orphanedCharts.map((chart) => ({
@@ -1322,11 +1328,13 @@ export class DashboardModel {
                 `${cteName}.dashboard_version_id`,
                 `${DashboardTileChartTableName}.dashboard_version_id`,
             )
-            .innerJoin(
-                SavedChartsTableName,
-                `${DashboardTileChartTableName}.saved_chart_id`,
-                `${SavedChartsTableName}.saved_query_id`,
-            )
+            .innerJoin(SavedChartsTableName, function savedChartsJoin() {
+                this.on(
+                    `${DashboardTileChartTableName}.saved_chart_id`,
+                    '=',
+                    `${SavedChartsTableName}.saved_query_id`,
+                ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
             .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
             .first();
 
@@ -1353,11 +1361,13 @@ export class DashboardModel {
                 `${DashboardTileChartTableName}.dashboard_version_id`,
                 `${DashboardVersionsTableName}.dashboard_version_id`,
             )
-            .leftJoin(
-                SavedChartsTableName,
-                `${DashboardTileChartTableName}.saved_chart_id`,
-                `${SavedChartsTableName}.saved_query_id`,
-            )
+            .leftJoin(SavedChartsTableName, function savedChartsJoin() {
+                this.on(
+                    `${DashboardTileChartTableName}.saved_chart_id`,
+                    '=',
+                    `${SavedChartsTableName}.saved_query_id`,
+                ).andOnNull(`${SavedChartsTableName}.deleted_at`);
+            })
             .leftJoin(
                 SpaceTableName,
                 `${DashboardsTableName}.space_id`,
