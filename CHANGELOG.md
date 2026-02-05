@@ -1,3 +1,15 @@
+# [0.2430.0](https://github.com/lightdash/lightdash/compare/0.2429.0...0.2430.0) (2026-02-05)
+
+
+### Features
+
+* add documentation link to metrics sidebar ([#19981](https://github.com/lightdash/lightdash/issues/19981)) ([9ff35e5](https://github.com/lightdash/lightdash/commit/9ff35e5323be0cd0babd212c2027376abe8fa4f2)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* clean up also removes unconnected metric tree nodes ([#19957](https://github.com/lightdash/lightdash/issues/19957)) ([053ebd6](https://github.com/lightdash/lightdash/commit/053ebd6aa73cdd045b21204ebbab25109f1b2559))
+* improve tree metrics sidebar styles ([#19972](https://github.com/lightdash/lightdash/issues/19972)) ([8c1c0fd](https://github.com/lightdash/lightdash/commit/8c1c0fd30aeda395f7dfc0541996645ff542071f))
+* remove canvas view based on metrics limitation ([#19958](https://github.com/lightdash/lightdash/issues/19958)) ([6ff95b3](https://github.com/lightdash/lightdash/commit/6ff95b32136817d09e6fa8d79fc4e05a28e25b27))
+* unconnected metric tree nodes in sidebar instead of canvas ([#19948](https://github.com/lightdash/lightdash/issues/19948)) ([900195f](https://github.com/lightdash/lightdash/commit/900195fc44f658b3087fbdbaeca2cd0101581a49))
+* use react flow default arrow marker in canvas ([#19979](https://github.com/lightdash/lightdash/issues/19979)) ([29a30b6](https://github.com/lightdash/lightdash/commit/29a30b68a3c4dcbc6f0655ab0299a919535419c7)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2429.0](https://github.com/lightdash/lightdash/compare/0.2428.1...0.2429.0) (2026-02-05)
 
 
