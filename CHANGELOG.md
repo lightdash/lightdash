@@ -1,3 +1,10 @@
+## [0.2430.3](https://github.com/lightdash/lightdash/compare/0.2430.2...0.2430.3) (2026-02-05)
+
+
+### Bug Fixes
+
+* update json schemas + skills for charts/dashboards ([#20008](https://github.com/lightdash/lightdash/issues/20008)) ([3ca68c1](https://github.com/lightdash/lightdash/commit/3ca68c1f7034d38e6bd8883a9c1fe24fb9a5ce9b))
+
 ## [0.2430.2](https://github.com/lightdash/lightdash/compare/0.2430.1...0.2430.2) (2026-02-05)
 
 
