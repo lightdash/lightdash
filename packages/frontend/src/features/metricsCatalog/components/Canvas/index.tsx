@@ -251,20 +251,33 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
     );
 
     const applyLayout = useCallback(
-        ({ renderTwice = true }: { renderTwice?: boolean } = {}) => {
+        ({
+            renderTwice = true,
+            removeUnconnected = false,
+        }: { renderTwice?: boolean; removeUnconnected?: boolean } = {}) => {
+            const nodesToLayout = removeUnconnected
+                ? currentNodes.filter((node) =>
+                      currentEdges.some(
+                          (edge) =>
+                              edge.source === node.id ||
+                              edge.target === node.id,
+                      ),
+                  )
+                : currentNodes;
+
             // Skip layout if nodes aren't measured yet
-            const allNodesMeasured = currentNodes.every(
+            const allNodesMeasured = nodesToLayout.every(
                 (node) => node.measured?.width && node.measured?.height,
             );
             if (!allNodesMeasured && renderTwice) {
                 // Wait for nodes to be measured
                 setTimeout(() => {
-                    applyLayout({ renderTwice: true });
+                    applyLayout({ renderTwice: true, removeUnconnected });
                 }, 50);
                 return;
             }
 
-            const layout = getNodeLayout(currentNodes, currentEdges);
+            const layout = getNodeLayout(nodesToLayout, currentEdges);
 
             setCurrentNodes(layout.nodes);
             setCurrentEdges(layout.edges);
@@ -272,7 +285,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
 
             if (renderTwice) {
                 setTimeout(() => {
-                    applyLayout({ renderTwice: false });
+                    applyLayout({ renderTwice: false, removeUnconnected });
                 }, 10);
 
                 return;
@@ -533,7 +546,9 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                             <Button
                                 variant="default"
                                 radius="md"
-                                onClick={applyLayout}
+                                onClick={() =>
+                                    applyLayout({ removeUnconnected: true })
+                                }
                                 size="xs"
                                 sx={{
                                     boxShadow: theme.shadows.subtle,
