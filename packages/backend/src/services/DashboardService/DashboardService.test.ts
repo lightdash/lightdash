@@ -67,7 +67,7 @@ const analyticsModel = {
 };
 const savedChartModel = {
     get: jest.fn(async () => chart),
-    delete: jest.fn(async () => ({
+    permanentDelete: jest.fn(async () => ({
         uuid: 'chart_uuid',
         projectUuid: 'project_uuid',
     })),
@@ -302,7 +302,7 @@ describe('DashboardService', () => {
 
         await service.update(user, dashboardUuid, updateDashboardTiles);
 
-        expect(savedChartModel.delete).toHaveBeenCalledTimes(1);
+        expect(savedChartModel.permanentDelete).toHaveBeenCalledTimes(1);
         expect(analyticsMock.track).toHaveBeenCalledTimes(2);
         expect(analyticsMock.track).toHaveBeenCalledWith(
             expect.objectContaining({
