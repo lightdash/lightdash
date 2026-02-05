@@ -1,5 +1,4 @@
 import { type CatalogMetricsTreeEdgeSource } from '@lightdash/common';
-import { useMantineTheme } from '@mantine-8/core';
 import {
     BaseEdge,
     getSimpleBezierPath,
@@ -17,15 +16,9 @@ const DefaultEdge: FC<EdgeProps<DefaultEdgeData>> = ({
     sourceY,
     targetX,
     targetY,
-    selected,
     markerEnd,
     ...props
 }) => {
-    const theme = useMantineTheme();
-    const strokeColor = selected
-        ? theme.colors.blue[4]
-        : theme.colors.ldGray[3];
-
     const [edgePath] = getSimpleBezierPath({
         sourceX,
         sourceY,
@@ -33,16 +26,7 @@ const DefaultEdge: FC<EdgeProps<DefaultEdgeData>> = ({
         targetY,
     });
 
-    return (
-        <BaseEdge
-            {...props}
-            path={edgePath}
-            style={{
-                stroke: strokeColor,
-            }}
-            markerEnd={markerEnd}
-        />
-    );
+    return <BaseEdge {...props} path={edgePath} markerEnd={markerEnd} />;
 };
 
 export default DefaultEdge;
