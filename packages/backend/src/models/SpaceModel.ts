@@ -5,6 +5,7 @@ import {
     convertOrganizationRoleToProjectRole,
     convertProjectRoleToSpaceRole,
     convertSpaceRoleToProjectRole,
+    DirectSpaceAccessOrigin,
     getHighestProjectRole,
     getHighestSpaceRole,
     getLtreePathFromSlug,
@@ -25,6 +26,7 @@ import {
     SpaceShare,
     SpaceSummary,
     UpdateSpace,
+    type DirectSpaceAccess,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
@@ -712,6 +714,9 @@ export class SpaceModel {
         );
     }
 
+    /**
+     * @deprecated builds full space access for a list of spaces, including project/org permissions, use _getDirectSpaceAccess instead and build the full access from there
+     */
     private async _getSpaceAccess(
         spaceUuids: string[],
         filters?: { userUuid?: string },
@@ -996,6 +1001,94 @@ export class SpaceModel {
                         },
                         [],
                     );
+                    return acc;
+                }, {});
+            },
+        );
+    }
+
+    /**
+     * Gets direct space access for a list of spaces
+     * @param spaceUuids - the uuids of the spaces to get direct access for
+     * @param filters - the filters to apply to the query
+     * @returns a record of space uuids to direct space access
+     * @returns
+     */
+    private async _getDirectSpaceAccess(
+        spaceUuids: string[],
+        filters?: { userUuid?: string },
+    ): Promise<Record<string, DirectSpaceAccess[]>> {
+        return wrapSentryTransaction(
+            'SpaceModel._getDirectSpaceAccess',
+            { spaceUuidsCount: spaceUuids.length },
+            async () => {
+                const spacesDirectAccess = await this.database.transaction<
+                    DirectSpaceAccess[]
+                >(async (trx) =>
+                    trx(SpaceUserAccessTableName)
+                        .select({
+                            userUuid: `${SpaceUserAccessTableName}.user_uuid`,
+                            spaceUuid: `${SpaceUserAccessTableName}.space_uuid`,
+                            spaceRole: `${SpaceUserAccessTableName}.space_role`,
+                            from: trx.raw(
+                                `'${DirectSpaceAccessOrigin.USER_ACCESS}'`,
+                            ),
+                        })
+                        .whereIn(
+                            `${SpaceUserAccessTableName}.space_uuid`,
+                            spaceUuids,
+                        )
+                        .modify((qb) => {
+                            if (filters?.userUuid) {
+                                void qb.where(
+                                    `${SpaceUserAccessTableName}.user_uuid`,
+                                    filters.userUuid,
+                                );
+                            }
+                        })
+                        .union(
+                            trx(SpaceGroupAccessTableName)
+                                .select({
+                                    userUuid: `${UserTableName}.user_uuid`,
+                                    spaceUuid: `${SpaceGroupAccessTableName}.space_uuid`,
+                                    spaceRole: `${SpaceGroupAccessTableName}.space_role`,
+                                    from: trx.raw(
+                                        `'${DirectSpaceAccessOrigin.GROUP_ACCESS}'`,
+                                    ),
+                                })
+                                .innerJoin(
+                                    GroupMembershipTableName,
+                                    `${GroupMembershipTableName}.group_uuid`,
+                                    `${SpaceGroupAccessTableName}.group_uuid`,
+                                )
+                                .innerJoin(
+                                    UserTableName,
+                                    `${GroupMembershipTableName}.user_id`,
+                                    `${UserTableName}.user_id`,
+                                )
+                                .whereIn(
+                                    `${SpaceGroupAccessTableName}.space_uuid`,
+                                    spaceUuids,
+                                )
+                                .modify((qb) => {
+                                    if (filters?.userUuid) {
+                                        void qb.where(
+                                            `${UserTableName}.user_uuid`,
+                                            filters.userUuid,
+                                        );
+                                    }
+                                }),
+                        ),
+                );
+
+                return spacesDirectAccess.reduce<
+                    Record<string, DirectSpaceAccess[]>
+                >((acc, spaceDirectAccess) => {
+                    if (!acc[spaceDirectAccess.spaceUuid]) {
+                        acc[spaceDirectAccess.spaceUuid] = [];
+                    }
+
+                    acc[spaceDirectAccess.spaceUuid].push(spaceDirectAccess);
                     return acc;
                 }, {});
             },
