@@ -6,6 +6,7 @@ export const CHART_TYPES_WITHOUT_IMAGE_EXPORT = [
     ChartType.CUSTOM,
     ChartType.BIG_NUMBER,
     ChartType.TABLE,
+    ChartType.MAP,
 ];
 
 export enum DownloadType {
