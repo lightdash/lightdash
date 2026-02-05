@@ -1,5 +1,6 @@
 import { friendlyName } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Group,
     Paper,
@@ -8,7 +9,11 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { IconGripVertical, IconInfoCircle } from '@tabler/icons-react';
+import {
+    IconBook,
+    IconGripVertical,
+    IconInfoCircle,
+} from '@tabler/icons-react';
 import { useMemo, type DragEvent, type FC } from 'react';
 import { Panel, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -117,12 +122,30 @@ const MetricsSidebar: FC<MetricsSidebarProps> = ({ nodes }) => {
                     pr={0}
                 >
                     <Stack gap="sm" h="100%">
-                        {nodes.length > 0 && (
-                            <Text fz="xs" c="dimmed" px="xxs">
-                                {nodes.length} metric
-                                {nodes.length !== 1 ? 's' : ''} not on canvas
-                            </Text>
-                        )}
+                        <Group
+                            gap="sm"
+                            justify="space-between"
+                            px="xs"
+                            wrap="nowrap"
+                        >
+                            {nodes.length > 0 && (
+                                <Text fz="xs" c="dimmed">
+                                    {nodes.length} metric
+                                    {nodes.length !== 1 ? 's' : ''} not on
+                                    canvas
+                                </Text>
+                            )}
+                            <ActionIcon
+                                title="Documentation"
+                                component="a"
+                                href="https://docs.lightdash.com/guides/metrics-catalog#canvas-view-alpha"
+                                target="_blank"
+                                variant="transparent"
+                                size="xs"
+                            >
+                                <MantineIcon icon={IconBook} color="ldGray.5" />
+                            </ActionIcon>
+                        </Group>
 
                         <ScrollArea style={{ flex: 1 }} offsetScrollbars>
                             {nodes.length > 0 ? (

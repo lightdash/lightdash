@@ -5,15 +5,8 @@ import {
     type CatalogField,
     type CatalogMetricsTreeEdge,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Button,
-    Group,
-    Text,
-    useMantineTheme,
-} from '@mantine/core';
-import { IconInfoCircle, IconLayoutGridRemove } from '@tabler/icons-react';
+import { Box, Button, Group, Text, useMantineTheme } from '@mantine/core';
+import { IconLayoutGridRemove } from '@tabler/icons-react';
 import {
     Background,
     MarkerType,
@@ -541,19 +534,6 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                                         Current month to date
                                     </Text>
                                 )}
-
-                                <ActionIcon
-                                    component="a"
-                                    href="https://docs.lightdash.com/guides/metrics-catalog/" // TODO: add link to canvas docs
-                                    target="_blank"
-                                    variant="transparent"
-                                    size="xs"
-                                >
-                                    <MantineIcon
-                                        icon={IconInfoCircle}
-                                        color="ldGray.6"
-                                    />
-                                </ActionIcon>
                             </Group>
                         </ReactFlowPanel>
                         {!viewOnly && (
@@ -579,6 +559,7 @@ const Canvas: FC<Props> = ({ metrics, edges, viewOnly }) => {
                                 </Button>
                             </ReactFlowPanel>
                         )}
+
                         {!viewOnly && <Background />}
                     </ReactFlow>
                 </Box>
