@@ -4,14 +4,18 @@ import {
     BinType,
     ChartConfig,
     ChartKind,
+    ChartSourceType,
     ChartSummary,
     ChartVersionSummary,
+    ContentType,
     CreateSavedChart,
     CreateSavedChartVersion,
     CustomBinDimension,
     CustomDimensionType,
     CustomSqlDimension,
     DBFieldTypes,
+    DeletedChartContentSummary,
+    DeletedContentFilters,
     DimensionOverrides,
     ECHARTS_DEFAULT_COLORS,
     Filters,
@@ -23,6 +27,8 @@ import {
     isFormat,
     isSqlTableCalculation,
     isTemplateTableCalculation,
+    KnexPaginateArgs,
+    KnexPaginatedData,
     LightdashUser,
     MetricFilterRule,
     MetricOverrides,
@@ -75,6 +81,7 @@ import {
 } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
+import KnexPaginate from '../database/pagination';
 import { wrapSentryTransaction } from '../utils';
 import { generateUniqueSlug } from '../utils/SlugUtils';
 import { SpaceModel } from './SpaceModel';
@@ -832,6 +839,7 @@ export class SavedChartModel {
     async get(
         savedChartUuidOrSlug: string,
         versionUuid?: string,
+        options?: { deleted?: boolean },
     ): Promise<SavedChartDAO> {
         return Sentry.startSpan(
             {
@@ -895,6 +903,12 @@ export class SavedChartModel {
                         `${PinnedListTableName}.pinned_list_uuid`,
                         `${PinnedChartTableName}.pinned_list_uuid`,
                     )
+                    // Join for deleted_by user info
+                    .leftJoin(
+                        `${UserTableName} as deleted_by_user`,
+                        `${SavedChartsTableName}.deleted_by_user_uuid`,
+                        'deleted_by_user.user_uuid',
+                    )
                     .select<
                         (DbSavedChartDetails & {
                             space_uuid: string;
@@ -902,6 +916,10 @@ export class SavedChartModel {
                             dashboardName: string | null;
                             color_palette: string[] | null;
                             slug: string;
+                            deleted_at: Date | null;
+                            deleted_by_user_uuid: string | null;
+                            deleted_by_user_first_name: string | null;
+                            deleted_by_user_last_name: string | null;
                         })[]
                     >([
                         `${ProjectTableName}.project_uuid`,
@@ -932,10 +950,24 @@ export class SavedChartModel {
                         `${SpaceTableName}.space_uuid`,
                         `${SpaceTableName}.name as spaceName`,
                         `${PinnedListTableName}.pinned_list_uuid`,
+                        `${SavedChartsTableName}.deleted_at`,
+                        `${SavedChartsTableName}.deleted_by_user_uuid`,
+                        'deleted_by_user.first_name as deleted_by_user_first_name',
+                        'deleted_by_user.last_name as deleted_by_user_last_name',
                     ])
                     .orderBy('saved_queries_versions.created_at', 'desc')
-                    .whereNull(`${SavedChartsTableName}.deleted_at`)
                     .limit(1);
+
+                // Filter by deleted status: deleted=true gets deleted charts, deleted=false (default) gets non-deleted
+                if (options?.deleted) {
+                    void chartQuery.whereNotNull(
+                        `${SavedChartsTableName}.deleted_at`,
+                    );
+                } else {
+                    void chartQuery.whereNull(
+                        `${SavedChartsTableName}.deleted_at`,
+                    );
+                }
 
                 if (isUuid) {
                     void chartQuery.where((builder) => {
@@ -1195,6 +1227,24 @@ export class SavedChartModel {
                     dashboardName: savedQuery.dashboardName,
                     colorPalette: getColorPalette(),
                     slug: savedQuery.slug,
+                    // Soft delete fields (only populated when deleted: true)
+                    ...(savedQuery.deleted_at
+                        ? {
+                              deletedAt: savedQuery.deleted_at,
+                              deletedBy: savedQuery.deleted_by_user_uuid
+                                  ? {
+                                        userUuid:
+                                            savedQuery.deleted_by_user_uuid,
+                                        firstName:
+                                            savedQuery.deleted_by_user_first_name ??
+                                            '',
+                                        lastName:
+                                            savedQuery.deleted_by_user_last_name ??
+                                            '',
+                                    }
+                                  : null,
+                          }
+                        : {}),
                 };
             },
         );
@@ -1798,6 +1848,156 @@ export class SavedChartModel {
 
         if (updateCount !== 1) {
             throw new Error('Failed to move saved chart to space');
+        }
+    }
+
+    /**
+     * Get deleted charts for a project with optional filters
+     */
+    async getDeletedCharts(
+        projectUuid: string,
+        filters: DeletedContentFilters,
+        paginateArgs?: KnexPaginateArgs,
+        userUuid?: string,
+    ): Promise<KnexPaginatedData<DeletedChartContentSummary[]>> {
+        const query = this.database(SavedChartsTableName)
+            .leftJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${SavedChartsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(SpaceTableName, function spaceJoin() {
+                this.on(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${DashboardsTableName}.space_id`,
+                ).orOn(
+                    `${SpaceTableName}.space_id`,
+                    '=',
+                    `${SavedChartsTableName}.space_id`,
+                );
+            })
+            .innerJoin(
+                ProjectTableName,
+                `${SpaceTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${ProjectTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${SavedChartsTableName}.deleted_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .select<
+                {
+                    uuid: string;
+                    name: string;
+                    description: string | null;
+                    chart_kind: ChartKind | null;
+                    deleted_at: Date;
+                    deleted_by_user_uuid: string | null;
+                    first_name: string | null;
+                    last_name: string | null;
+                    space_uuid: string;
+                    space_name: string;
+                    project_uuid: string;
+                    organization_uuid: string;
+                }[]
+            >([
+                `${SavedChartsTableName}.saved_query_uuid as uuid`,
+                `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.description`,
+                `${SavedChartsTableName}.last_version_chart_kind as chart_kind`,
+                `${SavedChartsTableName}.deleted_at`,
+                `${SavedChartsTableName}.deleted_by_user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${SpaceTableName}.space_uuid`,
+                `${SpaceTableName}.name as space_name`,
+                `${ProjectTableName}.project_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
+            ])
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNotNull(`${SavedChartsTableName}.deleted_at`);
+
+        // Filter by user if not admin (when userUuid is provided)
+        if (userUuid) {
+            void query.where(
+                `${SavedChartsTableName}.deleted_by_user_uuid`,
+                userUuid,
+            );
+        }
+
+        // Apply search filter
+        if (filters.search) {
+            void query.whereILike(
+                `${SavedChartsTableName}.name`,
+                `%${filters.search}%`,
+            );
+        }
+
+        // Apply deletedByUserUuids filter
+        if (
+            filters.deletedByUserUuids &&
+            filters.deletedByUserUuids.length > 0
+        ) {
+            void query.whereIn(
+                `${SavedChartsTableName}.deleted_by_user_uuid`,
+                filters.deletedByUserUuids,
+            );
+        }
+
+        // Order by deleted_at descending (most recently deleted first)
+        void query.orderBy(`${SavedChartsTableName}.deleted_at`, 'desc');
+
+        const { pagination, data } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        return {
+            pagination,
+            data: data.map((chart) => ({
+                uuid: chart.uuid,
+                name: chart.name,
+                description: chart.description,
+                contentType: ContentType.CHART as const,
+                source: ChartSourceType.DBT_EXPLORE,
+                chartKind: chart.chart_kind,
+                deletedAt: chart.deleted_at,
+                deletedBy: chart.deleted_by_user_uuid
+                    ? {
+                          userUuid: chart.deleted_by_user_uuid,
+                          firstName: chart.first_name ?? '',
+                          lastName: chart.last_name ?? '',
+                      }
+                    : null,
+                spaceUuid: chart.space_uuid,
+                spaceName: chart.space_name,
+                projectUuid: chart.project_uuid,
+                organizationUuid: chart.organization_uuid,
+            })),
+        };
+    }
+
+    /**
+     * Restore a soft-deleted chart
+     */
+    async restore(savedChartUuid: string): Promise<void> {
+        const updateCount = await this.database(SavedChartsTableName)
+            .update({
+                deleted_at: null,
+                deleted_by_user_uuid: null,
+            })
+            .where('saved_query_uuid', savedChartUuid)
+            .whereNotNull('deleted_at');
+
+        if (updateCount !== 1) {
+            throw new NotFoundError('Deleted chart not found');
         }
     }
 }

@@ -569,6 +569,13 @@ export type SavedChart = {
     isPrivate: boolean;
     access: SpaceAccess[];
     slug: string;
+    // Soft delete fields (only present when deleted: true option is used)
+    deletedAt?: Date;
+    deletedBy?: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null;
 };
 
 type CreateChartBase = Pick<
