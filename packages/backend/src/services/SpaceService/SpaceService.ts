@@ -267,7 +267,11 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
         );
         // Nested Spaces MVP - disables nested spaces' access changes
         const isNested = !(await this.spaceModel.isRootSpace(spaceUuid));
-        if (isNested && 'isPrivate' in updateSpace) {
+        if (
+            !nestedPermissionsFlag.enabled &&
+            isNested &&
+            'isPrivate' in updateSpace
+        ) {
             throw new ForbiddenError(`Can't change privacy for a nested space`);
         }
         if (
@@ -282,9 +286,22 @@ export class SpaceService extends BaseService implements BulkActionable<Knex> {
             throw new ForbiddenError();
         }
 
+        // you can either set isPrivate or inheritParentPermissions while we temporarily
+        // support both. Keeping the other property in sync in the meantime.
+        let { isPrivate, inheritParentPermissions } = updateSpace;
+        if (inheritParentPermissions !== undefined) {
+            isPrivate = !inheritParentPermissions;
+        } else if (isPrivate !== undefined) {
+            inheritParentPermissions = !isPrivate;
+        }
+
         const updatedSpace = await this.spaceModel.update(
             spaceUuid,
-            updateSpace,
+            {
+                ...updateSpace,
+                isPrivate,
+                inheritParentPermissions,
+            },
             {
                 useInheritedAccess: nestedPermissionsFlag.enabled,
             },
