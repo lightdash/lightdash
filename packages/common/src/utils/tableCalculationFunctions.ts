@@ -218,6 +218,47 @@ export function parseTableCalculationFunctions(
         match = pivotIndexRegex.exec(sql);
     }
 
+    // Parse pivot_where function calls using a simpler approach
+    // We'll find the function start, then carefully parse the two arguments
+    const pivotWhereRegex = /pivot_where\s*\(/gi;
+    let pivotMatch = pivotWhereRegex.exec(sql);
+    while (pivotMatch !== null) {
+        const startIdx = pivotMatch.index + pivotMatch[0].length;
+        let parenCount = 1;
+        let commaIdx = -1;
+        let endIdx = -1;
+
+        // Find the comma separating the two arguments and the closing parenthesis
+        for (let i = startIdx; i < sql.length; i += 1) {
+            if (sql[i] === '(') {
+                parenCount += 1;
+            } else if (sql[i] === ')') {
+                parenCount -= 1;
+                if (parenCount === 0) {
+                    endIdx = i;
+                    break;
+                }
+            } else if (sql[i] === ',' && parenCount === 1 && commaIdx === -1) {
+                commaIdx = i;
+            }
+        }
+
+        if (commaIdx !== -1 && endIdx !== -1) {
+            const selectExpression = sql.slice(startIdx, commaIdx).trim();
+            const valueExpression = sql.slice(commaIdx + 1, endIdx).trim();
+            const rawSql = sql.slice(pivotMatch.index, endIdx + 1);
+
+            functions.push({
+                type: TableCalculationFunctionType.PIVOT_WHERE,
+                selectExpression,
+                valueExpression,
+                rawSql,
+            });
+        }
+
+        pivotMatch = pivotWhereRegex.exec(sql);
+    }
+
     // Parse row function calls
     const rowRegex = /row\s*\(\s*\)/gi;
     match = rowRegex.exec(sql);
@@ -372,6 +413,15 @@ export class TableCalculationFunctionCompiler {
                     processedSql = processedSql.replace(func.rawSql, compiled);
                     break;
                 }
+                case TableCalculationFunctionType.PIVOT_WHERE: {
+                    const pivotWhereFunc = func as PivotWhereFunctionCall;
+                    const compiled = this.compilePivotWhere(
+                        pivotWhereFunc.selectExpression,
+                        pivotWhereFunc.valueExpression,
+                    );
+                    processedSql = processedSql.replace(func.rawSql, compiled);
+                    break;
+                }
                 default:
                     // Not implemented yet
                     break;
@@ -440,5 +490,24 @@ export class TableCalculationFunctionCompiler {
         // with matching row_index and the specified column_index
         // The window partitions by row_index to group all columns of the same row
         return `MAX(CASE WHEN ${q}column_index${q} = ${pivotIndex} THEN ${expression} ELSE NULL END) OVER (PARTITION BY ${q}row_index${q})`;
+    }
+
+    /**
+     * Compiles a pivot_where function call to return a value from the first pivot column matching a condition.
+     * Evaluates the select expression for each pivot column and returns the value expression
+     * from the first column where the condition is true.
+     * @param selectExpression - Boolean expression to evaluate for each pivot column
+     * @param valueExpression - Expression to return when condition matches
+     * @returns SQL with conditional aggregation to find first matching pivot column
+     */
+    private compilePivotWhere(
+        selectExpression: string,
+        valueExpression: string,
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+
+        // Use MIN with column_index to get the first matching column
+        // Then use that column_index to get the value
+        return `MAX(CASE WHEN ${q}column_index${q} = (SELECT MIN(${q}column_index${q}) FROM (SELECT ${q}column_index${q}, ${selectExpression} AS condition FROM DUAL) WHERE condition = TRUE) THEN ${valueExpression} ELSE NULL END) OVER (PARTITION BY ${q}row_index${q})`;
     }
 }
