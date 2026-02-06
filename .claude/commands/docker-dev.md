@@ -13,9 +13,9 @@ Before taking action, check the current environment state. **Run these checks in
 ### All Checks (run in parallel)
 
 ```bash
-# Check 1: All Docker services running (db, minio, headless-browser)
-RUNNING_COUNT=$(docker compose -f docker/docker-compose.dev.mini.yml ps --format json 2>/dev/null | grep -c '"State":"running"' || echo 0)
-[ "$RUNNING_COUNT" -ge 3 ] && echo "OK: All Docker services running ($RUNNING_COUNT)" || echo "NEED: Start Docker services (only $RUNNING_COUNT/3 running)"
+# Check 1: All Docker services running (db, minio, headless-browser, mailpit)
+RUNNING_COUNT=$(docker compose -f docker/docker-compose.dev.mini.yml ps --format json 2>/dev/null | grep -c '"State":"running"' || true)
+[ "$RUNNING_COUNT" -ge 4 ] && echo "OK: All Docker services running ($RUNNING_COUNT)" || echo "NEED: Start Docker services (only $RUNNING_COUNT/4 running)"
 
 # Check 2: Environment file exists
 test -f .env.development.local && echo "OK: Env file exists" || echo "NEED: Create .env.development.local"
@@ -93,6 +93,15 @@ S3_ENDPOINT=http://localhost:9000
 HEADLESS_BROWSER_HOST=localhost
 HEADLESS_BROWSER_PORT=3001
 INTERNAL_LIGHTDASH_HOST=http://localhost:3000
+
+# Email - Mailpit (view emails at http://localhost:8025)
+EMAIL_SMTP_HOST=localhost
+EMAIL_SMTP_PORT=1025
+EMAIL_SMTP_SECURE=false
+EMAIL_SMTP_USE_AUTH=false
+EMAIL_SMTP_ALLOW_INVALID_CERT=true
+EMAIL_SMTP_SENDER_NAME=Lightdash
+EMAIL_SMTP_SENDER_EMAIL=noreply@lightdash.local
 EOF
 ```
 
@@ -118,7 +127,7 @@ cat >> CLAUDE.local.md << 'EOF'
 
 ### Prerequisites: Docker Services
 
-Start the Docker services (PostgreSQL, MinIO, headless browser) before running the dev server:
+Start the Docker services (PostgreSQL, MinIO, headless browser, Mailpit) before running the dev server:
 
 ```bash
 /docker-dev
@@ -296,6 +305,7 @@ pnpx dotenv-cli -e .env.development -- pnpm dev
 | PostgreSQL        | 5432      | Database                          |
 | MinIO             | 9000/9001 | S3-compatible storage/console     |
 | Headless Browser  | 3001      | PDF/image generation              |
+| Mailpit           | 8025/1025 | Email testing Web UI/SMTP server  |
 
 ## Troubleshooting
 
