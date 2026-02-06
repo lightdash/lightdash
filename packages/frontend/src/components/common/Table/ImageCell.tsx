@@ -1,5 +1,5 @@
 import { type Dimension } from '@lightdash/common';
-import { Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine-8/core';
 import { IconPhotoOff } from '@tabler/icons-react';
 import { useState } from 'react';
 import MantineIcon from '../MantineIcon';
