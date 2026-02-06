@@ -3019,35 +3019,6 @@ export class ProjectService extends BaseService {
         );
     }
 
-    async runMetricExplorerQuery(
-        account: Account,
-        projectUuid: string,
-        exploreName: string,
-        metricQuery: MetricQuery,
-    ) {
-        const { result } = await measureTime(
-            () =>
-                this.runMetricQuery({
-                    account,
-                    metricQuery,
-                    projectUuid,
-                    exploreName,
-                    csvLimit: undefined,
-                    context: QueryExecutionContext.METRICS_EXPLORER,
-                    queryTags: {},
-                    chartUuid: undefined,
-                }),
-            'runMetricQuery',
-            this.logger,
-            {
-                exploreName,
-                metricQuery,
-            },
-        );
-
-        return result;
-    }
-
     async getResultsForChart(
         account: Account,
         chartUuid: string,
