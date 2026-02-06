@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     type ApiError,
+    type ImpersonationInfo,
     type LightdashUserWithAbilityRules,
     type PossibleAbilities,
 } from '@lightdash/common';
@@ -10,9 +11,14 @@ import { useAccount } from './useAccount';
 
 export type UserWithAbility = LightdashUserWithAbilityRules & {
     ability: Ability;
+    impersonation: ImpersonationInfo | null;
 };
 const getUserState = async (): Promise<UserWithAbility> => {
-    const user = await lightdashApi<LightdashUserWithAbilityRules>({
+    const user = await lightdashApi<
+        LightdashUserWithAbilityRules & {
+            impersonation: ImpersonationInfo | null;
+        }
+    >({
         url: `/user`,
         method: 'GET',
         body: undefined,

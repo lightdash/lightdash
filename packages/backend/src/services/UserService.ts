@@ -49,6 +49,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
+import { type Session, type SessionData } from 'express-session';
 import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
@@ -2048,5 +2049,91 @@ export class UserService extends BaseService {
         );
 
         return openId !== undefined;
+    }
+
+    async startImpersonation(
+        adminUser: SessionUser,
+        targetUserUuid: string,
+        session: Session & Partial<SessionData>,
+    ): Promise<void> {
+        // Prevent recursive impersonation
+        if (session.impersonation) {
+            throw new ForbiddenError(
+                'Cannot start impersonation while already impersonating',
+            );
+        }
+
+        // Prevent self-impersonation
+        if (adminUser.userUuid === targetUserUuid) {
+            throw new ParameterError('Cannot impersonate yourself');
+        }
+
+        // Admin must be an org admin
+        if (adminUser.role !== OrganizationMemberRole.ADMIN) {
+            throw new ForbiddenError(
+                'Only organization admins can impersonate users',
+            );
+        }
+
+        // Load target user details
+        const targetUser =
+            await this.userModel.getUserDetailsByUuid(targetUserUuid);
+
+        // Target must be in the same organization
+        if (targetUser.organizationUuid !== adminUser.organizationUuid) {
+            throw new ForbiddenError(
+                'Cannot impersonate a user from a different organization',
+            );
+        }
+
+        // Target must be active
+        if (!targetUser.isActive) {
+            throw new ForbiddenError('Cannot impersonate an inactive user');
+        }
+
+        // Set impersonation session data
+        // eslint-disable-next-line no-param-reassign
+        session.impersonation = {
+            adminUserUuid: adminUser.userUuid,
+            adminOrganizationUuid: adminUser.organizationUuid!,
+            adminName: `${adminUser.firstName} ${adminUser.lastName}`,
+            targetUserUuid,
+            targetOrganizationUuid: targetUser.organizationUuid!,
+            startedAt: new Date().toISOString(),
+        };
+
+        this.analytics.track({
+            event: 'user.impersonation_started',
+            userId: adminUser.userUuid,
+            properties: {
+                adminUserUuid: adminUser.userUuid,
+                targetUserUuid,
+                organizationUuid: adminUser.organizationUuid!,
+            },
+        });
+    }
+
+    async stopImpersonation(
+        session: Session & Partial<SessionData>,
+    ): Promise<void> {
+        if (!session.impersonation) {
+            throw new NotFoundError('No active impersonation session');
+        }
+
+        const { adminUserUuid, targetUserUuid, adminOrganizationUuid } =
+            session.impersonation;
+
+        this.analytics.track({
+            event: 'user.impersonation_stopped',
+            userId: adminUserUuid,
+            properties: {
+                adminUserUuid,
+                targetUserUuid,
+                organizationUuid: adminOrganizationUuid,
+            },
+        });
+
+        // eslint-disable-next-line no-param-reassign
+        delete session.impersonation;
     }
 }
