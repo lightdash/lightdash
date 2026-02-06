@@ -48,7 +48,6 @@ export type SpaceAccessInput = {
     directAccess: DirectSpaceAccess[];
     projectAccess: ProjectSpaceAccess[];
     organizationAccess: OrganizationSpaceAccess[];
-    userInfo: Map<string, UserInfo>;
 };
 
 export type Space = {

@@ -1,4 +1,4 @@
-import { resolveSpaceAccess, type SpaceShare } from '@lightdash/common';
+import { resolveSpaceAccess, type SpaceAccess } from '@lightdash/common';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SpacePermissionModel } from '../../models/SpacePermissionModel';
 import { BaseService } from '../BaseService';
@@ -7,7 +7,7 @@ type SpaceAccessForCasl = {
     organizationUuid: string;
     projectUuid: string;
     isPrivate: boolean;
-    access: SpaceShare[];
+    access: SpaceAccess[];
 };
 
 export class SpacePermissionService extends BaseService {
@@ -55,10 +55,6 @@ export class SpacePermissionService extends BaseService {
         for (const entries of Object.values(orgAccessMap))
             for (const e of entries) allUserUuids.add(e.userUuid);
 
-        const userInfoMap = await this.spacePermissionModel.getUserInfo(
-            Array.from(allUserUuids),
-        );
-
         const result: Record<string, SpaceAccessForCasl> = {};
         for (const spaceUuid of spaceUuids) {
             const { isPrivate, projectUuid, organizationUuid } =
@@ -69,7 +65,6 @@ export class SpacePermissionService extends BaseService {
                 directAccess: directAccessMap[spaceUuid] ?? [],
                 projectAccess: projectAccessMap[spaceUuid] ?? [],
                 organizationAccess: orgAccessMap[spaceUuid] ?? [],
-                userInfo: userInfoMap,
             });
 
             result[spaceUuid] = {

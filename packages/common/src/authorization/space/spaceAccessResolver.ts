@@ -23,6 +23,16 @@ import {
     getHighestSpaceRole,
 } from '../../utils/projectMemberRole';
 
+export type SpaceAccess = Pick<
+    SpaceShare,
+    | 'userUuid'
+    | 'role'
+    | 'hasDirectAccess'
+    | 'inheritedFrom'
+    | 'projectRole'
+    | 'inheritedRole'
+>;
+
 const getUserOrganizationRole = (
     organizationAccess: OrganizationSpaceAccess[],
     userUuid: string,
@@ -128,18 +138,9 @@ const getSpaceRole = (
 const resolveUserSpaceAccess = (
     userUuid: string,
     input: SpaceAccessInput,
-): SpaceShare | undefined => {
-    const {
-        isPrivate,
-        directAccess,
-        projectAccess,
-        organizationAccess,
-        userInfo,
-    } = input;
-
-    const info = userInfo.get(userUuid);
-    if (!info) return undefined;
-
+): SpaceAccess | undefined => {
+    const { isPrivate, directAccess, projectAccess, organizationAccess } =
+        input;
     const organizationRole = getUserOrganizationRole(
         organizationAccess,
         userUuid,
@@ -180,9 +181,6 @@ const resolveUserSpaceAccess = (
 
     return {
         userUuid,
-        firstName: info.firstName,
-        lastName: info.lastName,
-        email: info.email,
         role: spaceRole,
         hasDirectAccess: userDirectAccess.length > 0,
         inheritedRole: highestRole.role,
@@ -191,7 +189,7 @@ const resolveUserSpaceAccess = (
     };
 };
 
-export const resolveSpaceAccess = (input: SpaceAccessInput): SpaceShare[] => {
+export const resolveSpaceAccess = (input: SpaceAccessInput): SpaceAccess[] => {
     const { directAccess, projectAccess, organizationAccess } = input;
 
     // Collect all unique user UUIDs
@@ -202,5 +200,5 @@ export const resolveSpaceAccess = (input: SpaceAccessInput): SpaceShare[] => {
 
     return Array.from(allUserUuids)
         .map((userUuid) => resolveUserSpaceAccess(userUuid, input))
-        .filter((share): share is SpaceShare => share !== undefined);
+        .filter((share): share is SpaceAccess => share !== undefined);
 };

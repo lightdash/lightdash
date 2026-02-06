@@ -333,27 +333,4 @@ export class SpacePermissionModel {
             return acc;
         }, {});
     }
-
-    async getUserInfo(userUuids: string[]): Promise<Map<string, UserInfo>> {
-        if (userUuids.length === 0) {
-            return new Map();
-        }
-
-        const rows = await this.database(UserTableName)
-            .select({
-                userUuid: `${UserTableName}.user_uuid`,
-                firstName: `${UserTableName}.first_name`,
-                lastName: `${UserTableName}.last_name`,
-                email: `${EmailTableName}.email`,
-            })
-            .innerJoin(
-                EmailTableName,
-                `${UserTableName}.user_id`,
-                `${EmailTableName}.user_id`,
-            )
-            .where(`${EmailTableName}.is_primary`, true)
-            .whereIn(`${UserTableName}.user_uuid`, userUuids);
-
-        return new Map(rows.map((row: UserInfo) => [row.userUuid, row]));
-    }
 }

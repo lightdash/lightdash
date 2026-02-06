@@ -8,16 +8,8 @@ import {
     type OrganizationSpaceAccess,
     type ProjectSpaceAccess,
     type SpaceAccessInput,
-    type UserInfo,
 } from '../../types/space';
 import { resolveSpaceAccess } from './spaceAccessResolver';
-
-const makeUserInfo = (userUuid: string): UserInfo => ({
-    userUuid,
-    firstName: `First_${userUuid}`,
-    lastName: `Last_${userUuid}`,
-    email: `${userUuid}@test.com`,
-});
 
 const makeInput = (
     overrides: Partial<SpaceAccessInput> = {},
@@ -27,7 +19,6 @@ const makeInput = (
     directAccess: [],
     projectAccess: [],
     organizationAccess: [],
-    userInfo: new Map(),
     ...overrides,
 });
 
@@ -37,25 +28,8 @@ describe('resolveSpaceAccess', () => {
         expect(result).toEqual([]);
     });
 
-    it('excludes users with missing user info', () => {
-        const result = resolveSpaceAccess(
-            makeInput({
-                organizationAccess: [
-                    {
-                        userUuid: 'user-1',
-                        spaceUuid: 'space-1',
-                        role: OrganizationMemberRole.VIEWER,
-                    },
-                ],
-                // no userInfo for user-1
-            }),
-        );
-        expect(result).toEqual([]);
-    });
-
     describe('admin override', () => {
         it('org admin gets space ADMIN', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     organizationAccess: [
@@ -65,7 +39,6 @@ describe('resolveSpaceAccess', () => {
                             role: OrganizationMemberRole.ADMIN,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -74,7 +47,6 @@ describe('resolveSpaceAccess', () => {
         });
 
         it('project admin gets space ADMIN', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     organizationAccess: [
@@ -92,7 +64,6 @@ describe('resolveSpaceAccess', () => {
                             from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -100,7 +71,6 @@ describe('resolveSpaceAccess', () => {
         });
 
         it('group admin (project group) gets space ADMIN', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     organizationAccess: [
@@ -118,7 +88,6 @@ describe('resolveSpaceAccess', () => {
                             from: ProjectSpaceAccessOrigin.GROUP_MEMBERSHIP,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -126,7 +95,6 @@ describe('resolveSpaceAccess', () => {
         });
 
         it('admin can access private space even without direct access', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     isPrivate: true,
@@ -137,7 +105,6 @@ describe('resolveSpaceAccess', () => {
                             role: OrganizationMemberRole.ADMIN,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -147,7 +114,6 @@ describe('resolveSpaceAccess', () => {
 
     describe('direct access', () => {
         it('USER_ACCESS role used directly', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     organizationAccess: [
@@ -165,7 +131,6 @@ describe('resolveSpaceAccess', () => {
                             from: DirectSpaceAccessOrigin.USER_ACCESS,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -174,7 +139,6 @@ describe('resolveSpaceAccess', () => {
         });
 
         it('GROUP_ACCESS role used when no user role', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     organizationAccess: [
@@ -192,7 +156,6 @@ describe('resolveSpaceAccess', () => {
                             from: DirectSpaceAccessOrigin.GROUP_ACCESS,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -201,7 +164,6 @@ describe('resolveSpaceAccess', () => {
         });
 
         it('user + group direct access: user role wins when higher', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     organizationAccess: [
@@ -225,7 +187,6 @@ describe('resolveSpaceAccess', () => {
                             from: DirectSpaceAccessOrigin.GROUP_ACCESS,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -236,7 +197,6 @@ describe('resolveSpaceAccess', () => {
 
     describe('public space inheritance', () => {
         it('viewer gets viewer space role', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     isPrivate: false,
@@ -247,7 +207,6 @@ describe('resolveSpaceAccess', () => {
                             role: OrganizationMemberRole.VIEWER,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -257,7 +216,6 @@ describe('resolveSpaceAccess', () => {
         });
 
         it('editor gets editor space role', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     isPrivate: false,
@@ -268,7 +226,6 @@ describe('resolveSpaceAccess', () => {
                             role: OrganizationMemberRole.EDITOR,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -276,7 +233,6 @@ describe('resolveSpaceAccess', () => {
         });
 
         it('developer gets editor space role', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     isPrivate: false,
@@ -287,7 +243,6 @@ describe('resolveSpaceAccess', () => {
                             role: OrganizationMemberRole.DEVELOPER,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -295,7 +250,6 @@ describe('resolveSpaceAccess', () => {
         });
 
         it('interactive_viewer gets viewer space role', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     isPrivate: false,
@@ -306,7 +260,6 @@ describe('resolveSpaceAccess', () => {
                             role: OrganizationMemberRole.INTERACTIVE_VIEWER,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -316,7 +269,6 @@ describe('resolveSpaceAccess', () => {
 
     describe('private space exclusion', () => {
         it('non-admin without direct access excluded from private space', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     isPrivate: true,
@@ -327,14 +279,12 @@ describe('resolveSpaceAccess', () => {
                             role: OrganizationMemberRole.EDITOR,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(0);
         });
 
         it('private space with direct access works', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     isPrivate: true,
@@ -353,7 +303,6 @@ describe('resolveSpaceAccess', () => {
                             from: DirectSpaceAccessOrigin.USER_ACCESS,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -363,7 +312,6 @@ describe('resolveSpaceAccess', () => {
 
     describe('org MEMBER role', () => {
         it('org MEMBER with no other access is excluded', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     isPrivate: false,
@@ -374,7 +322,6 @@ describe('resolveSpaceAccess', () => {
                             role: OrganizationMemberRole.MEMBER,
                         },
                     ],
-                    userInfo,
                 }),
             );
             // MEMBER converts to undefined project role, so no highest role → excluded
@@ -382,7 +329,6 @@ describe('resolveSpaceAccess', () => {
         });
 
         it('org MEMBER with project access is included', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     isPrivate: false,
@@ -401,7 +347,6 @@ describe('resolveSpaceAccess', () => {
                             from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -411,7 +356,6 @@ describe('resolveSpaceAccess', () => {
 
     describe('multiple group roles', () => {
         it('highest group role wins', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     isPrivate: false,
@@ -436,7 +380,6 @@ describe('resolveSpaceAccess', () => {
                             from: ProjectSpaceAccessOrigin.GROUP_MEMBERSHIP,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result).toHaveLength(1);
@@ -446,7 +389,6 @@ describe('resolveSpaceAccess', () => {
 
     describe('inheritedFrom metadata', () => {
         it('reports organization when org role is highest', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     organizationAccess: [
@@ -456,14 +398,12 @@ describe('resolveSpaceAccess', () => {
                             role: OrganizationMemberRole.EDITOR,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result[0].inheritedFrom).toBe('organization');
         });
 
         it('reports project when project role is highest', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     organizationAccess: [
@@ -481,14 +421,12 @@ describe('resolveSpaceAccess', () => {
                             from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result[0].inheritedFrom).toBe('project');
         });
 
         it('reports group when group project role is highest', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     organizationAccess: [
@@ -506,14 +444,12 @@ describe('resolveSpaceAccess', () => {
                             from: ProjectSpaceAccessOrigin.GROUP_MEMBERSHIP,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result[0].inheritedFrom).toBe('group');
         });
 
         it('reports space_group when space group access role is highest', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     organizationAccess: [
@@ -531,7 +467,6 @@ describe('resolveSpaceAccess', () => {
                             from: DirectSpaceAccessOrigin.GROUP_ACCESS,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result[0].inheritedFrom).toBe('space_group');
@@ -540,7 +475,6 @@ describe('resolveSpaceAccess', () => {
 
     describe('projectRole field', () => {
         it('only considers org + direct project membership (not groups)', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     organizationAccess: [
@@ -558,7 +492,6 @@ describe('resolveSpaceAccess', () => {
                             from: ProjectSpaceAccessOrigin.GROUP_MEMBERSHIP,
                         },
                     ],
-                    userInfo,
                 }),
             );
             // projectRole should be VIEWER (from org), not DEVELOPER (from group)
@@ -566,7 +499,6 @@ describe('resolveSpaceAccess', () => {
         });
 
         it('includes direct project membership in projectRole', () => {
-            const userInfo = new Map([['user-1', makeUserInfo('user-1')]]);
             const result = resolveSpaceAccess(
                 makeInput({
                     organizationAccess: [
@@ -584,7 +516,6 @@ describe('resolveSpaceAccess', () => {
                             from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
                         },
                     ],
-                    userInfo,
                 }),
             );
             expect(result[0].projectRole).toBe(ProjectMemberRole.EDITOR);
@@ -593,10 +524,6 @@ describe('resolveSpaceAccess', () => {
 
     describe('multiple users', () => {
         it('resolves access for multiple users independently', () => {
-            const userInfo = new Map([
-                ['user-1', makeUserInfo('user-1')],
-                ['user-2', makeUserInfo('user-2')],
-            ]);
             const orgAccess: OrganizationSpaceAccess[] = [
                 {
                     userUuid: 'user-1',
@@ -624,7 +551,6 @@ describe('resolveSpaceAccess', () => {
                     organizationAccess: orgAccess,
                     directAccess,
                     projectAccess,
-                    userInfo,
                 }),
             );
 
