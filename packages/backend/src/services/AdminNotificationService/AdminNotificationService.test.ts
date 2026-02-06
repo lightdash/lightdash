@@ -118,6 +118,7 @@ describe('AdminNotificationService', () => {
         expect(sendAdminChangeNotificationEmail.mock.calls[0][0]).toEqual([
             mockOrgAdmin1.email,
             mockOrgAdmin2.email,
+            mockTargetUser.email,
         ]);
         expect(sendAdminChangeNotificationEmail.mock.calls[0][1].type).toBe(
             AdminNotificationType.ORG_ADMIN_ADDED,
@@ -158,25 +159,6 @@ describe('AdminNotificationService', () => {
             mockOrganizationUuid,
             OrganizationMemberRole.EDITOR,
             OrganizationMemberRole.VIEWER,
-        );
-
-        expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
-    });
-
-    it('should not send org notification when no admins have emails', async () => {
-        (
-            organizationMemberProfileModel.getOrganizationAdmins as jest.Mock
-        ).mockResolvedValueOnce([
-            { ...mockOrgAdmin1, email: undefined },
-            { ...mockOrgAdmin2, email: '' },
-        ]);
-
-        await service.notifyOrgAdminRoleChange(
-            mockSessionAccount,
-            mockTargetUserUuid,
-            mockOrganizationUuid,
-            OrganizationMemberRole.MEMBER,
-            OrganizationMemberRole.ADMIN,
         );
 
         expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
@@ -374,8 +356,9 @@ describe('AdminNotificationService', () => {
         });
 
         const recipients = sendAdminChangeNotificationEmail.mock.calls[0][0];
-        expect(recipients).toHaveLength(1);
+        expect(recipients).toHaveLength(2);
         expect(recipients).toContain(sameEmail);
+        expect(recipients).toContain(mockTargetUser.email);
     });
 
     it('should include project information in payload', async () => {

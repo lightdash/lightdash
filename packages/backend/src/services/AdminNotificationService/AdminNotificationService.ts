@@ -177,17 +177,25 @@ export class AdminNotificationService extends BaseService {
                 ),
             ]);
 
-            const recipientEmails = orgAdmins
-                .filter((admin) => admin.email)
-                .map((admin) => admin.email);
+            const recipientEmails = [
+                ...new Set(
+                    orgAdmins
+                        .filter((admin) => admin.email)
+                        .map((admin) => admin.email),
+                ),
+            ];
+
+            if (
+                targetUser.email &&
+                !recipientEmails.includes(targetUser.email)
+            ) {
+                recipientEmails.push(targetUser.email);
+            }
 
             if (recipientEmails.length === 0) {
                 this.logger.debug('No org admin recipients for notification');
                 return;
             }
-
-            const accountUser =
-                account.user?.type === 'registered' ? account.user : undefined;
 
             const payload: AdminNotificationPayload = {
                 type: isPromotion
@@ -195,18 +203,8 @@ export class AdminNotificationService extends BaseService {
                     : AdminNotificationType.ORG_ADMIN_REMOVED,
                 organizationUuid,
                 organizationName: organization.name,
-                changedBy: {
-                    userUuid: accountUser?.userUuid,
-                    email: account.user?.email,
-                    firstName: accountUser?.firstName,
-                    lastName: accountUser?.lastName,
-                    role: accountUser?.role,
-                    isServiceAccount: account.isServiceAccount(),
-                    serviceAccountDescription:
-                        AdminNotificationService.getServiceAccountDescription(
-                            account,
-                        ),
-                },
+                changedBy:
+                    AdminNotificationService.resolveChangedByAccount(account),
                 targetUser: {
                     userUuid: targetUser.userUuid,
                     email: targetUser.email || '',
@@ -273,39 +271,17 @@ export class AdminNotificationService extends BaseService {
         }
 
         try {
-            const [
-                project,
-                organization,
-                targetUser,
-                orgAdmins,
-                projectAccess,
-            ] = await Promise.all([
+            const [project, organization, targetUser] = await Promise.all([
                 this.projectModel.getSummary(projectUuid),
                 this.organizationModel.get(organizationUuid),
                 this.userModel.getUserDetailsByUuid(targetUserUuid),
-                this.organizationMemberProfileModel.getOrganizationAdmins(
-                    organizationUuid,
-                ),
-                this.projectModel.getProjectAccess(projectUuid),
             ]);
 
-            const projectAdmins = projectAccess.filter(
-                (member) => member.role === ProjectMemberRole.ADMIN,
+            const recipientEmails = await this.getProjectNotificationRecipients(
+                organizationUuid,
+                projectUuid,
+                targetUser.email,
             );
-
-            const allAdminEmails = new Set<string>();
-            for (const admin of orgAdmins) {
-                if (admin.email) {
-                    allAdminEmails.add(admin.email);
-                }
-            }
-            for (const admin of projectAdmins) {
-                if (admin.email) {
-                    allAdminEmails.add(admin.email);
-                }
-            }
-
-            const recipientEmails = Array.from(allAdminEmails);
 
             if (recipientEmails.length === 0) {
                 this.logger.debug(
@@ -313,9 +289,6 @@ export class AdminNotificationService extends BaseService {
                 );
                 return;
             }
-
-            const accountUser =
-                account.user?.type === 'registered' ? account.user : undefined;
 
             const payload: AdminNotificationPayload = {
                 type: isPromotion
@@ -325,18 +298,8 @@ export class AdminNotificationService extends BaseService {
                 organizationName: organization.name,
                 projectUuid,
                 projectName: project.name,
-                changedBy: {
-                    userUuid: accountUser?.userUuid,
-                    email: account.user?.email,
-                    firstName: accountUser?.firstName,
-                    lastName: accountUser?.lastName,
-                    role: accountUser?.role,
-                    isServiceAccount: account.isServiceAccount(),
-                    serviceAccountDescription:
-                        AdminNotificationService.getServiceAccountDescription(
-                            account,
-                        ),
-                },
+                changedBy:
+                    AdminNotificationService.resolveChangedByAccount(account),
                 targetUser: {
                     userUuid: targetUser.userUuid,
                     email: targetUser.email || '',
@@ -385,48 +348,65 @@ export class AdminNotificationService extends BaseService {
             return;
         }
 
-        const orgName = await this.getOrganizationName(params.organizationUuid);
-
-        const recipients = await this.getProjectNotificationRecipients(
-            params.organizationUuid,
-            params.projectUuid,
-        );
-
-        if (recipients.length === 0) {
-            this.logger.debug(
-                'No recipients for connection settings change notification',
+        try {
+            const orgName = await this.getOrganizationName(
+                params.organizationUuid,
             );
-            return;
+
+            const recipients = await this.getProjectNotificationRecipients(
+                params.organizationUuid,
+                params.projectUuid,
+            );
+
+            if (recipients.length === 0) {
+                this.logger.debug(
+                    'No recipients for connection settings change notification',
+                );
+                return;
+            }
+
+            const changedByInfo =
+                AdminNotificationService.resolveChangedByAccount(
+                    params.changedBy,
+                );
+
+            const payload: AdminNotificationPayload = {
+                type: AdminNotificationType.CONNECTION_SETTINGS_CHANGE,
+                organizationUuid: params.organizationUuid,
+                organizationName: orgName,
+                projectUuid: params.projectUuid,
+                projectName: params.projectName,
+                changedBy: changedByInfo,
+                timestamp: new Date(),
+                settingsUrl: new URL(
+                    `/generalSettings/projectManagement/${params.projectUuid}/settings`,
+                    this.lightdashConfig.siteUrl,
+                ).href,
+            };
+
+            this.logger.info(
+                'Sending connection settings change notification',
+                {
+                    type: payload.type,
+                    organizationUuid: params.organizationUuid,
+                    projectUuid: params.projectUuid,
+                    recipientCount: recipients.length,
+                },
+            );
+
+            await this.emailClient.sendAdminChangeNotificationEmail(
+                recipients,
+                payload,
+            );
+        } catch (error) {
+            this.logger.error(
+                'Failed to send connection settings change notification',
+                {
+                    error,
+                    projectUuid: params.projectUuid,
+                    organizationUuid: params.organizationUuid,
+                },
+            );
         }
-
-        const changedByInfo = AdminNotificationService.resolveChangedByAccount(
-            params.changedBy,
-        );
-
-        const payload: AdminNotificationPayload = {
-            type: AdminNotificationType.CONNECTION_SETTINGS_CHANGE,
-            organizationUuid: params.organizationUuid,
-            organizationName: orgName,
-            projectUuid: params.projectUuid,
-            projectName: params.projectName,
-            changedBy: changedByInfo,
-            timestamp: new Date(),
-            settingsUrl: new URL(
-                `/generalSettings/projectManagement/${params.projectUuid}/settings`,
-                this.lightdashConfig.siteUrl,
-            ).href,
-        };
-
-        this.logger.info('Sending connection settings change notification', {
-            type: payload.type,
-            organizationUuid: params.organizationUuid,
-            projectUuid: params.projectUuid,
-            recipientCount: recipients.length,
-        });
-
-        await this.emailClient.sendAdminChangeNotificationEmail(
-            recipients,
-            payload,
-        );
     }
 }
