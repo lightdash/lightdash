@@ -758,12 +758,21 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        const deletedChart = this.lightdashConfig.softDelete.enabled
-            ? await this.savedChartModel.softDelete(
-                  savedChartUuid,
-                  user.userUuid,
-              )
-            : await this.savedChartModel.permanentDelete(savedChartUuid);
+        let deletedChart: SavedChartDAO;
+        if (this.lightdashConfig.softDelete.enabled) {
+            deletedChart = await this.savedChartModel.softDelete(
+                savedChartUuid,
+                user.userUuid,
+            );
+
+            await this.schedulerModel.softDeleteByChartUuid(
+                savedChartUuid,
+                user.userUuid,
+            );
+        } else {
+            deletedChart =
+                await this.savedChartModel.permanentDelete(savedChartUuid);
+        }
 
         try {
             const cachedExplore = await this.projectModel.getExploreFromCache(
@@ -1646,6 +1655,9 @@ export class SavedChartService
         }
 
         await this.savedChartModel.restore(chartUuid);
+
+        // Cascade: restore associated schedulers
+        await this.schedulerModel.restoreByChartUuid(chartUuid);
 
         this.analytics.track({
             event: 'saved_chart.restored',
