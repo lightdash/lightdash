@@ -166,6 +166,9 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                             [`%${filters.search.toLowerCase()}%`],
                         );
                     }
+
+                    // Exclude SQL charts in deleted spaces
+                    void builder.whereNull(`${SpaceTableName}.deleted_at`);
                 }),
         shouldRowBeConverted: (value): value is SelectSavedSql => {
             const contentTypeMatch = value.content_type === ContentType.CHART;

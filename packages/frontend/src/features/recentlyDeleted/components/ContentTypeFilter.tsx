@@ -1,6 +1,10 @@
 import { ContentType } from '@lightdash/common';
 import { Box, Divider, SegmentedControl, Text, Tooltip } from '@mantine-8/core';
-import { IconChartBar, IconLayoutDashboard } from '@tabler/icons-react';
+import {
+    IconChartBar,
+    IconFolder,
+    IconLayoutDashboard,
+} from '@tabler/icons-react';
 import type { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './ContentTypeFilter.module.css';
@@ -8,7 +12,8 @@ import classes from './ContentTypeFilter.module.css';
 type DeletedContentTypeFilter =
     | 'all'
     | ContentType.CHART
-    | ContentType.DASHBOARD;
+    | ContentType.DASHBOARD
+    | ContentType.SPACE;
 
 type ContentTypeFilterProps = {
     selectedContentType: DeletedContentTypeFilter;
@@ -62,6 +67,16 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
                             icon={IconLayoutDashboard}
                             {...iconProps}
                         />
+                    </Box>
+                </Tooltip>
+            ),
+        },
+        {
+            value: ContentType.SPACE,
+            label: (
+                <Tooltip label="Show only deleted spaces" withinPortal>
+                    <Box>
+                        <MantineIcon icon={IconFolder} {...iconProps} />
                     </Box>
                 </Tooltip>
             ),

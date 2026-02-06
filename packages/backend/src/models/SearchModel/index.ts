@@ -90,10 +90,11 @@ export class SearchModel {
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
-            .column({ uuid: 'space_uuid' }, 'spaces.name', {
+            .column({ uuid: 'space_uuid' }, `${SpaceTableName}.name`, {
                 search_rank: searchRankRawSql,
             })
             .where('projects.project_uuid', projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .whereRaw(searchFilterSql)
             .orderBy('search_rank', 'desc');
 
@@ -280,6 +281,7 @@ export class SearchModel {
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereNull(`${DashboardsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             // Use GIN index filters to reduce rows before computing ts_rank_cd.
             // COALESCE is needed for chart filters because they come from LEFT JOINed tables -
             // if a dashboard has no charts, search_vector is NULL and `NULL @@ tsquery` returns NULL.
@@ -498,6 +500,7 @@ export class SearchModel {
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereNull(`${DashboardsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .andWhere(
                 `${DashboardTabsTableName}.name`,
                 'ilike',
@@ -595,6 +598,17 @@ export class SearchModel {
                 { search_rank: searchRankRawSql },
             )
             .whereNull(`${tableName}.deleted_at`)
+            // Exclude charts in deleted spaces (either direct or via dashboard)
+            .where(function excludeDeletedSpaces() {
+                void this.whereNull('direct_space.deleted_at').orWhereNull(
+                    'direct_space.space_uuid',
+                );
+            })
+            .where(function excludeDeletedDashboardSpaces() {
+                void this.whereNull('dashboard_space.deleted_at').orWhereNull(
+                    'dashboard_space.space_uuid',
+                );
+            })
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereRaw(searchFilterSql)
             .orderBy('search_rank', 'desc');

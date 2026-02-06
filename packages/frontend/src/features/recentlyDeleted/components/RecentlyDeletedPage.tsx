@@ -20,6 +20,7 @@ import {
     IconCalendar,
     IconChartBar,
     IconClock,
+    IconFolder,
     IconLayoutDashboard,
     IconRefresh,
     IconSearch,
@@ -87,7 +88,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
     const retentionDays = health.data?.softDelete.retentionDays;
 
     const [selectedContentType, setSelectedContentType] = useState<
-        'all' | ContentType.CHART | ContentType.DASHBOARD
+        'all' | ContentType.CHART | ContentType.DASHBOARD | ContentType.SPACE
     >('all');
 
     const {
@@ -196,6 +197,8 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                 return IconChartBar;
                             case ContentType.DASHBOARD:
                                 return IconLayoutDashboard;
+                            case ContentType.SPACE:
+                                return IconFolder;
                             default:
                                 return assertUnreachable(
                                     row.original,
@@ -234,6 +237,8 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                 return 'Chart';
                             case ContentType.DASHBOARD:
                                 return 'Dashboard';
+                            case ContentType.SPACE:
+                                return 'Space';
                             default:
                                 return assertUnreachable(
                                     row.original,
@@ -355,6 +360,12 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                             contentType: item.contentType,
                                         });
                                         break;
+                                    case ContentType.SPACE:
+                                        restoreContent({
+                                            uuid: item.uuid,
+                                            contentType: item.contentType,
+                                        });
+                                        break;
                                     default:
                                         assertUnreachable(
                                             item,
@@ -373,6 +384,12 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                         });
                                         break;
                                     case ContentType.DASHBOARD:
+                                        permanentlyDelete({
+                                            uuid: item.uuid,
+                                            contentType: item.contentType,
+                                        });
+                                        break;
+                                    case ContentType.SPACE:
                                         permanentlyDelete({
                                             uuid: item.uuid,
                                             contentType: item.contentType,

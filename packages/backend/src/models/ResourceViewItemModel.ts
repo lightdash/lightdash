@@ -38,7 +38,7 @@ const getCharts = async (
         .select({
             project_uuid: 'pinned_list.project_uuid',
             pinned_list_uuid: 'pinned_list.pinned_list_uuid',
-            space_uuid: 'spaces.space_uuid',
+            space_uuid: `${SpaceTableName}.space_uuid`,
             saved_chart_uuid: 'pinned_chart.saved_chart_uuid',
             updated_by_user_first_name: 'users.first_name',
             updated_by_user_last_name: 'users.last_name',
@@ -65,13 +65,18 @@ const getCharts = async (
                 'saved_queries.saved_query_uuid',
             ).andOnNull('saved_queries.deleted_at');
         })
-        .innerJoin('spaces', 'saved_queries.space_id', 'spaces.space_id')
+        .innerJoin(
+            SpaceTableName,
+            'saved_queries.space_id',
+            `${SpaceTableName}.space_id`,
+        )
         .leftJoin(
             'users',
             'saved_queries.last_version_updated_by_user_uuid',
             'users.user_uuid',
         )
-        .whereIn('spaces.space_uuid', allowedSpaceUuids)
+        .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
+        .whereNull(`${SpaceTableName}.deleted_at`)
         .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
         .andWhere('pinned_list.project_uuid', projectUuid)
         .orderBy('pinned_chart.order', 'asc')) as Record<string, AnyType>[];
@@ -122,7 +127,11 @@ const getDashboards = async (
                 'dashboards.dashboard_uuid',
             ).andOnNull('dashboards.deleted_at');
         })
-        .innerJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
+        .innerJoin(
+            SpaceTableName,
+            'dashboards.space_id',
+            `${SpaceTableName}.space_id`,
+        )
         .innerJoin(
             knex('dashboard_versions')
                 .distinctOn('dashboard_id')
@@ -138,13 +147,14 @@ const getDashboards = async (
             'dv.dashboard_id',
         )
         .leftJoin('users', 'dv.updated_by_user_uuid', 'users.user_uuid')
-        .whereIn('spaces.space_uuid', allowedSpaceUuids)
+        .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
+        .whereNull(`${SpaceTableName}.deleted_at`)
         .andWhere('pinned_list.pinned_list_uuid', pinnedListUuid)
         .andWhere('pinned_list.project_uuid', projectUuid)
         .select(
             'pinned_list.project_uuid',
             'pinned_list.pinned_list_uuid',
-            'spaces.space_uuid',
+            `${SpaceTableName}.space_uuid`,
             'pinned_dashboard.dashboard_uuid',
             'users.user_uuid as updated_by_user_uuid',
             'pinned_dashboard.order',
