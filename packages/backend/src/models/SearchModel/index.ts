@@ -279,6 +279,7 @@ export class SearchModel {
                 { lastUpdatedByUserUuid: 'updated_by_user.user_uuid' },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
             // Use GIN index filters to reduce rows before computing ts_rank_cd.
             // COALESCE is needed for chart filters because they come from LEFT JOINed tables -
             // if a dashboard has no charts, search_vector is NULL and `NULL @@ tsquery` returns NULL.
@@ -356,6 +357,7 @@ export class SearchModel {
             .whereNull('deleted_at');
 
         const tileChartsQuery = this.database('dashboards')
+            .whereNull('dashboards.deleted_at')
             .join(
                 'dashboard_versions',
                 'dashboards.dashboard_id',
@@ -495,6 +497,7 @@ export class SearchModel {
                 { spaceUuid: `${SpaceTableName}.space_uuid` },
             )
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
             .andWhere(
                 `${DashboardTabsTableName}.name`,
                 'ilike',
@@ -536,11 +539,13 @@ export class SearchModel {
 
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
         let subquery = this.database(tableName)
-            .leftJoin(
-                DashboardsTableName,
-                `${tableName}.dashboard_uuid`,
-                `${DashboardsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${tableName}.dashboard_uuid`,
+                    '=',
+                    `${DashboardsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             // Two separate joins to avoid OR condition (which causes Cartesian product)
             .leftJoin(
                 `${SpaceTableName} as direct_space`,
@@ -682,11 +687,13 @@ export class SearchModel {
 
         // Needs to be a subquery to be able to use the search rank column to filter out 0 rank results
         let subquery = this.database(SavedChartsTableName)
-            .leftJoin(
-                DashboardsTableName,
-                `${SavedChartsTableName}.dashboard_uuid`,
-                `${DashboardsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                    '=',
+                    `${DashboardsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .leftJoin(
                 SpaceTableName,
                 this.database.raw(
@@ -825,11 +832,13 @@ export class SearchModel {
         });
 
         const savedChartsSubquery = this.database(SavedChartsTableName)
-            .leftJoin(
-                DashboardsTableName,
-                `${SavedChartsTableName}.dashboard_uuid`,
-                `${DashboardsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                    '=',
+                    `${DashboardsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .leftJoin(
                 SpaceTableName,
                 this.database.raw(
@@ -917,11 +926,13 @@ export class SearchModel {
         });
 
         const savedSqlSubquery = this.database(SavedSqlTableName)
-            .leftJoin(
-                DashboardsTableName,
-                `${SavedSqlTableName}.dashboard_uuid`,
-                `${DashboardsTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${SavedSqlTableName}.dashboard_uuid`,
+                    '=',
+                    `${DashboardsTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             // Two separate joins to avoid OR condition (which causes Cartesian product)
             .leftJoin(
                 `${SpaceTableName} as direct_space`,

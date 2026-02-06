@@ -318,6 +318,7 @@ export class ServiceRepository
             'dashboardService',
             () =>
                 new DashboardService({
+                    lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     dashboardModel: this.models.getDashboardModel(),
                     spaceModel: this.models.getSpaceModel(),

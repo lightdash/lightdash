@@ -431,7 +431,7 @@ describe('DashboardModel', () => {
             .delete(queryMatcher(DashboardsTableName, [dashboardUuid]))
             .response([]);
 
-        await model.delete(dashboardUuid);
+        await model.permanentDelete(dashboardUuid);
         expect(tracker.history.delete).toHaveLength(1);
     });
 

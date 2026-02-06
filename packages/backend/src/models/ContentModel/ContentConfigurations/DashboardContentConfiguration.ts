@@ -27,6 +27,23 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
         ): Knex.QueryBuilder =>
             knex
                 .from(DashboardsTableName)
+                .where((deletedFilter) => {
+                    if (filters.deleted) {
+                        void deletedFilter.whereNotNull(
+                            `${DashboardsTableName}.deleted_at`,
+                        );
+                        if (filters.deletedByUserUuids) {
+                            void deletedFilter.whereIn(
+                                `${DashboardsTableName}.deleted_by_user_uuid`,
+                                filters.deletedByUserUuids,
+                            );
+                        }
+                    } else {
+                        void deletedFilter.whereNull(
+                            `${DashboardsTableName}.deleted_at`,
+                        );
+                    }
+                })
                 .innerJoin(
                     SpaceTableName,
                     `${SpaceTableName}.space_id`,
@@ -99,6 +116,16 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                     `${DashboardsTableName}.views_count as views`,
                     knex.raw(
                         `${DashboardsTableName}.first_viewed_at::timestamp as first_viewed_at`,
+                    ),
+                    knex.raw(
+                        `${DashboardsTableName}.deleted_at::timestamp as deleted_at`,
+                    ),
+                    `${DashboardsTableName}.deleted_by_user_uuid as deleted_by_user_uuid`,
+                    knex.raw(
+                        `(SELECT first_name FROM users WHERE user_uuid = ${DashboardsTableName}.deleted_by_user_uuid) as deleted_by_user_first_name`,
+                    ),
+                    knex.raw(
+                        `(SELECT last_name FROM users WHERE user_uuid = ${DashboardsTableName}.deleted_by_user_uuid) as deleted_by_user_last_name`,
                     ),
                     knex.raw(`json_build_object() as metadata`),
                 ])

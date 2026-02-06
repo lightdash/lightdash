@@ -1,13 +1,18 @@
 import { ContentType } from '@lightdash/common';
 import { Box, Divider, SegmentedControl, Text, Tooltip } from '@mantine-8/core';
-import { IconChartBar } from '@tabler/icons-react';
+import { IconChartBar, IconLayoutDashboard } from '@tabler/icons-react';
 import type { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import classes from './ContentTypeFilter.module.css';
 
+type DeletedContentTypeFilter =
+    | 'all'
+    | ContentType.CHART
+    | ContentType.DASHBOARD;
+
 type ContentTypeFilterProps = {
-    selectedContentType: 'all' | ContentType.CHART;
-    setSelectedContentType: (value: 'all' | ContentType.CHART) => void;
+    selectedContentType: DeletedContentTypeFilter;
+    setSelectedContentType: (value: DeletedContentTypeFilter) => void;
 };
 
 export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
@@ -48,17 +53,19 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
                 </Tooltip>
             ),
         },
-        // Future content types can be added here:
-        // {
-        //     value: ContentType.DASHBOARD,
-        //     label: (
-        //         <Tooltip label="Show only deleted dashboards" withinPortal>
-        //             <Box>
-        //                 <MantineIcon icon={IconLayoutDashboard} {...iconProps} />
-        //             </Box>
-        //         </Tooltip>
-        //     ),
-        // },
+        {
+            value: ContentType.DASHBOARD,
+            label: (
+                <Tooltip label="Show only deleted dashboards" withinPortal>
+                    <Box>
+                        <MantineIcon
+                            icon={IconLayoutDashboard}
+                            {...iconProps}
+                        />
+                    </Box>
+                </Tooltip>
+            ),
+        },
     ];
 
     return (
@@ -74,7 +81,7 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
                 radius="md"
                 value={selectedContentType}
                 onChange={(value) =>
-                    setSelectedContentType(value as 'all' | ContentType.CHART)
+                    setSelectedContentType(value as DeletedContentTypeFilter)
                 }
                 classNames={{
                     root: classes.segmentedControl,

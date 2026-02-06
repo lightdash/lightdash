@@ -50,6 +50,7 @@ import {
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
 import { SlackClient } from '../../clients/Slack/SlackClient';
+import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { logAuditEvent } from '../../logging/winston';
@@ -70,6 +71,7 @@ import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { hasDirectAccessToSpace } from '../SpaceService/SpaceService';
 
 type DashboardServiceArguments = {
+    lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
@@ -89,6 +91,8 @@ export class DashboardService
     extends BaseService
     implements BulkActionable<Knex>
 {
+    private lightdashConfig: LightdashConfig;
+
     analytics: LightdashAnalytics;
 
     dashboardModel: DashboardModel;
@@ -116,6 +120,7 @@ export class DashboardService
     featureFlagModel: FeatureFlagModel;
 
     constructor({
+        lightdashConfig,
         analytics,
         dashboardModel,
         spaceModel,
@@ -131,6 +136,7 @@ export class DashboardService
         featureFlagModel,
     }: DashboardServiceArguments) {
         super();
+        this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
@@ -1096,8 +1102,9 @@ export class DashboardService
             }
         }
 
-        const deletedDashboard =
-            await this.dashboardModel.delete(dashboardUuid);
+        const deletedDashboard = this.lightdashConfig.softDelete.enabled
+            ? await this.dashboardModel.softDelete(dashboardUuid, user.userUuid)
+            : await this.dashboardModel.permanentDelete(dashboardUuid);
 
         this.analytics.track({
             event: 'dashboard.deleted',
@@ -1107,6 +1114,54 @@ export class DashboardService
                 projectId: deletedDashboard.projectUuid,
             },
         });
+    }
+
+    async restoreDashboard(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<void> {
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { deleted: true },
+        );
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('DeletedContent', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.dashboardModel.restore(dashboardUuid);
+    }
+
+    async permanentlyDeleteDashboard(
+        user: SessionUser,
+        dashboardUuid: string,
+    ): Promise<void> {
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { deleted: true },
+        );
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('DeletedContent', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.dashboardModel.permanentDelete(dashboardUuid);
     }
 
     async getSchedulers(

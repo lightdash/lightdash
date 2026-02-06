@@ -216,8 +216,8 @@ SELECT
   dv.dashboard_uuid as uuid, 
   d.name
 FROM public.analytics_dashboard_views dv
-  left join dashboards d  on d.dashboard_uuid  = dv.dashboard_uuid 
-  left join spaces s on s.space_id  = d.space_id 
+  left join dashboards d  on d.dashboard_uuid  = dv.dashboard_uuid AND d.deleted_at IS NULL
+  left join spaces s on s.space_id  = d.space_id
   left join projects on projects.project_id = s.project_id
 where projects.project_uuid = '${projectUuid}'
 group by dv.dashboard_uuid, d.name
@@ -236,10 +236,10 @@ WITH RankedResults AS (
       ROW_NUMBER() OVER (PARTITION BY u.first_name ORDER BY COUNT(dv.dashboard_uuid) DESC) AS rank
   FROM public.analytics_dashboard_views dv
   LEFT JOIN users u ON u.user_uuid = dv.user_uuid
-  LEFT JOIN dashboards d ON dv.dashboard_uuid = d.dashboard_uuid
-  left join spaces s on s.space_id  = d.space_id 
+  LEFT JOIN dashboards d ON dv.dashboard_uuid = d.dashboard_uuid AND d.deleted_at IS NULL
+  left join spaces s on s.space_id  = d.space_id
   left join projects on projects.project_id = s.project_id
-  WHERE projects.project_uuid = '${projectUuid}' 
+  WHERE projects.project_uuid = '${projectUuid}'
     AND u.user_uuid IS NOT NULL
   GROUP BY u.user_uuid, u.first_name, u.last_name, d."name"
 )
@@ -342,15 +342,15 @@ LEFT JOIN users cu ON cu.user_uuid = first_version.updated_by_user_uuid
 LEFT JOIN spaces s ON s.space_id = d.space_id
 LEFT JOIN projects p ON p.project_id = s.project_id
 LEFT JOIN analytics_dashboard_views adv ON adv.dashboard_uuid = d.dashboard_uuid
-WHERE p.project_uuid = ?
-GROUP BY 
-  d.name, 
+WHERE p.project_uuid = ? AND d.deleted_at IS NULL
+GROUP BY
+  d.name,
   d.created_at,
-  d.dashboard_uuid, 
+  d.dashboard_uuid,
   first_version.updated_by_user_uuid,
   cu.first_name,
   cu.last_name
-ORDER BY 
+ORDER BY
   MAX(adv.timestamp) ASC NULLS FIRST,
   COUNT(adv.dashboard_uuid) ASC,
   d.created_at ASC

@@ -122,11 +122,13 @@ export class SavedSqlModel {
     }) {
         return this.database
             .from(SavedSqlTableName)
-            .leftJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_uuid`,
-                `${SavedSqlTableName}.dashboard_uuid`,
-            )
+            .leftJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
+                this.on(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    '=',
+                    `${SavedSqlTableName}.dashboard_uuid`,
+                ).andOnNull(`${DashboardsTableName}.deleted_at`);
+            })
             .innerJoin(SpaceTableName, function spaceJoin() {
                 this.on(
                     `${SpaceTableName}.space_id`,
