@@ -55,7 +55,7 @@ export const MetricsLink: FC<Props> = ({ projectUuid, asMenu }) => {
             variant="default"
             size="xs"
             fz="sm"
-            leftSection={<MantineIcon icon={IconHash} color="ldGray.5" />}
+            leftSection={<MantineIcon icon={IconHash} color="ldGray.6" />}
             onClick={handleMetricsCatalogClick}
         >
             Metrics

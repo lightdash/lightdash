@@ -1,4 +1,3 @@
-import { colorsTuple } from '@mantine-8/core';
 import {
     rem,
     type ColorScheme,
@@ -10,12 +9,31 @@ import type {} from 'csstype';
 import styles from './styles/mantine-overrides/tooltip.module.css';
 
 type ColorTuple = Tuple<string, 10>;
+const createColorTuple = (input: string | ColorTuple): ColorTuple => {
+    if (typeof input === 'string') {
+        return new Array(10).fill(input) as ColorTuple;
+    }
+    return input;
+};
+
+const lightdashDarkGray = createColorTuple([
+    '#141414',
+    '#1f1f1f',
+    '#242424',
+    '#2e2e2e',
+    '#3b3b3b',
+    '#525252',
+    '#7a7a7a',
+    '#9e9e9e',
+    '#c8c8c8',
+    '#d9d9d9',
+]);
 
 const lightModeColors = {
-    background: colorsTuple('#FEFEFE') as ColorTuple,
-    foreground: colorsTuple('#1A1B1E') as ColorTuple,
+    background: createColorTuple('#FEFEFE'),
+    foreground: createColorTuple('#1A1B1E'),
 
-    ldDark: [
+    ldDark: createColorTuple([
         '#C9C9C9',
         '#b8b8b8',
         '#828282',
@@ -26,9 +44,9 @@ const lightModeColors = {
         '#242424',
         '#1f1f1f',
         '#141414',
-    ] as ColorTuple,
+    ]),
 
-    ldGray: [
+    ldGray: createColorTuple([
         '#f8f9fa',
         '#f1f3f5',
         '#e9ecef',
@@ -39,37 +57,30 @@ const lightModeColors = {
         '#495057',
         '#343a40',
         '#212529',
-    ] as ColorTuple,
+    ]),
 };
 
 const darkModeColors = {
-    background: colorsTuple('#1A1B1E') as ColorTuple,
-    foreground: colorsTuple('#FEFEFE') as ColorTuple,
+    background: createColorTuple('#1a1a1a'),
+    foreground: createColorTuple('#FEFEFE'),
 
-    ldDark: [
-        '#101113',
-        '#141517',
-        '#1A1B1E',
-        '#25262b',
-        '#2C2E33',
-        '#373A40',
-        '#5c5f66',
-        '#909296',
-        '#A6A7AB',
-        '#C1C2C5',
-    ] as ColorTuple,
-    ldGray: [
-        '#28282c',
-        '#343437',
-        '#404044',
-        '#4d4d4f',
-        '#59595c',
-        '#77777c',
-        '#858588',
-        '#949498',
-        '#a2a2a7',
-        '#b0b0bd',
-    ] as ColorTuple,
+    /** Overwrite Mantine's dark colors because they are too light */
+    dark: createColorTuple([
+        '#A1A1A1',
+        '#939393',
+        '#686868',
+        '#545454',
+        '#353535',
+        '#292929',
+        '#202020',
+        '#191919',
+        '#151515',
+        '#0E0E0E',
+    ]),
+
+    /** Make both light and dark the same shades to avoid clashing different tones. */
+    ldDark: lightdashDarkGray,
+    ldGray: lightdashDarkGray,
 };
 
 // Colors used for conditional formatting in dark mode
@@ -369,7 +380,7 @@ export const getMantineThemeOverride = (
             ...(theme.colorScheme === 'dark'
                 ? {
                       '[class*="mantine-"][data-with-border]': {
-                          borderColor: theme.colors.ldDark[4],
+                          border: `1px solid var(--mantine-color-ldDark-2)`,
                       },
                   }
                 : undefined),

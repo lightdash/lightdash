@@ -3,12 +3,12 @@
     top: 0;
     left: 0;
     right: 0;
-    z-index: var(--mantine-zIndex-max);
+    z-index: var(--mantine-z-index-max);
 }
 
 .header {
     align-items: center;
-    box-shadow: var(--mantine-shadow-lg);
+    box-shadow: 0 1px 0 0 var(--mantine-color-ldDark-1);
     justify-content: flex-start;
     background-color: var(--mantine-color-ldDark-0);
 }

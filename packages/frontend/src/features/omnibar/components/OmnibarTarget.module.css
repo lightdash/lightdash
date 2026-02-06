@@ -3,11 +3,12 @@
     border-radius: var(--mantine-radius-md);
     cursor: pointer;
     transition: all 100ms ease;
-    background-color: var(--mantine-color-ldDark-4);
+    background-color: var(--mantine-color-ldDark-2);
     overflow: hidden;
+    opacity: 0.8;
 
     &:hover {
-        background-color: var(--mantine-color-ldDark-5);
+        opacity: 1;
     }
 
     @media (min-width: 75em) {
