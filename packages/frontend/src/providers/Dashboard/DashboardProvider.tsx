@@ -1090,6 +1090,10 @@ const DashboardProvider: React.FC<
         setInvalidateCache(true);
     }, []);
 
+    const resetInvalidateCache = useCallback(() => {
+        setInvalidateCache(false);
+    }, []);
+
     const updateSqlChartTilesMetadata = useCallback(
         (tileUuid: string, metadata: SqlChartTileMetadata) => {
             setSqlChartTilesMetadata((prev) => ({
@@ -1213,6 +1217,7 @@ const DashboardProvider: React.FC<
         addResultsCacheTime,
         oldestCacheTime,
         invalidateCache,
+        resetInvalidateCache,
         clearCacheAndFetch,
         isAutoRefresh,
         setIsAutoRefresh,

@@ -168,6 +168,10 @@ export const useDashboardChartReadyQuery = (
         FeatureFlags.UseSqlPivotResults,
     );
 
+    // Note: invalidateCache is intentionally NOT included in the query key.
+    // It's a transient instruction to bypass the server cache, not part of the query identity.
+    // Including it would create separate cache entries for true/false, causing stale data
+    // to persist when navigating away and back (since invalidateCache resets to false on remount).
     const queryKey = useMemo(
         () => [
             'dashboard_chart_ready_query',
@@ -180,7 +184,6 @@ export const useDashboardChartReadyQuery = (
             contextOverride || context,
             autoRefresh,
             hasADateDimension ? granularity : null,
-            invalidateCache,
             chartParameterValues,
             useSqlPivotResults,
         ],
@@ -196,7 +199,6 @@ export const useDashboardChartReadyQuery = (
             autoRefresh,
             hasADateDimension,
             granularity,
-            invalidateCache,
             chartParameterValues,
             useSqlPivotResults,
         ],

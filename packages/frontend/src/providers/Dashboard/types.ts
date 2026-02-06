@@ -71,6 +71,7 @@ export type DashboardContextType = {
     addResultsCacheTime: (cacheMetadata: CacheMetadata) => void;
     oldestCacheTime: Date | undefined;
     invalidateCache: boolean | undefined;
+    resetInvalidateCache: () => void;
     isAutoRefresh: boolean;
     setIsAutoRefresh: (autoRefresh: boolean) => void;
     clearCacheAndFetch: () => void;
