@@ -1,5 +1,5 @@
 import { type ApiError } from '@lightdash/common';
-import { Alert, Loader, type AlertProps } from '@mantine/core';
+import { Alert, Loader, type AlertProps } from '@mantine-8/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
@@ -8,6 +8,7 @@ import MDEditor from '@uiw/react-md-editor';
 import { type FC } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import MantineIcon from '../common/MantineIcon';
+import styles from './ProjectStatusCallout.module.css';
 
 type ProjectStatusCalloutProps = Omit<AlertProps, 'children'> & {
     isSuccess: boolean;
@@ -31,7 +32,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
             title: 'Updating project settings...',
             icon: <Loader size="lg" />,
             children: undefined,
-            styles: { title: { marginBottom: 0 } },
+            classNames: { title: styles.titleNoMargin },
         };
     } else if (isSuccess) {
         stateProps = {
@@ -39,7 +40,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
             title: 'Project settings updated!',
             icon: <MantineIcon icon={IconCircleCheckFilled} size="lg" />,
             children: undefined,
-            styles: { title: { marginBottom: 0 } },
+            classNames: { title: styles.titleNoMargin },
         };
     } else if (isError) {
         stateProps = {
@@ -52,13 +53,10 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
                     rehypePlugins={[
                         [rehypeExternalLinks, { target: '_blank' }],
                     ]}
-                    style={{
-                        background: 'transparent',
-                        fontSize: '12px',
-                    }}
+                    className={styles.markdown}
                 />
             ) : null,
-            styles: error ? { title: { marginBottom: 0 } } : undefined,
+            classNames: error ? { title: styles.titleNoMargin } : undefined,
         };
     } else {
         stateProps = {
@@ -66,7 +64,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
             title: 'Updating project settings...',
             icon: <Loader size="lg" />,
             children: undefined,
-            styles: { title: { marginBottom: 0 } },
+            classNames: { title: styles.titleNoMargin },
         };
     }
 

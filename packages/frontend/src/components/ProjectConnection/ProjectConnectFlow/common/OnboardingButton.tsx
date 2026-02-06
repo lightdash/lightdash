@@ -4,8 +4,9 @@ import {
     Text,
     UnstyledButton,
     type UnstyledButtonProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { type FC } from 'react';
+import styles from './OnboardingButton.module.css';
 
 type OnboardingButtonProps = UnstyledButtonProps &
     React.ComponentPropsWithRef<'div'> & {
@@ -25,39 +26,19 @@ const OnboardingButton: FC<React.PropsWithChildren<OnboardingButtonProps>> = ({
         component="div"
         role="button"
         {...rest}
-        sx={(theme) => ({
-            display: 'flex',
-            alignItems: 'center',
-            height: theme.spacing['5xl'],
-            borderWidth: 1,
-            borderStyle: 'solid',
-            borderColor: theme.colors.ldGray[3],
-            paddingLeft: theme.spacing.md,
-            paddingRight: theme.spacing.md,
-            borderRadius: theme.radius.sm,
-
-            '&:hover': {
-                borderColor: theme.colors.ldGray[4],
-                backgroundColor: theme.colors.ldGray[0],
-            },
-
-            '&:active': {
-                position: 'relative',
-                top: 1,
-            },
-        })}
+        className={styles.button}
     >
-        <Stack sx={{ flexGrow: 1 }}>
+        <Stack flex={1}>
             <Flex gap="sm" align="center">
                 {leftIcon}
 
-                <Stack spacing="xxs" sx={{ flexGrow: 1 }}>
+                <Stack gap="xxs" flex={1}>
                     <Text size="sm" fw={500}>
                         {children}
                     </Text>
 
                     {description && (
-                        <Text size="xs" color="dimmed">
+                        <Text size="xs" c="dimmed">
                             {description}
                         </Text>
                     )}

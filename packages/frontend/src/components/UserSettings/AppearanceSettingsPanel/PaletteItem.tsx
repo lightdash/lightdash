@@ -10,7 +10,7 @@ import {
     Paper,
     Text,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import {
     IconDotsVertical,
     IconEdit,
@@ -22,6 +22,7 @@ import { useDeleteColorPalette } from '../../../hooks/appearance/useOrganization
 import MantineIcon from '../../common/MantineIcon';
 import { DeletePaletteModal } from './DeletePaletteModal';
 import { EditPaletteModal } from './EditPaletteModal';
+import styles from './PaletteItem.module.css';
 
 type PaletteItemProps = {
     palette: Omit<OrganizationColorPalette, 'name'> & { name: string };
@@ -64,8 +65,8 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                 onMouseLeave={() => setIsHovered(false)}
             >
                 <Flex justify="space-between" align="center">
-                    <Group spacing="xs">
-                        <Group spacing="two">
+                    <Group gap="xs">
+                        <Group gap="two">
                             {displayColors.slice(0, 5).map((color, index) => (
                                 <ColorSwatch
                                     key={color + index}
@@ -81,10 +82,9 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                 position="bottom-end"
                                 multiline
                                 maw={200}
-                                variant="xs"
                             >
                                 <Badge color="gray" variant="light">
-                                    <Group spacing={2}>
+                                    <Group gap={2}>
                                         Override
                                         <MantineIcon
                                             size="sm"
@@ -96,19 +96,18 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                         )}
                     </Group>
 
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         {onSetActive && (
                             <Button
                                 onClick={() =>
                                     onSetActive(palette.colorPaletteUuid)
                                 }
                                 h={32}
-                                sx={() => ({
-                                    visibility:
-                                        isHovered && !isActive
-                                            ? 'visible'
-                                            : 'hidden',
-                                })}
+                                className={
+                                    isHovered && !isActive
+                                        ? undefined
+                                        : styles.hidden
+                                }
                             >
                                 Use This Theme
                             </Button>
@@ -133,13 +132,17 @@ export const PaletteItem: FC<PaletteItemProps> = ({
 
                             <Menu.Dropdown>
                                 <Menu.Item
-                                    icon={<MantineIcon icon={IconEdit} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconEdit} />
+                                    }
                                     onClick={() => setIsEditModalOpen(true)}
                                 >
                                     Edit palette
                                 </Menu.Item>
                                 <Menu.Item
-                                    icon={<MantineIcon icon={IconTrash} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconTrash} />
+                                    }
                                     onClick={() => setIsDeleteModalOpen(true)}
                                     disabled={isActive}
                                     color="red"
