@@ -154,6 +154,7 @@ export const getMantine8ThemeOverride = (
                 }),
                 defaultProps: {
                     radius: 'md',
+                    variant: 'dark',
                 },
             }),
             ScrollArea: ScrollArea.extend({

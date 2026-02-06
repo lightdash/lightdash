@@ -194,13 +194,16 @@ export const getMantineThemeOverride = (
 
         components: {
             Button: {
+                defaultProps: {
+                    variant: 'darkPrimary',
+                    radius: 'md',
+                },
                 variants: {
                     darkPrimary: (theme) => ({
                         root: {
                             background: `var(--mantine-color-foreground-0)`,
                             borderRadius: theme.radius.md,
                             color: `var(--mantine-color-ldGray-0)`,
-                            boxShadow: `inset 0 -2px 0 0 color-mix(in srgb, var(--mantine-color-ldDark-0) 40%, transparent)`, // glossy effect
                             ...theme.fn.hover({
                                 background: `color-mix(in srgb, var(--mantine-color-foreground-0) 80%, transparent)`,
                             }),
