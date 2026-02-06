@@ -37,7 +37,7 @@ const ProjectCompileLog: FC<ProjectCompileLogProps> = ({
                     rightSection={<MantineIcon icon={IconExternalLink} />}
                     component="a"
                     target="_blank"
-                    href={`/generalSettings/${projectUuid}/compilationHistory`}
+                    href={`/generalSettings/projectManagement/${projectUuid}/compilationHistory`}
                 >
                     See history
                 </Button>
