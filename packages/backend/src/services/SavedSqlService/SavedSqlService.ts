@@ -28,6 +28,7 @@ import {
     CreateSqlChartVersionEvent,
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
+import { LightdashConfig } from '../../config/parseConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -37,6 +38,7 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 
 type SavedSqlServiceArguments = {
+    lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
@@ -52,6 +54,8 @@ export class SavedSqlService
     extends BaseService
     implements BulkActionable<Knex>
 {
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly projectModel: ProjectModel;
@@ -68,6 +72,7 @@ export class SavedSqlService
 
     constructor(args: SavedSqlServiceArguments) {
         super();
+        this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
@@ -402,7 +407,11 @@ export class SavedSqlService
             { savedSqlUuid: savedChart.savedSqlUuid },
         );
 
-        await this.savedSqlModel.delete(savedSqlUuid);
+        if (this.lightdashConfig.softDelete.enabled) {
+            await this.savedSqlModel.softDelete(savedSqlUuid, user.userUuid);
+        } else {
+            await this.savedSqlModel.delete(savedSqlUuid);
+        }
 
         this.analytics.track({
             event: 'sql_chart.deleted',
@@ -411,6 +420,92 @@ export class SavedSqlService
                 chartId: savedChart.savedSqlUuid,
                 projectId: savedChart.project.projectUuid,
                 organizationId: savedChart.organization.organizationUuid,
+            },
+        });
+    }
+
+    async restoreSqlChart(
+        user: SessionUser,
+        savedSqlUuid: string,
+    ): Promise<void> {
+        const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+            deleted: true,
+        });
+        const { projectUuid } = savedChart.project;
+        const { organizationUuid } = savedChart.organization;
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const isAdmin = user.ability.can(
+            'manage',
+            subject('DeletedContent', { organizationUuid, projectUuid }),
+        );
+
+        if (!isAdmin && savedChart.createdBy?.userUuid !== user.userUuid) {
+            throw new ForbiddenError(
+                'You can only restore content you deleted',
+            );
+        }
+
+        await this.savedSqlModel.restore(savedSqlUuid);
+
+        this.analytics.track({
+            event: 'sql_chart.restored',
+            userId: user.userUuid,
+            properties: {
+                chartId: savedChart.savedSqlUuid,
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+            },
+        });
+    }
+
+    async permanentlyDeleteSqlChart(
+        user: SessionUser,
+        savedSqlUuid: string,
+    ): Promise<void> {
+        const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+            deleted: true,
+        });
+        const { projectUuid } = savedChart.project;
+        const { organizationUuid } = savedChart.organization;
+
+        if (
+            user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const isAdmin = user.ability.can(
+            'manage',
+            subject('DeletedContent', { organizationUuid, projectUuid }),
+        );
+
+        if (!isAdmin && savedChart.createdBy?.userUuid !== user.userUuid) {
+            throw new ForbiddenError(
+                'You can only permanently delete content you deleted',
+            );
+        }
+
+        await this.savedSqlModel.permanentDelete(savedSqlUuid);
+
+        this.analytics.track({
+            event: 'sql_chart.permanently_deleted',
+            userId: user.userUuid,
+            properties: {
+                chartId: savedChart.savedSqlUuid,
+                projectId: projectUuid,
+                organizationId: organizationUuid,
             },
         });
     }
