@@ -83,6 +83,7 @@ import {
     getSubtotalKey,
     getTimezoneLabel,
     GroupByColumn,
+    hasConnectionChanges,
     hasIntersection,
     hasWarehouseCredentials,
     IntrinsicUserAttributes,
@@ -1893,59 +1894,35 @@ export class ProjectService extends BaseService {
 
         await this.projectModel.update(projectUuid, updatedProject);
 
-        if (account && updatedProject.warehouseConnection) {
-            const databaseChanges =
-                this.adminNotificationService.detectDatabaseChanges(
-                    savedProject.warehouseConnection,
-                    updatedProject.warehouseConnection,
-                );
-
-            if (databaseChanges.length > 0) {
-                this.adminNotificationService
-                    .notifyDatabaseConnectionChange({
-                        organizationUuid: savedProject.organizationUuid,
-                        projectUuid,
-                        projectName: savedProject.name,
-                        changedBy: account,
-                        changes: databaseChanges,
-                    })
-                    .catch((error) => {
-                        this.logger.error(
-                            'Failed to send database connection change notification',
-                            {
-                                error,
-                                projectUuid,
-                            },
-                        );
-                    });
-            }
-        }
-
-        if (account && updatedProject.dbtConnection) {
-            const dbtChanges = this.adminNotificationService.detectDbtChanges(
-                savedProject.dbtConnection,
-                updatedProject.dbtConnection,
-            );
-
-            if (dbtChanges.length > 0) {
-                this.adminNotificationService
-                    .notifyDbtConnectionChange({
-                        organizationUuid: savedProject.organizationUuid,
-                        projectUuid,
-                        projectName: savedProject.name,
-                        changedBy: account,
-                        changes: dbtChanges,
-                    })
-                    .catch((error) => {
-                        this.logger.error(
-                            'Failed to send dbt connection change notification',
-                            {
-                                error,
-                                projectUuid,
-                            },
-                        );
-                    });
-            }
+        if (
+            account &&
+            hasConnectionChanges(
+                {
+                    warehouseConnection: savedProject.warehouseConnection,
+                    dbtConnection: savedProject.dbtConnection,
+                },
+                {
+                    warehouseConnection: updatedProject.warehouseConnection,
+                    dbtConnection: updatedProject.dbtConnection,
+                },
+            )
+        ) {
+            this.adminNotificationService
+                .notifyConnectionSettingsChange({
+                    organizationUuid: savedProject.organizationUuid,
+                    projectUuid,
+                    projectName: savedProject.name,
+                    changedBy: account,
+                })
+                .catch((error) => {
+                    this.logger.error(
+                        'Failed to send connection settings change notification',
+                        {
+                            error,
+                            projectUuid,
+                        },
+                    );
+                });
         }
 
         await this.jobModel.create(job);

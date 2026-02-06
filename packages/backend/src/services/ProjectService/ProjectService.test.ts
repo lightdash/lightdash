@@ -167,10 +167,7 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
             {} as unknown as OrganizationWarehouseCredentialsModel,
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {
-            detectDatabaseChanges: jest.fn(() => []),
-            notifyDatabaseConnectionChange: jest.fn(async () => undefined),
-            detectDbtChanges: jest.fn(() => []),
-            notifyDbtConnectionChange: jest.fn(async () => undefined),
+            notifyConnectionSettingsChange: jest.fn(async () => undefined),
         } as unknown as AdminNotificationService,
     });
 

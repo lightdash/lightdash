@@ -177,6 +177,7 @@ export * from './utils/chartValidation';
 export * from './utils/colors';
 export * from './utils/conditionalFormatExpressions';
 export * from './utils/conditionalFormatting';
+export * from './utils/connectionChanges';
 export * from './utils/convertCustomDimensionsToYaml';
 export * from './utils/convertCustomMetricsToYaml';
 export * from './utils/customDimensions';

@@ -3,13 +3,8 @@ export enum AdminNotificationType {
     ORG_ADMIN_REMOVED = 'org_admin_removed',
     PROJECT_ADMIN_ADDED = 'project_admin_added',
     PROJECT_ADMIN_REMOVED = 'project_admin_removed',
-    DATABASE_CONNECTION_CHANGE = 'database_connection_change',
-    DBT_CONNECTION_CHANGE = 'dbt_connection_change',
+    CONNECTION_SETTINGS_CHANGE = 'connection_settings_change',
 }
-
-export type ChangeDetail = {
-    field: string;
-};
 
 export type AdminNotificationPayload = {
     type: AdminNotificationType;
@@ -33,6 +28,5 @@ export type AdminNotificationPayload = {
         lastName: string;
     };
     timestamp: Date;
-    changes: ChangeDetail[];
     settingsUrl: string;
 };

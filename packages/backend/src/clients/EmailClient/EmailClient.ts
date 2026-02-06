@@ -1,7 +1,6 @@
 import {
     AdminNotificationPayload,
     AdminNotificationType,
-    ChangeDetail,
     CreateProjectMember,
     getErrorMessage,
     InviteLink,
@@ -62,7 +61,6 @@ type EmailTemplate = {
         | AttachmentUrl[]
         | PartialFailure[]
         | { chartName: string; error: string }[]
-        | ChangeDetail[]
         | AdminNotificationPayload['changedBy']
         | AdminNotificationPayload['targetUser']
     >;
@@ -756,21 +754,11 @@ export default class EmailClient {
             return `${targetName} was ${action} by ${changedByName}`;
         }
 
-        const changeCount = payload.changes.length;
-        const fieldText =
-            changeCount === 1
-                ? '1 field changed'
-                : `${changeCount} fields changed`;
-
-        if (payload.type === AdminNotificationType.DATABASE_CONNECTION_CHANGE) {
-            return `Database connection updated by ${changedByName} (${fieldText})`;
+        if (payload.type === AdminNotificationType.CONNECTION_SETTINGS_CHANGE) {
+            return `Connection settings updated by ${changedByName}`;
         }
 
-        if (payload.type === AdminNotificationType.DBT_CONNECTION_CHANGE) {
-            return `dbt connection updated by ${changedByName} (${fieldText})`;
-        }
-
-        return `${fieldText} by ${changedByName}`;
+        return `Settings changed by ${changedByName}`;
     }
 
     public async sendAdminChangeNotificationEmail(
@@ -784,10 +772,8 @@ export default class EmailClient {
             [AdminNotificationType.PROJECT_ADMIN_ADDED]: 'Project Admin Added',
             [AdminNotificationType.PROJECT_ADMIN_REMOVED]:
                 'Project Admin Removed',
-            [AdminNotificationType.DATABASE_CONNECTION_CHANGE]:
-                'Database Connection Changed',
-            [AdminNotificationType.DBT_CONNECTION_CHANGE]:
-                'dbt Connection Changed',
+            [AdminNotificationType.CONNECTION_SETTINGS_CHANGE]:
+                'Connection Settings Changed',
         };
 
         const templateMap: Record<AdminNotificationType, string> = {
@@ -798,10 +784,8 @@ export default class EmailClient {
                 'adminChangeNotification',
             [AdminNotificationType.PROJECT_ADMIN_REMOVED]:
                 'adminChangeNotification',
-            [AdminNotificationType.DATABASE_CONNECTION_CHANGE]:
-                'databaseConnectionChange',
-            [AdminNotificationType.DBT_CONNECTION_CHANGE]:
-                'dbtConnectionChange',
+            [AdminNotificationType.CONNECTION_SETTINGS_CHANGE]:
+                'connectionSettingsChange',
         };
 
         const projectContext = payload.projectName
@@ -809,12 +793,8 @@ export default class EmailClient {
             : payload.organizationName;
 
         const isRemoval = payload.type.includes('removed');
-        const isDatabaseConnectionChange =
-            payload.type === AdminNotificationType.DATABASE_CONNECTION_CHANGE;
-        const isDbtConnectionChange =
-            payload.type === AdminNotificationType.DBT_CONNECTION_CHANGE;
         const isConnectionChange =
-            isDatabaseConnectionChange || isDbtConnectionChange;
+            payload.type === AdminNotificationType.CONNECTION_SETTINGS_CHANGE;
 
         return this.sendEmail({
             to: recipients,
@@ -826,15 +806,12 @@ export default class EmailClient {
                 type: payload.type,
                 organizationName: payload.organizationName,
                 projectName: payload.projectName,
-                changes: payload.changes,
                 changedBy: payload.changedBy,
                 targetUser: payload.targetUser,
                 timestamp: payload.timestamp.toISOString(),
                 settingsUrl: payload.settingsUrl,
                 host: this.lightdashConfig.siteUrl,
                 isRemoval,
-                isDatabaseConnectionChange,
-                isDbtConnectionChange,
                 isConnectionChange,
             },
             text: EmailClient.getAdminChangeNotificationText(

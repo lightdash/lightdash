@@ -2,10 +2,6 @@ import {
     Account,
     AdminNotificationPayload,
     AdminNotificationType,
-    ChangeDetail,
-    CreateWarehouseCredentials,
-    DbtProjectConfig,
-    DbtProjectType,
     FeatureFlags,
     OrganizationMemberRole,
     ProjectMemberRole,
@@ -89,76 +85,6 @@ export class AdminNotificationService extends BaseService {
         return undefined;
     }
 
-    private readonly warehouseFieldLabels: Record<string, string> = {
-        type: 'Warehouse Type',
-        host: 'Host',
-        port: 'Port',
-        user: 'Username',
-        password: 'Password',
-        database: 'Database',
-        dbname: 'Database',
-        schema: 'Schema',
-        account: 'Account',
-        warehouse: 'Warehouse',
-        role: 'Role',
-        project: 'Project',
-        dataset: 'Dataset',
-        threads: 'Threads',
-        timeoutSeconds: 'Timeout (seconds)',
-        priority: 'Priority',
-        retries: 'Retries',
-        location: 'Location',
-        maximumBytesBilled: 'Maximum Bytes Billed',
-        executionProject: 'Execution Project',
-        keyfileContents: 'Service Account Key',
-        requireUserCredentials: 'Require User Credentials',
-        useSshTunnel: 'Use SSH Tunnel',
-        sshTunnelHost: 'SSH Tunnel Host',
-        sshTunnelPort: 'SSH Tunnel Port',
-        sshTunnelUser: 'SSH Tunnel User',
-        startOfWeek: 'Start of Week',
-        catalog: 'Catalog',
-        serverHostName: 'Server Hostname',
-        httpPath: 'HTTP Path',
-        personalAccessToken: 'Personal Access Token',
-        authenticationType: 'Authentication Type',
-        clientId: 'Client ID',
-        clientSecret: 'Client Secret',
-        token: 'Access Token',
-        refreshToken: 'Refresh Token',
-        oauthClientId: 'OAuth Client ID',
-        oauthClientSecret: 'OAuth Client Secret',
-        sslmode: 'SSL Mode',
-        sslcert: 'SSL Certificate',
-        sslkey: 'SSL Key',
-        sslrootcert: 'SSL Root Certificate',
-    };
-
-    private readonly dbtFieldLabels: Record<string, string> = {
-        type: 'Connection Type',
-        repository: 'Repository',
-        branch: 'Branch',
-        project_sub_path: 'Project Sub-path',
-        host_domain: 'Host Domain',
-        target: 'Target',
-        selector: 'Selector',
-        personal_access_token: 'Personal Access Token',
-        authorization_method: 'Authorization Method',
-        installation_id: 'GitHub App Installation ID',
-        environment_id: 'dbt Cloud Environment ID',
-        api_key: 'API Key',
-        discovery_api_endpoint: 'Discovery API Endpoint',
-        tags: 'Tags',
-        username: 'Username',
-        organization: 'Organization',
-        project: 'Project',
-        profiles_dir: 'Profiles Directory',
-        project_dir: 'Project Directory',
-        manifest: 'Manifest',
-        hideRefreshButton: 'Hide Refresh Button',
-        environment: 'Environment Variables',
-    };
-
     private async getProjectNotificationRecipients(
         organizationUuid: string,
         projectUuid: string,
@@ -222,48 +148,6 @@ export class AdminNotificationService extends BaseService {
         }
     }
 
-    private getFieldLabel(field: string): string {
-        if (this.warehouseFieldLabels[field]) {
-            return this.warehouseFieldLabels[field];
-        }
-        return field
-            .replace(/([A-Z])/g, ' $1')
-            .replace(/^./, (str) => str.toUpperCase())
-            .trim();
-    }
-
-    private static getDbtTypeLabel(type: DbtProjectType): string {
-        const typeLabels: Record<DbtProjectType, string> = {
-            [DbtProjectType.DBT]: 'Local dbt Project',
-            [DbtProjectType.DBT_CLOUD_IDE]: 'dbt Cloud',
-            [DbtProjectType.GITHUB]: 'GitHub',
-            [DbtProjectType.GITLAB]: 'GitLab',
-            [DbtProjectType.BITBUCKET]: 'Bitbucket',
-            [DbtProjectType.AZURE_DEVOPS]: 'Azure DevOps',
-            [DbtProjectType.NONE]: 'No dbt Connection',
-            [DbtProjectType.MANIFEST]: 'Manifest Upload',
-        };
-        return typeLabels[type] ?? type;
-    }
-
-    private getDbtFieldLabel(field: string): string {
-        if (this.dbtFieldLabels[field]) {
-            return this.dbtFieldLabels[field];
-        }
-        return field
-            .split('_')
-            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-    }
-
-    private static serializeValue(value: unknown): string | undefined {
-        if (value === undefined) return undefined;
-        if (value === null) return 'null';
-        if (Array.isArray(value)) return JSON.stringify(value.sort());
-        if (typeof value === 'object') return JSON.stringify(value);
-        return String(value);
-    }
-
     async notifyOrgAdminRoleChange(
         account: Account,
         targetUserUuid: string,
@@ -302,12 +186,6 @@ export class AdminNotificationService extends BaseService {
                 return;
             }
 
-            const changes: ChangeDetail[] = [
-                {
-                    field: 'Organization Role',
-                },
-            ];
-
             const accountUser =
                 account.user?.type === 'registered' ? account.user : undefined;
 
@@ -336,7 +214,6 @@ export class AdminNotificationService extends BaseService {
                     lastName: targetUser.lastName,
                 },
                 timestamp: new Date(),
-                changes,
                 settingsUrl: new URL(
                     '/generalSettings/userManagement',
                     this.lightdashConfig.siteUrl,
@@ -437,12 +314,6 @@ export class AdminNotificationService extends BaseService {
                 return;
             }
 
-            const changes: ChangeDetail[] = [
-                {
-                    field: 'Project Role',
-                },
-            ];
-
             const accountUser =
                 account.user?.type === 'registered' ? account.user : undefined;
 
@@ -473,7 +344,6 @@ export class AdminNotificationService extends BaseService {
                     lastName: targetUser.lastName,
                 },
                 timestamp: new Date(),
-                changes,
                 settingsUrl: new URL(
                     `/projects/${projectUuid}/settings/projectManagement/projectAccess`,
                     this.lightdashConfig.siteUrl,
@@ -502,84 +372,16 @@ export class AdminNotificationService extends BaseService {
         }
     }
 
-    detectDatabaseChanges(
-        before: CreateWarehouseCredentials | undefined,
-        after: CreateWarehouseCredentials,
-    ): ChangeDetail[] {
-        const changes: ChangeDetail[] = [];
-
-        if (before?.type !== after.type) {
-            changes.push({
-                field: 'Warehouse Type',
-            });
-
-            if (before !== undefined) {
-                this.logger.debug(
-                    'Warehouse type changed, skipping field comparison',
-                    {
-                        previousType: before.type,
-                        newType: after.type,
-                    },
-                );
-                return changes;
-            }
-        }
-
-        const allKeys = new Set<string>([
-            ...Object.keys(before ?? {}),
-            ...Object.keys(after),
-        ]);
-
-        Array.from(allKeys)
-            .filter((key) => key !== 'type')
-            .forEach((key) => {
-                const beforeValue =
-                    before?.[key as keyof CreateWarehouseCredentials];
-                const afterValue =
-                    after[key as keyof CreateWarehouseCredentials];
-
-                const beforeStr =
-                    typeof beforeValue === 'object'
-                        ? JSON.stringify(beforeValue)
-                        : beforeValue;
-                const afterStr =
-                    typeof afterValue === 'object'
-                        ? JSON.stringify(afterValue)
-                        : afterValue;
-
-                if (beforeStr === afterStr) return;
-                if (beforeValue === undefined && afterValue === undefined)
-                    return;
-
-                changes.push({
-                    field: this.getFieldLabel(key),
-                });
-            });
-
-        this.logger.debug('Detected database connection changes', {
-            warehouseType: after.type,
-            changeCount: changes.length,
-            fields: changes.map((c) => c.field),
-        });
-
-        return changes;
-    }
-
-    async notifyDatabaseConnectionChange(params: {
+    async notifyConnectionSettingsChange(params: {
         organizationUuid: string;
         projectUuid: string;
         projectName: string;
         changedBy: Account;
-        changes: ChangeDetail[];
     }): Promise<void> {
         if (!(await this.isFeatureEnabled(params.organizationUuid))) {
             this.logger.debug('Admin change notifications disabled', {
                 organizationUuid: params.organizationUuid,
             });
-            return;
-        }
-
-        if (params.changes.length === 0) {
             return;
         }
 
@@ -592,7 +394,7 @@ export class AdminNotificationService extends BaseService {
 
         if (recipients.length === 0) {
             this.logger.debug(
-                'No recipients for database connection change notification',
+                'No recipients for connection settings change notification',
             );
             return;
         }
@@ -602,152 +404,24 @@ export class AdminNotificationService extends BaseService {
         );
 
         const payload: AdminNotificationPayload = {
-            type: AdminNotificationType.DATABASE_CONNECTION_CHANGE,
+            type: AdminNotificationType.CONNECTION_SETTINGS_CHANGE,
             organizationUuid: params.organizationUuid,
             organizationName: orgName,
             projectUuid: params.projectUuid,
             projectName: params.projectName,
             changedBy: changedByInfo,
             timestamp: new Date(),
-            changes: params.changes,
             settingsUrl: new URL(
                 `/generalSettings/projectManagement/${params.projectUuid}/settings`,
                 this.lightdashConfig.siteUrl,
             ).href,
         };
 
-        this.logger.info('Sending database connection change notification', {
+        this.logger.info('Sending connection settings change notification', {
             type: payload.type,
             organizationUuid: params.organizationUuid,
             projectUuid: params.projectUuid,
             recipientCount: recipients.length,
-            changedFields: params.changes.map((c) => c.field),
-        });
-
-        await this.emailClient.sendAdminChangeNotificationEmail(
-            recipients,
-            payload,
-        );
-    }
-
-    detectDbtChanges(
-        before: DbtProjectConfig | undefined,
-        after: DbtProjectConfig,
-    ): ChangeDetail[] {
-        const changes: ChangeDetail[] = [];
-
-        if (before?.type !== after.type) {
-            changes.push({
-                field: 'Connection Type',
-            });
-
-            if (before !== undefined) {
-                this.logger.debug(
-                    'dbt connection type changed, skipping field comparison',
-                    {
-                        previousType: before.type,
-                        newType: after.type,
-                    },
-                );
-                return changes;
-            }
-        }
-
-        const allKeys = new Set<string>([
-            ...Object.keys(before ?? {}),
-            ...Object.keys(after),
-        ]);
-
-        Array.from(allKeys)
-            .filter((key) => key !== 'type')
-            .forEach((key) => {
-                const beforeValue = (
-                    before as unknown as Record<string, unknown>
-                )?.[key];
-                const afterValue = (
-                    after as unknown as Record<string, unknown>
-                )[key];
-
-                const beforeStr =
-                    AdminNotificationService.serializeValue(beforeValue);
-                const afterStr =
-                    AdminNotificationService.serializeValue(afterValue);
-
-                if (beforeStr === afterStr) return;
-                if (beforeValue === undefined && afterValue === undefined)
-                    return;
-
-                changes.push({
-                    field: this.getDbtFieldLabel(key),
-                });
-            });
-
-        this.logger.debug('Detected dbt connection changes', {
-            dbtType: after.type,
-            changeCount: changes.length,
-            fields: changes.map((c) => c.field),
-        });
-
-        return changes;
-    }
-
-    async notifyDbtConnectionChange(params: {
-        organizationUuid: string;
-        projectUuid: string;
-        projectName: string;
-        changedBy: Account;
-        changes: ChangeDetail[];
-    }): Promise<void> {
-        if (!(await this.isFeatureEnabled(params.organizationUuid))) {
-            this.logger.debug('Admin change notifications disabled', {
-                organizationUuid: params.organizationUuid,
-            });
-            return;
-        }
-
-        if (params.changes.length === 0) {
-            return;
-        }
-
-        const orgName = await this.getOrganizationName(params.organizationUuid);
-
-        const recipients = await this.getProjectNotificationRecipients(
-            params.organizationUuid,
-            params.projectUuid,
-        );
-
-        if (recipients.length === 0) {
-            this.logger.debug(
-                'No recipients for dbt connection change notification',
-            );
-            return;
-        }
-
-        const changedByInfo = AdminNotificationService.resolveChangedByAccount(
-            params.changedBy,
-        );
-
-        const payload: AdminNotificationPayload = {
-            type: AdminNotificationType.DBT_CONNECTION_CHANGE,
-            organizationUuid: params.organizationUuid,
-            organizationName: orgName,
-            projectUuid: params.projectUuid,
-            projectName: params.projectName,
-            changedBy: changedByInfo,
-            timestamp: new Date(),
-            changes: params.changes,
-            settingsUrl: new URL(
-                `/generalSettings/projectManagement/${params.projectUuid}/settings`,
-                this.lightdashConfig.siteUrl,
-            ).href,
-        };
-
-        this.logger.info('Sending dbt connection change notification', {
-            type: payload.type,
-            organizationUuid: params.organizationUuid,
-            projectUuid: params.projectUuid,
-            recipientCount: recipients.length,
-            changedFields: params.changes.map((c) => c.field),
         });
 
         await this.emailClient.sendAdminChangeNotificationEmail(
