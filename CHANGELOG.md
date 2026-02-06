@@ -1,3 +1,10 @@
+## [0.2438.1](https://github.com/lightdash/lightdash/compare/0.2438.0...0.2438.1) (2026-02-06)
+
+
+### Bug Fixes
+
+* add `end` to RouterNavLink and address profile route ([#20071](https://github.com/lightdash/lightdash/issues/20071)) ([13147bd](https://github.com/lightdash/lightdash/commit/13147bd48e4d9e9b759e8fad19ca2fe9f4a4828e))
+
 # [0.2438.0](https://github.com/lightdash/lightdash/compare/0.2437.0...0.2438.0) (2026-02-06)
 
 
