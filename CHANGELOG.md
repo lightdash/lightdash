@@ -1,3 +1,13 @@
+## [0.2436.2](https://github.com/lightdash/lightdash/compare/0.2436.1...0.2436.2) (2026-02-06)
+
+
+### Bug Fixes
+
+* add box shadow to time frame picker ([#20063](https://github.com/lightdash/lightdash/issues/20063)) ([4e60a56](https://github.com/lightdash/lightdash/commit/4e60a56520f88d84f40c7e51bb0b9b22e3868cfa))
+* ambient ai and fast model ([#19986](https://github.com/lightdash/lightdash/issues/19986)) ([d56a7d6](https://github.com/lightdash/lightdash/commit/d56a7d62bb37e7fd395efd3ecac222c121fbc807))
+* default time dimension selection for metrics on canvas ([#20060](https://github.com/lightdash/lightdash/issues/20060)) ([fe9df9e](https://github.com/lightdash/lightdash/commit/fe9df9ed4f2b0d7415de34aaec2116b0af6f0304))
+* deprecate gpt-4.1 in favor of gpt-5.2 ([#19973](https://github.com/lightdash/lightdash/issues/19973)) ([0fc8e74](https://github.com/lightdash/lightdash/commit/0fc8e746a47f2a9526cdd76effc53d4df6679fb4))
+
 ## [0.2436.1](https://github.com/lightdash/lightdash/compare/0.2436.0...0.2436.1) (2026-02-06)
 
 
