@@ -39,8 +39,7 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
         />
     ) : ((userCanManage && pinnedItems.length <= 0) || !pinnedItems) &&
       isEnabled ? (
-        // FIXME: update width with Mantine widths
-        <Card withBorder bg="ldGray.1">
+        <Card withBorder variant="dotted">
             <Group justify="space-between">
                 <Group justify="center" gap="xxs" my="xs" ml="xs">
                     <MantineIcon
@@ -52,7 +51,7 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
                     <Text fw={600} c="ldGray.8" fz="sm">
                         No pinned items.
                     </Text>
-                    <Text c="ldGray.7" fz="sm">
+                    <Text c="dimmed" fz="sm">
                         Pin items to the top of the homepage to guide users to
                         relevant content.
                     </Text>

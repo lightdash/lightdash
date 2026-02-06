@@ -202,13 +202,12 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                         </Button>
                     </Group>
                     <Paper
+                        variant="dotted"
                         p="xl"
                         shadow="subtle"
                         component={Stack}
                         gap="xxs"
                         align="center"
-                        withBorder
-                        style={{ borderStyle: 'dashed' }}
                     >
                         <Title order={5}>Agent not found</Title>
                         <Text size="sm" c="dimmed">

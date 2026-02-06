@@ -308,13 +308,12 @@ export const EvalRuns: FC<Props> = ({ projectUuid, agentUuid, evalUuid }) => {
 
             {!runs || runs.length === 0 ? (
                 <Paper
+                    variant="dotted"
                     p="xl"
                     shadow="subtle"
                     component={Stack}
                     gap="xxs"
                     align="center"
-                    withBorder
-                    style={{ borderStyle: 'dashed' }}
                 >
                     <MantineIcon icon={IconClock} size="lg" color="dimmed" />
                     <Title order={5}>No evaluation runs yet</Title>

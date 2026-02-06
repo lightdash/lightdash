@@ -81,15 +81,11 @@ export const EvalsSetup: FC<Props> = ({ projectUuid, agentUuid }) => {
         return (
             <Stack gap="sm">
                 <Paper
+                    variant="dotted"
                     p="xl"
                     component={Stack}
                     gap="md"
                     align="center"
-                    withBorder
-                    style={{
-                        borderStyle: 'dashed',
-                        backgroundColor: 'transparent',
-                    }}
                 >
                     <MantineIcon icon={IconList} size="lg" color="dimmed" />
                     <Stack gap="xs" align="center">
