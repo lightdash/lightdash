@@ -438,7 +438,6 @@ export class RolesService extends BaseService {
             },
         });
 
-        // Send admin change notification (fire and forget)
         this.adminNotificationService
             .notifyOrgAdminRoleChange(
                 account,
@@ -663,7 +662,6 @@ export class RolesService extends BaseService {
             },
         });
 
-        // Send project admin change notification (fire and forget)
         const previousProjectRole = userProjectRole[0]?.role ?? null;
         const newProjectRole = isSystemRole(roleId) ? roleId : null;
         this.adminNotificationService

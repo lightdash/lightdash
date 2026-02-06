@@ -72,7 +72,6 @@ describe('AdminNotificationService', () => {
         jest.clearAllMocks();
     });
 
-    // notifyOrgAdminRoleChange tests
     it('should not send org notification when feature flag is disabled', async () => {
         (featureFlagModel.get as jest.Mock).mockResolvedValueOnce({
             enabled: false,
@@ -259,7 +258,6 @@ describe('AdminNotificationService', () => {
         ).resolves.not.toThrow();
     });
 
-    // notifyProjectAdminRoleChange tests
     it('should not send project notification when feature flag is disabled', async () => {
         (featureFlagModel.get as jest.Mock).mockResolvedValueOnce({
             enabled: false,
@@ -393,7 +391,6 @@ describe('AdminNotificationService', () => {
         );
     });
 
-    // notifyConnectionSettingsChange tests
     describe('notifyConnectionSettingsChange', () => {
         it('should not send when feature flag is disabled', async () => {
             (featureFlagModel.get as jest.Mock).mockResolvedValueOnce({
