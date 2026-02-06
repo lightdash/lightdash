@@ -630,6 +630,7 @@ program
         parseDisableTimestampConversionOption,
         false,
     )
+    .option('-y, --assume-yes', 'assume yes to prompts', false)
     .action(startPreviewHandler);
 
 program
