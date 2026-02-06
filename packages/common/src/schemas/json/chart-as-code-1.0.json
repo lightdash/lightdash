@@ -915,7 +915,7 @@
             "type": "object",
             "description": "Parameter values for the chart query, keyed by parameter name (e.g., 'model.param_name')",
             "additionalProperties": {
-                "oneOf": [
+                "anyOf": [
                     { "type": "string" },
                     { "type": "number" },
                     { "type": "array", "items": { "type": "string" } },
