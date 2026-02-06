@@ -24,6 +24,7 @@ export interface MantineIconProps extends Omit<TablerIconsProps, 'ref'> {
     stroke?: MantineIconSize;
     color?: MantineColor;
     fill?: MantineColor;
+    display?: 'block' | 'inline' | 'none';
 }
 
 /** Mantine color keywords that map directly to --mantine-color-{name}. */
@@ -62,22 +63,32 @@ function toColorVar(color: MantineColor): string {
 }
 
 function toSizeValue(size: MantineIconSize): string | number {
-    return typeof size === 'string'
-        ? `var(--mantine-spacing-${size})`
-        : size;
+    return typeof size === 'string' ? `var(--mantine-spacing-${size})` : size;
 }
 
 const MantineIcon = forwardRef<SVGSVGElement, MantineIconProps>(
-    ({ icon: TablerIcon, size = 'md', stroke, color, fill, ...rest }, ref) => {
+    (
+        {
+            icon: TablerIcon,
+            size = 'md',
+            stroke,
+            color,
+            fill,
+            display = 'block',
+            ...rest
+        },
+        ref,
+    ) => {
         const sizeValue = toSizeValue(size);
 
         return (
             <TablerIcon
                 ref={ref}
                 aria-hidden
+                display={display}
                 {...rest}
                 style={{
-                    display: 'block',
+                    display,
                     width: sizeValue,
                     height: sizeValue,
                     ...(color && { color: toColorVar(color) }),
