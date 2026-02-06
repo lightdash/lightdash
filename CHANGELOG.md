@@ -1,3 +1,10 @@
+# [0.2439.0](https://github.com/lightdash/lightdash/compare/0.2438.1...0.2439.0) (2026-02-06)
+
+
+### Features
+
+* **dev:** add Mailpit for local email testing ([#20081](https://github.com/lightdash/lightdash/issues/20081)) ([966b5ed](https://github.com/lightdash/lightdash/commit/966b5edda91f6e1f4172ee8dbb7b9e53fc072223))
+
 ## [0.2438.1](https://github.com/lightdash/lightdash/compare/0.2438.0...0.2438.1) (2026-02-06)
 
 
