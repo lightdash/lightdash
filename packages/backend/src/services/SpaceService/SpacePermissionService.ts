@@ -25,6 +25,13 @@ export class SpacePermissionService extends BaseService {
         super();
     }
 
+    /**
+     * Checks if the actor has access to all the space uuids
+     * @param action - The action to check permissions for
+     * @param actor - The session user to check permissions for
+     * @param spaceUuids - The space uuids to check permissions for
+     * @returns The access context for the given space uuids
+     */
     async can(
         action: AbilityAction,
         actor: SessionUser,
@@ -43,23 +50,56 @@ export class SpacePermissionService extends BaseService {
         );
     }
 
+    /**
+     * Gets the accessible space uuids for a given action and actor
+     * @param action - The action to check permissions for
+     * @param actor - The session user to check permissions for
+     * @param spaceUuids - The space uuids to get the accessible space uuids for
+     * @returns The accessible space uuids
+     */
+    async getAccessibleSpaceUuids(
+        action: AbilityAction,
+        actor: SessionUser,
+        spaceUuids: string[],
+    ): Promise<string[]> {
+        const accessContext = await this.getAccessContext(spaceUuids, {
+            userUuid: actor.userUuid,
+        });
+
+        return Object.entries(accessContext)
+            .filter(([_, access]) =>
+                actor.ability.can(action, subject('Space', access)),
+            )
+            .map(([spaceUuid]) => spaceUuid);
+    }
+
+    /**
+     * Gets the access context for a list of space uuids so we can check against CASL
+     * @param spaceUuidsArg - The space uuids to get the access context for
+     * @param filters - The filters to apply to the access context
+     * @returns The access context for the given space uuids
+     */
     private async getAccessContext(
         spaceUuidsArg: string[],
         filters?: { userUuid?: string },
     ): Promise<Record<string, SpaceAccessForCasl>> {
         const uniqueSpaceUuids = [...new Set(spaceUuidsArg)];
-        const uniqueRootSpaceUuids = [
-            ...new Set(
-                await Promise.all(
-                    uniqueSpaceUuids.map((uuid) =>
-                        this.spaceModel
-                            .getSpaceRootFromCacheOrDB(uuid)
-                            .then((r) => r.spaceRoot),
-                    ),
-                ),
-            ),
-        ];
 
+        // Getting the root space uuids since for nested spaces that's what is used
+        const rootSpaceUuids = await Promise.all(
+            uniqueSpaceUuids.map((uuid) =>
+                this.spaceModel
+                    .getSpaceRootFromCacheOrDB(uuid)
+                    .then((r) => r.spaceRoot),
+            ),
+        );
+
+        // Unique space uuids to root space uuids have the same index
+        const spaceToRootSpaceTuples = rootSpaceUuids.map(
+            (rootSpaceUuid, index) => [uniqueSpaceUuids[index], rootSpaceUuid],
+        );
+
+        const uniqueRootSpaceUuids = [...new Set(rootSpaceUuids)];
         const [directAccessMap, projectAccessMap, orgAccessMap, spaceInfo] =
             await Promise.all([
                 this.spacePermissionModel.getDirectSpaceAccess(
@@ -77,9 +117,9 @@ export class SpacePermissionService extends BaseService {
                 this.spacePermissionModel.getSpaceInfo(uniqueRootSpaceUuids),
             ]);
 
-        const result: Record<string, SpaceAccessForCasl> = {};
-        for (const spaceUuid of uniqueRootSpaceUuids) {
-            const space = spaceInfo[spaceUuid];
+        const rootSpaceAccessContext: Record<string, SpaceAccessForCasl> = {};
+        for (const rootSpaceUuid of uniqueRootSpaceUuids) {
+            const space = spaceInfo[rootSpaceUuid];
             if (!space) {
                 throw new NotFoundError(
                     'Space with uuid ${spaceUuid} not found',
@@ -87,17 +127,17 @@ export class SpacePermissionService extends BaseService {
             }
 
             const { isPrivate, projectUuid, organizationUuid } =
-                spaceInfo[spaceUuid];
+                spaceInfo[rootSpaceUuid];
 
             const access = resolveSpaceAccess({
-                spaceUuid,
+                spaceUuid: rootSpaceUuid,
                 isPrivate,
-                directAccess: directAccessMap[spaceUuid] ?? [],
-                projectAccess: projectAccessMap[spaceUuid] ?? [],
-                organizationAccess: orgAccessMap[spaceUuid] ?? [],
+                directAccess: directAccessMap[rootSpaceUuid] ?? [],
+                projectAccess: projectAccessMap[rootSpaceUuid] ?? [],
+                organizationAccess: orgAccessMap[rootSpaceUuid] ?? [],
             });
 
-            result[spaceUuid] = {
+            rootSpaceAccessContext[rootSpaceUuid] = {
                 organizationUuid,
                 projectUuid,
                 isPrivate,
@@ -105,6 +145,12 @@ export class SpacePermissionService extends BaseService {
             };
         }
 
-        return result;
+        // Map back space access to space uuids
+        return Object.fromEntries(
+            spaceToRootSpaceTuples.map(([spaceUuid, rootSpaceUuid]) => [
+                spaceUuid,
+                rootSpaceAccessContext[rootSpaceUuid],
+            ]),
+        );
     }
 }
