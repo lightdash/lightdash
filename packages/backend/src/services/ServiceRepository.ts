@@ -865,8 +865,6 @@ export class ServiceRepository
             'metricsExplorerService',
             () =>
                 new MetricsExplorerService({
-                    lightdashConfig: this.context.lightdashConfig,
-                    catalogModel: this.models.getCatalogModel(),
                     projectService: this.getProjectService(),
                     asyncQueryService: this.getAsyncQueryService(),
                     catalogService: this.getCatalogService(),
