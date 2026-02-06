@@ -30,7 +30,7 @@ export class SpacePermissionService extends BaseService {
             ),
         );
 
-        const [directAccessMap, projectAccessMap, orgAccessMap, privacyMap] =
+        const [directAccessMap, projectAccessMap, orgAccessMap, spaceInfo] =
             await Promise.all([
                 this.spacePermissionModel.getDirectSpaceAccess(
                     spaceUuids,
@@ -62,7 +62,7 @@ export class SpacePermissionService extends BaseService {
         const result: Record<string, SpaceAccessForCasl> = {};
         for (const spaceUuid of spaceUuids) {
             const { isPrivate, projectUuid, organizationUuid } =
-                privacyMap[spaceUuid];
+                spaceInfo[spaceUuid];
             const access = resolveSpaceAccess({
                 spaceUuid,
                 isPrivate,

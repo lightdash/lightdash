@@ -1,5 +1,5 @@
-import { OrganizationMemberRole } from '../types/organizationMemberProfile';
-import { ProjectMemberRole } from '../types/projectMemberRole';
+import { OrganizationMemberRole } from '../../types/organizationMemberProfile';
+import { ProjectMemberRole } from '../../types/projectMemberRole';
 import {
     DirectSpaceAccessOrigin,
     ProjectSpaceAccessOrigin,
@@ -9,7 +9,7 @@ import {
     type ProjectSpaceAccess,
     type SpaceAccessInput,
     type UserInfo,
-} from '../types/space';
+} from '../../types/space';
 import { resolveSpaceAccess } from './spaceAccessResolver';
 
 const makeUserInfo = (userUuid: string): UserInfo => ({
