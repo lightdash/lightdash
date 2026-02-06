@@ -1,6 +1,7 @@
 import { List, TextInput } from '@mantine-8/core';
 import { useState, type FC } from 'react';
 import { type DeleteSpaceModalBody } from '.';
+import useApp from '../../../providers/App/useApp';
 import Callout from '../Callout';
 import MantineModal from '../MantineModal';
 
@@ -27,9 +28,9 @@ const DeleteSpaceTextInputConfirmation: FC<{
     );
 };
 
-const DeleteSpaceModalContent: FC<Pick<DeleteSpaceModalBody, 'data'>> = ({
-    data,
-}) => {
+const DeleteSpaceModalContent: FC<
+    Pick<DeleteSpaceModalBody, 'data'> & { softDeleteEnabled: boolean }
+> = ({ data, softDeleteEnabled }) => {
     const hasContent =
         data &&
         (data.queries.length > 0 ||
@@ -40,8 +41,15 @@ const DeleteSpaceModalContent: FC<Pick<DeleteSpaceModalBody, 'data'>> = ({
         return null;
     }
 
+    const title = softDeleteEnabled
+        ? 'This will also delete:'
+        : 'This will permanently delete:';
+
     return (
-        <Callout variant="danger" title="This will permanently delete:">
+        <Callout
+            variant={softDeleteEnabled ? 'warning' : 'danger'}
+            title={title}
+        >
             <List size="sm">
                 {data.queries.length > 0 && (
                     <List.Item>
@@ -75,7 +83,15 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
     handleSubmit,
     isLoading,
 }) => {
+    const { health } = useApp();
+    const softDeleteEnabled = health.data?.softDelete.enabled ?? false;
+    const retentionDays = health.data?.softDelete.retentionDays ?? 30;
+
     const [canDelete, setCanDelete] = useState(false);
+
+    const description = softDeleteEnabled
+        ? `This space and its contents will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
+        : undefined;
 
     return (
         <MantineModal
@@ -85,12 +101,16 @@ export const DeleteSpaceModal: FC<DeleteSpaceModalBody> = ({
             variant="delete"
             resourceType="space"
             resourceLabel={data?.name}
+            description={description}
             size="lg"
             onConfirm={() => form.onSubmit(handleSubmit)()}
             confirmDisabled={!canDelete || isLoading}
             confirmLoading={isLoading}
         >
-            <DeleteSpaceModalContent data={data} />
+            <DeleteSpaceModalContent
+                data={data}
+                softDeleteEnabled={softDeleteEnabled}
+            />
             <DeleteSpaceTextInputConfirmation
                 data={data}
                 setCanDelete={setCanDelete}
