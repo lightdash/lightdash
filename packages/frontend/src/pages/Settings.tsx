@@ -517,7 +517,7 @@ const Settings: FC = () => {
                                 </Title>
                                 <RouterNavLink
                                     exact
-                                    to="/generalSettings"
+                                    to="/generalSettings/profile"
                                     label="Profile"
                                     leftSection={<MantineIcon icon={IconUserCircle} />}
                                 />
