@@ -20,7 +20,7 @@ import {
 import React from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ExploreTree/TableTree/ItemDetailPreview';
-import WarningsHoverCardContent from '../WarningsHoverCard';
+import WarningsHoverCardContent from '../WarningsHoverCardContent';
 
 type ExploreNavLinkProps = {
     explore: SummaryExplore;

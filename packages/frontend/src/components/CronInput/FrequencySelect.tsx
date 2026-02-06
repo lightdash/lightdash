@@ -1,6 +1,7 @@
-import { Select } from '@mantine/core';
+import { Select } from '@mantine-8/core';
 import React, { type FC } from 'react';
 import { Frequency } from './cronInputUtils';
+import styles from './FrequencySelect.module.css';
 
 type FrequencyItem = {
     value: Frequency;
@@ -33,17 +34,16 @@ const FrequencyItems: Array<FrequencyItem> = [
 const FrequencySelect: FC<{
     disabled?: boolean;
     value: Frequency;
-    onChange: (value: Frequency) => void;
+    onChange: (value: Frequency | null | string) => void;
 }> = ({ disabled, value, onChange }) => {
     return (
         <Select
+            className={styles.select}
             data={FrequencyItems}
             value={value}
-            withinPortal
             disabled={disabled}
             onChange={onChange}
             w={110}
-            sx={{ alignSelf: 'start' }}
         />
     );
 };

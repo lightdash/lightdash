@@ -9,7 +9,7 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -22,6 +22,7 @@ import useAllowedOrganizations from '../hooks/user/useAllowedOrganizations';
 import { useJoinOrganizationMutation } from '../hooks/user/useJoinOrganizationMutation';
 import { useDeleteUserMutation } from '../hooks/user/useUserDeleteMutation';
 import useApp from '../providers/App/useApp';
+import styles from './JoinOrganization.module.css';
 
 const JoinOrganizationPage: FC = () => {
     const { health, user } = useApp();
@@ -96,22 +97,22 @@ const JoinOrganizationPage: FC = () => {
                     <Box mx="auto" my="lg">
                         <LightdashLogo />
                     </Box>
-                    <Card p="xl" radius="xs" withBorder shadow="xs">
-                        <Stack justify="center" spacing="md" mb="xs">
+                    <Card p="xl" radius="md" withBorder>
+                        <Stack justify="center" gap="md" mb="xs">
                             <Title order={3} ta="center">
                                 Join a workspace
                             </Title>
-                            <Text color="ldGray.6" ta="center">
+                            <Text c="ldGray.6" ta="center">
                                 The workspaces below are open to anyone with a{' '}
                                 <Text span fw={600}>
-                                    @{emailDomain}:
+                                    @{emailDomain}
                                 </Text>{' '}
                                 domain
                             </Text>
                             {allowedOrgs?.map((org) => (
                                 <Card key={org.organizationUuid} withBorder>
-                                    <Group position="apart">
-                                        <Group spacing="md">
+                                    <Group justify="space-between">
+                                        <Group gap="md">
                                             <Avatar
                                                 size="md"
                                                 radius="xl"
@@ -119,8 +120,8 @@ const JoinOrganizationPage: FC = () => {
                                             >
                                                 {org.name[0]?.toUpperCase()}
                                             </Avatar>
-                                            <Stack spacing="two">
-                                                <Text truncate fw={600}>
+                                            <Stack gap="two">
+                                                <Text truncate="end" fw={600}>
                                                     {org.name}
                                                 </Text>
                                                 <Text fz="xs" c="gray">
@@ -142,22 +143,11 @@ const JoinOrganizationPage: FC = () => {
                         </Stack>
                     </Card>
                     <Anchor
+                        className={disabled ? styles.disabledAnchor : undefined}
                         component="button"
                         onClick={() => createOrg({ name: '' })}
-                        disabled={disabled}
                         ta="center"
                         size="sm"
-                        sx={(theme) =>
-                            disabled
-                                ? {
-                                      color: theme.colors.ldGray[6],
-                                      '&:hover': {
-                                          textDecoration: 'none',
-                                          color: theme.colors.ldGray[6],
-                                      },
-                                  }
-                                : {}
-                        }
                     >
                         Create a new workspace
                     </Anchor>

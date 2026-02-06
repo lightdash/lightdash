@@ -8,7 +8,7 @@ import {
     Stack,
     Text,
     type PopoverProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useScrollIntoView } from '@mantine/hooks';
 import { IconMessage } from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
@@ -175,8 +175,8 @@ export const DashboardTileComments: FC<
                     id="comments-stack"
                     ref={scrollableRef}
                     p="sm"
-                    spacing="xs"
-                    sx={{
+                    gap="xs"
+                    style={{
                         maxHeight: COMMENTS_LIST_MAX_HEIGHT,
                         overflowY: 'auto',
                     }}
@@ -220,7 +220,7 @@ export const DashboardTileComments: FC<
                     offset={4}
                     color={indicatorColor}
                     styles={{
-                        common: {
+                        indicator: {
                             fontSize: 11,
                             padding: 0,
                         },
@@ -228,6 +228,8 @@ export const DashboardTileComments: FC<
                 >
                     <ActionIcon
                         size="sm"
+                        variant="light"
+                        color="gray"
                         onClick={() => {
                             if (openedComments) {
                                 onClose?.();

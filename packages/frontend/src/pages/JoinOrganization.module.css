@@ -1,0 +1,9 @@
+.disabledAnchor {
+    color: var(--mantine-color-ldGray-6);
+    pointer-events: none;
+
+    &:hover {
+        text-decoration: none;
+        color: var(--mantine-color-ldGray-6);
+    }
+}
