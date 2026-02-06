@@ -63,6 +63,7 @@ import {
     expressWinstonPreResponseMiddleware,
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
+import { impersonationMiddleware } from './middlewares/impersonationMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import { postHogClient } from './postHog';
@@ -564,6 +565,7 @@ export default class App {
         // Add JWT parsing here so we can get services off the request
         // We'll also be able to add the user to Sentry for embedded users.
         expressApp.use(jwtAuthMiddleware);
+        expressApp.use(impersonationMiddleware);
         expressApp.use(sessionAccountMiddleware);
 
         expressApp.use((req, res, next) => {
