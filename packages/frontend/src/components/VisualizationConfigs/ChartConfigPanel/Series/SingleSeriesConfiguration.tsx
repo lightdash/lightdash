@@ -11,6 +11,7 @@ import {
     Checkbox,
     Collapse,
     Group,
+    Popover,
     Select,
     Stack,
 } from '@mantine/core';
@@ -20,6 +21,7 @@ import {
     IconChevronUp,
     IconEye,
     IconEyeOff,
+    IconSettings,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -220,6 +222,94 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 { value: 'right', label: 'Right' },
                                 { value: 'inside', label: 'Inside' },
                             ]}
+                            rightSection={
+                                series.label?.show ? (
+                                    <Popover
+                                        position="bottom-end"
+                                        shadow="md"
+                                        withinPortal
+                                    >
+                                        <Popover.Target>
+                                            <ActionIcon
+                                                variant="subtle"
+                                                size="xs"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconSettings}
+                                                    color="gray.6"
+                                                />
+                                            </ActionIcon>
+                                        </Popover.Target>
+                                        <Popover.Dropdown>
+                                            <Stack spacing="xs">
+                                                <Checkbox
+                                                    size="xs"
+                                                    checked={
+                                                        series.label
+                                                            ?.showValue ?? true
+                                                    }
+                                                    label="Show value"
+                                                    onChange={() => {
+                                                        updateSingleSeries({
+                                                            ...series,
+                                                            label: {
+                                                                ...series.label,
+                                                                showValue: !(
+                                                                    series.label
+                                                                        ?.showValue ??
+                                                                    true
+                                                                ),
+                                                            },
+                                                        });
+                                                    }}
+                                                />
+                                                <Checkbox
+                                                    size="xs"
+                                                    checked={
+                                                        series.label
+                                                            ?.showLabel ?? false
+                                                    }
+                                                    label="Show label"
+                                                    onChange={() => {
+                                                        updateSingleSeries({
+                                                            ...series,
+                                                            label: {
+                                                                ...series.label,
+                                                                showLabel:
+                                                                    !series
+                                                                        .label
+                                                                        ?.showLabel,
+                                                            },
+                                                        });
+                                                    }}
+                                                />
+                                                <Checkbox
+                                                    size="xs"
+                                                    checked={
+                                                        series.label
+                                                            ?.showSeriesName ??
+                                                        false
+                                                    }
+                                                    label="Show metric name"
+                                                    onChange={() => {
+                                                        updateSingleSeries({
+                                                            ...series,
+                                                            label: {
+                                                                ...series.label,
+                                                                showSeriesName:
+                                                                    !series
+                                                                        .label
+                                                                        ?.showSeriesName,
+                                                            },
+                                                        });
+                                                    }}
+                                                />
+                                            </Stack>
+                                        </Popover.Dropdown>
+                                    </Popover>
+                                ) : undefined
+                            }
+                            rightSectionProps={{ style: { pointerEvents: 'all' } }}
                             onChange={(value) => {
                                 updateSingleSeries({
                                     ...series,
@@ -232,6 +322,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                                   showValue:
                                                       series.label?.showValue ??
                                                       true,
+                                                  showLabel:
+                                                      series.label?.showLabel ??
+                                                      false,
                                                   showSeriesName:
                                                       series.label
                                                           ?.showSeriesName ??
@@ -241,39 +334,6 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             }}
                         />
                     </Group>
-                    {series.label?.show && (
-                        <Group spacing="xs">
-                            <Checkbox
-                                checked={series.label?.showValue ?? true}
-                                label="Show value"
-                                onChange={() => {
-                                    updateSingleSeries({
-                                        ...series,
-                                        label: {
-                                            ...series.label,
-                                            showValue: !(
-                                                series.label?.showValue ?? true
-                                            ),
-                                        },
-                                    });
-                                }}
-                            />
-                            <Checkbox
-                                checked={series.label?.showSeriesName ?? false}
-                                label="Show series name"
-                                onChange={() => {
-                                    updateSingleSeries({
-                                        ...series,
-                                        label: {
-                                            ...series.label,
-                                            showSeriesName:
-                                                !series.label?.showSeriesName,
-                                        },
-                                    });
-                                }}
-                            />
-                        </Group>
-                    )}
                     {(type === CartesianSeriesType.LINE ||
                         type === CartesianSeriesType.AREA) && (
                         <Group spacing="xs">
