@@ -1,6 +1,6 @@
 ---
-name: debug
-description: Debug the Lightdash app using PM2 logs, Spotlight traces, and browser automation. Use when investigating issues, tracking down bugs, understanding request flow, or correlating frontend actions with backend behavior.
+name: debugging
+description: Debugs the Lightdash app using PM2 logs, Spotlight traces, and browser automation. Use when investigating issues, tracking down bugs, understanding request flow, or correlating frontend actions with backend behavior.
 allowed-tools: Bash, Read, mcp__spotlight__search_traces, mcp__spotlight__get_traces, mcp__spotlight__search_errors, mcp__spotlight__search_logs, mcp__chrome-devtools__*
 ---
 
@@ -51,8 +51,8 @@ pnpm exec pm2 logs lightdash-api --lines 30 --nostream
 Look for the failing request and note the trace ID (first 8 chars of the bracketed ID).
 
 ```
-mcp__spotlight__search_errors filters: {"timeWindow": 300}
-mcp__spotlight__get_traces traceId: "<8-char-prefix>"
+mcp__spotlight__search_errors with filters: {"timeWindow": 300}
+mcp__spotlight__get_traces with traceId: "<8-char-prefix>"
 ```
 
 Review the span tree for the failure point. → Continue to Step 4.
@@ -60,13 +60,13 @@ Review the span tree for the failure point. → Continue to Step 4.
 ### Step 2b: Slow response
 
 ```
-mcp__spotlight__search_traces filters: {"timeWindow": 300}
+mcp__spotlight__search_traces with filters: {"timeWindow": 300}
 ```
 
 Find the slow trace, then get the span breakdown:
 
 ```
-mcp__spotlight__get_traces traceId: "<trace-id>"
+mcp__spotlight__get_traces with traceId: "<trace-id>"
 ```
 
 Look for: slow `db.*` spans, N+1 patterns (many similar queries), large gaps between spans. → Continue to Step 4.
@@ -93,9 +93,9 @@ If a failed API call is involved, get its trace ID from PM2 logs. → Continue t
 Gather broad state:
 
 ```
-mcp__spotlight__search_traces filters: {"timeWindow": 300}
-mcp__spotlight__search_errors filters: {"timeWindow": 300}
-mcp__spotlight__search_logs filters: {"timeWindow": 300}
+mcp__spotlight__search_traces with filters: {"timeWindow": 300}
+mcp__spotlight__search_errors with filters: {"timeWindow": 300}
+mcp__spotlight__search_logs with filters: {"timeWindow": 300}
 ```
 
 ```bash
@@ -113,7 +113,7 @@ pnpm exec pm2 logs lightdash-api --lines 20 --nostream
 ```
 
 ```
-mcp__spotlight__get_traces traceId: "<8-char-prefix>"
+mcp__spotlight__get_traces with traceId: "<8-char-prefix>"
 ```
 
 The span tree shows the full request lifecycle: middleware → route handler → database queries → response.
@@ -132,7 +132,7 @@ After making code changes:
 
 1. Reproduce the original issue
 2. Check that the symptom is resolved
-3. **Verify with traces**: run `mcp__spotlight__search_errors filters: {"timeWindow": 60}` to confirm no new errors
+3. **Verify with traces**: run `mcp__spotlight__search_errors with filters: {"timeWindow": 60}` to confirm no new errors
 4. If still failing → return to Step 2 with new evidence
 
 ## Tool Reference
