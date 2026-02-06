@@ -93,6 +93,12 @@ export type SpaceSummary = Pick<
     access: string[];
     chartCount: number;
     dashboardCount: number;
+    deletedAt?: Date;
+    deletedBy?: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    };
 };
 
 export type CreateSpace = {
