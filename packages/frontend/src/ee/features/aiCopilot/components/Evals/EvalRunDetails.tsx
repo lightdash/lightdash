@@ -387,14 +387,7 @@ export const EvalRunDetails: FC<Props> = ({
             </Paper>
 
             {(!runData.results || runData.results.length === 0) && (
-                <Paper
-                    p="xl"
-                    withBorder
-                    style={{
-                        borderStyle: 'dashed',
-                        backgroundColor: 'transparent',
-                    }}
-                >
+                <Paper variant="dotted" p="xl">
                     <Text size="sm" c="dimmed" ta="center">
                         No results available for this run.
                     </Text>

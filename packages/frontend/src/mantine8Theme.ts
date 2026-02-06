@@ -4,6 +4,7 @@ import {
     Loader,
     Modal,
     MultiSelect,
+    Paper,
     PasswordInput,
     Pill,
     PillsInput,
@@ -28,6 +29,10 @@ import styles from './styles/mantine-overrides/tooltip.module.css';
 declare module '@mantine-8/core' {
     export interface ButtonProps {
         variant?: ButtonVariant | 'compact-outline' | 'dark';
+    }
+
+    export interface PaperProps {
+        variant?: 'dotted';
     }
 
     export interface LoaderProps {
@@ -65,6 +70,11 @@ const subtleInputStyles = (theme: MantineTheme) => ({
     },
 });
 
+const paperDottedStyles = (theme: MantineTheme) => ({
+    border: `1px dashed ${theme.colors.ldGray[3]}`,
+    background: 'inherit',
+});
+
 export const getMantine8ThemeOverride = (
     colorScheme: ColorScheme,
     overrides?: Partial<MantineThemeOverride>,
@@ -97,9 +107,11 @@ export const getMantine8ThemeOverride = (
         components: {
             ...legacyComponentsTheme,
             Card: Card.extend({
-                styles: (theme) => ({
+                styles: (theme, props) => ({
                     root: {
                         borderColor: theme.colors.ldGray[2],
+                        ...(props.variant === 'dotted' &&
+                            paperDottedStyles(theme)),
                     },
                 }),
             }),
@@ -187,18 +199,20 @@ export const getMantine8ThemeOverride = (
                     shadow: 'sm',
                 },
             },
-            Paper: {
+            Paper: Paper.extend({
                 defaultProps: {
                     radius: 'md',
                     shadow: 'subtle',
                     withBorder: true,
-                    styles: (theme: MantineTheme) => ({
-                        root: {
-                            borderColor: theme.colors.ldGray[2],
-                        },
-                    }),
                 },
-            },
+                styles: (theme, props) => ({
+                    root: {
+                        borderColor: theme.colors.ldGray[2],
+                        ...(props.variant === 'dotted' &&
+                            paperDottedStyles(theme)),
+                    },
+                }),
+            }),
             Loader: Loader.extend({
                 defaultProps: {
                     loaders: { ...Loader.defaultLoaders, dots: DotsLoader },
