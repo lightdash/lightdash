@@ -46,6 +46,7 @@ import { SearchService } from './SearchService/SearchService';
 import { ShareService } from './ShareService/ShareService';
 import { SlackIntegrationService } from './SlackIntegrationService/SlackIntegrationService';
 import { SlackService } from './SlackService/SlackService';
+import { SpacePermissionService } from './SpaceService/SpacePermissionService';
 import { SpaceService } from './SpaceService/SpaceService';
 import { SpotlightService } from './SpotlightService/SpotlightService';
 import { SshKeyPairService } from './SshKeyPairService';
@@ -84,6 +85,7 @@ interface ServiceManifest {
     shareService: ShareService;
     slackIntegrationService: SlackIntegrationService;
     sshKeyPairService: SshKeyPairService;
+    spacePermissionService: SpacePermissionService;
     spaceService: SpaceService;
     unfurlService: UnfurlService;
     userAttributesService: UserAttributesService;
@@ -711,6 +713,17 @@ export class ServiceRepository
                         this.models.getSlackAuthenticationModel(),
                     slackClient: this.clients.getSlackClient(),
                 }),
+        );
+    }
+
+    public getSpacePermissionService(): SpacePermissionService {
+        return this.getService(
+            'spacePermissionService',
+            () =>
+                new SpacePermissionService(
+                    this.models.getSpaceModel(),
+                    this.models.getSpacePermissionModel(),
+                ),
         );
     }
 

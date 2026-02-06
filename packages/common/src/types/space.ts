@@ -5,6 +5,51 @@ import { type ProjectMemberRole } from './projectMemberRole';
 // eslint-disable-next-line import/no-cycle
 import { type SpaceQuery } from './savedCharts';
 
+// Permissions added directly to a space (not inherited from parent/orgs/projects)
+export enum DirectSpaceAccessOrigin {
+    USER_ACCESS = 'user_access',
+    GROUP_ACCESS = 'group_access',
+}
+export type DirectSpaceAccess = {
+    userUuid: string;
+    spaceUuid: string;
+    role: SpaceMemberRole;
+    from: DirectSpaceAccessOrigin;
+};
+
+export type OrganizationSpaceAccess = {
+    userUuid: string;
+    spaceUuid: string;
+    role: OrganizationMemberRole;
+};
+
+export enum ProjectSpaceAccessOrigin {
+    PROJECT_MEMBERSHIP = 'project_membership',
+    GROUP_MEMBERSHIP = 'group_membership',
+}
+
+export type ProjectSpaceAccess = {
+    userUuid: string;
+    spaceUuid: string;
+    role: ProjectMemberRole;
+    from: ProjectSpaceAccessOrigin;
+};
+
+export type UserInfo = {
+    userUuid: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+};
+
+export type SpaceAccessInput = {
+    spaceUuid: string;
+    isPrivate: boolean;
+    directAccess: DirectSpaceAccess[];
+    projectAccess: ProjectSpaceAccess[];
+    organizationAccess: OrganizationSpaceAccess[];
+};
+
 export type Space = {
     organizationUuid: string;
     uuid: string;
