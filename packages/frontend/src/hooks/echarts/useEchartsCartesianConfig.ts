@@ -688,6 +688,59 @@ const formatStack100Value = (value: unknown): string => {
 };
 
 /**
+ * Format the label based on showValue, showLabel, and showSeriesName options
+ * @param formattedValue - The formatted metric value
+ * @param labelName - The legend/pivot label name (e.g., "United States")
+ * @param metricFieldName - The metric field name (e.g., "Revenue")
+ * @param showValue - Whether to show the value (default: true)
+ * @param showLabel - Whether to show the legend/pivot name (default: false)
+ * @param showSeriesName - Whether to show the metric field name (default: false)
+ * @returns The formatted label string, e.g., "United States (Revenue): 17,000"
+ */
+const formatLabelWithOptions = (
+    formattedValue: string,
+    labelName: string | undefined,
+    metricFieldName: string | undefined,
+    showValue: boolean = true,
+    showLabel: boolean = false,
+    showSeriesName: boolean = false,
+): string => {
+    const nameParts: string[] = [];
+
+    if (showLabel && labelName) {
+        nameParts.push(labelName);
+    }
+
+    if (
+        showSeriesName &&
+        metricFieldName &&
+        metricFieldName !== labelName
+    ) {
+        nameParts.push(`(${metricFieldName})`);
+    }
+
+    const nameStr = nameParts.join(' ');
+
+    const parts: string[] = [];
+
+    if (nameStr) {
+        parts.push(nameStr);
+    }
+
+    if (showValue) {
+        parts.push(formattedValue);
+    }
+
+    // If nothing to show, return empty string
+    if (parts.length === 0) {
+        return '';
+    }
+
+    // Join parts with ": " if both name and value are present
+    return parts.join(': ');
+};
+
+/**
  * Get the metric from the param
  * @param param - The param
  * @param series - The series
@@ -877,11 +930,30 @@ const getPivotSeries = ({
 
                             // For 100% stacked bar charts on the primary axis, values are already percentages (0-100)
                             // Only apply stack100 formatting if this series is on yAxisIndex 0
-                            if (isStack100 && isPrimaryYAxis(series)) {
-                                return formatStack100Value(raw);
-                            }
+                            const formattedValue =
+                                isStack100 && isPrimaryYAxis(series)
+                                    ? formatStack100Value(raw)
+                                    : String(
+                                          seriesValueFormatter(
+                                              field,
+                                              raw,
+                                              parameters,
+                                          ) ?? '',
+                                      );
 
-                            return seriesValueFormatter(field, raw, parameters);
+                            const metricFieldName = getLabelFromField(
+                                itemsMap,
+                                series.encode.yRef.field,
+                            );
+
+                            return formatLabelWithOptions(
+                                formattedValue,
+                                pivotLabel,
+                                metricFieldName,
+                                series.label?.showValue ?? true,
+                                series.label?.showLabel ?? false,
+                                series.label?.showSeriesName ?? false,
+                            );
                         },
                     }),
             },
@@ -1044,14 +1116,29 @@ const getSimpleSeries = ({
 
                         // For 100% stacked charts on the primary axis, values are already percentages (0-100)
                         // Only apply stack100 formatting if this series is on yAxisIndex 0
-                        if (isStack100 && (series.yAxisIndex ?? 0) === 0) {
-                            return formatStack100Value(rawValue);
-                        }
+                        const formattedValue =
+                            isStack100 && (series.yAxisIndex ?? 0) === 0
+                                ? formatStack100Value(rawValue)
+                                : String(
+                                      seriesValueFormatter(
+                                          field,
+                                          rawValue,
+                                          parameters,
+                                      ) ?? '',
+                                  );
 
-                        return seriesValueFormatter(
-                            field,
-                            rawValue,
-                            parameters,
+                        const metricFieldName = getLabelFromField(
+                            itemsMap,
+                            series.encode.yRef.field,
+                        );
+
+                        return formatLabelWithOptions(
+                            formattedValue,
+                            param?.seriesName as string | undefined,
+                            metricFieldName,
+                            series.label?.showValue ?? true,
+                            series.label?.showLabel ?? false,
+                            series.label?.showSeriesName ?? false,
                         );
                     },
                 }),
