@@ -594,6 +594,7 @@ export class SearchModel {
                 { lastUpdatedByUserUuid: 'updated_by_user.user_uuid' },
                 { search_rank: searchRankRawSql },
             )
+            .whereNull(`${tableName}.deleted_at`)
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereRaw(searchFilterSql)
             .orderBy('search_rank', 'desc');
@@ -996,6 +997,7 @@ export class SearchModel {
                 ),
                 this.database.raw('? as chart_source', ['sql']),
             )
+            .whereNull(`${SavedSqlTableName}.deleted_at`)
             .where(`${ProjectTableName}.project_uuid`, projectUuid)
             .whereRaw(savedSqlSearchFilterSql);
 

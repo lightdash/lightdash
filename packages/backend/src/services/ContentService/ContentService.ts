@@ -409,9 +409,9 @@ export class ContentService extends BaseService {
                             item.uuid,
                         );
                     case ChartSourceType.SQL:
-                        // TODO: Implement SQL chart restore
-                        throw new NotFoundError(
-                            'SQL chart restore not yet supported',
+                        return this.savedSqlService.restoreSqlChart(
+                            user,
+                            item.uuid,
                         );
                     default:
                         return assertUnreachable(
@@ -461,9 +461,9 @@ export class ContentService extends BaseService {
                             item.uuid,
                         );
                     case ChartSourceType.SQL:
-                        // TODO: Implement SQL chart permanent delete
-                        throw new NotFoundError(
-                            'SQL chart permanent delete not yet supported',
+                        return this.savedSqlService.permanentlyDeleteSqlChart(
+                            user,
+                            item.uuid,
                         );
                     default:
                         return assertUnreachable(
