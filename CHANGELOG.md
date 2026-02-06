@@ -1,3 +1,15 @@
+# [0.2437.0](https://github.com/lightdash/lightdash/compare/0.2436.4...0.2437.0) (2026-02-06)
+
+
+### Bug Fixes
+
+* dashboard cache reset time on invalidation ([#20067](https://github.com/lightdash/lightdash/issues/20067)) ([f4f9e64](https://github.com/lightdash/lightdash/commit/f4f9e6413273130a16d9ed9dec84a1dd57281749))
+
+
+### Features
+
+* add `parameters` property to chart-as-code JSON schema ([#20059](https://github.com/lightdash/lightdash/issues/20059)) ([1189c51](https://github.com/lightdash/lightdash/commit/1189c51011ec02762b89b71d4c5da3f2418b293d))
+
 ## [0.2436.4](https://github.com/lightdash/lightdash/compare/0.2436.3...0.2436.4) (2026-02-06)
 
 
