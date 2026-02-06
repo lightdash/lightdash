@@ -1,3 +1,10 @@
+# [0.2434.0](https://github.com/lightdash/lightdash/compare/0.2433.1...0.2434.0) (2026-02-06)
+
+
+### Features
+
+* add --assume-yes option to preview command ([#20044](https://github.com/lightdash/lightdash/issues/20044)) ([c1a39fe](https://github.com/lightdash/lightdash/commit/c1a39fe4c22dee3a09ddee646786428b24e73154))
+
 ## [0.2433.1](https://github.com/lightdash/lightdash/compare/0.2433.0...0.2433.1) (2026-02-06)
 
 
