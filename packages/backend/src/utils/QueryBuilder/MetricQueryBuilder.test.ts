@@ -21,6 +21,7 @@ import {
 } from './MetricQueryBuilder';
 import {
     bigqueryClientMock,
+    EXPECTED_SQL_NO_DIMENSIONS_WITH_FILTER,
     EXPECTED_SQL_WITH_CROSS_JOIN,
     EXPECTED_SQL_WITH_CROSS_TABLE_METRICS,
     EXPECTED_SQL_WITH_CUSTOM_DIMENSION_AND_TABLE_CALCULATION,
@@ -1800,6 +1801,47 @@ LIMIT 10`;
             // Should have both metric and table calc filters in WHERE clause
             expect(result.query).toContain('("table2_metric3") IN (100)');
             expect(result.query).toContain('("calc1") IS NOT NULL');
+        });
+
+        test('Should not create cte_unaffected with empty SELECT when only dimension filters exist', () => {
+            const noDimensionsSelected: string[] = [];
+            const onlyMetricFromJoinedTable = ['table2_metric3'];
+            const dimensionFilterWithoutDimensionInSelect = {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: '1',
+                            target: {
+                                fieldId: 'table1_dim1',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [2025],
+                        },
+                    ],
+                },
+            };
+
+            const result = buildQuery({
+                explore: EXPLORE,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY_TWO_TABLES,
+                    dimensions: noDimensionsSelected,
+                    metrics: onlyMetricFromJoinedTable,
+                    filters: dimensionFilterWithoutDimensionInSelect,
+                    sorts: [{ fieldId: 'table2_metric3', descending: true }],
+                    limit: 500,
+                    tableCalculations: [],
+                    compiledTableCalculations: [],
+                },
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            expect(replaceWhitespace(result.query)).toBe(
+                replaceWhitespace(EXPECTED_SQL_NO_DIMENSIONS_WITH_FILTER),
+            );
         });
     });
 

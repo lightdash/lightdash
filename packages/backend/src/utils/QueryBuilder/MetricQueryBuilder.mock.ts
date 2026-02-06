@@ -48,7 +48,7 @@ export const warehouseClientMock: WarehouseClient = {
         rows: [],
     }),
     streamQuery(query, streamCallback) {
-        streamCallback({
+        void streamCallback({
             fields: {},
             rows: [],
         });
@@ -59,7 +59,7 @@ export const warehouseClientMock: WarehouseClient = {
         const columns = {
             test: { type: DimensionType.STRING },
         };
-        callback?.(rows, columns);
+        void callback?.(rows, columns);
         return {
             queryId: null,
             queryMetadata: null,
@@ -158,7 +158,7 @@ export const bigqueryClientMock: WarehouseClient = {
         rows: [],
     }),
     streamQuery(query, streamCallback) {
-        streamCallback({
+        void streamCallback({
             fields: {},
             rows: [],
         });
@@ -1895,6 +1895,21 @@ export const EXPECTED_SQL_WITH_CROSS_JOIN = `WITH cte_keys_table2 AS (
     CROSS JOIN cte_metrics_table2
 )
 SELECT *, table1_dim1 + table2_metric2 AS "calc3" FROM metrics ORDER BY "table2_metric2" DESC LIMIT 10`;
+
+export const EXPECTED_SQL_NO_DIMENSIONS_WITH_FILTER = `WITH cte_keys_table2 AS (
+    SELECT DISTINCT "table2".dim2 AS "pk_dim2"
+    FROM "db"."schema"."table1" AS "table1"
+    LEFT OUTER JOIN "db"."schema"."table2" AS "table2" ON ("table1".shared) = ("table2".shared)
+    WHERE (( ("table1".dim1) IN (2025) ))
+), cte_metrics_table2 AS (
+    SELECT SUM("table2".number_column) AS "table2_metric3"
+    FROM cte_keys_table2
+    LEFT JOIN "db"."schema"."table2" AS "table2" ON cte_keys_table2."pk_dim2" = "table2".dim2
+)
+SELECT cte_metrics_table2."table2_metric3" AS "table2_metric3"
+FROM cte_metrics_table2
+ORDER BY "table2_metric3" DESC
+LIMIT 500`;
 
 // Explore without primary keys
 export const EXPLORE_WITHOUT_PRIMARY_KEYS: Explore = {
