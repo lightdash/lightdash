@@ -97,6 +97,11 @@ INTERNAL_LIGHTDASH_HOST=http://localhost:3000
 # Email - Mailpit (view emails at http://localhost:8025)
 EMAIL_SMTP_HOST=localhost
 EMAIL_SMTP_PORT=1025
+EMAIL_SMTP_SECURE=false
+EMAIL_SMTP_USE_AUTH=false
+EMAIL_SMTP_ALLOW_INVALID_CERT=true
+EMAIL_SMTP_SENDER_NAME=Lightdash
+EMAIL_SMTP_SENDER_EMAIL=noreply@lightdash.local
 EOF
 ```
 
