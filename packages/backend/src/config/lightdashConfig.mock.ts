@@ -219,7 +219,7 @@ export const lightdashConfigMock: LightdashConfig = {
             providers: {
                 openai: {
                     apiKey: 'mock_api_key',
-                    modelName: 'gpt-4.1-2025-04-14',
+                    modelName: 'gpt-5.2-2025-12-11',
                     embeddingModelName: 'text-embedding-3-small',
                     zeroDataRetention: false,
                 },

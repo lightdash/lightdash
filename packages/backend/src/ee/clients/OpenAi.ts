@@ -38,7 +38,7 @@ export default class OpenAi {
         this.model = this.openAiApiKey
             ? new ChatOpenAI({
                   openAIApiKey: this.openAiApiKey,
-                  modelName: 'gpt-4.1',
+                  modelName: 'gpt-5.2',
                   temperature: 0.2,
               })
             : undefined;

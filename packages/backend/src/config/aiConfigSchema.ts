@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-4.1';
+export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-5.2';
 export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-4-5';
 export const DEFAULT_DEFAULT_AI_PROVIDER = 'openai';
-export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-4.1-2025-04-14';
+export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-5.2-2025-12-11';
 export const DEFAULT_BEDROCK_MODEL_NAME = 'claude-sonnet-4-5';
 
 export const DEFAULT_OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
