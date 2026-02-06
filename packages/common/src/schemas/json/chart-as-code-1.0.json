@@ -910,6 +910,18 @@
                     }
                 }
             }
+        },
+        "parameters": {
+            "type": "object",
+            "description": "Parameter values for the chart query, keyed by parameter name (e.g., 'model.param_name')",
+            "additionalProperties": {
+                "oneOf": [
+                    { "type": "string" },
+                    { "type": "number" },
+                    { "type": "array", "items": { "type": "string" } },
+                    { "type": "array", "items": { "type": "number" } }
+                ]
+            }
         }
     },
     "$defs": {
