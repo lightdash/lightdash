@@ -59,10 +59,17 @@ export const useDashboardRefresh = () => {
         });
     }, [queryClient]);
 
+    const removeDashboardResultsQueries = useCallback(() => {
+        queryClient.removeQueries({
+            predicate: dashboardResultsQueryPredicate,
+        });
+    }, [queryClient]);
+
     return useMemo(
         () => ({
             invalidateDashboardRelatedQueries,
             invalidateDashboardResultsQueries,
+            removeDashboardResultsQueries,
             isFetching:
                 isFetchingDashboardRelatedQueries +
                 isFetchingDashboardResultsQueries,
@@ -70,6 +77,7 @@ export const useDashboardRefresh = () => {
         [
             invalidateDashboardRelatedQueries,
             invalidateDashboardResultsQueries,
+            removeDashboardResultsQueries,
             isFetchingDashboardRelatedQueries,
             isFetchingDashboardResultsQueries,
         ],
