@@ -1,7 +1,6 @@
 import { MapChartLocation, MapChartType } from '@lightdash/common';
-import { Box, Divider, Stack, Text, UnstyledButton } from '@mantine/core';
-import { useClipboard } from '@mantine/hooks';
-import { IconCopy, IconMap } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine/hooks';
+import { IconMap } from '@tabler/icons-react';
 import { scaleSqrt } from 'd3-scale';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -20,7 +19,6 @@ import {
     CircleMarker,
     GeoJSON,
     MapContainer,
-    Popup,
     TileLayer,
     Tooltip,
     useMap,
@@ -35,14 +33,14 @@ import useLeafletMapConfig, {
     type ScatterPoint,
     type TooltipFieldInfo,
 } from '../../hooks/leaflet/useLeafletMapConfig';
-import useToaster from '../../hooks/toaster/useToaster';
+import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { createMultiColorScale } from '../../utils/colorUtils';
 import { isMapVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import LoadingChart from '../common/LoadingChart';
-import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import HeatmapLayer from './HeatmapLayer';
+import MapContextMenu from './MapContextMenu';
 import MapLegend from './MapLegend';
 
 // Types for Leaflet internals used in the monkey-patch below
@@ -172,88 +170,34 @@ const MapTooltipContent: FC<MapTooltipContentProps> = ({
     );
 };
 
-type MapPopupContentProps = MapContentBaseProps & {
-    onCopy?: () => void;
-};
-
-const MapPopupContent: FC<MapPopupContentProps> = ({
-    tooltipFields,
-    rowData,
-    lat,
-    lon,
-    onCopy,
-    noData,
-}) => {
-    const visibleFields = tooltipFields.filter((f) => f.visible);
-    const hasMultipleFields = visibleFields.length > 1;
-
-    // Show "no data" popup for regions without matching data
-    if (noData) {
-        return (
-            <Box mt="xl" c="dark.9">
-                <Text size="sm">
-                    <strong>{noData.locationLabel}:</strong>{' '}
-                    {noData.locationValue}
-                </Text>
-                <Text size="sm" c="gray.6" fs="italic">
-                    No data
-                </Text>
-            </Box>
-        );
-    }
-
-    // Build copy value - CSV format for multiple fields, single value otherwise
-    const copyValue =
-        visibleFields.length > 0
-            ? hasMultipleFields
-                ? visibleFields
-                      .map((field) => getFormattedValue(rowData, field.fieldId))
-                      .join(', ')
-                : getFormattedValue(rowData, visibleFields[0].fieldId)
-            : '';
-
-    return (
-        // Force light mode colors since Leaflet popups always have white background
-        <Box mt="xl" c="dark.9">
-            <Stack spacing={2}>
-                {visibleFields.map((field) => (
-                    <Text key={field.fieldId} size="sm">
-                        <strong>{field.label}:</strong>{' '}
-                        {getFormattedValue(rowData, field.fieldId)}
-                    </Text>
-                ))}
-            </Stack>
-            {lat !== undefined && lon !== undefined && (
-                <Text size="xs" c="gray.6" mt="sm" mb="md">
-                    Lat: {lat.toFixed(4)}, Lon: {lon.toFixed(4)}
-                </Text>
-            )}
-            {copyValue && (
-                <>
-                    <Divider my="xs" c="gray.3" />
-                    <UnstyledButton
-                        onClick={onCopy}
-                        data-copy-value={copyValue}
-                        className={classes.popupActionButton}
-                    >
-                        <MantineIcon icon={IconCopy} />
-                        <Text size="sm">
-                            {hasMultipleFields ? 'Copy values' : 'Copy value'}
-                        </Text>
-                    </UnstyledButton>
-                </>
-            )}
-        </Box>
-    );
-};
-
-// MapMarker component for scatter points with tooltip/popup behavior
+// MapMarker component for scatter points with tooltip/context menu behavior
 type MapMarkerProps = {
     point: ScatterPoint;
     radius: number;
     color: string;
     fillOpacity: number;
     tooltipFields: TooltipFieldInfo[];
+    hideTooltip?: boolean;
+    onClick?: (
+        e: L.LeafletMouseEvent,
+        rowData: Record<string, any>,
+        copyValue: string,
+        lat: number,
+        lon: number,
+    ) => void;
+};
+
+const getCopyValue = (
+    tooltipFields: TooltipFieldInfo[],
+    rowData: Record<string, any>,
+): string => {
+    const visibleFields = tooltipFields.filter((f) => f.visible);
+    if (visibleFields.length === 0) return '';
+    if (visibleFields.length === 1)
+        return getFormattedValue(rowData, visibleFields[0].fieldId);
+    return visibleFields
+        .map((field) => getFormattedValue(rowData, field.fieldId))
+        .join(', ');
 };
 
 const MapMarker: FC<MapMarkerProps> = ({
@@ -262,26 +206,16 @@ const MapMarker: FC<MapMarkerProps> = ({
     color,
     fillOpacity,
     tooltipFields,
+    hideTooltip,
+    onClick,
 }) => {
-    const [isPopupOpen, setIsPopupOpen] = useState(false);
-    const clipboard = useClipboard({ timeout: 200 });
-    const { showToastSuccess } = useToaster();
-
-    const handleCopy = useCallback(() => {
-        const visibleFields = tooltipFields.filter((f) => f.visible);
-        const copyValue =
-            visibleFields.length > 0
-                ? visibleFields.length > 1
-                    ? visibleFields
-                          .map((field) =>
-                              getFormattedValue(point.rowData, field.fieldId),
-                          )
-                          .join(', ')
-                    : getFormattedValue(point.rowData, visibleFields[0].fieldId)
-                : '';
-        clipboard.copy(copyValue);
-        showToastSuccess({ title: 'Copied to clipboard!' });
-    }, [clipboard, tooltipFields, point.rowData, showToastSuccess]);
+    const handleClick = useCallback(
+        (e: L.LeafletMouseEvent) => {
+            const copyValue = getCopyValue(tooltipFields, point.rowData);
+            onClick?.(e, point.rowData, copyValue, point.lat, point.lon);
+        },
+        [onClick, point.rowData, point.lat, point.lon, tooltipFields],
+    );
 
     return (
         <CircleMarker
@@ -294,11 +228,11 @@ const MapMarker: FC<MapMarkerProps> = ({
                 weight: 1,
             }}
             eventHandlers={{
-                popupopen: () => setIsPopupOpen(true),
-                popupclose: () => setIsPopupOpen(false),
+                click: handleClick,
+                contextmenu: handleClick,
             }}
         >
-            {!isPopupOpen && (
+            {!hideTooltip && (
                 <Tooltip>
                     <MapTooltipContent
                         tooltipFields={tooltipFields}
@@ -308,15 +242,6 @@ const MapMarker: FC<MapMarkerProps> = ({
                     />
                 </Tooltip>
             )}
-            <Popup>
-                <MapPopupContent
-                    tooltipFields={tooltipFields}
-                    rowData={point.rowData}
-                    lat={point.lat}
-                    lon={point.lon}
-                    onCopy={handleCopy}
-                />
-            </Popup>
         </CircleMarker>
     );
 };
@@ -497,11 +422,62 @@ type SimpleMapProps = {
 
 const SimpleMap: FC<SimpleMapProps> = memo(
     ({ onScreenshotReady, onScreenshotError, ...props }) => {
-        const { isLoading, visualizationConfig, resultsData, leafletMapRef } =
-            useVisualizationContext();
+        const {
+            isLoading,
+            visualizationConfig,
+            resultsData,
+            leafletMapRef,
+            minimal,
+        } = useVisualizationContext();
         const mapConfig = useLeafletMapConfig({
             isInDashboard: props.isInDashboard,
         });
+        const { shouldShowMenu } = useContextMenuPermissions({ minimal });
+
+        // Context menu state
+        const [
+            contextMenuOpened,
+            { open: openContextMenu, close: closeContextMenu },
+        ] = useDisclosure();
+        const [contextMenuProps, setContextMenuProps] = useState<{
+            position: { left: number; top: number };
+            rowData: Record<string, any>;
+            copyValue: string;
+            lat?: number;
+            lon?: number;
+            noData?: { locationLabel: string; locationValue: string };
+        }>();
+
+        const handleMapContextMenu = useCallback(
+            (
+                e: L.LeafletMouseEvent,
+                rowData: Record<string, any>,
+                copyValue: string,
+                lat?: number,
+                lon?: number,
+                noData?: { locationLabel: string; locationValue: string },
+            ) => {
+                e.originalEvent.preventDefault();
+                setContextMenuProps({
+                    position: {
+                        left: e.originalEvent.pageX,
+                        top: e.originalEvent.pageY,
+                    },
+                    rowData,
+                    copyValue,
+                    lat,
+                    lon,
+                    noData,
+                });
+                openContextMenu();
+            },
+            [openContextMenu],
+        );
+
+        const handleCloseContextMenu = useCallback(() => {
+            setContextMenuProps(undefined);
+            closeContextMenu();
+        }, [closeContextMenu]);
 
         // Use mapConfig.extent directly - it has the correct values from the saved chart
         // via the visualization context
@@ -713,27 +689,6 @@ const SimpleMap: FC<SimpleMapProps> = memo(
 
         const isHeatmap = mapConfig?.locationType === MapChartType.HEATMAP;
 
-        // Shared copy handler for popup buttons
-        const clipboard = useClipboard({ timeout: 200 });
-        const { showToastSuccess } = useToaster();
-
-        const handlePopupCopyClick = useCallback(
-            (e: MouseEvent) => {
-                const target = e.target as HTMLElement;
-                const button = target.closest(
-                    '[data-copy-value]',
-                ) as HTMLElement | null;
-                if (button) {
-                    const value = button.dataset.copyValue;
-                    if (value) {
-                        clipboard.copy(value);
-                        showToastSuccess({ title: 'Copied to clipboard!' });
-                    }
-                }
-            },
-            [clipboard, showToastSuccess],
-        );
-
         // Memoize choropleth/area mode calculations
         const regionData = useMemo(
             () => mapConfig?.regionData || [],
@@ -869,19 +824,9 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         noData={noData}
                     />,
                 );
-                // eslint-disable-next-line testing-library/render-result-naming-convention
-                const popupHtml = renderToString(
-                    <MapPopupContent
-                        tooltipFields={mapConfig?.tooltipFields || []}
-                        rowData={rowData}
-                        noData={noData}
-                    />,
-                );
 
                 if (layer instanceof L.Path) {
-                    // Bind both tooltip (hover) and popup (click)
                     layer.bindTooltip(tooltipHtml);
-                    layer.bindPopup(popupHtml);
 
                     // Determine the correct base and hover opacity for this region
                     const baseOpacity = regionEntry
@@ -889,7 +834,27 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                         : fillOpacityNoData;
                     const hoverOpacity = hasBaseMap ? 0.9 : 1;
 
+                    const handleRegionClick = (e: L.LeafletMouseEvent) => {
+                        layer.closeTooltip();
+                        const copyValue = regionEntry?.rowData
+                            ? getCopyValue(
+                                  mapConfig?.tooltipFields || [],
+                                  regionEntry.rowData,
+                              )
+                            : '';
+                        handleMapContextMenu(
+                            e,
+                            rowData,
+                            copyValue,
+                            undefined,
+                            undefined,
+                            noData,
+                        );
+                    };
+
                     layer.on({
+                        click: handleRegionClick,
+                        contextmenu: handleRegionClick,
                         mouseover: () => {
                             layer.setStyle({
                                 weight: 2,
@@ -902,27 +867,6 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                 fillOpacity: baseOpacity,
                             });
                         },
-                        popupopen: (e) => {
-                            // Hide tooltip when popup is open
-                            layer.closeTooltip();
-                            layer.unbindTooltip();
-                            // Add click handler for copy button
-                            const popupElement = e.popup.getElement();
-                            popupElement?.addEventListener(
-                                'click',
-                                handlePopupCopyClick,
-                            );
-                        },
-                        popupclose: (e) => {
-                            // Remove click handler to prevent memory leak
-                            const popupElement = e.popup.getElement();
-                            popupElement?.removeEventListener(
-                                'click',
-                                handlePopupCopyClick,
-                            );
-                            // Re-bind tooltip when popup is closed
-                            layer.bindTooltip(tooltipHtml);
-                        },
                     });
                 }
             },
@@ -931,7 +875,7 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                 mapConfig?.geoJsonPropertyKey,
                 mapConfig?.tooltipFields,
                 mapConfig?.locationFieldId,
-                handlePopupCopyClick,
+                handleMapContextMenu,
                 hasBaseMap,
                 fillOpacityWithData,
                 fillOpacityNoData,
@@ -1021,6 +965,8 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                         color={color}
                                         fillOpacity={fillOpacityWithData}
                                         tooltipFields={mapConfig.tooltipFields}
+                                        hideTooltip={contextMenuOpened}
+                                        onClick={handleMapContextMenu}
                                     />
                                 );
                             })
@@ -1065,6 +1011,19 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                 }
                             />
                         )}
+                    {shouldShowMenu && (
+                        <MapContextMenu
+                            menuPosition={contextMenuProps?.position}
+                            rowData={contextMenuProps?.rowData}
+                            copyValue={contextMenuProps?.copyValue}
+                            tooltipFields={mapConfig.tooltipFields}
+                            lat={contextMenuProps?.lat}
+                            lon={contextMenuProps?.lon}
+                            noData={contextMenuProps?.noData}
+                            opened={contextMenuOpened}
+                            onClose={handleCloseContextMenu}
+                        />
+                    )}
                 </div>
             );
         }
@@ -1134,6 +1093,19 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                 label: mapConfig.valueFieldLabel ?? undefined,
                                 opacity: fillOpacityWithData,
                             }}
+                        />
+                    )}
+                    {shouldShowMenu && (
+                        <MapContextMenu
+                            menuPosition={contextMenuProps?.position}
+                            rowData={contextMenuProps?.rowData}
+                            copyValue={contextMenuProps?.copyValue}
+                            tooltipFields={mapConfig.tooltipFields}
+                            lat={contextMenuProps?.lat}
+                            lon={contextMenuProps?.lon}
+                            noData={contextMenuProps?.noData}
+                            opened={contextMenuOpened}
+                            onClose={handleCloseContextMenu}
                         />
                     )}
                 </div>
