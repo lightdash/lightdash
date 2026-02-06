@@ -123,17 +123,35 @@ export class CartesianChartDataModel {
         format: Format | undefined,
         isStack100: boolean = false,
         showValue: boolean = true,
+        showLabel: boolean = false,
         showSeriesName: boolean = false,
+        metricFieldName: string | undefined = undefined,
     ) {
-        // Helper to format the label with series name and value options
+        // Helper to format the label with name, metric field name, and value options
         const formatLabelWithOptions = (
             formattedValue: string,
-            seriesName: string | undefined,
+            labelName: string | undefined,
         ): string => {
+            const nameParts: string[] = [];
+
+            if (showLabel && labelName) {
+                nameParts.push(labelName);
+            }
+
+            if (
+                showSeriesName &&
+                metricFieldName &&
+                metricFieldName !== labelName
+            ) {
+                nameParts.push(`(${metricFieldName})`);
+            }
+
+            const nameStr = nameParts.join(' ');
+
             const parts: string[] = [];
 
-            if (showSeriesName && seriesName) {
-                parts.push(seriesName);
+            if (nameStr) {
+                parts.push(nameStr);
             }
 
             if (showValue) {
@@ -145,7 +163,7 @@ export class CartesianChartDataModel {
                 return '';
             }
 
-            // Join parts with ": " if both are present
+            // Join parts with ": " if both name and value are present
             return parts.join(': ');
         };
 
@@ -179,8 +197,8 @@ export class CartesianChartDataModel {
             };
         }
 
-        // If we have showSeriesName enabled but no special formatting, still return a formatter
-        if (showSeriesName || !showValue) {
+        // If we have showLabel/showSeriesName enabled but no special formatting, still return a formatter
+        if (showLabel || showSeriesName || !showValue) {
             return (params: AnyType) => {
                 const value =
                     params.value[params.dimensionNames[params.encode.y[0]]];
@@ -681,9 +699,16 @@ export class CartesianChartDataModel {
                 const seriesValueLabelPosition =
                     seriesDisplay?.valueLabelPosition;
                 const seriesShowValue = seriesDisplay?.showValue ?? true;
+                const seriesShowLabel =
+                    seriesDisplay?.showLabel ?? false;
                 const seriesShowSeriesName =
                     seriesDisplay?.showSeriesName ?? false;
                 const seriesType = seriesDisplay?.type ?? defaultSeriesType;
+
+                // Compute metric field name from referenceField
+                const metricDisplayName = friendlyName(
+                    seriesColumn.referenceField,
+                );
 
                 // Any value other than 1 is considered the left axis.
                 const whichYAxis = seriesDisplay?.whichYAxis === 1 ? 1 : 0;
@@ -777,17 +802,20 @@ export class CartesianChartDataModel {
                               position: seriesValueLabelPosition,
                               ...valueLabelStyle,
                               // For stack100, always apply formatter even without seriesFormat
-                              // Also apply formatter when showSeriesName is enabled or showValue is disabled
+                              // Also apply formatter when showLabel/showSeriesName is enabled or showValue is disabled
                               formatter:
                                   shouldStack100 ||
                                   seriesFormat ||
+                                  seriesShowLabel ||
                                   seriesShowSeriesName ||
                                   !seriesShowValue
                                       ? CartesianChartDataModel.getValueFormatter(
                                             seriesFormat,
                                             shouldStack100,
                                             seriesShowValue,
+                                            seriesShowLabel,
                                             seriesShowSeriesName,
+                                            metricDisplayName,
                                         )
                                       : undefined,
                           }
@@ -1058,7 +1086,8 @@ export type CartesianChartDisplay = {
             valueLabelPosition?: ValueLabelPositionOptions;
             // Value label content toggles - control what is shown in the label
             showValue?: boolean; // Show the metric value (default: true when labels are shown)
-            showSeriesName?: boolean; // Show the series/pivot name (e.g., "United States")
+            showLabel?: boolean; // Show the legend/pivot name (e.g., "United States") or metric name for non-pivoted
+            showSeriesName?: boolean; // Show the metric field name (e.g., "Revenue")
             // whichAxis maps to the yAxis index in Echarts.
             whichYAxis?: AxisSide;
         };

@@ -1,5 +1,14 @@
 import { ValueLabelPositionOptions } from '@lightdash/common';
-import { Box, Checkbox, Group, Select, Stack, Text } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Checkbox,
+    Group,
+    Popover,
+    Select,
+    Stack,
+    Text,
+} from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowLeft,
@@ -8,6 +17,7 @@ import {
     IconClearAll,
     IconEyeOff,
     IconLayoutAlignCenter,
+    IconSettings,
 } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
@@ -48,9 +58,11 @@ const ValueLabelIcon: FC<{
 type Props = {
     valueLabelPosition: ValueLabelPositionOptions | undefined;
     showValue?: boolean;
+    showLabel?: boolean;
     showSeriesName?: boolean;
     onChangeValueLabelPosition: (value: ValueLabelPositionOptions) => void;
     onChangeShowValue?: (value: boolean) => void;
+    onChangeShowLabel?: (value: boolean) => void;
     onChangeShowSeriesName?: (value: boolean) => void;
 };
 
@@ -73,58 +85,25 @@ export const CartesianChartValueLabelConfig: FC<Props> = ({
     onChangeValueLabelPosition,
     valueLabelPosition,
     showValue = true,
+    showLabel = false,
     showSeriesName = false,
     onChangeShowValue,
+    onChangeShowLabel,
     onChangeShowSeriesName,
 }) => {
     const isVisible =
         valueLabelPosition &&
         valueLabelPosition !== ValueLabelPositionOptions.HIDDEN;
 
-    return (
-        <Stack spacing="xs" sx={{ flex: 1 }}>
-            <Select
-                radius="md"
-                data={Object.values(ValueLabelPositionOptions).map(
-                    (option) => ({
-                        value: option,
-                        label: capitalize(option),
-                    }),
-                )}
-                itemComponent={ValueLabelItem}
-                icon={<ValueLabelIcon position={valueLabelPosition} />}
-                value={valueLabelPosition}
-                onChange={(value) =>
-                    value &&
-                    onChangeValueLabelPosition(
-                        value as ValueLabelPositionOptions,
-                    )
-                }
-                styles={(theme) => ({
-                    root: {
-                        flex: 1,
-                    },
-                    input: {
-                        fontWeight: 500,
-                        borderColor: theme.colors.ldGray[2],
-                    },
-                    item: {
-                        '&[data-selected="true"]': {
-                            color: theme.colors.ldGray[7],
-                            fontWeight: 500,
-                            backgroundColor: theme.colors.ldGray[2],
-                        },
-                        '&[data-selected="true"]:hover': {
-                            backgroundColor: theme.colors.ldGray[3],
-                        },
-                        '&:hover': {
-                            backgroundColor: theme.colors.ldGray[1],
-                        },
-                    },
-                })}
-            />
-            {isVisible && onChangeShowValue && onChangeShowSeriesName && (
-                <Group spacing="md">
+    const popoverTarget = isVisible && onChangeShowValue && (
+        <Popover position="bottom-end" shadow="md" withinPortal>
+            <Popover.Target>
+                <ActionIcon variant="subtle" size="xs">
+                    <MantineIcon icon={IconSettings} color="ldGray.6" />
+                </ActionIcon>
+            </Popover.Target>
+            <Popover.Dropdown>
+                <Stack spacing="xs">
                     <Checkbox
                         size="xs"
                         checked={showValue}
@@ -133,16 +112,73 @@ export const CartesianChartValueLabelConfig: FC<Props> = ({
                         }
                         label="Show value"
                     />
-                    <Checkbox
-                        size="xs"
-                        checked={showSeriesName}
-                        onChange={(e) =>
-                            onChangeShowSeriesName(e.currentTarget.checked)
-                        }
-                        label="Show series name"
-                    />
-                </Group>
-            )}
-        </Stack>
+                    {onChangeShowLabel && (
+                        <Checkbox
+                            size="xs"
+                            checked={showLabel}
+                            onChange={(e) =>
+                                onChangeShowLabel(e.currentTarget.checked)
+                            }
+                            label="Show label"
+                        />
+                    )}
+                    {onChangeShowSeriesName && (
+                        <Checkbox
+                            size="xs"
+                            checked={showSeriesName}
+                            onChange={(e) =>
+                                onChangeShowSeriesName(
+                                    e.currentTarget.checked,
+                                )
+                            }
+                            label="Show metric name"
+                        />
+                    )}
+                </Stack>
+            </Popover.Dropdown>
+        </Popover>
+    );
+
+    return (
+        <Select
+            radius="md"
+            data={Object.values(ValueLabelPositionOptions).map((option) => ({
+                value: option,
+                label: capitalize(option),
+            }))}
+            itemComponent={ValueLabelItem}
+            icon={<ValueLabelIcon position={valueLabelPosition} />}
+            rightSection={popoverTarget || undefined}
+            rightSectionProps={{ style: { pointerEvents: 'all' } }}
+            value={valueLabelPosition}
+            onChange={(value) =>
+                value &&
+                onChangeValueLabelPosition(
+                    value as ValueLabelPositionOptions,
+                )
+            }
+            styles={(theme) => ({
+                root: {
+                    flex: 1,
+                },
+                input: {
+                    fontWeight: 500,
+                    borderColor: theme.colors.ldGray[2],
+                },
+                item: {
+                    '&[data-selected="true"]': {
+                        color: theme.colors.ldGray[7],
+                        fontWeight: 500,
+                        backgroundColor: theme.colors.ldGray[2],
+                    },
+                    '&[data-selected="true"]:hover': {
+                        backgroundColor: theme.colors.ldGray[3],
+                    },
+                    '&:hover': {
+                        backgroundColor: theme.colors.ldGray[1],
+                    },
+                },
+            })}
+        />
     );
 };

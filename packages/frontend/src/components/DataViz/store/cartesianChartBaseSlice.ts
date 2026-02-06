@@ -454,6 +454,25 @@ export const cartesianChartConfigSlice = createSlice({
                 };
             }
         },
+        setSeriesShowLabel: (
+            { fieldConfig, display },
+            action: PayloadAction<{
+                reference: string;
+                showLabel: boolean;
+            }>,
+        ) => {
+            if (!fieldConfig) return;
+            display = display || {};
+            display.yAxis = display.yAxis || [];
+            display.series = display.series || {};
+
+            if (action.payload.reference !== undefined) {
+                display.series[action.payload.reference] = {
+                    ...display.series[action.payload.reference],
+                    showLabel: action.payload.showLabel,
+                };
+            }
+        },
         setSeriesShowSeriesName: (
             { fieldConfig, display },
             action: PayloadAction<{

@@ -32,6 +32,7 @@ type SingleSeriesConfigurationProps = {
     whichYAxis?: number;
     valueLabelPosition: ValueLabelPositionOptions | undefined;
     showValue?: boolean;
+    showLabel?: boolean;
     showSeriesName?: boolean;
     selectedChartType: ChartKind;
     onColorChange: (reference: string, color: string) => void;
@@ -46,6 +47,7 @@ type SingleSeriesConfigurationProps = {
         position: ValueLabelPositionOptions,
     ) => void;
     onShowValueChange?: (reference: string, showValue: boolean) => void;
+    onShowLabelChange?: (reference: string, showLabel: boolean) => void;
     onShowSeriesNameChange?: (
         reference: string,
         showSeriesName: boolean,
@@ -61,6 +63,7 @@ export const SingleSeriesConfiguration = ({
     whichYAxis = 0,
     valueLabelPosition,
     showValue = true,
+    showLabel = false,
     showSeriesName = false,
     selectedChartType,
     onColorChange,
@@ -69,6 +72,7 @@ export const SingleSeriesConfiguration = ({
     onAxisChange,
     onValueLabelPositionChange,
     onShowValueChange,
+    onShowLabelChange,
     onShowSeriesNameChange,
 }: SingleSeriesConfigurationProps) => {
     return (
@@ -194,6 +198,7 @@ export const SingleSeriesConfiguration = ({
                             ValueLabelPositionOptions.HIDDEN
                         }
                         showValue={showValue}
+                        showLabel={showLabel}
                         showSeriesName={showSeriesName}
                         onChangeValueLabelPosition={(position) =>
                             onValueLabelPositionChange(reference, position)
@@ -201,6 +206,12 @@ export const SingleSeriesConfiguration = ({
                         onChangeShowValue={
                             onShowValueChange
                                 ? (value) => onShowValueChange(reference, value)
+                                : undefined
+                        }
+                        onChangeShowLabel={
+                            onShowLabelChange
+                                ? (value) =>
+                                      onShowLabelChange(reference, value)
                                 : undefined
                         }
                         onChangeShowSeriesName={

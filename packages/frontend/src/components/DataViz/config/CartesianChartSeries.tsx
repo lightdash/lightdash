@@ -32,6 +32,7 @@ type ConfigurableSeries = {
     | 'valueLabelPosition'
     | 'whichYAxis'
     | 'showValue'
+    | 'showLabel'
     | 'showSeriesName'
 >;
 
@@ -68,6 +69,7 @@ export const CartesianChartSeries = ({
             const seriesValueLabelPosition = foundSeries?.valueLabelPosition;
             const seriesWhichYAxis = foundSeries?.whichYAxis;
             const seriesShowValue = foundSeries?.showValue;
+            const seriesShowLabel = foundSeries?.showLabel;
             const seriesShowSeriesName = foundSeries?.showSeriesName;
 
             const config = {
@@ -79,6 +81,7 @@ export const CartesianChartSeries = ({
                 valueLabelPosition: seriesValueLabelPosition,
                 whichYAxis: seriesWhichYAxis,
                 showValue: seriesShowValue,
+                showLabel: seriesShowLabel,
                 showSeriesName: seriesShowSeriesName,
             };
 
@@ -159,6 +162,15 @@ export const CartesianChartSeries = ({
         dispatch(
             actions.setSeriesShowValue({
                 showValue,
+                reference,
+            }),
+        );
+    };
+
+    const handleShowLabelChange = (reference: string, showLabel: boolean) => {
+        dispatch(
+            actions.setSeriesShowLabel({
+                showLabel,
                 reference,
             }),
         );
@@ -280,6 +292,7 @@ export const CartesianChartSeries = ({
                                                   s.valueLabelPosition
                                               }
                                               showValue={s.showValue}
+                                              showLabel={s.showLabel}
                                               showSeriesName={s.showSeriesName}
                                               selectedChartType={
                                                   selectedChartType
@@ -293,6 +306,9 @@ export const CartesianChartSeries = ({
                                               }
                                               onShowValueChange={
                                                   handleShowValueChange
+                                              }
+                                              onShowLabelChange={
+                                                  handleShowLabelChange
                                               }
                                               onShowSeriesNameChange={
                                                   handleShowSeriesNameChange
@@ -316,6 +332,7 @@ export const CartesianChartSeries = ({
                                   whichYAxis,
                                   valueLabelPosition,
                                   showValue,
+                                  showLabel,
                                   showSeriesName,
                               },
                               index,
@@ -330,6 +347,7 @@ export const CartesianChartSeries = ({
                                   whichYAxis={whichYAxis}
                                   valueLabelPosition={valueLabelPosition}
                                   showValue={showValue}
+                                  showLabel={showLabel}
                                   showSeriesName={showSeriesName}
                                   selectedChartType={selectedChartType}
                                   onColorChange={onColorChange}
@@ -340,6 +358,7 @@ export const CartesianChartSeries = ({
                                       handleValueLabelPositionChange
                                   }
                                   onShowValueChange={handleShowValueChange}
+                                  onShowLabelChange={handleShowLabelChange}
                                   onShowSeriesNameChange={
                                       handleShowSeriesNameChange
                                   }
