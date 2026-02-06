@@ -193,12 +193,13 @@ export const resolveSpaceAccess = (input: SpaceAccessInput): SpaceAccess[] => {
     const { directAccess, projectAccess, organizationAccess } = input;
 
     // Collect all unique user UUIDs
-    const allUserUuids = new Set<string>();
-    for (const entry of directAccess) allUserUuids.add(entry.userUuid);
-    for (const entry of projectAccess) allUserUuids.add(entry.userUuid);
-    for (const entry of organizationAccess) allUserUuids.add(entry.userUuid);
+    const uniqueUserUuids = new Set(
+        [...directAccess, ...projectAccess, ...organizationAccess].map(
+            (e) => e.userUuid,
+        ),
+    );
 
-    return Array.from(allUserUuids)
+    return Array.from(uniqueUserUuids)
         .map((userUuid) => resolveUserSpaceAccess(userUuid, input))
         .filter((share): share is SpaceAccess => share !== undefined);
 };

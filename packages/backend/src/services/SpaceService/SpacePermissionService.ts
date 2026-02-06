@@ -52,14 +52,6 @@ export class SpacePermissionService extends BaseService {
                 this.spacePermissionModel.getSpaceInfo(spaceUuids),
             ]);
 
-        const allUserUuids = new Set<string>();
-        for (const entries of Object.values(directAccessMap))
-            for (const e of entries) allUserUuids.add(e.userUuid);
-        for (const entries of Object.values(projectAccessMap))
-            for (const e of entries) allUserUuids.add(e.userUuid);
-        for (const entries of Object.values(orgAccessMap))
-            for (const e of entries) allUserUuids.add(e.userUuid);
-
         const result: Record<string, SpaceAccessForCasl> = {};
         for (const spaceUuid of spaceUuids) {
             const { isPrivate, projectUuid, organizationUuid } =
