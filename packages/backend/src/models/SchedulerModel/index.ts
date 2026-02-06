@@ -183,6 +183,7 @@ export class SchedulerModel {
                 `${SavedChartsTableName}.name as saved_chart_name`,
                 `${DashboardsTableName}.name as dashboard_name`,
             )
+            .whereNull(`${SchedulerTableName}.deleted_at`)
             .leftJoin(
                 UserTableName,
                 `${UserTableName}.user_uuid`,
@@ -279,6 +280,7 @@ export class SchedulerModel {
                 `${ProjectTableName}.name as project_name`,
                 `${ProjectTableName}.scheduler_timezone as project_scheduler_timezone`,
             )
+            .whereNull(`${SchedulerTableName}.deleted_at`)
             .leftJoin(
                 UserTableName,
                 `${UserTableName}.user_uuid`,
@@ -864,6 +866,65 @@ export class SchedulerModel {
         });
     }
 
+    async softDelete(schedulerUuid: string, userUuid: string): Promise<void> {
+        await this.database(SchedulerTableName)
+            .update({
+                deleted_at: new Date(),
+                deleted_by_user_uuid: userUuid,
+            })
+            .where('scheduler_uuid', schedulerUuid)
+            .whereNull('deleted_at');
+    }
+
+    async softDeleteByChartUuid(
+        chartUuid: string,
+        userUuid: string,
+    ): Promise<void> {
+        await this.database(SchedulerTableName)
+            .update({
+                deleted_at: new Date(),
+                deleted_by_user_uuid: userUuid,
+            })
+            .where('saved_chart_uuid', chartUuid)
+            .whereNull('deleted_at');
+    }
+
+    async softDeleteByDashboardUuid(
+        dashboardUuid: string,
+        userUuid: string,
+    ): Promise<SchedulerDb> {
+        const [scheduler] = await this.database(SchedulerTableName)
+            .update({
+                deleted_at: new Date(),
+                deleted_by_user_uuid: userUuid,
+            })
+            .where('dashboard_uuid', dashboardUuid)
+            .whereNull('deleted_at')
+            .returning('*');
+
+        return scheduler;
+    }
+
+    async restoreByChartUuid(chartUuid: string): Promise<void> {
+        await this.database(SchedulerTableName)
+            .update({
+                deleted_at: null,
+                deleted_by_user_uuid: null,
+            })
+            .where('saved_chart_uuid', chartUuid)
+            .whereNotNull('deleted_at');
+    }
+
+    async restoreByDashboardUuid(dashboardUuid: string): Promise<void> {
+        await this.database(SchedulerTableName)
+            .update({
+                deleted_at: null,
+                deleted_by_user_uuid: null,
+            })
+            .where('dashboard_uuid', dashboardUuid)
+            .whereNotNull('deleted_at');
+    }
+
     static parseSchedulerLog(logDb: SchedulerLogDb): SchedulerLog {
         return {
             task: logDb.task as SchedulerLog['task'],
@@ -900,6 +961,7 @@ export class SchedulerModel {
                 `${SavedChartsTableName}.name as saved_chart_name`,
                 `${DashboardsTableName}.name as dashboard_name`,
             )
+            .whereNull(`${SchedulerTableName}.deleted_at`)
             .leftJoin(
                 UserTableName,
                 `${UserTableName}.user_uuid`,
@@ -955,6 +1017,7 @@ export class SchedulerModel {
                 this.database.raw(`NULL as saved_chart_name`),
                 `${DashboardsTableName}.name as dashboard_name`,
             )
+            .whereNull(`${SchedulerTableName}.deleted_at`)
             .leftJoin(
                 UserTableName,
                 `${UserTableName}.user_uuid`,
@@ -1871,6 +1934,7 @@ export class SchedulerModel {
                 `${ProjectTableName}.project_uuid`,
                 `${ProjectTableName}.name as project_name`,
             )
+            .whereNull(`${SchedulerTableName}.deleted_at`)
             .innerJoin(SavedChartsTableName, function nonDeletedChartJoin() {
                 this.on(
                     `${SavedChartsTableName}.saved_query_uuid`,
@@ -1918,6 +1982,7 @@ export class SchedulerModel {
                 `${ProjectTableName}.project_uuid`,
                 `${ProjectTableName}.name as project_name`,
             )
+            .whereNull(`${SchedulerTableName}.deleted_at`)
             .innerJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
                 this.on(
                     `${DashboardsTableName}.dashboard_uuid`,
@@ -1999,6 +2064,7 @@ export class SchedulerModel {
             .select<{ scheduler_uuid: string }[]>(
                 `${SchedulerTableName}.scheduler_uuid`,
             )
+            .whereNull(`${SchedulerTableName}.deleted_at`)
             .innerJoin(SavedChartsTableName, function nonDeletedChartJoin() {
                 this.on(
                     `${SavedChartsTableName}.saved_query_uuid`,
@@ -2041,6 +2107,7 @@ export class SchedulerModel {
             .select<{ scheduler_uuid: string }[]>(
                 `${SchedulerTableName}.scheduler_uuid`,
             )
+            .whereNull(`${SchedulerTableName}.deleted_at`)
             .innerJoin(DashboardsTableName, function nonDeletedDashboardJoin() {
                 this.on(
                     `${DashboardsTableName}.dashboard_uuid`,
@@ -2088,6 +2155,7 @@ export class SchedulerModel {
         const result = await this.database(SchedulerTableName)
             .where('created_by', userUuid)
             .where('format', SchedulerFormat.GSHEETS)
+            .whereNull('deleted_at')
             .first();
 
         return !!result;
