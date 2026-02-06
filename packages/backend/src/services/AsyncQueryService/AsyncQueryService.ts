@@ -1307,6 +1307,8 @@ export class AsyncQueryService extends ProjectService {
                   await write?.(rows);
               };
 
+        console.log(query);
+
         const warehouseResults = await warehouseClient.executeAsyncQuery(
             {
                 sql: query,

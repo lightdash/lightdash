@@ -1,6 +1,9 @@
+import { subject } from '@casl/ability';
 import {
     NotFoundError,
     resolveSpaceAccess,
+    type AbilityAction,
+    type SessionUser,
     type SpaceAccess,
 } from '@lightdash/common';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -22,7 +25,25 @@ export class SpacePermissionService extends BaseService {
         super();
     }
 
-    async getAccessContext(
+    async can(
+        action: AbilityAction,
+        actor: SessionUser,
+        spaceUuids: string[] | string,
+    ): Promise<boolean> {
+        const spaceUuidsArray = Array.isArray(spaceUuids)
+            ? spaceUuids
+            : [spaceUuids];
+
+        const accessContext = await this.getAccessContext(spaceUuidsArray, {
+            userUuid: actor.userUuid,
+        });
+
+        return Object.values(accessContext).every((access) =>
+            actor.ability.can(action, subject('Space', access)),
+        );
+    }
+
+    private async getAccessContext(
         spaceUuidsArg: string[],
         filters?: { userUuid?: string },
     ): Promise<Record<string, SpaceAccessForCasl>> {
