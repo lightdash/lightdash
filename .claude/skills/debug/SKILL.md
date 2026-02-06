@@ -1,7 +1,6 @@
 ---
 name: debug
 description: Debug the Lightdash app using PM2 logs, Spotlight traces, and browser automation. Use when investigating issues, tracking down bugs, understanding request flow, or correlating frontend actions with backend behavior.
-allowed-tools: Bash, Read, mcp__spotlight__search_traces, mcp__spotlight__get_traces, mcp__spotlight__search_errors, mcp__spotlight__search_logs, mcp__chrome-devtools__*
 ---
 
 # Debugging Lightdash
