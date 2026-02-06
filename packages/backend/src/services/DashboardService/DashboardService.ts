@@ -193,7 +193,7 @@ export class DashboardService
 
         await Promise.all(
             orphanedCharts.map(async (chart) => {
-                const deletedChart = await this.savedChartModel.delete(
+                const deletedChart = await this.savedChartModel.permanentDelete(
                     chart.uuid,
                 );
                 this.analytics.track({

@@ -29,13 +29,13 @@ export const numberWeeklyQueryingUsersSql = (
     userUuids: string[],
     projectUuid: string,
 ) => `
-select 
+select
   100 * COUNT(DISTINCT(user_uuid)) / ${userUuids.length} AS count
 from analytics_chart_views
-  left join saved_queries sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid
-  left join spaces s on s.space_id  = sq.space_id 
+  left join saved_queries sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid AND sq.deleted_at IS NULL
+  left join spaces s on s.space_id  = sq.space_id
   left join projects on projects.project_id = s.project_id
-WHERE user_uuid in ('${userUuids.join(`','`)}') 
+WHERE user_uuid in ('${userUuids.join(`','`)}')
   AND projects.project_uuid = '${projectUuid}'
   AND timestamp between NOW() - interval '7 days' and NOW()
 `;
@@ -44,21 +44,21 @@ export const tableMostQueriesSql = (
     userUuids: string[],
     projectUuid: string,
 ) => `
-select 
-  users.user_uuid, 
-  users.first_name, 
-  users.last_name, 
+select
+  users.user_uuid,
+  users.first_name,
+  users.last_name,
   COUNT(analytics_chart_views.chart_uuid)
 from analytics_chart_views
   LEFT JOIN users ON users.user_uuid = analytics_chart_views.user_uuid
-  left join saved_queries sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid
-  left join spaces s on s.space_id  = sq.space_id 
+  left join saved_queries sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid AND sq.deleted_at IS NULL
+  left join spaces s on s.space_id  = sq.space_id
   left join projects on projects.project_id = s.project_id
-WHERE users.user_uuid in ('${userUuids.join(`','`)}') 
+WHERE users.user_uuid in ('${userUuids.join(`','`)}')
   AND projects.project_uuid = '${projectUuid}'
   AND timestamp between NOW() - interval '7 days' and NOW()
-GROUP BY users.user_uuid, 
-  users.first_name, 
+GROUP BY users.user_uuid,
+  users.first_name,
   users.last_name
 ORDER BY COUNT(analytics_chart_views.user_uuid) DESC
 
@@ -68,51 +68,49 @@ export const tableMostCreatedChartsSql = (
     userUuids: string[],
     projectUuid: string,
 ) => `
-select 
-  users.user_uuid, 
+select
+  users.user_uuid,
   users.first_name,
-  users.last_name, 
+  users.last_name,
   COUNT(saved_queries_versions.updated_by_user_uuid)
 from saved_queries_versions
   LEFT JOIN users ON users.user_uuid = saved_queries_versions.updated_by_user_uuid
-  left join saved_queries sq on sq.saved_query_id = saved_queries_versions.saved_query_id
-  left join spaces s on s.space_id  = sq.space_id 
+  left join saved_queries sq on sq.saved_query_id = saved_queries_versions.saved_query_id AND sq.deleted_at IS NULL
+  left join spaces s on s.space_id  = sq.space_id
   left join projects on projects.project_id = s.project_id
-WHERE users.user_uuid in ('${userUuids.join(`','`)}') 
+WHERE users.user_uuid in ('${userUuids.join(`','`)}')
   AND projects.project_uuid = '${projectUuid}'
   AND saved_queries_versions.created_at between NOW() - interval '7 days' and NOW()
-GROUP BY 
-  users.user_uuid, 
-  users.first_name, 
+GROUP BY
+  users.user_uuid,
+  users.first_name,
   users.last_name
 ORDER BY COUNT(saved_queries_versions.updated_by_user_uuid) DESC
 limit 10
 `;
 
 export const tableNoQueriesSql = (userUuids: string[], projectUuid: string) => `
-select 
-  users.user_uuid, 
-  MIN(users.first_name) as first_name, 
+select
+  users.user_uuid,
+  MIN(users.first_name) as first_name,
   MIN(users.last_name) as last_name,
-  EXTRACT(DAY FROM  NOW() - COALESCE(MAX(analytics_chart_views.timestamp), MAX(users.created_at) ))   as count 
+  EXTRACT(DAY FROM  NOW() - COALESCE(MAX(analytics_chart_views.timestamp), MAX(users.created_at) ))   as count
 from users
   LEFT JOIN analytics_chart_views ON users.user_uuid = analytics_chart_views.user_uuid
-  left join saved_queries sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid
-  left join spaces s on s.space_id  = sq.space_id 
+  left join saved_queries sq on sq.saved_query_uuid = analytics_chart_views.chart_uuid AND sq.deleted_at IS NULL
+  left join spaces s on s.space_id  = sq.space_id
   left join projects on projects.project_id = s.project_id
-WHERE users.user_uuid in ('${userUuids.join(
-    `','`,
-)}') AND users.first_name <> '' 
-  AND 
+WHERE users.user_uuid in ('${userUuids.join(`','`)}') AND users.first_name <> ''
+  AND
   (
-    ( 
+    (
       projects.project_uuid = '${projectUuid}'
       AND analytics_chart_views.timestamp <> null
       AND analytics_chart_views.timestamp < NOW() - interval '90 days'
     )
-    OR 
+    OR
     (
-      analytics_chart_views.timestamp is null 
+      analytics_chart_views.timestamp is null
       AND users.created_at < NOW() - interval '90 days'
     )
   )
@@ -143,8 +141,8 @@ query_executed AS (
     user_uuid,
     COUNT(DISTINCT(chart_uuid)) AS num_queries_executed
   FROM analytics_chart_views acv  -- this is a table with one row per query executed
-    left join saved_queries sq on sq.saved_query_uuid = acv.chart_uuid
-    left join spaces s on s.space_id  = sq.space_id 
+    left join saved_queries sq on sq.saved_query_uuid = acv.chart_uuid AND sq.deleted_at IS NULL
+    left join spaces s on s.space_id  = sq.space_id
     left join projects on projects.project_id = s.project_id
   WHERE  projects.project_uuid = '${projectUuid}'
   GROUP BY 1, 2
@@ -198,13 +196,13 @@ order by date desc
 `;
 
 export const chartViewsSql = (projectUuid: string) => `
-SELECT  
-  count(chart_uuid) as count, 
-  chart_uuid as uuid, 
+SELECT
+  count(chart_uuid) as count,
+  chart_uuid as uuid,
   sq.name
 FROM public.analytics_chart_views
-  left join saved_queries sq on sq.saved_query_uuid  = chart_uuid 
-  left join spaces s on s.space_id  = sq.space_id 
+  left join saved_queries sq on sq.saved_query_uuid  = chart_uuid AND sq.deleted_at IS NULL
+  left join spaces s on s.space_id  = sq.space_id
   left join projects on projects.project_id = s.project_id
 where projects.project_uuid = '${projectUuid}'
 group by chart_uuid, sq.name
@@ -259,7 +257,7 @@ WHERE rank = 1;
  * Parameters: project_uuid
  */
 export const unusedChartsSql = () => `
-SELECT 
+SELECT
   sq.name as content_name,
   sq.created_at,
   sq.saved_query_uuid as content_uuid,
@@ -269,18 +267,18 @@ SELECT
   MAX(cv.timestamp) as last_viewed_at,
   COUNT(cv.chart_uuid) as views_count,
   (
-    SELECT acv.user_uuid 
-    FROM analytics_chart_views acv 
+    SELECT acv.user_uuid
+    FROM analytics_chart_views acv
     WHERE acv.chart_uuid = sq.saved_query_uuid
-    ORDER BY acv.timestamp DESC 
+    ORDER BY acv.timestamp DESC
     LIMIT 1
   ) as last_viewed_by_user_uuid,
   (
     SELECT u.first_name || ' ' || u.last_name
-    FROM analytics_chart_views acv 
+    FROM analytics_chart_views acv
     LEFT JOIN users u ON u.user_uuid = acv.user_uuid
     WHERE acv.chart_uuid = sq.saved_query_uuid
-    ORDER BY acv.timestamp DESC 
+    ORDER BY acv.timestamp DESC
     LIMIT 1
   ) as last_viewed_by_user_name
 FROM saved_queries sq
@@ -289,14 +287,15 @@ LEFT JOIN spaces s ON s.space_id = sq.space_id
 LEFT JOIN projects p ON p.project_id = s.project_id
 LEFT JOIN analytics_chart_views cv ON cv.chart_uuid = sq.saved_query_uuid
 WHERE p.project_uuid = ?
-GROUP BY 
-  sq.name, 
+  AND sq.deleted_at IS NULL
+GROUP BY
+  sq.name,
   sq.created_at,
-  sq.saved_query_uuid, 
+  sq.saved_query_uuid,
   sq.last_version_updated_by_user_uuid,
   cu.first_name,
   cu.last_name
-ORDER BY 
+ORDER BY
   MAX(cv.timestamp) ASC NULLS FIRST,
   COUNT(cv.chart_uuid) ASC,
   sq.created_at ASC
