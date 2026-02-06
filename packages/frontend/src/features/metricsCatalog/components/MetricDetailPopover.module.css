@@ -10,6 +10,7 @@
     overflow-y: auto;
     font-size: var(--mantine-font-size-xs);
     white-space: pre-wrap;
+    max-height: 300px;
 }
 
 .compiledToggle {

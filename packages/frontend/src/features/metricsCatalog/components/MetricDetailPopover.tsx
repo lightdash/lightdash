@@ -130,7 +130,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
     const sqlToShow = showCompiled ? metric.compiledSql : metric.sql;
 
     return (
-        <Stack gap="xs" w={compiledQueryConfig ? 360 : 300}>
+        <Stack gap="xs" w={compiledQueryConfig ? 400 : 300}>
             <Group gap="xs" wrap="nowrap" justify="space-between">
                 <Group gap="xs" wrap="nowrap">
                     <MantineIcon icon={IconTable} color="gray.6" size={14} />
