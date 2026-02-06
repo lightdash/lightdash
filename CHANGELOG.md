@@ -1,3 +1,10 @@
+## [0.2436.3](https://github.com/lightdash/lightdash/compare/0.2436.2...0.2436.3) (2026-02-06)
+
+
+### Bug Fixes
+
+* don't create cte_unaffected with empty SELECT clause ([#19992](https://github.com/lightdash/lightdash/issues/19992)) ([0c2ebc4](https://github.com/lightdash/lightdash/commit/0c2ebc425998140e5ee4110e1f7edcb67bbc99d4))
+
 ## [0.2436.2](https://github.com/lightdash/lightdash/compare/0.2436.1...0.2436.2) (2026-02-06)
 
 
