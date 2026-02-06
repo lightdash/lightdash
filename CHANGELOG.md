@@ -1,3 +1,10 @@
+# [0.2435.0](https://github.com/lightdash/lightdash/compare/0.2434.3...0.2435.0) (2026-02-06)
+
+
+### Features
+
+* update page spinner to shimmer logo ([#20052](https://github.com/lightdash/lightdash/issues/20052)) ([7392a52](https://github.com/lightdash/lightdash/commit/7392a52d9b7cd14ee159d8a89e80994914f923df))
+
 ## [0.2434.3](https://github.com/lightdash/lightdash/compare/0.2434.2...0.2434.3) (2026-02-06)
 
 
