@@ -60,6 +60,7 @@
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: var(--mantine-radius-md);
     background-color: var(--mantine-color-white);
+    box-shadow: var(--mantine-shadow-subtle);
     white-space: nowrap;
     color: var(--input-color);
 
