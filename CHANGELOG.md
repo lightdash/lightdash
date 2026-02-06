@@ -1,3 +1,17 @@
+# [0.2436.0](https://github.com/lightdash/lightdash/compare/0.2435.0...0.2436.0) (2026-02-06)
+
+
+### Bug Fixes
+
+* add venv/bin to PATH for PM2 api and scheduler processes ([#20058](https://github.com/lightdash/lightdash/issues/20058)) ([071cac3](https://github.com/lightdash/lightdash/commit/071cac383fb51505fc5ebfc4a3c97775558e067f))
+
+
+### Features
+
+* add `showValue` and `showSeriesName` options for chart value labels ([#20038](https://github.com/lightdash/lightdash/issues/20038)) ([a8fc853](https://github.com/lightdash/lightdash/commit/a8fc853c0b6e12bd63a4a5fa6a234521e91395f5)), closes [#19938](https://github.com/lightdash/lightdash/issues/19938) [#20049](https://github.com/lightdash/lightdash/issues/20049)
+* add cross filtering for maps ([#20055](https://github.com/lightdash/lightdash/issues/20055)) ([07813fd](https://github.com/lightdash/lightdash/commit/07813fd2e2974813cbf179491b7f0a2aa2fffe82))
+* display pivoted results in the frontend ([#19464](https://github.com/lightdash/lightdash/issues/19464)) ([368d336](https://github.com/lightdash/lightdash/commit/368d336c70372ac3e3acba27361da547805df3da))
+
 # [0.2435.0](https://github.com/lightdash/lightdash/compare/0.2434.3...0.2435.0) (2026-02-06)
 
 
