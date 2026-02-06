@@ -22,13 +22,18 @@ export class SpacePermissionService extends BaseService {
         spaceUuidsArg: string[],
         filters?: { userUuid?: string },
     ): Promise<Record<string, SpaceAccessForCasl>> {
-        const spaceUuids = await Promise.all(
-            spaceUuidsArg.map((uuid) =>
-                this.spaceModel
-                    .getSpaceRootFromCacheOrDB(uuid)
-                    .then((r) => r.spaceRoot),
+        const uniqueInputUuids = [...new Set(spaceUuidsArg)];
+        const spaceUuids = [
+            ...new Set(
+                await Promise.all(
+                    uniqueInputUuids.map((uuid) =>
+                        this.spaceModel
+                            .getSpaceRootFromCacheOrDB(uuid)
+                            .then((r) => r.spaceRoot),
+                    ),
+                ),
             ),
-        );
+        ];
 
         const [directAccessMap, projectAccessMap, orgAccessMap, spaceInfo] =
             await Promise.all([
