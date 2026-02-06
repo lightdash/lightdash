@@ -1,3 +1,10 @@
+## [0.2434.1](https://github.com/lightdash/lightdash/compare/0.2434.0...0.2434.1) (2026-02-06)
+
+
+### Bug Fixes
+
+* preserve canvas nodes position when updating  timeFrame and rollingDays ([#20022](https://github.com/lightdash/lightdash/issues/20022)) ([718b9ef](https://github.com/lightdash/lightdash/commit/718b9efe3d80880f7b9b29a70b2b9eaa2a455c1c))
+
 # [0.2434.0](https://github.com/lightdash/lightdash/compare/0.2433.1...0.2434.0) (2026-02-06)
 
 
