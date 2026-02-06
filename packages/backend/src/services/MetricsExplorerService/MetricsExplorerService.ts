@@ -109,7 +109,6 @@ export class MetricsExplorerService extends BaseService {
             projectUuid,
             exploreName,
             metricName,
-            granularity,
         );
 
         if (!metric.timeDimension) {
@@ -339,7 +338,6 @@ export class MetricsExplorerService extends BaseService {
             projectUuid,
             exploreName,
             metricName,
-            granularity,
         );
 
         if (!metric.timeDimension) {
