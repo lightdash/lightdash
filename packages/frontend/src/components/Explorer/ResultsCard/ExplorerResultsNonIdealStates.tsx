@@ -82,8 +82,6 @@ export const EmptyStateNoColumns = () => {
                     Pick a metric & select its dimensions{' '}
                     <DocumentationHelpButton
                         href={ExploreDocumentationUrl}
-                        pos="relative"
-                        top={2}
                         iconProps={{ size: 'lg' }}
                     />
                 </>
@@ -164,11 +162,7 @@ export const EmptyStateNoTableData: FC<{ description: React.ReactNode }> = ({
             description={
                 <>
                     {description}{' '}
-                    <DocumentationHelpButton
-                        href={ExploreDocumentationUrl}
-                        pos="relative"
-                        top={2}
-                    />
+                    <DocumentationHelpButton href={ExploreDocumentationUrl} />
                 </>
             }
         >
@@ -186,11 +180,7 @@ export const NoTableSelected = () => (
             <>
                 To run a query, first select the table that you would like to
                 explore.{' '}
-                <DocumentationHelpButton
-                    href={ExploreDocumentationUrl}
-                    pos="relative"
-                    top={2}
-                />
+                <DocumentationHelpButton href={ExploreDocumentationUrl} />
             </>
         }
     />

@@ -102,17 +102,9 @@ const SchedulersModal: FC<
                 icon={isThresholdAlert ? IconBell : IconSend}
                 headerActions={
                     isThresholdAlert ? (
-                        <DocumentationHelpButton
-                            href="https://docs.lightdash.com/guides/how-to-create-alerts"
-                            pos="relative"
-                            top="2px"
-                        />
+                        <DocumentationHelpButton href="https://docs.lightdash.com/guides/how-to-create-alerts" />
                     ) : (
-                        <DocumentationHelpButton
-                            href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries"
-                            pos="relative"
-                            top="2px"
-                        />
+                        <DocumentationHelpButton href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries" />
                     )
                 }
                 modalBodyProps={{ bg: 'background' }}

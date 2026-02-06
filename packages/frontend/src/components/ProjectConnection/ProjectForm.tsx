@@ -52,11 +52,7 @@ export const ProjectForm: FC<Props> = ({
                     {warehouse && getWarehouseIcon(warehouse)}
                     <Flex align="center" gap={2}>
                         <Title order={5}>Warehouse connection</Title>
-                        <DocumentationHelpButton
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection"
-                            pos="relative"
-                            top="2px"
-                        />
+                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#warehouse-connection" />
                     </Flex>
 
                     {health.data?.staticIp && (
@@ -81,11 +77,7 @@ export const ProjectForm: FC<Props> = ({
 
                     <Flex align="center" gap={2}>
                         <Title order={5}>dbt connection</Title>
-                        <DocumentationHelpButton
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
-                            pos="relative"
-                            top="2px"
-                        />
+                        <DocumentationHelpButton href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project" />
                     </Flex>
                 </div>
 

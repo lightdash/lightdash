@@ -31,14 +31,11 @@ const DocumentationHelpButton: FC<Props> = ({
             target="_blank"
             rel="noreferrer"
             color="dimmed"
+            display="inline-flex"
+            style={{ verticalAlign: 'middle' }}
             {...anchorProps}
         >
-            <MantineIcon
-                icon={IconHelpCircle}
-                size="md"
-                display="inline"
-                {...iconProps}
-            />
+            <MantineIcon icon={IconHelpCircle} size="md" {...iconProps} />
         </Anchor>
     </Tooltip>
 );
