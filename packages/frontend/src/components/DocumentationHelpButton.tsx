@@ -30,7 +30,7 @@ const DocumentationHelpButton: FC<Props> = ({
             role="button"
             target="_blank"
             rel="noreferrer"
-            color="dimmed"
+            c="dimmed"
             {...anchorProps}
         >
             <MantineIcon
