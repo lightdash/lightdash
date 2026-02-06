@@ -1069,7 +1069,6 @@ export class CatalogService<
         user,
         projectUuid,
         metrics,
-        timeIntervalOverride,
         userAttributes,
         addDefaultTimeDimension = true,
     }: {
@@ -1079,7 +1078,6 @@ export class CatalogService<
             tableName: string;
             metricName: string;
         }[];
-        timeIntervalOverride?: TimeFrames;
         userAttributes?: UserAttributeValueMap;
         addDefaultTimeDimension?: boolean;
     }): Promise<MetricWithAssociatedTimeDimension[]> {
@@ -1145,7 +1143,7 @@ export class CatalogService<
                     | undefined;
 
                 // If no default time dimension is defined, we can use the available time dimensions so the user can see what time dimensions are available
-                if (!defaultTimeDimension || timeIntervalOverride) {
+                if (!defaultTimeDimension) {
                     availableTimeDimensions =
                         getAvailableTimeDimensionsFromTables(tables);
                 }
@@ -1154,7 +1152,7 @@ export class CatalogService<
                     | MetricWithAssociatedTimeDimension['timeDimension']
                     | undefined;
 
-                if (defaultTimeDimension && !timeIntervalOverride) {
+                if (defaultTimeDimension) {
                     timeDimension = {
                         field: defaultTimeDimension.field,
                         interval: defaultTimeDimension.interval,
@@ -1176,9 +1174,7 @@ export class CatalogService<
 
                     timeDimension = {
                         field: firstAvailableTimeDimension.name,
-                        interval:
-                            timeIntervalOverride ??
-                            DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+                        interval: DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
                         table: firstAvailableTimeDimension.table,
                     };
                 }
@@ -1204,13 +1200,11 @@ export class CatalogService<
         projectUuid: string,
         tableName: string,
         metricName: string,
-        timeIntervalOverride?: TimeFrames,
     ) {
         const metrics = await this.getMetrics({
             user,
             projectUuid,
             metrics: [{ tableName, metricName }],
-            timeIntervalOverride,
         });
 
         if (metrics.length === 0) {
