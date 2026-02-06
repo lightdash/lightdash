@@ -6,10 +6,12 @@ import { useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import { useProject } from '../../hooks/useProject';
+import { useImpersonation } from '../../hooks/user/useImpersonation';
 import useFullscreen from '../../providers/Fullscreen/useFullscreen';
 import Mantine8Provider from '../../providers/Mantine8Provider';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
+import { ImpersonationBanner } from './ImpersonationBanner';
 import { MainNavBarContent } from './MainNavBarContent';
 import { PreviewBanner } from './PreviewBanner';
 import classes from './index.module.css';
@@ -63,12 +65,15 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     const { data: project } = useProject(activeProjectUuid);
 
     const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
+    const { isImpersonating } = useImpersonation();
 
     const { navBarMode } = useNavBarMode();
 
-    // Calculate placeholder height: navbar + banner (if preview project)
+    const hasBanner = isImpersonating || isCurrentProjectPreview;
+
+    // Calculate placeholder height: navbar + banner (if preview or impersonating)
     const headerContainerHeight =
-        NAVBAR_HEIGHT + (isCurrentProjectPreview ? BANNER_HEIGHT : 0);
+        NAVBAR_HEIGHT + (hasBanner ? BANNER_HEIGHT : 0);
 
     // Scoped dark theme for the navbar using Mantine 8's cssVariablesSelector + getRootElement.
     // This is the recommended approach for scoped theming, though it has known CSS specificity
@@ -83,7 +88,11 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                     document.getElementById('navbar-header') ?? undefined
                 }
             >
-                {isCurrentProjectPreview && <PreviewBanner />}
+                {isImpersonating ? (
+                    <ImpersonationBanner />
+                ) : (
+                    isCurrentProjectPreview && <PreviewBanner />
+                )}
                 <Box
                     component="header"
                     h={NAVBAR_HEIGHT}
@@ -93,7 +102,7 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                         navBarMode === NavBarMode.EDITING_DASHBOARD_CHART &&
                             classes.headerEditingDashboardChart,
                     )}
-                    mt={isCurrentProjectPreview ? BANNER_HEIGHT : 0}
+                    mt={hasBanner ? BANNER_HEIGHT : 0}
                     display={isFullscreen ? 'none' : 'flex'}
                     px="md"
                 >
