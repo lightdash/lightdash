@@ -36,6 +36,7 @@ import {
 } from '../../hooks/useRefreshServer';
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import MantineIcon from '../common/MantineIcon';
+import { NAVBAR_HEIGHT } from '../common/Page/constants';
 import ProjectCompileLog from './ProjectCompileLog';
 
 dayjs.extend(duration);
@@ -136,6 +137,11 @@ const JobDetailsDrawer: FC = () => {
             position="right"
             opened={isJobsDrawerOpen}
             onClose={() => setIsJobsDrawerOpen(false)}
+            styles={{
+                inner: {
+                    paddingTop: NAVBAR_HEIGHT,
+                },
+            }}
             title={
                 <Group noWrap align="center" spacing="xs">
                     <DrawerIcon job={activeJob} />
