@@ -1,3 +1,10 @@
+## [0.2436.4](https://github.com/lightdash/lightdash/compare/0.2436.3...0.2436.4) (2026-02-06)
+
+
+### Bug Fixes
+
+* support lightdash yaml on deploy ([#19995](https://github.com/lightdash/lightdash/issues/19995)) ([8f5cd45](https://github.com/lightdash/lightdash/commit/8f5cd45d4941dbbd2a0baa3ba41f52d706fda82e))
+
 ## [0.2436.3](https://github.com/lightdash/lightdash/compare/0.2436.2...0.2436.3) (2026-02-06)
 
 
