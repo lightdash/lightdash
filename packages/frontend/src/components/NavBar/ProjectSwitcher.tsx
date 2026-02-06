@@ -13,6 +13,7 @@ import {
     Group,
     Highlight,
     Menu,
+    ScrollArea,
     Stack,
     Text,
     TextInput,
@@ -49,7 +50,7 @@ const MENU_TEXT_PROPS = {
     fw: 500,
 };
 
-type GroupState = 'expanded' | 'collapsed' | 'filtered';
+type GroupState = 'expanded' | 'collapsed';
 
 interface GroupStates {
     base: GroupState;
@@ -214,27 +215,11 @@ const ProjectSwitcher = () => {
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
 
     const handleGroupToggle = useCallback((groupType: 'base' | 'preview') => {
-        setGroupStates((prev) => {
-            const currentState = prev[groupType];
-
-            // Cycle through states: expanded -> collapsed -> filtered -> expanded
-            switch (currentState) {
-                case 'expanded':
-                    return { ...prev, [groupType]: 'collapsed' };
-                case 'collapsed':
-                    // Enter filter mode: this group filtered, other collapsed
-                    if (groupType === 'base') {
-                        return { base: 'filtered', preview: 'collapsed' };
-                    } else {
-                        return { base: 'collapsed', preview: 'filtered' };
-                    }
-                case 'filtered':
-                    // Back to default: both expanded
-                    return { base: 'expanded', preview: 'expanded' };
-                default:
-                    return prev;
-            }
-        });
+        setGroupStates((prev) => ({
+            ...prev,
+            [groupType]:
+                prev[groupType] === 'collapsed' ? 'expanded' : 'collapsed',
+        }));
     }, []);
 
     const routeMatches =
@@ -381,7 +366,7 @@ const ProjectSwitcher = () => {
             previewProjects: preview,
             shouldShowBase: showBase && base.length > 0,
             shouldShowPreview: showPreview && preview.length > 0,
-            showSearchInput: base.length + preview.length > 2,
+            showSearchInput: availableProjects.length > 2,
         };
     }, [
         activeProjectUuid,
@@ -492,7 +477,7 @@ const ProjectSwitcher = () => {
                                     isVisible={shouldShowBase}
                                 />
                                 <Collapse in={shouldShowBase}>
-                                    <Box className={classes.projectsScroll}>
+                                    <ScrollArea.Autosize mah={200}>
                                         <Stack gap={0}>
                                             {baseProjects.map((item) => (
                                                 <ProjectItem
@@ -511,10 +496,11 @@ const ProjectSwitcher = () => {
                                                 />
                                             ))}
                                         </Stack>
-                                    </Box>
+                                    </ScrollArea.Autosize>
                                 </Collapse>
                             </Box>
                         )}
+                        {}
 
                         {/* Preview Projects Group */}
                         {!isLoadingProjects && previewProjects.length > 0 && (
@@ -531,7 +517,7 @@ const ProjectSwitcher = () => {
                                     isVisible={shouldShowPreview}
                                 />
                                 <Collapse in={shouldShowPreview}>
-                                    <Box className={classes.projectsScroll}>
+                                    <ScrollArea.Autosize mah={200}>
                                         <Stack gap={0}>
                                             {previewProjects.map((item) => (
                                                 <ProjectItem
@@ -550,7 +536,7 @@ const ProjectSwitcher = () => {
                                                 />
                                             ))}
                                         </Stack>
-                                    </Box>
+                                    </ScrollArea.Autosize>
                                 </Collapse>
                             </Box>
                         )}
@@ -578,9 +564,6 @@ const ProjectSwitcher = () => {
 
                     {userCanCreatePreview && (
                         <Box className={classes.stickyFooter}>
-                            {(baseProjects.length > 0 ||
-                                previewProjects.length > 0) && <Menu.Divider />}
-
                             <Menu.Item
                                 onClick={(
                                     e: React.MouseEvent<HTMLButtonElement>,

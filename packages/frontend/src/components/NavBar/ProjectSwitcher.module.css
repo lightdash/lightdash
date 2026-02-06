@@ -1,7 +1,6 @@
 .dropdown {
     min-width: 250px;
-    max-height: 450px;
-    overflow: auto;
+    overflow: visible;
 }
 
 .groupHeader {
@@ -28,11 +27,7 @@
 }
 
 .searchHeader {
-    position: sticky;
-    top: 0;
-    background-color: var(--mantine-color-gray-9);
     padding: var(--mantine-spacing-sm);
-    box-shadow: 0 2px 8px var(--mantine-color-gray-9);
     border-bottom: 1px solid var(--mantine-color-dark-4);
 }
 
@@ -45,15 +40,6 @@
     }
 }
 
-.projectsScroll {
-    max-height: 200px;
-    overflow: auto;
-}
-
 .stickyFooter {
-    position: sticky;
-    bottom: 0;
-    background-color: var(--mantine-color-gray-9);
-    /* fixes scroll overlap */
-    box-shadow: 0 4px var(--mantine-color-gray-9);
+    border-top: 1px solid var(--mantine-color-dark-4);
 }
