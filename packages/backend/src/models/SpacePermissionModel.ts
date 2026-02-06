@@ -120,7 +120,7 @@ export class SpacePermissionModel {
         filters?: { userUuid?: string },
     ): Promise<Record<string, ProjectSpaceAccess[]>> {
         return wrapSentryTransaction(
-            'SpaceModel.getProjectAccess',
+            'SpaceModel.getProjectSpaceAccess',
             { spaceUuidsCount: spaceUuids.length },
             async () => {
                 const projectSpacesAccess: ProjectSpaceAccess[] =
@@ -226,7 +226,7 @@ export class SpacePermissionModel {
         filters?: { userUuid?: string },
     ): Promise<Record<string, OrganizationSpaceAccess[]>> {
         return wrapSentryTransaction(
-            'SpaceModel.getOrganizationAccess',
+            'SpaceModel.getOrganizationSpaceAccess',
             { spaceUuidsCount: spaceUuids.length },
             async () => {
                 const organizationSpacesAccess: OrganizationSpaceAccess[] =
@@ -292,45 +292,51 @@ export class SpacePermissionModel {
             }
         >
     > {
-        if (spaceUuids.length === 0) {
-            return {};
-        }
-
-        const rows = await this.database(SpaceTableName)
-            .select({
-                spaceUuid: `${SpaceTableName}.space_uuid`,
-                isPrivate: `${SpaceTableName}.is_private`,
-                projectUuid: `${ProjectTableName}.project_uuid`,
-                organizationUuid: `${OrganizationTableName}.organization_uuid`,
-            })
-            .innerJoin(
-                ProjectTableName,
-                `${ProjectTableName}.project_id`,
-                `${SpaceTableName}.project_id`,
-            )
-            .innerJoin(
-                OrganizationTableName,
-                `${OrganizationTableName}.organization_id`,
-                `${ProjectTableName}.organization_id`,
-            )
-            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids);
-
-        return rows.reduce<
-            Record<
-                string,
-                {
-                    isPrivate: boolean;
-                    projectUuid: string;
-                    organizationUuid: string;
+        return wrapSentryTransaction(
+            'SpaceModel.getSpaceInfo',
+            { spaceUuidsCount: spaceUuids.length },
+            async () => {
+                if (spaceUuids.length === 0) {
+                    return {};
                 }
-            >
-        >((acc, row) => {
-            acc[row.spaceUuid] = {
-                isPrivate: row.isPrivate,
-                projectUuid: row.projectUuid,
-                organizationUuid: row.organizationUuid,
-            };
-            return acc;
-        }, {});
+
+                const rows = await this.database(SpaceTableName)
+                    .select({
+                        spaceUuid: `${SpaceTableName}.space_uuid`,
+                        isPrivate: `${SpaceTableName}.is_private`,
+                        projectUuid: `${ProjectTableName}.project_uuid`,
+                        organizationUuid: `${OrganizationTableName}.organization_uuid`,
+                    })
+                    .innerJoin(
+                        ProjectTableName,
+                        `${ProjectTableName}.project_id`,
+                        `${SpaceTableName}.project_id`,
+                    )
+                    .innerJoin(
+                        OrganizationTableName,
+                        `${OrganizationTableName}.organization_id`,
+                        `${ProjectTableName}.organization_id`,
+                    )
+                    .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids);
+
+                return rows.reduce<
+                    Record<
+                        string,
+                        {
+                            isPrivate: boolean;
+                            projectUuid: string;
+                            organizationUuid: string;
+                        }
+                    >
+                >((acc, row) => {
+                    acc[row.spaceUuid] = {
+                        isPrivate: row.isPrivate,
+                        projectUuid: row.projectUuid,
+                        organizationUuid: row.organizationUuid,
+                    };
+                    return acc;
+                }, {});
+            },
+        );
     }
 }
