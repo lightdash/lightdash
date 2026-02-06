@@ -1,5 +1,5 @@
 import { type ResourceViewSpaceItem } from '@lightdash/common';
-import { Group, Text, Tooltip } from '@mantine/core';
+import { Group, Text, Tooltip } from '@mantine-8/core';
 import { IconLock, IconUser, IconUsers } from '@tabler/icons-react';
 import React, { useMemo } from 'react';
 import MantineIcon from '../MantineIcon';
@@ -50,19 +50,19 @@ const ResourceAccessInfo: React.FC<ResourceAccessInfoProps> = ({
             // Hack the tooltip to never open when `withTooltip` is false
             opened={withTooltip ? undefined : false}
             label={
-                <Text lineClamp={1} fz="xs" fw={600} color="white">
+                <Text lineClamp={1} fz="xs" fw={600} c="white">
                     {getResourceAccessLabel(item)}
                 </Text>
             }
         >
-            <Group spacing={4}>
+            <Group gap={4}>
                 <MantineIcon
                     icon={Icon}
                     color={styles.color}
                     size={styles.size}
                 />
 
-                <Text size={styles.size} color={styles.color}>
+                <Text fz={styles.size} c={styles.color}>
                     {status}
                 </Text>
             </Group>

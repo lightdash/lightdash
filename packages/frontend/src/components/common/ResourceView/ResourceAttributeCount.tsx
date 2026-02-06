@@ -1,7 +1,6 @@
-import React from 'react';
-
-import { Flex, Text, Tooltip } from '@mantine/core';
+import { Flex, Text, Tooltip } from '@mantine-8/core';
 import { type Icon as IconType } from '@tabler/icons-react';
+import React from 'react';
 import MantineIcon from '../MantineIcon';
 
 const ResourceAttributeCount: React.FC<{
@@ -19,7 +18,7 @@ const ResourceAttributeCount: React.FC<{
                 <MantineIcon icon={Icon} color="ldGray.6" size={14} />
             )}
 
-            <Text size={14} color="ldGray.6" fz="xs">
+            <Text fz="xs" c="ldGray.6">
                 {count}
             </Text>
         </Flex>

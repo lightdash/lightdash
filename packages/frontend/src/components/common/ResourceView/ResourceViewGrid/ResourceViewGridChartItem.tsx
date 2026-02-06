@@ -17,8 +17,10 @@ import ResourceViewActionMenu, {
 } from '../ResourceActionMenu';
 import { getResourceViewsSinceWhenDescription } from '../resourceUtils';
 
-interface ResourceViewGridChartItemProps
-    extends Pick<ResourceViewActionMenuCommonProps, 'onAction'> {
+interface ResourceViewGridChartItemProps extends Pick<
+    ResourceViewActionMenuCommonProps,
+    'onAction'
+> {
     item: ResourceViewChartItem;
     allowDelete?: boolean;
     dragIcon: ReactNode;
@@ -68,6 +70,9 @@ const ResourceViewGridChartItem: FC<ResourceViewGridChartItemProps> = ({
                 <Tooltip
                     label={item.data.description}
                     position="top"
+                    variant="xs"
+                    maw={400}
+                    multiline
                     disabled={!item.data.description}
                 >
                     <Text lineClamp={2} fz="sm" fw={600}>
