@@ -76,6 +76,7 @@ import { VERSION } from './version';
 import PrometheusMetrics from './prometheus';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
 import { databricksPassportStrategy } from './controllers/authentication/strategies/databricksStrategy';
+import { impersonationMiddleware } from './middlewares/impersonationMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
@@ -539,6 +540,7 @@ export default class App {
         // Add JWT parsing here so we can get services off the request
         // We'll also be able to add the user to Sentry for embedded users.
         expressApp.use(jwtAuthMiddleware);
+        expressApp.use(impersonationMiddleware);
         expressApp.use(sessionAccountMiddleware);
 
         expressApp.use((req, res, next) => {

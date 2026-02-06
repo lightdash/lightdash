@@ -124,7 +124,7 @@ export type ApiUserAllowedOrganizationsResponse = {
  */
 export type ApiGetAuthenticatedUserResponse = {
     status: 'ok';
-    results: LightdashUser;
+    results: LightdashUser & { impersonation: ImpersonationInfo | null };
 };
 
 export type ApiRegisterUserResponse = {
@@ -148,6 +148,26 @@ export type LoginOptions = {
 export type ApiGetLoginOptionsResponse = {
     status: 'ok';
     results: LoginOptions;
+};
+
+export interface ImpersonationInfo {
+    adminUserUuid: string;
+    adminName: string;
+    impersonatedUserUuid: string;
+}
+
+export type ApiStartImpersonationRequest = {
+    targetUserUuid: string;
+};
+
+export type ApiStartImpersonationResponse = {
+    status: 'ok';
+    results: null;
+};
+
+export type ApiStopImpersonationResponse = {
+    status: 'ok';
+    results: null;
 };
 
 export type IntrinsicUserAttributes = {
