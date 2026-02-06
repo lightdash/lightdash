@@ -66,7 +66,7 @@ export const useDashboardChartReadyQuery = (
     contextOverride?: QueryExecutionContext,
 ) => {
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
-    const invalidateCache = useDashboardContext((c) => c.invalidateCache);
+    const invalidateCacheRef = useDashboardContext((c) => c.invalidateCacheRef);
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
     const parameterValues = useDashboardContext((c) => c.parameterValues);
@@ -220,6 +220,10 @@ export const useDashboardChartReadyQuery = (
             const isEmbedContext =
                 requestedContext === QueryExecutionContext.EMBED;
 
+            // Read from ref at execution time to get the current value
+            // (React state updates are async, but ref updates are synchronous)
+            const shouldInvalidateCache = invalidateCacheRef.current;
+
             const executeQueryResponse = isEmbedContext
                 ? await postEmbedDashboardTileQuery(
                       chartQuery.data.projectUuid,
@@ -230,7 +234,7 @@ export const useDashboardChartReadyQuery = (
                           dateZoom: {
                               granularity,
                           },
-                          invalidateCache,
+                          invalidateCache: shouldInvalidateCache,
                           parameters: parameterValues,
                           pivotResults: useSqlPivotResults?.enabled,
                       },
@@ -247,7 +251,7 @@ export const useDashboardChartReadyQuery = (
                           dateZoom: {
                               granularity,
                           },
-                          invalidateCache,
+                          invalidateCache: shouldInvalidateCache,
                           parameters: parameterValues,
                           pivotResults: useSqlPivotResults?.enabled,
                       },

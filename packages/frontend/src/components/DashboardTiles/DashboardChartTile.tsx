@@ -246,7 +246,7 @@ const ValidDashboardChartTile: FC<{
     );
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-    const invalidateCache = useDashboardContext((c) => c.invalidateCache);
+    const invalidateCacheRef = useDashboardContext((c) => c.invalidateCacheRef);
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
@@ -329,7 +329,7 @@ const ValidDashboardChartTile: FC<{
             pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             savedChartUuid={chart.uuid}
             dashboardFilters={dashboardFilters}
-            invalidateCache={invalidateCache}
+            invalidateCache={invalidateCacheRef.current}
             colorPalette={colorPalette}
             setEchartsRef={setEchartsRef}
             computedSeries={computedSeries}

@@ -13,7 +13,11 @@ import {
     type ResultColumn,
     type SortField,
 } from '@lightdash/common';
-import { type Dispatch, type SetStateAction } from 'react';
+import {
+    type Dispatch,
+    type MutableRefObject,
+    type SetStateAction,
+} from 'react';
 import {
     type useDashboardCommentsCheck,
     type useGetComments,
@@ -70,7 +74,7 @@ export type DashboardContextType = {
     setHaveFiltersChanged: Dispatch<SetStateAction<boolean>>;
     addResultsCacheTime: (cacheMetadata: CacheMetadata) => void;
     oldestCacheTime: Date | undefined;
-    invalidateCache: boolean | undefined;
+    invalidateCacheRef: MutableRefObject<boolean>;
     resetInvalidateCache: () => void;
     isAutoRefresh: boolean;
     setIsAutoRefresh: (autoRefresh: boolean) => void;
