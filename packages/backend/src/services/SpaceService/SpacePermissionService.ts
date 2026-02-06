@@ -122,7 +122,7 @@ export class SpacePermissionService extends BaseService {
             const space = spaceInfo[rootSpaceUuid];
             if (!space) {
                 throw new NotFoundError(
-                    'Space with uuid ${spaceUuid} not found',
+                    `Space with uuid ${rootSpaceUuid} not found`,
                 );
             }
 
