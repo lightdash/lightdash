@@ -1,3 +1,10 @@
+## [0.2433.1](https://github.com/lightdash/lightdash/compare/0.2433.0...0.2433.1) (2026-02-06)
+
+
+### Bug Fixes
+
+* react canvas attribution bg dark mode ([#20042](https://github.com/lightdash/lightdash/issues/20042)) ([b69098c](https://github.com/lightdash/lightdash/commit/b69098c01d6cbd40355aad4b7a98bf7f21e3235f))
+
 # [0.2433.0](https://github.com/lightdash/lightdash/compare/0.2432.1...0.2433.0) (2026-02-05)
 
 
