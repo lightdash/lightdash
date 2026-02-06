@@ -1,5 +1,5 @@
 import { getPasswordSchema } from '@lightdash/common';
-import { Group, Popover, Progress, Stack, Text } from '@mantine/core';
+import { Group, Popover, Progress, Stack, Text } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconCheck, IconX } from '@tabler/icons-react';
 import React, { type FC } from 'react';
@@ -13,7 +13,7 @@ const PasswordRequirement = ({
     label: string;
 }) => {
     return (
-        <Group spacing="xs" c={meets ? 'teal' : 'red'}>
+        <Group gap="xs" c={meets ? 'teal' : 'red'}>
             {meets ? (
                 <MantineIcon icon={IconCheck} />
             ) : (
@@ -67,7 +67,7 @@ const PasswordTextInput: FC<React.PropsWithChildren<Props>> = ({
                 </div>
             </Popover.Target>
             <Popover.Dropdown>
-                <Stack spacing="xs">
+                <Stack gap="xs">
                     <Progress
                         color={
                             strength === 100

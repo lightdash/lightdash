@@ -1,4 +1,4 @@
-import { useMantineTheme } from '@mantine/core';
+import { useMantineTheme } from '@mantine-8/core';
 
 const LightdashLogo = () => {
     const {

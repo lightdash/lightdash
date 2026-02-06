@@ -11,7 +11,7 @@ import {
     Stack,
     Text,
     TextInput,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { type FC } from 'react';
 import { z } from 'zod';
@@ -41,7 +41,7 @@ const CreateUserForm: FC<Props> = ({ isLoading, readOnlyEmail, onSubmit }) => {
 
     return (
         <form name="register" onSubmit={form.onSubmit(onSubmit)}>
-            <Stack spacing="md">
+            <Stack gap="md">
                 <Flex direction="row" gap="xs">
                     <TextInput
                         label="First name"
