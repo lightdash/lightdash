@@ -1,3 +1,11 @@
+## [0.2434.3](https://github.com/lightdash/lightdash/compare/0.2434.2...0.2434.3) (2026-02-06)
+
+
+### Bug Fixes
+
+* include extra table calcs in chart warning ([#20019](https://github.com/lightdash/lightdash/issues/20019)) ([b0726e5](https://github.com/lightdash/lightdash/commit/b0726e53a1dc0c1feef3fea4d77f7337ae56c40c))
+* update compilation history URL path ([#20050](https://github.com/lightdash/lightdash/issues/20050)) ([c7a72f0](https://github.com/lightdash/lightdash/commit/c7a72f0dfd2ef3d278d83b62e125c11d126232f3))
+
 ## [0.2434.2](https://github.com/lightdash/lightdash/compare/0.2434.1...0.2434.2) (2026-02-06)
 
 
