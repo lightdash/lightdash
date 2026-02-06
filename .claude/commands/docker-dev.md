@@ -14,7 +14,7 @@ Before taking action, check the current environment state. **Run these checks in
 
 ```bash
 # Check 1: All Docker services running (db, minio, headless-browser, mailpit)
-RUNNING_COUNT=$(docker compose -f docker/docker-compose.dev.mini.yml ps --format json 2>/dev/null | grep -c '"State":"running"' || echo 0)
+RUNNING_COUNT=$(docker compose -f docker/docker-compose.dev.mini.yml ps --format json 2>/dev/null | grep -c '"State":"running"' || true)
 [ "$RUNNING_COUNT" -ge 4 ] && echo "OK: All Docker services running ($RUNNING_COUNT)" || echo "NEED: Start Docker services (only $RUNNING_COUNT/4 running)"
 
 # Check 2: Environment file exists
