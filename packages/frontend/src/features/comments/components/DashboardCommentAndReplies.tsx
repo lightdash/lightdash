@@ -1,5 +1,5 @@
 import { type Comment } from '@lightdash/common';
-import { Box, Button, Collapse, Divider, Stack } from '@mantine/core';
+import { Box, Button, Collapse, Divider, Stack } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useCallback, useState, type FC } from 'react';
 import useApp from '../../../providers/App/useApp';
@@ -57,7 +57,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     }, [isRepliesOpen, comment.commentId, toggleReplies]);
 
     return (
-        <Stack spacing="two" ref={targetRef}>
+        <Stack gap="two" ref={targetRef}>
             <CommentDetail
                 comment={comment}
                 canReply={canCreateDashboardComments}
@@ -74,8 +74,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                         labelPosition="right"
                         label={
                             <Button
-                                compact
-                                size="xs"
+                                size="compact-xs"
                                 variant="subtle"
                                 fz="xs"
                                 onClick={toggleReplies}
@@ -89,7 +88,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                     />
 
                     <Collapse in={isRepliesOpen}>
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                             {comment.replies.map((reply) => (
                                 <CommentDetail
                                     key={reply.commentId}

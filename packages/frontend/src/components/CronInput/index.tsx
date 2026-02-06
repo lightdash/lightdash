@@ -41,9 +41,11 @@ export const CronInternalInputs: FC<
     }, [frequency, value]);
 
     const onFrequencyChange = useCallback(
-        (newFrequency: Frequency) => {
-            setFrequency(newFrequency);
-            onChange(getFrequencyCronExpression(newFrequency, value));
+        (newFrequency: Frequency | null | string) => {
+            setFrequency(newFrequency as Frequency);
+            onChange(
+                getFrequencyCronExpression(newFrequency as Frequency, value),
+            );
         },
         [onChange, value],
     );

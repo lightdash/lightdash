@@ -2,8 +2,7 @@ import {
     MARKDOWN_TILE_CLASS,
     type DashboardMarkdownTile,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { Text, useMantineTheme } from '@mantine/core';
+import { Box, Menu, useMantineColorScheme } from '@mantine-8/core';
 import { IconCopy } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import React, { useCallback, useMemo, useState, type FC } from 'react';
@@ -15,6 +14,7 @@ import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
 import TileBase from './TileBase/index';
+import styles from './DashboardMarkdownTile.module.css';
 
 export type Props = Pick<
     React.ComponentProps<typeof TileBase>,
@@ -24,7 +24,7 @@ export type Props = Pick<
 };
 
 const MarkdownTile: FC<Props> = (props) => {
-    const theme = useMantineTheme();
+    const { colorScheme } = useMantineColorScheme();
 
     const {
         tile: {
@@ -104,20 +104,8 @@ const MarkdownTile: FC<Props> = (props) => {
             }
             {...props}
         >
-            <Text
-                className="non-draggable"
-                component="div"
-                sx={{
-                    flex: 1,
-                    overflow: 'auto',
-                    '.wmde-markdown': {
-                        fontSize: '14px',
-                        backgroundColor: 'transparent',
-                        fontFamily: theme.fontFamily,
-                    },
-                }}
-            >
-                <div data-color-mode={theme.colorScheme}>
+            <Box className={`non-draggable ${styles.markdownContainer}`}>
+                <div data-color-mode={colorScheme}>
                     <MarkdownPreview
                         className={MARKDOWN_TILE_CLASS}
                         source={content}
@@ -126,7 +114,7 @@ const MarkdownTile: FC<Props> = (props) => {
                         ]}
                     />
                 </div>
-            </Text>
+            </Box>
         </TileBase>
     );
 };

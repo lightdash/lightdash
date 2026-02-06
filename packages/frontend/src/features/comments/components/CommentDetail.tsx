@@ -3,17 +3,19 @@ import {
     ActionIcon,
     Avatar,
     Box,
+    getDefaultZIndex,
     Grid,
     Group,
     Menu,
     Text,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useHover } from '@mantine/hooks';
 import { IconDotsVertical, IconMessage, IconTrash } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
+import styles from './CommentDetail.module.css';
 import { CommentTimestamp } from './CommentTimestamp';
 
 type Props = {
@@ -51,17 +53,21 @@ export const CommentDetail: FC<Props> = ({
                     </Avatar>
                 </Grid.Col>
                 <Grid.Col span={18}>
-                    <Group position="apart">
-                        <Group spacing="xs">
+                    <Group justify="space-between">
+                        <Group gap="xs">
                             <Text fz="xs" fw={600}>
                                 {comment.user.name}
                             </Text>
                             <CommentTimestamp timestamp={comment.createdAt} />
                         </Group>
 
-                        <Group spacing="two" opacity={hovered ? 1 : 0}>
+                        <Group gap="two" opacity={hovered ? 1 : 0}>
                             {canReply && onReply && (
-                                <Tooltip label="Reply">
+                                <Tooltip
+                                    label="Reply"
+                                    withinPortal
+                                    zIndex={getDefaultZIndex('popover') + 1}
+                                >
                                     <ActionIcon
                                         size="xs"
                                         onClick={() => onReply()}
@@ -73,7 +79,12 @@ export const CommentDetail: FC<Props> = ({
                                 </Tooltip>
                             )}
                             {canRemove && (
-                                <Menu position="right" withArrow>
+                                <Menu
+                                    position="right"
+                                    withArrow
+                                    withinPortal
+                                    zIndex={getDefaultZIndex('popover') + 1}
+                                >
                                     <Menu.Target>
                                         <ActionIcon
                                             size="xs"
@@ -89,7 +100,7 @@ export const CommentDetail: FC<Props> = ({
                                         <Menu.Item
                                             p="xs"
                                             fz="xs"
-                                            icon={
+                                            leftSection={
                                                 <MantineIcon
                                                     color="red"
                                                     icon={IconTrash}
@@ -105,13 +116,11 @@ export const CommentDetail: FC<Props> = ({
                         </Group>
                     </Group>
                     <Box
+                        className={styles.commentText}
                         dangerouslySetInnerHTML={{
                             __html: sanitizedCommentTextHtml,
                         }}
                         fz="xs"
-                        sx={{
-                            wordBreak: 'break-word',
-                        }}
                     />
                 </Grid.Col>
             </Grid>

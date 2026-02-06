@@ -9,16 +9,16 @@ import {
     Alert,
     Box,
     Button,
+    Group,
     NumberInput,
     SegmentedControl,
     Stack,
     Text,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { notifications } from '@mantine/notifications';
 import { IconTableExport } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { memo, useState, type FC, type ReactNode } from 'react';
-
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
@@ -26,6 +26,7 @@ import { scheduleDownloadQuery } from '../../hooks/useQueryResults';
 import useUser from '../../hooks/user/useUser';
 import { Can } from '../../providers/Ability';
 import MantineIcon from '../common/MantineIcon';
+import styles from './ExportResults.module.css';
 import { Limit } from './types';
 
 type ExportCsvRenderProps = {
@@ -182,12 +183,15 @@ const ExportResults: FC<ExportResultsProps> = memo(
 
         return (
             <Box>
-                <Stack spacing={0} miw={300}>
+                <Stack gap={0} miw={300}>
                     <Stack p={renderDialogActions ? 'md' : 0}>
-                        <Stack spacing="xs">
-                            <Text fw={500}>File format</Text>
+                        <Group gap="xs">
+                            <Text fw={500} fz="sm">
+                                File format
+                            </Text>
                             <SegmentedControl
-                                size={'xs'}
+                                size="xs"
+                                radius="md"
                                 value={fileType}
                                 onChange={(value) =>
                                     setFileType(value as DownloadFileType)
@@ -203,12 +207,15 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                     },
                                 ]}
                             />
-                        </Stack>
+                        </Group>
 
-                        <Stack spacing="xs">
-                            <Text fw={500}>Values</Text>
+                        <Group gap="xs">
+                            <Text fw={500} fz="sm">
+                                Values
+                            </Text>
                             <SegmentedControl
-                                size={'xs'}
+                                size="xs"
+                                radius="md"
                                 value={format}
                                 onChange={(value) => setFormat(value)}
                                 data={[
@@ -219,8 +226,8 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                     { label: 'Raw', value: Values.RAW },
                                 ]}
                             />
-                        </Stack>
-                        <Stack spacing="xs">
+                        </Group>
+                        <Stack gap="xs">
                             <Can
                                 I="manage"
                                 this={subject('ChangeCsvResults', {
@@ -230,10 +237,13 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                 })}
                             >
                                 {!hideLimitSelection ? (
-                                    <Stack spacing="xs">
-                                        <Text fw={500}>Limit</Text>
+                                    <Group gap="xs">
+                                        <Text fw={500} fz="sm">
+                                            Limit
+                                        </Text>
                                         <SegmentedControl
-                                            size={'xs'}
+                                            size="xs"
+                                            radius="md"
                                             value={limit}
                                             onChange={(value) =>
                                                 setLimit(value as Limit)
@@ -253,23 +263,26 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                                 },
                                             ]}
                                         />
-                                    </Stack>
+                                        {limit === Limit.CUSTOM && (
+                                            <NumberInput
+                                                size="xs"
+                                                min={1}
+                                                w={70}
+                                                radius="md"
+                                                allowDecimal={false}
+                                                required
+                                                value={customLimit}
+                                                onChange={(value) =>
+                                                    setCustomLimit(
+                                                        Number(value),
+                                                    )
+                                                }
+                                            />
+                                        )}
+                                    </Group>
                                 ) : null}
                             </Can>
 
-                            {limit === Limit.CUSTOM && (
-                                <NumberInput
-                                    w="100%"
-                                    size="xs"
-                                    min={1}
-                                    precision={0}
-                                    required
-                                    value={customLimit}
-                                    onChange={(value) =>
-                                        setCustomLimit(Number(value))
-                                    }
-                                />
-                            )}
                             {/* Pivot table specific warnings */}
                             {isPivotTable && (
                                 <Alert color="gray" p="xs">
@@ -298,14 +311,12 @@ const ExportResults: FC<ExportResultsProps> = memo(
 
                     {!renderDialogActions ? (
                         <Button
+                            className={styles.downloadButton}
                             loading={isExporting}
-                            sx={{
-                                alignSelf: 'end',
-                            }}
                             size="xs"
                             mt="sm"
-                            leftIcon={<MantineIcon icon={IconTableExport} />}
-                            onClick={exportMutation}
+                            leftSection={<MantineIcon icon={IconTableExport} />}
+                            onClick={() => exportMutation()}
                             data-testid="chart-export-results-button"
                         >
                             Download

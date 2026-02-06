@@ -1,6 +1,7 @@
 import { type InlineError } from '@lightdash/common';
-import { Box, Stack, Text } from '@mantine/core';
+import { Box, Stack, Text } from '@mantine-8/core';
 import type { FC } from 'react';
+import styles from './WarningsHoverCardContent.module.css';
 
 type WarningsHoverCardContentProps = {
     type: 'warnings' | 'errors';
@@ -19,17 +20,15 @@ const WarningsHoverCardContent: FC<WarningsHoverCardContentProps> = ({
         <Text fz="sm" fw={600} mb="xs">
             Compilation {type} ({warnings.length})
         </Text>
-        <Stack spacing="xs" sx={{ maxHeight: 250, overflow: 'auto' }}>
+        <Stack className={styles.warningsList} gap="xs" mah={250}>
             {warnings.map((warning, idx) => (
                 <Box
+                    className={styles.warningBox}
                     key={idx}
                     p="xs"
-                    sx={(theme) => ({
-                        backgroundColor: theme.colors.ldGray[0],
-                        borderRadius: 4,
-                    })}
+                    bg="ldGray.0"
                 >
-                    <Text fz="xs" sx={{ wordBreak: 'break-word' }}>
+                    <Text className={styles.warningText} fz="xs">
                         {warning.message}
                     </Text>
                 </Box>
