@@ -34,7 +34,7 @@ export class SpacePermissionService extends BaseService {
      */
     async can(
         action: AbilityAction,
-        actor: SessionUser,
+        actor: Pick<SessionUser, 'ability' | 'userUuid'>,
         spaceUuids: string[] | string,
     ): Promise<boolean> {
         const spaceUuidsArray = Array.isArray(spaceUuids)
@@ -59,7 +59,7 @@ export class SpacePermissionService extends BaseService {
      */
     async getAccessibleSpaceUuids(
         action: AbilityAction,
-        actor: SessionUser,
+        actor: Pick<SessionUser, 'ability' | 'userUuid'>,
         spaceUuids: string[],
     ): Promise<string[]> {
         const accessContext = await this.getAccessContext(spaceUuids, {
