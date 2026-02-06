@@ -203,6 +203,7 @@ export * from './utils/searchParams';
 export * from './utils/slack';
 export * from './utils/sleep';
 export * from './utils/slugs';
+export * from './utils/spaceAccessResolver';
 export * from './utils/subtotals';
 export * from './utils/tableCalculationFunctions';
 export * from './utils/time';

@@ -23,10 +23,32 @@ export type OrganizationSpaceAccess = {
     role: OrganizationMemberRole;
 };
 
+export enum ProjectSpaceAccessOrigin {
+    PROJECT_MEMBERSHIP = 'project_membership',
+    GROUP_MEMBERSHIP = 'group_membership',
+}
+
 export type ProjectSpaceAccess = {
     userUuid: string;
     spaceUuid: string;
     role: ProjectMemberRole;
+    from: ProjectSpaceAccessOrigin;
+};
+
+export type UserInfo = {
+    userUuid: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+};
+
+export type SpaceAccessInput = {
+    spaceUuid: string;
+    isPrivate: boolean;
+    directAccess: DirectSpaceAccess[];
+    projectAccess: ProjectSpaceAccess[];
+    organizationAccess: OrganizationSpaceAccess[];
+    userInfo: Map<string, UserInfo>;
 };
 
 export type Space = {

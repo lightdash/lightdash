@@ -44,6 +44,7 @@ import { ShareModel } from './ShareModel';
 import { SlackAuthenticationModel } from './SlackAuthenticationModel';
 import { SlackChannelCacheModel } from './SlackChannelCacheModel';
 import { SpaceModel } from './SpaceModel';
+import { SpacePermissionModel } from './SpacePermissionModel';
 import { SpotlightTableConfigModel } from './SpotlightTableConfigModel';
 import { SshKeyPairModel } from './SshKeyPairModel';
 import { TagsModel } from './TagsModel';
@@ -94,6 +95,7 @@ export type ModelManifest = {
     slackAuthenticationModel: SlackAuthenticationModel;
     slackChannelCacheModel: SlackChannelCacheModel;
     spaceModel: SpaceModel;
+    spacePermissionModel: SpacePermissionModel;
     sshKeyPairModel: SshKeyPairModel;
     userAttributesModel: UserAttributesModel;
     userModel: UserModel;
@@ -493,6 +495,13 @@ export class ModelRepository
         return this.getModel(
             'spaceModel',
             () => new SpaceModel({ database: this.database }),
+        );
+    }
+
+    public getSpacePermissionModel(): SpacePermissionModel {
+        return this.getModel(
+            'spacePermissionModel',
+            () => new SpacePermissionModel(this.database),
         );
     }
 

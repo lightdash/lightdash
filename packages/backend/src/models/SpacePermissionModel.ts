@@ -3,8 +3,11 @@ import {
     DirectSpaceAccessOrigin,
     OrganizationSpaceAccess,
     ProjectSpaceAccess,
+    ProjectSpaceAccessOrigin,
+    UserInfo,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { EmailTableName } from '../database/entities/emails';
 import { GroupMembershipTableName } from '../database/entities/groupMemberships';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
@@ -126,6 +129,9 @@ export class SpacePermissionModel {
                             userUuid: `${UserTableName}.user_uuid`,
                             spaceUuid: `${SpaceTableName}.space_uuid`,
                             role: `${ProjectMembershipsTableName}.role`,
+                            from: this.database.raw(
+                                `'${ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP}'`,
+                            ),
                         })
                         .innerJoin(
                             ProjectTableName,
@@ -157,6 +163,9 @@ export class SpacePermissionModel {
                                     userUuid: `${UserTableName}.user_uuid`,
                                     spaceUuid: `${SpaceTableName}.space_uuid`,
                                     role: `${ProjectGroupAccessTableName}.role`,
+                                    from: this.database.raw(
+                                        `'${ProjectSpaceAccessOrigin.GROUP_MEMBERSHIP}'`,
+                                    ),
                                 })
                                 .innerJoin(
                                     ProjectTableName,
@@ -271,5 +280,80 @@ export class SpacePermissionModel {
                 }, {});
             },
         );
+    }
+
+    async getSpaceInfo(spaceUuids: string[]): Promise<
+        Record<
+            string,
+            {
+                isPrivate: boolean;
+                projectUuid: string;
+                organizationUuid: string;
+            }
+        >
+    > {
+        if (spaceUuids.length === 0) {
+            return {};
+        }
+
+        const rows = await this.database(SpaceTableName)
+            .select({
+                spaceUuid: `${SpaceTableName}.space_uuid`,
+                isPrivate: `${SpaceTableName}.is_private`,
+                projectUuid: `${ProjectTableName}.project_uuid`,
+                organizationUuid: `${OrganizationTableName}.organization_uuid`,
+            })
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids);
+
+        return rows.reduce<
+            Record<
+                string,
+                {
+                    isPrivate: boolean;
+                    projectUuid: string;
+                    organizationUuid: string;
+                }
+            >
+        >((acc, row) => {
+            acc[row.spaceUuid] = {
+                isPrivate: row.isPrivate,
+                projectUuid: row.projectUuid,
+                organizationUuid: row.organizationUuid,
+            };
+            return acc;
+        }, {});
+    }
+
+    async getUserInfo(userUuids: string[]): Promise<Map<string, UserInfo>> {
+        if (userUuids.length === 0) {
+            return new Map();
+        }
+
+        const rows = await this.database(UserTableName)
+            .select({
+                userUuid: `${UserTableName}.user_uuid`,
+                firstName: `${UserTableName}.first_name`,
+                lastName: `${UserTableName}.last_name`,
+                email: `${EmailTableName}.email`,
+            })
+            .innerJoin(
+                EmailTableName,
+                `${UserTableName}.user_id`,
+                `${EmailTableName}.user_id`,
+            )
+            .where(`${EmailTableName}.is_primary`, true)
+            .whereIn(`${UserTableName}.user_uuid`, userUuids);
+
+        return new Map(rows.map((row: UserInfo) => [row.userUuid, row]));
     }
 }
