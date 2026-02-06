@@ -691,14 +691,7 @@ export const AiAgentFormSetup = ({
                                 visible={isLoadingSlackInstallation}
                             />
                             {!slackInstallation?.organizationUuid ? (
-                                <Paper
-                                    withBorder
-                                    p="sm"
-                                    style={{
-                                        borderStyle: 'dashed',
-                                        backgroundColor: 'transparent',
-                                    }}
-                                >
+                                <Paper variant="dotted" p="sm">
                                     <Text size="xs" c="dimmed" ta="center">
                                         To enable AI agent interactions through
                                         Slack, please connect your Slack
