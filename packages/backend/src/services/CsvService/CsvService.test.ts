@@ -31,6 +31,7 @@ import { UserWarehouseCredentialsModel } from '../../models/UserWarehouseCredent
 import { WarehouseAvailableTablesModel } from '../../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { CsvService } from './CsvService';
@@ -76,6 +77,7 @@ describe('Csv service', () => {
             organizationWarehouseCredentialsModel:
                 {} as OrganizationWarehouseCredentialsModel,
             projectCompileLogModel: {} as ProjectCompileLogModel,
+            adminNotificationService: {} as AdminNotificationService,
         }),
         s3Client: {} as S3Client,
         savedChartModel: {} as SavedChartModel,

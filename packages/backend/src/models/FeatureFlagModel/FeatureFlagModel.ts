@@ -44,6 +44,8 @@ export class FeatureFlagModel {
                 this.getShowExecutionTimeEnabled.bind(this),
             [FeatureFlags.NestedSpacesPermissions]:
                 this.getNestedSpacesPermissionsEnabled.bind(this),
+            [FeatureFlags.AdminChangeNotifications]:
+                this.getAdminChangeNotifications.bind(this),
         };
     }
 
@@ -222,6 +224,31 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled: this.lightdashConfig.nestedSpacesPermissions.enabled,
+        };
+    }
+
+    private async getAdminChangeNotifications({
+        user,
+        featureFlagId,
+    }: FeatureFlagLogicArgs) {
+        const enabled =
+            this.lightdashConfig.adminChangeNotifications.enabled ||
+            (user
+                ? await isFeatureFlagEnabled(
+                      FeatureFlags.AdminChangeNotifications,
+                      {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid,
+                      },
+                      {
+                          throwOnTimeout: false,
+                          timeoutMilliseconds: 500,
+                      },
+                  )
+                : false);
+        return {
+            id: featureFlagId,
+            enabled,
         };
     }
 }

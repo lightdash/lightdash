@@ -78,6 +78,7 @@ export { default as lightdashProjectConfigSchema } from './schemas/json/lightdas
 export { default as modelAsCodeSchema } from './schemas/json/model-as-code-1.0.json';
 export * from './templating/template';
 export * from './types/account';
+export * from './types/adminNotifications';
 export * from './types/analytics';
 export * from './types/any';
 export * from './types/api';
@@ -176,6 +177,7 @@ export * from './utils/chartValidation';
 export * from './utils/colors';
 export * from './utils/conditionalFormatExpressions';
 export * from './utils/conditionalFormatting';
+export * from './utils/connectionChanges';
 export * from './utils/convertCustomDimensionsToYaml';
 export * from './utils/convertCustomMetricsToYaml';
 export * from './utils/customDimensions';

@@ -308,4 +308,7 @@ export const lightdashConfigMock: LightdashConfig = {
     nestedSpacesPermissions: {
         enabled: false,
     },
+    adminChangeNotifications: {
+        enabled: false,
+    },
 };

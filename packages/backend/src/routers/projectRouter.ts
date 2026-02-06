@@ -29,7 +29,7 @@ projectRouter.patch(
             .getProjectService()
             .updateAndScheduleAsyncWork(
                 getObjectValue(req.params, 'projectUuid'),
-                req.user!,
+                req.account!,
                 req.body,
                 getRequestMethod(req.header(LightdashRequestMethodHeader)),
             )
