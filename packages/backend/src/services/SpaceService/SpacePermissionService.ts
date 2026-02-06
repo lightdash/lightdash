@@ -1,4 +1,8 @@
-import { resolveSpaceAccess, type SpaceAccess } from '@lightdash/common';
+import {
+    NotFoundError,
+    resolveSpaceAccess,
+    type SpaceAccess,
+} from '@lightdash/common';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SpacePermissionModel } from '../../models/SpacePermissionModel';
 import { BaseService } from '../BaseService';
@@ -22,11 +26,11 @@ export class SpacePermissionService extends BaseService {
         spaceUuidsArg: string[],
         filters?: { userUuid?: string },
     ): Promise<Record<string, SpaceAccessForCasl>> {
-        const uniqueInputUuids = [...new Set(spaceUuidsArg)];
-        const spaceUuids = [
+        const uniqueSpaceUuids = [...new Set(spaceUuidsArg)];
+        const uniqueRootSpaceUuids = [
             ...new Set(
                 await Promise.all(
-                    uniqueInputUuids.map((uuid) =>
+                    uniqueSpaceUuids.map((uuid) =>
                         this.spaceModel
                             .getSpaceRootFromCacheOrDB(uuid)
                             .then((r) => r.spaceRoot),
@@ -38,24 +42,32 @@ export class SpacePermissionService extends BaseService {
         const [directAccessMap, projectAccessMap, orgAccessMap, spaceInfo] =
             await Promise.all([
                 this.spacePermissionModel.getDirectSpaceAccess(
-                    spaceUuids,
+                    uniqueRootSpaceUuids,
                     filters,
                 ),
                 this.spacePermissionModel.getProjectSpaceAccess(
-                    spaceUuids,
+                    uniqueRootSpaceUuids,
                     filters,
                 ),
                 this.spacePermissionModel.getOrganizationSpaceAccess(
-                    spaceUuids,
+                    uniqueRootSpaceUuids,
                     filters,
                 ),
-                this.spacePermissionModel.getSpaceInfo(spaceUuids),
+                this.spacePermissionModel.getSpaceInfo(uniqueRootSpaceUuids),
             ]);
 
         const result: Record<string, SpaceAccessForCasl> = {};
-        for (const spaceUuid of spaceUuids) {
+        for (const spaceUuid of uniqueRootSpaceUuids) {
+            const space = spaceInfo[spaceUuid];
+            if (!space) {
+                throw new NotFoundError(
+                    'Space with uuid ${spaceUuid} not found',
+                );
+            }
+
             const { isPrivate, projectUuid, organizationUuid } =
                 spaceInfo[spaceUuid];
+
             const access = resolveSpaceAccess({
                 spaceUuid,
                 isPrivate,
