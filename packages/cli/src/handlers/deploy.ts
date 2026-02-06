@@ -20,6 +20,7 @@ import { getConfig, setProject } from '../config';
 import { getDbtContext } from '../dbt/context';
 import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
+import { findLightdashModelFiles } from '../lightdash/loader';
 import * as styles from '../styles';
 import { compile } from './compile';
 import {
@@ -250,6 +251,21 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         ...originalOptions,
     };
     GlobalState.setVerbose(options.verbose);
+
+    // Check if this is a Lightdash YAML-only project (no dbt required)
+    // Auto-detect unless user explicitly passed --organization-credentials
+    // Note: --no-warehouse-credentials defaults to true in Commander.js
+    if (options.organizationCredentials === undefined) {
+        const absoluteProjectPath = path.resolve(options.projectDir);
+        const yamlModelFiles =
+            await findLightdashModelFiles(absoluteProjectPath);
+        if (yamlModelFiles.length > 0) {
+            GlobalState.debug(
+                `> Found ${yamlModelFiles.length} Lightdash YAML models, skipping dbt requirements`,
+            );
+            options.warehouseCredentials = false;
+        }
+    }
 
     // No warehouse credentials assumes we skip dbt compile and warehouse catalog
     if (options.warehouseCredentials === false) {
