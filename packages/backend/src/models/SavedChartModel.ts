@@ -798,7 +798,7 @@ export class SavedChartModel {
                 ).andOnNull(`${DashboardsTableName}.deleted_at`);
             })
             .joinRaw(
-                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id) AND ${SpaceTableName}.deleted_at IS NULL`,
             )
             .innerJoin(
                 ProjectTableName,
@@ -1560,7 +1560,10 @@ export class SavedChartModel {
                 }
 
                 if (filters.spaceUuids) {
-                    void query.whereIn('spaces.space_uuid', filters.spaceUuids);
+                    void query.whereIn(
+                        `${SpaceTableName}.space_uuid`,
+                        filters.spaceUuids,
+                    );
                 }
                 if (filters.slug) {
                     void query.where('saved_queries.slug', filters.slug);
@@ -1612,8 +1615,8 @@ export class SavedChartModel {
                 uuid: 'saved_queries.saved_query_uuid',
                 name: 'saved_queries.name',
                 description: 'saved_queries.description',
-                spaceUuid: 'spaces.space_uuid',
-                spaceName: 'spaces.name',
+                spaceUuid: `${SpaceTableName}.space_uuid`,
+                spaceName: `${SpaceTableName}.name`,
                 projectUuid: 'projects.project_uuid',
                 organizationUuid: 'organizations.organization_uuid',
                 pinnedListUuid: `${PinnedListTableName}.pinned_list_uuid`,
@@ -1630,9 +1633,13 @@ export class SavedChartModel {
                 `${SavedChartsTableName}.dashboard_uuid`,
             )
             .joinRaw(
-                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+                `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id) AND ${SpaceTableName}.deleted_at IS NULL`,
             )
-            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .leftJoin(
+                'projects',
+                `${SpaceTableName}.project_id`,
+                'projects.project_id',
+            )
             .leftJoin(
                 OrganizationTableName,
                 'organizations.organization_id',
@@ -1666,7 +1673,7 @@ export class SavedChartModel {
             .select({
                 uuid: 'saved_queries.saved_query_uuid',
                 name: 'saved_queries.name',
-                spaceUuid: 'spaces.space_uuid',
+                spaceUuid: `${SpaceTableName}.space_uuid`,
                 tableName: `${SavedChartVersionsTableName}.explore_name`,
                 projectUuid: 'projects.project_uuid',
                 organizationUuid: 'organizations.organization_uuid',
@@ -1692,7 +1699,11 @@ export class SavedChartModel {
                 'saved_queries.saved_query_id',
                 'saved_queries_versions.saved_query_id',
             )
-            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .leftJoin(
+                'projects',
+                `${SpaceTableName}.project_id`,
+                'projects.project_id',
+            )
             .leftJoin(
                 OrganizationTableName,
                 'organizations.organization_id',
@@ -1707,7 +1718,8 @@ export class SavedChartModel {
                                            order by ${SavedChartVersionsTableName}.created_at desc
                                            limit 1)`),
             )
-            .whereNull(`${SavedChartsTableName}.deleted_at`);
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`);
 
         if (charts.length === 0) {
             throw new NotFoundError('Saved queries not found');
@@ -1753,7 +1765,11 @@ export class SavedChartModel {
                     `${SavedChartsTableName}.space_id`,
                 );
             })
-            .leftJoin('projects', 'spaces.project_id', 'projects.project_id')
+            .leftJoin(
+                'projects',
+                `${SpaceTableName}.project_id`,
+                'projects.project_id',
+            )
             .leftJoin(
                 UserTableName,
                 `${SavedChartVersionsTableName}.updated_by_user_uuid`,
@@ -1769,7 +1785,8 @@ export class SavedChartModel {
                                            order by ${SavedChartVersionsTableName}.created_at desc
                                            limit 1)`),
             )
-            .whereNull(`${SavedChartsTableName}.deleted_at`);
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`);
     }
 
     async findChartsWithCustomFields(projectUuid: string): Promise<

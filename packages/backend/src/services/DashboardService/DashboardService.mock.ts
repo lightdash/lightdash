@@ -57,6 +57,8 @@ export const space: SpaceTable['base'] = {
     parent_space_uuid: null,
     path: 'space-name',
     inherit_parent_permissions: false,
+    deleted_at: null,
+    deleted_by_user_uuid: null,
 };
 
 export const publicSpace: Space = {

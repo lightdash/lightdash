@@ -38,9 +38,27 @@ export type DeletedDashboardContentSummary = {
     organizationUuid: string;
 };
 
+export type DeletedSpaceContentSummary = {
+    uuid: string;
+    name: string;
+    description: string | null;
+    contentType: ContentType.SPACE;
+    deletedAt: Date;
+    deletedBy: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null;
+    spaceUuid: string;
+    spaceName: string;
+    projectUuid: string;
+    organizationUuid: string;
+};
+
 export type DeletedContentSummary =
     | DeletedChartContentSummary
-    | DeletedDashboardContentSummary;
+    | DeletedDashboardContentSummary
+    | DeletedSpaceContentSummary;
 
 export type DeletedContentFilters = {
     projectUuids: string[];

@@ -14222,6 +14222,36 @@ const models: TsoaRoute.Models = {
                 path: { dataType: 'string', required: true },
                 chartCount: { dataType: 'double', required: true },
                 dashboardCount: { dataType: 'double', required: true },
+                deletedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                deletedBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                lastName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                firstName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                userUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'undefined' },
+                    ],
+                },
             },
             validators: {},
         },
@@ -15890,6 +15920,37 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                deletedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                deletedBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                lastName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                firstName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                userUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 tableName: { dataType: 'string', required: true },
                 metricQuery: { ref: 'MetricQuery', required: true },
                 pivotConfig: {
@@ -15923,37 +15984,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'array',
                     array: { dataType: 'string' },
                     required: true,
-                },
-                deletedAt: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'datetime' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                deletedBy: {
-                    dataType: 'union',
-                    subSchemas: [
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                lastName: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                                firstName: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                                userUuid: {
-                                    dataType: 'string',
-                                    required: true,
-                                },
-                            },
-                        },
-                        { dataType: 'enum', enums: [null] },
-                        { dataType: 'undefined' },
-                    ],
                 },
             },
             validators: {},
@@ -16737,6 +16767,24 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        deletedBy: {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                lastName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                firstName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                userUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                        deletedAt: { dataType: 'datetime' },
                         dashboardCount: { dataType: 'double', required: true },
                         chartCount: { dataType: 'double', required: true },
                         access: {
@@ -24427,6 +24475,56 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DeletedSpaceContentSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                organizationUuid: { dataType: 'string', required: true },
+                projectUuid: { dataType: 'string', required: true },
+                spaceName: { dataType: 'string', required: true },
+                spaceUuid: { dataType: 'string', required: true },
+                deletedBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                lastName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                firstName: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                                userUuid: {
+                                    dataType: 'string',
+                                    required: true,
+                                },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                deletedAt: { dataType: 'datetime', required: true },
+                contentType: { ref: 'ContentType.SPACE', required: true },
+                description: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DeletedContentSummary: {
         dataType: 'refAlias',
         type: {
@@ -24434,6 +24532,7 @@ const models: TsoaRoute.Models = {
             subSchemas: [
                 { ref: 'DeletedChartContentSummary' },
                 { ref: 'DeletedDashboardContentSummary' },
+                { ref: 'DeletedSpaceContentSummary' },
             ],
             validators: {},
         },

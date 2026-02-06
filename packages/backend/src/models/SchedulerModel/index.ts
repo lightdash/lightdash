@@ -452,6 +452,14 @@ export class SchedulerModel {
                 `${SpaceTableName}.project_id`,
             );
 
+        // Exclude schedulers for content in deleted spaces
+        schedulerCharts = schedulerCharts.whereNull(
+            `${SpaceTableName}.deleted_at`,
+        );
+        schedulerDashboards = schedulerDashboards.whereNull(
+            `${SpaceTableName}.deleted_at`,
+        );
+
         if (projectUuid) {
             schedulerCharts = schedulerCharts.where(
                 `${ProjectTableName}.project_uuid`,
@@ -1000,7 +1008,8 @@ export class SchedulerModel {
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`);
         if (schedulerUuids?.length) {
             schedulerCharts = schedulerCharts.whereIn(
                 `${SchedulerTableName}.scheduler_uuid`,
@@ -1040,7 +1049,8 @@ export class SchedulerModel {
                 `${ProjectTableName}.project_id`,
                 `${SpaceTableName}.project_id`,
             )
-            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`);
         if (schedulerUuids?.length) {
             schedulerDashboards = schedulerDashboards.whereIn(
                 `${SchedulerTableName}.scheduler_uuid`,
@@ -1970,6 +1980,7 @@ export class SchedulerModel {
             )
             .where(`${SchedulerTableName}.created_by`, userUuid)
             .whereNotNull(`${SchedulerTableName}.saved_chart_uuid`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .groupBy(
                 `${ProjectTableName}.project_uuid`,
                 `${ProjectTableName}.name`,
@@ -2002,6 +2013,7 @@ export class SchedulerModel {
             )
             .where(`${SchedulerTableName}.created_by`, userUuid)
             .whereNotNull(`${SchedulerTableName}.dashboard_uuid`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .groupBy(
                 `${ProjectTableName}.project_uuid`,
                 `${ProjectTableName}.name`,
@@ -2100,6 +2112,7 @@ export class SchedulerModel {
             )
             .where(`${SchedulerTableName}.created_by`, fromUserUuid)
             .whereNotNull(`${SchedulerTableName}.saved_chart_uuid`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .whereIn(`${ProjectTableName}.project_uuid`, projectUuids);
 
         // Dashboard schedulers
@@ -2127,6 +2140,7 @@ export class SchedulerModel {
             )
             .where(`${SchedulerTableName}.created_by`, fromUserUuid)
             .whereNotNull(`${SchedulerTableName}.dashboard_uuid`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
             .whereIn(`${ProjectTableName}.project_uuid`, projectUuids);
 
         const allSchedulerUuids = [

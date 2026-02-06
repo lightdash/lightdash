@@ -14648,6 +14648,25 @@
                     "dashboardCount": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "deletedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "deletedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object"
                     }
                 },
                 "required": [
@@ -16522,6 +16541,26 @@
                     "updatedByUser": {
                         "$ref": "#/components/schemas/UpdatedByUser"
                     },
+                    "deletedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "deletedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
                     "tableName": {
                         "type": "string"
                     },
@@ -16557,26 +16596,6 @@
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "deletedAt": {
-                        "type": "string",
-                        "format": "date-time"
-                    },
-                    "deletedBy": {
-                        "properties": {
-                            "lastName": {
-                                "type": "string"
-                            },
-                            "firstName": {
-                                "type": "string"
-                            },
-                            "userUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["lastName", "firstName", "userUuid"],
-                        "type": "object",
-                        "nullable": true
                     }
                 },
                 "required": [
@@ -17552,6 +17571,29 @@
                     },
                     {
                         "properties": {
+                            "deletedBy": {
+                                "properties": {
+                                    "lastName": {
+                                        "type": "string"
+                                    },
+                                    "firstName": {
+                                        "type": "string"
+                                    },
+                                    "userUuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "lastName",
+                                    "firstName",
+                                    "userUuid"
+                                ],
+                                "type": "object"
+                            },
+                            "deletedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
                             "dashboardCount": {
                                 "type": "number",
                                 "format": "double"
@@ -25198,6 +25240,68 @@
                 ],
                 "type": "object"
             },
+            "DeletedSpaceContentSummary": {
+                "properties": {
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "spaceName": {
+                        "type": "string"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "deletedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "deletedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.SPACE"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "organizationUuid",
+                    "projectUuid",
+                    "spaceName",
+                    "spaceUuid",
+                    "deletedBy",
+                    "deletedAt",
+                    "contentType",
+                    "description",
+                    "name",
+                    "uuid"
+                ],
+                "type": "object"
+            },
             "DeletedContentSummary": {
                 "anyOf": [
                     {
@@ -25205,6 +25309,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/DeletedDashboardContentSummary"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DeletedSpaceContentSummary"
                     }
                 ]
             },
