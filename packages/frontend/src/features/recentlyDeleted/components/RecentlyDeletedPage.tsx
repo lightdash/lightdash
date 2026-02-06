@@ -84,7 +84,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
 
     const { health, user } = useApp();
-    const retentionDays = health.data?.softDelete?.retentionDays ?? 30;
+    const retentionDays = health.data?.softDelete.retentionDays;
 
     const [selectedContentType, setSelectedContentType] = useState<
         'all' | ContentType.CHART | ContentType.DASHBOARD
@@ -314,7 +314,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const remaining = formatDaysRemaining(
                         row.original.deletedAt,
-                        retentionDays,
+                        retentionDays ?? 0,
                     );
                     const isExpired = remaining === 'Expired';
                     return (

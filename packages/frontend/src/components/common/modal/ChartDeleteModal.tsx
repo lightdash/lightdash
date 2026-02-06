@@ -6,6 +6,7 @@ import {
     useSavedQuery,
     useSavedQueryDeleteMutation,
 } from '../../../hooks/useSavedQuery';
+import useApp from '../../../providers/App/useApp';
 import Callout from '../Callout';
 import MantineModal from '../MantineModal';
 
@@ -20,6 +21,10 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
     ...modalProps
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { health } = useApp();
+    const softDeleteEnabled = health.data?.softDelete.enabled;
+    const retentionDays = health.data?.softDelete.retentionDays;
+
     const { data: chart, isInitialLoading } = useSavedQuery({ id: uuid });
     const {
         data: relatedDashboards,
@@ -42,6 +47,14 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
         onConfirm?.();
     };
 
+    const description = softDeleteEnabled
+        ? `This chart will be moved to Recently deleted and permanently removed after ${retentionDays} days.`
+        : undefined;
+
+    const dashboardWarningTitle = softDeleteEnabled
+        ? `This chart tile will be removed from ${relatedDashboards.length} dashboard${relatedDashboards.length > 1 ? 's' : ''}. The chart can be restored from Recently deleted.`
+        : `This action will permanently remove a chart tile from ${relatedDashboards.length} dashboard${relatedDashboards.length > 1 ? 's' : ''}:`;
+
     return (
         <MantineModal
             opened={modalProps.opened}
@@ -50,15 +63,14 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
             variant="delete"
             resourceType="chart"
             resourceLabel={chart.name}
+            description={description}
             onConfirm={handleConfirm}
             confirmLoading={isDeleting}
         >
             {relatedDashboards.length > 0 && (
                 <Callout
-                    variant="danger"
-                    title={`This action will permanently remove a chart tile from ${
-                        relatedDashboards.length
-                    } dashboard${relatedDashboards.length > 1 ? 's' : ''}:`}
+                    variant={softDeleteEnabled ? 'warning' : 'danger'}
+                    title={dashboardWarningTitle}
                 >
                     <ScrollArea.Autosize mah="200px">
                         <List>

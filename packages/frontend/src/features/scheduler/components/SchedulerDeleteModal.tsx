@@ -7,8 +7,10 @@ import MantineModal, {
 import { useScheduler } from '../hooks/useScheduler';
 import { useSchedulersDeleteMutation } from '../hooks/useSchedulersDeleteMutation';
 
-interface SchedulerDeleteModalProps
-    extends Pick<MantineModalProps, 'opened' | 'onClose'> {
+interface SchedulerDeleteModalProps extends Pick<
+    MantineModalProps,
+    'opened' | 'onClose'
+> {
     schedulerUuid: string;
     onConfirm: () => void;
 }
@@ -36,6 +38,7 @@ export const SchedulerDeleteModal: FC<SchedulerDeleteModalProps> = ({
             variant="delete"
             resourceType="scheduled delivery"
             resourceLabel={scheduler.data?.name}
+            description="This action is permanent and cannot be undone."
             size="md"
             onConfirm={scheduler.isSuccess ? handleConfirm : undefined}
             confirmLoading={mutation.isLoading}
