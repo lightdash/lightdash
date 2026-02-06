@@ -1788,6 +1788,7 @@ export class SpaceModel {
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${chartTable}.dashboard_uuid`,
             )
+            .whereNull(`${chartTable}.deleted_at`)
             .select<
                 {
                     uuid: string;

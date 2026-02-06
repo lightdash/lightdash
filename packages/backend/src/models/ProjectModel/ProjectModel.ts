@@ -1789,6 +1789,7 @@ export class ProjectModel {
                 .leftJoin('spaces', 'saved_sql.space_uuid', 'spaces.space_uuid')
                 .whereIn('saved_sql.space_uuid', spaceUuids)
                 .andWhere('spaces.project_id', projectId)
+                .whereNull('saved_sql.deleted_at')
                 .select<DbSavedSql[]>('saved_sql.*');
 
             Logger.info(
@@ -1859,6 +1860,7 @@ export class ProjectModel {
                 .leftJoin('spaces', 'dashboards.space_id', 'spaces.space_id')
                 .where('spaces.project_id', projectId)
                 .andWhere('saved_sql.space_uuid', null)
+                .whereNull('saved_sql.deleted_at')
                 .select<DbSavedSql[]>('saved_sql.*');
 
             Logger.info(
@@ -2382,7 +2384,8 @@ export class ProjectModel {
                         .update({
                             dashboard_uuid: newDashboardUuid,
                         })
-                        .where('saved_sql_uuid', chart.saved_sql_uuid);
+                        .where('saved_sql_uuid', chart.saved_sql_uuid)
+                        .whereNull('deleted_at');
                 },
             );
             await Promise.all(updateSavedSQLInDashboards);
