@@ -1,3 +1,10 @@
+## [0.2439.1](https://github.com/lightdash/lightdash/compare/0.2439.0...0.2439.1) (2026-02-06)
+
+
+### Bug Fixes
+
+* remove allowed-tools from debug skill to fix model invocation error ([#20083](https://github.com/lightdash/lightdash/issues/20083)) ([06f972e](https://github.com/lightdash/lightdash/commit/06f972e07be100ea5103943a3973042c35fb3a1c))
+
 # [0.2439.0](https://github.com/lightdash/lightdash/compare/0.2438.1...0.2439.0) (2026-02-06)
 
 
