@@ -482,14 +482,14 @@ describe('RolesService', () => {
 
                 expect(
                     mockAdminNotificationService.notifyProjectAdminRoleChange,
-                ).toHaveBeenCalledWith(
-                    mockAccount,
-                    userUuid,
+                ).toHaveBeenCalledWith({
+                    account: mockAccount,
+                    targetUserUuid: userUuid,
                     projectUuid,
                     organizationUuid,
-                    null,
-                    ProjectMemberRole.ADMIN,
-                );
+                    previousRole: null,
+                    newRole: ProjectMemberRole.ADMIN,
+                });
             });
 
             it('should not throw if notification fails', async () => {

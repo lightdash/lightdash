@@ -667,14 +667,14 @@ export class RolesService extends BaseService {
         const previousProjectRole = userProjectRole[0]?.role ?? null;
         const newProjectRole = isSystemRole(roleId) ? roleId : null;
         this.adminNotificationService
-            .notifyProjectAdminRoleChange(
+            .notifyProjectAdminRoleChange({
                 account,
-                userUuid,
+                targetUserUuid: userUuid,
                 projectUuid,
-                project.organizationUuid,
-                previousProjectRole,
-                newProjectRole,
-            )
+                organizationUuid: project.organizationUuid,
+                previousRole: previousProjectRole,
+                newRole: newProjectRole,
+            })
             .catch((err) => {
                 this.logger.error(
                     'Failed to send project admin role change notification',

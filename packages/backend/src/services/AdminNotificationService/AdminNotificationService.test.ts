@@ -307,27 +307,27 @@ describe('AdminNotificationService', () => {
             enabled: false,
         });
 
-        await service.notifyProjectAdminRoleChange(
-            mockSessionAccount,
-            mockTargetUserUuid,
-            mockProjectUuid,
-            mockOrganizationUuid,
-            ProjectMemberRole.EDITOR,
-            ProjectMemberRole.ADMIN,
-        );
+        await service.notifyProjectAdminRoleChange({
+            account: mockSessionAccount,
+            targetUserUuid: mockTargetUserUuid,
+            projectUuid: mockProjectUuid,
+            organizationUuid: mockOrganizationUuid,
+            previousRole: ProjectMemberRole.EDITOR,
+            newRole: ProjectMemberRole.ADMIN,
+        });
 
         expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
     });
 
     it('should send notification when promoting user to project admin', async () => {
-        await service.notifyProjectAdminRoleChange(
-            mockSessionAccount,
-            mockTargetUserUuid,
-            mockProjectUuid,
-            mockOrganizationUuid,
-            ProjectMemberRole.EDITOR,
-            ProjectMemberRole.ADMIN,
-        );
+        await service.notifyProjectAdminRoleChange({
+            account: mockSessionAccount,
+            targetUserUuid: mockTargetUserUuid,
+            projectUuid: mockProjectUuid,
+            organizationUuid: mockOrganizationUuid,
+            previousRole: ProjectMemberRole.EDITOR,
+            newRole: ProjectMemberRole.ADMIN,
+        });
 
         expect(sendAdminChangeNotificationEmail).toHaveBeenCalledTimes(1);
         expect(sendAdminChangeNotificationEmail.mock.calls[0][1].type).toBe(
@@ -336,14 +336,14 @@ describe('AdminNotificationService', () => {
     });
 
     it('should send notification when demoting user from project admin', async () => {
-        await service.notifyProjectAdminRoleChange(
-            mockSessionAccount,
-            mockTargetUserUuid,
-            mockProjectUuid,
-            mockOrganizationUuid,
-            ProjectMemberRole.ADMIN,
-            ProjectMemberRole.EDITOR,
-        );
+        await service.notifyProjectAdminRoleChange({
+            account: mockSessionAccount,
+            targetUserUuid: mockTargetUserUuid,
+            projectUuid: mockProjectUuid,
+            organizationUuid: mockOrganizationUuid,
+            previousRole: ProjectMemberRole.ADMIN,
+            newRole: ProjectMemberRole.EDITOR,
+        });
 
         expect(sendAdminChangeNotificationEmail).toHaveBeenCalledTimes(1);
         expect(sendAdminChangeNotificationEmail.mock.calls[0][1].type).toBe(
@@ -352,27 +352,27 @@ describe('AdminNotificationService', () => {
     });
 
     it('should not send project notification for non-admin role changes', async () => {
-        await service.notifyProjectAdminRoleChange(
-            mockSessionAccount,
-            mockTargetUserUuid,
-            mockProjectUuid,
-            mockOrganizationUuid,
-            ProjectMemberRole.VIEWER,
-            ProjectMemberRole.EDITOR,
-        );
+        await service.notifyProjectAdminRoleChange({
+            account: mockSessionAccount,
+            targetUserUuid: mockTargetUserUuid,
+            projectUuid: mockProjectUuid,
+            organizationUuid: mockOrganizationUuid,
+            previousRole: ProjectMemberRole.VIEWER,
+            newRole: ProjectMemberRole.EDITOR,
+        });
 
         expect(sendAdminChangeNotificationEmail).not.toHaveBeenCalled();
     });
 
     it('should send to both org admins and project admins', async () => {
-        await service.notifyProjectAdminRoleChange(
-            mockSessionAccount,
-            mockTargetUserUuid,
-            mockProjectUuid,
-            mockOrganizationUuid,
-            ProjectMemberRole.EDITOR,
-            ProjectMemberRole.ADMIN,
-        );
+        await service.notifyProjectAdminRoleChange({
+            account: mockSessionAccount,
+            targetUserUuid: mockTargetUserUuid,
+            projectUuid: mockProjectUuid,
+            organizationUuid: mockOrganizationUuid,
+            previousRole: ProjectMemberRole.EDITOR,
+            newRole: ProjectMemberRole.ADMIN,
+        });
 
         const recipients = sendAdminChangeNotificationEmail.mock.calls[0][0];
         expect(recipients).toContain(mockOrgAdmin1.email);
@@ -388,14 +388,14 @@ describe('AdminNotificationService', () => {
             { ...mockProjectAdmin, email: sameEmail },
         ]);
 
-        await service.notifyProjectAdminRoleChange(
-            mockSessionAccount,
-            mockTargetUserUuid,
-            mockProjectUuid,
-            mockOrganizationUuid,
-            ProjectMemberRole.EDITOR,
-            ProjectMemberRole.ADMIN,
-        );
+        await service.notifyProjectAdminRoleChange({
+            account: mockSessionAccount,
+            targetUserUuid: mockTargetUserUuid,
+            projectUuid: mockProjectUuid,
+            organizationUuid: mockOrganizationUuid,
+            previousRole: ProjectMemberRole.EDITOR,
+            newRole: ProjectMemberRole.ADMIN,
+        });
 
         const recipients = sendAdminChangeNotificationEmail.mock.calls[0][0];
         expect(recipients).toHaveLength(1);
@@ -403,14 +403,14 @@ describe('AdminNotificationService', () => {
     });
 
     it('should include project information in payload', async () => {
-        await service.notifyProjectAdminRoleChange(
-            mockSessionAccount,
-            mockTargetUserUuid,
-            mockProjectUuid,
-            mockOrganizationUuid,
-            ProjectMemberRole.EDITOR,
-            ProjectMemberRole.ADMIN,
-        );
+        await service.notifyProjectAdminRoleChange({
+            account: mockSessionAccount,
+            targetUserUuid: mockTargetUserUuid,
+            projectUuid: mockProjectUuid,
+            organizationUuid: mockOrganizationUuid,
+            previousRole: ProjectMemberRole.EDITOR,
+            newRole: ProjectMemberRole.ADMIN,
+        });
 
         const payload = sendAdminChangeNotificationEmail.mock.calls[0][1];
         expect(payload.projectUuid).toBe(mockProjectUuid);
@@ -418,14 +418,14 @@ describe('AdminNotificationService', () => {
     });
 
     it('should include correct settings URL for project admin change', async () => {
-        await service.notifyProjectAdminRoleChange(
-            mockSessionAccount,
-            mockTargetUserUuid,
-            mockProjectUuid,
-            mockOrganizationUuid,
-            ProjectMemberRole.EDITOR,
-            ProjectMemberRole.ADMIN,
-        );
+        await service.notifyProjectAdminRoleChange({
+            account: mockSessionAccount,
+            targetUserUuid: mockTargetUserUuid,
+            projectUuid: mockProjectUuid,
+            organizationUuid: mockOrganizationUuid,
+            previousRole: ProjectMemberRole.EDITOR,
+            newRole: ProjectMemberRole.ADMIN,
+        });
 
         expect(
             sendAdminChangeNotificationEmail.mock.calls[0][1].settingsUrl,

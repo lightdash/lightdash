@@ -362,14 +362,22 @@ export class AdminNotificationService extends BaseService {
         }
     }
 
-    async notifyProjectAdminRoleChange(
-        account: Account,
-        targetUserUuid: string,
-        projectUuid: string,
-        organizationUuid: string,
-        previousRole: ProjectMemberRole | null,
-        newRole: ProjectMemberRole | null,
-    ): Promise<void> {
+    async notifyProjectAdminRoleChange(params: {
+        account: Account;
+        targetUserUuid: string;
+        projectUuid: string;
+        organizationUuid: string;
+        previousRole: ProjectMemberRole | null;
+        newRole: ProjectMemberRole | null;
+    }): Promise<void> {
+        const {
+            account,
+            targetUserUuid,
+            projectUuid,
+            organizationUuid,
+            previousRole,
+            newRole,
+        } = params;
         const isEnabled = await this.isFeatureEnabled(organizationUuid);
         if (!isEnabled) {
             this.logger.debug('Admin change notifications disabled');
