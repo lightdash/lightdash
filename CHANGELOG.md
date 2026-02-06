@@ -1,3 +1,10 @@
+# [0.2438.0](https://github.com/lightdash/lightdash/compare/0.2437.0...0.2438.0) (2026-02-06)
+
+
+### Features
+
+* make primary button dark variant ([#20068](https://github.com/lightdash/lightdash/issues/20068)) ([293c330](https://github.com/lightdash/lightdash/commit/293c330497669b75edddb383b2995acbb68c83fe))
+
 # [0.2437.0](https://github.com/lightdash/lightdash/compare/0.2436.4...0.2437.0) (2026-02-06)
 
 
