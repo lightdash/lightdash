@@ -10,7 +10,7 @@
     align-items: center;
     box-shadow: var(--mantine-shadow-lg);
     justify-content: flex-start;
-    background-color: var(--mantine-color-dark-7);
+    background-color: var(--mantine-color-ldDark-0);
 }
 
 .headerEditingDashboardChart {
