@@ -178,9 +178,10 @@ const DashboardProvider: React.FC<
     const [haveFiltersChanged, setHaveFiltersChanged] =
         useState<boolean>(false);
     const [resultsCacheTimes, setResultsCacheTimes] = useState<Date[]>([]);
-    const [invalidateCache, setInvalidateCache] = useState<boolean>(
-        defaultInvalidateCache === true,
-    );
+    // Use a ref for invalidateCache so it's synchronously available when queryFn runs.
+    // React state updates are batched/async, so using state here would cause the queryFn
+    // to read stale values when triggered immediately after clearCacheAndFetch().
+    const invalidateCacheRef = useRef<boolean>(defaultInvalidateCache === true);
 
     // Event system for filter change tracking
     const { dispatchEmbedEvent } = useEmbedEventEmitter();
@@ -1086,8 +1087,12 @@ const DashboardProvider: React.FC<
     const clearCacheAndFetch = useCallback(() => {
         setResultsCacheTimes([]);
 
-        // Causes results refetch
-        setInvalidateCache(true);
+        // Set ref synchronously so it's immediately available to queryFn
+        invalidateCacheRef.current = true;
+    }, []);
+
+    const resetInvalidateCache = useCallback(() => {
+        invalidateCacheRef.current = false;
     }, []);
 
     const updateSqlChartTilesMetadata = useCallback(
@@ -1212,8 +1217,9 @@ const DashboardProvider: React.FC<
         setHaveFiltersChanged,
         addResultsCacheTime,
         oldestCacheTime,
-        invalidateCache,
+        invalidateCacheRef,
         clearCacheAndFetch,
+        resetInvalidateCache,
         isAutoRefresh,
         setIsAutoRefresh,
         allFilterableFieldsMap,

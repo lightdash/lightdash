@@ -65,6 +65,9 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
         const clearCacheAndFetch = useDashboardContext(
             (c) => c.clearCacheAndFetch,
         );
+        const resetInvalidateCache = useDashboardContext(
+            (c) => c.resetInvalidateCache,
+        );
 
         const setIsAutoRefresh = useDashboardContext((c) => c.setIsAutoRefresh);
         const isOneAtLeastFetching = isFetching > 0;
@@ -73,12 +76,16 @@ export const DashboardRefreshButton: FC<DashboardRefreshButtonProps> = memo(
             clearCacheAndFetch();
             await invalidateDashboardRelatedQueries();
             await invalidateDashboardResultsQueries();
+            // Reset invalidateCache to false after queries complete.
+            // This ensures subsequent queries don't unnecessarily bypass the server cache.
+            resetInvalidateCache();
 
             setLastRefreshTime(new Date());
         }, [
             clearCacheAndFetch,
             invalidateDashboardRelatedQueries,
             invalidateDashboardResultsQueries,
+            resetInvalidateCache,
         ]);
 
         const interval = useInterval(

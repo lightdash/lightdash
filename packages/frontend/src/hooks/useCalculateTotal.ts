@@ -190,8 +190,10 @@ export const useCalculateTotal = ({
     const projectUuid = useProjectUuid();
 
     // only add relevant fields to the key (filters, metrics)
+    // Note: invalidateCache is intentionally NOT included in the query key.
+    // It's a transient flag that tells the server to bypass its cache, not part of the query identity.
     const queryKey = savedChartUuid
-        ? { savedChartUuid, dashboardFilters, invalidateCache, parameters }
+        ? { savedChartUuid, dashboardFilters, parameters }
         : {
               filters: metricQuery?.filters,
               metrics: metricQuery?.metrics,

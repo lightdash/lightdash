@@ -129,6 +129,8 @@ export const useCalculateSubtotals = ({
 }) => {
     const projectUuid = useProjectUuid();
 
+    // Note: invalidateCache is intentionally NOT included in the query key.
+    // It's a transient flag that tells the server to bypass its cache, not part of the query identity.
     return useQuery<ApiCalculateSubtotalsResponse['results'], ApiError>(
         [
             'calculate_subtotals',
@@ -139,7 +141,6 @@ export const useCalculateSubtotals = ({
             showSubtotals,
             pivotDimensions,
             dashboardFilters,
-            invalidateCache,
             embedToken,
             parameters,
             dateZoom,
@@ -193,8 +194,8 @@ export const useCalculateSubtotals = ({
                     Boolean(embedToken && metricQuery && explore) ||
                     Boolean(
                         metricQuery &&
-                            explore &&
-                            (metricQuery.metrics.length ?? 0) > 0,
+                        explore &&
+                        (metricQuery.metrics.length ?? 0) > 0,
                     )),
             onError: (result: ApiError) =>
                 console.error(
