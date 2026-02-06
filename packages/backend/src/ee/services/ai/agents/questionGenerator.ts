@@ -1,5 +1,6 @@
-import { generateObject, LanguageModel } from 'ai';
+import { generateObject } from 'ai';
 import { z } from 'zod';
+import { GeneratorModelOptions } from '../models/types';
 
 const QUESTION_MAX_LENGTH_CHARS = 200;
 const QuestionSchema = z.object({
@@ -16,13 +17,15 @@ const QuestionSchema = z.object({
 export type GeneratedQuestion = z.infer<typeof QuestionSchema>;
 
 export async function generateArtifactQuestion(
-    model: LanguageModel,
+    modelOptions: GeneratorModelOptions,
     title: string | null,
     description: string | null,
     metadata: Record<string, string> = {},
 ): Promise<string> {
     const result = await generateObject({
-        model,
+        model: modelOptions.model,
+        ...modelOptions.callOptions,
+        providerOptions: modelOptions.providerOptions,
         schema: QuestionSchema,
         messages: [
             {
@@ -46,7 +49,6 @@ Title: ${title || 'N/A'}
 Description: ${description || 'N/A'}`,
             },
         ],
-        temperature: 0.3,
         experimental_telemetry: {
             functionId: 'generateArtifactQuestion',
             isEnabled: true,

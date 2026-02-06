@@ -1359,14 +1359,14 @@ export class AiAgentService {
                 });
 
             // Use fast model for title generation (lightweight task)
-            const { model } = getModel(this.lightdashConfig.ai.copilot, {
+            const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
                 enableReasoning: false,
                 useFastModel: true,
             });
 
             // Generate title using the dedicated title generator
             const title = await generateTitleFromMessages(
-                model,
+                modelOptions,
                 chatHistoryMessages,
             );
 
@@ -1987,12 +1987,12 @@ export class AiAgentService {
                 return;
             }
 
-            const { model } = getModel(this.lightdashConfig.ai.copilot, {
+            const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
                 enableReasoning: false,
             });
 
             const question = await generateArtifactQuestion(
-                model,
+                modelOptions,
                 payload.title,
                 payload.description,
                 { artifactVersionUuid: payload.artifactVersionUuid },

@@ -1,6 +1,7 @@
 import { GenerateTooltipRequest, TooltipFieldContext } from '@lightdash/common';
-import { generateObject, LanguageModel } from 'ai';
+import { generateObject } from 'ai';
 import { z } from 'zod';
+import { GeneratorModelOptions } from '../models/types';
 
 const TooltipSchema = z.object({
     html: z
@@ -29,13 +30,15 @@ function buildFieldReferenceGuide(
 }
 
 export async function generateTooltip(
-    model: LanguageModel,
+    modelOptions: GeneratorModelOptions,
     context: TooltipContext,
 ): Promise<GeneratedTooltip> {
     const fieldReferenceGuide = buildFieldReferenceGuide(context.fieldsContext);
 
     const result = await generateObject({
-        model,
+        model: modelOptions.model,
+        ...modelOptions.callOptions,
+        providerOptions: modelOptions.providerOptions,
         schema: TooltipSchema,
         messages: [
             {
@@ -97,7 +100,6 @@ ${
 }`,
             },
         ],
-        temperature: 0.3,
     });
 
     return result.object;
