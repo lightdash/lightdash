@@ -2,7 +2,10 @@ import {
     ApiContentActionBody,
     ApiContentBulkActionBody,
     ApiContentResponse,
+    ApiDeletedContentResponse,
     ApiErrorPayload,
+    ApiPermanentlyDeleteContentBody,
+    ApiRestoreContentBody,
     ApiSuccessEmpty,
     ContentActionMove,
     ContentType,
@@ -10,6 +13,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Hidden,
     Middlewares,
@@ -136,6 +140,82 @@ export class ContentController extends BaseController {
                 body.action.targetSpaceUuid,
             );
 
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Get deleted content (soft-deleted charts, dashboards, etc.)
+     * @summary List deleted content
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/deleted')
+    @OperationId('List deleted content')
+    async listDeletedContent(
+        @Request() req: express.Request,
+        @Query() projectUuids: string[],
+        @Query() pageSize?: number,
+        @Query() page?: number,
+        @Query() search?: string,
+        @Query() contentTypes?: ContentType[],
+        @Query() deletedByUserUuids?: string[],
+    ): Promise<ApiDeletedContentResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services.getContentService().findDeleted(
+                req.user!,
+                {
+                    projectUuids,
+                    search,
+                    contentTypes,
+                    deletedByUserUuids,
+                },
+                {
+                    page: page || 1,
+                    pageSize: pageSize || 10,
+                },
+            ),
+        };
+    }
+
+    /**
+     * Restore a soft-deleted item (chart, dashboard, etc.)
+     * @summary Restore content
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/:projectUuid/restore')
+    @OperationId('Restore content')
+    async restoreContent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiRestoreContentBody,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getContentService()
+            .restoreContent(req.user!, projectUuid, body.item);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Permanently delete a soft-deleted item (chart, dashboard, etc.)
+     * @summary Permanently delete content
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('/:projectUuid/permanent')
+    @OperationId('Permanently delete content')
+    async permanentlyDeleteContent(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiPermanentlyDeleteContentBody,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getContentService()
+            .permanentlyDeleteContent(req.user!, projectUuid, body.item);
         return { status: 'ok', results: undefined };
     }
 }

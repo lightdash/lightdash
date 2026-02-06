@@ -32,6 +32,7 @@ export type CaslSubjectNames =
     | 'DashboardCsv'
     | 'DashboardImage'
     | 'DashboardPdf'
+    | 'DeletedContent'
     | 'Explore'
     | 'ExportCsv'
     | 'GoogleSheets'

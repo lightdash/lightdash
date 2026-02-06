@@ -1017,6 +1017,7 @@ export type LightdashConfig = {
     };
     softDelete: {
         enabled: boolean;
+        retentionDays: number;
     };
 };
 
@@ -1834,6 +1835,10 @@ export const parseConfig = (): LightdashConfig => {
         },
         softDelete: {
             enabled: process.env.SOFT_DELETE_ENABLED === 'true',
+            retentionDays:
+                getIntegerFromEnvironmentVariable(
+                    'SOFT_DELETE_RETENTION_DAYS',
+                ) ?? 30,
         },
     };
 };

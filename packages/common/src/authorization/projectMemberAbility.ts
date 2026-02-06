@@ -276,5 +276,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'ScheduledDeliveries', {
             projectUuid: member.projectUuid,
         });
+
+        can('manage', 'DeletedContent', {
+            projectUuid: member.projectUuid,
+        });
     },
 };
