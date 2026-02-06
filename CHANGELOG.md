@@ -1,3 +1,10 @@
+## [0.2436.1](https://github.com/lightdash/lightdash/compare/0.2436.0...0.2436.1) (2026-02-06)
+
+
+### Bug Fixes
+
+* remove Looker-specific comment from ChartAsCode type ([#20061](https://github.com/lightdash/lightdash/issues/20061)) ([ff179c0](https://github.com/lightdash/lightdash/commit/ff179c0184776c7441a9e2e5af35e8bb7fd6c43c))
+
 # [0.2436.0](https://github.com/lightdash/lightdash/compare/0.2435.0...0.2436.0) (2026-02-06)
 
 
