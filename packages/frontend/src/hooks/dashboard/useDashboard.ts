@@ -366,6 +366,20 @@ export const useUpdateDashboard = (
                     'dashboards-containing-chart',
                 ]);
                 await queryClient.resetQueries(['saved_dashboard_query', id]);
+                // Remove stale chart results so navigating back doesn't
+                // show old cache timestamps after a save
+                queryClient.removeQueries({
+                    predicate: (query) => {
+                        const firstKey =
+                            typeof query.queryKey === 'string'
+                                ? query.queryKey
+                                : query.queryKey?.[0];
+                        return (
+                            firstKey === 'dashboard_chart_ready_query' ||
+                            firstKey === 'savedSqlChartResults'
+                        );
+                    },
+                });
                 await queryClient.invalidateQueries(['content']);
                 const onlyUpdatedName: boolean =
                     Object.keys(variables).length === 1 &&
