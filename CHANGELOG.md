@@ -1,3 +1,10 @@
+## [0.2434.2](https://github.com/lightdash/lightdash/compare/0.2434.1...0.2434.2) (2026-02-06)
+
+
+### Bug Fixes
+
+* increase metric detail popover width and add max height to SQL display ([#20047](https://github.com/lightdash/lightdash/issues/20047)) ([3f5611f](https://github.com/lightdash/lightdash/commit/3f5611f8a7a665bec9f9a471bbcb89b0ab02306d))
+
 ## [0.2434.1](https://github.com/lightdash/lightdash/compare/0.2434.0...0.2434.1) (2026-02-06)
 
 
