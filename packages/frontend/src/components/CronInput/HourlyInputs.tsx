@@ -1,4 +1,4 @@
-import { Group, Input, NumberInput } from '@mantine/core';
+import { Group, Input, NumberInput } from '@mantine-8/core';
 import React, { type FC } from 'react';
 import { getHourlyCronExpression, parseCronExpression } from './cronInputUtils';
 
@@ -9,18 +9,19 @@ const HourlyInputs: FC<{
 }> = ({ disabled, cronExpression, onChange }) => {
     const minutes = parseCronExpression(cronExpression).minutes;
 
-    const onMinuteChange = (valueAsNumber: number) => {
+    const onMinuteChange = (value: string | number) => {
         if (
-            Number.isInteger(valueAsNumber) &&
-            valueAsNumber >= 0 &&
-            valueAsNumber <= 59
+            typeof value === 'number' &&
+            Number.isInteger(value) &&
+            value >= 0 &&
+            value <= 59
         ) {
-            onChange(getHourlyCronExpression(valueAsNumber));
+            onChange(getHourlyCronExpression(value));
         }
     };
 
     return (
-        <Group spacing="sm">
+        <Group gap="sm">
             <Input.Label>at minute</Input.Label>
             <NumberInput
                 value={minutes}

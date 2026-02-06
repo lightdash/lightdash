@@ -1,4 +1,4 @@
-import { Group, NavLink } from '@mantine/core';
+import { Group, NavLink } from '@mantine-8/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -18,7 +18,7 @@ const GroupHeader: FC<GroupHeaderProps> = ({ label, isExpanded, onToggle }) => {
             // mostly hardcoded, to match mantine's internal sizes
             disableRightSectionRotation
             rightSection={<></>}
-            icon={
+            leftSection={
                 <MantineIcon
                     icon={IconChevronRight}
                     size={14}
