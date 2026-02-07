@@ -21,6 +21,7 @@ import { type BarChartActionsType } from '../store/barChartSlice';
 import { type LineChartActionsType } from '../store/lineChartSlice';
 import { cartesianChartSelectors } from '../store/selectors';
 import { DataVizAggregationConfig } from './DataVizAggregationConfig';
+import { DataVizGroupLimitConfig } from './DataVizGroupLimitConfig';
 import { DataVizSortConfig } from './DataVizSortConfig';
 
 const YFieldsAxisConfig: FC<{
@@ -287,6 +288,9 @@ export const CartesianChartFieldConfiguration = ({
     const groupByLayoutOptions = useVizSelector((state) =>
         cartesianChartSelectors.getPivotLayoutOptions(state, selectedChartType),
     );
+    const series = useVizSelector((state) =>
+        cartesianChartSelectors.getSeries(state, selectedChartType),
+    );
 
     const errors = useVizSelector((state) =>
         cartesianChartSelectors.getErrors(state, selectedChartType),
@@ -298,6 +302,9 @@ export const CartesianChartFieldConfiguration = ({
     const filteredGroupByOptions = groupByLayoutOptions?.filter(
         (option) => option.reference !== xAxisField?.reference,
     );
+
+    // Get the total number of groups (series) for the group limit config
+    const totalGroups = series?.length ?? 0;
 
     return (
         <Stack spacing="xl" mt="sm">
@@ -365,6 +372,13 @@ export const CartesianChartFieldConfiguration = ({
                     />
                 </Config.Section>
             </Config>
+            {groupByField && totalGroups > 1 && (
+                <DataVizGroupLimitConfig
+                    selectedChartType={selectedChartType}
+                    actions={actions}
+                    totalGroups={totalGroups}
+                />
+            )}
         </Stack>
     );
 };

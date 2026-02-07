@@ -4,6 +4,7 @@ import { type PivotConfiguration } from '../../types/pivot';
 import { type RawResultRow } from '../../types/results';
 import {
     ChartKind,
+    type GroupLimitConfig,
     type PivotReference,
     type Series,
 } from '../../types/savedCharts';
@@ -164,6 +165,8 @@ export type PivotChartLayout = {
     groupBy: { reference: string }[] | undefined;
     sortBy?: VizSortBy[];
     stack?: boolean | StackType; // StackType enum or boolean for backward compatibility
+    /** Configuration for limiting visible groups and aggregating the rest into "Other" */
+    groupLimit?: GroupLimitConfig;
 };
 
 export const isPivotChartLayout = (

@@ -293,6 +293,16 @@ const getErrors = createSelector(
     (chartState) => chartState?.errors,
 );
 
+const getGroupLimit = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.fieldConfig?.groupLimit,
+);
+
+const getSeries = createSelector(
+    [(state, chartKind) => selectCurrentCartesianChartState(state, chartKind)],
+    (chartState) => chartState?.series,
+);
+
 export const cartesianChartSelectors = {
     getIndexLayoutOptions,
     getValuesLayoutOptions,
@@ -305,4 +315,6 @@ export const cartesianChartSelectors = {
     getGroupByField,
     getPivotLayoutOptions,
     getErrors,
+    getGroupLimit,
+    getSeries,
 };
