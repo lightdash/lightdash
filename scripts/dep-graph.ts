@@ -12,9 +12,11 @@
  *   npx tsx scripts/dep-graph.ts --json       # outputs raw JSON to stdout
  *   npx tsx scripts/dep-graph.ts --out dir    # writes HTML to dir/
  *   npx tsx scripts/dep-graph.ts --refresh    # re-classify domains & regenerate summaries even if cache is fresh
+ *   npx tsx scripts/dep-graph.ts --publish    # publish to GitHub Pages (charliedowler/lightdash-dep-graph)
  */
 
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { execSync } from 'child_process';
@@ -1827,15 +1829,35 @@ console.log(
 console.log(`Written to: ${outputPath}`);
 
 // Open in browser
-const platform = process.platform;
-const openCmd =
-    platform === 'darwin'
-        ? 'open'
-        : platform === 'win32'
-          ? 'start'
-          : 'xdg-open';
-try {
-    execSync(`${openCmd} "${outputPath}"`);
-} catch {
-    // silent — might be running headless
+if (!args.includes('--publish')) {
+    const platform = process.platform;
+    const openCmd =
+        platform === 'darwin'
+            ? 'open'
+            : platform === 'win32'
+              ? 'start'
+              : 'xdg-open';
+    try {
+        execSync(`${openCmd} "${outputPath}"`);
+    } catch {
+        // silent — might be running headless
+    }
+}
+
+// Publish to GitHub Pages
+if (args.includes('--publish')) {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dep-graph-'));
+    execSync('git clone --depth 1 git@github.com:charliedowler/lightdash-dep-graph.git .', { cwd: tmp, stdio: 'inherit' });
+    fs.writeFileSync(path.join(tmp, 'index.html'), html);
+    execSync('git add index.html', { cwd: tmp });
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const commitMsg = `Update dep-graph — ${dateStr}`;
+    try {
+        execSync(`git commit -m "${commitMsg}"`, { cwd: tmp, stdio: 'inherit' });
+        execSync('git push', { cwd: tmp, stdio: 'inherit' });
+        console.log('Published to https://charliedowler.github.io/lightdash-dep-graph/');
+    } catch {
+        console.log('No changes to publish.');
+    }
+    fs.rmSync(tmp, { recursive: true });
 }
