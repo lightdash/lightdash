@@ -1291,8 +1291,10 @@ svg { width: 100vw; height: 100vh; }
 .node text { pointer-events: none; transition: opacity 0.2s; }
 .node.dimmed circle, .node.dimmed text { opacity: 0.06; }
 
-.domain-hull { pointer-events: none; }
-.domain-label { pointer-events: none; font-size: 12px; font-weight: 700; text-anchor: middle; }
+.domain-hull { pointer-events: none; transition: fill-opacity 0.3s, stroke-opacity 0.3s; }
+.domain-label { pointer-events: none; font-size: 12px; font-weight: 700; text-anchor: middle; transition: fill-opacity 0.3s, font-size 0.3s; }
+.domain-only .domain-hull { fill-opacity: 0.12 !important; stroke-opacity: 0.4 !important; stroke-width: 1.5 !important; }
+.domain-only .domain-label { fill-opacity: 0.9 !important; font-size: 14px !important; }
 
 #heatmap-legend {
   display: none; flex-direction: column; gap: 4px; margin-top: 8px;
@@ -1378,6 +1380,7 @@ svg { width: 100vw; height: 100vh; }
   <button class="btn active" id="btn-arrows">Arrows</button>
   <div class="sep"></div>
   <button class="btn active" id="btn-domains">Domains</button>
+  <button class="btn active" id="btn-nodes">Nodes</button>
   <div class="sep"></div>
   <button class="btn" id="btn-ee" style="display:none">EE</button>
   <div class="sep" id="sep-ee" style="display:none"></div>
@@ -1451,6 +1454,7 @@ svg { width: 100vw; height: 100vh; }
       <button class="guide-toggle" aria-expanded="false"><span class="chevron">&#9654;</span> Domains &amp; toggles</button>
       <div class="guide-content">
         <p><b>Domains</b> groups nodes by their domain directory, drawing a hull boundary around each group. Toggle off for a flat layout.</p>
+        <p><b>Nodes</b> toggles node and edge visibility. Turn off to see only the domain regions &mdash; useful for a high-level architectural overview.</p>
         <p><b>Arrows</b> shows dependency direction on highlighted edges.</p>
         <p><b>EE</b> (if visible) toggles enterprise-edition nodes.</p>
       </div>
@@ -1924,6 +1928,28 @@ document.getElementById('btn-domains').addEventListener('click', () => {
   domainsEnabled = !domainsEnabled;
   document.getElementById('btn-domains').classList.toggle('active', domainsEnabled);
   applyDomainLayout();
+  if (!domainsEnabled && !nodesVisible) {
+    nodesVisible = true;
+    document.getElementById('btn-nodes').classList.add('active');
+    applyNodeVisibility();
+  }
+});
+
+let nodesVisible = true;
+function applyNodeVisibility() {
+  node.style('opacity', nodesVisible ? null : 0).style('pointer-events', nodesVisible ? null : 'none');
+  link.style('opacity', nodesVisible ? null : 0);
+  svg.node().classList.toggle('domain-only', !nodesVisible);
+}
+document.getElementById('btn-nodes').addEventListener('click', () => {
+  nodesVisible = !nodesVisible;
+  document.getElementById('btn-nodes').classList.toggle('active', nodesVisible);
+  if (!nodesVisible && !domainsEnabled) {
+    domainsEnabled = true;
+    document.getElementById('btn-domains').classList.add('active');
+    applyDomainLayout();
+  }
+  applyNodeVisibility();
 });
 
 document.getElementById('search').addEventListener('input', e => {
@@ -1979,6 +2005,11 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   document.getElementById('heatmap-legend').style.display = 'none';
   const labels = document.querySelectorAll('.heatmap-labels span');
   labels[0].textContent = 'Healthy'; labels[1].textContent = 'Hot';
+  if (!nodesVisible) {
+    nodesVisible = true;
+    document.getElementById('btn-nodes').classList.add('active');
+    applyNodeVisibility();
+  }
   svg.transition().duration(500).call(zoomBehavior.transform, d3.zoomIdentity);
 });
 
