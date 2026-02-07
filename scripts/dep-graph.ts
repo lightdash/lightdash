@@ -567,6 +567,8 @@ interface SentryActivity {
     maxP95Ms: number;
     endpoints: SentryEndpoint[];
     spans: Array<{ name: string; count: number }>;
+    topError: string | null;
+    topErrorCount: number;
 }
 
 interface GraphNode {
@@ -1311,6 +1313,7 @@ interface SentryRawData {
     transactions: Array<{ transaction: string; count: number; p95: number }>;
     errors: Array<{ culprit: string; count: number }>;
     spans: Array<{ transaction: string; count: number }>;
+    errorTitles: Array<{ title: string; transaction: string; count: number }>;
 }
 
 function fetchSentryData(token: string): SentryRawData {
@@ -1376,9 +1379,20 @@ function fetchSentryData(token: string): SentryRawData {
         count: row['count()'] || 0,
     }));
 
-    console.log(`  ${transactions.length} transactions, ${errors.length} error culprits, ${spans.length} service spans.`);
+    const errorTitleResult = sentryGet(
+        'dataset=errors&field=title&field=transaction&field=count()&sort=-count()&per_page=100',
+    );
+    const errorTitles = (errorTitleResult.data || [])
+        .filter((row: any) => row.transaction && row.title)
+        .map((row: any) => ({
+            title: row.title as string,
+            transaction: row.transaction as string,
+            count: (row['count()'] || 0) as number,
+        }));
 
-    return { transactions, errors, spans };
+    console.log(`  ${transactions.length} transactions, ${errors.length} error culprits, ${errorTitles.length} error titles, ${spans.length} service spans.`);
+
+    return { transactions, errors, spans, errorTitles };
 }
 
 function matchSentryToNodes(
@@ -1464,6 +1478,21 @@ function matchSentryToNodes(
         serviceSpans.get(serviceName)!.push({ name: methodName, count: span.count });
     }
 
+    const nodeTopErrors = new Map<string, { title: string; count: number }>();
+    for (const et of rawData.errorTitles) {
+        const route = et.transaction.replace(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/, '');
+        if (!route.includes('/api/')) continue;
+        for (const matcher of routeMatchers) {
+            if (matcher.regex.test(route)) {
+                const existing = nodeTopErrors.get(matcher.nodeId);
+                if (!existing || et.count > existing.count) {
+                    nodeTopErrors.set(matcher.nodeId, { title: et.title, count: et.count });
+                }
+                break;
+            }
+        }
+    }
+
     let matchedCount = 0;
     for (const node of graph.nodes) {
         if (node.type === 'controller' || node.type === 'router') {
@@ -1483,6 +1512,7 @@ function matchSentryToNodes(
 
                 endpointList.sort((a, b) => b.count - a.count);
 
+                const topErr = nodeTopErrors.get(node.id);
                 node.sentryActivity = {
                     totalRequests,
                     totalErrors,
@@ -1490,6 +1520,8 @@ function matchSentryToNodes(
                     maxP95Ms: maxP95,
                     endpoints: endpointList.slice(0, 5),
                     spans: [],
+                    topError: topErr?.title ?? null,
+                    topErrorCount: topErr?.count ?? 0,
                 };
                 matchedCount++;
             }
@@ -1505,6 +1537,8 @@ function matchSentryToNodes(
                     maxP95Ms: 0,
                     endpoints: [],
                     spans: spans.slice(0, 5),
+                    topError: null,
+                    topErrorCount: 0,
                 };
                 matchedCount++;
             }
@@ -2097,6 +2131,10 @@ node.on('mouseover', (ev, d) => {
     if (sa.maxP95Ms > 0) h += ' · p95 <span style="color:#c9d1d9;font-weight:600">' + fmtMs(sa.maxP95Ms) + '</span>';
     if (sa.totalErrors > 0) h += ' · <span style="color:#f47067">' + fmtNum(sa.totalErrors) + ' errors (' + (sa.errorRate * 100).toFixed(2) + '%)</span>';
     h += '</div>';
+    if (sa.topError) {
+      const shortErr = sa.topError.length > 60 ? sa.topError.slice(0, 57) + '…' : sa.topError;
+      h += '<div class="t-item" style="font-size:11px;margin-top:2px"><span style="color:#f47067">⚡</span> <span style="color:#f0883e">' + shortErr + '</span> <span style="color:#484f58">(' + fmtNum(sa.topErrorCount) + ')</span></div>';
+    }
     if (sa.endpoints && sa.endpoints.length > 0) {
       h += '<div class="t-section" style="margin-top:4px">top endpoints</div>';
       sa.endpoints.slice(0, 3).forEach(ep => {
@@ -2821,7 +2859,11 @@ function summarizeHealthScores(
             const edges = edgeCounts[n.id] || 0;
             const cyc = n.complexity?.cyclomatic || 0;
             const cog = n.complexity?.cognitive || 0;
-            return `${n.id}:${edges}:${n.lineCount || 0}:${cyc}:${cog}:${n.gitActivity?.churn || 0}:${n.gitActivity?.commits || 0}`;
+            let line = `${n.id}:${edges}:${n.lineCount || 0}:${cyc}:${cog}:${n.gitActivity?.churn || 0}:${n.gitActivity?.commits || 0}`;
+            if (n.sentryActivity) {
+                line += `:${n.sentryActivity.totalRequests}:${n.sentryActivity.totalErrors}:${n.sentryActivity.topError || ''}:${n.sentryActivity.topErrorCount}`;
+            }
+            return line;
         })
         .sort()
         .join('\n');
@@ -2855,7 +2897,16 @@ function summarizeHealthScores(
             const churn = n.gitActivity?.churn || 0;
             const commits = n.gitActivity?.commits || 0;
             const authors = n.gitActivity?.authors || 0;
-            return `${n.id} (${n.type}): ${edges} edges, ${lines} lines, cyclomatic ${cyc}, cognitive ${cog}, ${churn} churn (6mo), ${commits} total commits, ${authors} authors`;
+            let desc = `${n.id} (${n.type}): ${edges} edges, ${lines} lines, cyclomatic ${cyc}, cognitive ${cog}, ${churn} churn (6mo), ${commits} total commits, ${authors} authors`;
+            if (n.sentryActivity) {
+                const sa = n.sentryActivity;
+                const fmtReqs = sa.totalRequests >= 1e6 ? (sa.totalRequests / 1e6).toFixed(1) + 'M' : sa.totalRequests >= 1e3 ? (sa.totalRequests / 1e3).toFixed(1) + 'K' : String(sa.totalRequests);
+                desc += ` | ${fmtReqs} requests, ${(sa.errorRate * 100).toFixed(1)}% error rate`;
+                if (sa.topError) {
+                    desc += `, top error: "${sa.topError}" (${sa.topErrorCount} occurrences)`;
+                }
+            }
+            return desc;
         })
         .join('\n');
 
@@ -2870,6 +2921,7 @@ For each node, write ONE line (max 70 chars). Focus on:
 - Actionable advice: "split into query-building and execution halves"
 - Risk classification: what kind of problem this node represents
 - Comparisons: "god service — owns too many concerns"
+- Production errors: if a node has a high error rate or a dominant error, call it out — "NotFoundError dominates — likely missing validation" or "clean production profile, no action needed"
 - For healthy nodes: what makes them a good example
 
 Tone: opinionated, direct, like a senior engineer's code review.
