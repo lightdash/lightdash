@@ -12,6 +12,7 @@
  *   npx tsx scripts/dep-graph.ts --out dir    # writes HTML to dir/
  *   npx tsx scripts/dep-graph.ts --domains    # domain-clustered layout (uses Claude to classify, cached)
  *   npx tsx scripts/dep-graph.ts --summaries  # LLM-generated git activity + health summaries in tooltips
+ *   npx tsx scripts/dep-graph.ts --no-ee           # exclude Enterprise Edition nodes
  *   npx tsx scripts/dep-graph.ts --domains --force  # re-classify even if cache is fresh
  */
 
@@ -31,6 +32,9 @@ const SERVICE_REPO = path.join(
 );
 const CONTROLLERS_DIR = path.join(BACKEND_SRC, 'controllers');
 const ROUTERS_DIR = path.join(BACKEND_SRC, 'routers');
+const EE_DIR = path.join(BACKEND_SRC, 'ee');
+const EE_CONTROLLERS_DIR = path.join(EE_DIR, 'controllers');
+const EE_INDEX = path.join(EE_DIR, 'index.ts');
 
 // ---------------------------------------------------------------------------
 // Parsing
@@ -160,18 +164,127 @@ function parseRouters(): Record<string, string[]> {
     return routers;
 }
 
+interface EeParsed {
+    services: Record<string, ServiceDeps>;
+    modelNames: string[];
+    clientNames: string[];
+}
+
+function parseEeIndex(): EeParsed {
+    if (!fs.existsSync(EE_INDEX)) {
+        return { services: {}, modelNames: [], clientNames: [] };
+    }
+
+    const src = fs.readFileSync(EE_INDEX, 'utf-8');
+
+    const serviceBlockMatch = src.match(/serviceProviders:\s*\{([\s\S]*?)\n\s{8}\},/);
+    const modelBlockMatch = src.match(/modelProviders:\s*\{([\s\S]*?)\n\s{8}\},/);
+    const clientBlockMatch = src.match(/clientProviders:\s*\{([\s\S]*?)\n\s{8}\},/);
+
+    const services: Record<string, ServiceDeps> = {};
+
+    if (serviceBlockMatch) {
+        const block = serviceBlockMatch[1];
+        const providerRe = /^\s{12}(\w+):\s*\(/gm;
+        const providerStarts: { pos: number; name: string }[] = [];
+        let m: RegExpExecArray | null;
+        while ((m = providerRe.exec(block)) !== null) {
+            providerStarts.push({ pos: m.index, name: m[1] });
+        }
+
+        for (let i = 0; i < providerStarts.length; i++) {
+            const providerBlock = block.slice(
+                providerStarts[i].pos,
+                i + 1 < providerStarts.length ? providerStarts[i + 1].pos : block.length,
+            );
+            const key = providerStarts[i].name;
+
+            const models = unique(
+                matchAll(providerBlock, /models\.(get\w+)\(\)/g).map((x) => x.slice(3)),
+            );
+            const clients = unique(
+                matchAll(providerBlock, /clients\.(get\w+)\(\)/g).map((x) => x.slice(3)),
+            );
+            const svcDeps = unique(
+                matchAll(providerBlock, /repository\.(get\w+)\(\)/g).map((x) => x.slice(3)),
+            );
+
+            const displayName = key[0].toUpperCase() + key.slice(1);
+            services[displayName] = { models, clients, services: svcDeps };
+        }
+    }
+
+    const modelNames: string[] = [];
+    if (modelBlockMatch) {
+        const block = modelBlockMatch[1];
+        const nameRe = /^\s{12}(\w+):/gm;
+        let m: RegExpExecArray | null;
+        while ((m = nameRe.exec(block)) !== null) {
+            modelNames.push(m[1][0].toUpperCase() + m[1].slice(1));
+        }
+    }
+
+    const clientNames: string[] = [];
+    if (clientBlockMatch) {
+        const block = clientBlockMatch[1];
+        const nameRe = /^\s{12}(\w+):/gm;
+        let m: RegExpExecArray | null;
+        while ((m = nameRe.exec(block)) !== null) {
+            clientNames.push(m[1][0].toUpperCase() + m[1].slice(1));
+        }
+    }
+
+    return { services, modelNames, clientNames };
+}
+
+function parseEeControllers(): Record<string, string[]> {
+    const controllers: Record<string, string[]> = {};
+
+    if (!fs.existsSync(EE_CONTROLLERS_DIR)) return controllers;
+
+    const files = fs.readdirSync(EE_CONTROLLERS_DIR).filter((f) => f.endsWith('.ts'));
+    for (const file of files) {
+        if (
+            file === 'index.ts' ||
+            file.includes('.test.') ||
+            file.includes('.spec.')
+        )
+            continue;
+
+        const fpath = path.join(EE_CONTROLLERS_DIR, file);
+        const content = fs.readFileSync(fpath, 'utf-8');
+
+        const calls = unique(
+            matchAll(content, /\.get(\w+Service)(?:<\w+>)?\(\)/g),
+        );
+
+        if (calls.length > 0) {
+            const name = file.replace('.ts', '');
+            controllers[`ee/${name}`] = calls.sort();
+        }
+    }
+
+    return controllers;
+}
+
 function resolveFilePath(
     id: string,
     type: GraphNode['type'],
+    ee?: boolean,
 ): string | undefined {
     const candidates: string[] = [];
     switch (type) {
         case 'controller': {
-            const stripped = id.replace(/^v2\//, '');
-            const sub = id.startsWith('v2/') ? 'v2/' : '';
-            candidates.push(
-                path.join(CONTROLLERS_DIR, `${sub}${stripped}.ts`),
-            );
+            if (ee || id.startsWith('ee/')) {
+                const stripped = id.replace(/^ee\//, '');
+                candidates.push(path.join(EE_CONTROLLERS_DIR, `${stripped}.ts`));
+            } else {
+                const stripped = id.replace(/^v2\//, '');
+                const sub = id.startsWith('v2/') ? 'v2/' : '';
+                candidates.push(
+                    path.join(CONTROLLERS_DIR, `${sub}${stripped}.ts`),
+                );
+            }
             break;
         }
         case 'router':
@@ -186,6 +299,12 @@ function resolveFilePath(
                     : type === 'model'
                       ? 'models'
                       : 'clients';
+            if (ee) {
+                candidates.push(
+                    path.join(EE_DIR, dir, id, `${id}.ts`),
+                    path.join(EE_DIR, dir, `${id}.ts`),
+                );
+            }
             candidates.push(
                 path.join(BACKEND_SRC, dir, id, `${id}.ts`),
                 path.join(BACKEND_SRC, dir, `${id}.ts`),
@@ -199,8 +318,9 @@ function resolveFilePath(
 function resolveLineCount(
     id: string,
     type: GraphNode['type'],
+    ee?: boolean,
 ): number | undefined {
-    const fp = resolveFilePath(id, type);
+    const fp = resolveFilePath(id, type, ee);
     if (fp) return fs.readFileSync(fp, 'utf-8').split('\n').length;
     return undefined;
 }
@@ -226,6 +346,7 @@ interface GitActivity {
 interface GraphNode {
     id: string;
     type: 'controller' | 'router' | 'service' | 'model' | 'client';
+    ee?: boolean;
     domain?: string;
     lineCount?: number;
     gitActivity?: GitActivity;
@@ -254,15 +375,25 @@ function buildGraph(
     services: Record<string, ServiceDeps>,
     controllers: Record<string, string[]>,
     routers: Record<string, string[]>,
+    eeData?: { services: Record<string, ServiceDeps>; controllers: Record<string, string[]>; modelNames: string[]; clientNames: string[] },
 ): GraphData {
     const nodes: GraphNode[] = [];
     const edges: GraphEdge[] = [];
     const nodeSet = new Set<string>();
+    const edgeSet = new Set<string>();
 
-    const addNode = (id: string, type: GraphNode['type']) => {
+    const addEdge = (from: string, to: string, type: string) => {
+        const key = `${from}\0${to}\0${type}`;
+        if (!edgeSet.has(key)) {
+            edgeSet.add(key);
+            edges.push({ from, to, type });
+        }
+    };
+
+    const addNode = (id: string, type: GraphNode['type'], ee?: boolean) => {
         if (!nodeSet.has(id)) {
-            const lineCount = resolveLineCount(id, type);
-            nodes.push({ id, type, ...(lineCount && { lineCount }) });
+            const lineCount = resolveLineCount(id, type, ee);
+            nodes.push({ id, type, ...(ee && { ee }), ...(lineCount && { lineCount }) });
             nodeSet.add(id);
         }
     };
@@ -292,7 +423,7 @@ function buildGraph(
     for (const [ctrl, svcs] of Object.entries(controllers)) {
         for (const svc of svcs) {
             if (nodeSet.has(svc)) {
-                edges.push({ from: ctrl, to: svc, type: 'uses_service' });
+                addEdge(ctrl, svc, 'uses_service');
             }
         }
     }
@@ -301,7 +432,7 @@ function buildGraph(
     for (const [rtr, svcs] of Object.entries(routers)) {
         for (const svc of svcs) {
             if (nodeSet.has(svc)) {
-                edges.push({ from: rtr, to: svc, type: 'router_uses_service' });
+                addEdge(rtr, svc, 'router_uses_service');
             }
         }
     }
@@ -309,14 +440,74 @@ function buildGraph(
     // Service -> Model/Client/Service edges
     for (const [svc, deps] of Object.entries(services)) {
         for (const m of deps.models) {
-            edges.push({ from: svc, to: m, type: 'injects_model' });
+            addEdge(svc, m, 'injects_model');
         }
         for (const c of deps.clients) {
-            edges.push({ from: svc, to: c, type: 'injects_client' });
+            addEdge(svc, c, 'injects_client');
         }
         for (const s of deps.services) {
             if (nodeSet.has(s)) {
-                edges.push({ from: svc, to: s, type: 'injects_service' });
+                addEdge(svc, s, 'injects_service');
+            }
+        }
+    }
+
+    // EE nodes and edges
+    if (eeData) {
+        for (const c of Object.keys(eeData.controllers).sort()) {
+            addNode(c, 'controller', true);
+        }
+
+        // EE services that don't already exist as OSS nodes are new EE-only services
+        for (const s of Object.keys(eeData.services).sort()) {
+            if (!nodeSet.has(s)) {
+                addNode(s, 'service', true);
+            }
+        }
+
+        // EE-only models and clients
+        for (const m of eeData.modelNames) {
+            if (!nodeSet.has(m)) addNode(m, 'model', true);
+        }
+        for (const c of eeData.clientNames) {
+            if (!nodeSet.has(c)) addNode(c, 'client', true);
+        }
+
+        // EE models/clients referenced as deps
+        for (const deps of Object.values(eeData.services)) {
+            for (const m of deps.models) {
+                if (!nodeSet.has(m)) addNode(m, 'model', true);
+            }
+            for (const c of deps.clients) {
+                if (!nodeSet.has(c)) addNode(c, 'client', true);
+            }
+        }
+
+        // EE controller -> service edges
+        for (const [ctrl, svcs] of Object.entries(eeData.controllers)) {
+            for (const svc of svcs) {
+                if (nodeSet.has(svc)) {
+                    addEdge(ctrl, svc, 'uses_service');
+                }
+            }
+        }
+
+        // EE service -> dep edges
+        for (const [svc, deps] of Object.entries(eeData.services)) {
+            for (const m of deps.models) {
+                if (nodeSet.has(m)) {
+                    addEdge(svc, m, 'injects_model');
+                }
+            }
+            for (const c of deps.clients) {
+                if (nodeSet.has(c)) {
+                    addEdge(svc, c, 'injects_client');
+                }
+            }
+            for (const s of deps.services) {
+                if (nodeSet.has(s)) {
+                    addEdge(svc, s, 'injects_service');
+                }
             }
         }
     }
@@ -342,11 +533,11 @@ function buildGraph(
 // Git activity
 // ---------------------------------------------------------------------------
 
-function collectGitActivity(nodes: GraphNode[]): void {
+function collectGitActivity(nodes: GraphNode[], includeEe: boolean): void {
     const repoRoot = path.resolve(__dirname, '..');
     const relPathToNode = new Map<string, GraphNode>();
     for (const n of nodes) {
-        const fp = resolveFilePath(n.id, n.type);
+        const fp = resolveFilePath(n.id, n.type, n.ee);
         if (fp) {
             relPathToNode.set(path.relative(repoRoot, fp), n);
         }
@@ -361,6 +552,15 @@ function collectGitActivity(nodes: GraphNode[]): void {
         'packages/backend/src/controllers/',
         'packages/backend/src/routers/',
     ];
+
+    if (includeEe) {
+        dirs.push(
+            'packages/backend/src/ee/controllers/',
+            'packages/backend/src/ee/services/',
+            'packages/backend/src/ee/models/',
+            'packages/backend/src/ee/clients/',
+        );
+    }
 
     let logOutput: string;
     try {
@@ -539,6 +739,8 @@ svg { width: 100vw; height: 100vh; }
   <div class="sep"></div>
   <label class="stat" style="display:flex;align-items:center;gap:4px;" title="Node color scheme">Color <select id="color-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="type">Type</option><option value="health">Health</option></select></label>
   <div class="sep"></div>
+  <button class="btn" id="btn-ee" style="display:none">EE</button>
+  <div class="sep" id="sep-ee" style="display:none"></div>
   <button class="btn" id="btn-reset">Reset</button>
 </div>
 <div id="legend">
@@ -708,7 +910,8 @@ node.append('circle')
   .attr('r', d => d.r)
   .attr('fill', d => getNodeColor(d))
   .attr('stroke', d => getNodeStroke(d))
-  .attr('stroke-width', 1.5);
+  .attr('stroke-width', 1.5)
+  .attr('stroke-dasharray', d => d.ee ? '3,2' : null);
 
 node.append('text')
   .text(d => d.id)
@@ -977,6 +1180,38 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   document.getElementById('heatmap-legend').style.display = 'none';
   svg.transition().duration(500).call(zoomBehavior.transform, d3.zoomIdentity);
 });
+
+// EE toggle
+const hasEe = nodes.some(n => n.ee);
+if (hasEe) {
+  document.getElementById('btn-ee').style.display = '';
+  document.getElementById('sep-ee').style.display = '';
+  let eeVisible = true;
+  const eeBtn = document.getElementById('btn-ee');
+  eeBtn.classList.add('active');
+  function applyEeVisibility() {
+    node.each(function(d) {
+      if (d.ee) {
+        d3.select(this).style('display', eeVisible ? null : 'none');
+      }
+    });
+    link.each(function(l) {
+      const s = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
+      const t = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
+      const sNode = nodes.find(n => n.id === s);
+      const tNode = nodes.find(n => n.id === t);
+      if ((sNode && sNode.ee) || (tNode && tNode.ee)) {
+        d3.select(this).style('display', eeVisible ? null : 'none');
+      }
+    });
+  }
+  applyEeVisibility();
+  eeBtn.addEventListener('click', () => {
+    eeVisible = !eeVisible;
+    eeBtn.classList.toggle('active', eeVisible);
+    applyEeVisibility();
+  });
+}
 
 function padHull(points, pad) {
   if (points.length < 3) return points;
@@ -1448,13 +1683,27 @@ const outIdx = args.indexOf('--out');
 const outDir = outIdx >= 0 ? args[outIdx + 1] : null;
 const wantDomains = args.includes('--domains');
 const wantSummaries = args.includes('--summaries');
+const wantEe = !args.includes('--no-ee');
 const forceClassify = args.includes('--force');
 
 const services = parseServiceRepository();
 const controllers = parseControllers();
 const routers = parseRouters();
-const graph = buildGraph(services, controllers, routers);
-collectGitActivity(graph.nodes);
+
+let eeData: { services: Record<string, ServiceDeps>; controllers: Record<string, string[]>; modelNames: string[]; clientNames: string[] } | undefined;
+if (wantEe) {
+    const eeParsed = parseEeIndex();
+    const eeControllers = parseEeControllers();
+    eeData = {
+        services: eeParsed.services,
+        controllers: eeControllers,
+        modelNames: eeParsed.modelNames,
+        clientNames: eeParsed.clientNames,
+    };
+}
+
+const graph = buildGraph(services, controllers, routers, eeData);
+collectGitActivity(graph.nodes, wantEe);
 
 if (wantDomains) {
     const domains = classifyDomains(graph, forceClassify);
@@ -1503,11 +1752,13 @@ if (outDir) {
 }
 fs.writeFileSync(outputPath, html);
 
+const eeNodeCount = graph.nodes.filter((n) => n.ee).length;
+const eeLabel = eeNodeCount > 0 ? ` (+${eeNodeCount} EE)` : '';
 console.log(
     `Generated: ${graph.stats.controllers} controllers, ` +
         `${graph.stats.routers} routers, ` +
         `${graph.stats.services} services, ${graph.stats.models} models, ` +
-        `${graph.stats.clients} clients (${graph.stats.totalEdges} edges)`,
+        `${graph.stats.clients} clients (${graph.stats.totalEdges} edges)${eeLabel}`,
 );
 console.log(`Written to: ${outputPath}`);
 
