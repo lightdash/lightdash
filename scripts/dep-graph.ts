@@ -511,20 +511,20 @@ document.getElementById('depth').addEventListener('input', () => {
 });
 
 function getConnected(id, depth) {
-  const visited = new Set([id]);
+  const depthMap = new Map([[id, 0]]);
   let frontier = new Set([id]);
   for (let d = 0; d < depth; d++) {
     const next = new Set();
     links.forEach(l => {
       const src = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
       const tgt = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
-      if (frontier.has(src) && !visited.has(tgt)) { visited.add(tgt); next.add(tgt); }
-      if (frontier.has(tgt) && !visited.has(src)) { visited.add(src); next.add(src); }
+      if (frontier.has(src) && !depthMap.has(tgt)) { depthMap.set(tgt, d + 1); next.add(tgt); }
+      if (frontier.has(tgt) && !depthMap.has(src)) { depthMap.set(src, d + 1); next.add(src); }
     });
     if (next.size === 0) break;
     frontier = next;
   }
-  return visited;
+  return depthMap;
 }
 
 function getDepth() {
@@ -547,29 +547,41 @@ function highlightNode(d) {
     return conn.has(s) && conn.has(t);
   });
 
-  let i = 0;
+  const edgesByLayer = {};
   link.filter('.highlighted').each(function(l) {
-    const el = d3.select(this);
-    const x1 = +el.attr('x1'), y1 = +el.attr('y1');
-    const x2 = +el.attr('x2'), y2 = +el.attr('y2');
-    const len = Math.hypot(x2 - x1, y2 - y1);
-    if (len === 0) return;
     const src = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
-    const outward = src === d.id;
-    el.attr('stroke-dasharray', len)
-      .attr('stroke-dashoffset', outward ? len : -len);
-    el.transition()
-      .delay(i * 30)
-      .duration(450)
-      .ease(d3.easeCubicOut)
-      .attr('stroke-dashoffset', 0)
-      .on('end', function() {
-        const self = d3.select(this);
-        if (l.type === 'injects_service') self.attr('stroke-dasharray', '4,3');
-        else self.attr('stroke-dasharray', null);
-        self.attr('stroke-dashoffset', null);
-      });
-    i++;
+    const tgt = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
+    const srcDepth = conn.get(src) ?? Infinity;
+    const tgtDepth = conn.get(tgt) ?? Infinity;
+    const layer = Math.min(srcDepth, tgtDepth);
+    if (!edgesByLayer[layer]) edgesByLayer[layer] = [];
+    edgesByLayer[layer].push({ el: d3.select(this), l, srcDepth, tgtDepth });
+  });
+  const layers = Object.keys(edgesByLayer).map(Number).sort((a, b) => a - b);
+  let baseDelay = 0;
+  layers.forEach(layer => {
+    const edges = edgesByLayer[layer];
+    edges.forEach((e, i) => {
+      const x1 = +e.el.attr('x1'), y1 = +e.el.attr('y1');
+      const x2 = +e.el.attr('x2'), y2 = +e.el.attr('y2');
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      if (len === 0) return;
+      const outward = e.srcDepth <= e.tgtDepth;
+      e.el.attr('stroke-dasharray', len)
+        .attr('stroke-dashoffset', outward ? len : -len);
+      e.el.transition()
+        .delay(baseDelay + i * 20)
+        .duration(400)
+        .ease(d3.easeCubicOut)
+        .attr('stroke-dashoffset', 0)
+        .on('end', function() {
+          const self = d3.select(this);
+          if (e.l.type === 'injects_service') self.attr('stroke-dasharray', '4,3');
+          else self.attr('stroke-dasharray', null);
+          self.attr('stroke-dashoffset', null);
+        });
+    });
+    baseDelay += 200;
   });
 }
 
