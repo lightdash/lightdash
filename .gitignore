@@ -120,3 +120,4 @@ scripts/.dep-graph-summaries.json
 scripts/.dep-graph-health-summaries.json
 scripts/.dep-graph-duplication.json
 scripts/.dep-graph-duplication-summaries.json
+scripts/.dep-graph-sentry.json
