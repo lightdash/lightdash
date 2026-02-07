@@ -12,6 +12,7 @@
  *   npx tsx scripts/dep-graph.ts --json       # outputs raw JSON to stdout
  *   npx tsx scripts/dep-graph.ts --out dir    # writes HTML to dir/
  *   npx tsx scripts/dep-graph.ts --refresh    # re-classify domains & regenerate summaries even if cache is fresh
+ *   npx tsx scripts/dep-graph.ts --sentry     # include Sentry production traffic data (requires SENTRY_AUTH_TOKEN)
  *   npx tsx scripts/dep-graph.ts --publish    # publish to GitHub Pages (charliedowler/lightdash-dep-graph)
  */
 
@@ -552,6 +553,22 @@ interface NodeDuplication {
     ratio: number;
 }
 
+interface SentryEndpoint {
+    route: string;
+    count: number;
+    p95Ms: number;
+    errorCount: number;
+}
+
+interface SentryActivity {
+    totalRequests: number;
+    totalErrors: number;
+    errorRate: number;
+    maxP95Ms: number;
+    endpoints: SentryEndpoint[];
+    spans: Array<{ name: string; count: number }>;
+}
+
 interface GraphNode {
     id: string;
     type: 'controller' | 'router' | 'service' | 'model' | 'client';
@@ -564,6 +581,7 @@ interface GraphNode {
     healthSummary?: string;
     duplication?: NodeDuplication;
     duplicationSummary?: string;
+    sentryActivity?: SentryActivity;
 }
 interface GraphEdge {
     from: string;
@@ -1215,6 +1233,339 @@ Return as JSON with "pairAdvice" (keyed by "nodeA\\0nodeB" with names alphabetic
 }
 
 // ---------------------------------------------------------------------------
+// Sentry production analytics
+// ---------------------------------------------------------------------------
+
+const SENTRY_CACHE = path.join(__dirname, '.dep-graph-sentry.json');
+const SENTRY_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+interface ControllerRoute {
+    base: string;
+    subPaths: string[];
+}
+
+function parseControllerRoutes(): Record<string, ControllerRoute> {
+    const routes: Record<string, ControllerRoute> = {};
+
+    const patterns = [
+        { dir: CONTROLLERS_DIR, prefix: '' },
+        { dir: path.join(CONTROLLERS_DIR, 'v2'), prefix: 'v2/' },
+        { dir: EE_CONTROLLERS_DIR, prefix: 'ee/' },
+    ];
+
+    for (const { dir, prefix } of patterns) {
+        if (!fs.existsSync(dir)) continue;
+        const files = fs.readdirSync(dir).filter((f) => f.endsWith('.ts'));
+        for (const file of files) {
+            if (file === 'baseController.ts' || file === 'index.ts' || file.includes('.test.') || file.includes('.spec.'))
+                continue;
+            const fpath = path.join(dir, file);
+            const content = fs.readFileSync(fpath, 'utf-8');
+            const routeMatch = content.match(/@Route\(['"`]([^'"`]+)['"`]\)/);
+            if (routeMatch) {
+                const name = file.replace('.ts', '');
+                const displayName = prefix + name;
+                const subPaths = matchAll(content, /@(?:Get|Post|Put|Patch|Delete)\(['"`]([^'"`]+)['"`]\)/g);
+                routes[displayName] = { base: routeMatch[1], subPaths };
+            }
+        }
+    }
+
+    return routes;
+}
+
+function parseRouterMountPaths(): Record<string, string> {
+    const mounts: Record<string, string> = {};
+    const apiRouterPath = path.join(ROUTERS_DIR, 'apiV1Router.ts');
+    if (!fs.existsSync(apiRouterPath)) return mounts;
+
+    const content = fs.readFileSync(apiRouterPath, 'utf-8');
+    const mountRe = /apiV1Router\.use\(\s*'([^']+)'\s*,\s*(\w+)\s*\)/g;
+    let m: RegExpExecArray | null;
+    while ((m = mountRe.exec(content)) !== null) {
+        const mountPath = `/api/v1${m[1]}`;
+        const varName = m[2];
+        const files = fs.existsSync(ROUTERS_DIR) ? fs.readdirSync(ROUTERS_DIR).filter((f) => f.endsWith('.ts')) : [];
+        for (const file of files) {
+            const name = file.replace('.ts', '');
+            if (name === varName || name + 'Router' === varName || varName === name) {
+                mounts[name] = mountPath;
+                break;
+            }
+        }
+        if (!mounts[varName] && !Object.values(mounts).includes(mountPath)) {
+            const simpleName = varName.replace(/Router$/, '');
+            for (const file of files) {
+                const name = file.replace('.ts', '');
+                if (name.toLowerCase().includes(simpleName.toLowerCase())) {
+                    mounts[name] = mountPath;
+                    break;
+                }
+            }
+        }
+    }
+    return mounts;
+}
+
+interface SentryRawData {
+    transactions: Array<{ transaction: string; count: number; p95: number }>;
+    errors: Array<{ culprit: string; count: number }>;
+    spans: Array<{ transaction: string; count: number }>;
+}
+
+function fetchSentryData(token: string): SentryRawData {
+    const baseUrl = 'https://sentry.io/api/0/organizations/lightdash/events/';
+    const project = '5959292';
+
+    function sentryGet(params: string): any {
+        const url = `${baseUrl}?project=${project}&statsPeriod=30d&${params}`;
+        try {
+            const result = execSync(
+                `curl -sS -H "Authorization: Bearer ${token}" '${url}'`,
+                { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024, timeout: 30000 },
+            );
+            return JSON.parse(result);
+        } catch (err: any) {
+            console.warn(`Warning: Sentry API call failed: ${err.message}`);
+            return { data: [] };
+        }
+    }
+
+    console.log('Fetching Sentry data...');
+
+    const allTxnRows: any[] = [];
+    for (let page = 0; page < 10; page++) {
+        const cursor = page === 0 ? '' : `&cursor=0:${page * 100}:0`;
+        const result = sentryGet(
+            `dataset=metricsEnhanced&field=transaction&field=count()&field=p95(transaction.duration)&sort=-count()&per_page=100${cursor}`,
+        );
+        const rows = result.data || [];
+        if (rows.length === 0) break;
+        allTxnRows.push(...rows);
+    }
+
+    const routeMap = new Map<string, { count: number; p95: number }>();
+    for (const row of allTxnRows) {
+        const rawTxn: string = row.transaction;
+        if (!rawTxn.includes('/api/')) continue;
+        const route = rawTxn.replace(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/, '');
+        const existing = routeMap.get(route) || { count: 0, p95: 0 };
+        existing.count += row['count()'] || 0;
+        existing.p95 = Math.max(existing.p95, row['p95(transaction.duration)'] || 0);
+        routeMap.set(route, existing);
+    }
+    const transactions = Array.from(routeMap.entries()).map(([route, data]) => ({
+        transaction: route,
+        count: data.count,
+        p95: data.p95,
+    }));
+
+    const errResult = sentryGet(
+        'dataset=errors&field=transaction&field=count()&sort=-count()&per_page=100',
+    );
+    const errors = (errResult.data || []).map((row: any) => ({
+        culprit: row.transaction,
+        count: row['count()'] || 0,
+    }));
+
+    const spanResult = sentryGet(
+        'dataset=metricsEnhanced&field=transaction&field=count()&query=transaction%3A*Service.*&sort=-count()&per_page=100',
+    );
+    const spans = (spanResult.data || []).map((row: any) => ({
+        transaction: row.transaction,
+        count: row['count()'] || 0,
+    }));
+
+    console.log(`  ${transactions.length} transactions, ${errors.length} error culprits, ${spans.length} service spans.`);
+
+    return { transactions, errors, spans };
+}
+
+function matchSentryToNodes(
+    rawData: SentryRawData,
+    graph: GraphData,
+    controllerRoutes: Record<string, ControllerRoute>,
+    routerMounts: Record<string, string>,
+): void {
+    const routeMatchers: Array<{ nodeId: string; prefix: string; regex: RegExp }> = [];
+
+    for (const [nodeId, ctrl] of Object.entries(controllerRoutes)) {
+        if (ctrl.subPaths.length > 0) {
+            for (const sub of ctrl.subPaths) {
+                const fullPath = ctrl.base + (sub.startsWith('/') ? '' : '/') + sub;
+                const regexStr = fullPath.replace(/\{[^}]+\}/g, '[^/]+').replace(/:[^/]+/g, '[^/]+');
+                routeMatchers.push({
+                    nodeId,
+                    prefix: fullPath,
+                    regex: new RegExp(`^${regexStr}`),
+                });
+            }
+        } else {
+            const regexStr = ctrl.base.replace(/\{[^}]+\}/g, '[^/]+').replace(/:[^/]+/g, '[^/]+');
+            routeMatchers.push({
+                nodeId,
+                prefix: ctrl.base,
+                regex: new RegExp(`^${regexStr}`),
+            });
+        }
+    }
+
+    for (const [nodeId, mount] of Object.entries(routerMounts)) {
+        const regexStr = mount.replace(/\{[^}]+\}/g, '[^/]+').replace(/:[^/]+/g, '[^/]+');
+        routeMatchers.push({
+            nodeId,
+            prefix: mount,
+            regex: new RegExp(`^${regexStr}`),
+        });
+    }
+
+    routeMatchers.sort((a, b) => b.prefix.length - a.prefix.length);
+
+    const nodeEndpoints = new Map<string, Map<string, { count: number; p95: number; errors: number }>>();
+
+    const errorsByRoute = new Map<string, number>();
+    for (const err of rawData.errors) {
+        const routeMatch = err.culprit.match(/((?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+)?(\/api\/\S+)/);
+        if (routeMatch) {
+            const route = routeMatch[2];
+            errorsByRoute.set(route, (errorsByRoute.get(route) || 0) + err.count);
+        }
+    }
+
+    for (const txn of rawData.transactions) {
+        const route = txn.transaction.replace(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/, '');
+        for (const matcher of routeMatchers) {
+            if (matcher.regex.test(route)) {
+                if (!nodeEndpoints.has(matcher.nodeId)) nodeEndpoints.set(matcher.nodeId, new Map());
+                const endpoints = nodeEndpoints.get(matcher.nodeId)!;
+                const existing = endpoints.get(txn.transaction) || { count: 0, p95: 0, errors: 0 };
+                existing.count += txn.count;
+                existing.p95 = Math.max(existing.p95, txn.p95);
+                let matchedErrors = 0;
+                for (const [errRoute, errCount] of errorsByRoute) {
+                    if (matcher.regex.test(errRoute)) {
+                        matchedErrors += errCount;
+                    }
+                }
+                existing.errors += matchedErrors;
+                endpoints.set(txn.transaction, existing);
+                break;
+            }
+        }
+    }
+
+    const serviceSpans = new Map<string, Array<{ name: string; count: number }>>();
+    for (const span of rawData.spans) {
+        const dotIdx = span.transaction.indexOf('.');
+        if (dotIdx < 0) continue;
+        const serviceName = span.transaction.slice(0, dotIdx);
+        const methodName = span.transaction.slice(dotIdx + 1);
+        if (!serviceSpans.has(serviceName)) serviceSpans.set(serviceName, []);
+        serviceSpans.get(serviceName)!.push({ name: methodName, count: span.count });
+    }
+
+    let matchedCount = 0;
+    for (const node of graph.nodes) {
+        if (node.type === 'controller' || node.type === 'router') {
+            const endpoints = nodeEndpoints.get(node.id);
+            if (endpoints && endpoints.size > 0) {
+                const endpointList: SentryEndpoint[] = [];
+                let totalRequests = 0;
+                let totalErrors = 0;
+                let maxP95 = 0;
+
+                for (const [route, data] of endpoints) {
+                    endpointList.push({ route, count: data.count, p95Ms: data.p95, errorCount: data.errors });
+                    totalRequests += data.count;
+                    totalErrors += data.errors;
+                    maxP95 = Math.max(maxP95, data.p95);
+                }
+
+                endpointList.sort((a, b) => b.count - a.count);
+
+                node.sentryActivity = {
+                    totalRequests,
+                    totalErrors,
+                    errorRate: totalRequests > 0 ? totalErrors / totalRequests : 0,
+                    maxP95Ms: maxP95,
+                    endpoints: endpointList.slice(0, 5),
+                    spans: [],
+                };
+                matchedCount++;
+            }
+        } else if (node.type === 'service') {
+            const spans = serviceSpans.get(node.id);
+            if (spans && spans.length > 0) {
+                spans.sort((a, b) => b.count - a.count);
+                const totalRequests = spans.reduce((sum, s) => sum + s.count, 0);
+                node.sentryActivity = {
+                    totalRequests,
+                    totalErrors: 0,
+                    errorRate: 0,
+                    maxP95Ms: 0,
+                    endpoints: [],
+                    spans: spans.slice(0, 5),
+                };
+                matchedCount++;
+            }
+        }
+    }
+
+    console.log(`Matched Sentry data to ${matchedCount} nodes.`);
+}
+
+function collectSentryActivity(graph: GraphData, forceRefresh: boolean): void {
+    const token = process.env.SENTRY_AUTH_TOKEN;
+    if (!token) {
+        console.warn('Warning: SENTRY_AUTH_TOKEN not set. Skipping Sentry data. Set it to include production traffic metrics.');
+        return;
+    }
+
+    if (!forceRefresh && fs.existsSync(SENTRY_CACHE)) {
+        try {
+            const cached = JSON.parse(fs.readFileSync(SENTRY_CACHE, 'utf-8'));
+            const age = Date.now() - new Date(cached._generatedAt).getTime();
+            if (age < SENTRY_CACHE_TTL) {
+                const hours = Math.round(age / (60 * 60 * 1000));
+                console.log(`Sentry cache is ${hours}h old (TTL: 24h). Use --refresh to re-fetch.`);
+                for (const node of graph.nodes) {
+                    if (cached.nodeData[node.id]) {
+                        node.sentryActivity = cached.nodeData[node.id];
+                    }
+                }
+                return;
+            }
+            console.log('Sentry cache expired (>24h). Re-fetching...');
+        } catch {
+            console.log('Sentry cache corrupt. Re-fetching...');
+        }
+    }
+
+    try {
+        const controllerRoutes = parseControllerRoutes();
+        const routerMounts = parseRouterMountPaths();
+        const rawData = fetchSentryData(token);
+        matchSentryToNodes(rawData, graph, controllerRoutes, routerMounts);
+
+        const nodeData: Record<string, SentryActivity> = {};
+        for (const node of graph.nodes) {
+            if (node.sentryActivity) {
+                nodeData[node.id] = node.sentryActivity;
+            }
+        }
+
+        const cacheData = {
+            _generatedAt: new Date().toISOString(),
+            nodeData,
+        };
+        fs.writeFileSync(SENTRY_CACHE, JSON.stringify(cacheData, null, 2) + '\n');
+        console.log(`Cached to ${SENTRY_CACHE}`);
+    } catch (err: any) {
+        console.warn(`Warning: Sentry data collection failed: ${err.message}. Graph will generate without traffic data.`);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // HTML template
 // ---------------------------------------------------------------------------
 
@@ -1373,9 +1724,9 @@ svg { width: 100vw; height: 100vh; }
   <div class="sep"></div>
   <label class="stat" style="display:flex;align-items:center;gap:4px;" title="How many hops from the selected node to highlight">Depth <input type="number" id="depth" value="2" min="1" max="10" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;text-align:center;"></label>
   <div class="sep"></div>
-  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="What drives node size">Size <select id="size-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="edges">Edges</option><option value="lines">Lines</option><option value="cyclomatic">Cyclomatic</option><option value="cognitive">Cognitive</option><option value="commits">Commits</option><option value="authors">Authors</option><option value="churn">Churn (6mo)</option><option value="duplication">Duplication</option></select></label>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="What drives node size">Size <select id="size-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="edges">Edges</option><option value="lines">Lines</option><option value="cyclomatic">Cyclomatic</option><option value="cognitive">Cognitive</option><option value="commits">Commits</option><option value="authors">Authors</option><option value="churn">Churn (6mo)</option><option value="duplication">Duplication</option><option value="traffic">Traffic</option></select></label>
   <div class="sep"></div>
-  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="Node color scheme">Color <select id="color-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="type">Type</option><option value="health">Health</option><option value="duplication">Duplication</option></select></label>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="Node color scheme">Color <select id="color-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="type">Type</option><option value="health">Health</option><option value="duplication">Duplication</option><option value="traffic">Traffic</option></select></label>
   <div class="sep"></div>
   <button class="btn active" id="btn-arrows">Arrows</button>
   <div class="sep"></div>
@@ -1444,10 +1795,12 @@ svg { width: 100vw; height: 100vh; }
         <p>&bull; <b>Cognitive</b> &mdash; Human readability difficulty</p>
         <p>&bull; <b>Commits / Authors / Churn</b> &mdash; Git activity</p>
         <p>&bull; <b>Duplication</b> &mdash; Shared code blocks</p>
+        <p>&bull; <b>Traffic</b> &mdash; Sentry 30d request volume (log scale, requires --sentry)</p>
         <p><b>Color</b> switches the palette:</p>
         <p>&bull; <b>Type</b> &mdash; Color by node type</p>
         <p>&bull; <b>Health</b> &mdash; Green&#8594;red heatmap (coupling + complexity + churn)</p>
         <p>&bull; <b>Duplication</b> &mdash; Green&#8594;red by shared code volume</p>
+        <p>&bull; <b>Traffic</b> &mdash; Yellow&#8594;red by production request count (gray = no data)</p>
       </div>
     </div>
     <div class="guide-section">
@@ -1511,6 +1864,7 @@ function calcRadius(n) {
     case 'authors': return Math.max(4, 3 + Math.sqrt(n.gitActivity?.authors || 1) * 3);
     case 'churn': return Math.max(4, 3 + Math.sqrt((n.gitActivity?.churn || 0) / 2) * 2.5);
     case 'duplication': return Math.max(4, 3 + Math.sqrt((n.duplication?.ratio || 0) * 100) * 2);
+    case 'traffic': return Math.max(4, 3 + Math.log10((n.sentryActivity?.totalRequests || 1)) * 2.5);
     default: return Math.max(4, 3 + Math.sqrt(connCount[n.id] || 1) * 2.2);
   }
 }
@@ -1531,8 +1885,13 @@ const healthColorScale = d3.scaleLinear().domain([0, 0.5, 1]).range(['#3fb950', 
 const healthStrokeScale = d3.scaleLinear().domain([0, 0.5, 1]).range(['#238636', '#9e6a03', '#da3633']).interpolate(d3.interpolateRgb);
 nodes.forEach((n, i) => { n.healthScore = nCoup[i] * 0.3 + nComp[i] * 0.25 + nChurn[i] * 0.3 + nComm[i] * 0.15; });
 
-function getNodeColor(d) { const m = document.getElementById('color-mode').value; if (m === 'health') return healthColorScale(d.healthScore); if (m === 'duplication') return healthColorScale(d.duplication?.ratio || 0); return color[d.type]; }
-function getNodeStroke(d) { const m = document.getElementById('color-mode').value; if (m === 'health') return healthStrokeScale(d.healthScore); if (m === 'duplication') return healthStrokeScale(d.duplication?.ratio || 0); return colorDark[d.type]; }
+const trafficMax = Math.max(...raw.nodes.map(n => Math.log10((n.sentryActivity?.totalRequests || 0) + 1)));
+function trafficNorm(n) { if (!n.sentryActivity || trafficMax === 0) return -1; return Math.log10(n.sentryActivity.totalRequests + 1) / trafficMax; }
+const trafficColorScale = d3.scaleLinear().domain([0, 0.5, 1]).range(['#e2b340', '#e8853a', '#f47067']).interpolate(d3.interpolateRgb);
+const trafficStrokeScale = d3.scaleLinear().domain([0, 0.5, 1]).range(['#9e6a03', '#b85c1e', '#da3633']).interpolate(d3.interpolateRgb);
+
+function getNodeColor(d) { const m = document.getElementById('color-mode').value; if (m === 'health') return healthColorScale(d.healthScore); if (m === 'duplication') return healthColorScale(d.duplication?.ratio || 0); if (m === 'traffic') { const t = trafficNorm(d); return t < 0 ? '#30363d' : trafficColorScale(t); } return color[d.type]; }
+function getNodeStroke(d) { const m = document.getElementById('color-mode').value; if (m === 'health') return healthStrokeScale(d.healthScore); if (m === 'duplication') return healthStrokeScale(d.duplication?.ratio || 0); if (m === 'traffic') { const t = trafficNorm(d); return t < 0 ? '#21262d' : trafficStrokeScale(t); } return colorDark[d.type]; }
 
 const links = raw.edges.map(e => ({
   source: nodeIdx[e.from],
@@ -1726,6 +2085,32 @@ node.on('mouseover', (ev, d) => {
       }
     });
   }
+  if (d.sentryActivity) {
+    function fmtNum(n) { if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'; if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K'; return String(n); }
+    function fmtMs(ms) { if (ms >= 1000) return (ms / 1000).toFixed(1) + 's'; return Math.round(ms) + 'ms'; }
+    const sa = d.sentryActivity;
+    h += '<div class="t-section">sentry (30d)</div>';
+    h += '<div class="t-item"><span style="color:#58a6ff;font-weight:700">' + fmtNum(sa.totalRequests) + '</span> requests';
+    if (sa.maxP95Ms > 0) h += ' · p95 <span style="color:#c9d1d9;font-weight:600">' + fmtMs(sa.maxP95Ms) + '</span>';
+    if (sa.totalErrors > 0) h += ' · <span style="color:#f47067">' + fmtNum(sa.totalErrors) + ' errors (' + (sa.errorRate * 100).toFixed(2) + '%)</span>';
+    h += '</div>';
+    if (sa.endpoints && sa.endpoints.length > 0) {
+      h += '<div class="t-section" style="margin-top:4px">top endpoints</div>';
+      sa.endpoints.slice(0, 3).forEach(ep => {
+        const shortRoute = ep.route.length > 45 ? '...' + ep.route.slice(-42) : ep.route;
+        h += '<div class="t-item" style="font-size:11px"><span style="color:#58a6ff">' + fmtNum(ep.count).padStart(5) + '</span>  ' + shortRoute;
+        if (ep.p95Ms > 0) h += '  <span style="color:#484f58">p95 ' + fmtMs(ep.p95Ms) + '</span>';
+        if (ep.errorCount > 0) h += '  <span style="color:#f47067">' + fmtNum(ep.errorCount) + ' err</span>';
+        h += '</div>';
+      });
+    }
+    if (sa.spans && sa.spans.length > 0) {
+      h += '<div class="t-section" style="margin-top:4px">service spans</div>';
+      sa.spans.slice(0, 3).forEach(sp => {
+        h += '<div class="t-item" style="font-size:11px"><span style="color:#58a6ff">' + fmtNum(sp.count).padStart(5) + '</span>  ' + sp.name + '</div>';
+      });
+    }
+  }
   if (d.gitActivity) {
     h += '<div class="t-section">git activity</div>';
     h += '<div class="t-item">' + d.gitActivity.commits + ' commits · ' + d.gitActivity.authors + ' authors · ' + d.gitActivity.churn + ' recent (6mo)</div>';
@@ -1777,7 +2162,7 @@ document.getElementById('size-mode').addEventListener('change', () => {
 
 document.getElementById('color-mode').addEventListener('change', () => {
   const mode = document.getElementById('color-mode').value;
-  const isHeatmap = mode === 'health' || mode === 'duplication';
+  const isHeatmap = mode === 'health' || mode === 'duplication' || mode === 'traffic';
   node.select('circle')
     .transition().duration(400)
     .attr('fill', d => getNodeColor(d))
@@ -1785,6 +2170,7 @@ document.getElementById('color-mode').addEventListener('change', () => {
   document.getElementById('heatmap-legend').style.display = isHeatmap ? 'flex' : 'none';
   const labels = document.querySelectorAll('.heatmap-labels span');
   if (mode === 'duplication') { labels[0].textContent = 'No duplication'; labels[1].textContent = 'High duplication'; }
+  else if (mode === 'traffic') { labels[0].textContent = 'Low traffic'; labels[1].textContent = 'High traffic'; }
   else { labels[0].textContent = 'Healthy'; labels[1].textContent = 'Hot'; }
 });
 
@@ -2555,6 +2941,7 @@ const jsonOnly = args.includes('--json');
 const outIdx = args.indexOf('--out');
 const outDir = outIdx >= 0 ? args[outIdx + 1] : null;
 const forceRefresh = args.includes('--refresh');
+const includeSentry = args.includes('--sentry');
 
 const services = parseServiceRepository();
 const controllers = parseControllers();
@@ -2603,6 +2990,10 @@ for (const node of graph.nodes) {
 
 runDuplicationAnalysis(graph, forceRefresh);
 summarizeDuplication(graph, forceRefresh);
+
+if (includeSentry) {
+    collectSentryActivity(graph, forceRefresh);
+}
 
 if (jsonOnly) {
     process.stdout.write(JSON.stringify(graph, null, 2));
