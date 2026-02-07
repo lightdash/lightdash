@@ -11,6 +11,7 @@
  *   npx tsx scripts/dep-graph.ts --json       # outputs raw JSON to stdout
  *   npx tsx scripts/dep-graph.ts --out dir    # writes HTML to dir/
  *   npx tsx scripts/dep-graph.ts --domains    # domain-clustered layout (uses Claude to classify, cached)
+ *   npx tsx scripts/dep-graph.ts --summaries  # LLM-generated git activity summaries in tooltips
  *   npx tsx scripts/dep-graph.ts --domains --force  # re-classify even if cache is fresh
  */
 
@@ -174,10 +175,18 @@ function resolveLineCount(
 // Graph building
 // ---------------------------------------------------------------------------
 
+interface RecentCommit {
+    hash: string;
+    message: string;
+    author: string;
+    relativeDate: string;
+}
+
 interface GitActivity {
     commits: number;
     authors: number;
     churn: number;
+    recentCommits: RecentCommit[];
 }
 
 interface GraphNode {
@@ -186,6 +195,7 @@ interface GraphNode {
     domain?: string;
     lineCount?: number;
     gitActivity?: GitActivity;
+    gitSummary?: string;
 }
 interface GraphEdge {
     from: string;
@@ -302,7 +312,7 @@ function collectGitActivity(nodes: GraphNode[]): void {
     let logOutput: string;
     try {
         logOutput = execSync(
-            `git log --format='COMMIT%x09%ae%x09%aI' --name-only -- ${dirs.join(' ')}`,
+            `git log --format='COMMIT%x09%ae%x09%aI%x09%h%x09%s%x09%an%x09%ar' --name-only -- ${dirs.join(' ')}`,
             { encoding: 'utf-8', maxBuffer: 50 * 1024 * 1024, cwd: repoRoot },
         );
     } catch {
@@ -316,15 +326,24 @@ function collectGitActivity(nodes: GraphNode[]): void {
     const commitCounts = new Map<string, number>();
     const authorSets = new Map<string, Set<string>>();
     const churnCounts = new Map<string, number>();
+    const recentCommitsMap = new Map<string, RecentCommit[]>();
 
     let currentAuthor = '';
     let currentDate = '';
+    let currentHash = '';
+    let currentMessage = '';
+    let currentAuthorName = '';
+    let currentRelDate = '';
 
     for (const line of logOutput.split('\n')) {
         if (line.startsWith('COMMIT\t')) {
             const parts = line.split('\t');
             currentAuthor = parts[1] || '';
             currentDate = parts[2] || '';
+            currentHash = parts[3] || '';
+            currentMessage = parts[4] || '';
+            currentAuthorName = parts[5] || '';
+            currentRelDate = parts[6] || '';
         } else if (line.trim() && !line.startsWith('COMMIT')) {
             const file = line.trim();
             if (!relPathToNode.has(file)) continue;
@@ -337,6 +356,19 @@ function collectGitActivity(nodes: GraphNode[]): void {
             if (currentDate && new Date(currentDate) >= sixMonthsAgo) {
                 churnCounts.set(file, (churnCounts.get(file) || 0) + 1);
             }
+
+            if (currentHash) {
+                const rc = recentCommitsMap.get(file) || [];
+                if (rc.length < 3) {
+                    rc.push({
+                        hash: currentHash,
+                        message: currentMessage,
+                        author: currentAuthorName,
+                        relativeDate: currentRelDate,
+                    });
+                    recentCommitsMap.set(file, rc);
+                }
+            }
         }
     }
 
@@ -344,8 +376,9 @@ function collectGitActivity(nodes: GraphNode[]): void {
         const commits = commitCounts.get(relPath) || 0;
         const authors = authorSets.get(relPath)?.size || 0;
         const churn = churnCounts.get(relPath) || 0;
+        const recentCommits = recentCommitsMap.get(relPath) || [];
         if (commits > 0) {
-            node.gitActivity = { commits, authors, churn };
+            node.gitActivity = { commits, authors, churn, recentCommits };
         }
     }
 }
@@ -609,6 +642,15 @@ node.on('mouseover', (ev, d) => {
   if (d.gitActivity) {
     h += '<div class="t-section">git activity</div>';
     h += '<div class="t-item">' + d.gitActivity.commits + ' commits · ' + d.gitActivity.authors + ' authors · ' + d.gitActivity.churn + ' recent (6mo)</div>';
+    if (d.gitSummary) {
+      h += '<div style="color:#7ee787;font-style:italic;padding-left:10px;margin-top:4px;font-size:11px;white-space:pre-line">' + d.gitSummary + '</div>';
+    } else if (d.gitActivity.recentCommits && d.gitActivity.recentCommits.length > 0) {
+      h += '<div class="t-section" style="margin-top:6px">recent commits</div>';
+      d.gitActivity.recentCommits.forEach(c => {
+        const msg = c.message.length > 50 ? c.message.slice(0, 50) + '…' : c.message;
+        h += '<div class="t-item" style="font-size:11px"><span style="color:#484f58">' + c.hash + '</span>  ' + msg + '  <span style="color:#484f58">' + c.relativeDate + '</span></div>';
+      });
+    }
   }
   if (out.length) {
     const byType = {};
@@ -1046,6 +1088,122 @@ For any remaining nodes not listed above, assign them to the closest matching do
     return domains;
 }
 
+// ---------------------------------------------------------------------------
+// Git summary (via Claude CLI)
+// ---------------------------------------------------------------------------
+
+const SUMMARY_CACHE = path.join(__dirname, '.dep-graph-summaries.json');
+
+function computeSummaryHash(graph: GraphData): string {
+    const parts = graph.nodes
+        .filter((n) => n.gitActivity && n.gitActivity.recentCommits.length > 0)
+        .map(
+            (n) =>
+                `${n.id}:${n.gitActivity!.recentCommits.map((c) => c.hash).join(',')}`,
+        )
+        .sort()
+        .join('\n');
+    return crypto.createHash('sha256').update(parts).digest('hex');
+}
+
+function summarizeGitActivity(
+    graph: GraphData,
+    force: boolean,
+): Record<string, string> {
+    const hash = computeSummaryHash(graph);
+    const shortHash = hash.slice(0, 12);
+
+    if (!force && fs.existsSync(SUMMARY_CACHE)) {
+        const cached = JSON.parse(fs.readFileSync(SUMMARY_CACHE, 'utf-8'));
+        if (cached._hash === hash) {
+            const count = Object.keys(cached.summaries).length;
+            console.log(
+                `Summary cache up to date (${count} nodes, ${shortHash}…). Use --force to regenerate.`,
+            );
+            return cached.summaries;
+        }
+        console.log(
+            `Git activity changed since last summary (${shortHash}…). Regenerating...`,
+        );
+    } else if (force) {
+        console.log(`Forced summary regeneration (${shortHash}…)...`);
+    } else {
+        console.log(`No summary cache found (${shortHash}…). Generating...`);
+    }
+
+    const nodesWithCommits = graph.nodes.filter(
+        (n) => n.gitActivity && n.gitActivity.recentCommits.length > 0,
+    );
+
+    if (nodesWithCommits.length === 0) {
+        console.log('No nodes with recent commits to summarize.');
+        return {};
+    }
+
+    const nodeDescriptions = nodesWithCommits
+        .map((n) => {
+            const commits = n
+                .gitActivity!.recentCommits.map(
+                    (c) => `  ${c.hash} ${c.message} (${c.author}, ${c.relativeDate})`,
+                )
+                .join('\n');
+            return `${n.id} (${n.type}):\n${commits}`;
+        })
+        .join('\n\n');
+
+    const prompt = `You are summarizing recent git activity for nodes in a backend dependency graph of Lightdash (an open-source BI tool).
+
+For each node below, write a 3-line summary of what changed recently (one line per recent commit). Each line should be max 60 chars, present tense, specific about what changed (not just "updated" or "modified"). Focus on the business intent. Separate lines with newlines.
+
+NODES AND THEIR RECENT COMMITS:
+
+${nodeDescriptions}
+
+Return a summary for each node ID listed above.`;
+
+    const jsonSchema = JSON.stringify({
+        type: 'object',
+        properties: {
+            summaries: {
+                type: 'object',
+                additionalProperties: { type: 'string' },
+            },
+        },
+        required: ['summaries'],
+        additionalProperties: false,
+    });
+
+    console.log(
+        `Calling Claude to summarize ${nodesWithCommits.length} nodes...`,
+    );
+    const result = execSync(
+        `echo ${escapeShellArg(prompt)} | claude -p --dangerously-skip-permissions --output-format json --json-schema ${escapeShellArg(jsonSchema)} --model sonnet`,
+        { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 },
+    );
+
+    const parsed = JSON.parse(result);
+    const output = parsed.structured_output ?? parsed;
+    const summaries: Record<string, string> = output.summaries;
+
+    const summaryCount = Object.keys(summaries).length;
+    console.log(
+        `Got summaries for ${summaryCount} nodes (${nodesWithCommits.length} requested).`,
+    );
+
+    const cacheData = {
+        _hash: hash,
+        _generatedAt: new Date().toISOString(),
+        summaries,
+    };
+    fs.writeFileSync(
+        SUMMARY_CACHE,
+        JSON.stringify(cacheData, null, 2) + '\n',
+    );
+    console.log(`Cached to ${SUMMARY_CACHE}`);
+
+    return summaries;
+}
+
 function escapeShellArg(arg: string): string {
     return "'" + arg.replace(/'/g, "'\\''") + "'";
 }
@@ -1059,6 +1217,7 @@ const jsonOnly = args.includes('--json');
 const outIdx = args.indexOf('--out');
 const outDir = outIdx >= 0 ? args[outIdx + 1] : null;
 const wantDomains = args.includes('--domains');
+const wantSummaries = args.includes('--summaries');
 const forceClassify = args.includes('--force');
 
 const services = parseServiceRepository();
@@ -1077,6 +1236,15 @@ if (wantDomains) {
     for (const node of graph.nodes) {
         if (nodeToDomain[node.id]) {
             node.domain = nodeToDomain[node.id];
+        }
+    }
+}
+
+if (wantSummaries) {
+    const summaries = summarizeGitActivity(graph, forceClassify);
+    for (const node of graph.nodes) {
+        if (summaries[node.id]) {
+            node.gitSummary = summaries[node.id];
         }
     }
 }
