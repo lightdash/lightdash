@@ -73,6 +73,8 @@ export type CreateDashboardValidation = Pick<
     | 'dashboardUuid'
     | 'chartName'
     | 'source'
+    | 'tableName'
+    | 'dashboardFilterErrorType'
 >;
 
 export type CreateValidation =
@@ -109,6 +111,7 @@ export enum DashboardFilterValidationErrorType {
     FieldDoesNotExist = 'field_does_not_exist',
     TableNotUsedByAnyChart = 'table_not_used_by_any_chart',
     TableDoesNotExist = 'table_does_not_exist',
+    FieldTableMismatch = 'field_table_mismatch',
 }
 
 export enum ValidationSourceType {
@@ -131,6 +134,17 @@ export const isDashboardValidationError = (
     error: ValidationResponse | CreateValidation,
 ): error is ValidationErrorDashboardResponse | CreateDashboardValidation =>
     error.source === ValidationSourceType.Dashboard;
+
+export const isFixableDashboardValidationError = (
+    error: ValidationResponse | CreateValidation,
+): error is ValidationErrorDashboardResponse | CreateDashboardValidation => {
+    if (!isDashboardValidationError(error)) return false;
+    return (
+        'dashboardFilterErrorType' in error &&
+        error.dashboardFilterErrorType ===
+            DashboardFilterValidationErrorType.FieldTableMismatch
+    );
+};
 
 export enum ValidationTarget {
     CHARTS = 'charts',

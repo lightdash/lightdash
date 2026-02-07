@@ -96,5 +96,18 @@ describe('ValidationModel', () => {
                     DashboardFilterValidationErrorType.TableDoesNotExist,
             });
         });
+
+        it('Should parse "field does not match table" error', () => {
+            const error =
+                "Filter error: the field 'Related_Opportunity_TYPE' does not match table 'dim_global__opportunity'";
+
+            const result = ValidationModel.parseDashboardFilterError(error);
+
+            expect(result).toEqual({
+                tableName: 'dim_global__opportunity',
+                dashboardFilterErrorType:
+                    DashboardFilterValidationErrorType.FieldTableMismatch,
+            });
+        });
     });
 });
