@@ -1015,6 +1015,9 @@ export type LightdashConfig = {
     nestedSpacesPermissions: {
         enabled: boolean;
     };
+    softDelete: {
+        enabled: boolean;
+    };
 };
 
 export type SlackConfig = {
@@ -1828,6 +1831,9 @@ export const parseConfig = (): LightdashConfig => {
         },
         nestedSpacesPermissions: {
             enabled: process.env.NESTED_SPACES_PERMISSIONS_ENABLED === 'true',
+        },
+        softDelete: {
+            enabled: process.env.SOFT_DELETE_ENABLED === 'true',
         },
     };
 };
