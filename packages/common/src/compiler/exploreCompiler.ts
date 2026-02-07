@@ -866,10 +866,16 @@ export class ExploreCompiler {
                             fieldContext,
                         );
                     } else {
-                        throw new CompileError(
-                            `Metric "${metric.name}" references "${p1}" which is neither a dimension nor a metric`,
-                            {},
-                        );
+                        // Check if this might be a common TABLE reference mistake
+                        let errorMessage = `Metric "${metric.name}" references "${p1}" which is neither a dimension nor a metric`;
+
+                        if (p1.startsWith('TABLE.')) {
+                            errorMessage += `. Did you mean to use "\${TABLE}.${p1.substring(6)}" instead of "\${${p1}}"?`;
+                        } else if (refTable === 'TABLE') {
+                            errorMessage += `. The special \${TABLE} placeholder must be used as "\${TABLE}.columnName", not "\${TABLE.columnName}"`;
+                        }
+
+                        throw new CompileError(errorMessage, {});
                     }
                 } else {
                     // Aggregate metrics can only reference dimensions
