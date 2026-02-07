@@ -312,6 +312,8 @@ svg { width: 100vw; height: 100vh; }
   <button class="btn" data-filter="model">Models</button>
   <button class="btn" data-filter="client">Clients</button>
   <div class="sep"></div>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="How many hops from the selected node to highlight">Depth <input type="number" id="depth" value="1" min="1" max="10" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;text-align:center;"></label>
+  <div class="sep"></div>
   <button class="btn" id="btn-reset">Reset</button>
 </div>
 <div id="legend">
@@ -501,29 +503,48 @@ node.on('click', (ev, d) => {
 });
 svg.on('click', () => { selected = null; clearHL(); });
 
-function getConnected(id) {
-  const s = new Set([id]);
-  links.forEach(l => {
-    const src = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
-    const tgt = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
-    if (src === id || tgt === id) { s.add(src); s.add(tgt); }
-  });
-  return s;
+document.getElementById('depth').addEventListener('input', () => {
+  if (selected) {
+    const d = nodes.find(n => n.id === selected);
+    if (d) highlightNode(d);
+  }
+});
+
+function getConnected(id, depth) {
+  const visited = new Set([id]);
+  let frontier = new Set([id]);
+  for (let d = 0; d < depth; d++) {
+    const next = new Set();
+    links.forEach(l => {
+      const src = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
+      const tgt = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
+      if (frontier.has(src) && !visited.has(tgt)) { visited.add(tgt); next.add(tgt); }
+      if (frontier.has(tgt) && !visited.has(src)) { visited.add(src); next.add(src); }
+    });
+    if (next.size === 0) break;
+    frontier = next;
+  }
+  return visited;
+}
+
+function getDepth() {
+  return Math.max(1, parseInt(document.getElementById('depth').value) || 1);
 }
 
 function highlightNode(d) {
   link.interrupt();
-  const conn = getConnected(d.id);
+  const depth = getDepth();
+  const conn = getConnected(d.id, depth);
   node.classed('dimmed', n => !conn.has(n.id));
   link.classed('dimmed', l => {
     const s = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
     const t = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
-    return !(s === d.id || t === d.id);
+    return !(conn.has(s) && conn.has(t));
   });
   link.classed('highlighted', l => {
     const s = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
     const t = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
-    return s === d.id || t === d.id;
+    return conn.has(s) && conn.has(t);
   });
 
   let i = 0;
@@ -534,9 +555,9 @@ function highlightNode(d) {
     const len = Math.hypot(x2 - x1, y2 - y1);
     if (len === 0) return;
     const src = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
-    const outgoing = src === d.id;
+    const outward = src === d.id;
     el.attr('stroke-dasharray', len)
-      .attr('stroke-dashoffset', outgoing ? len : -len);
+      .attr('stroke-dashoffset', outward ? len : -len);
     el.transition()
       .delay(i * 30)
       .duration(450)
