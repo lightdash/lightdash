@@ -929,16 +929,14 @@ node.on('mouseover', (ev, d) => {
   let h = '<h3 style="color:' + color[d.type] + '">' + d.id + '</h3>';
   h += '<span style="color:#8b949e">' + d.type + '</span>';
   if (d.domain) h += ' <span style="color:#6e7681">· ' + d.domain + '</span>';
-  if (document.getElementById('color-mode').value === 'health') {
-    const pct = Math.round((1 - d.healthScore) * 100);
-    h += '<div class="t-section">health score</div>';
-    h += '<div class="t-item"><span style="color:' + healthColorScale(d.healthScore) + ';font-weight:700;font-size:18px">' + pct + '</span><span style="color:#484f58;font-size:12px"> / 100</span></div>';
-    h += '<div class="t-item" style="font-size:11px;color:#8b949e;margin-top:2px">';
-    h += (connCount[d.id]||0) + ' edges · ' + (d.lineCount||0) + ' lines · ' + (d.gitActivity?.churn||0) + ' churn · ' + (d.gitActivity?.commits||0) + ' commits';
-    h += '</div>';
-    if (d.healthSummary) {
-      h += '<div style="color:' + healthColorScale(d.healthScore) + ';font-style:italic;padding-left:10px;margin-top:4px;font-size:11px">' + d.healthSummary + '</div>';
-    }
+  const pct = Math.round((1 - d.healthScore) * 100);
+  h += '<div class="t-section">health score</div>';
+  h += '<div class="t-item"><span style="color:' + healthColorScale(d.healthScore) + ';font-weight:700;font-size:18px">' + pct + '</span><span style="color:#484f58;font-size:12px"> / 100</span></div>';
+  h += '<div class="t-item" style="font-size:11px;color:#8b949e;margin-top:2px">';
+  h += (connCount[d.id]||0) + ' edges · ' + (d.lineCount||0) + ' lines · ' + (d.gitActivity?.churn||0) + ' churn · ' + (d.gitActivity?.commits||0) + ' commits';
+  h += '</div>';
+  if (d.healthSummary) {
+    h += '<div style="color:' + healthColorScale(d.healthScore) + ';font-style:italic;padding-left:10px;margin-top:4px;font-size:11px">' + d.healthSummary + '</div>';
   }
   if (d.gitActivity) {
     h += '<div class="t-section">git activity</div>';
