@@ -1300,6 +1300,62 @@ svg { width: 100vw; height: 100vh; }
 }
 .heatmap-bar { width: 100%; height: 10px; border-radius: 4px; background: linear-gradient(to right, #3fb950, #d29922, #f47067); }
 .heatmap-labels { display: flex; justify-content: space-between; font-size: 10px; color: #8b949e; }
+
+#guide {
+  position: fixed; top: 52px; left: 16px; z-index: 15;
+  background: #161b22ee; backdrop-filter: blur(8px);
+  border: 1px solid #21262d; border-radius: 10px;
+  width: 320px; max-height: calc(100vh - 76px);
+  overflow-y: auto; padding: 0;
+  transform: translateX(-340px);
+  transition: transform 0.25s ease;
+  scrollbar-width: thin; scrollbar-color: #30363d transparent;
+}
+#guide.open { transform: translateX(0); }
+#guide::-webkit-scrollbar { width: 6px; }
+#guide::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+#guide::-webkit-scrollbar-track { background: transparent; }
+#guide .guide-header {
+  position: sticky; top: 0; z-index: 1;
+  background: #161b22; border-bottom: 1px solid #21262d;
+  padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
+}
+#guide .guide-header h2 { font-size: 14px; font-weight: 600; color: #c9d1d9; margin: 0; }
+#guide .guide-close {
+  background: none; border: none; color: #8b949e; cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 0 4px;
+}
+#guide .guide-close:hover { color: #c9d1d9; }
+#guide .guide-body { padding: 12px 16px 16px; }
+.guide-section { margin-bottom: 12px; }
+.guide-section:last-child { margin-bottom: 0; }
+.guide-toggle {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  background: none; border: none; color: #c9d1d9; cursor: pointer;
+  font-size: 13px; font-weight: 600; padding: 6px 0; text-align: left;
+}
+.guide-toggle:hover { color: #58a6ff; }
+.guide-toggle .chevron {
+  display: inline-block; font-size: 10px; color: #8b949e;
+  transition: transform 0.15s; width: 12px; text-align: center;
+}
+.guide-toggle[aria-expanded="true"] .chevron { transform: rotate(90deg); }
+.guide-content {
+  display: none; padding: 4px 0 4px 18px;
+  font-size: 12px; color: #8b949e; line-height: 1.6;
+}
+.guide-content.open { display: block; }
+.guide-content p { margin: 0 0 6px; }
+.guide-content p:last-child { margin: 0; }
+.guide-content kbd {
+  display: inline-block; background: #21262d; border: 1px solid #30363d;
+  border-radius: 3px; padding: 0 5px; font-size: 11px; font-family: inherit;
+  color: #c9d1d9; line-height: 1.6;
+}
+.guide-content .color-dot {
+  display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+  vertical-align: middle; margin-right: 4px;
+}
 </style>
 </head>
 <body>
@@ -1326,6 +1382,87 @@ svg { width: 100vw; height: 100vh; }
   <button class="btn" id="btn-ee" style="display:none">EE</button>
   <div class="sep" id="sep-ee" style="display:none"></div>
   <button class="btn" id="btn-reset">Reset</button>
+  <div class="sep"></div>
+  <button class="btn" id="btn-guide" title="How to use this graph">?</button>
+</div>
+<div id="guide">
+  <div class="guide-header">
+    <h2>How to use this graph</h2>
+    <button class="guide-close" id="guide-close">&times;</button>
+  </div>
+  <div class="guide-body">
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="true"><span class="chevron">&#9654;</span> Navigation</button>
+      <div class="guide-content open">
+        <p><b>Pan</b> &mdash; Click and drag the background</p>
+        <p><b>Zoom</b> &mdash; Scroll wheel or pinch</p>
+        <p><b>Move a node</b> &mdash; Drag it to reposition</p>
+        <p><b>Reset view</b> &mdash; Click the <kbd>Reset</kbd> button</p>
+      </div>
+    </div>
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="true"><span class="chevron">&#9654;</span> Selecting &amp; exploring</button>
+      <div class="guide-content open">
+        <p><b>Click a node</b> to select it. Its dependencies are highlighted with animated edges that ripple outward.</p>
+        <p><b>Depth</b> controls how many hops away from the selected node are shown (1&ndash;10).</p>
+        <p><b>Click the background</b> to deselect.</p>
+        <p><b>Search</b> filters nodes by name &mdash; matching nodes and their direct connections stay visible.</p>
+      </div>
+    </div>
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="false"><span class="chevron">&#9654;</span> Node types &amp; colors</button>
+      <div class="guide-content">
+        <p><span class="color-dot" style="background:#79c0ff"></span><b>Controller</b> &mdash; HTTP/API entry points</p>
+        <p><span class="color-dot" style="background:#d2a8ff"></span><b>Router</b> &mdash; Route definitions</p>
+        <p><span class="color-dot" style="background:#7ee787"></span><b>Service</b> &mdash; Business logic layer</p>
+        <p><span class="color-dot" style="background:#ffa657"></span><b>Model</b> &mdash; Database/data access layer</p>
+        <p><span class="color-dot" style="background:#f778ba"></span><b>Client</b> &mdash; External service clients</p>
+        <p>Filter by type using the toolbar buttons.</p>
+      </div>
+    </div>
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="false"><span class="chevron">&#9654;</span> Edge types</button>
+      <div class="guide-content">
+        <p><span style="color:#79c0ff">&#9473;</span> <b>uses_service</b> &mdash; Controller calls a service</p>
+        <p><span style="color:#d2a8ff">&#9473;</span> <b>router_uses_service</b> &mdash; Router calls a service</p>
+        <p><span style="color:#ffa657">&#9473;</span> <b>injects_model</b> &mdash; Service depends on a model</p>
+        <p><span style="color:#f778ba">&#9473;</span> <b>injects_client</b> &mdash; Service depends on a client</p>
+        <p><span style="color:#7ee787">- -</span> <b>injects_service</b> &mdash; Service-to-service (dashed)</p>
+        <p><span style="color:#f47067">- -</span> <b>shares_code</b> &mdash; Code duplication link (dashed)</p>
+      </div>
+    </div>
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="false"><span class="chevron">&#9654;</span> Size &amp; color modes</button>
+      <div class="guide-content">
+        <p><b>Size</b> controls what drives node radius:</p>
+        <p>&bull; <b>Edges</b> &mdash; Dependency count</p>
+        <p>&bull; <b>Lines</b> &mdash; Source lines of code</p>
+        <p>&bull; <b>Cyclomatic</b> &mdash; Number of execution paths</p>
+        <p>&bull; <b>Cognitive</b> &mdash; Human readability difficulty</p>
+        <p>&bull; <b>Commits / Authors / Churn</b> &mdash; Git activity</p>
+        <p>&bull; <b>Duplication</b> &mdash; Shared code blocks</p>
+        <p><b>Color</b> switches the palette:</p>
+        <p>&bull; <b>Type</b> &mdash; Color by node type</p>
+        <p>&bull; <b>Health</b> &mdash; Green&#8594;red heatmap (coupling + complexity + churn)</p>
+        <p>&bull; <b>Duplication</b> &mdash; Green&#8594;red by shared code volume</p>
+      </div>
+    </div>
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="false"><span class="chevron">&#9654;</span> Domains &amp; toggles</button>
+      <div class="guide-content">
+        <p><b>Domains</b> groups nodes by their domain directory, drawing a hull boundary around each group. Toggle off for a flat layout.</p>
+        <p><b>Arrows</b> shows dependency direction on highlighted edges.</p>
+        <p><b>EE</b> (if visible) toggles enterprise-edition nodes.</p>
+      </div>
+    </div>
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="false"><span class="chevron">&#9654;</span> Tooltips &amp; health score</button>
+      <div class="guide-content">
+        <p><b>Hover any node</b> to see its metrics: edges, lines of code, complexity scores, git churn, recent commits, and duplication info.</p>
+        <p>The <b>health score</b> (0&ndash;100) is a composite: 30% coupling, 25% complexity, 30% churn, 15% commit frequency. Lower is better.</p>
+      </div>
+    </div>
+  </div>
 </div>
 <div id="legend">
   <span class="stat stat-c"><b>${controllers}</b> controllers</span>
@@ -1843,6 +1980,24 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   const labels = document.querySelectorAll('.heatmap-labels span');
   labels[0].textContent = 'Healthy'; labels[1].textContent = 'Hot';
   svg.transition().duration(500).call(zoomBehavior.transform, d3.zoomIdentity);
+});
+
+// Guide sidebar
+const guideEl = document.getElementById('guide');
+document.getElementById('btn-guide').addEventListener('click', () => {
+  guideEl.classList.toggle('open');
+  document.getElementById('btn-guide').classList.toggle('active', guideEl.classList.contains('open'));
+});
+document.getElementById('guide-close').addEventListener('click', () => {
+  guideEl.classList.remove('open');
+  document.getElementById('btn-guide').classList.remove('active');
+});
+document.querySelectorAll('.guide-toggle').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const expanded = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', String(!expanded));
+    btn.nextElementSibling.classList.toggle('open', !expanded);
+  });
 });
 
 // EE toggle
