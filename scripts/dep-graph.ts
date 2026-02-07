@@ -711,31 +711,39 @@ function highlightNode(d) {
     return conn.has(s) && conn.has(t);
   });
 
-  const edgesByLayer = {};
+  const edgesBySource = {};
   link.filter('.highlighted').each(function(l) {
     const src = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
     const tgt = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
     const srcDepth = conn.get(src) ?? Infinity;
     const tgtDepth = conn.get(tgt) ?? Infinity;
-    const layer = Math.min(srcDepth, tgtDepth);
-    if (!edgesByLayer[layer]) edgesByLayer[layer] = [];
-    edgesByLayer[layer].push({ el: d3.select(this), l, srcDepth, tgtDepth });
+    const outward = srcDepth <= tgtDepth;
+    const origin = outward ? src : tgt;
+    if (!edgesBySource[origin]) edgesBySource[origin] = [];
+    edgesBySource[origin].push({ el: d3.select(this), l, outward });
+    d3.select(this).style('stroke-opacity', 0);
   });
-  const layers = Object.keys(edgesByLayer).map(Number).sort((a, b) => a - b);
-  let baseDelay = 0;
-  layers.forEach(layer => {
-    const edges = edgesByLayer[layer];
-    edges.forEach((e, i) => {
-      const x1 = +e.el.attr('x1'), y1 = +e.el.attr('y1');
-      const x2 = +e.el.attr('x2'), y2 = +e.el.attr('y2');
+
+  const animated = new Set();
+  function animateFrom(nodeId) {
+    const edges = edgesBySource[nodeId];
+    if (!edges) return;
+    edges.forEach(e => {
+      const el = e.el;
+      if (animated.has(el.node())) return;
+      animated.add(el.node());
+      const x1 = +el.attr('x1'), y1 = +el.attr('y1');
+      const x2 = +el.attr('x2'), y2 = +el.attr('y2');
       const len = Math.hypot(x2 - x1, y2 - y1);
       if (len === 0) return;
-      const outward = e.srcDepth <= e.tgtDepth;
-      e.el.attr('stroke-dasharray', len)
-        .attr('stroke-dashoffset', outward ? len : -len);
-      e.el.transition()
-        .delay(baseDelay + i * 20)
-        .duration(400)
+      const src = typeof e.l.source === 'object' ? e.l.source.id : nodes[e.l.source].id;
+      const tgt = typeof e.l.target === 'object' ? e.l.target.id : nodes[e.l.target].id;
+      const destId = e.outward ? tgt : src;
+      el.style('stroke-opacity', null)
+        .attr('stroke-dasharray', len)
+        .attr('stroke-dashoffset', e.outward ? len : -len);
+      el.transition()
+        .duration(400 + Math.random() * 200)
         .ease(d3.easeCubicOut)
         .attr('stroke-dashoffset', 0)
         .on('end', function() {
@@ -743,10 +751,11 @@ function highlightNode(d) {
           if (e.l.type === 'injects_service') self.attr('stroke-dasharray', '4,3');
           else self.attr('stroke-dasharray', null);
           self.attr('stroke-dashoffset', null);
+          animateFrom(destId);
         });
     });
-    baseDelay += 200;
-  });
+  }
+  animateFrom(d.id);
 }
 
 function clearHL() {
@@ -755,6 +764,7 @@ function clearHL() {
   link.classed('dimmed', false).classed('highlighted', false);
   link.each(function(l) {
     const el = d3.select(this);
+    el.style('stroke-opacity', null);
     if (l.type === 'injects_service') el.attr('stroke-dasharray', '4,3');
     else el.attr('stroke-dasharray', null);
     el.attr('stroke-dashoffset', null);
