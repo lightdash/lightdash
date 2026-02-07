@@ -1,5 +1,7 @@
+import { MetricType } from '../types/field';
 import {
     FilterOperator,
+    FilterType,
     type AndFilterGroup,
     type DashboardFilterRule,
     type FilterGroup,
@@ -13,6 +15,7 @@ import {
     addFilterRule,
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
+    getFilterTypeFromItemType,
     isFilterRuleInQuery,
     overrideChartFilter,
     reduceRequiredDimensionFiltersToFilterRules,
@@ -506,5 +509,19 @@ describe('getDashboardFilterRulesForTileAndReferences', () => {
 
         // Verify filter-3 is not included (isSqlColumn is true but fieldId doesn't match)
         expect(result).toHaveLength(0);
+    });
+});
+
+describe('getFilterTypeFromItemType', () => {
+    it('should return NUMBER filter type for VARIANCE metric type', () => {
+        expect(getFilterTypeFromItemType(MetricType.VARIANCE)).toBe(
+            FilterType.NUMBER,
+        );
+    });
+
+    it('should return NUMBER filter type for STANDARD_DEVIATION metric type', () => {
+        expect(getFilterTypeFromItemType(MetricType.STANDARD_DEVIATION)).toBe(
+            FilterType.NUMBER,
+        );
     });
 });
