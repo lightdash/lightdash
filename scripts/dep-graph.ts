@@ -19,6 +19,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import * as ts from 'typescript';
 import { execSync } from 'child_process';
 
 // ---------------------------------------------------------------------------
@@ -326,6 +327,208 @@ function resolveLineCount(
 }
 
 // ---------------------------------------------------------------------------
+// Complexity analysis (TypeScript AST)
+// ---------------------------------------------------------------------------
+
+interface Complexity {
+    cyclomatic: number;
+    cognitive: number;
+    maxFunctionCyclomatic: number;
+}
+
+function resolveComplexity(
+    id: string,
+    type: GraphNode['type'],
+    ee?: boolean,
+): Complexity | undefined {
+    const fp = resolveFilePath(id, type, ee);
+    if (!fp) return undefined;
+
+    const src = fs.readFileSync(fp, 'utf-8');
+    const sourceFile = ts.createSourceFile(fp, src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+
+    let totalCyclomatic = 0;
+    let maxFunctionCyclomatic = 0;
+    let cognitive = 0;
+
+    function isFunctionLike(node: ts.Node): boolean {
+        return ts.isFunctionDeclaration(node) ||
+            ts.isFunctionExpression(node) ||
+            ts.isArrowFunction(node) ||
+            ts.isMethodDeclaration(node) ||
+            ts.isGetAccessor(node) ||
+            ts.isSetAccessor(node) ||
+            ts.isConstructorDeclaration(node);
+    }
+
+    function countCyclomaticInFunction(node: ts.Node): number {
+        let cc = 1;
+        function walk(n: ts.Node) {
+            switch (n.kind) {
+                case ts.SyntaxKind.IfStatement:
+                case ts.SyntaxKind.ForStatement:
+                case ts.SyntaxKind.ForInStatement:
+                case ts.SyntaxKind.ForOfStatement:
+                case ts.SyntaxKind.WhileStatement:
+                case ts.SyntaxKind.DoStatement:
+                case ts.SyntaxKind.CaseClause:
+                case ts.SyntaxKind.CatchClause:
+                case ts.SyntaxKind.ConditionalExpression:
+                    cc++;
+                    break;
+                case ts.SyntaxKind.BinaryExpression: {
+                    const bin = n as ts.BinaryExpression;
+                    if (bin.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+                        bin.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+                        bin.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
+                        cc++;
+                    }
+                    break;
+                }
+            }
+            if (isFunctionLike(n) && n !== node) return;
+            ts.forEachChild(n, walk);
+        }
+        ts.forEachChild(node, walk);
+        return cc;
+    }
+
+    function walkForFunctions(node: ts.Node) {
+        if (isFunctionLike(node)) {
+            const cc = countCyclomaticInFunction(node);
+            totalCyclomatic += cc;
+            if (cc > maxFunctionCyclomatic) maxFunctionCyclomatic = cc;
+        }
+        ts.forEachChild(node, walkForFunctions);
+    }
+    walkForFunctions(sourceFile);
+
+    if (totalCyclomatic === 0) {
+        let topCC = 1;
+        function walkTop(n: ts.Node) {
+            switch (n.kind) {
+                case ts.SyntaxKind.IfStatement:
+                case ts.SyntaxKind.ForStatement:
+                case ts.SyntaxKind.ForInStatement:
+                case ts.SyntaxKind.ForOfStatement:
+                case ts.SyntaxKind.WhileStatement:
+                case ts.SyntaxKind.DoStatement:
+                case ts.SyntaxKind.CaseClause:
+                case ts.SyntaxKind.CatchClause:
+                case ts.SyntaxKind.ConditionalExpression:
+                    topCC++;
+                    break;
+                case ts.SyntaxKind.BinaryExpression: {
+                    const bin = n as ts.BinaryExpression;
+                    if (bin.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken ||
+                        bin.operatorToken.kind === ts.SyntaxKind.BarBarToken ||
+                        bin.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
+                        topCC++;
+                    }
+                    break;
+                }
+            }
+            ts.forEachChild(n, walkTop);
+        }
+        ts.forEachChild(sourceFile, walkTop);
+        totalCyclomatic = topCC;
+        maxFunctionCyclomatic = topCC;
+    }
+
+    function isElseIf(node: ts.Node): boolean {
+        if (!ts.isIfStatement(node)) return false;
+        const parent = node.parent;
+        return !!parent && ts.isIfStatement(parent) && parent.elseStatement === node;
+    }
+
+    function isStructural(kind: ts.SyntaxKind): boolean {
+        return kind === ts.SyntaxKind.IfStatement ||
+            kind === ts.SyntaxKind.ForStatement ||
+            kind === ts.SyntaxKind.ForInStatement ||
+            kind === ts.SyntaxKind.ForOfStatement ||
+            kind === ts.SyntaxKind.WhileStatement ||
+            kind === ts.SyntaxKind.DoStatement ||
+            kind === ts.SyntaxKind.SwitchStatement ||
+            kind === ts.SyntaxKind.ConditionalExpression;
+    }
+
+    function cogWalk(node: ts.Node, depth: number) {
+        if (ts.isIfStatement(node)) {
+            if (isElseIf(node)) {
+                cognitive += 1;
+            } else {
+                cognitive += 1 + depth;
+            }
+            if (node.expression) cogWalk(node.expression, depth);
+            if (node.thenStatement) cogWalk(node.thenStatement, depth + 1);
+            if (node.elseStatement) {
+                if (ts.isIfStatement(node.elseStatement)) {
+                    cogWalk(node.elseStatement, depth);
+                } else {
+                    cognitive += 1;
+                    cogWalk(node.elseStatement, depth + 1);
+                }
+            }
+            return;
+        }
+
+        if (node.kind === ts.SyntaxKind.SwitchStatement) {
+            cognitive += 1 + depth;
+            ts.forEachChild(node, c => cogWalk(c, depth + 1));
+            return;
+        }
+
+        if (node.kind === ts.SyntaxKind.ForStatement ||
+            node.kind === ts.SyntaxKind.ForInStatement ||
+            node.kind === ts.SyntaxKind.ForOfStatement ||
+            node.kind === ts.SyntaxKind.WhileStatement ||
+            node.kind === ts.SyntaxKind.DoStatement) {
+            cognitive += 1 + depth;
+            ts.forEachChild(node, c => cogWalk(c, depth + 1));
+            return;
+        }
+
+        if (node.kind === ts.SyntaxKind.ConditionalExpression) {
+            cognitive += 1 + depth;
+            ts.forEachChild(node, c => cogWalk(c, depth));
+            return;
+        }
+
+        if (node.kind === ts.SyntaxKind.CatchClause) {
+            cognitive += 1;
+            ts.forEachChild(node, c => cogWalk(c, depth + 1));
+            return;
+        }
+
+        if (ts.isBinaryExpression(node)) {
+            const op = node.operatorToken.kind;
+            if (op === ts.SyntaxKind.AmpersandAmpersandToken ||
+                op === ts.SyntaxKind.BarBarToken ||
+                op === ts.SyntaxKind.QuestionQuestionToken) {
+                let parentOp: ts.SyntaxKind | undefined;
+                if (ts.isBinaryExpression(node.parent)) {
+                    parentOp = node.parent.operatorToken.kind;
+                }
+                if (parentOp !== op) {
+                    cognitive += 1;
+                }
+            }
+        }
+
+        if (isFunctionLike(node)) {
+            ts.forEachChild(node, c => cogWalk(c, depth + 1));
+            return;
+        }
+
+        ts.forEachChild(node, c => cogWalk(c, depth));
+    }
+
+    ts.forEachChild(sourceFile, c => cogWalk(c, 0));
+
+    return { cyclomatic: totalCyclomatic, cognitive, maxFunctionCyclomatic };
+}
+
+// ---------------------------------------------------------------------------
 // Graph building
 // ---------------------------------------------------------------------------
 
@@ -349,6 +552,7 @@ interface GraphNode {
     ee?: boolean;
     domain?: string;
     lineCount?: number;
+    complexity?: Complexity;
     gitActivity?: GitActivity;
     gitSummary?: string;
     healthSummary?: string;
@@ -393,7 +597,8 @@ function buildGraph(
     const addNode = (id: string, type: GraphNode['type'], ee?: boolean) => {
         if (!nodeSet.has(id)) {
             const lineCount = resolveLineCount(id, type, ee);
-            nodes.push({ id, type, ...(ee && { ee }), ...(lineCount && { lineCount }) });
+            const complexity = resolveComplexity(id, type, ee);
+            nodes.push({ id, type, ...(ee && { ee }), ...(lineCount && { lineCount }), ...(complexity && { complexity }) });
             nodeSet.add(id);
         }
     };
@@ -735,7 +940,7 @@ svg { width: 100vw; height: 100vh; }
   <div class="sep"></div>
   <label class="stat" style="display:flex;align-items:center;gap:4px;" title="How many hops from the selected node to highlight">Depth <input type="number" id="depth" value="2" min="1" max="10" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;text-align:center;"></label>
   <div class="sep"></div>
-  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="What drives node size">Size <select id="size-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="edges">Edges</option><option value="lines">Lines</option><option value="commits">Commits</option><option value="authors">Authors</option><option value="churn">Churn (6mo)</option></select></label>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="What drives node size">Size <select id="size-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="edges">Edges</option><option value="lines">Lines</option><option value="cyclomatic">Cyclomatic</option><option value="cognitive">Cognitive</option><option value="commits">Commits</option><option value="authors">Authors</option><option value="churn">Churn (6mo)</option></select></label>
   <div class="sep"></div>
   <label class="stat" style="display:flex;align-items:center;gap:4px;" title="Node color scheme">Color <select id="color-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="type">Type</option><option value="health">Health</option></select></label>
   <div class="sep"></div>
@@ -784,6 +989,8 @@ function calcRadius(n) {
   const mode = document.getElementById('size-mode').value;
   switch (mode) {
     case 'lines': return Math.max(4, 3 + Math.sqrt((n.lineCount || 100) / 30) * 2.2);
+    case 'cyclomatic': return Math.max(4, 3 + Math.sqrt((n.complexity?.cyclomatic || 1) / 5) * 2.2);
+    case 'cognitive': return Math.max(4, 3 + Math.sqrt((n.complexity?.cognitive || 1) / 5) * 2.2);
     case 'commits': return Math.max(4, 3 + Math.sqrt((n.gitActivity?.commits || 1) / 8) * 2.2);
     case 'authors': return Math.max(4, 3 + Math.sqrt(n.gitActivity?.authors || 1) * 3);
     case 'churn': return Math.max(4, 3 + Math.sqrt((n.gitActivity?.churn || 0) / 2) * 2.5);
@@ -793,19 +1000,19 @@ function calcRadius(n) {
 
 const nodes = raw.nodes.map(n => ({ ...n, r: calcRadius(n) }));
 
-// Health score: normalized composite of coupling, size, churn, commits
+// Health score: normalized composite of coupling, complexity, churn, commits
 const hMetrics = {
   coupling: raw.nodes.map(n => connCount[n.id] || 0),
-  lines: raw.nodes.map(n => n.lineCount || 0),
+  complexity: raw.nodes.map(n => n.complexity?.cyclomatic || 0),
   churn: raw.nodes.map(n => n.gitActivity?.churn || 0),
   commits: raw.nodes.map(n => n.gitActivity?.commits || 0),
 };
 function maxNorm(vals) { const mx = Math.max(...vals); return mx === 0 ? vals.map(() => 0) : vals.map(v => v / mx); }
-const nCoup = maxNorm(hMetrics.coupling), nLines = maxNorm(hMetrics.lines);
+const nCoup = maxNorm(hMetrics.coupling), nComp = maxNorm(hMetrics.complexity);
 const nChurn = maxNorm(hMetrics.churn), nComm = maxNorm(hMetrics.commits);
 const healthColorScale = d3.scaleLinear().domain([0, 0.5, 1]).range(['#3fb950', '#d29922', '#f47067']).interpolate(d3.interpolateRgb);
 const healthStrokeScale = d3.scaleLinear().domain([0, 0.5, 1]).range(['#238636', '#9e6a03', '#da3633']).interpolate(d3.interpolateRgb);
-nodes.forEach((n, i) => { n.healthScore = nCoup[i] * 0.3 + nLines[i] * 0.25 + nChurn[i] * 0.3 + nComm[i] * 0.15; });
+nodes.forEach((n, i) => { n.healthScore = nCoup[i] * 0.3 + nComp[i] * 0.25 + nChurn[i] * 0.3 + nComm[i] * 0.15; });
 
 function getNodeColor(d) { return document.getElementById('color-mode').value === 'health' ? healthColorScale(d.healthScore) : color[d.type]; }
 function getNodeStroke(d) { return document.getElementById('color-mode').value === 'health' ? healthStrokeScale(d.healthScore) : colorDark[d.type]; }
@@ -976,6 +1183,9 @@ node.on('mouseover', (ev, d) => {
   h += '<div class="t-item" style="font-size:11px;color:#8b949e;margin-top:2px">';
   h += (connCount[d.id]||0) + ' edges · ' + (d.lineCount||0) + ' lines · ' + (d.gitActivity?.churn||0) + ' churn · ' + (d.gitActivity?.commits||0) + ' commits';
   h += '</div>';
+  if (d.complexity) {
+    h += '<div class="t-item" style="font-size:11px;color:#8b949e;margin-top:2px">Cyclomatic: <b style="color:#c9d1d9">' + d.complexity.cyclomatic + '</b> · Cognitive: <b style="color:#c9d1d9">' + d.complexity.cognitive + '</b> · Max/fn: <b style="color:#c9d1d9">' + d.complexity.maxFunctionCyclomatic + '</b></div>';
+  }
   if (d.healthSummary) {
     h += '<div style="color:' + healthColorScale(d.healthScore) + ';font-style:italic;padding-left:10px;margin-top:4px;font-size:11px">' + d.healthSummary + '</div>';
   }
@@ -1642,7 +1852,9 @@ function summarizeHealthScores(
     const parts = graph.nodes
         .map((n) => {
             const edges = edgeCounts[n.id] || 0;
-            return `${n.id}:${edges}:${n.lineCount || 0}:${n.gitActivity?.churn || 0}:${n.gitActivity?.commits || 0}`;
+            const cyc = n.complexity?.cyclomatic || 0;
+            const cog = n.complexity?.cognitive || 0;
+            return `${n.id}:${edges}:${n.lineCount || 0}:${cyc}:${cog}:${n.gitActivity?.churn || 0}:${n.gitActivity?.commits || 0}`;
         })
         .sort()
         .join('\n');
@@ -1671,29 +1883,42 @@ function summarizeHealthScores(
         .map((n) => {
             const edges = edgeCounts[n.id] || 0;
             const lines = n.lineCount || 0;
+            const cyc = n.complexity?.cyclomatic || 0;
+            const cog = n.complexity?.cognitive || 0;
             const churn = n.gitActivity?.churn || 0;
             const commits = n.gitActivity?.commits || 0;
             const authors = n.gitActivity?.authors || 0;
-            return `${n.id} (${n.type}): ${edges} edges, ${lines} lines, ${churn} churn (6mo), ${commits} total commits, ${authors} authors`;
+            return `${n.id} (${n.type}): ${edges} edges, ${lines} lines, cyclomatic ${cyc}, cognitive ${cog}, ${churn} churn (6mo), ${commits} total commits, ${authors} authors`;
         })
         .join('\n');
 
-    const prompt = `You are analyzing the health of backend dependency-injection nodes in Lightdash (an open-source BI tool).
+    const prompt = `You are analyzing backend dependency-injection nodes in Lightdash (an open-source BI tool).
 
-For each node below, write a 1-2 line health assessment (max 80 chars per line, separate lines with \\n). Be specific and actionable — reference the actual numbers.
+The user already sees the raw numbers (edges, lines, cyclomatic, cognitive, churn, commits) in the tooltip. Your job is to provide INSIGHT the numbers alone don't show — what the combination of metrics means, what the risk is, or what action to take.
 
-Consider:
-- High edge count = high coupling = harder to change safely
-- High line count = complex, may need decomposition
-- High churn (6mo) = frequently changing, potentially unstable
-- High coupling + high churn together = most concerning ("hot spot")
-- Low everything = stable, healthy
+NEVER restate the numbers. Instead explain WHY the combination matters or WHAT to do about it.
 
-Tone: direct, technical, concise. Examples:
-- "Hot spot: high coupling (45 edges) with active churn"
-- "Stable utility, low maintenance burden"
-- "Large (1200 lines) but stable — complex but not risky"
-- "Coordination bottleneck: 8 authors, 34 recent changes"
+For each node, write ONE line (max 70 chars). Focus on:
+- Cross-metric patterns: "high complexity + high churn = regression risk"
+- Actionable advice: "split into query-building and execution halves"
+- Risk classification: what kind of problem this node represents
+- Comparisons: "god service — owns too many concerns"
+- For healthy nodes: what makes them a good example
+
+Tone: opinionated, direct, like a senior engineer's code review.
+
+Good examples:
+- "God service — owns auth, queries, and scheduling"
+- "Split candidate: query building vs execution"
+- "Regression risk — complex and actively changing"
+- "Stable, well-scoped — good extraction example"
+- "Bottleneck: every controller depends on this"
+- "Thin wrapper, could inline into parent service"
+
+Bad examples (NEVER do these):
+- "CRITICAL: 35 edges, 286 branches" (just restating numbers)
+- "High coupling (45 edges) with active churn" (restating with labels)
+- "Complex with 332 cognitive complexity" (restating)
 
 NODES AND METRICS:
 ${nodeDescriptions}
