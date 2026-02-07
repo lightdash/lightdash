@@ -1549,8 +1549,6 @@ node.append('text')
 const tip = d3.select('#tooltip');
 
 node.on('mouseover', (ev, d) => {
-  const out = outgoing[d.id] || [];
-  const inc = incoming[d.id] || [];
   let h = '<h3 style="color:' + color[d.type] + '">' + d.id + '</h3>';
   h += '<span style="color:#8b949e">' + d.type + '</span>';
   if (d.domain) h += ' <span style="color:#6e7681">· ' + d.domain + '</span>';
@@ -1568,25 +1566,24 @@ node.on('mouseover', (ev, d) => {
   }
   if (d.duplication && d.duplication.ratio > 0) {
     const dupPct = Math.round(d.duplication.ratio * 100);
+    const dupEdges = raw.edges.filter(e => e.type === 'shares_code' && (e.from === d.id || e.to === d.id));
     h += '<div class="t-section">duplication</div>';
-    h += '<div class="t-item"><span style="color:#f47067;font-weight:700">' + dupPct + '%</span> duplicated <span style="color:#484f58">(' + d.duplication.clonedLines + ' / ' + d.duplication.totalLines + ' lines)</span></div>';
+    h += '<div class="t-item"><span style="color:#f47067;font-weight:700">' + dupPct + '%</span> duplicated <span style="color:#484f58">(' + d.duplication.clonedLines + ' / ' + d.duplication.totalLines + ' lines)</span>';
+    if (dupEdges.length > 0) h += ' · <span style="color:#484f58">' + dupEdges.length + ' shared</span>';
+    h += '</div>';
     if (d.duplicationSummary) {
       h += '<div style="color:#f47067;font-style:italic;padding-left:10px;margin-top:4px;font-size:11px">' + d.duplicationSummary + '</div>';
     }
-    const dupEdges = raw.edges.filter(e => e.type === 'shares_code' && (e.from === d.id || e.to === d.id));
-    if (dupEdges.length > 0) {
-      h += '<div class="t-section" style="margin-top:4px">shared code with</div>';
-      dupEdges.forEach(e => {
-        const other = e.from === d.id ? e.to : e.from;
-        const dup = e.duplication;
-        if (dup) {
-          h += '<div class="t-item" style="font-size:11px"><b style="color:#c9d1d9">' + other + '</b> — ' + dup.cloneCount + ' clone' + (dup.cloneCount > 1 ? 's' : '') + ', ' + dup.totalLines + ' lines</div>';
-          if (dup.advice) {
-            h += '<div style="color:#d29922;font-style:italic;padding-left:10px;margin-top:2px;font-size:11px">' + dup.advice + '</div>';
-          }
+    dupEdges.forEach(e => {
+      const other = e.from === d.id ? e.to : e.from;
+      const dup = e.duplication;
+      if (dup) {
+        h += '<div class="t-item" style="font-size:11px;margin-top:4px"><span style="color:#f47067">↔</span> <b style="color:#c9d1d9">' + other + '</b> <span style="color:#484f58">' + dup.cloneCount + ' clone' + (dup.cloneCount > 1 ? 's' : '') + ', ' + dup.totalLines + ' lines</span></div>';
+        if (dup.advice) {
+          h += '<div style="color:#d29922;font-style:italic;padding-left:18px;margin-top:1px;font-size:11px">' + dup.advice + '</div>';
         }
-      });
-    }
+      }
+    });
   }
   if (d.gitActivity) {
     h += '<div class="t-section">git activity</div>';
@@ -1600,21 +1597,6 @@ node.on('mouseover', (ev, d) => {
         h += '<div class="t-item" style="font-size:11px"><span style="color:#484f58">' + c.hash + '</span>  ' + msg + '  <span style="color:#484f58">' + c.relativeDate + '</span></div>';
       });
     }
-  }
-  if (out.length) {
-    const byType = {};
-    out.forEach(o => { if (!byType[o.type]) byType[o.type] = []; byType[o.type].push(o.id); });
-    for (const [t, ids] of Object.entries(byType)) {
-      const label = t.replace('injects_','').replace(/^(router_)?uses_/,'uses ');
-      h += '<div class="t-section">' + label + 's (' + ids.length + ')</div>';
-      ids.sort().forEach(id => { h += '<div class="t-item">' + id + '</div>'; });
-    }
-  }
-  if (inc.length) {
-    h += '<div class="t-section">used by (' + inc.length + ')</div>';
-    inc.sort((a,b) => a.id.localeCompare(b.id)).forEach(i => {
-      h += '<div class="t-item">' + i.id + ' <span style="color:#484f58">(' + i.type.replace('injects_','').replace(/^(router_)?uses_/,'') + ')</span></div>';
-    });
   }
   tip.html(h).style('display', 'block');
 })
