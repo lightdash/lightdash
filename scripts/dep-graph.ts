@@ -569,6 +569,7 @@ interface SentryActivity {
     spans: Array<{ name: string; count: number }>;
     topError: string | null;
     topErrorCount: number;
+    topErrorIssueId: string | null;
 }
 
 interface GraphNode {
@@ -1313,7 +1314,7 @@ interface SentryRawData {
     transactions: Array<{ transaction: string; count: number; p95: number }>;
     errors: Array<{ culprit: string; count: number }>;
     spans: Array<{ transaction: string; count: number }>;
-    errorTitles: Array<{ title: string; transaction: string; count: number }>;
+    errorTitles: Array<{ title: string; transaction: string; count: number; issueId: string | null }>;
 }
 
 function fetchSentryData(token: string): SentryRawData {
@@ -1380,7 +1381,7 @@ function fetchSentryData(token: string): SentryRawData {
     }));
 
     const errorTitleResult = sentryGet(
-        'dataset=errors&field=title&field=transaction&field=count()&sort=-count()&per_page=100',
+        'dataset=errors&field=title&field=transaction&field=issue&field=count()&sort=-count()&per_page=100',
     );
     const errorTitles = (errorTitleResult.data || [])
         .filter((row: any) => row.transaction && row.title)
@@ -1388,6 +1389,7 @@ function fetchSentryData(token: string): SentryRawData {
             title: row.title as string,
             transaction: row.transaction as string,
             count: (row['count()'] || 0) as number,
+            issueId: (row.issue as string) || null,
         }));
 
     console.log(`  ${transactions.length} transactions, ${errors.length} error culprits, ${errorTitles.length} error titles, ${spans.length} service spans.`);
@@ -1478,7 +1480,7 @@ function matchSentryToNodes(
         serviceSpans.get(serviceName)!.push({ name: methodName, count: span.count });
     }
 
-    const nodeTopErrors = new Map<string, { title: string; count: number }>();
+    const nodeTopErrors = new Map<string, { title: string; count: number; issueId: string | null }>();
     for (const et of rawData.errorTitles) {
         const route = et.transaction.replace(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/, '');
         if (!route.includes('/api/')) continue;
@@ -1486,7 +1488,7 @@ function matchSentryToNodes(
             if (matcher.regex.test(route)) {
                 const existing = nodeTopErrors.get(matcher.nodeId);
                 if (!existing || et.count > existing.count) {
-                    nodeTopErrors.set(matcher.nodeId, { title: et.title, count: et.count });
+                    nodeTopErrors.set(matcher.nodeId, { title: et.title, count: et.count, issueId: et.issueId });
                 }
                 break;
             }
@@ -1522,6 +1524,7 @@ function matchSentryToNodes(
                     spans: [],
                     topError: topErr?.title ?? null,
                     topErrorCount: topErr?.count ?? 0,
+                    topErrorIssueId: topErr?.issueId ?? null,
                 };
                 matchedCount++;
             }
@@ -1539,6 +1542,7 @@ function matchSentryToNodes(
                     spans: spans.slice(0, 5),
                     topError: null,
                     topErrorCount: 0,
+                    topErrorIssueId: null,
                 };
                 matchedCount++;
             }
@@ -1743,6 +1747,36 @@ svg { width: 100vw; height: 100vh; }
   display: inline-block; width: 8px; height: 8px; border-radius: 50%;
   vertical-align: middle; margin-right: 4px;
 }
+#detail {
+  position: fixed; top: 52px; right: 16px; width: 380px; max-height: calc(100vh - 68px);
+  background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+  z-index: 15; overflow: hidden; display: flex; flex-direction: column;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  transform: translateX(400px); opacity: 0; pointer-events: none;
+}
+#detail.open { transform: translateX(0); opacity: 1; pointer-events: auto; }
+#detail .detail-header {
+  position: sticky; top: 0; z-index: 1;
+  background: #161b22; border-bottom: 1px solid #21262d;
+  padding: 12px 16px; display: flex; justify-content: space-between; align-items: center;
+  flex-shrink: 0;
+}
+#detail .detail-header h2 { font-size: 14px; font-weight: 600; color: #c9d1d9; margin: 0; word-break: break-all; }
+#detail .detail-close {
+  background: none; border: none; color: #8b949e; cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 0 4px; flex-shrink: 0;
+}
+#detail .detail-close:hover { color: #c9d1d9; }
+#detail .detail-body {
+  padding: 12px 16px 16px; overflow-y: auto; flex: 1;
+}
+#detail .detail-body::-webkit-scrollbar { width: 6px; }
+#detail .detail-body::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+#detail .detail-body::-webkit-scrollbar-track { background: transparent; }
+#detail .detail-body a { color: #58a6ff; text-decoration: none; }
+#detail .detail-body a:hover { text-decoration: underline; }
+#detail .detail-body .t-section { font-size: 11px; text-transform: uppercase; color: #484f58; margin-top: 8px; letter-spacing: 0.05em; }
+#detail .detail-body .t-item { font-size: 12px; color: #c9d1d9; padding-left: 10px; margin-top: 3px; font-family: 'SF Mono', 'Fira Code', monospace; }
 </style>
 </head>
 <body>
@@ -1849,6 +1883,13 @@ svg { width: 100vw; height: 100vh; }
       </div>
     </div>
   </div>
+</div>
+<div id="detail">
+  <div class="detail-header">
+    <h2 id="detail-title"></h2>
+    <button class="detail-close" id="detail-close">&times;</button>
+  </div>
+  <div class="detail-body" id="detail-body"></div>
 </div>
 <div id="legend">
   <span class="stat stat-c"><b>${controllers}</b> controllers</span>
@@ -2085,8 +2126,15 @@ node.append('text')
 
 const tip = d3.select('#tooltip');
 
-node.on('mouseover', (ev, d) => {
-  let h = '<h3 style="color:' + color[d.type] + '">' + d.id + '</h3>';
+function fmtNum(n) { if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'; if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K'; return String(n); }
+function fmtMs(ms) { if (ms >= 1000) return (ms / 1000).toFixed(1) + 's'; return Math.round(ms) + 'ms'; }
+
+function buildNodeContent(d, opts) {
+  const interactive = opts && opts.interactive;
+  let h = '';
+  if (!interactive) {
+    h += '<h3 style="color:' + color[d.type] + '">' + d.id + '</h3>';
+  }
   h += '<span style="color:#8b949e">' + d.type + '</span>';
   if (d.domain) h += ' <span style="color:#6e7681">· ' + d.domain + '</span>';
   const pct = Math.round((1 - d.healthScore) * 100);
@@ -2123,8 +2171,6 @@ node.on('mouseover', (ev, d) => {
     });
   }
   if (d.sentryActivity) {
-    function fmtNum(n) { if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M'; if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K'; return String(n); }
-    function fmtMs(ms) { if (ms >= 1000) return (ms / 1000).toFixed(1) + 's'; return Math.round(ms) + 'ms'; }
     const sa = d.sentryActivity;
     h += '<div class="t-section">sentry (30d)</div>';
     h += '<div class="t-item"><span style="color:#58a6ff;font-weight:700">' + fmtNum(sa.totalRequests) + '</span> requests';
@@ -2133,7 +2179,13 @@ node.on('mouseover', (ev, d) => {
     h += '</div>';
     if (sa.topError) {
       const shortErr = sa.topError.length > 60 ? sa.topError.slice(0, 57) + '…' : sa.topError;
-      h += '<div class="t-item" style="font-size:11px;margin-top:2px"><span style="color:#f47067">⚡</span> <span style="color:#f0883e">' + shortErr + '</span> <span style="color:#484f58">(' + fmtNum(sa.topErrorCount) + ')</span></div>';
+      if (interactive && sa.topErrorIssueId) {
+        h += '<div class="t-item" style="font-size:11px;margin-top:2px"><span style="color:#f47067">⚡</span> <a href="https://lightdash.sentry.io/issues/?project=5959292&query=' + encodeURIComponent(sa.topErrorIssueId) + '" target="_blank" style="color:#f0883e">' + shortErr + '</a> <span style="color:#484f58">(' + fmtNum(sa.topErrorCount) + ')</span></div>';
+      } else if (interactive) {
+        h += '<div class="t-item" style="font-size:11px;margin-top:2px"><span style="color:#f47067">⚡</span> <span style="color:#f0883e">' + shortErr + '</span> <span style="color:#484f58">(' + fmtNum(sa.topErrorCount) + ')</span></div>';
+      } else {
+        h += '<div class="t-item" style="font-size:11px;margin-top:2px"><span style="color:#f47067">⚡</span> <span style="color:#f0883e">' + shortErr + '</span> <span style="color:#484f58">(' + fmtNum(sa.topErrorCount) + ')</span></div>';
+      }
     }
     if (sa.endpoints && sa.endpoints.length > 0) {
       h += '<div class="t-section" style="margin-top:4px">top endpoints</div>';
@@ -2157,15 +2209,27 @@ node.on('mouseover', (ev, d) => {
     h += '<div class="t-item">' + d.gitActivity.commits + ' commits · ' + d.gitActivity.authors + ' authors · ' + d.gitActivity.churn + ' recent (6mo)</div>';
     if (d.gitSummary) {
       h += '<div style="color:#7ee787;font-style:italic;padding-left:10px;margin-top:4px;font-size:11px;white-space:pre-line">' + d.gitSummary + '</div>';
-    } else if (d.gitActivity.recentCommits && d.gitActivity.recentCommits.length > 0) {
-      h += '<div class="t-section" style="margin-top:6px">recent commits</div>';
-      d.gitActivity.recentCommits.forEach(c => {
-        const msg = c.message.length > 50 ? c.message.slice(0, 50) + '…' : c.message;
-        h += '<div class="t-item" style="font-size:11px"><span style="color:#484f58">' + c.hash + '</span>  ' + msg + '  <span style="color:#484f58">' + c.relativeDate + '</span></div>';
-      });
+    }
+    if (interactive || !d.gitSummary) {
+      if (d.gitActivity.recentCommits && d.gitActivity.recentCommits.length > 0) {
+        h += '<div class="t-section" style="margin-top:6px">recent commits</div>';
+        d.gitActivity.recentCommits.forEach(c => {
+          const msg = c.message.length > 50 ? c.message.slice(0, 50) + '…' : c.message;
+          if (interactive) {
+            h += '<div class="t-item" style="font-size:11px"><a href="https://github.com/lightdash/lightdash/commit/' + c.hash + '" target="_blank" style="color:#484f58">' + c.hash + '</a>  ' + msg + '  <span style="color:#484f58">' + c.relativeDate + '</span></div>';
+          } else {
+            h += '<div class="t-item" style="font-size:11px"><span style="color:#484f58">' + c.hash + '</span>  ' + msg + '  <span style="color:#484f58">' + c.relativeDate + '</span></div>';
+          }
+        });
+      }
     }
   }
-  tip.html(h).style('display', 'block');
+  return h;
+}
+
+node.on('mouseover', (ev, d) => {
+  if (selected === d.id) return;
+  tip.html(buildNodeContent(d, { interactive: false })).style('display', 'block');
 })
 .on('mousemove', ev => {
   const x = Math.min(ev.clientX + 16, W - 400);
@@ -2176,12 +2240,14 @@ node.on('mouseover', (ev, d) => {
 let selected = null;
 node.on('click', (ev, d) => {
   ev.stopPropagation();
-  if (selected === d.id) { selected = null; clearHL(); return; }
+  tip.style('display', 'none');
+  if (selected === d.id) { selected = null; clearHL(); closeDetail(); return; }
   selected = d.id;
   highlightNode(d);
+  openDetail(d);
 });
 svg.on('click', () => {
-  selected = null; clearHL();
+  selected = null; clearHL(); closeDetail();
   document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
   document.querySelector('[data-filter="all"]').classList.add('active');
 });
@@ -2427,7 +2493,7 @@ document.querySelectorAll('[data-filter]').forEach(btn => {
 });
 
 document.getElementById('btn-reset').addEventListener('click', () => {
-  selected = null; clearHL();
+  selected = null; clearHL(); closeDetail();
   document.getElementById('search').value = '';
   document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
   document.querySelector('[data-filter="all"]').classList.add('active');
@@ -2460,6 +2526,25 @@ document.querySelectorAll('.guide-toggle').forEach(btn => {
     btn.setAttribute('aria-expanded', String(!expanded));
     btn.nextElementSibling.classList.toggle('open', !expanded);
   });
+});
+
+// Detail sidebar
+const detailEl = document.getElementById('detail');
+const detailTitle = document.getElementById('detail-title');
+const detailBody = document.getElementById('detail-body');
+function openDetail(d) {
+  detailTitle.textContent = d.id;
+  detailTitle.style.color = color[d.type];
+  detailBody.innerHTML = buildNodeContent(d, { interactive: true });
+  detailEl.classList.add('open');
+}
+function closeDetail() {
+  detailEl.classList.remove('open');
+}
+document.getElementById('detail-close').addEventListener('click', () => {
+  closeDetail();
+  selected = null;
+  clearHL();
 });
 
 // EE toggle
