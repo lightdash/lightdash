@@ -1484,6 +1484,15 @@ export type SchedulerOwnershipReassignedEvent = BaseTrack & {
     };
 };
 
+export type ImpersonationEvent = BaseTrack & {
+    event: 'user.impersonation_started' | 'user.impersonation_stopped';
+    properties: {
+        adminUserUuid: string;
+        targetUserUuid: string;
+        organizationUuid: string;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -1586,7 +1595,8 @@ type TypedEvent =
     | AiAgentToolCallEvent
     | AiAgentArtifactVersionVerifiedEvent
     | AiAgentArtifactsRetrievedEvent
-    | SchedulerOwnershipReassignedEvent;
+    | SchedulerOwnershipReassignedEvent
+    | ImpersonationEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {

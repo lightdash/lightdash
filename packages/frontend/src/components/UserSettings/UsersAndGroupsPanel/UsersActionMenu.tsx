@@ -1,4 +1,5 @@
 import {
+    OrganizationMemberRole,
     type OrganizationMemberProfile,
     type OrganizationMemberProfileWithGroups,
 } from '@lightdash/common';
@@ -20,6 +21,7 @@ import {
     IconChevronDown,
     IconChevronUp,
     IconDots,
+    IconEye,
     IconInfoCircle,
     IconMail,
     IconTrash,
@@ -32,6 +34,8 @@ import {
     useReassignUserSchedulersMutation,
     useUserSchedulersSummary,
 } from '../../../hooks/useOrganizationUsers';
+import { useStartImpersonation } from '../../../hooks/user/useImpersonation';
+import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -86,6 +90,16 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
     >(null);
     const [isProjectBreakdownOpen, setIsProjectBreakdownOpen] =
         React.useState(false);
+
+    const { user: currentUser } = useApp();
+    const { mutate: startImpersonation, isLoading: isStartingImpersonation } =
+        useStartImpersonation();
+
+    const canImpersonate =
+        currentUser.data?.role === OrganizationMemberRole.ADMIN &&
+        user.isActive &&
+        !user.isPending &&
+        currentUser.data?.userUuid !== user.userUuid;
 
     const { mutateAsync: deleteUser, isLoading: isDeleting } =
         useDeleteOrganizationUserMutation();
@@ -196,6 +210,22 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                 {health.data?.hasEmailClient
                                     ? 'Send new invite'
                                     : 'Get new link'}
+                            </Menu.Item>
+                            <Menu.Divider />
+                        </>
+                    )}
+                    {canImpersonate && (
+                        <>
+                            <Menu.Item
+                                component="button"
+                                role="menuitem"
+                                leftSection={<MantineIcon icon={IconEye} />}
+                                onClick={() =>
+                                    startImpersonation(user.userUuid)
+                                }
+                                disabled={isStartingImpersonation}
+                            >
+                                Impersonate user
                             </Menu.Item>
                             <Menu.Divider />
                         </>
