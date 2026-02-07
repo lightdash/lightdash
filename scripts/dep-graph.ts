@@ -312,7 +312,7 @@ svg { width: 100vw; height: 100vh; }
   <button class="btn" data-filter="model">Models</button>
   <button class="btn" data-filter="client">Clients</button>
   <div class="sep"></div>
-  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="How many hops from the selected node to highlight">Depth <input type="number" id="depth" value="1" min="1" max="10" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;text-align:center;"></label>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="How many hops from the selected node to highlight">Depth <input type="number" id="depth" value="2" min="1" max="10" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;text-align:center;"></label>
   <div class="sep"></div>
   <button class="btn" id="btn-reset">Reset</button>
 </div>
@@ -511,20 +511,37 @@ document.getElementById('depth').addEventListener('input', () => {
 });
 
 function getConnected(id, depth) {
-  const depthMap = new Map([[id, 0]]);
-  let frontier = new Set([id]);
+  const downMap = new Map([[id, 0]]);
+  let downFrontier = new Set([id]);
   for (let d = 0; d < depth; d++) {
     const next = new Set();
     links.forEach(l => {
       const src = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
       const tgt = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
-      if (frontier.has(src) && !depthMap.has(tgt)) { depthMap.set(tgt, d + 1); next.add(tgt); }
-      if (frontier.has(tgt) && !depthMap.has(src)) { depthMap.set(src, d + 1); next.add(src); }
+      if (downFrontier.has(src) && !downMap.has(tgt)) { downMap.set(tgt, d + 1); next.add(tgt); }
     });
     if (next.size === 0) break;
-    frontier = next;
+    downFrontier = next;
   }
-  return depthMap;
+
+  const upMap = new Map([[id, 0]]);
+  let upFrontier = new Set([id]);
+  for (let d = 0; d < depth; d++) {
+    const next = new Set();
+    links.forEach(l => {
+      const src = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
+      const tgt = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
+      if (upFrontier.has(tgt) && !upMap.has(src)) { upMap.set(src, d + 1); next.add(src); }
+    });
+    if (next.size === 0) break;
+    upFrontier = next;
+  }
+
+  const merged = new Map(downMap);
+  upMap.forEach((dep, nid) => {
+    if (!merged.has(nid) || dep < merged.get(nid)) merged.set(nid, dep);
+  });
+  return merged;
 }
 
 function getDepth() {
