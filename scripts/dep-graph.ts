@@ -128,6 +128,44 @@ function parseControllers(): Record<string, string[]> {
     return controllers;
 }
 
+function resolveLineCount(
+    id: string,
+    type: GraphNode['type'],
+): number | undefined {
+    const candidates: string[] = [];
+    switch (type) {
+        case 'controller': {
+            const stripped = id.replace(/^v2\//, '');
+            const sub = id.startsWith('v2/') ? 'v2/' : '';
+            candidates.push(
+                path.join(CONTROLLERS_DIR, `${sub}${stripped}.ts`),
+            );
+            break;
+        }
+        case 'service':
+        case 'model':
+        case 'client': {
+            const dir =
+                type === 'service'
+                    ? 'services'
+                    : type === 'model'
+                      ? 'models'
+                      : 'clients';
+            candidates.push(
+                path.join(BACKEND_SRC, dir, id, `${id}.ts`),
+                path.join(BACKEND_SRC, dir, `${id}.ts`),
+            );
+            break;
+        }
+    }
+    for (const fp of candidates) {
+        if (fs.existsSync(fp)) {
+            return fs.readFileSync(fp, 'utf-8').split('\n').length;
+        }
+    }
+    return undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Graph building
 // ---------------------------------------------------------------------------
@@ -136,6 +174,7 @@ interface GraphNode {
     id: string;
     type: 'controller' | 'service' | 'model' | 'client';
     domain?: string;
+    lineCount?: number;
 }
 interface GraphEdge {
     from: string;
@@ -164,7 +203,8 @@ function buildGraph(
 
     const addNode = (id: string, type: GraphNode['type']) => {
         if (!nodeSet.has(id)) {
-            nodes.push({ id, type });
+            const lineCount = resolveLineCount(id, type);
+            nodes.push({ id, type, ...(lineCount && { lineCount }) });
             nodeSet.add(id);
         }
     };
@@ -314,6 +354,8 @@ svg { width: 100vw; height: 100vh; }
   <div class="sep"></div>
   <label class="stat" style="display:flex;align-items:center;gap:4px;" title="How many hops from the selected node to highlight">Depth <input type="number" id="depth" value="2" min="1" max="10" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;text-align:center;"></label>
   <div class="sep"></div>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="What drives node size">Size <select id="size-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="edges">Edges</option><option value="lines">Lines</option></select></label>
+  <div class="sep"></div>
   <button class="btn" id="btn-reset">Reset</button>
 </div>
 <div id="legend">
@@ -344,10 +386,13 @@ raw.edges.forEach(e => {
   connCount[e.to] = (connCount[e.to] || 0) + 1;
 });
 
-const nodes = raw.nodes.map(n => ({
-  ...n,
-  r: Math.max(4, 3 + Math.sqrt(connCount[n.id] || 1) * 2.2)
-}));
+function calcRadius(n) {
+  const mode = document.getElementById('size-mode').value;
+  if (mode === 'lines') return Math.max(4, 3 + Math.sqrt((n.lineCount || 100) / 30) * 2.2);
+  return Math.max(4, 3 + Math.sqrt(connCount[n.id] || 1) * 2.2);
+}
+
+const nodes = raw.nodes.map(n => ({ ...n, r: calcRadius(n) }));
 
 const links = raw.edges.map(e => ({
   source: nodeIdx[e.from],
@@ -508,6 +553,14 @@ document.getElementById('depth').addEventListener('input', () => {
     const d = nodes.find(n => n.id === selected);
     if (d) highlightNode(d);
   }
+});
+
+document.getElementById('size-mode').addEventListener('change', () => {
+  nodes.forEach(n => { n.r = calcRadius(n); });
+  node.select('circle').attr('r', d => d.r);
+  node.select('text').attr('dx', d => d.r + 3).attr('font-size', d => d.r > 8 ? '10px' : '8px');
+  sim.force('collision', d3.forceCollide().radius(d => d.r + (hasDomains ? 18 : 25)).strength(0.9).iterations(2));
+  sim.alpha(0.3).restart();
 });
 
 function getConnected(id, depth) {
