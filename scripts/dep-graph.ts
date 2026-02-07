@@ -739,6 +739,8 @@ svg { width: 100vw; height: 100vh; }
   <div class="sep"></div>
   <label class="stat" style="display:flex;align-items:center;gap:4px;" title="Node color scheme">Color <select id="color-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="type">Type</option><option value="health">Health</option></select></label>
   <div class="sep"></div>
+  <button class="btn active" id="btn-arrows">Arrows</button>
+  <div class="sep"></div>
   <button class="btn" id="btn-ee" style="display:none">EE</button>
   <div class="sep" id="sep-ee" style="display:none"></div>
   <button class="btn" id="btn-reset">Reset</button>
@@ -821,6 +823,31 @@ raw.edges.forEach(e => {
 });
 
 const svg = d3.select('svg').attr('width', W).attr('height', H);
+
+// Arrowhead markers (5 edge types × dim/bright)
+const defs = svg.append('defs');
+const edgeTypes = [
+  { type: 'uses_service', color: '#79c0ff' },
+  { type: 'router_uses_service', color: '#d2a8ff' },
+  { type: 'injects_model', color: '#ffa657' },
+  { type: 'injects_client', color: '#f778ba' },
+  { type: 'injects_service', color: '#7ee787' },
+];
+edgeTypes.forEach(({ type, color: c }) => {
+  [{ suffix: '', opacity: 0.15, w: 8, h: 6 }, { suffix: 'hi-', opacity: 0.9, w: 5, h: 3.75 }].forEach(({ suffix, opacity, w, h }) => {
+    defs.append('marker')
+      .attr('id', 'arrow-' + suffix + type)
+      .attr('viewBox', '0 0 10 6')
+      .attr('refX', 10).attr('refY', 3)
+      .attr('markerWidth', w).attr('markerHeight', h)
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M0,0 L10,3 L0,6Z')
+      .attr('fill', c)
+      .attr('fill-opacity', opacity);
+  });
+});
+
 const g = svg.append('g');
 const zoomBehavior = d3.zoom().scaleExtent([0.05, 10]).on('zoom', e => g.attr('transform', e.transform));
 svg.call(zoomBehavior);
@@ -896,7 +923,8 @@ if (!hasDomains) {
 const hullLayer = hasDomains ? g.insert('g', ':first-child').attr('class', 'hull-layer') : null;
 
 const link = g.append('g').selectAll('line').data(links).join('line')
-  .attr('class', d => 'link link-' + d.type);
+  .attr('class', d => 'link link-' + d.type)
+  .attr('marker-end', d => 'url(#arrow-' + d.type + ')');
 
 let dragged = false;
 const node = g.append('g').selectAll('g').data(nodes).join('g')
@@ -1060,6 +1088,7 @@ function highlightNode(d) {
     const t = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
     return conn.has(s) && conn.has(t);
   });
+  updateMarkers();
 
   const edgesBySource = {};
   link.filter('.highlighted').each(function(l) {
@@ -1071,7 +1100,7 @@ function highlightNode(d) {
     const origin = outward ? src : tgt;
     if (!edgesBySource[origin]) edgesBySource[origin] = [];
     edgesBySource[origin].push({ el: d3.select(this), l, outward });
-    d3.select(this).style('stroke-opacity', 0);
+    d3.select(this).style('stroke-opacity', 0).attr('marker-end', null);
   });
 
   const animated = new Set();
@@ -1101,6 +1130,7 @@ function highlightNode(d) {
           if (e.l.type === 'injects_service') self.attr('stroke-dasharray', '4,3');
           else self.attr('stroke-dasharray', null);
           self.attr('stroke-dashoffset', null);
+          if (arrowsEnabled) self.attr('marker-end', 'url(#arrow-hi-' + e.l.type + ')');
           animateFrom(destId);
         });
     });
@@ -1119,7 +1149,24 @@ function clearHL() {
     else el.attr('stroke-dasharray', null);
     el.attr('stroke-dashoffset', null);
   });
+  updateMarkers();
 }
+
+let arrowsEnabled = true;
+function updateMarkers() {
+  link.attr('marker-end', function(l) {
+    if (!arrowsEnabled) return null;
+    if (d3.select(this).classed('dimmed')) return null;
+    const isHL = d3.select(this).classed('highlighted');
+    return 'url(#arrow-' + (isHL ? 'hi-' : '') + l.type + ')';
+  });
+}
+
+document.getElementById('btn-arrows').addEventListener('click', () => {
+  arrowsEnabled = !arrowsEnabled;
+  document.getElementById('btn-arrows').classList.toggle('active', arrowsEnabled);
+  updateMarkers();
+});
 
 document.getElementById('search').addEventListener('input', e => {
   const q = e.target.value.toLowerCase();
@@ -1143,6 +1190,7 @@ document.getElementById('search').addEventListener('input', e => {
     const t = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
     return matches.has(s) || matches.has(t);
   });
+  updateMarkers();
 });
 
 document.querySelectorAll('[data-filter]').forEach(btn => {
@@ -1165,6 +1213,7 @@ document.querySelectorAll('[data-filter]').forEach(btn => {
       const t = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
       return !(matches.has(s) || matches.has(t));
     });
+    updateMarkers();
   });
 });
 
@@ -1239,8 +1288,16 @@ function smoothHull(points) {
 }
 
 sim.on('tick', () => {
-  link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-      .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+  link.each(function(d) {
+    const dx = d.target.x - d.source.x;
+    const dy = d.target.y - d.source.y;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const r = d.target.r || 6;
+    const el = d3.select(this);
+    el.attr('x1', d.source.x).attr('y1', d.source.y)
+      .attr('x2', d.target.x - dx / len * r)
+      .attr('y2', d.target.y - dy / len * r);
+  });
   node.attr('transform', d => \`translate(\${d.x},\${d.y})\`);
 
   if (hasDomains && hullLayer) {
