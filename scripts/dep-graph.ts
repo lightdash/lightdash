@@ -128,10 +128,10 @@ function parseControllers(): Record<string, string[]> {
     return controllers;
 }
 
-function resolveLineCount(
+function resolveFilePath(
     id: string,
     type: GraphNode['type'],
-): number | undefined {
+): string | undefined {
     const candidates: string[] = [];
     switch (type) {
         case 'controller': {
@@ -158,11 +158,15 @@ function resolveLineCount(
             break;
         }
     }
-    for (const fp of candidates) {
-        if (fs.existsSync(fp)) {
-            return fs.readFileSync(fp, 'utf-8').split('\n').length;
-        }
-    }
+    return candidates.find((fp) => fs.existsSync(fp));
+}
+
+function resolveLineCount(
+    id: string,
+    type: GraphNode['type'],
+): number | undefined {
+    const fp = resolveFilePath(id, type);
+    if (fp) return fs.readFileSync(fp, 'utf-8').split('\n').length;
     return undefined;
 }
 
@@ -170,11 +174,18 @@ function resolveLineCount(
 // Graph building
 // ---------------------------------------------------------------------------
 
+interface GitActivity {
+    commits: number;
+    authors: number;
+    churn: number;
+}
+
 interface GraphNode {
     id: string;
     type: 'controller' | 'service' | 'model' | 'client';
     domain?: string;
     lineCount?: number;
+    gitActivity?: GitActivity;
 }
 interface GraphEdge {
     from: string;
@@ -266,6 +277,80 @@ function buildGraph(
 }
 
 // ---------------------------------------------------------------------------
+// Git activity
+// ---------------------------------------------------------------------------
+
+function collectGitActivity(nodes: GraphNode[]): void {
+    const repoRoot = path.resolve(__dirname, '..');
+    const relPathToNode = new Map<string, GraphNode>();
+    for (const n of nodes) {
+        const fp = resolveFilePath(n.id, n.type);
+        if (fp) {
+            relPathToNode.set(path.relative(repoRoot, fp), n);
+        }
+    }
+
+    if (relPathToNode.size === 0) return;
+
+    const dirs = [
+        'packages/backend/src/services/',
+        'packages/backend/src/models/',
+        'packages/backend/src/clients/',
+        'packages/backend/src/controllers/',
+    ];
+
+    let logOutput: string;
+    try {
+        logOutput = execSync(
+            `git log --format='COMMIT%x09%ae%x09%aI' --name-only -- ${dirs.join(' ')}`,
+            { encoding: 'utf-8', maxBuffer: 50 * 1024 * 1024, cwd: repoRoot },
+        );
+    } catch {
+        console.warn('Warning: git log failed, skipping git activity.');
+        return;
+    }
+
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const commitCounts = new Map<string, number>();
+    const authorSets = new Map<string, Set<string>>();
+    const churnCounts = new Map<string, number>();
+
+    let currentAuthor = '';
+    let currentDate = '';
+
+    for (const line of logOutput.split('\n')) {
+        if (line.startsWith('COMMIT\t')) {
+            const parts = line.split('\t');
+            currentAuthor = parts[1] || '';
+            currentDate = parts[2] || '';
+        } else if (line.trim() && !line.startsWith('COMMIT')) {
+            const file = line.trim();
+            if (!relPathToNode.has(file)) continue;
+
+            commitCounts.set(file, (commitCounts.get(file) || 0) + 1);
+
+            if (!authorSets.has(file)) authorSets.set(file, new Set());
+            authorSets.get(file)!.add(currentAuthor);
+
+            if (currentDate && new Date(currentDate) >= sixMonthsAgo) {
+                churnCounts.set(file, (churnCounts.get(file) || 0) + 1);
+            }
+        }
+    }
+
+    for (const [relPath, node] of relPathToNode) {
+        const commits = commitCounts.get(relPath) || 0;
+        const authors = authorSets.get(relPath)?.size || 0;
+        const churn = churnCounts.get(relPath) || 0;
+        if (commits > 0) {
+            node.gitActivity = { commits, authors, churn };
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // HTML template
 // ---------------------------------------------------------------------------
 
@@ -354,7 +439,7 @@ svg { width: 100vw; height: 100vh; }
   <div class="sep"></div>
   <label class="stat" style="display:flex;align-items:center;gap:4px;" title="How many hops from the selected node to highlight">Depth <input type="number" id="depth" value="2" min="1" max="10" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;text-align:center;"></label>
   <div class="sep"></div>
-  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="What drives node size">Size <select id="size-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="edges">Edges</option><option value="lines">Lines</option></select></label>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="What drives node size">Size <select id="size-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="edges">Edges</option><option value="lines">Lines</option><option value="commits">Commits</option><option value="authors">Authors</option><option value="churn">Churn (6mo)</option></select></label>
   <div class="sep"></div>
   <button class="btn" id="btn-reset">Reset</button>
 </div>
@@ -388,8 +473,13 @@ raw.edges.forEach(e => {
 
 function calcRadius(n) {
   const mode = document.getElementById('size-mode').value;
-  if (mode === 'lines') return Math.max(4, 3 + Math.sqrt((n.lineCount || 100) / 30) * 2.2);
-  return Math.max(4, 3 + Math.sqrt(connCount[n.id] || 1) * 2.2);
+  switch (mode) {
+    case 'lines': return Math.max(4, 3 + Math.sqrt((n.lineCount || 100) / 30) * 2.2);
+    case 'commits': return Math.max(4, 3 + Math.sqrt((n.gitActivity?.commits || 1) / 8) * 2.2);
+    case 'authors': return Math.max(4, 3 + Math.sqrt(n.gitActivity?.authors || 1) * 3);
+    case 'churn': return Math.max(4, 3 + Math.sqrt((n.gitActivity?.churn || 0) / 2) * 2.5);
+    default: return Math.max(4, 3 + Math.sqrt(connCount[n.id] || 1) * 2.2);
+  }
 }
 
 const nodes = raw.nodes.map(n => ({ ...n, r: calcRadius(n) }));
@@ -516,6 +606,10 @@ node.on('mouseover', (ev, d) => {
   let h = '<h3 style="color:' + color[d.type] + '">' + d.id + '</h3>';
   h += '<span style="color:#8b949e">' + d.type + '</span>';
   if (d.domain) h += ' <span style="color:#6e7681">· ' + d.domain + '</span>';
+  if (d.gitActivity) {
+    h += '<div class="t-section">git activity</div>';
+    h += '<div class="t-item">' + d.gitActivity.commits + ' commits · ' + d.gitActivity.authors + ' authors · ' + d.gitActivity.churn + ' recent (6mo)</div>';
+  }
   if (out.length) {
     const byType = {};
     out.forEach(o => { if (!byType[o.type]) byType[o.type] = []; byType[o.type].push(o.id); });
@@ -960,6 +1054,7 @@ const forceClassify = args.includes('--force');
 const services = parseServiceRepository();
 const controllers = parseControllers();
 const graph = buildGraph(services, controllers);
+collectGitActivity(graph.nodes);
 
 if (wantDomains) {
     const domains = classifyDomains(graph, forceClassify);
