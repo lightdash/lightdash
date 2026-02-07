@@ -457,6 +457,7 @@ function getConnected(id) {
 }
 
 function highlightNode(d) {
+  link.interrupt();
   const conn = getConnected(d.id);
   node.classed('dimmed', n => !conn.has(n.id));
   link.classed('dimmed', l => {
@@ -469,11 +470,43 @@ function highlightNode(d) {
     const t = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
     return s === d.id || t === d.id;
   });
+
+  let i = 0;
+  link.filter('.highlighted').each(function(l) {
+    const el = d3.select(this);
+    const x1 = +el.attr('x1'), y1 = +el.attr('y1');
+    const x2 = +el.attr('x2'), y2 = +el.attr('y2');
+    const len = Math.hypot(x2 - x1, y2 - y1);
+    if (len === 0) return;
+    const src = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
+    const outgoing = src === d.id;
+    el.attr('stroke-dasharray', len)
+      .attr('stroke-dashoffset', outgoing ? len : -len);
+    el.transition()
+      .delay(i * 30)
+      .duration(450)
+      .ease(d3.easeCubicOut)
+      .attr('stroke-dashoffset', 0)
+      .on('end', function() {
+        const self = d3.select(this);
+        if (l.type === 'injects_service') self.attr('stroke-dasharray', '4,3');
+        else self.attr('stroke-dasharray', null);
+        self.attr('stroke-dashoffset', null);
+      });
+    i++;
+  });
 }
 
 function clearHL() {
+  link.interrupt();
   node.classed('dimmed', false);
   link.classed('dimmed', false).classed('highlighted', false);
+  link.each(function(l) {
+    const el = d3.select(this);
+    if (l.type === 'injects_service') el.attr('stroke-dasharray', '4,3');
+    else el.attr('stroke-dasharray', null);
+    el.attr('stroke-dashoffset', null);
+  });
 }
 
 document.getElementById('search').addEventListener('input', e => {
