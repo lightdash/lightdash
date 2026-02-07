@@ -118,3 +118,5 @@ http-client.private.env.json
 scripts/.dep-graph-domains.json
 scripts/.dep-graph-summaries.json
 scripts/.dep-graph-health-summaries.json
+scripts/.dep-graph-duplication.json
+scripts/.dep-graph-duplication-summaries.json

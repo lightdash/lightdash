@@ -1613,7 +1613,11 @@ node.on('click', (ev, d) => {
   selected = d.id;
   highlightNode(d);
 });
-svg.on('click', () => { selected = null; clearHL(); });
+svg.on('click', () => {
+  selected = null; clearHL();
+  document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+  document.querySelector('[data-filter="all"]').classList.add('active');
+});
 
 document.getElementById('depth').addEventListener('input', () => {
   if (selected) {
@@ -1818,17 +1822,11 @@ document.querySelectorAll('[data-filter]').forEach(btn => {
     if (type === 'all') { clearHL(); return; }
     const matches = new Set();
     nodes.forEach(n => { if (n.type === type) matches.add(n.id); });
-    const conn = new Set(matches);
-    links.forEach(l => {
-      const s = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
-      const t = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
-      if (matches.has(s) || matches.has(t)) { conn.add(s); conn.add(t); }
-    });
-    node.classed('dimmed', n => !conn.has(n.id));
+    node.classed('dimmed', n => !matches.has(n.id));
     link.classed('dimmed', l => {
       const s = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
       const t = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
-      return !(matches.has(s) || matches.has(t));
+      return !(matches.has(s) && matches.has(t));
     });
     updateMarkers();
   });
