@@ -30,6 +30,7 @@ const SERVICE_REPO = path.join(
     'services/ServiceRepository.ts',
 );
 const CONTROLLERS_DIR = path.join(BACKEND_SRC, 'controllers');
+const ROUTERS_DIR = path.join(BACKEND_SRC, 'routers');
 
 // ---------------------------------------------------------------------------
 // Parsing
@@ -114,7 +115,7 @@ function parseControllers(): Record<string, string[]> {
             const content = fs.readFileSync(fpath, 'utf-8');
 
             const calls = unique(
-                matchAll(content, /\.get(\w+Service)\(\)/g),
+                matchAll(content, /\.get(\w+Service)(?:<\w+>)?\(\)/g),
             );
 
             if (calls.length > 0) {
@@ -127,6 +128,36 @@ function parseControllers(): Record<string, string[]> {
     }
 
     return controllers;
+}
+
+function parseRouters(): Record<string, string[]> {
+    const routers: Record<string, string[]> = {};
+
+    if (!fs.existsSync(ROUTERS_DIR)) return routers;
+
+    const files = fs.readdirSync(ROUTERS_DIR).filter((f) => f.endsWith('.ts'));
+    for (const file of files) {
+        if (
+            file === 'index.ts' ||
+            file.includes('.test.') ||
+            file.includes('.spec.')
+        )
+            continue;
+
+        const fpath = path.join(ROUTERS_DIR, file);
+        const content = fs.readFileSync(fpath, 'utf-8');
+
+        const calls = unique(
+            matchAll(content, /\.get(\w+Service)(?:<\w+>)?\(\)/g),
+        );
+
+        if (calls.length > 0) {
+            const name = file.replace('.ts', '');
+            routers[name] = calls.sort();
+        }
+    }
+
+    return routers;
 }
 
 function resolveFilePath(
@@ -143,6 +174,9 @@ function resolveFilePath(
             );
             break;
         }
+        case 'router':
+            candidates.push(path.join(ROUTERS_DIR, `${id}.ts`));
+            break;
         case 'service':
         case 'model':
         case 'client': {
@@ -191,7 +225,7 @@ interface GitActivity {
 
 interface GraphNode {
     id: string;
-    type: 'controller' | 'service' | 'model' | 'client';
+    type: 'controller' | 'router' | 'service' | 'model' | 'client';
     domain?: string;
     lineCount?: number;
     gitActivity?: GitActivity;
@@ -208,6 +242,7 @@ interface GraphData {
     edges: GraphEdge[];
     stats: {
         controllers: number;
+        routers: number;
         services: number;
         models: number;
         clients: number;
@@ -218,6 +253,7 @@ interface GraphData {
 function buildGraph(
     services: Record<string, ServiceDeps>,
     controllers: Record<string, string[]>,
+    routers: Record<string, string[]>,
 ): GraphData {
     const nodes: GraphNode[] = [];
     const edges: GraphEdge[] = [];
@@ -236,6 +272,11 @@ function buildGraph(
         addNode(c, 'controller');
     }
 
+    // Add routers
+    for (const r of Object.keys(routers).sort()) {
+        addNode(r, 'router');
+    }
+
     // Add services
     for (const s of Object.keys(services).sort()) {
         addNode(s, 'service');
@@ -252,6 +293,15 @@ function buildGraph(
         for (const svc of svcs) {
             if (nodeSet.has(svc)) {
                 edges.push({ from: ctrl, to: svc, type: 'uses_service' });
+            }
+        }
+    }
+
+    // Router -> Service edges
+    for (const [rtr, svcs] of Object.entries(routers)) {
+        for (const svc of svcs) {
+            if (nodeSet.has(svc)) {
+                edges.push({ from: rtr, to: svc, type: 'router_uses_service' });
             }
         }
     }
@@ -279,6 +329,7 @@ function buildGraph(
         edges,
         stats: {
             controllers: Object.keys(controllers).length,
+            routers: Object.keys(routers).length,
             services: Object.keys(services).length,
             models: modelCount,
             clients: clientCount,
@@ -308,6 +359,7 @@ function collectGitActivity(nodes: GraphNode[]): void {
         'packages/backend/src/models/',
         'packages/backend/src/clients/',
         'packages/backend/src/controllers/',
+        'packages/backend/src/routers/',
     ];
 
     let logOutput: string;
@@ -389,7 +441,7 @@ function collectGitActivity(nodes: GraphNode[]): void {
 // ---------------------------------------------------------------------------
 
 function generateHtml(data: GraphData): string {
-    const { controllers, services, models, clients, totalEdges } = data.stats;
+    const { controllers, routers, services, models, clients, totalEdges } = data.stats;
     const json = JSON.stringify(data);
 
     return `<!DOCTYPE html>
@@ -431,6 +483,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; ba
 .stat-c b { color: #79c0ff; }
 .stat-s b { color: #7ee787; }
 .stat-m b { color: #ffa657; }
+.stat-r b { color: #d2a8ff; }
 .stat-k b { color: #f778ba; }
 
 #tooltip {
@@ -447,6 +500,7 @@ svg { width: 100vw; height: 100vh; }
 
 .link { stroke-opacity: 0.12; stroke-width: 1; }
 .link-uses_service { stroke: #79c0ff; }
+.link-router_uses_service { stroke: #d2a8ff; }
 .link-injects_model { stroke: #ffa657; }
 .link-injects_client { stroke: #f778ba; }
 .link-injects_service { stroke: #7ee787; stroke-dasharray: 4,3; }
@@ -474,6 +528,7 @@ svg { width: 100vw; height: 100vh; }
   <div class="sep"></div>
   <button class="btn active" data-filter="all">All</button>
   <button class="btn" data-filter="controller">Controllers</button>
+  <button class="btn" data-filter="router">Routers</button>
   <button class="btn" data-filter="service">Services</button>
   <button class="btn" data-filter="model">Models</button>
   <button class="btn" data-filter="client">Clients</button>
@@ -488,6 +543,7 @@ svg { width: 100vw; height: 100vh; }
 </div>
 <div id="legend">
   <span class="stat stat-c"><b>${controllers}</b> controllers</span>
+  <span class="stat stat-r"><b>${routers}</b> routers</span>
   <span class="stat stat-s"><b>${services}</b> services</span>
   <span class="stat stat-m"><b>${models}</b> models</span>
   <span class="stat stat-k"><b>${clients}</b> clients</span>
@@ -504,8 +560,8 @@ svg { width: 100vw; height: 100vh; }
 <script>
 const raw = ${json};
 
-const color = { controller: '#79c0ff', service: '#7ee787', model: '#ffa657', client: '#f778ba' };
-const colorDark = { controller: '#1f6feb', service: '#238636', model: '#9e6a03', client: '#da3633' };
+const color = { controller: '#79c0ff', router: '#d2a8ff', service: '#7ee787', model: '#ffa657', client: '#f778ba' };
+const colorDark = { controller: '#1f6feb', router: '#8957e5', service: '#238636', model: '#9e6a03', client: '#da3633' };
 
 const W = window.innerWidth, H = window.innerHeight;
 
@@ -567,14 +623,14 @@ const g = svg.append('g');
 const zoomBehavior = d3.zoom().scaleExtent([0.05, 10]).on('zoom', e => g.attr('transform', e.transform));
 svg.call(zoomBehavior);
 
-const colX = { controller: W * 0.12, service: W * 0.38, model: W * 0.68, client: W * 0.88 };
+const colX = { controller: W * 0.08, router: W * 0.20, service: W * 0.40, model: W * 0.68, client: W * 0.88 };
 
 const hasDomains = nodes.some(n => n.domain);
 
 let domainNames = [];
 let domainColor = {};
 let domainCenters = {};
-const typeOffsetX = { controller: -40, service: -14, model: 14, client: 40 };
+const typeOffsetX = { controller: -50, router: -25, service: 0, model: 25, client: 50 };
 
 if (hasDomains) {
   const domainMap = {};
@@ -621,8 +677,8 @@ const sim = hasDomains
     .force('y', d3.forceY(H / 2).strength(0.05));
 
 if (!hasDomains) {
-  ['Controllers', 'Services', 'Models', 'Clients'].forEach((label, i) => {
-    const types = ['controller', 'service', 'model', 'client'];
+  ['Controllers', 'Routers', 'Services', 'Models', 'Clients'].forEach((label, i) => {
+    const types = ['controller', 'router', 'service', 'model', 'client'];
     g.append('text')
       .attr('x', colX[types[i]])
       .attr('y', 30)
@@ -698,7 +754,7 @@ node.on('mouseover', (ev, d) => {
     const byType = {};
     out.forEach(o => { if (!byType[o.type]) byType[o.type] = []; byType[o.type].push(o.id); });
     for (const [t, ids] of Object.entries(byType)) {
-      const label = t.replace('injects_','').replace('uses_','uses ');
+      const label = t.replace('injects_','').replace(/^(router_)?uses_/,'uses ');
       h += '<div class="t-section">' + label + 's (' + ids.length + ')</div>';
       ids.sort().forEach(id => { h += '<div class="t-item">' + id + '</div>'; });
     }
@@ -706,7 +762,7 @@ node.on('mouseover', (ev, d) => {
   if (inc.length) {
     h += '<div class="t-section">used by (' + inc.length + ')</div>';
     inc.sort((a,b) => a.id.localeCompare(b.id)).forEach(i => {
-      h += '<div class="t-item">' + i.id + ' <span style="color:#484f58">(' + i.type.replace('injects_','').replace('uses_','') + ')</span></div>';
+      h += '<div class="t-item">' + i.id + ' <span style="color:#484f58">(' + i.type.replace('injects_','').replace(/^(router_)?uses_/,'') + ')</span></div>';
     });
   }
   tip.html(h).style('display', 'block');
@@ -1396,7 +1452,8 @@ const forceClassify = args.includes('--force');
 
 const services = parseServiceRepository();
 const controllers = parseControllers();
-const graph = buildGraph(services, controllers);
+const routers = parseRouters();
+const graph = buildGraph(services, controllers, routers);
 collectGitActivity(graph.nodes);
 
 if (wantDomains) {
@@ -1448,6 +1505,7 @@ fs.writeFileSync(outputPath, html);
 
 console.log(
     `Generated: ${graph.stats.controllers} controllers, ` +
+        `${graph.stats.routers} routers, ` +
         `${graph.stats.services} services, ${graph.stats.models} models, ` +
         `${graph.stats.clients} clients (${graph.stats.totalEdges} edges)`,
 );
