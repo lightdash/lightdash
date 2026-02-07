@@ -7,13 +7,16 @@
  *   - Controller files       (controller -> service calls)
  *
  * Usage:
- *   npx tsx scripts/dep-graph.ts            # generates and opens in browser
- *   npx tsx scripts/dep-graph.ts --json     # outputs raw JSON to stdout
- *   npx tsx scripts/dep-graph.ts --out dir  # writes HTML to dir/dep-graph.html
+ *   npx tsx scripts/dep-graph.ts              # type-column layout
+ *   npx tsx scripts/dep-graph.ts --json       # outputs raw JSON to stdout
+ *   npx tsx scripts/dep-graph.ts --out dir    # writes HTML to dir/
+ *   npx tsx scripts/dep-graph.ts --domains    # domain-clustered layout (uses Claude to classify, cached)
+ *   npx tsx scripts/dep-graph.ts --domains --force  # re-classify even if cache is fresh
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 import { execSync } from 'child_process';
 
 // ---------------------------------------------------------------------------
@@ -132,6 +135,7 @@ function parseControllers(): Record<string, string[]> {
 interface GraphNode {
     id: string;
     type: 'controller' | 'service' | 'model' | 'client';
+    domain?: string;
 }
 interface GraphEdge {
     from: string;
@@ -293,6 +297,9 @@ svg { width: 100vw; height: 100vh; }
 .node circle { stroke-width: 1.5; transition: opacity 0.2s; }
 .node text { pointer-events: none; transition: opacity 0.2s; }
 .node.dimmed circle, .node.dimmed text { opacity: 0.06; }
+
+.domain-hull { pointer-events: none; }
+.domain-label { pointer-events: none; font-size: 12px; font-weight: 700; text-anchor: middle; }
 </style>
 </head>
 <body>
@@ -361,26 +368,73 @@ svg.call(zoomBehavior);
 
 const colX = { controller: W * 0.12, service: W * 0.38, model: W * 0.68, client: W * 0.88 };
 
-const sim = d3.forceSimulation(nodes)
-  .force('link', d3.forceLink(links).distance(100).strength(0.15))
-  .force('charge', d3.forceManyBody().strength(-350).distanceMax(600))
-  .force('center', d3.forceCenter(W / 2, H / 2).strength(0.01))
-  .force('collision', d3.forceCollide().radius(d => d.r + 25).strength(0.9).iterations(2))
-  .force('x', d3.forceX(d => colX[d.type] || W/2).strength(0.2))
-  .force('y', d3.forceY(H / 2).strength(0.05));
+const hasDomains = nodes.some(n => n.domain);
 
-['Controllers', 'Services', 'Models', 'Clients'].forEach((label, i) => {
-  const types = ['controller', 'service', 'model', 'client'];
-  g.append('text')
-    .attr('x', colX[types[i]])
-    .attr('y', 30)
-    .attr('text-anchor', 'middle')
-    .attr('fill', color[types[i]])
-    .attr('font-size', '13px')
-    .attr('font-weight', '600')
-    .attr('opacity', 0.4)
-    .text(label);
-});
+let domainNames = [];
+let domainColor = {};
+let domainCenters = {};
+const typeOffsetX = { controller: -40, service: -14, model: 14, client: 40 };
+
+if (hasDomains) {
+  const domainMap = {};
+  nodes.forEach(n => {
+    if (n.domain) {
+      if (!domainMap[n.domain]) domainMap[n.domain] = [];
+      domainMap[n.domain].push(n);
+    }
+  });
+  domainNames = Object.keys(domainMap).sort();
+  const cols = Math.ceil(Math.sqrt(domainNames.length * (W / H)));
+  const rows = Math.ceil(domainNames.length / cols);
+  const cellW = W / (cols + 1);
+  const cellH = (H - 60) / (rows + 1);
+  const palette = d3.schemeTableau10;
+
+  domainNames.forEach((name, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const cx = cellW * (col + 1);
+    const cy = cellH * (row + 1) + 40;
+    domainCenters[name] = { x: cx, y: cy };
+    domainColor[name] = palette[i % palette.length];
+    domainMap[name].forEach(n => {
+      n.domainX = cx + (typeOffsetX[n.type] || 0);
+      n.domainY = cy;
+    });
+  });
+}
+
+const sim = hasDomains
+  ? d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).distance(60).strength(0.1))
+    .force('charge', d3.forceManyBody().strength(-150).distanceMax(300))
+    .force('collision', d3.forceCollide().radius(d => d.r + 18).strength(0.9).iterations(2))
+    .force('x', d3.forceX(d => d.domainX || W/2).strength(0.3))
+    .force('y', d3.forceY(d => d.domainY || H/2).strength(0.3))
+  : d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).distance(100).strength(0.15))
+    .force('charge', d3.forceManyBody().strength(-350).distanceMax(600))
+    .force('center', d3.forceCenter(W / 2, H / 2).strength(0.01))
+    .force('collision', d3.forceCollide().radius(d => d.r + 25).strength(0.9).iterations(2))
+    .force('x', d3.forceX(d => colX[d.type] || W/2).strength(0.2))
+    .force('y', d3.forceY(H / 2).strength(0.05));
+
+if (!hasDomains) {
+  ['Controllers', 'Services', 'Models', 'Clients'].forEach((label, i) => {
+    const types = ['controller', 'service', 'model', 'client'];
+    g.append('text')
+      .attr('x', colX[types[i]])
+      .attr('y', 30)
+      .attr('text-anchor', 'middle')
+      .attr('fill', color[types[i]])
+      .attr('font-size', '13px')
+      .attr('font-weight', '600')
+      .attr('opacity', 0.4)
+      .text(label);
+  });
+}
+
+const hullLayer = hasDomains ? g.insert('g', ':first-child').attr('class', 'hull-layer') : null;
 
 const link = g.append('g').selectAll('line').data(links).join('line')
   .attr('class', d => 'link link-' + d.type);
@@ -414,6 +468,7 @@ node.on('mouseover', (ev, d) => {
   const inc = incoming[d.id] || [];
   let h = '<h3 style="color:' + color[d.type] + '">' + d.id + '</h3>';
   h += '<span style="color:#8b949e">' + d.type + '</span>';
+  if (d.domain) h += ' <span style="color:#6e7681">· ' + d.domain + '</span>';
   if (out.length) {
     const byType = {};
     out.forEach(o => { if (!byType[o.type]) byType[o.type] = []; byType[o.type].push(o.id); });
@@ -564,10 +619,77 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   svg.transition().duration(500).call(zoomBehavior.transform, d3.zoomIdentity);
 });
 
+function padHull(points, pad) {
+  if (points.length < 3) return points;
+  const cx = d3.mean(points, p => p[0]);
+  const cy = d3.mean(points, p => p[1]);
+  return points.map(p => {
+    const dx = p[0] - cx, dy = p[1] - cy;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    return [p[0] + dx / len * pad, p[1] + dy / len * pad];
+  });
+}
+
+function smoothHull(points) {
+  if (points.length < 3) return '';
+  const n = points.length;
+  let d = 'M' + points[0].join(',');
+  for (let i = 0; i < n; i++) {
+    const p0 = points[i];
+    const p1 = points[(i + 1) % n];
+    const p2 = points[(i + 2) % n];
+    const mx1 = (p0[0] + p1[0]) / 2, my1 = (p0[1] + p1[1]) / 2;
+    const mx2 = (p1[0] + p2[0]) / 2, my2 = (p1[1] + p2[1]) / 2;
+    if (i === 0) d = 'M' + mx1 + ',' + my1;
+    d += ' Q' + p1[0] + ',' + p1[1] + ' ' + mx2 + ',' + my2;
+  }
+  return d + 'Z';
+}
+
 sim.on('tick', () => {
   link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
       .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
   node.attr('transform', d => \`translate(\${d.x},\${d.y})\`);
+
+  if (hasDomains && hullLayer) {
+    hullLayer.selectAll('*').remove();
+    domainNames.forEach(name => {
+      const pts = nodes.filter(n => n.domain === name).map(n => [n.x, n.y]);
+      if (pts.length < 2) return;
+      if (pts.length === 2) {
+        const [a, b] = pts;
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const nx = -dy / len * 25, ny = dx / len * 25;
+        const expanded = [[a[0]+nx,a[1]+ny],[b[0]+nx,b[1]+ny],[b[0]-nx,b[1]-ny],[a[0]-nx,a[1]-ny]];
+        hullLayer.append('path')
+          .attr('class', 'domain-hull')
+          .attr('d', 'M' + expanded.map(p => p.join(',')).join('L') + 'Z')
+          .attr('fill', domainColor[name]).attr('fill-opacity', 0.04)
+          .attr('stroke', domainColor[name]).attr('stroke-opacity', 0.15)
+          .attr('stroke-width', 1);
+      } else {
+        const hull = d3.polygonHull(pts);
+        if (hull) {
+          const padded = padHull(hull, 25);
+          hullLayer.append('path')
+            .attr('class', 'domain-hull')
+            .attr('d', smoothHull(padded))
+            .attr('fill', domainColor[name]).attr('fill-opacity', 0.04)
+            .attr('stroke', domainColor[name]).attr('stroke-opacity', 0.15)
+            .attr('stroke-width', 1);
+        }
+      }
+      const cx = d3.mean(pts, p => p[0]);
+      const cy = d3.mean(pts, p => p[1]);
+      const minY = d3.min(pts, p => p[1]);
+      hullLayer.append('text')
+        .attr('class', 'domain-label')
+        .attr('x', cx).attr('y', minY - 18)
+        .attr('fill', domainColor[name]).attr('fill-opacity', 0.6)
+        .text(name);
+    });
+  }
 });
 </script>
 </body>
@@ -592,6 +714,136 @@ function unique(arr: string[]): string[] {
 }
 
 // ---------------------------------------------------------------------------
+// Domain classification (via Claude CLI)
+// ---------------------------------------------------------------------------
+
+const DOMAIN_CACHE = path.join(__dirname, '.dep-graph-domains.json');
+
+function computeNodeHash(graph: GraphData): string {
+    const ids = graph.nodes
+        .map((n) => n.id)
+        .sort()
+        .join('\n');
+    return crypto.createHash('sha256').update(ids).digest('hex');
+}
+
+function classifyDomains(graph: GraphData, force: boolean): Record<string, string[]> {
+    const hash = computeNodeHash(graph);
+    const shortHash = hash.slice(0, 12);
+
+    // Check cache
+    if (!force && fs.existsSync(DOMAIN_CACHE)) {
+        const cached = JSON.parse(fs.readFileSync(DOMAIN_CACHE, 'utf-8'));
+        if (cached._hash === hash) {
+            const count = Object.keys(cached.domains).length;
+            console.log(`Domain cache up to date (${count} domains, ${shortHash}…). Use --force to reclassify.`);
+            return cached.domains;
+        }
+        console.log(`Graph changed since last classification (${shortHash}…). Reclassifying...`);
+    } else if (force) {
+        console.log(`Forced reclassification (${shortHash}…)...`);
+    } else {
+        console.log(`No domain cache found (${shortHash}…). Classifying...`);
+    }
+
+    // Build prompt
+    const nodeList = graph.nodes
+        .map((n) => `- ${n.id} (${n.type})`)
+        .join('\n');
+    const edgeList = graph.edges
+        .map((e) => `- ${e.from} -> ${e.to} (${e.type})`)
+        .join('\n');
+
+    const prompt = `You are classifying backend dependency-injection nodes into business domains for a dependency graph visualization.
+
+Below are ${graph.nodes.length} nodes from the Lightdash backend (an open-source BI tool). Each node is a controller, service, model, or client.
+
+NODES:
+${nodeList}
+
+EDGES:
+${edgeList}
+
+TASK: Group ALL nodes into 14-18 business domains based on their business function, NOT their technical layer.
+
+Rules:
+- Nodes that share a name root belong together (e.g., SpaceService, SpaceModel, spaceController -> "Spaces")
+- Every node must appear in exactly one domain
+- Domain names must be short (1-2 words)
+- Use the edges to inform grouping: tightly connected nodes likely belong together
+- Use EXACTLY the domain names listed below when they apply
+
+Expected domains (use these names, assign all matching nodes to them):
+- "Spaces" — spaceController, SpaceService, SpaceModel, SpacePermissionService, SpacePermissionModel
+- "Dashboards" — dashboardController, v2/DashboardController, DashboardService, DashboardModel
+- "Saved Charts" — savedChartController, v2/SavedChartController, SavedChartService, SavedChartModel
+- "SQL Runner" — sqlRunnerController, SavedSqlService, SavedSqlModel
+- "Explores" — exploreController, runQueryController, v2/QueryController, metricsExplorerController, funnelController, MetricsExplorerService, FunnelService, AsyncQueryService, QueryHistoryModel, PivotTableService
+- "Projects" — projectController, v2/ParametersController, ProjectService, ProjectModel, ProjectParametersService, ProjectParametersModel, CoderService, WarehouseAvailableTablesModel
+- "Organizations" — organizationController, OrganizationService, OrganizationModel, OrganizationMemberProfileModel, OrganizationAllowedEmailDomainsModel, OrganizationWarehouseCredentialsModel, UserWarehouseCredentialsModel
+- "Roles & Permissions" — OrganizationRolesController, ProjectRolesController, RolesService, RolesModel, PermissionsService, groupsController, GroupService, GroupsModel
+- "User Auth" — userController, UserService, UserModel, SessionModel, OpenIdIdentityModel, PasswordResetLinkModel, InviteLinkModel, OauthService, OauthModel, PersonalAccessTokenService, PersonalAccessTokenModel, OnboardingModel
+- "Scheduling" — schedulerController, csvController, SchedulerService, SchedulerModel, SchedulerClient, JobModel, CsvService, DownloadFileService, DownloadFileModel, DownloadAuditModel
+- "Content" — v2/ContentController, ContentService, ContentModel, pinningController, PinningService, PinnedListModel, ResourceViewItemModel, renameController, RenameService, shareController, ShareService, ShareModel, PromoteService
+- "Catalog" — catalogController, CatalogService, CatalogModel, ChangesetController, ChangesetService, ChangesetModel, TagsModel
+- "Notifications" — notificationsController, commentsController, NotificationService, NotificationsModel, CommentService, CommentModel
+- "Git Integration" — gitIntegrationController, githubController, gitlabController, GitIntegrationService, GithubAppService, GitlabAppService, GithubAppInstallationsModel, GitlabAppInstallationsModel
+- "Slack" — slackController, SlackIntegrationService, SlackService, SlackClient, SlackAuthenticationModel, UnfurlService
+- "Infrastructure" — sshController, SshKeyPairService, SshKeyPairModel, S3Client, S3CacheClient, ResultsFileStorageClient, EmailClient, EmailModel, HealthService, MigrationModel, EncryptionUtil (if present)
+
+For any remaining nodes not listed above, assign them to the closest matching domain or create a new domain if needed. Do NOT split the above domains — keep them intact.`;
+
+    const jsonSchema = JSON.stringify({
+        type: 'object',
+        properties: {
+            domains: {
+                type: 'object',
+                additionalProperties: {
+                    type: 'array',
+                    items: { type: 'string' },
+                },
+            },
+        },
+        required: ['domains'],
+        additionalProperties: false,
+    });
+
+    console.log('Calling Claude for classification...');
+    const result = execSync(
+        `echo ${escapeShellArg(prompt)} | claude -p --dangerously-skip-permissions --output-format json --json-schema ${escapeShellArg(jsonSchema)} --model sonnet`,
+        { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 },
+    );
+
+    const parsed = JSON.parse(result);
+    const output = parsed.structured_output ?? parsed;
+    const domains: Record<string, string[]> = output.domains;
+
+    const domainCount = Object.keys(domains).length;
+    const classifiedCount = Object.values(domains).reduce(
+        (s, a) => s + a.length,
+        0,
+    );
+    console.log(
+        `Got ${domainCount} domains covering ${classifiedCount} nodes (expected ${graph.nodes.length}).`,
+    );
+
+    // Write cache
+    const cacheData = {
+        _hash: hash,
+        _generatedAt: new Date().toISOString(),
+        domains,
+    };
+    fs.writeFileSync(DOMAIN_CACHE, JSON.stringify(cacheData, null, 2) + '\n');
+    console.log(`Cached to ${DOMAIN_CACHE}`);
+
+    return domains;
+}
+
+function escapeShellArg(arg: string): string {
+    return "'" + arg.replace(/'/g, "'\\''") + "'";
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -599,10 +851,27 @@ const args = process.argv.slice(2);
 const jsonOnly = args.includes('--json');
 const outIdx = args.indexOf('--out');
 const outDir = outIdx >= 0 ? args[outIdx + 1] : null;
+const wantDomains = args.includes('--domains');
+const forceClassify = args.includes('--force');
 
 const services = parseServiceRepository();
 const controllers = parseControllers();
 const graph = buildGraph(services, controllers);
+
+if (wantDomains) {
+    const domains = classifyDomains(graph, forceClassify);
+    const nodeToDomain: Record<string, string> = {};
+    for (const [domain, nodeIds] of Object.entries(domains)) {
+        for (const id of nodeIds) {
+            nodeToDomain[id] = domain;
+        }
+    }
+    for (const node of graph.nodes) {
+        if (nodeToDomain[node.id]) {
+            node.domain = nodeToDomain[node.id];
+        }
+    }
+}
 
 if (jsonOnly) {
     process.stdout.write(JSON.stringify(graph, null, 2));
