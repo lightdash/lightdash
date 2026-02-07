@@ -1,14 +1,53 @@
 /**
  * Switch behaviour of database connector depending on environment
  */
+import { readFileSync } from 'fs';
 import { Knex } from 'knex';
-import path from 'path';
+import * as path from 'path';
 import { parse } from 'pg-connection-string';
+import * as tls from 'tls';
+import { rootCertificates } from 'tls';
 import { lightdashConfig } from './config/lightdashConfig';
 
 const CONNECTION = lightdashConfig.database.connectionUri
     ? parse(lightdashConfig.database.connectionUri)
     : {};
+
+// Mimics behaviour in https://github.com/brianc/node-postgres/blob/master/packages/pg-connection-string/index.js
+// and reuses the same logic as PostgresWarehouseClient
+const getSSLConfigFromMode = (
+    sslmode?: string | null,
+): Knex.PgConnectionConfig['ssl'] => {
+    const mode = sslmode || 'prefer';
+    const ca = [
+        ...rootCertificates,
+        readFileSync(path.resolve(__dirname, './ca-bundle-aws-rds-global.pem')),
+    ];
+    switch (mode) {
+        case 'disable':
+            return false;
+        case 'prefer':
+        case 'require':
+        case 'allow':
+        case 'verify-ca':
+        case 'verify-full':
+            return {
+                ca,
+                checkServerIdentity: (hostname, cert) => {
+                    if (hostname === 'localhost') {
+                        // When connecting to localhost, we don't need to validate the server identity
+                        // pg library defaults to localhost when connecting via IP address
+                        return undefined;
+                    }
+                    return tls.checkServerIdentity(hostname, cert);
+                },
+            };
+        case 'no-verify':
+            return { rejectUnauthorized: false, ca };
+        default:
+            throw new Error(`Unknown sslmode for postgres: ${mode}`);
+    }
+};
 
 export const DEFAULT_DB_MAX_CONNECTIONS = 10;
 
@@ -17,7 +56,13 @@ const hasEnterpriseLicense = !!lightdashConfig.license.licenseKey;
 
 const development: Knex.Config<Knex.PgConnectionConfig> = {
     client: 'pg',
-    connection: CONNECTION,
+    connection: {
+        ...CONNECTION,
+        ssl: getSSLConfigFromMode(
+            lightdashConfig.database.sslmode ||
+                ((CONNECTION as any).ssl as string | undefined),
+        ),
+    },
     pool: {
         min: lightdashConfig.database.minConnections || 0,
         max:
