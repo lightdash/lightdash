@@ -1504,7 +1504,7 @@ NODES AND THEIR RECENT COMMITS:
 
 ${nodeDescriptions}
 
-Return a summary for each node ID listed above.`;
+Return a summary for each node. Use ONLY the node name as the key (e.g., "ProjectService", not "ProjectService (service)").`;
 
     const jsonSchema = JSON.stringify({
         type: 'object',
@@ -1624,7 +1624,7 @@ Tone: direct, technical, concise. Examples:
 NODES AND METRICS:
 ${nodeDescriptions}
 
-Return a summary for each node ID.`;
+Return a summary for each node. Use ONLY the node name as the key (e.g., "ProjectService", not "ProjectService (service)").`;
 
     const jsonSchema = JSON.stringify({
         type: 'object',
@@ -1723,15 +1723,17 @@ if (wantDomains) {
 if (wantSummaries) {
     const summaries = summarizeGitActivity(graph, forceClassify);
     for (const node of graph.nodes) {
-        if (summaries[node.id]) {
-            node.gitSummary = summaries[node.id];
+        const gs = summaries[node.id] || summaries[`${node.id} (${node.type})`];
+        if (gs) {
+            node.gitSummary = gs;
         }
     }
 
     const healthSummaries = summarizeHealthScores(graph, forceClassify);
     for (const node of graph.nodes) {
-        if (healthSummaries[node.id]) {
-            node.healthSummary = healthSummaries[node.id];
+        const hs = healthSummaries[node.id] || healthSummaries[`${node.id} (${node.type})`];
+        if (hs) {
+            node.healthSummary = hs;
         }
     }
 }
