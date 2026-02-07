@@ -1724,9 +1724,9 @@ svg { width: 100vw; height: 100vh; }
   <div class="sep"></div>
   <label class="stat" style="display:flex;align-items:center;gap:4px;" title="How many hops from the selected node to highlight">Depth <input type="number" id="depth" value="2" min="1" max="10" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;text-align:center;"></label>
   <div class="sep"></div>
-  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="What drives node size">Size <select id="size-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="edges">Edges</option><option value="lines">Lines</option><option value="cyclomatic">Cyclomatic</option><option value="cognitive">Cognitive</option><option value="commits">Commits</option><option value="authors">Authors</option><option value="churn">Churn (6mo)</option><option value="duplication">Duplication</option><option value="traffic">Traffic</option></select></label>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="What drives node size">Size <select id="size-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="edges">Edges</option><option value="lines">Lines</option><option value="cyclomatic">Cyclomatic</option><option value="cognitive">Cognitive</option><option value="commits">Commits</option><option value="authors">Authors</option><option value="churn">Churn (6mo)</option><option value="duplication">Duplication</option><option value="traffic">Traffic</option><option value="errors">Errors</option></select></label>
   <div class="sep"></div>
-  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="Node color scheme">Color <select id="color-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="type">Type</option><option value="health">Health</option><option value="duplication">Duplication</option><option value="traffic">Traffic</option></select></label>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="Node color scheme">Color <select id="color-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="type">Type</option><option value="health">Health</option><option value="duplication">Duplication</option><option value="traffic">Traffic</option><option value="errors">Errors</option></select></label>
   <div class="sep"></div>
   <button class="btn active" id="btn-arrows">Arrows</button>
   <div class="sep"></div>
@@ -1796,11 +1796,13 @@ svg { width: 100vw; height: 100vh; }
         <p>&bull; <b>Commits / Authors / Churn</b> &mdash; Git activity</p>
         <p>&bull; <b>Duplication</b> &mdash; Shared code blocks</p>
         <p>&bull; <b>Traffic</b> &mdash; Sentry 30d request volume (log scale, requires --sentry)</p>
+        <p>&bull; <b>Errors</b> &mdash; Sentry 30d error count (log scale, requires --sentry)</p>
         <p><b>Color</b> switches the palette:</p>
         <p>&bull; <b>Type</b> &mdash; Color by node type</p>
         <p>&bull; <b>Health</b> &mdash; Green&#8594;red heatmap (coupling + complexity + churn)</p>
         <p>&bull; <b>Duplication</b> &mdash; Green&#8594;red by shared code volume</p>
         <p>&bull; <b>Traffic</b> &mdash; Yellow&#8594;red by production request count (gray = no data)</p>
+        <p>&bull; <b>Errors</b> &mdash; Green&#8594;red by Sentry error count (gray = no data)</p>
       </div>
     </div>
     <div class="guide-section">
@@ -1865,6 +1867,7 @@ function calcRadius(n) {
     case 'churn': return Math.max(4, 3 + Math.sqrt((n.gitActivity?.churn || 0) / 2) * 2.5);
     case 'duplication': return Math.max(4, 3 + Math.sqrt((n.duplication?.ratio || 0) * 100) * 2);
     case 'traffic': return Math.max(4, 3 + Math.log10((n.sentryActivity?.totalRequests || 1)) * 2.5);
+    case 'errors': return Math.max(4, 3 + Math.log10((n.sentryActivity?.totalErrors || 1)) * 2.5);
     default: return Math.max(4, 3 + Math.sqrt(connCount[n.id] || 1) * 2.2);
   }
 }
@@ -1890,8 +1893,13 @@ function trafficNorm(n) { if (!n.sentryActivity || trafficMax === 0) return -1; 
 const trafficColorScale = d3.scaleLinear().domain([0, 0.5, 1]).range(['#e2b340', '#e8853a', '#f47067']).interpolate(d3.interpolateRgb);
 const trafficStrokeScale = d3.scaleLinear().domain([0, 0.5, 1]).range(['#9e6a03', '#b85c1e', '#da3633']).interpolate(d3.interpolateRgb);
 
-function getNodeColor(d) { const m = document.getElementById('color-mode').value; if (m === 'health') return healthColorScale(d.healthScore); if (m === 'duplication') return healthColorScale(d.duplication?.ratio || 0); if (m === 'traffic') { const t = trafficNorm(d); return t < 0 ? '#30363d' : trafficColorScale(t); } return color[d.type]; }
-function getNodeStroke(d) { const m = document.getElementById('color-mode').value; if (m === 'health') return healthStrokeScale(d.healthScore); if (m === 'duplication') return healthStrokeScale(d.duplication?.ratio || 0); if (m === 'traffic') { const t = trafficNorm(d); return t < 0 ? '#21262d' : trafficStrokeScale(t); } return colorDark[d.type]; }
+const errorsMax = Math.max(...raw.nodes.map(n => Math.log10((n.sentryActivity?.totalErrors || 0) + 1)));
+function errorsNorm(n) { if (!n.sentryActivity || errorsMax === 0) return -1; return Math.log10((n.sentryActivity.totalErrors || 0) + 1) / errorsMax; }
+const errorsColorScale = d3.scaleLinear().domain([0, 0.5, 1]).range(['#d29922', '#f47067', '#da3633']).interpolate(d3.interpolateRgb);
+const errorsStrokeScale = d3.scaleLinear().domain([0, 0.5, 1]).range(['#9e6a03', '#da3633', '#8b1a1a']).interpolate(d3.interpolateRgb);
+
+function getNodeColor(d) { const m = document.getElementById('color-mode').value; if (m === 'health') return healthColorScale(d.healthScore); if (m === 'duplication') return healthColorScale(d.duplication?.ratio || 0); if (m === 'traffic') { const t = trafficNorm(d); return t < 0 ? '#30363d' : trafficColorScale(t); } if (m === 'errors') { const e = errorsNorm(d); return e < 0 ? '#30363d' : e === 0 ? '#3fb950' : errorsColorScale(e); } return color[d.type]; }
+function getNodeStroke(d) { const m = document.getElementById('color-mode').value; if (m === 'health') return healthStrokeScale(d.healthScore); if (m === 'duplication') return healthStrokeScale(d.duplication?.ratio || 0); if (m === 'traffic') { const t = trafficNorm(d); return t < 0 ? '#21262d' : trafficStrokeScale(t); } if (m === 'errors') { const e = errorsNorm(d); return e < 0 ? '#21262d' : e === 0 ? '#238636' : errorsStrokeScale(e); } return colorDark[d.type]; }
 
 const links = raw.edges.map(e => ({
   source: nodeIdx[e.from],
@@ -2162,7 +2170,7 @@ document.getElementById('size-mode').addEventListener('change', () => {
 
 document.getElementById('color-mode').addEventListener('change', () => {
   const mode = document.getElementById('color-mode').value;
-  const isHeatmap = mode === 'health' || mode === 'duplication' || mode === 'traffic';
+  const isHeatmap = mode === 'health' || mode === 'duplication' || mode === 'traffic' || mode === 'errors';
   node.select('circle')
     .transition().duration(400)
     .attr('fill', d => getNodeColor(d))
@@ -2171,6 +2179,7 @@ document.getElementById('color-mode').addEventListener('change', () => {
   const labels = document.querySelectorAll('.heatmap-labels span');
   if (mode === 'duplication') { labels[0].textContent = 'No duplication'; labels[1].textContent = 'High duplication'; }
   else if (mode === 'traffic') { labels[0].textContent = 'Low traffic'; labels[1].textContent = 'High traffic'; }
+  else if (mode === 'errors') { labels[0].textContent = 'No errors'; labels[1].textContent = 'High errors'; }
   else { labels[0].textContent = 'Healthy'; labels[1].textContent = 'Hot'; }
 });
 
