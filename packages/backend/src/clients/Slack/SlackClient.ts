@@ -925,9 +925,15 @@ export class SlackClient {
         opts: SlackAppCustomSettings,
     ) {
         const webClient = await this.getWebClient(organizationUuid);
-        const { notificationChannel: channelId, appProfilePhotoUrl } = opts;
+        const {
+            notificationChannel: channelId,
+            appProfilePhotoUrl,
+            aiMultiAgentChannelId,
+        } = opts;
         const currentChannelId =
             await this.getNotificationChannel(organizationUuid);
+        const currentMultiAgentChannelId =
+            await this.getMultiAgentChannelId(organizationUuid);
 
         await this.slackAuthenticationModel.updateAppCustomSettings(
             organizationUuid,
@@ -954,6 +960,38 @@ export class SlackClient {
                     throw e;
                 });
         }
+
+        // Join multi-agent channel if it's new
+        if (
+            aiMultiAgentChannelId &&
+            aiMultiAgentChannelId !== currentMultiAgentChannelId
+        ) {
+            try {
+                await this.joinChannels(organizationUuid, [
+                    aiMultiAgentChannelId,
+                ]);
+                await webClient.chat
+                    .postMessage({
+                        channel: aiMultiAgentChannelId,
+                        text: `This channel is now configured for multi-agent access. Users can start threads and select which AI agent to chat with.`,
+                        ...(appProfilePhotoUrl
+                            ? { icon_url: appProfilePhotoUrl }
+                            : {}),
+                    })
+                    .catch((e) => {
+                        Logger.warn(
+                            `Unable to post message to multi-agent channel: ${
+                                e?.message || e
+                            }`,
+                        );
+                    });
+            } catch (error) {
+                Logger.warn(
+                    `Could not auto-join multi-agent channel ${aiMultiAgentChannelId}:`,
+                    error,
+                );
+            }
+        }
     }
 
     async getNotificationChannel(
@@ -965,6 +1003,17 @@ export class SlackClient {
             );
 
         return installation?.notificationChannel;
+    }
+
+    async getMultiAgentChannelId(
+        organizationUuid: string,
+    ): Promise<string | undefined> {
+        const installation =
+            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                organizationUuid,
+            );
+
+        return installation?.aiMultiAgentChannelId;
     }
 
     async postMessageToNotificationChannel({
