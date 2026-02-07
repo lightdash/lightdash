@@ -257,7 +257,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; ba
 .btn:hover { background: #30363d; color: #c9d1d9; }
 .btn.active { border-color: #58a6ff; color: #58a6ff; background: #1f6feb22; }
 .sep { width: 1px; height: 20px; background: #30363d; }
-.stat { font-size: 11px; color: #8b949e; }
+#legend {
+  position: fixed; bottom: 16px; right: 16px; z-index: 10;
+  background: #161b22dd; backdrop-filter: blur(8px);
+  border: 1px solid #21262d; border-radius: 8px;
+  padding: 12px 16px; display: flex; flex-direction: column; gap: 6px;
+}
+.stat { font-size: 12px; color: #8b949e; }
 .stat b { font-weight: 600; }
 .stat-c b { color: #79c0ff; }
 .stat-s b { color: #7ee787; }
@@ -300,7 +306,8 @@ svg { width: 100vw; height: 100vh; }
   <button class="btn" data-filter="client">Clients</button>
   <div class="sep"></div>
   <button class="btn" id="btn-reset">Reset</button>
-  <div class="sep"></div>
+</div>
+<div id="legend">
   <span class="stat stat-c"><b>${controllers}</b> controllers</span>
   <span class="stat stat-s"><b>${services}</b> services</span>
   <span class="stat stat-m"><b>${models}</b> models</span>
@@ -355,12 +362,12 @@ svg.call(zoomBehavior);
 const colX = { controller: W * 0.12, service: W * 0.38, model: W * 0.68, client: W * 0.88 };
 
 const sim = d3.forceSimulation(nodes)
-  .force('link', d3.forceLink(links).distance(60).strength(0.2))
-  .force('charge', d3.forceManyBody().strength(-140))
-  .force('center', d3.forceCenter(W / 2, H / 2).strength(0.02))
-  .force('collision', d3.forceCollide().radius(d => d.r + 4))
-  .force('x', d3.forceX(d => colX[d.type] || W/2).strength(0.25))
-  .force('y', d3.forceY(H / 2).strength(0.03));
+  .force('link', d3.forceLink(links).distance(100).strength(0.15))
+  .force('charge', d3.forceManyBody().strength(-350).distanceMax(600))
+  .force('center', d3.forceCenter(W / 2, H / 2).strength(0.01))
+  .force('collision', d3.forceCollide().radius(d => d.r + 25).strength(0.9).iterations(2))
+  .force('x', d3.forceX(d => colX[d.type] || W/2).strength(0.2))
+  .force('y', d3.forceY(H / 2).strength(0.05));
 
 ['Controllers', 'Services', 'Models', 'Clients'].forEach((label, i) => {
   const types = ['controller', 'service', 'model', 'client'];
