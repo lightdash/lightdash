@@ -7,13 +7,11 @@
  *   - Controller files       (controller -> service calls)
  *
  * Usage:
- *   npx tsx scripts/dep-graph.ts              # type-column layout
+ * Usage:
+ *   npx tsx scripts/dep-graph.ts              # domain-clustered layout with summaries (cached)
  *   npx tsx scripts/dep-graph.ts --json       # outputs raw JSON to stdout
  *   npx tsx scripts/dep-graph.ts --out dir    # writes HTML to dir/
- *   npx tsx scripts/dep-graph.ts --domains    # domain-clustered layout (uses Claude to classify, cached)
- *   npx tsx scripts/dep-graph.ts --summaries  # LLM-generated git activity + health summaries in tooltips
- *   npx tsx scripts/dep-graph.ts --no-ee           # exclude Enterprise Edition nodes
- *   npx tsx scripts/dep-graph.ts --domains --force  # re-classify even if cache is fresh
+ *   npx tsx scripts/dep-graph.ts --refresh    # re-classify domains & regenerate summaries even if cache is fresh
  */
 
 import * as fs from 'fs';
@@ -741,6 +739,8 @@ svg { width: 100vw; height: 100vh; }
   <div class="sep"></div>
   <button class="btn active" id="btn-arrows">Arrows</button>
   <div class="sep"></div>
+  <button class="btn active" id="btn-domains">Domains</button>
+  <div class="sep"></div>
   <button class="btn" id="btn-ee" style="display:none">EE</button>
   <div class="sep" id="sep-ee" style="display:none"></div>
   <button class="btn" id="btn-reset">Reset</button>
@@ -854,73 +854,84 @@ svg.call(zoomBehavior);
 
 const colX = { controller: W * 0.08, router: W * 0.20, service: W * 0.40, model: W * 0.68, client: W * 0.88 };
 
-const hasDomains = nodes.some(n => n.domain);
-
 let domainNames = [];
 let domainColor = {};
 let domainCenters = {};
 const typeOffsetX = { controller: -50, router: -25, service: 0, model: 25, client: 50 };
 
-if (hasDomains) {
-  const domainMap = {};
-  nodes.forEach(n => {
-    if (n.domain) {
-      if (!domainMap[n.domain]) domainMap[n.domain] = [];
-      domainMap[n.domain].push(n);
-    }
-  });
-  domainNames = Object.keys(domainMap).sort();
-  const cols = Math.ceil(Math.sqrt(domainNames.length * (W / H)));
-  const rows = Math.ceil(domainNames.length / cols);
-  const cellW = W / (cols + 1);
-  const cellH = (H - 60) / (rows + 1);
-  const palette = d3.schemeTableau10;
+const domainMap = {};
+nodes.forEach(n => {
+  if (n.domain) {
+    if (!domainMap[n.domain]) domainMap[n.domain] = [];
+    domainMap[n.domain].push(n);
+  }
+});
+domainNames = Object.keys(domainMap).sort();
+const dCols = Math.ceil(Math.sqrt(domainNames.length * (W / H)));
+const dRows = Math.ceil(domainNames.length / dCols);
+const cellW = W / (dCols + 1);
+const cellH = (H - 60) / (dRows + 1);
+const palette = d3.schemeTableau10;
 
-  domainNames.forEach((name, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const cx = cellW * (col + 1);
-    const cy = cellH * (row + 1) + 40;
-    domainCenters[name] = { x: cx, y: cy };
-    domainColor[name] = palette[i % palette.length];
-    domainMap[name].forEach(n => {
-      n.domainX = cx + (typeOffsetX[n.type] || 0);
-      n.domainY = cy;
-    });
+domainNames.forEach((name, i) => {
+  const col = i % dCols;
+  const row = Math.floor(i / dCols);
+  const cx = cellW * (col + 1);
+  const cy = cellH * (row + 1) + 40;
+  domainCenters[name] = { x: cx, y: cy };
+  domainColor[name] = palette[i % palette.length];
+  domainMap[name].forEach(n => {
+    n.domainX = cx + (typeOffsetX[n.type] || 0);
+    n.domainY = cy;
   });
+});
+
+let domainsEnabled = true;
+
+const sim = d3.forceSimulation(nodes)
+  .force('link', d3.forceLink(links).distance(60).strength(0.1))
+  .force('charge', d3.forceManyBody().strength(-150).distanceMax(300))
+  .force('collision', d3.forceCollide().radius(d => d.r + 18).strength(0.9).iterations(2))
+  .force('x', d3.forceX(d => d.domainX || W/2).strength(0.3))
+  .force('y', d3.forceY(d => d.domainY || H/2).strength(0.3));
+
+const colLabels = g.append('g').attr('class', 'col-labels').style('display', 'none');
+['Controllers', 'Routers', 'Services', 'Models', 'Clients'].forEach((label, i) => {
+  const types = ['controller', 'router', 'service', 'model', 'client'];
+  colLabels.append('text')
+    .attr('x', colX[types[i]])
+    .attr('y', 30)
+    .attr('text-anchor', 'middle')
+    .attr('fill', color[types[i]])
+    .attr('font-size', '13px')
+    .attr('font-weight', '600')
+    .attr('opacity', 0.4)
+    .text(label);
+});
+
+function applyDomainLayout() {
+  if (domainsEnabled) {
+    sim.force('link', d3.forceLink(links).distance(60).strength(0.1))
+      .force('charge', d3.forceManyBody().strength(-150).distanceMax(300))
+      .force('collision', d3.forceCollide().radius(d => d.r + 18).strength(0.9).iterations(2))
+      .force('center', null)
+      .force('x', d3.forceX(d => d.domainX || W/2).strength(0.3))
+      .force('y', d3.forceY(d => d.domainY || H/2).strength(0.3));
+    colLabels.style('display', 'none');
+  } else {
+    sim.force('link', d3.forceLink(links).distance(100).strength(0.15))
+      .force('charge', d3.forceManyBody().strength(-350).distanceMax(600))
+      .force('center', d3.forceCenter(W / 2, H / 2).strength(0.01))
+      .force('collision', d3.forceCollide().radius(d => d.r + 25).strength(0.9).iterations(2))
+      .force('x', d3.forceX(d => colX[d.type] || W/2).strength(0.2))
+      .force('y', d3.forceY(H / 2).strength(0.05));
+    colLabels.style('display', null);
+    hullLayer.selectAll('*').remove();
+  }
+  sim.alpha(0.8).restart();
 }
 
-const sim = hasDomains
-  ? d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).distance(60).strength(0.1))
-    .force('charge', d3.forceManyBody().strength(-150).distanceMax(300))
-    .force('collision', d3.forceCollide().radius(d => d.r + 18).strength(0.9).iterations(2))
-    .force('x', d3.forceX(d => d.domainX || W/2).strength(0.3))
-    .force('y', d3.forceY(d => d.domainY || H/2).strength(0.3))
-  : d3.forceSimulation(nodes)
-    .force('link', d3.forceLink(links).distance(100).strength(0.15))
-    .force('charge', d3.forceManyBody().strength(-350).distanceMax(600))
-    .force('center', d3.forceCenter(W / 2, H / 2).strength(0.01))
-    .force('collision', d3.forceCollide().radius(d => d.r + 25).strength(0.9).iterations(2))
-    .force('x', d3.forceX(d => colX[d.type] || W/2).strength(0.2))
-    .force('y', d3.forceY(H / 2).strength(0.05));
-
-if (!hasDomains) {
-  ['Controllers', 'Routers', 'Services', 'Models', 'Clients'].forEach((label, i) => {
-    const types = ['controller', 'router', 'service', 'model', 'client'];
-    g.append('text')
-      .attr('x', colX[types[i]])
-      .attr('y', 30)
-      .attr('text-anchor', 'middle')
-      .attr('fill', color[types[i]])
-      .attr('font-size', '13px')
-      .attr('font-weight', '600')
-      .attr('opacity', 0.4)
-      .text(label);
-  });
-}
-
-const hullLayer = hasDomains ? g.insert('g', ':first-child').attr('class', 'hull-layer') : null;
+const hullLayer = g.insert('g', ':first-child').attr('class', 'hull-layer');
 
 const link = g.append('g').selectAll('line').data(links).join('line')
   .attr('class', d => 'link link-' + d.type)
@@ -1022,7 +1033,7 @@ document.getElementById('size-mode').addEventListener('change', () => {
   nodes.forEach(n => { n.r = calcRadius(n); });
   node.select('circle').attr('r', d => d.r);
   node.select('text').attr('dx', d => d.r + 3).attr('font-size', d => d.r > 8 ? '10px' : '8px');
-  sim.force('collision', d3.forceCollide().radius(d => d.r + (hasDomains ? 18 : 25)).strength(0.9).iterations(2));
+  sim.force('collision', d3.forceCollide().radius(d => d.r + (domainsEnabled ? 18 : 25)).strength(0.9).iterations(2));
   sim.alpha(0.3).restart();
 });
 
@@ -1168,6 +1179,12 @@ document.getElementById('btn-arrows').addEventListener('click', () => {
   updateMarkers();
 });
 
+document.getElementById('btn-domains').addEventListener('click', () => {
+  domainsEnabled = !domainsEnabled;
+  document.getElementById('btn-domains').classList.toggle('active', domainsEnabled);
+  applyDomainLayout();
+});
+
 document.getElementById('search').addEventListener('input', e => {
   const q = e.target.value.toLowerCase();
   if (!q) { clearHL(); return; }
@@ -1300,7 +1317,7 @@ sim.on('tick', () => {
   });
   node.attr('transform', d => \`translate(\${d.x},\${d.y})\`);
 
-  if (hasDomains && hullLayer) {
+  if (domainsEnabled) {
     hullLayer.selectAll('*').remove();
     domainNames.forEach(name => {
       const pts = nodes.filter(n => n.domain === name).map(n => [n.x, n.y]);
@@ -1385,7 +1402,7 @@ function classifyDomains(graph: GraphData, force: boolean): Record<string, strin
         const cached = JSON.parse(fs.readFileSync(DOMAIN_CACHE, 'utf-8'));
         if (cached._hash === hash) {
             const count = Object.keys(cached.domains).length;
-            console.log(`Domain cache up to date (${count} domains, ${shortHash}…). Use --force to reclassify.`);
+            console.log(`Domain cache up to date (${count} domains, ${shortHash}…). Use --refresh to reclassify.`);
             return cached.domains;
         }
         console.log(`Graph changed since last classification (${shortHash}…). Reclassifying...`);
@@ -1518,7 +1535,7 @@ function summarizeGitActivity(
         if (cached._hash === hash) {
             const count = Object.keys(cached.summaries).length;
             console.log(
-                `Summary cache up to date (${count} nodes, ${shortHash}…). Use --force to regenerate.`,
+                `Summary cache up to date (${count} nodes, ${shortHash}…). Use --refresh to regenerate.`,
             );
             return cached.summaries;
         }
@@ -1635,7 +1652,7 @@ function summarizeHealthScores(
         if (cached._hash === hash) {
             const count = Object.keys(cached.summaries).length;
             console.log(
-                `Health summary cache up to date (${count} nodes, ${shortHash}…). Use --force to regenerate.`,
+                `Health summary cache up to date (${count} nodes, ${shortHash}…). Use --refresh to regenerate.`,
             );
             return cached.summaries;
         }
@@ -1736,60 +1753,50 @@ const args = process.argv.slice(2);
 const jsonOnly = args.includes('--json');
 const outIdx = args.indexOf('--out');
 const outDir = outIdx >= 0 ? args[outIdx + 1] : null;
-const wantDomains = args.includes('--domains');
-const wantSummaries = args.includes('--summaries');
-const wantEe = !args.includes('--no-ee');
-const forceClassify = args.includes('--force');
+const forceRefresh = args.includes('--refresh');
 
 const services = parseServiceRepository();
 const controllers = parseControllers();
 const routers = parseRouters();
 
-let eeData: { services: Record<string, ServiceDeps>; controllers: Record<string, string[]>; modelNames: string[]; clientNames: string[] } | undefined;
-if (wantEe) {
-    const eeParsed = parseEeIndex();
-    const eeControllers = parseEeControllers();
-    eeData = {
-        services: eeParsed.services,
-        controllers: eeControllers,
-        modelNames: eeParsed.modelNames,
-        clientNames: eeParsed.clientNames,
-    };
-}
+const eeParsed = parseEeIndex();
+const eeControllers = parseEeControllers();
+const eeData = {
+    services: eeParsed.services,
+    controllers: eeControllers,
+    modelNames: eeParsed.modelNames,
+    clientNames: eeParsed.clientNames,
+};
 
 const graph = buildGraph(services, controllers, routers, eeData);
-collectGitActivity(graph.nodes, wantEe);
+collectGitActivity(graph.nodes, true);
 
-if (wantDomains) {
-    const domains = classifyDomains(graph, forceClassify);
-    const nodeToDomain: Record<string, string> = {};
-    for (const [domain, nodeIds] of Object.entries(domains)) {
-        for (const id of nodeIds) {
-            nodeToDomain[id] = domain;
-        }
+const domains = classifyDomains(graph, forceRefresh);
+const nodeToDomain: Record<string, string> = {};
+for (const [domain, nodeIds] of Object.entries(domains)) {
+    for (const id of nodeIds) {
+        nodeToDomain[id] = domain;
     }
-    for (const node of graph.nodes) {
-        if (nodeToDomain[node.id]) {
-            node.domain = nodeToDomain[node.id];
-        }
+}
+for (const node of graph.nodes) {
+    if (nodeToDomain[node.id]) {
+        node.domain = nodeToDomain[node.id];
     }
 }
 
-if (wantSummaries) {
-    const summaries = summarizeGitActivity(graph, forceClassify);
-    for (const node of graph.nodes) {
-        const gs = summaries[node.id] || summaries[`${node.id} (${node.type})`];
-        if (gs) {
-            node.gitSummary = gs;
-        }
+const summaries = summarizeGitActivity(graph, forceRefresh);
+for (const node of graph.nodes) {
+    const gs = summaries[node.id] || summaries[`${node.id} (${node.type})`];
+    if (gs) {
+        node.gitSummary = gs;
     }
+}
 
-    const healthSummaries = summarizeHealthScores(graph, forceClassify);
-    for (const node of graph.nodes) {
-        const hs = healthSummaries[node.id] || healthSummaries[`${node.id} (${node.type})`];
-        if (hs) {
-            node.healthSummary = hs;
-        }
+const healthSummaries = summarizeHealthScores(graph, forceRefresh);
+for (const node of graph.nodes) {
+    const hs = healthSummaries[node.id] || healthSummaries[`${node.id} (${node.type})`];
+    if (hs) {
+        node.healthSummary = hs;
     }
 }
 
