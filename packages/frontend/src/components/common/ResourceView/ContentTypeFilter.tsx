@@ -1,5 +1,5 @@
 import { ContentType } from '@lightdash/common';
-import { Center, SegmentedControl, Text } from '@mantine/core';
+import { Center, SegmentedControl, Text } from '@mantine-8/core';
 import { type FC } from 'react';
 
 interface OptionProps {
@@ -9,7 +9,7 @@ interface OptionProps {
 
 const ContentTypeSelectOption = ({ label }: OptionProps) => (
     <Center px={'xxs'}>
-        <Text size="sm" color="ldGray.7">
+        <Text fz="sm" c="ldGray.7">
             {label}
         </Text>
     </Center>
