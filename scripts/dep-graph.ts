@@ -11,7 +11,7 @@
  *   npx tsx scripts/dep-graph.ts --json       # outputs raw JSON to stdout
  *   npx tsx scripts/dep-graph.ts --out dir    # writes HTML to dir/
  *   npx tsx scripts/dep-graph.ts --domains    # domain-clustered layout (uses Claude to classify, cached)
- *   npx tsx scripts/dep-graph.ts --summaries  # LLM-generated git activity summaries in tooltips
+ *   npx tsx scripts/dep-graph.ts --summaries  # LLM-generated git activity + health summaries in tooltips
  *   npx tsx scripts/dep-graph.ts --domains --force  # re-classify even if cache is fresh
  */
 
@@ -196,6 +196,7 @@ interface GraphNode {
     lineCount?: number;
     gitActivity?: GitActivity;
     gitSummary?: string;
+    healthSummary?: string;
 }
 interface GraphEdge {
     from: string;
@@ -458,6 +459,13 @@ svg { width: 100vw; height: 100vh; }
 
 .domain-hull { pointer-events: none; }
 .domain-label { pointer-events: none; font-size: 12px; font-weight: 700; text-anchor: middle; }
+
+#heatmap-legend {
+  display: none; flex-direction: column; gap: 4px; margin-top: 8px;
+  padding-top: 8px; border-top: 1px solid #21262d;
+}
+.heatmap-bar { width: 100%; height: 10px; border-radius: 4px; background: linear-gradient(to right, #3fb950, #d29922, #f47067); }
+.heatmap-labels { display: flex; justify-content: space-between; font-size: 10px; color: #8b949e; }
 </style>
 </head>
 <body>
@@ -474,6 +482,8 @@ svg { width: 100vw; height: 100vh; }
   <div class="sep"></div>
   <label class="stat" style="display:flex;align-items:center;gap:4px;" title="What drives node size">Size <select id="size-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="edges">Edges</option><option value="lines">Lines</option><option value="commits">Commits</option><option value="authors">Authors</option><option value="churn">Churn (6mo)</option></select></label>
   <div class="sep"></div>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="Node color scheme">Color <select id="color-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="type">Type</option><option value="health">Health</option></select></label>
+  <div class="sep"></div>
   <button class="btn" id="btn-reset">Reset</button>
 </div>
 <div id="legend">
@@ -482,6 +492,10 @@ svg { width: 100vw; height: 100vh; }
   <span class="stat stat-m"><b>${models}</b> models</span>
   <span class="stat stat-k"><b>${clients}</b> clients</span>
   <span class="stat"><b>${totalEdges}</b> edges</span>
+  <div id="heatmap-legend">
+    <div class="heatmap-labels"><span>Healthy</span><span>Hot</span></div>
+    <div class="heatmap-bar"></div>
+  </div>
 </div>
 <div id="tooltip"></div>
 <svg></svg>
@@ -516,6 +530,23 @@ function calcRadius(n) {
 }
 
 const nodes = raw.nodes.map(n => ({ ...n, r: calcRadius(n) }));
+
+// Health score: normalized composite of coupling, size, churn, commits
+const hMetrics = {
+  coupling: raw.nodes.map(n => connCount[n.id] || 0),
+  lines: raw.nodes.map(n => n.lineCount || 0),
+  churn: raw.nodes.map(n => n.gitActivity?.churn || 0),
+  commits: raw.nodes.map(n => n.gitActivity?.commits || 0),
+};
+function maxNorm(vals) { const mx = Math.max(...vals); return mx === 0 ? vals.map(() => 0) : vals.map(v => v / mx); }
+const nCoup = maxNorm(hMetrics.coupling), nLines = maxNorm(hMetrics.lines);
+const nChurn = maxNorm(hMetrics.churn), nComm = maxNorm(hMetrics.commits);
+const healthColorScale = d3.scaleLinear().domain([0, 0.5, 1]).range(['#3fb950', '#d29922', '#f47067']).interpolate(d3.interpolateRgb);
+const healthStrokeScale = d3.scaleLinear().domain([0, 0.5, 1]).range(['#238636', '#9e6a03', '#da3633']).interpolate(d3.interpolateRgb);
+nodes.forEach((n, i) => { n.healthScore = nCoup[i] * 0.3 + nLines[i] * 0.25 + nChurn[i] * 0.3 + nComm[i] * 0.15; });
+
+function getNodeColor(d) { return document.getElementById('color-mode').value === 'health' ? healthColorScale(d.healthScore) : color[d.type]; }
+function getNodeStroke(d) { return document.getElementById('color-mode').value === 'health' ? healthStrokeScale(d.healthScore) : colorDark[d.type]; }
 
 const links = raw.edges.map(e => ({
   source: nodeIdx[e.from],
@@ -619,8 +650,8 @@ const node = g.append('g').selectAll('g').data(nodes).join('g')
 
 node.append('circle')
   .attr('r', d => d.r)
-  .attr('fill', d => color[d.type])
-  .attr('stroke', d => colorDark[d.type])
+  .attr('fill', d => getNodeColor(d))
+  .attr('stroke', d => getNodeStroke(d))
   .attr('stroke-width', 1.5);
 
 node.append('text')
@@ -639,6 +670,17 @@ node.on('mouseover', (ev, d) => {
   let h = '<h3 style="color:' + color[d.type] + '">' + d.id + '</h3>';
   h += '<span style="color:#8b949e">' + d.type + '</span>';
   if (d.domain) h += ' <span style="color:#6e7681">· ' + d.domain + '</span>';
+  if (document.getElementById('color-mode').value === 'health') {
+    const pct = Math.round((1 - d.healthScore) * 100);
+    h += '<div class="t-section">health score</div>';
+    h += '<div class="t-item"><span style="color:' + healthColorScale(d.healthScore) + ';font-weight:700;font-size:18px">' + pct + '</span><span style="color:#484f58;font-size:12px"> / 100</span></div>';
+    h += '<div class="t-item" style="font-size:11px;color:#8b949e;margin-top:2px">';
+    h += (connCount[d.id]||0) + ' edges · ' + (d.lineCount||0) + ' lines · ' + (d.gitActivity?.churn||0) + ' churn · ' + (d.gitActivity?.commits||0) + ' commits';
+    h += '</div>';
+    if (d.healthSummary) {
+      h += '<div style="color:' + healthColorScale(d.healthScore) + ';font-style:italic;padding-left:10px;margin-top:4px;font-size:11px">' + d.healthSummary + '</div>';
+    }
+  }
   if (d.gitActivity) {
     h += '<div class="t-section">git activity</div>';
     h += '<div class="t-item">' + d.gitActivity.commits + ' commits · ' + d.gitActivity.authors + ' authors · ' + d.gitActivity.churn + ' recent (6mo)</div>';
@@ -697,6 +739,15 @@ document.getElementById('size-mode').addEventListener('change', () => {
   node.select('text').attr('dx', d => d.r + 3).attr('font-size', d => d.r > 8 ? '10px' : '8px');
   sim.force('collision', d3.forceCollide().radius(d => d.r + (hasDomains ? 18 : 25)).strength(0.9).iterations(2));
   sim.alpha(0.3).restart();
+});
+
+document.getElementById('color-mode').addEventListener('change', () => {
+  const isHealth = document.getElementById('color-mode').value === 'health';
+  node.select('circle')
+    .transition().duration(400)
+    .attr('fill', d => getNodeColor(d))
+    .attr('stroke', d => getNodeStroke(d));
+  document.getElementById('heatmap-legend').style.display = isHealth ? 'flex' : 'none';
 });
 
 function getConnected(id, depth) {
@@ -865,6 +916,9 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   document.getElementById('search').value = '';
   document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
   document.querySelector('[data-filter="all"]').classList.add('active');
+  document.getElementById('color-mode').value = 'type';
+  node.select('circle').attr('fill', d => getNodeColor(d)).attr('stroke', d => getNodeStroke(d));
+  document.getElementById('heatmap-legend').style.display = 'none';
   svg.transition().duration(500).call(zoomBehavior.transform, d3.zoomIdentity);
 });
 
@@ -1204,6 +1258,126 @@ Return a summary for each node ID listed above.`;
     return summaries;
 }
 
+// ---------------------------------------------------------------------------
+// Health summary (via Claude CLI)
+// ---------------------------------------------------------------------------
+
+const HEALTH_SUMMARY_CACHE = path.join(__dirname, '.dep-graph-health-summaries.json');
+
+function summarizeHealthScores(
+    graph: GraphData,
+    force: boolean,
+): Record<string, string> {
+    const edgeCounts: Record<string, number> = {};
+    graph.edges.forEach((e) => {
+        edgeCounts[e.from] = (edgeCounts[e.from] || 0) + 1;
+        edgeCounts[e.to] = (edgeCounts[e.to] || 0) + 1;
+    });
+
+    const parts = graph.nodes
+        .map((n) => {
+            const edges = edgeCounts[n.id] || 0;
+            return `${n.id}:${edges}:${n.lineCount || 0}:${n.gitActivity?.churn || 0}:${n.gitActivity?.commits || 0}`;
+        })
+        .sort()
+        .join('\n');
+    const hash = crypto.createHash('sha256').update(parts).digest('hex');
+    const shortHash = hash.slice(0, 12);
+
+    if (!force && fs.existsSync(HEALTH_SUMMARY_CACHE)) {
+        const cached = JSON.parse(fs.readFileSync(HEALTH_SUMMARY_CACHE, 'utf-8'));
+        if (cached._hash === hash) {
+            const count = Object.keys(cached.summaries).length;
+            console.log(
+                `Health summary cache up to date (${count} nodes, ${shortHash}…). Use --force to regenerate.`,
+            );
+            return cached.summaries;
+        }
+        console.log(
+            `Health metrics changed since last summary (${shortHash}…). Regenerating...`,
+        );
+    } else if (force) {
+        console.log(`Forced health summary regeneration (${shortHash}…)...`);
+    } else {
+        console.log(`No health summary cache found (${shortHash}…). Generating...`);
+    }
+
+    const nodeDescriptions = graph.nodes
+        .map((n) => {
+            const edges = edgeCounts[n.id] || 0;
+            const lines = n.lineCount || 0;
+            const churn = n.gitActivity?.churn || 0;
+            const commits = n.gitActivity?.commits || 0;
+            const authors = n.gitActivity?.authors || 0;
+            return `${n.id} (${n.type}): ${edges} edges, ${lines} lines, ${churn} churn (6mo), ${commits} total commits, ${authors} authors`;
+        })
+        .join('\n');
+
+    const prompt = `You are analyzing the health of backend dependency-injection nodes in Lightdash (an open-source BI tool).
+
+For each node below, write a 1-2 line health assessment (max 80 chars per line, separate lines with \\n). Be specific and actionable — reference the actual numbers.
+
+Consider:
+- High edge count = high coupling = harder to change safely
+- High line count = complex, may need decomposition
+- High churn (6mo) = frequently changing, potentially unstable
+- High coupling + high churn together = most concerning ("hot spot")
+- Low everything = stable, healthy
+
+Tone: direct, technical, concise. Examples:
+- "Hot spot: high coupling (45 edges) with active churn"
+- "Stable utility, low maintenance burden"
+- "Large (1200 lines) but stable — complex but not risky"
+- "Coordination bottleneck: 8 authors, 34 recent changes"
+
+NODES AND METRICS:
+${nodeDescriptions}
+
+Return a summary for each node ID.`;
+
+    const jsonSchema = JSON.stringify({
+        type: 'object',
+        properties: {
+            summaries: {
+                type: 'object',
+                additionalProperties: { type: 'string' },
+            },
+        },
+        required: ['summaries'],
+        additionalProperties: false,
+    });
+
+    console.log(
+        `Calling Claude to summarize health for ${graph.nodes.length} nodes...`,
+    );
+    const result = execSync(
+        `echo ${escapeShellArg(prompt)} | claude -p --dangerously-skip-permissions --output-format json --json-schema ${escapeShellArg(jsonSchema)} --model sonnet`,
+        { encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 },
+    );
+
+    const parsed = JSON.parse(result);
+    const output = parsed.structured_output ?? parsed;
+    const summaries: Record<string, string> = output.summaries;
+
+    const summaryCount = Object.keys(summaries).length;
+    console.log(
+        `Got health summaries for ${summaryCount} nodes (${graph.nodes.length} requested).`,
+    );
+
+    const cacheData = {
+        _hash: hash,
+        _generatedAt: new Date().toISOString(),
+        summaries,
+    };
+    fs.writeFileSync(
+        HEALTH_SUMMARY_CACHE,
+        JSON.stringify(cacheData, null, 2) + '\n',
+    );
+    console.log(`Cached to ${HEALTH_SUMMARY_CACHE}`);
+
+    return summaries;
+}
+
 function escapeShellArg(arg: string): string {
     return "'" + arg.replace(/'/g, "'\\''") + "'";
 }
@@ -1245,6 +1419,13 @@ if (wantSummaries) {
     for (const node of graph.nodes) {
         if (summaries[node.id]) {
             node.gitSummary = summaries[node.id];
+        }
+    }
+
+    const healthSummaries = summarizeHealthScores(graph, forceClassify);
+    for (const node of graph.nodes) {
+        if (healthSummaries[node.id]) {
+            node.healthSummary = healthSummaries[node.id];
         }
     }
 }
