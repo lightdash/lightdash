@@ -1803,7 +1803,7 @@ svg { width: 100vw; height: 100vh; }
   <div class="sep"></div>
   <button class="btn active" id="btn-arrows">Arrows</button>
   <div class="sep"></div>
-  <button class="btn active" id="btn-domains">Domains</button>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;">Group <select id="group-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="domain">Domain</option><option value="layer">Layer</option></select></label>
   <button class="btn active" id="btn-nodes">Nodes</button>
   <div class="sep"></div>
   <button class="btn" id="btn-ee" style="display:none">EE</button>
@@ -2057,7 +2057,31 @@ domainNames.forEach((name, i) => {
   });
 });
 
-let domainsEnabled = true;
+let groupMode = 'domain';
+
+const layerTypes = ['controller', 'router', 'service', 'model', 'client'];
+const layerLabels = { controller: 'Controllers', router: 'Routers', service: 'Services', model: 'Models', client: 'Clients' };
+let layerCenters = {};
+const layerMap = {};
+nodes.forEach(n => {
+  if (!layerMap[n.type]) layerMap[n.type] = [];
+  layerMap[n.type].push(n);
+});
+const lCols = Math.ceil(Math.sqrt(layerTypes.length * (W / H)));
+const lRows = Math.ceil(layerTypes.length / lCols);
+const lCellW = W / (lCols + 1);
+const lCellH = (H - 60) / (lRows + 1);
+layerTypes.forEach((type, i) => {
+  const col = i % lCols;
+  const row = Math.floor(i / lCols);
+  const cx = lCellW * (col + 1);
+  const cy = lCellH * (row + 1) + 40;
+  layerCenters[type] = { x: cx, y: cy };
+  (layerMap[type] || []).forEach(n => {
+    n.layerX = cx;
+    n.layerY = cy;
+  });
+});
 
 const sim = d3.forceSimulation(nodes)
   .force('link', d3.forceLink(links).distance(60).strength(0.1))
@@ -2080,8 +2104,8 @@ const colLabels = g.append('g').attr('class', 'col-labels').style('display', 'no
     .text(label);
 });
 
-function applyDomainLayout() {
-  if (domainsEnabled) {
+function applyGroupLayout() {
+  if (groupMode === 'domain') {
     sim.force('link', d3.forceLink(links).distance(60).strength(0.1))
       .force('charge', d3.forceManyBody().strength(-150).distanceMax(300))
       .force('collision', d3.forceCollide().radius(d => d.r + 18).strength(0.9).iterations(2))
@@ -2090,14 +2114,13 @@ function applyDomainLayout() {
       .force('y', d3.forceY(d => d.domainY || H/2).strength(0.3));
     colLabels.style('display', 'none');
   } else {
-    sim.force('link', d3.forceLink(links).distance(100).strength(0.15))
-      .force('charge', d3.forceManyBody().strength(-350).distanceMax(600))
-      .force('center', d3.forceCenter(W / 2, H / 2).strength(0.01))
-      .force('collision', d3.forceCollide().radius(d => d.r + 25).strength(0.9).iterations(2))
-      .force('x', d3.forceX(d => colX[d.type] || W/2).strength(0.2))
-      .force('y', d3.forceY(H / 2).strength(0.05));
-    colLabels.style('display', null);
-    hullLayer.selectAll('*').remove();
+    sim.force('link', d3.forceLink(links).distance(60).strength(0.1))
+      .force('charge', d3.forceManyBody().strength(-150).distanceMax(300))
+      .force('collision', d3.forceCollide().radius(d => d.r + 18).strength(0.9).iterations(2))
+      .force('center', null)
+      .force('x', d3.forceX(d => d.layerX || W/2).strength(0.3))
+      .force('y', d3.forceY(d => d.layerY || H/2).strength(0.3));
+    colLabels.style('display', 'none');
   }
   sim.alpha(0.8).restart();
 }
@@ -2285,7 +2308,7 @@ document.getElementById('size-mode').addEventListener('change', () => {
   nodes.forEach(n => { n.r = calcRadius(n); });
   node.select('circle').attr('r', d => d.r);
   node.select('text').attr('dx', d => d.r + 3).attr('font-size', d => d.r > 8 ? '10px' : '8px');
-  sim.force('collision', d3.forceCollide().radius(d => d.r + (domainsEnabled ? 18 : 25)).strength(0.9).iterations(2));
+  sim.force('collision', d3.forceCollide().radius(d => d.r + 18).strength(0.9).iterations(2));
   sim.alpha(0.3).restart();
   node.select('circle')
     .transition().duration(400)
@@ -2430,15 +2453,9 @@ document.getElementById('btn-arrows').addEventListener('click', () => {
   updateMarkers();
 });
 
-document.getElementById('btn-domains').addEventListener('click', () => {
-  domainsEnabled = !domainsEnabled;
-  document.getElementById('btn-domains').classList.toggle('active', domainsEnabled);
-  applyDomainLayout();
-  if (!domainsEnabled && !nodesVisible) {
-    nodesVisible = true;
-    document.getElementById('btn-nodes').classList.add('active');
-    applyNodeVisibility();
-  }
+document.getElementById('group-mode').addEventListener('change', e => {
+  groupMode = e.target.value;
+  applyGroupLayout();
 });
 
 let nodesVisible = true;
@@ -2450,11 +2467,6 @@ function applyNodeVisibility() {
 document.getElementById('btn-nodes').addEventListener('click', () => {
   nodesVisible = !nodesVisible;
   document.getElementById('btn-nodes').classList.toggle('active', nodesVisible);
-  if (!nodesVisible && !domainsEnabled) {
-    domainsEnabled = true;
-    document.getElementById('btn-domains').classList.add('active');
-    applyDomainLayout();
-  }
   applyNodeVisibility();
 });
 
@@ -2507,6 +2519,8 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
   document.querySelector('[data-filter="all"]').classList.add('active');
   document.getElementById('size-mode').value = 'edges';
+  groupMode = 'domain';
+  document.getElementById('group-mode').value = 'domain';
   nodes.forEach(n => { n.r = calcRadius(n); });
   node.select('circle').attr('r', d => d.r).attr('fill', d => getNodeColor(d)).attr('stroke', d => getNodeStroke(d));
   node.select('text').attr('dx', d => d.r + 3).attr('font-size', d => d.r > 8 ? '10px' : '8px');
@@ -2516,6 +2530,7 @@ document.getElementById('btn-reset').addEventListener('click', () => {
     document.getElementById('btn-nodes').classList.add('active');
     applyNodeVisibility();
   }
+  applyGroupLayout();
   svg.transition().duration(500).call(zoomBehavior.transform, d3.zoomIdentity);
 });
 
@@ -2628,8 +2643,8 @@ sim.on('tick', () => {
   });
   node.attr('transform', d => \`translate(\${d.x},\${d.y})\`);
 
-  if (domainsEnabled) {
-    hullLayer.selectAll('*').remove();
+  hullLayer.selectAll('*').remove();
+  if (groupMode === 'domain') {
     domainNames.forEach(name => {
       const pts = nodes.filter(n => n.domain === name).map(n => [n.x, n.y]);
       if (pts.length < 2) return;
@@ -2665,6 +2680,43 @@ sim.on('tick', () => {
         .attr('x', cx).attr('y', minY - 18)
         .attr('fill', domainColor[name]).attr('fill-opacity', 0.6)
         .text(name);
+    });
+  } else {
+    layerTypes.forEach(type => {
+      const pts = nodes.filter(n => n.type === type).map(n => [n.x, n.y]);
+      if (pts.length < 2) return;
+      if (pts.length === 2) {
+        const [a, b] = pts;
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const nx = -dy / len * 25, ny = dx / len * 25;
+        const expanded = [[a[0]+nx,a[1]+ny],[b[0]+nx,b[1]+ny],[b[0]-nx,b[1]-ny],[a[0]-nx,a[1]-ny]];
+        hullLayer.append('path')
+          .attr('class', 'domain-hull')
+          .attr('d', 'M' + expanded.map(p => p.join(',')).join('L') + 'Z')
+          .attr('fill', color[type]).attr('fill-opacity', 0.04)
+          .attr('stroke', color[type]).attr('stroke-opacity', 0.15)
+          .attr('stroke-width', 1);
+      } else {
+        const hull = d3.polygonHull(pts);
+        if (hull) {
+          const padded = padHull(hull, 25);
+          hullLayer.append('path')
+            .attr('class', 'domain-hull')
+            .attr('d', smoothHull(padded))
+            .attr('fill', color[type]).attr('fill-opacity', 0.04)
+            .attr('stroke', color[type]).attr('stroke-opacity', 0.15)
+            .attr('stroke-width', 1);
+        }
+      }
+      const cx = d3.mean(pts, p => p[0]);
+      const cy = d3.mean(pts, p => p[1]);
+      const minY = d3.min(pts, p => p[1]);
+      hullLayer.append('text')
+        .attr('class', 'domain-label')
+        .attr('x', cx).attr('y', minY - 18)
+        .attr('fill', color[type]).attr('fill-opacity', 0.6)
+        .text(layerLabels[type]);
     });
   }
 });
