@@ -34,10 +34,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; ba
 .stat-r b { color: #d2a8ff; }
 .stat-k b { color: #f778ba; }
 .stat-sc b { color: #ff7b72; }
-.stat-en b { color: #a5d6ff; }
-.stat-ad b { color: #d4a72c; }
-.stat-mw b { color: #8b949e; }
-.stat-an b { color: #56d364; }
+.stat-en b { color: #76e4f7; }
+.stat-ad b { color: #e3b341; }
+.stat-mw b { color: #adbac7; }
+.stat-an b { color: #2dd4bf; }
 
 #tooltip {
   position: fixed; background: #1c2128; border: 1px solid #30363d;
@@ -51,20 +51,20 @@ body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; ba
 
 svg { width: 100vw; height: 100vh; }
 
-.link { stroke-opacity: 0.12; stroke-width: 1; }
+.link { stroke-opacity: 0.18; stroke-width: 1.5; }
 .link-uses_service { stroke: #79c0ff; }
 .link-router_uses_service { stroke: #d2a8ff; }
 .link-injects_model { stroke: #ffa657; }
 .link-injects_client { stroke: #f778ba; }
 .link-injects_service { stroke: #7ee787; stroke-dasharray: 4,3; }
-.link-shares_code { stroke: #f47067; stroke-dasharray: 4,2; stroke-width: 1.5; }
+.link-shares_code { stroke: #f47067; stroke-dasharray: 4,2; stroke-width: 2; }
 .link-scheduler_uses_service { stroke: #ff7b72; }
 .link-scheduler_uses_client { stroke: #ff7b72; }
-.link-uses_entity { stroke: #a5d6ff; }
-.link-uses_adapter { stroke: #d4a72c; }
-.link-extends_adapter { stroke: #d4a72c; stroke-dasharray: 6,3; }
-.link-middleware_uses_service { stroke: #8b949e; stroke-dasharray: 3,2; }
-.link-uses_analytics { stroke: #56d364; stroke-dasharray: 4,3; }
+.link-uses_entity { stroke: #76e4f7; }
+.link-uses_adapter { stroke: #e3b341; }
+.link-extends_adapter { stroke: #e3b341; stroke-dasharray: 6,3; }
+.link-middleware_uses_service { stroke: #adbac7; stroke-dasharray: 3,2; }
+.link-uses_analytics { stroke: #2dd4bf; stroke-dasharray: 4,3; }
 .link-shares_code.highlighted { stroke-opacity: 0.9; stroke-width: 2.5; }
 .link.highlighted { stroke-opacity: 0.85; stroke-width: 2; }
 .link.dimmed { stroke-opacity: 0.02; }
@@ -145,6 +145,9 @@ svg { width: 100vw; height: 100vh; }
   display: inline-block; width: 8px; height: 8px; border-radius: 50%;
   vertical-align: middle; margin-right: 4px;
 }
+.guide-content .edge-preview {
+  width: 28px; height: 6px; vertical-align: middle; margin-right: 4px;
+}
 #detail {
   position: fixed; top: 52px; right: 16px; width: 380px; max-height: calc(100vh - 68px);
   background: #161b22; border: 1px solid #21262d; border-radius: 8px;
@@ -175,3 +178,43 @@ svg { width: 100vw; height: 100vh; }
 #detail .detail-body a:hover { text-decoration: underline; }
 #detail .detail-body .t-section { font-size: 11px; text-transform: uppercase; color: #484f58; margin-top: 8px; letter-spacing: 0.05em; }
 #detail .detail-body .t-item { font-size: 12px; color: #c9d1d9; padding-left: 10px; margin-top: 3px; font-family: 'SF Mono', 'Fira Code', monospace; }
+
+.edge-panel {
+  position: fixed; z-index: 25;
+  background: #161b22ee; backdrop-filter: blur(8px);
+  border: 1px solid #21262d; border-radius: 8px;
+  width: 240px; display: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+.edge-panel.open { display: block; }
+.edge-panel-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px; border-bottom: 1px solid #21262d;
+}
+.edge-panel-actions { display: flex; gap: 6px; }
+.edge-panel-link {
+  background: none; border: none; color: #58a6ff; cursor: pointer;
+  font-size: 11px; padding: 0;
+}
+.edge-panel-link:hover { text-decoration: underline; }
+.edge-panel-list { padding: 4px 0; max-height: 360px; overflow-y: auto; }
+.edge-panel-list::-webkit-scrollbar { width: 5px; }
+.edge-panel-list::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+.edge-panel-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 12px; cursor: pointer; font-size: 12px; color: #8b949e;
+  transition: background 0.1s;
+}
+.edge-panel-item:hover { background: #21262d; }
+.edge-panel-item.checked { color: #c9d1d9; }
+.edge-panel-check {
+  width: 14px; height: 14px; border-radius: 3px;
+  border: 1px solid #30363d; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 10px; color: transparent;
+}
+.edge-panel-item.checked .edge-panel-check {
+  background: #1f6feb; border-color: #58a6ff; color: #fff;
+}
+.edge-panel-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
