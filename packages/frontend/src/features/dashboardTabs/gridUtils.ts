@@ -7,6 +7,9 @@ const DEFAULT_COLS = 36;
  */
 export const DEFAULT_ROW_HEIGHT = 14 * 1.5 + 16 * 2 + 2;
 
+export const GRID_MARGIN: [number, number] = [10, 10];
+export const GRID_CONTAINER_PADDING: [number, number] = [10, 0];
+
 /**
  * Converts layout positions from the current breakpoint's coordinate system
  * back to the base coordinate system (DEFAULT_COLS).
@@ -39,6 +42,7 @@ export type ResponsiveGridLayoutProps = {
     breakpoints: { lg: number; md: number; sm: number };
     cols: { lg: number; md: number; sm: number };
     rowHeight: number;
+    margin: [number, number];
 };
 
 export const getReactGridLayoutConfig = (
@@ -85,4 +89,5 @@ export const getResponsiveGridLayoutProps = ({
         sm: stackVerticallyOnSmallestBreakpoint ? 1 : 18,
     },
     rowHeight: DEFAULT_ROW_HEIGHT,
+    margin: GRID_MARGIN,
 });

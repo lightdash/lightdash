@@ -12,12 +12,14 @@
 .react-grid-item.resizing {
     z-index: 1;
     will-change: width, height;
+    user-select: none;
 }
 
 .react-grid-item.react-draggable-dragging {
     transition: none;
     z-index: 3;
     will-change: transform;
+    user-select: none;
 }
 
 .react-grid-item.react-grid-placeholder {
