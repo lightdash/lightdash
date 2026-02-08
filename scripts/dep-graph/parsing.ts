@@ -7,9 +7,14 @@ import {
     EE_DIR,
     EE_CONTROLLERS_DIR,
     EE_INDEX,
+    SCHEDULER_DIR,
+    EE_SCHEDULER_DIR,
+    ENTITIES_DIR,
+    ADAPTERS_DIR,
+    MIDDLEWARES_DIR,
 } from './config';
 import { matchAll, unique } from './utils';
-import type { ServiceDeps, EeParsed } from './types';
+import type { ServiceDeps, EeParsed, SchedulerDeps, AdapterInfo } from './types';
 
 export function parseServiceRepository(): Record<string, ServiceDeps> {
     const src = fs.readFileSync(SERVICE_REPO, 'utf-8');
@@ -222,4 +227,198 @@ export function parseEeControllers(): Record<string, string[]> {
     }
 
     return controllers;
+}
+
+export function parseSchedulerTask(): SchedulerDeps {
+    const fp = path.join(SCHEDULER_DIR, 'SchedulerTask.ts');
+    if (!fs.existsSync(fp)) return { services: [], clients: [] };
+
+    const src = fs.readFileSync(fp, 'utf-8');
+    const blockMatch = src.match(/type\s+SchedulerTaskArguments\s*=\s*\{([\s\S]*?)\};/);
+    if (!blockMatch) return { services: [], clients: [] };
+
+    const block = blockMatch[1];
+    const services: string[] = [];
+    const clients: string[] = [];
+    const exclude = new Set(['LightdashConfig', 'EncryptionUtil', 'LightdashAnalytics', 'SchedulerClient']);
+
+    const propRe = /(\w+):\s*(\w+)/g;
+    let m: RegExpExecArray | null;
+    while ((m = propRe.exec(block)) !== null) {
+        const typeName = m[2];
+        if (exclude.has(typeName)) continue;
+        if (typeName.endsWith('Service')) services.push(typeName);
+        else if (typeName.endsWith('Client')) clients.push(typeName);
+    }
+
+    return { services: unique(services), clients: unique(clients) };
+}
+
+export function parseEeSchedulerTask(): SchedulerDeps {
+    const fp = path.join(EE_SCHEDULER_DIR, 'SchedulerWorker.ts');
+    if (!fs.existsSync(fp)) return { services: [], clients: [] };
+
+    const src = fs.readFileSync(fp, 'utf-8');
+    const blockMatch = src.match(/CommercialSchedulerWorkerArguments\s*=\s*SchedulerTaskArguments\s*&\s*\{([\s\S]*?)\}/);
+    if (!blockMatch) return { services: [], clients: [] };
+
+    const block = blockMatch[1];
+    const services: string[] = [];
+    const clients: string[] = [];
+
+    const propRe = /(\w+):\s*(\w+)/g;
+    let m: RegExpExecArray | null;
+    while ((m = propRe.exec(block)) !== null) {
+        const typeName = m[2];
+        if (typeName.endsWith('Service')) services.push(typeName);
+        else if (typeName.endsWith('Client')) clients.push(typeName);
+    }
+
+    return { services: unique(services), clients: unique(clients) };
+}
+
+export function parseEntities(): string[] {
+    if (!fs.existsSync(ENTITIES_DIR)) return [];
+
+    return fs.readdirSync(ENTITIES_DIR)
+        .filter((f) =>
+            f.endsWith('.ts') &&
+            !f.includes('.test.') &&
+            !f.includes('.spec.') &&
+            f !== 'index.ts' &&
+            f !== 'CLAUDE.md',
+        )
+        .map((f) => f.replace('.ts', ''));
+}
+
+export function parseModelEntityImports(
+    modelIds: string[],
+    resolveFile: (id: string, type: 'model', ee?: boolean) => string | undefined,
+): Record<string, string[]> {
+    const result: Record<string, string[]> = {};
+
+    for (const modelId of modelIds) {
+        const fp = resolveFile(modelId, 'model');
+        if (!fp) continue;
+
+        const src = fs.readFileSync(fp, 'utf-8');
+        const imports = unique(
+            matchAll(src, /from\s+['"].*?database\/entities\/(\w+)['"]/g),
+        );
+        if (imports.length > 0) {
+            result[modelId] = imports;
+        }
+    }
+
+    return result;
+}
+
+export function parseServiceAdapterImports(
+    serviceIds: string[],
+    adapterNames: string[],
+    resolveFile: (id: string, type: 'service', ee?: boolean) => string | undefined,
+): Record<string, string[]> {
+    const result: Record<string, string[]> = {};
+    const adapterSet = new Set(adapterNames);
+
+    for (const serviceId of serviceIds) {
+        const fp = resolveFile(serviceId, 'service');
+        if (!fp) continue;
+
+        const src = fs.readFileSync(fp, 'utf-8');
+        if (!src.includes('projectAdapter')) continue;
+
+        if (src.includes('projectAdapterFromConfig')) {
+            result[serviceId] = adapterNames;
+            continue;
+        }
+
+        const imported = matchAll(
+            src,
+            /import\s+\{([^}]+)\}\s+from\s+['"].*?projectAdapters\/[^'"]+['"]/g,
+        );
+        const classNames: string[] = [];
+        for (const importBlock of imported) {
+            for (const name of importBlock.split(',')) {
+                const trimmed = name.trim();
+                if (adapterSet.has(trimmed)) classNames.push(trimmed);
+            }
+        }
+
+        if (classNames.length > 0) {
+            result[serviceId] = unique(classNames);
+        }
+    }
+
+    return result;
+}
+
+export function parseAdapters(): Record<string, AdapterInfo> {
+    if (!fs.existsSync(ADAPTERS_DIR)) return {};
+
+    const adapters: Record<string, AdapterInfo> = {};
+    const files = fs.readdirSync(ADAPTERS_DIR).filter(
+        (f) =>
+            f.endsWith('.ts') &&
+            !f.includes('.test.') &&
+            !f.includes('.spec.') &&
+            f !== 'projectAdapter.ts' &&
+            f !== 'index.ts',
+    );
+
+    for (const file of files) {
+        const fpath = path.join(ADAPTERS_DIR, file);
+        const content = fs.readFileSync(fpath, 'utf-8');
+
+        const classMatch = content.match(
+            /class\s+(\w+)\s+extends\s+(\w+)/,
+        );
+        if (classMatch) {
+            adapters[classMatch[1]] = { parent: classMatch[2] };
+        } else {
+            const implMatch = content.match(
+                /class\s+(\w+)\s+implements\s+\w+/,
+            );
+            if (implMatch) {
+                adapters[implMatch[1]] = { parent: null };
+            }
+        }
+    }
+
+    return adapters;
+}
+
+export function parseMiddlewares(): Record<string, string[]> {
+    if (!fs.existsSync(MIDDLEWARES_DIR)) return {};
+
+    const result: Record<string, string[]> = {};
+
+    const entries = fs.readdirSync(MIDDLEWARES_DIR, { withFileTypes: true });
+    for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+
+        const dirPath = path.join(MIDDLEWARES_DIR, entry.name);
+        const files = fs.readdirSync(dirPath).filter(
+            (f) =>
+                f.endsWith('.ts') &&
+                !f.includes('.test.') &&
+                !f.includes('.spec.') &&
+                f !== 'index.ts',
+        );
+
+        for (const file of files) {
+            const fpath = path.join(dirPath, file);
+            const content = fs.readFileSync(fpath, 'utf-8');
+
+            const calls = unique(
+                matchAll(content, /req\.services\?\.get(\w+)\(\)/g),
+            );
+            if (calls.length > 0) {
+                const name = file.replace('.ts', '');
+                result[name] = calls;
+            }
+        }
+    }
+
+    return result;
 }

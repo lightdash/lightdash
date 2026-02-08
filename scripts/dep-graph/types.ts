@@ -57,9 +57,18 @@ export interface SentryActivity {
     topErrorTransaction: string | null;
 }
 
+export interface SchedulerDeps {
+    services: string[];
+    clients: string[];
+}
+
+export interface AdapterInfo {
+    parent: string | null;
+}
+
 export interface GraphNode {
     id: string;
-    type: 'controller' | 'router' | 'service' | 'model' | 'client';
+    type: 'controller' | 'router' | 'service' | 'model' | 'client' | 'scheduler' | 'entity' | 'adapter' | 'middleware' | 'analytics';
     ee?: boolean;
     domain?: string;
     lineCount?: number;
@@ -100,6 +109,11 @@ export interface GraphData {
         services: number;
         models: number;
         clients: number;
+        schedulers: number;
+        entities: number;
+        adapters: number;
+        middlewares: number;
+        analytics: number;
         totalEdges: number;
     };
 }
