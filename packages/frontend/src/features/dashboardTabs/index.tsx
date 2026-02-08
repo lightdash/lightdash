@@ -105,10 +105,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const gridWrapperRef = useRef<HTMLDivElement>(null);
     const [isInteracting, setIsInteracting] = useState(false);
 
-    const gridLineStyles = useGridStyles({
-        ref: gridWrapperRef,
-        cols: currentCols,
-    });
+    const gridLineStyles = useGridStyles({ ref: gridWrapperRef });
 
     const showGridLines = isEditMode && isInteracting;
 

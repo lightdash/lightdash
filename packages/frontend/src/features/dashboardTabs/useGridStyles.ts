@@ -2,16 +2,31 @@ import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import {
     DEFAULT_ROW_HEIGHT,
+    GRID_BREAKPOINTS,
+    GRID_COLS,
     GRID_CONTAINER_PADDING,
     GRID_MARGIN,
 } from './gridUtils';
 
+const sortedBreakpoints = (
+    Object.entries(GRID_BREAKPOINTS) as [
+        keyof typeof GRID_BREAKPOINTS,
+        number,
+    ][]
+).sort(([, a], [, b]) => a - b);
+
+const getColsForWidth = (width: number): number => {
+    let bp: keyof typeof GRID_BREAKPOINTS = sortedBreakpoints[0][0];
+    for (const [name, minWidth] of sortedBreakpoints) {
+        if (width > minWidth) bp = name;
+    }
+    return GRID_COLS[bp];
+};
+
 export const useGridStyles = ({
     ref,
-    cols,
 }: {
     ref: React.RefObject<HTMLDivElement | null>;
-    cols: number;
 }) => {
     const [observedWidth, setObservedWidth] = useState(0);
 
@@ -30,6 +45,7 @@ export const useGridStyles = ({
 
     return useMemo(() => {
         if (observedWidth <= 0) return undefined;
+        const cols = getColsForWidth(observedWidth);
         const colWidth =
             (observedWidth -
                 GRID_MARGIN[0] * (cols - 1) -
@@ -43,5 +59,5 @@ export const useGridStyles = ({
             '--grid-pad-x': `${GRID_CONTAINER_PADDING[0]}px`,
             '--grid-pad-y': `${GRID_CONTAINER_PADDING[1]}px`,
         } as React.CSSProperties;
-    }, [observedWidth, cols]);
+    }, [observedWidth]);
 };
