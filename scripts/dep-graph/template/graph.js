@@ -1,5 +1,8 @@
 const raw = /*__DATA__*/null;
 
+const hasSentry = raw.nodes.some(n => n.sentryActivity);
+if (!hasSentry) { document.querySelectorAll('#size-mode option').forEach(o => { if (o.value === 'traffic' || o.value === 'errors') o.remove(); }); }
+
 const color = { controller: '#79c0ff', router: '#d2a8ff', service: '#7ee787', model: '#ffa657', client: '#f778ba' };
 const colorDark = { controller: '#1f6feb', router: '#8957e5', service: '#238636', model: '#9e6a03', client: '#da3633' };
 
@@ -487,7 +490,8 @@ function highlightNode(d) {
         .attr('stroke-dasharray', len)
         .attr('stroke-dashoffset', e.outward ? len : -len);
       el.transition()
-        .duration(400 + Math.random() * 200)
+        .delay(100 + Math.random() * 500)
+        .duration(300 + Math.random() * 500)
         .ease(d3.easeCubicOut)
         .attr('stroke-dashoffset', 0)
         .on('end', function() {
