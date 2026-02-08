@@ -186,5 +186,3 @@ export function main(): void {
         fs.rmSync(tmp, { recursive: true });
     }
 }
-
-main();
