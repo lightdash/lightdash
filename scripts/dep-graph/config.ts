@@ -10,6 +10,13 @@ export const EE_DIR = path.join(BACKEND_SRC, 'ee');
 export const EE_CONTROLLERS_DIR = path.join(EE_DIR, 'controllers');
 export const EE_INDEX = path.join(EE_DIR, 'index.ts');
 
+export const SCHEDULER_DIR = path.join(BACKEND_SRC, 'scheduler');
+export const ENTITIES_DIR = path.join(BACKEND_SRC, 'database', 'entities');
+export const ADAPTERS_DIR = path.join(BACKEND_SRC, 'projectAdapters');
+export const MIDDLEWARES_DIR = path.join(BACKEND_SRC, 'middlewares');
+export const ANALYTICS_DIR = path.join(BACKEND_SRC, 'analytics');
+export const EE_SCHEDULER_DIR = path.join(EE_DIR, 'scheduler');
+
 export const DOMAIN_CACHE = path.join(SCRIPTS_DIR, '.dep-graph-domains.json');
 export const SUMMARY_CACHE = path.join(SCRIPTS_DIR, '.dep-graph-summaries.json');
 export const HEALTH_SUMMARY_CACHE = path.join(SCRIPTS_DIR, '.dep-graph-health-summaries.json');

@@ -33,6 +33,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; ba
 .stat-m b { color: #ffa657; }
 .stat-r b { color: #d2a8ff; }
 .stat-k b { color: #f778ba; }
+.stat-sc b { color: #ff7b72; }
+.stat-en b { color: #a5d6ff; }
+.stat-ad b { color: #d4a72c; }
+.stat-mw b { color: #8b949e; }
+.stat-an b { color: #56d364; }
 
 #tooltip {
   position: fixed; background: #1c2128; border: 1px solid #30363d;
@@ -53,6 +58,13 @@ svg { width: 100vw; height: 100vh; }
 .link-injects_client { stroke: #f778ba; }
 .link-injects_service { stroke: #7ee787; stroke-dasharray: 4,3; }
 .link-shares_code { stroke: #f47067; stroke-dasharray: 4,2; stroke-width: 1.5; }
+.link-scheduler_uses_service { stroke: #ff7b72; }
+.link-scheduler_uses_client { stroke: #ff7b72; }
+.link-uses_entity { stroke: #a5d6ff; }
+.link-uses_adapter { stroke: #d4a72c; }
+.link-extends_adapter { stroke: #d4a72c; stroke-dasharray: 6,3; }
+.link-middleware_uses_service { stroke: #8b949e; stroke-dasharray: 3,2; }
+.link-uses_analytics { stroke: #56d364; stroke-dasharray: 4,3; }
 .link-shares_code.highlighted { stroke-opacity: 0.9; stroke-width: 2.5; }
 .link.highlighted { stroke-opacity: 0.85; stroke-width: 2; }
 .link.dimmed { stroke-opacity: 0.02; }
@@ -67,10 +79,8 @@ svg { width: 100vw; height: 100vh; }
 .domain-only .domain-label { fill-opacity: 0.9 !important; font-size: 14px !important; }
 
 #size-description {
-  position: fixed; top: 56px; right: 16px; z-index: 9;
-  font-size: 12px; color: #8b949e; max-width: 300px;
-  text-align: right; line-height: 1.4;
-  transition: opacity 0.2s;
+  margin-left: auto; font-size: 12px; color: #6e7681;
+  white-space: nowrap;
 }
 
 #heatmap-legend {

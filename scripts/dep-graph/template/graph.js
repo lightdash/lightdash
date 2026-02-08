@@ -3,8 +3,8 @@ const raw = /*__DATA__*/null;
 const hasSentry = raw.nodes.some(n => n.sentryActivity);
 if (!hasSentry) { document.querySelectorAll('#size-mode option').forEach(o => { if (o.value === 'traffic' || o.value === 'errors') o.remove(); }); }
 
-const color = { controller: '#79c0ff', router: '#d2a8ff', service: '#7ee787', model: '#ffa657', client: '#f778ba' };
-const colorDark = { controller: '#1f6feb', router: '#8957e5', service: '#238636', model: '#9e6a03', client: '#da3633' };
+const color = { controller: '#79c0ff', router: '#d2a8ff', service: '#7ee787', model: '#ffa657', client: '#f778ba', scheduler: '#ff7b72', entity: '#a5d6ff', adapter: '#d4a72c', middleware: '#8b949e', analytics: '#56d364' };
+const colorDark = { controller: '#1f6feb', router: '#8957e5', service: '#238636', model: '#9e6a03', client: '#da3633', scheduler: '#da3633', entity: '#388bfd', adapter: '#9e6a03', middleware: '#484f58', analytics: '#238636' };
 
 const W = window.innerWidth, H = window.innerHeight;
 
@@ -89,6 +89,13 @@ const edgeTypes = [
   { type: 'injects_client', color: '#f778ba' },
   { type: 'injects_service', color: '#7ee787' },
   { type: 'shares_code', color: '#f47067' },
+  { type: 'scheduler_uses_service', color: '#ff7b72' },
+  { type: 'scheduler_uses_client', color: '#ff7b72' },
+  { type: 'uses_entity', color: '#a5d6ff' },
+  { type: 'uses_adapter', color: '#d4a72c' },
+  { type: 'extends_adapter', color: '#d4a72c' },
+  { type: 'middleware_uses_service', color: '#8b949e' },
+  { type: 'uses_analytics', color: '#56d364' },
 ];
 edgeTypes.forEach(({ type, color: c }) => {
   [{ suffix: '', opacity: 0.15, w: 8, h: 6 }, { suffix: 'hi-', opacity: 0.9, w: 5, h: 3.75 }].forEach(({ suffix, opacity, w, h }) => {
@@ -114,7 +121,7 @@ const colX = { controller: W * 0.08, router: W * 0.20, service: W * 0.40, model:
 let domainNames = [];
 let domainColor = {};
 let domainCenters = {};
-const typeOffsetX = { controller: -50, router: -25, service: 0, model: 25, client: 50 };
+const typeOffsetX = { controller: -50, router: -25, service: 0, model: 25, client: 50, scheduler: -60, entity: 40, adapter: -40, middleware: -55, analytics: 15 };
 
 const domainMap = {};
 nodes.forEach(n => {
@@ -145,8 +152,8 @@ domainNames.forEach((name, i) => {
 
 let groupMode = 'domain';
 
-const layerTypes = ['controller', 'router', 'service', 'model', 'client'];
-const layerLabels = { controller: 'Controllers', router: 'Routers', service: 'Services', model: 'Models', client: 'Clients' };
+const layerTypes = ['controller', 'router', 'service', 'model', 'client', 'scheduler', 'entity', 'adapter', 'middleware', 'analytics'];
+const layerLabels = { controller: 'Controllers', router: 'Routers', service: 'Services', model: 'Models', client: 'Clients', scheduler: 'Schedulers', entity: 'Entities', adapter: 'Adapters', middleware: 'Middleware', analytics: 'Analytics' };
 let layerCenters = {};
 const layerMap = {};
 nodes.forEach(n => {
@@ -177,17 +184,17 @@ const sim = d3.forceSimulation(nodes)
   .force('y', d3.forceY(d => d.domainY || H/2).strength(0.3));
 
 const colLabels = g.append('g').attr('class', 'col-labels').style('display', 'none');
-['Controllers', 'Routers', 'Services', 'Models', 'Clients'].forEach((label, i) => {
-  const types = ['controller', 'router', 'service', 'model', 'client'];
+layerTypes.forEach(type => {
+  if (!colX[type]) return;
   colLabels.append('text')
-    .attr('x', colX[types[i]])
+    .attr('x', colX[type])
     .attr('y', 30)
     .attr('text-anchor', 'middle')
-    .attr('fill', color[types[i]])
+    .attr('fill', color[type])
     .attr('font-size', '13px')
     .attr('font-weight', '600')
     .attr('opacity', 0.4)
-    .text(label);
+    .text(layerLabels[type]);
 });
 
 function applyGroupLayout() {
@@ -516,8 +523,10 @@ function highlightNode(d) {
         .attr('stroke-dashoffset', 0)
         .on('end', function() {
           const self = d3.select(this);
-          if (e.l.type === 'injects_service') self.attr('stroke-dasharray', '4,3');
+          if (e.l.type === 'injects_service' || e.l.type === 'uses_analytics') self.attr('stroke-dasharray', '4,3');
           else if (e.l.type === 'shares_code') self.attr('stroke-dasharray', '4,2');
+          else if (e.l.type === 'extends_adapter') self.attr('stroke-dasharray', '6,3');
+          else if (e.l.type === 'middleware_uses_service') self.attr('stroke-dasharray', '3,2');
           else self.attr('stroke-dasharray', null);
           self.attr('stroke-dashoffset', null);
           if (arrowsEnabled && e.l.type !== 'shares_code') self.attr('marker-end', 'url(#arrow-hi-' + e.l.type + ')');
@@ -535,8 +544,10 @@ function clearHL() {
   link.each(function(l) {
     const el = d3.select(this);
     el.style('stroke-opacity', null);
-    if (l.type === 'injects_service') el.attr('stroke-dasharray', '4,3');
+    if (l.type === 'injects_service' || l.type === 'uses_analytics') el.attr('stroke-dasharray', '4,3');
     else if (l.type === 'shares_code') el.attr('stroke-dasharray', '4,2');
+    else if (l.type === 'extends_adapter') el.attr('stroke-dasharray', '6,3');
+    else if (l.type === 'middleware_uses_service') el.attr('stroke-dasharray', '3,2');
     else el.attr('stroke-dasharray', null);
     el.attr('stroke-dashoffset', null);
   });
@@ -547,7 +558,7 @@ let arrowsEnabled = true;
 function updateMarkers() {
   link.attr('marker-end', function(l) {
     if (!arrowsEnabled) return null;
-    if (l.type === 'shares_code') return null;
+    if (l.type === 'shares_code' || l.type === 'uses_analytics') return null;
     if (d3.select(this).classed('dimmed')) return null;
     const isHL = d3.select(this).classed('highlighted');
     return 'url(#arrow-' + (isHL ? 'hi-' : '') + l.type + ')';

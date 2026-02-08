@@ -7,6 +7,12 @@ import {
     ROUTERS_DIR,
     EE_DIR,
     EE_CONTROLLERS_DIR,
+    SCHEDULER_DIR,
+    EE_SCHEDULER_DIR,
+    ENTITIES_DIR,
+    ADAPTERS_DIR,
+    MIDDLEWARES_DIR,
+    ANALYTICS_DIR,
 } from './config';
 import type { GraphNode, Complexity } from './types';
 
@@ -54,6 +60,43 @@ export function resolveFilePath(
             );
             break;
         }
+        case 'scheduler':
+            if (ee || id === 'CommercialSchedulerWorker') {
+                candidates.push(path.join(EE_SCHEDULER_DIR, 'SchedulerWorker.ts'));
+            }
+            candidates.push(path.join(SCHEDULER_DIR, 'SchedulerTask.ts'));
+            break;
+        case 'entity':
+            candidates.push(path.join(ENTITIES_DIR, `${id}.ts`));
+            break;
+        case 'adapter':
+            candidates.push(
+                path.join(ADAPTERS_DIR, `${id}.ts`),
+                path.join(ADAPTERS_DIR, `dbt${id}.ts`),
+            );
+            for (const prefix of ['dbt', 'Dbt']) {
+                const lower = id.charAt(0).toLowerCase() + id.slice(1);
+                candidates.push(path.join(ADAPTERS_DIR, `${prefix}${lower}.ts`));
+            }
+            {
+                const camelToFile = id.replace(/([A-Z])/g, (_, c, i) =>
+                    i === 0 ? c.toLowerCase() : c,
+                );
+                candidates.push(path.join(ADAPTERS_DIR, `${camelToFile}.ts`));
+            }
+            break;
+        case 'middleware':
+            candidates.push(
+                path.join(MIDDLEWARES_DIR, id, `${id}.ts`),
+                path.join(MIDDLEWARES_DIR, `${id}.ts`),
+            );
+            break;
+        case 'analytics':
+            candidates.push(
+                path.join(ANALYTICS_DIR, `${id}.ts`),
+                path.join(ANALYTICS_DIR, 'LightdashAnalytics.ts'),
+            );
+            break;
     }
     return candidates.find((fp) => fs.existsSync(fp));
 }

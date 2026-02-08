@@ -17,6 +17,11 @@
   <button class="btn" data-filter="service">Services</button>
   <button class="btn" data-filter="model">Models</button>
   <button class="btn" data-filter="client">Clients</button>
+  <button class="btn" data-filter="scheduler">Schedulers</button>
+  <button class="btn" data-filter="entity">Entities</button>
+  <button class="btn" data-filter="adapter">Adapters</button>
+  <button class="btn" data-filter="middleware">Middleware</button>
+  <button class="btn" data-filter="analytics">Analytics</button>
   <div class="sep"></div>
   <label class="stat" style="display:flex;align-items:center;gap:4px;" title="How many hops from the selected node to highlight">Depth <input type="number" id="depth" value="2" min="1" max="10" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;text-align:center;"></label>
   <div class="sep"></div>
@@ -32,6 +37,7 @@
   <button class="btn" id="btn-reset">Reset</button>
   <div class="sep"></div>
   <button class="btn" id="btn-guide" title="How to use this graph">?</button>
+  <span id="size-description"></span>
 </div>
 <div id="guide">
   <div class="guide-header">
@@ -65,6 +71,11 @@
         <p><span class="color-dot" style="background:#7ee787"></span><b>Service</b> &mdash; Business logic layer</p>
         <p><span class="color-dot" style="background:#ffa657"></span><b>Model</b> &mdash; Database/data access layer</p>
         <p><span class="color-dot" style="background:#f778ba"></span><b>Client</b> &mdash; External service clients</p>
+        <p><span class="color-dot" style="background:#ff7b72"></span><b>Scheduler</b> &mdash; Background job entry points</p>
+        <p><span class="color-dot" style="background:#a5d6ff"></span><b>Entity</b> &mdash; Database entity definitions</p>
+        <p><span class="color-dot" style="background:#d4a72c"></span><b>Adapter</b> &mdash; dbt project adapters</p>
+        <p><span class="color-dot" style="background:#8b949e"></span><b>Middleware</b> &mdash; Express middleware</p>
+        <p><span class="color-dot" style="background:#56d364"></span><b>Analytics</b> &mdash; Analytics tracking</p>
         <p>Filter by type using the toolbar buttons.</p>
       </div>
     </div>
@@ -77,6 +88,12 @@
         <p><span style="color:#f778ba">&#9473;</span> <b>injects_client</b> &mdash; Service depends on a client</p>
         <p><span style="color:#7ee787">- -</span> <b>injects_service</b> &mdash; Service-to-service (dashed)</p>
         <p><span style="color:#f47067">- -</span> <b>shares_code</b> &mdash; Code duplication link (dashed)</p>
+        <p><span style="color:#ff7b72">&#9473;</span> <b>scheduler_uses_*</b> &mdash; Scheduler depends on service/client</p>
+        <p><span style="color:#a5d6ff">&#9473;</span> <b>uses_entity</b> &mdash; Model imports entity</p>
+        <p><span style="color:#d4a72c">&#9473;</span> <b>uses_adapter</b> &mdash; Service creates adapter via factory</p>
+        <p><span style="color:#d4a72c">- -</span> <b>extends_adapter</b> &mdash; Adapter inheritance (dashed)</p>
+        <p><span style="color:#8b949e">- -</span> <b>middleware_uses_service</b> &mdash; Middleware calls service (dashed)</p>
+        <p><span style="color:#56d364">- -</span> <b>uses_analytics</b> &mdash; Service uses analytics (dashed)</p>
       </div>
     </div>
     <div class="guide-section">
@@ -119,7 +136,6 @@
   </div>
   <div class="detail-body" id="detail-body"></div>
 </div>
-<div id="size-description"></div>
 <div id="legend">
   <!-- LEGEND -->
   <div id="heatmap-legend">

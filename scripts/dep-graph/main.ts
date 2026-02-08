@@ -8,8 +8,16 @@ import {
     parseRouters,
     parseEeIndex,
     parseEeControllers,
+    parseSchedulerTask,
+    parseEeSchedulerTask,
+    parseEntities,
+    parseModelEntityImports,
+    parseAdapters,
+    parseServiceAdapterImports,
+    parseMiddlewares,
 } from './parsing';
 import { buildGraph } from './graph';
+import { resolveFilePath } from './complexity';
 import { collectGitActivity } from './git-activity';
 import { classifyDomains } from './domains';
 import { summarizeGitActivity, summarizeHealthScores } from './summaries';
@@ -38,7 +46,42 @@ export function main(): void {
         clientNames: eeParsed.clientNames,
     };
 
-    const graph = buildGraph(services, controllers, routers, eeData);
+    const schedulerDeps = parseSchedulerTask();
+    const eeSchedulerDeps = parseEeSchedulerTask();
+    const entityNames = parseEntities();
+    const adapters = parseAdapters();
+    const middlewares = parseMiddlewares();
+
+    const allModelIds = new Set<string>();
+    for (const deps of Object.values(services)) {
+        for (const m of deps.models) allModelIds.add(m);
+    }
+    for (const deps of Object.values(eeParsed.services)) {
+        for (const m of deps.models) allModelIds.add(m);
+    }
+    for (const m of eeParsed.modelNames) allModelIds.add(m);
+    const modelEntityMap = parseModelEntityImports(
+        [...allModelIds],
+        resolveFilePath,
+    );
+
+    const allServiceIds = [
+        ...Object.keys(services),
+        ...Object.keys(eeParsed.services),
+    ];
+    const adapterImports = parseServiceAdapterImports(
+        allServiceIds,
+        Object.keys(adapters),
+        resolveFilePath,
+    );
+
+    const graph = buildGraph(services, controllers, routers, eeData, {
+        scheduler: { deps: schedulerDeps, eeDeps: eeSchedulerDeps },
+        entities: { names: entityNames, modelMap: modelEntityMap },
+        adapters,
+        adapterImports,
+        middlewares,
+    });
     collectGitActivity(graph.nodes, true);
 
     const domains = classifyDomains(graph, forceRefresh);
@@ -95,11 +138,19 @@ export function main(): void {
 
     const eeNodeCount = graph.nodes.filter((n) => n.ee).length;
     const eeLabel = eeNodeCount > 0 ? ` (+${eeNodeCount} EE)` : '';
+    const extras = [
+        graph.stats.schedulers > 0 ? `${graph.stats.schedulers} schedulers` : '',
+        graph.stats.entities > 0 ? `${graph.stats.entities} entities` : '',
+        graph.stats.adapters > 0 ? `${graph.stats.adapters} adapters` : '',
+        graph.stats.middlewares > 0 ? `${graph.stats.middlewares} middlewares` : '',
+        graph.stats.analytics > 0 ? `${graph.stats.analytics} analytics` : '',
+    ].filter(Boolean).join(', ');
+    const extrasLabel = extras ? `, ${extras}` : '';
     console.log(
         `Generated: ${graph.stats.controllers} controllers, ` +
             `${graph.stats.routers} routers, ` +
             `${graph.stats.services} services, ${graph.stats.models} models, ` +
-            `${graph.stats.clients} clients (${graph.stats.totalEdges} edges)${eeLabel}`,
+            `${graph.stats.clients} clients${extrasLabel} (${graph.stats.totalEdges} edges)${eeLabel}`,
     );
     console.log(`Written to: ${outputPath}`);
 
