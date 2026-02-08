@@ -570,6 +570,8 @@ interface SentryActivity {
     topError: string | null;
     topErrorCount: number;
     topErrorIssueId: string | null;
+    topErrorGroupId: string | null;
+    topErrorTransaction: string | null;
 }
 
 interface GraphNode {
@@ -1314,7 +1316,7 @@ interface SentryRawData {
     transactions: Array<{ transaction: string; count: number; p95: number }>;
     errors: Array<{ culprit: string; count: number }>;
     spans: Array<{ transaction: string; count: number }>;
-    errorTitles: Array<{ title: string; transaction: string; count: number; issueId: string | null }>;
+    errorTitles: Array<{ title: string; transaction: string; count: number; issueId: string | null; groupId: string | null }>;
 }
 
 function fetchSentryData(token: string): SentryRawData {
@@ -1381,7 +1383,7 @@ function fetchSentryData(token: string): SentryRawData {
     }));
 
     const errorTitleResult = sentryGet(
-        'dataset=errors&field=title&field=transaction&field=issue&field=count()&sort=-count()&per_page=100',
+        'dataset=errors&field=title&field=transaction&field=issue&field=issue.id&field=count()&sort=-count()&per_page=100',
     );
     const errorTitles = (errorTitleResult.data || [])
         .filter((row: any) => row.transaction && row.title)
@@ -1390,6 +1392,7 @@ function fetchSentryData(token: string): SentryRawData {
             transaction: row.transaction as string,
             count: (row['count()'] || 0) as number,
             issueId: (row.issue as string) || null,
+            groupId: (row['issue.id'] as string) || null,
         }));
 
     console.log(`  ${transactions.length} transactions, ${errors.length} error culprits, ${errorTitles.length} error titles, ${spans.length} service spans.`);
@@ -1480,7 +1483,7 @@ function matchSentryToNodes(
         serviceSpans.get(serviceName)!.push({ name: methodName, count: span.count });
     }
 
-    const nodeTopErrors = new Map<string, { title: string; count: number; issueId: string | null }>();
+    const nodeTopErrors = new Map<string, { title: string; count: number; issueId: string | null; groupId: string | null; transaction: string }>();
     for (const et of rawData.errorTitles) {
         const route = et.transaction.replace(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/, '');
         if (!route.includes('/api/')) continue;
@@ -1488,7 +1491,7 @@ function matchSentryToNodes(
             if (matcher.regex.test(route)) {
                 const existing = nodeTopErrors.get(matcher.nodeId);
                 if (!existing || et.count > existing.count) {
-                    nodeTopErrors.set(matcher.nodeId, { title: et.title, count: et.count, issueId: et.issueId });
+                    nodeTopErrors.set(matcher.nodeId, { title: et.title, count: et.count, issueId: et.issueId, groupId: et.groupId, transaction: et.transaction });
                 }
                 break;
             }
@@ -1525,6 +1528,8 @@ function matchSentryToNodes(
                     topError: topErr?.title ?? null,
                     topErrorCount: topErr?.count ?? 0,
                     topErrorIssueId: topErr?.issueId ?? null,
+                    topErrorGroupId: topErr?.groupId ?? null,
+                    topErrorTransaction: topErr?.transaction ?? null,
                 };
                 matchedCount++;
             }
@@ -1543,6 +1548,8 @@ function matchSentryToNodes(
                     topError: null,
                     topErrorCount: 0,
                     topErrorIssueId: null,
+                    topErrorGroupId: null,
+                    topErrorTransaction: null,
                 };
                 matchedCount++;
             }
@@ -2179,8 +2186,10 @@ function buildNodeContent(d, opts) {
     h += '</div>';
     if (sa.topError) {
       const shortErr = sa.topError.length > 60 ? sa.topError.slice(0, 57) + '…' : sa.topError;
-      if (interactive && sa.topErrorIssueId) {
-        h += '<div class="t-item" style="font-size:11px;margin-top:2px"><span style="color:#f47067">⚡</span> <a href="https://lightdash.sentry.io/issues/?project=5959292&query=' + encodeURIComponent(sa.topErrorIssueId) + '" target="_blank" style="color:#f0883e">' + shortErr + '</a> <span style="color:#484f58">(' + fmtNum(sa.topErrorCount) + ')</span></div>';
+      if (interactive && sa.topErrorGroupId) {
+        var issueUrl = 'https://lightdash.sentry.io/issues/' + sa.topErrorGroupId + '/events/?project=5959292';
+        if (sa.topErrorTransaction) issueUrl += '&query=' + encodeURIComponent('transaction:"' + sa.topErrorTransaction + '"');
+        h += '<div class="t-item" style="font-size:11px;margin-top:2px"><span style="color:#f47067">⚡</span> <a href="' + issueUrl + '" target="_blank" style="color:#f0883e">' + shortErr + '</a> <span style="color:#484f58">(' + fmtNum(sa.topErrorCount) + ')</span></div>';
       } else if (interactive) {
         h += '<div class="t-item" style="font-size:11px;margin-top:2px"><span style="color:#f47067">⚡</span> <span style="color:#f0883e">' + shortErr + '</span> <span style="color:#484f58">(' + fmtNum(sa.topErrorCount) + ')</span></div>';
       } else {
