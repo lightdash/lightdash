@@ -271,11 +271,19 @@ function isEeHidden(l) {
 
 function applyEdgeDisplay() {
   link.each(function(l) {
-    d3.select(this).style('display', (!edgeVisibility[l.type] || isEeHidden(l)) ? 'none' : null);
+    const hidden = !edgeVisibility[l.type] || isEeHidden(l);
+    d3.select(this).style('display', hidden ? 'none' : null);
+    if (!hidden) d3.select(this).style('stroke-opacity', 0);
   });
   linkHit.each(function(l) {
     d3.select(this).style('display', (!edgeVisibility[l.type] || isEeHidden(l)) ? 'none' : null);
   });
+  if (selected) {
+    const d = nodes.find(n => n.id === selected);
+    if (d) requestAnimationFrame(() => highlightNode(d));
+  } else {
+    link.each(function() { d3.select(this).style('stroke-opacity', null); });
+  }
   updateEdgeBadge();
 }
 
@@ -498,6 +506,7 @@ function getConnected(id, depth) {
   for (let d = 0; d < depth; d++) {
     const next = new Set();
     links.forEach(l => {
+      if (!edgeVisibility[l.type]) return;
       const src = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
       const tgt = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
       if (downFrontier.has(src) && !downMap.has(tgt)) { downMap.set(tgt, d + 1); next.add(tgt); }
@@ -511,6 +520,7 @@ function getConnected(id, depth) {
   for (let d = 0; d < depth; d++) {
     const next = new Set();
     links.forEach(l => {
+      if (!edgeVisibility[l.type]) return;
       const src = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
       const tgt = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
       if (upFrontier.has(tgt) && !upMap.has(src)) { upMap.set(src, d + 1); next.add(src); }
@@ -576,21 +586,16 @@ function highlightNode(d) {
       const tgt = typeof e.l.target === 'object' ? e.l.target.id : nodes[e.l.target].id;
       const destId = e.outward ? tgt : src;
       el.style('stroke-opacity', null)
-        .attr('stroke-dasharray', len)
-        .attr('stroke-dashoffset', e.outward ? len : -len);
+        .style('stroke-dasharray', len)
+        .style('stroke-dashoffset', e.outward ? len : -len);
       el.transition()
         .delay(100 + Math.random() * 500)
         .duration(300 + Math.random() * 500)
         .ease(d3.easeCubicOut)
-        .attr('stroke-dashoffset', 0)
+        .style('stroke-dashoffset', 0)
         .on('end', function() {
           const self = d3.select(this);
-          if (e.l.type === 'injects_service' || e.l.type === 'uses_analytics') self.attr('stroke-dasharray', '4,3');
-          else if (e.l.type === 'shares_code') self.attr('stroke-dasharray', '4,2');
-          else if (e.l.type === 'extends_adapter') self.attr('stroke-dasharray', '6,3');
-          else if (e.l.type === 'middleware_uses_service') self.attr('stroke-dasharray', '3,2');
-          else self.attr('stroke-dasharray', null);
-          self.attr('stroke-dashoffset', null);
+          self.style('stroke-dasharray', null).style('stroke-dashoffset', null);
           if (arrowsEnabled && e.l.type !== 'shares_code') self.attr('marker-end', 'url(#arrow-hi-' + e.l.type + ')');
           animateFrom(destId);
         });
@@ -603,15 +608,9 @@ function clearHL() {
   link.interrupt();
   node.classed('dimmed', false);
   link.classed('dimmed', false).classed('highlighted', false);
-  link.each(function(l) {
+  link.each(function() {
     const el = d3.select(this);
-    el.style('stroke-opacity', null);
-    if (l.type === 'injects_service' || l.type === 'uses_analytics') el.attr('stroke-dasharray', '4,3');
-    else if (l.type === 'shares_code') el.attr('stroke-dasharray', '4,2');
-    else if (l.type === 'extends_adapter') el.attr('stroke-dasharray', '6,3');
-    else if (l.type === 'middleware_uses_service') el.attr('stroke-dasharray', '3,2');
-    else el.attr('stroke-dasharray', null);
-    el.attr('stroke-dashoffset', null);
+    el.style('stroke-opacity', null).style('stroke-dasharray', null).style('stroke-dashoffset', null);
   });
   updateMarkers();
 }
