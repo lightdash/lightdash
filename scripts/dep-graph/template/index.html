@@ -29,6 +29,19 @@
   <div class="sep"></div>
   <button class="btn active" id="btn-arrows">Arrows</button>
   <div class="sep"></div>
+  <button class="btn active" id="btn-edges">Edges <span id="edge-badge" style="font-size:10px;opacity:0.6;margin-left:2px">5/13</span></button>
+  <div id="edge-panel" class="edge-panel">
+    <div class="edge-panel-header">
+      <span style="font-size:11px;color:#8b949e">Edge types</span>
+      <span class="edge-panel-actions">
+        <button class="edge-panel-link" id="edge-show-all">All</button>
+        <button class="edge-panel-link" id="edge-show-core">Core</button>
+        <button class="edge-panel-link" id="edge-hide-all">None</button>
+      </span>
+    </div>
+    <div class="edge-panel-list" id="edge-panel-list"></div>
+  </div>
+  <div class="sep"></div>
   <label class="stat" style="display:flex;align-items:center;gap:4px;">Group <select id="group-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="domain">Domain</option><option value="layer">Layer</option></select></label>
   <button class="btn active" id="btn-nodes">Nodes</button>
   <div class="sep"></div>
@@ -72,28 +85,28 @@
         <p><span class="color-dot" style="background:#ffa657"></span><b>Model</b> &mdash; Database/data access layer</p>
         <p><span class="color-dot" style="background:#f778ba"></span><b>Client</b> &mdash; External service clients</p>
         <p><span class="color-dot" style="background:#ff7b72"></span><b>Scheduler</b> &mdash; Background job entry points</p>
-        <p><span class="color-dot" style="background:#a5d6ff"></span><b>Entity</b> &mdash; Database entity definitions</p>
-        <p><span class="color-dot" style="background:#d4a72c"></span><b>Adapter</b> &mdash; dbt project adapters</p>
-        <p><span class="color-dot" style="background:#8b949e"></span><b>Middleware</b> &mdash; Express middleware</p>
-        <p><span class="color-dot" style="background:#56d364"></span><b>Analytics</b> &mdash; Analytics tracking</p>
+        <p><span class="color-dot" style="background:#76e4f7"></span><b>Entity</b> &mdash; Database entity definitions</p>
+        <p><span class="color-dot" style="background:#e3b341"></span><b>Adapter</b> &mdash; dbt project adapters</p>
+        <p><span class="color-dot" style="background:#adbac7"></span><b>Middleware</b> &mdash; Express middleware</p>
+        <p><span class="color-dot" style="background:#2dd4bf"></span><b>Analytics</b> &mdash; Analytics tracking</p>
         <p>Filter by type using the toolbar buttons.</p>
       </div>
     </div>
     <div class="guide-section">
       <button class="guide-toggle" aria-expanded="false"><span class="chevron">&#9654;</span> Edge types</button>
       <div class="guide-content">
-        <p><span style="color:#79c0ff">&#9473;</span> <b>uses_service</b> &mdash; Controller calls a service</p>
-        <p><span style="color:#d2a8ff">&#9473;</span> <b>router_uses_service</b> &mdash; Router calls a service</p>
-        <p><span style="color:#ffa657">&#9473;</span> <b>injects_model</b> &mdash; Service depends on a model</p>
-        <p><span style="color:#f778ba">&#9473;</span> <b>injects_client</b> &mdash; Service depends on a client</p>
-        <p><span style="color:#7ee787">- -</span> <b>injects_service</b> &mdash; Service-to-service (dashed)</p>
-        <p><span style="color:#f47067">- -</span> <b>shares_code</b> &mdash; Code duplication link (dashed)</p>
-        <p><span style="color:#ff7b72">&#9473;</span> <b>scheduler_uses_*</b> &mdash; Scheduler depends on service/client</p>
-        <p><span style="color:#a5d6ff">&#9473;</span> <b>uses_entity</b> &mdash; Model imports entity</p>
-        <p><span style="color:#d4a72c">&#9473;</span> <b>uses_adapter</b> &mdash; Service creates adapter via factory</p>
-        <p><span style="color:#d4a72c">- -</span> <b>extends_adapter</b> &mdash; Adapter inheritance (dashed)</p>
-        <p><span style="color:#8b949e">- -</span> <b>middleware_uses_service</b> &mdash; Middleware calls service (dashed)</p>
-        <p><span style="color:#56d364">- -</span> <b>uses_analytics</b> &mdash; Service uses analytics (dashed)</p>
+        <p><svg class="edge-preview" viewBox="0 0 28 6"><line x1="0" y1="3" x2="28" y2="3" stroke="#79c0ff" stroke-width="2"/></svg> <b>uses_service</b> &mdash; Controller calls a service</p>
+        <p><svg class="edge-preview" viewBox="0 0 28 6"><line x1="0" y1="3" x2="28" y2="3" stroke="#d2a8ff" stroke-width="2"/></svg> <b>router_uses_service</b> &mdash; Router calls a service</p>
+        <p><svg class="edge-preview" viewBox="0 0 28 6"><line x1="0" y1="3" x2="28" y2="3" stroke="#ffa657" stroke-width="2"/></svg> <b>injects_model</b> &mdash; Service depends on a model</p>
+        <p><svg class="edge-preview" viewBox="0 0 28 6"><line x1="0" y1="3" x2="28" y2="3" stroke="#f778ba" stroke-width="2"/></svg> <b>injects_client</b> &mdash; Service depends on a client</p>
+        <p><svg class="edge-preview" viewBox="0 0 28 6"><line x1="0" y1="3" x2="28" y2="3" stroke="#7ee787" stroke-width="2" stroke-dasharray="4,3"/></svg> <b>injects_service</b> &mdash; Service-to-service (dashed)</p>
+        <p><svg class="edge-preview" viewBox="0 0 28 6"><line x1="0" y1="3" x2="28" y2="3" stroke="#f47067" stroke-width="2" stroke-dasharray="4,2"/></svg> <b>shares_code</b> &mdash; Code duplication link (dashed)</p>
+        <p><svg class="edge-preview" viewBox="0 0 28 6"><line x1="0" y1="3" x2="28" y2="3" stroke="#ff7b72" stroke-width="2"/></svg> <b>scheduler_uses_*</b> &mdash; Scheduler depends on service/client</p>
+        <p><svg class="edge-preview" viewBox="0 0 28 6"><line x1="0" y1="3" x2="28" y2="3" stroke="#76e4f7" stroke-width="2"/></svg> <b>uses_entity</b> &mdash; Model imports entity</p>
+        <p><svg class="edge-preview" viewBox="0 0 28 6"><line x1="0" y1="3" x2="28" y2="3" stroke="#e3b341" stroke-width="2"/></svg> <b>uses_adapter</b> &mdash; Service creates adapter via factory</p>
+        <p><svg class="edge-preview" viewBox="0 0 28 6"><line x1="0" y1="3" x2="28" y2="3" stroke="#e3b341" stroke-width="2" stroke-dasharray="6,3"/></svg> <b>extends_adapter</b> &mdash; Adapter inheritance (dashed)</p>
+        <p><svg class="edge-preview" viewBox="0 0 28 6"><line x1="0" y1="3" x2="28" y2="3" stroke="#adbac7" stroke-width="2" stroke-dasharray="3,2"/></svg> <b>middleware_uses_service</b> &mdash; Middleware calls service (dashed)</p>
+        <p><svg class="edge-preview" viewBox="0 0 28 6"><line x1="0" y1="3" x2="28" y2="3" stroke="#2dd4bf" stroke-width="2" stroke-dasharray="4,3"/></svg> <b>uses_analytics</b> &mdash; Service uses analytics (dashed)</p>
       </div>
     </div>
     <div class="guide-section">
@@ -144,7 +157,7 @@
   </div>
 </div>
 <div id="tooltip"></div>
-<svg></svg>
+<svg id="graph"></svg>
 
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <script>

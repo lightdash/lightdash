@@ -3,8 +3,8 @@ const raw = /*__DATA__*/null;
 const hasSentry = raw.nodes.some(n => n.sentryActivity);
 if (!hasSentry) { document.querySelectorAll('#size-mode option').forEach(o => { if (o.value === 'traffic' || o.value === 'errors') o.remove(); }); }
 
-const color = { controller: '#79c0ff', router: '#d2a8ff', service: '#7ee787', model: '#ffa657', client: '#f778ba', scheduler: '#ff7b72', entity: '#a5d6ff', adapter: '#d4a72c', middleware: '#8b949e', analytics: '#56d364' };
-const colorDark = { controller: '#1f6feb', router: '#8957e5', service: '#238636', model: '#9e6a03', client: '#da3633', scheduler: '#da3633', entity: '#388bfd', adapter: '#9e6a03', middleware: '#484f58', analytics: '#238636' };
+const color = { controller: '#79c0ff', router: '#d2a8ff', service: '#7ee787', model: '#ffa657', client: '#f778ba', scheduler: '#ff7b72', entity: '#76e4f7', adapter: '#e3b341', middleware: '#adbac7', analytics: '#2dd4bf' };
+const colorDark = { controller: '#1f6feb', router: '#8957e5', service: '#238636', model: '#9e6a03', client: '#da3633', scheduler: '#da3633', entity: '#0e7490', adapter: '#9e6a03', middleware: '#636e7b', analytics: '#0f766e' };
 
 const W = window.innerWidth, H = window.innerHeight;
 
@@ -78,7 +78,7 @@ raw.edges.forEach(e => {
   incoming[e.to].push({ id: e.from, type: e.type });
 });
 
-const svg = d3.select('svg').attr('width', W).attr('height', H);
+const svg = d3.select('#graph').attr('width', W).attr('height', H);
 
 // Arrowhead markers (5 edge types × dim/bright)
 const defs = svg.append('defs');
@@ -91,12 +91,25 @@ const edgeTypes = [
   { type: 'shares_code', color: '#f47067' },
   { type: 'scheduler_uses_service', color: '#ff7b72' },
   { type: 'scheduler_uses_client', color: '#ff7b72' },
-  { type: 'uses_entity', color: '#a5d6ff' },
-  { type: 'uses_adapter', color: '#d4a72c' },
-  { type: 'extends_adapter', color: '#d4a72c' },
-  { type: 'middleware_uses_service', color: '#8b949e' },
-  { type: 'uses_analytics', color: '#56d364' },
+  { type: 'uses_entity', color: '#76e4f7' },
+  { type: 'uses_adapter', color: '#e3b341' },
+  { type: 'extends_adapter', color: '#e3b341' },
+  { type: 'middleware_uses_service', color: '#adbac7' },
+  { type: 'uses_analytics', color: '#2dd4bf' },
 ];
+const coreEdgeTypes = new Set(['uses_service', 'router_uses_service', 'injects_model', 'injects_client', 'injects_service', 'uses_entity', 'uses_adapter', 'uses_analytics']);
+const defaultEdgeVisibility = {};
+edgeTypes.forEach(({ type }) => { defaultEdgeVisibility[type] = coreEdgeTypes.has(type); });
+let edgeVisibility;
+try {
+  const stored = JSON.parse(localStorage.getItem('dep-graph-edge-visibility'));
+  edgeVisibility = { ...defaultEdgeVisibility };
+  if (stored) Object.keys(stored).forEach(k => { if (k in edgeVisibility) edgeVisibility[k] = stored[k]; });
+} catch { edgeVisibility = { ...defaultEdgeVisibility }; }
+function saveEdgeVisibility() { localStorage.setItem('dep-graph-edge-visibility', JSON.stringify(edgeVisibility)); }
+
+let eeVisible = true;
+
 edgeTypes.forEach(({ type, color: c }) => {
   [{ suffix: '', opacity: 0.15, w: 8, h: 6 }, { suffix: 'hi-', opacity: 0.9, w: 5, h: 3.75 }].forEach(({ suffix, opacity, w, h }) => {
     defs.append('marker')
@@ -220,9 +233,58 @@ function applyGroupLayout() {
 
 const hullLayer = g.insert('g', ':first-child').attr('class', 'hull-layer');
 
+const edgeColorMap = {};
+edgeTypes.forEach(({ type, color: c }) => { edgeColorMap[type] = c; });
+
+const linkHit = g.append('g').selectAll('line').data(links).join('line')
+  .attr('class', 'link-hit')
+  .attr('stroke', 'transparent').attr('stroke-width', 12).attr('fill', 'none');
+
 const link = g.append('g').selectAll('line').data(links).join('line')
   .attr('class', d => 'link link-' + d.type)
   .attr('marker-end', d => 'url(#arrow-' + d.type + ')');
+
+const linkNodes = link.nodes();
+linkHit.on('mouseover', function(ev, d) {
+  const i = linkHit.nodes().indexOf(this);
+  if (i >= 0 && linkNodes[i].classList.contains('dimmed')) return;
+  const src = typeof d.source === 'object' ? d.source.id : nodes[d.source].id;
+  const tgt = typeof d.target === 'object' ? d.target.id : nodes[d.target].id;
+  const c = edgeColorMap[d.type] || '#8b949e';
+  tip.html('<span style="color:' + c + ';font-weight:600">' + d.type + '</span><br><span style="color:#8b949e">' + src + ' → ' + tgt + '</span>')
+    .style('display', 'block');
+})
+.on('mousemove', ev => {
+  const x = Math.min(ev.clientX + 16, W - 400);
+  tip.style('left', x + 'px').style('top', (ev.clientY - 10) + 'px');
+})
+.on('mouseout', () => tip.style('display', 'none'));
+
+function isEeHidden(l) {
+  if (eeVisible) return false;
+  const s = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
+  const t = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
+  const sNode = nodes.find(n => n.id === s);
+  const tNode = nodes.find(n => n.id === t);
+  return (sNode && sNode.ee) || (tNode && tNode.ee);
+}
+
+function applyEdgeDisplay() {
+  link.each(function(l) {
+    d3.select(this).style('display', (!edgeVisibility[l.type] || isEeHidden(l)) ? 'none' : null);
+  });
+  linkHit.each(function(l) {
+    d3.select(this).style('display', (!edgeVisibility[l.type] || isEeHidden(l)) ? 'none' : null);
+  });
+  updateEdgeBadge();
+}
+
+function updateEdgeBadge() {
+  const total = edgeTypes.length;
+  const visible = edgeTypes.filter(({ type }) => edgeVisibility[type]).length;
+  document.getElementById('edge-badge').textContent = visible + '/' + total;
+  document.getElementById('btn-edges').classList.toggle('active', visible > 0);
+}
 
 let dragged = false;
 const node = g.append('g').selectAll('g').data(nodes).join('g')
@@ -648,6 +710,10 @@ document.getElementById('btn-reset').addEventListener('click', () => {
     document.getElementById('btn-nodes').classList.add('active');
     applyNodeVisibility();
   }
+  edgeVisibility = { ...defaultEdgeVisibility };
+  saveEdgeVisibility();
+  buildEdgePanelItems();
+  applyEdgeDisplay();
   applyGroupLayout();
   svg.transition().duration(500).call(zoomBehavior.transform, d3.zoomIdentity);
 });
@@ -694,32 +760,25 @@ const hasEe = nodes.some(n => n.ee);
 if (hasEe) {
   document.getElementById('btn-ee').style.display = '';
   document.getElementById('sep-ee').style.display = '';
-  let eeVisible = true;
   const eeBtn = document.getElementById('btn-ee');
   eeBtn.classList.add('active');
-  function applyEeVisibility() {
+  function applyEeNodeVisibility() {
     node.each(function(d) {
       if (d.ee) {
         d3.select(this).style('display', eeVisible ? null : 'none');
       }
     });
-    link.each(function(l) {
-      const s = typeof l.source === 'object' ? l.source.id : nodes[l.source].id;
-      const t = typeof l.target === 'object' ? l.target.id : nodes[l.target].id;
-      const sNode = nodes.find(n => n.id === s);
-      const tNode = nodes.find(n => n.id === t);
-      if ((sNode && sNode.ee) || (tNode && tNode.ee)) {
-        d3.select(this).style('display', eeVisible ? null : 'none');
-      }
-    });
+    applyEdgeDisplay();
   }
-  applyEeVisibility();
+  applyEeNodeVisibility();
   eeBtn.addEventListener('click', () => {
     eeVisible = !eeVisible;
     eeBtn.classList.toggle('active', eeVisible);
-    applyEeVisibility();
+    applyEeNodeVisibility();
   });
 }
+
+applyEdgeDisplay();
 
 function padHull(points, pad) {
   if (points.length < 3) return points;
@@ -756,6 +815,15 @@ sim.on('tick', () => {
     const r = d.target.r || 6;
     const el = d3.select(this);
     el.attr('x1', d.source.x).attr('y1', d.source.y)
+      .attr('x2', d.target.x - dx / len * r)
+      .attr('y2', d.target.y - dy / len * r);
+  });
+  linkHit.each(function(d) {
+    const dx = d.target.x - d.source.x;
+    const dy = d.target.y - d.source.y;
+    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+    const r = d.target.r || 6;
+    d3.select(this).attr('x1', d.source.x).attr('y1', d.source.y)
       .attr('x2', d.target.x - dx / len * r)
       .attr('y2', d.target.y - dy / len * r);
   });
@@ -837,4 +905,64 @@ sim.on('tick', () => {
         .text(layerLabels[type]);
     });
   }
+});
+
+// Edge visibility panel
+const edgePanel = document.getElementById('edge-panel');
+const edgePanelList = document.getElementById('edge-panel-list');
+const edgeBtn = document.getElementById('btn-edges');
+
+function buildEdgePanelItems() {
+  edgePanelList.innerHTML = '';
+  edgeTypes.forEach(({ type, color: c }) => {
+    const item = document.createElement('div');
+    item.className = 'edge-panel-item' + (edgeVisibility[type] ? ' checked' : '');
+    item.innerHTML = '<div class="edge-panel-check">✓</div>'
+      + '<div class="edge-panel-dot" style="background:' + c + '"></div>'
+      + '<span>' + type + '</span>';
+    item.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      edgeVisibility[type] = !edgeVisibility[type];
+      item.classList.toggle('checked', edgeVisibility[type]);
+      saveEdgeVisibility();
+      applyEdgeDisplay();
+    });
+    edgePanelList.appendChild(item);
+  });
+}
+buildEdgePanelItems();
+
+edgeBtn.addEventListener('click', (ev) => {
+  ev.stopPropagation();
+  const isOpen = edgePanel.classList.contains('open');
+  if (isOpen) { edgePanel.classList.remove('open'); return; }
+  const rect = edgeBtn.getBoundingClientRect();
+  edgePanel.style.top = (rect.bottom + 6) + 'px';
+  edgePanel.style.left = Math.max(8, rect.left) + 'px';
+  edgePanel.classList.add('open');
+});
+
+edgePanel.addEventListener('click', (ev) => { ev.stopPropagation(); });
+
+document.addEventListener('click', () => { edgePanel.classList.remove('open'); });
+
+document.getElementById('edge-show-all').addEventListener('click', () => {
+  edgeTypes.forEach(({ type }) => { edgeVisibility[type] = true; });
+  saveEdgeVisibility();
+  buildEdgePanelItems();
+  applyEdgeDisplay();
+});
+
+document.getElementById('edge-show-core').addEventListener('click', () => {
+  edgeVisibility = { ...defaultEdgeVisibility };
+  saveEdgeVisibility();
+  buildEdgePanelItems();
+  applyEdgeDisplay();
+});
+
+document.getElementById('edge-hide-all').addEventListener('click', () => {
+  edgeTypes.forEach(({ type }) => { edgeVisibility[type] = false; });
+  saveEdgeVisibility();
+  buildEdgePanelItems();
+  applyEdgeDisplay();
 });
