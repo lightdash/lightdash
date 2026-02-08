@@ -298,8 +298,8 @@ let dragged = false;
 const node = g.append('g').selectAll('g').data(nodes).join('g')
   .attr('class', 'node')
   .call(d3.drag()
-    .on('start', (e, d) => { dragged = false; d.fx = d.x; d.fy = d.y; })
-    .on('drag', (e, d) => { dragged = true; if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = e.x; d.fy = e.y; })
+    .on('start', (e, d) => { dragged = false; if (!e.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+    .on('drag', (e, d) => { dragged = true; d.fx = e.x; d.fy = e.y; })
     .on('end', (e, d) => { if (!e.active) sim.alphaTarget(0); if (!dragged) { d.fx = null; d.fy = null; } }));
 
 node.append('circle')
