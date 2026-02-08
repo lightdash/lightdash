@@ -706,7 +706,6 @@ const Dashboard: FC = () => {
                         handleDeleteTile={handleDeleteTile}
                         handleBatchDeleteTiles={handleBatchDeleteTiles}
                         handleEditTile={handleEditTiles}
-                        gridWidth={gridWidth}
                         setGridWidth={setGridWidth}
                         setAddingTab={setAddingTab}
                     />

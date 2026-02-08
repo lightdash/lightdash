@@ -58,7 +58,6 @@ type DashboardTabsProps = {
     handleBatchDeleteTiles: (tile: IDashboard['tiles'][number][]) => void;
     handleEditTile: (tiles: IDashboard['tiles'][number]) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
-    gridWidth: number;
     setGridWidth: (value: React.SetStateAction<number>) => void;
 
     // parameters
@@ -85,7 +84,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     handleDeleteTile,
     handleBatchDeleteTiles,
     handleEditTile,
-    gridWidth,
     setGridWidth,
     setAddingTab,
     // parameters
@@ -109,7 +107,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     const gridLineStyles = useGridStyles({
         ref: gridWrapperRef,
-        width: gridWidth,
         cols: currentCols,
     });
 
