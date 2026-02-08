@@ -390,6 +390,25 @@ function updateHeatmapLegend() {
   else { labels[0].textContent = 'Healthy'; labels[1].textContent = 'Hot'; bar.style.background = 'linear-gradient(to right, #3fb950, #d29922, #f47067)'; }
 }
 
+const sizeDescriptions = {
+  edges: 'Larger nodes have more dependencies',
+  lines: 'Larger nodes have more lines of code',
+  cyclomatic: 'Larger nodes have more execution paths through the code',
+  cognitive: 'Larger nodes are harder for humans to read and understand',
+  commits: 'Larger nodes have been changed more frequently',
+  authors: 'Larger nodes have been touched by more contributors',
+  churn: 'Larger nodes had more recent changes in the last 6 months',
+  health: 'Larger nodes score worse on a composite of coupling, complexity, and churn',
+  duplication: 'Larger nodes have more duplicated code blocks',
+  traffic: 'Larger nodes handle more production requests (Sentry, 30 days)',
+  errors: 'Larger nodes have more production errors (Sentry, 30 days)',
+};
+const sizeDescEl = document.getElementById('size-description');
+function updateSizeDescription() {
+  sizeDescEl.textContent = sizeDescriptions[document.getElementById('size-mode').value] || '';
+}
+updateSizeDescription();
+
 document.getElementById('size-mode').addEventListener('change', () => {
   nodes.forEach(n => { n.r = calcRadius(n); });
   node.select('circle').attr('r', d => d.r);
@@ -401,6 +420,7 @@ document.getElementById('size-mode').addEventListener('change', () => {
     .attr('fill', d => getNodeColor(d))
     .attr('stroke', d => getNodeStroke(d));
   updateHeatmapLegend();
+  updateSizeDescription();
 });
 
 function getConnected(id, depth) {
