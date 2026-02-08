@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Lightdash Backend — Dependency Graph</title>
+<style>
+<!-- STYLES -->
+</style>
+</head>
+<body>
+<div id="controls">
+  <input type="text" id="search" placeholder="Search...">
+  <div class="sep"></div>
+  <button class="btn active" data-filter="all">All</button>
+  <button class="btn" data-filter="controller">Controllers</button>
+  <button class="btn" data-filter="router">Routers</button>
+  <button class="btn" data-filter="service">Services</button>
+  <button class="btn" data-filter="model">Models</button>
+  <button class="btn" data-filter="client">Clients</button>
+  <div class="sep"></div>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="How many hops from the selected node to highlight">Depth <input type="number" id="depth" value="2" min="1" max="10" style="width:42px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;text-align:center;"></label>
+  <div class="sep"></div>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;" title="What drives node size and color">Size <select id="size-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="edges">Edges</option><option value="lines">Lines</option><option value="cyclomatic">Cyclomatic</option><option value="cognitive">Cognitive</option><option value="commits">Commits</option><option value="authors">Authors</option><option value="churn">Churn (6mo)</option><option value="health">Health</option><option value="duplication">Duplication</option><option value="traffic">Traffic</option><option value="errors">Errors</option></select></label>
+  <div class="sep"></div>
+  <button class="btn active" id="btn-arrows">Arrows</button>
+  <div class="sep"></div>
+  <label class="stat" style="display:flex;align-items:center;gap:4px;">Group <select id="group-mode" style="background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:3px 6px;border-radius:4px;font-size:12px;"><option value="domain">Domain</option><option value="layer">Layer</option></select></label>
+  <button class="btn active" id="btn-nodes">Nodes</button>
+  <div class="sep"></div>
+  <button class="btn" id="btn-ee" style="display:none">EE</button>
+  <div class="sep" id="sep-ee" style="display:none"></div>
+  <button class="btn" id="btn-reset">Reset</button>
+  <div class="sep"></div>
+  <button class="btn" id="btn-guide" title="How to use this graph">?</button>
+</div>
+<div id="guide">
+  <div class="guide-header">
+    <h2>How to use this graph</h2>
+    <button class="guide-close" id="guide-close">&times;</button>
+  </div>
+  <div class="guide-body">
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="true"><span class="chevron">&#9654;</span> Navigation</button>
+      <div class="guide-content open">
+        <p><b>Pan</b> &mdash; Click and drag the background</p>
+        <p><b>Zoom</b> &mdash; Scroll wheel or pinch</p>
+        <p><b>Move a node</b> &mdash; Drag it to reposition</p>
+        <p><b>Reset view</b> &mdash; Click the <kbd>Reset</kbd> button</p>
+      </div>
+    </div>
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="true"><span class="chevron">&#9654;</span> Selecting &amp; exploring</button>
+      <div class="guide-content open">
+        <p><b>Click a node</b> to select it. Its dependencies are highlighted with animated edges that ripple outward.</p>
+        <p><b>Depth</b> controls how many hops away from the selected node are shown (1&ndash;10).</p>
+        <p><b>Click the background</b> to deselect.</p>
+        <p><b>Search</b> filters nodes by name &mdash; matching nodes and their direct connections stay visible.</p>
+      </div>
+    </div>
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="false"><span class="chevron">&#9654;</span> Node types &amp; colors</button>
+      <div class="guide-content">
+        <p><span class="color-dot" style="background:#79c0ff"></span><b>Controller</b> &mdash; HTTP/API entry points</p>
+        <p><span class="color-dot" style="background:#d2a8ff"></span><b>Router</b> &mdash; Route definitions</p>
+        <p><span class="color-dot" style="background:#7ee787"></span><b>Service</b> &mdash; Business logic layer</p>
+        <p><span class="color-dot" style="background:#ffa657"></span><b>Model</b> &mdash; Database/data access layer</p>
+        <p><span class="color-dot" style="background:#f778ba"></span><b>Client</b> &mdash; External service clients</p>
+        <p>Filter by type using the toolbar buttons.</p>
+      </div>
+    </div>
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="false"><span class="chevron">&#9654;</span> Edge types</button>
+      <div class="guide-content">
+        <p><span style="color:#79c0ff">&#9473;</span> <b>uses_service</b> &mdash; Controller calls a service</p>
+        <p><span style="color:#d2a8ff">&#9473;</span> <b>router_uses_service</b> &mdash; Router calls a service</p>
+        <p><span style="color:#ffa657">&#9473;</span> <b>injects_model</b> &mdash; Service depends on a model</p>
+        <p><span style="color:#f778ba">&#9473;</span> <b>injects_client</b> &mdash; Service depends on a client</p>
+        <p><span style="color:#7ee787">- -</span> <b>injects_service</b> &mdash; Service-to-service (dashed)</p>
+        <p><span style="color:#f47067">- -</span> <b>shares_code</b> &mdash; Code duplication link (dashed)</p>
+      </div>
+    </div>
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="false"><span class="chevron">&#9654;</span> Size modes</button>
+      <div class="guide-content">
+        <p><b>Size</b> controls node radius and automatically sets an appropriate color scheme:</p>
+        <p>&bull; <b>Edges</b> &mdash; Dependency count (colored by type)</p>
+        <p>&bull; <b>Lines</b> &mdash; Source lines of code (colored by type)</p>
+        <p>&bull; <b>Cyclomatic</b> &mdash; Number of execution paths (colored by type)</p>
+        <p>&bull; <b>Cognitive</b> &mdash; Human readability difficulty (colored by type)</p>
+        <p>&bull; <b>Commits / Authors / Churn</b> &mdash; Git activity (colored by type)</p>
+        <p>&bull; <b>Health</b> &mdash; Composite score, green&#8594;red heatmap</p>
+        <p>&bull; <b>Duplication</b> &mdash; Shared code blocks, green&#8594;red heatmap</p>
+        <p>&bull; <b>Traffic</b> &mdash; Sentry 30d requests, yellow&#8594;red heatmap (requires --sentry)</p>
+        <p>&bull; <b>Errors</b> &mdash; Sentry 30d errors, yellow&#8594;red heatmap (requires --sentry)</p>
+      </div>
+    </div>
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="false"><span class="chevron">&#9654;</span> Domains &amp; toggles</button>
+      <div class="guide-content">
+        <p><b>Domains</b> groups nodes by their domain directory, drawing a hull boundary around each group. Toggle off for a flat layout.</p>
+        <p><b>Nodes</b> toggles node and edge visibility. Turn off to see only the domain regions &mdash; useful for a high-level architectural overview.</p>
+        <p><b>Arrows</b> shows dependency direction on highlighted edges.</p>
+        <p><b>EE</b> (if visible) toggles enterprise-edition nodes.</p>
+      </div>
+    </div>
+    <div class="guide-section">
+      <button class="guide-toggle" aria-expanded="false"><span class="chevron">&#9654;</span> Tooltips &amp; health score</button>
+      <div class="guide-content">
+        <p><b>Hover any node</b> to see its metrics: edges, lines of code, complexity scores, git churn, recent commits, and duplication info.</p>
+        <p>The <b>health score</b> (0&ndash;100) is a composite: 30% coupling, 25% complexity, 30% churn, 15% commit frequency. Lower is better.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="detail">
+  <div class="detail-header">
+    <h2 id="detail-title"></h2>
+    <button class="detail-close" id="detail-close">&times;</button>
+  </div>
+  <div class="detail-body" id="detail-body"></div>
+</div>
+<div id="legend">
+  <!-- LEGEND -->
+  <div id="heatmap-legend">
+    <div class="heatmap-labels"><span>Healthy</span><span>Hot</span></div>
+    <div class="heatmap-bar"></div>
+  </div>
+</div>
+<div id="tooltip"></div>
+<svg></svg>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+<!-- SCRIPT -->
+</script>
+</body>
+</html>
