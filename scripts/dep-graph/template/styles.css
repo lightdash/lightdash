@@ -66,6 +66,13 @@ svg { width: 100vw; height: 100vh; }
 .domain-only .domain-hull { fill-opacity: 0.12 !important; stroke-opacity: 0.4 !important; stroke-width: 1.5 !important; }
 .domain-only .domain-label { fill-opacity: 0.9 !important; font-size: 14px !important; }
 
+#size-description {
+  position: fixed; top: 56px; right: 16px; z-index: 9;
+  font-size: 12px; color: #8b949e; max-width: 300px;
+  text-align: right; line-height: 1.4;
+  transition: opacity 0.2s;
+}
+
 #heatmap-legend {
   display: none; flex-direction: column; gap: 4px; margin-top: 8px;
   padding-top: 8px; border-top: 1px solid #21262d;
