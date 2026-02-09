@@ -1,3 +1,10 @@
+# [0.2445.0](https://github.com/lightdash/lightdash/compare/0.2444.2...0.2445.0) (2026-02-09)
+
+
+### Features
+
+* admin email notifications for role and project connection changes ([#20082](https://github.com/lightdash/lightdash/issues/20082)) ([22ab16d](https://github.com/lightdash/lightdash/commit/22ab16dfaec97fdf9f82c0f9d4e34f3592419f0b))
+
 ## [0.2444.2](https://github.com/lightdash/lightdash/compare/0.2444.1...0.2444.2) (2026-02-09)
 
 
