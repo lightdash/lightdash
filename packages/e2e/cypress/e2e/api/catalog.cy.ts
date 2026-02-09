@@ -1,5 +1,6 @@
-import { SEED_PROJECT, type CatalogField } from '@lightdash/common';
+import { SEED_PROJECT, type CatalogField, type Space } from '@lightdash/common';
 import { chartMock } from '../../support/mocks';
+import { createSpace, deleteSpace } from '../../support/spaceUtils';
 import { createChartAndUpdateDashboard, createDashboard } from './dashboard.cy';
 
 const apiUrl = '/api/v1';
@@ -326,6 +327,60 @@ describe('Lightdash analytics', () => {
             );
             expect(chart).to.have.property('uuid');
             expect(chart).to.have.property('spaceUuid');
+        });
+    });
+});
+
+describe('Lightdash analytics - space access filtering', () => {
+    const projectUuid = SEED_PROJECT.project_uuid;
+    let privateSpace: Space;
+    let privateChartUuid: string;
+    let editorEmail: string;
+
+    before(() => {
+        cy.login();
+
+        createSpace({
+            name: `Private catalog test ${Date.now()}`,
+            projectUuid,
+            isPrivate: true,
+        }).then((space) => {
+            privateSpace = space;
+
+            cy.createChartInSpace(projectUuid, {
+                ...chartMock,
+                name: `Private chart ${Date.now()}`,
+                spaceUuid: space.uuid,
+                dashboardUuid: null,
+            }).then((chart) => {
+                privateChartUuid = chart.uuid;
+            });
+        });
+
+        cy.loginWithPermissions('member', [
+            { role: 'editor', projectUuid },
+        ]).then((email) => {
+            editorEmail = email as unknown as string;
+        });
+    });
+
+    after(() => {
+        cy.login();
+        deleteSpace(privateSpace.uuid, projectUuid);
+    });
+
+    it('Should not return charts from private spaces the user cannot access', () => {
+        cy.loginWithEmail(editorEmail);
+
+        cy.request(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog/${chartMock.tableName}/analytics`,
+        ).then((resp) => {
+            expect(resp.status).to.eq(200);
+
+            const chartUuids = resp.body.results.charts.map(
+                (c: { uuid: string }) => c.uuid,
+            );
+            expect(chartUuids).to.not.include(privateChartUuid);
         });
     });
 });

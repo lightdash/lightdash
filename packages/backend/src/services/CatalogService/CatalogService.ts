@@ -15,7 +15,6 @@ import {
     DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
     Explore,
     ExploreError,
-    FeatureFlags,
     FieldType,
     ForbiddenError,
     InlineErrorType,
@@ -59,7 +58,6 @@ import {
 } from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ChangesetModel } from '../../models/ChangesetModel';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -67,6 +65,7 @@ import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     doesExploreMatchRequiredAttributes,
     getFilteredExplore,
@@ -83,7 +82,7 @@ export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     spaceModel: SpaceModel;
     tagsModel: TagsModel;
     changesetModel: ChangesetModel;
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class CatalogService<
@@ -107,7 +106,7 @@ export class CatalogService<
 
     changesetModel: ChangesetModel;
 
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 
     constructor({
         lightdashConfig,
@@ -119,7 +118,7 @@ export class CatalogService<
         spaceModel,
         tagsModel,
         changesetModel,
-        featureFlagModel,
+        spacePermissionService,
     }: CatalogArguments<T>) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -131,7 +130,7 @@ export class CatalogService<
         this.spaceModel = spaceModel;
         this.tagsModel = tagsModel;
         this.changesetModel = changesetModel;
-        this.featureFlagModel = featureFlagModel;
+        this.spacePermissionService = spacePermissionService;
     }
 
     private static async getCatalogFields(
@@ -739,34 +738,12 @@ export class CatalogService<
         const spaces = await this.spaceModel.find({ projectUuid });
         const spaceUuids = spaces.map((s) => s.uuid);
 
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-                organizationName: user.organizationName,
-            },
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaceUuids,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
-
-        const allowedSpaceUuids = spaces
-            .filter((space) =>
-                user.ability.can(
-                    'view',
-                    subject('Space', {
-                        organizationUuid: space.organizationUuid,
-                        projectUuid,
-                        isPrivate: space.isPrivate,
-                        access: spacesAccess[space.uuid] ?? [],
-                    }),
-                ),
-            )
-            .map(({ uuid }) => uuid);
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaceUuids,
+            );
 
         return chatSummaries.filter((chart) =>
             allowedSpaceUuids.includes(chart.spaceUuid),
