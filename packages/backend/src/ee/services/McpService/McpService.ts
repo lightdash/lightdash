@@ -1571,6 +1571,45 @@ export class McpService extends BaseService {
         return this.mcpServer;
     }
 
+    /**
+     * Creates a new McpServer instance with all handlers registered.
+     * Required for SDK 1.26.0+ stateful mode where each session needs its own server.
+     * See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
+     */
+    public createServer(): McpServer {
+        const newServer = Sentry.wrapMcpServerWithSentry(
+            new McpServer({
+                name: 'Lightdash MCP Server',
+                version: VERSION,
+                websiteUrl: this.lightdashConfig.siteUrl,
+                icons: [
+                    {
+                        src: `${this.lightdashConfig.siteUrl}/logo-icon.svg`,
+                        mimeType: 'image/svg+xml',
+                    },
+                    {
+                        src: `${this.lightdashConfig.siteUrl}/favicon-32x32.png`,
+                        mimeType: 'image/png',
+                        sizes: ['32x32'],
+                    },
+                    {
+                        src: `${this.lightdashConfig.siteUrl}/apple-touch-icon.png`,
+                        mimeType: 'image/png',
+                        sizes: ['152x152'],
+                    },
+                ],
+            }),
+        );
+
+        // Temporarily swap the server to register handlers on the new instance
+        const originalServer = this.mcpServer;
+        this.mcpServer = newServer;
+        this.setupHandlers();
+        this.mcpServer = originalServer;
+
+        return newServer;
+    }
+
     // eslint-disable-next-line class-methods-use-this
     public getAccount(context: McpProtocolContext): {
         user: SessionUser;
