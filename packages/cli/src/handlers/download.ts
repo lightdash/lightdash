@@ -57,19 +57,30 @@ const getDownloadFolder = (customPath?: string): string => {
     It can be slugs, uuids or urls
     We remove the URL part (if any) and return a list of `slugs or uuids` that can be used in the API call
 */
-const parseContentFilters = (items: string[]): string => {
-    if (items.length === 0) return '';
+const MAX_IDS_PER_REQUEST = 20;
 
-    const parsedItems = items.map((item) => {
+const normalizeContentFilters = (items: string[]): string[] =>
+    items.map((item) => {
         const uuidMatch = item.match(
             /https?:\/\/.+\/(?:saved|dashboards)\/([a-f0-9-]+)/i,
         );
         return uuidMatch ? uuidMatch[1] : item;
     });
 
+const buildContentFilters = (items: string[]): string => {
+    if (items.length === 0) return '';
     return `?${new URLSearchParams(
-        parsedItems.map((item) => ['ids', item] as [string, string]),
+        items.map((item) => ['ids', item] as [string, string]),
     ).toString()}`;
+};
+
+const chunkArray = <T>(items: T[], size: number): T[][] => {
+    if (items.length === 0) return [[]];
+    const chunks: T[][] = [];
+    for (let i = 0; i < items.length; i += size) {
+        chunks.push(items.slice(i, i + size));
+    }
+    return chunks;
 };
 
 // TODO: translations should be partials of ChartAsCode and DashboardAsCode
@@ -358,109 +369,117 @@ export const downloadContent = async (
     nested: boolean = false,
 ): Promise<[number, string[]]> => {
     const spinner = GlobalState.getActiveSpinner();
-    const contentFilters = parseContentFilters(ids);
+    const normalizedIds = normalizeContentFilters(ids);
+    const idBatches = chunkArray(normalizedIds, MAX_IDS_PER_REQUEST);
     const folderScheme: FolderScheme = nested ? 'nested' : 'flat';
     const config = getContentTypeConfig(type, projectId);
 
-    let offset = 0;
     let total = 0;
     let chartSlugs: string[] = [];
 
-    do {
-        GlobalState.debug(
-            `Downloading ${config.displayName} with offset "${offset}" and filters "${contentFilters}"`,
-        );
+    for (const batch of idBatches) {
+        const contentFilters = buildContentFilters(batch);
+        let offset = 0;
+        let batchTotal = 0;
 
-        const commonParams = config.supportsLanguageMap
-            ? `offset=${offset}&languageMap=${languageMap}`
-            : `offset=${offset}`;
-        const queryParams = contentFilters
-            ? `${contentFilters}&${commonParams}`
-            : `?${commonParams}`;
-
-        const results = await lightdashApi<
-            | ApiChartAsCodeListResponse['results']
-            | ApiDashboardAsCodeListResponse['results']
-            | ApiSqlChartAsCodeListResponse['results']
-        >({
-            method: 'GET',
-            url: `${config.endpoint}${queryParams}`,
-            body: undefined,
-        });
-
-        spinner?.start(
-            `Downloaded ${results.offset} of ${results.total} ${config.displayName}`,
-        );
-
-        // For the same chart slug, we run the code for saved charts and sql chart
-        // so we are going to get more false positives here, so we keep it on the debug log
-        results.missingIds.forEach((missingId) => {
+        do {
             GlobalState.debug(
-                `\nNo ${config.displayName} with id "${missingId}"`,
+                `Downloading ${config.displayName} with offset "${offset}" and filters "${contentFilters}"`,
             );
-        });
 
-        // Write content based on type
-        if ('sqlCharts' in results) {
-            const sqlChartsBySpace = groupBySpace(results.sqlCharts);
-            for (const [spaceSlug, sqlChartsInSpace] of Object.entries(
-                sqlChartsBySpace,
-            )) {
-                await writeSpaceContent({
-                    projectName,
-                    spaceSlug,
-                    folder: 'charts',
-                    contentType: 'sqlChart',
-                    contentInSpace: sqlChartsInSpace,
-                    contentAsCode: results,
-                    customPath,
-                    languageMap,
-                    folderScheme,
-                });
-            }
-        } else if ('dashboards' in results) {
-            const dashboardsBySpace = groupBySpace(results.dashboards);
-            for (const [spaceSlug, dashboardsInSpace] of Object.entries(
-                dashboardsBySpace,
-            )) {
-                await writeSpaceContent({
-                    projectName,
-                    spaceSlug,
-                    folder: 'dashboards',
-                    contentType: 'dashboard',
-                    contentInSpace: dashboardsInSpace,
-                    contentAsCode: results,
-                    customPath,
-                    languageMap,
-                    folderScheme,
-                });
-            }
-            chartSlugs = [
-                ...chartSlugs,
-                ...extractChartSlugsFromDashboards(results.dashboards),
-            ];
-        } else {
-            const chartsBySpace = groupBySpace(results.charts);
-            for (const [spaceSlug, chartsInSpace] of Object.entries(
-                chartsBySpace,
-            )) {
-                await writeSpaceContent({
-                    projectName,
-                    spaceSlug,
-                    folder: 'charts',
-                    contentType: 'chart',
-                    contentInSpace: chartsInSpace,
-                    contentAsCode: results,
-                    customPath,
-                    languageMap,
-                    folderScheme,
-                });
-            }
-        }
+            const commonParams = config.supportsLanguageMap
+                ? `offset=${offset}&languageMap=${languageMap}`
+                : `offset=${offset}`;
+            const queryParams = contentFilters
+                ? `${contentFilters}&${commonParams}`
+                : `?${commonParams}`;
 
-        offset = results.offset;
-        total = results.total;
-    } while (offset < total);
+            const results = await lightdashApi<
+                | ApiChartAsCodeListResponse['results']
+                | ApiDashboardAsCodeListResponse['results']
+                | ApiSqlChartAsCodeListResponse['results']
+            >({
+                method: 'GET',
+                url: `${config.endpoint}${queryParams}`,
+                body: undefined,
+            });
+
+            spinner?.start(
+                `Downloaded ${results.offset} of ${results.total} ${config.displayName}`,
+            );
+
+            // For the same chart slug, we run the code for saved charts and sql chart
+            // so we are going to get more false positives here, so we keep it on the debug log
+            results.missingIds.forEach((missingId) => {
+                GlobalState.debug(
+                    `\nNo ${config.displayName} with id "${missingId}"`,
+                );
+            });
+
+            // Write content based on type
+            if ('sqlCharts' in results) {
+                const sqlChartsBySpace = groupBySpace(results.sqlCharts);
+                for (const [spaceSlug, sqlChartsInSpace] of Object.entries(
+                    sqlChartsBySpace,
+                )) {
+                    await writeSpaceContent({
+                        projectName,
+                        spaceSlug,
+                        folder: 'charts',
+                        contentType: 'sqlChart',
+                        contentInSpace: sqlChartsInSpace,
+                        contentAsCode: results,
+                        customPath,
+                        languageMap,
+                        folderScheme,
+                    });
+                }
+            } else if ('dashboards' in results) {
+                const dashboardsBySpace = groupBySpace(results.dashboards);
+                for (const [spaceSlug, dashboardsInSpace] of Object.entries(
+                    dashboardsBySpace,
+                )) {
+                    await writeSpaceContent({
+                        projectName,
+                        spaceSlug,
+                        folder: 'dashboards',
+                        contentType: 'dashboard',
+                        contentInSpace: dashboardsInSpace,
+                        contentAsCode: results,
+                        customPath,
+                        languageMap,
+                        folderScheme,
+                    });
+                }
+                chartSlugs = [
+                    ...chartSlugs,
+                    ...extractChartSlugsFromDashboards(results.dashboards),
+                ];
+            } else {
+                const chartsBySpace = groupBySpace(results.charts);
+                for (const [spaceSlug, chartsInSpace] of Object.entries(
+                    chartsBySpace,
+                )) {
+                    await writeSpaceContent({
+                        projectName,
+                        spaceSlug,
+                        folder: 'charts',
+                        contentType: 'chart',
+                        contentInSpace: chartsInSpace,
+                        contentAsCode: results,
+                        customPath,
+                        languageMap,
+                        folderScheme,
+                    });
+                }
+            }
+
+            offset = results.offset;
+            batchTotal = results.total;
+        } while (offset < batchTotal);
+
+        total += batchTotal;
+    }
 
     return [total, [...new Set(chartSlugs)]];
 };
