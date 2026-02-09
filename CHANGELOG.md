@@ -1,3 +1,10 @@
+## [0.2443.1](https://github.com/lightdash/lightdash/compare/0.2443.0...0.2443.1) (2026-02-09)
+
+
+### Bug Fixes
+
+* scale stacked bar chart axis scaling correctly with reference line ([#20106](https://github.com/lightdash/lightdash/issues/20106)) ([8855901](https://github.com/lightdash/lightdash/commit/88559015df32c6b1a5d6bb12d187417806a3ff5e)), closes [#19822](https://github.com/lightdash/lightdash/issues/19822)
+
 # [0.2443.0](https://github.com/lightdash/lightdash/compare/0.2442.0...0.2443.0) (2026-02-09)
 
 
