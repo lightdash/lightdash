@@ -1,3 +1,10 @@
+# [0.2441.0](https://github.com/lightdash/lightdash/compare/0.2440.1...0.2441.0) (2026-02-09)
+
+
+### Features
+
+* display time dimension in metric detail popover ([#20096](https://github.com/lightdash/lightdash/issues/20096)) ([ce6361a](https://github.com/lightdash/lightdash/commit/ce6361a4e33029189f9c5e00fff23f9772453ae1))
+
 ## [0.2440.1](https://github.com/lightdash/lightdash/compare/0.2440.0...0.2440.1) (2026-02-09)
 
 
