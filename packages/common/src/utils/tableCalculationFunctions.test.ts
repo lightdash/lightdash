@@ -262,6 +262,135 @@ describe('tableCalculationFunctions', () => {
             });
         });
 
+        describe('offset_list parsing (row function)', () => {
+            it('should parse offset_list function', () => {
+                const sql = 'offset_list(revenue, -2, 3)';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.OFFSET_LIST,
+                );
+                if (
+                    result[0].type === TableCalculationFunctionType.OFFSET_LIST
+                ) {
+                    expect(result[0].column).toBe('revenue');
+                    expect(result[0].rowOffset).toBe(-2);
+                    expect(result[0].numValues).toBe(3);
+                    expect(result[0].rawSql).toBe(
+                        'offset_list(revenue, -2, 3)',
+                    );
+                }
+            });
+
+            it('should distinguish between offset_list and pivot_offset_list', () => {
+                const sql =
+                    'offset_list(revenue, -1, 3) + pivot_offset_list(revenue, -1, 3)';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(2);
+                const types = result.map((f) => f.type);
+                expect(types).toContain(
+                    TableCalculationFunctionType.OFFSET_LIST,
+                );
+                expect(types).toContain(
+                    TableCalculationFunctionType.PIVOT_OFFSET_LIST,
+                );
+            });
+
+            it('should parse offset_list with positive offset', () => {
+                const sql = 'offset_list(orders, 0, 5)';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                if (
+                    result[0].type === TableCalculationFunctionType.OFFSET_LIST
+                ) {
+                    expect(result[0].column).toBe('orders');
+                    expect(result[0].rowOffset).toBe(0);
+                    expect(result[0].numValues).toBe(5);
+                }
+            });
+        });
+
+        describe('list parsing (row function)', () => {
+            it('should parse list function with multiple values', () => {
+                const sql = 'list(a, b, c)';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(TableCalculationFunctionType.LIST);
+                if (result[0].type === TableCalculationFunctionType.LIST) {
+                    expect(result[0].values).toEqual(['a', 'b', 'c']);
+                    expect(result[0].rawSql).toBe('list(a, b, c)');
+                }
+            });
+
+            it('should distinguish between list and offset_list', () => {
+                const sql = 'list(a, b) + offset_list(revenue, -1, 3)';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(2);
+                const types = result.map((f) => f.type);
+                expect(types).toContain(TableCalculationFunctionType.LIST);
+                expect(types).toContain(
+                    TableCalculationFunctionType.OFFSET_LIST,
+                );
+            });
+
+            it('should parse list with nested function calls', () => {
+                const sql = 'list(SUM(a), COUNT(b))';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                if (result[0].type === TableCalculationFunctionType.LIST) {
+                    expect(result[0].values).toEqual(['SUM(a)', 'COUNT(b)']);
+                }
+            });
+
+            it('should parse list with two values', () => {
+                const sql = 'list(revenue, costs)';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                if (result[0].type === TableCalculationFunctionType.LIST) {
+                    expect(result[0].values).toEqual(['revenue', 'costs']);
+                }
+            });
+        });
+
+        describe('lookup parsing', () => {
+            it('should parse lookup function', () => {
+                const sql = 'lookup(target_val, search_col, result_col)';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                expect(result[0].type).toBe(
+                    TableCalculationFunctionType.LOOKUP,
+                );
+                if (result[0].type === TableCalculationFunctionType.LOOKUP) {
+                    expect(result[0].value).toBe('target_val');
+                    expect(result[0].lookupColumn).toBe('search_col');
+                    expect(result[0].resultColumn).toBe('result_col');
+                    expect(result[0].rawSql).toBe(
+                        'lookup(target_val, search_col, result_col)',
+                    );
+                }
+            });
+
+            it('should parse lookup with expressions', () => {
+                const sql = 'lookup("active", status_col, revenue_col)';
+                const result = parseTableCalculationFunctions(sql);
+
+                expect(result).toHaveLength(1);
+                if (result[0].type === TableCalculationFunctionType.LOOKUP) {
+                    expect(result[0].value).toBe('"active"');
+                    expect(result[0].lookupColumn).toBe('status_col');
+                    expect(result[0].resultColumn).toBe('revenue_col');
+                }
+            });
+        });
+
         describe('mixed function parsing', () => {
             it('should parse multiple different functions', () => {
                 const sql =
@@ -678,6 +807,217 @@ describe('tableCalculationFunctions', () => {
                     const expectedSql =
                         'COALESCE(MAX(CASE WHEN "column_index" = (SELECT MIN("column_index") FROM (SELECT "column_index", revenue > 1000 AS condition FROM DUAL) WHERE condition = TRUE) THEN status ELSE NULL END) OVER (PARTITION BY "row_index"), "none")';
                     expect(compiled).toBe(expectedSql);
+                });
+            });
+
+            describe('row() compilation', () => {
+                it('should compile row() with ORDER BY', () => {
+                    const sql = 'row()';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"order_date" ASC',
+                    );
+                    expect(compiled).toBe(
+                        'ROW_NUMBER() OVER (ORDER BY "order_date" ASC)',
+                    );
+                });
+
+                it('should compile row() without sorts', () => {
+                    const sql = 'row()';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+                    expect(compiled).toBe('ROW_NUMBER() OVER ()');
+                });
+
+                it('should compile row() in expression', () => {
+                    const sql = 'row() * 10';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"date"',
+                    );
+                    expect(compiled).toBe(
+                        'ROW_NUMBER() OVER (ORDER BY "date") * 10',
+                    );
+                });
+            });
+
+            describe('offset() compilation', () => {
+                it('should compile offset with negative offset to LAG', () => {
+                    const sql = 'offset(revenue, -1)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"order_date"',
+                    );
+                    expect(compiled).toBe(
+                        'LAG(revenue, 1) OVER (ORDER BY "order_date")',
+                    );
+                });
+
+                it('should compile offset with positive offset to LEAD', () => {
+                    const sql = 'offset(revenue, 2)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"order_date"',
+                    );
+                    expect(compiled).toBe(
+                        'LEAD(revenue, 2) OVER (ORDER BY "order_date")',
+                    );
+                });
+
+                it('should compile offset with zero to passthrough', () => {
+                    const sql = 'offset(revenue, 0)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"order_date"',
+                    );
+                    expect(compiled).toBe('revenue');
+                });
+
+                it('should compile offset without sorts', () => {
+                    const sql = 'offset(revenue, -1)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+                    expect(compiled).toBe('LAG(revenue, 1) OVER ()');
+                });
+
+                it('should compile offset in complex expression', () => {
+                    const sql = 'revenue - offset(revenue, -1)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"date" ASC',
+                    );
+                    expect(compiled).toBe(
+                        'revenue - LAG(revenue, 1) OVER (ORDER BY "date" ASC)',
+                    );
+                });
+            });
+
+            describe('index() compilation', () => {
+                it('should compile index to NTH_VALUE with sorts', () => {
+                    const sql = 'index(revenue, 1)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"order_date"',
+                    );
+                    expect(compiled).toBe(
+                        'NTH_VALUE(revenue, 1) OVER (ORDER BY "order_date" ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
+                    );
+                });
+
+                it('should compile index without sorts', () => {
+                    const sql = 'index(revenue, 3)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+                    expect(compiled).toBe(
+                        'NTH_VALUE(revenue, 3) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
+                    );
+                });
+
+                it('should compile index in expression', () => {
+                    const sql = 'revenue / NULLIF(index(revenue, 1), 0)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"date"',
+                    );
+                    expect(compiled).toBe(
+                        'revenue / NULLIF(NTH_VALUE(revenue, 1) OVER (ORDER BY "date" ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING), 0)',
+                    );
+                });
+            });
+
+            describe('offset_list() compilation', () => {
+                it('should compile offset_list to array of LAG/LEAD', () => {
+                    const sql = 'offset_list(revenue, -2, 3)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"date"',
+                    );
+                    expect(compiled).toBe(
+                        'ARRAY[LAG(revenue, 2) OVER (ORDER BY "date"), LAG(revenue, 1) OVER (ORDER BY "date"), revenue]',
+                    );
+                });
+
+                it('should compile offset_list with positive offset', () => {
+                    const sql = 'offset_list(orders, 0, 3)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(
+                        sql,
+                        functions,
+                        '"date"',
+                    );
+                    expect(compiled).toBe(
+                        'ARRAY[orders, LEAD(orders, 1) OVER (ORDER BY "date"), LEAD(orders, 2) OVER (ORDER BY "date")]',
+                    );
+                });
+
+                it('should compile offset_list without sorts', () => {
+                    const sql = 'offset_list(revenue, -1, 2)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+                    expect(compiled).toBe(
+                        'ARRAY[LAG(revenue, 1) OVER (), revenue]',
+                    );
+                });
+            });
+
+            describe('list() compilation', () => {
+                it('should compile list to array construction', () => {
+                    const sql = 'list(a, b, c)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+                    expect(compiled).toBe('ARRAY[a, b, c]');
+                });
+
+                it('should compile list with two values', () => {
+                    const sql = 'list(revenue, costs)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+                    expect(compiled).toBe('ARRAY[revenue, costs]');
+                });
+
+                it('should compile list in complex expression', () => {
+                    const sql = 'ARRAY_LENGTH(list(a, b, c), 1)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+                    expect(compiled).toBe('ARRAY_LENGTH(ARRAY[a, b, c], 1)');
+                });
+            });
+
+            describe('lookup() compilation', () => {
+                it('should compile lookup to MAX CASE WHEN', () => {
+                    const sql = 'lookup("active", status_col, revenue_col)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+                    expect(compiled).toBe(
+                        'MAX(CASE WHEN status_col = "active" THEN revenue_col ELSE NULL END) OVER ()',
+                    );
+                });
+
+                it('should compile lookup in expression', () => {
+                    const sql = 'COALESCE(lookup(target, lcol, rcol), 0)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+                    expect(compiled).toBe(
+                        'COALESCE(MAX(CASE WHEN lcol = target THEN rcol ELSE NULL END) OVER (), 0)',
+                    );
                 });
             });
 
