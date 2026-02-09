@@ -1,3 +1,10 @@
+## [0.2444.1](https://github.com/lightdash/lightdash/compare/0.2444.0...0.2444.1) (2026-02-09)
+
+
+### Bug Fixes
+
+* **frontend:** reduce font size of description column in personal access tokens table ([#20115](https://github.com/lightdash/lightdash/issues/20115)) ([1781716](https://github.com/lightdash/lightdash/commit/178171663d74a70568b9235782770fa91519c66d))
+
 # [0.2444.0](https://github.com/lightdash/lightdash/compare/0.2443.2...0.2444.0) (2026-02-09)
 
 
