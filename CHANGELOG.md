@@ -1,3 +1,10 @@
+## [0.2439.3](https://github.com/lightdash/lightdash/compare/0.2439.2...0.2439.3) (2026-02-09)
+
+
+### Bug Fixes
+
+* wrap notifications in mantine 8 provider ([#20089](https://github.com/lightdash/lightdash/issues/20089)) ([b8e6c3e](https://github.com/lightdash/lightdash/commit/b8e6c3eb9735ca1d2915908d8c07f8b50f65a074))
+
 ## [0.2439.2](https://github.com/lightdash/lightdash/compare/0.2439.1...0.2439.2) (2026-02-09)
 
 
