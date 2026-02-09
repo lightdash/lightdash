@@ -18,7 +18,7 @@ const sortedBreakpoints = (
 const getColsForWidth = (width: number): number => {
     let bp: keyof typeof GRID_BREAKPOINTS = sortedBreakpoints[0][0];
     for (const [name, minWidth] of sortedBreakpoints) {
-        if (width > minWidth) bp = name;
+        if (width >= minWidth) bp = name;
     }
     return GRID_COLS[bp];
 };
