@@ -50,7 +50,6 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
-import { type Session, type SessionData } from 'express-session';
 import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
@@ -1649,6 +1648,60 @@ export class UserService extends BaseService {
         );
     }
 
+    /**
+     * Resolves the session user, handling impersonation if active.
+     * When impersonation is active, validates that the admin still has
+     * permission to impersonate and the target user is still valid,
+     * then returns the target user. Calls clearImpersonation if the
+     * session is no longer valid.
+     */
+    async resolveSessionUser(
+        passportUser: { id: string; organization: string },
+        impersonation: { targetUserUuid: string } | undefined,
+        clearImpersonation: () => void,
+    ): Promise<SessionUser> {
+        const requestUser = await this.findSessionUser(passportUser);
+
+        if (!impersonation) {
+            return requestUser;
+        }
+
+        // Validate admin can still impersonate
+        if (
+            !requestUser.isActive ||
+            requestUser.ability.cannot(
+                'impersonate',
+                subject('User', {
+                    organizationUuid: requestUser.organizationUuid,
+                }),
+            )
+        ) {
+            this.logger.warn(
+                `Impersonation admin ${passportUser.id} is no longer authorized, clearing impersonation`,
+            );
+            clearImpersonation();
+            return requestUser;
+        }
+
+        // Load the impersonated user
+        const targetUser = await this.getSessionByUserUuid(
+            impersonation.targetUserUuid,
+        );
+
+        if (
+            !targetUser.isActive ||
+            targetUser.organizationUuid !== requestUser.organizationUuid
+        ) {
+            this.logger.warn(
+                `Impersonation target ${impersonation.targetUserUuid} is no longer valid, clearing impersonation`,
+            );
+            clearImpersonation();
+            return requestUser;
+        }
+
+        return targetUser;
+    }
+
     static async generateGoogleAccessToken(
         refreshToken: string,
         type: 'gdrive' | 'bigquery' = 'gdrive',
@@ -2213,10 +2266,29 @@ export class UserService extends BaseService {
     async startImpersonation(
         adminUser: SessionUser,
         targetUserUuid: string,
-        session: Session & Partial<SessionData>,
+        {
+            isSessionAuth,
+            getImpersonation,
+            setImpersonation,
+        }: {
+            isSessionAuth: boolean;
+            getImpersonation: () => { targetUserUuid: string } | undefined;
+            setImpersonation: (data: {
+                adminUserUuid: string;
+                adminName: string;
+                targetUserUuid: string;
+                startedAt: string;
+            }) => void;
+        },
     ): Promise<void> {
+        if (!isSessionAuth) {
+            throw new ForbiddenError(
+                'Impersonation requires session authentication',
+            );
+        }
+
         // Prevent recursive impersonation
-        if (session.impersonation) {
+        if (getImpersonation()) {
             throw new ForbiddenError(
                 'Cannot start impersonation while already impersonating',
             );
@@ -2227,21 +2299,21 @@ export class UserService extends BaseService {
             throw new ParameterError('Cannot impersonate yourself');
         }
 
-        // Admin must be an org admin
-        if (adminUser.role !== OrganizationMemberRole.ADMIN) {
-            throw new ForbiddenError(
-                'Only organization admins can impersonate users',
-            );
-        }
-
         // Load target user details
         const targetUser =
             await this.userModel.getUserDetailsByUuid(targetUserUuid);
 
-        // Target must be in the same organization
-        if (targetUser.organizationUuid !== adminUser.organizationUuid) {
+        // Check permissions using CASL
+        if (
+            adminUser.ability.cannot(
+                'impersonate',
+                subject('User', {
+                    organizationUuid: targetUser.organizationUuid,
+                }),
+            )
+        ) {
             throw new ForbiddenError(
-                'Cannot impersonate a user from a different organization',
+                "You don't have permissions to impersonate users",
             );
         }
 
@@ -2250,16 +2322,12 @@ export class UserService extends BaseService {
             throw new ForbiddenError('Cannot impersonate an inactive user');
         }
 
-        // Set impersonation session data
-        // eslint-disable-next-line no-param-reassign
-        session.impersonation = {
+        setImpersonation({
             adminUserUuid: adminUser.userUuid,
-            adminOrganizationUuid: adminUser.organizationUuid!,
             adminName: `${adminUser.firstName} ${adminUser.lastName}`,
             targetUserUuid,
-            targetOrganizationUuid: targetUser.organizationUuid!,
             startedAt: new Date().toISOString(),
-        };
+        });
 
         this.analytics.track({
             event: 'user.impersonation_started',
@@ -2272,15 +2340,24 @@ export class UserService extends BaseService {
         });
     }
 
-    async stopImpersonation(
-        session: Session & Partial<SessionData>,
-    ): Promise<void> {
-        if (!session.impersonation) {
-            throw new NotFoundError('No active impersonation session');
+    async stopImpersonation({
+        getImpersonation,
+        clearImpersonation,
+    }: {
+        getImpersonation: () =>
+            | { adminUserUuid: string; targetUserUuid: string }
+            | undefined;
+        clearImpersonation: () => void;
+    }): Promise<void> {
+        const impersonation = getImpersonation();
+
+        if (!impersonation) {
+            return;
         }
 
-        const { adminUserUuid, targetUserUuid, adminOrganizationUuid } =
-            session.impersonation;
+        const { adminUserUuid, targetUserUuid } = impersonation;
+        const adminUser =
+            await this.userModel.getUserDetailsByUuid(adminUserUuid);
 
         this.analytics.track({
             event: 'user.impersonation_stopped',
@@ -2288,11 +2365,10 @@ export class UserService extends BaseService {
             properties: {
                 adminUserUuid,
                 targetUserUuid,
-                organizationUuid: adminOrganizationUuid,
+                organizationUuid: adminUser.organizationUuid!,
             },
         });
 
-        // eslint-disable-next-line no-param-reassign
-        delete session.impersonation;
+        clearImpersonation();
     }
 }
