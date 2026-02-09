@@ -35,7 +35,7 @@
         "handlebars": "^4.7.8",
         "js-yaml": "^4.1.1",
         "liquidjs": "^10.0.0",
-        "lodash": "^4.17.21",
+        "lodash": "^4.17.23",
         "moment": "^2.29.4",
         "moment-timezone": "^0.5.45",
         "numfmt": "^3.2.1",
