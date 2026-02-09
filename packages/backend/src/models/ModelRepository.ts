@@ -28,6 +28,7 @@ import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel
 import { OrganizationModel } from './OrganizationModel';
 import { OrganizationWarehouseCredentialsModel } from './OrganizationWarehouseCredentialsModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
+import { PersistentDownloadFileModel } from './PersistentDownloadFileModel';
 import { PinnedListModel } from './PinnedListModel';
 import { ProjectCompileLogModel } from './ProjectCompileLogModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
@@ -64,6 +65,7 @@ export type ModelManifest = {
     dashboardModel: DashboardModel;
     downloadFileModel: DownloadFileModel;
     downloadAuditModel: DownloadAuditModel;
+    persistentDownloadFileModel: PersistentDownloadFileModel;
     emailModel: EmailModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
@@ -249,6 +251,16 @@ export class ModelRepository
         return this.getModel(
             'downloadAuditModel',
             () => new DownloadAuditModel({ database: this.database }),
+        );
+    }
+
+    public getPersistentDownloadFileModel(): PersistentDownloadFileModel {
+        return this.getModel(
+            'persistentDownloadFileModel',
+            () =>
+                new PersistentDownloadFileModel({
+                    database: this.database,
+                }),
         );
     }
 
