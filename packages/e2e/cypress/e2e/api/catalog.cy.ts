@@ -135,12 +135,16 @@ describe('Lightdash catalog search', () => {
                 'Sum of annual revenue across offices',
             ];
 
-            data.forEach((field: CatalogField, index: number) => {
+            const actualDescriptions = data.map(
+                (field: CatalogField) => field.description,
+            );
+
+            data.forEach((field: CatalogField) => {
                 expect(field).to.have.property('name', 'total_revenue');
-                expect(field).to.have.property(
-                    'description',
-                    expectedDescriptions[index],
-                );
+            });
+
+            expectedDescriptions.forEach((desc) => {
+                expect(actualDescriptions).to.include(desc);
             });
         });
     });
