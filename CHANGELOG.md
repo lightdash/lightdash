@@ -1,3 +1,10 @@
+## [0.2440.1](https://github.com/lightdash/lightdash/compare/0.2440.0...0.2440.1) (2026-02-09)
+
+
+### Bug Fixes
+
+* default time interval "undefined" in metric ([#20090](https://github.com/lightdash/lightdash/issues/20090)) ([0852536](https://github.com/lightdash/lightdash/commit/08525362dd83c70060924a2edb84397b51701b1b))
+
 # [0.2440.0](https://github.com/lightdash/lightdash/compare/0.2439.3...0.2440.0) (2026-02-09)
 
 
