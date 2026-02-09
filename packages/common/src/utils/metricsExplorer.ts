@@ -521,12 +521,22 @@ export const getDefaultTimeDimension = (
 ): DefaultTimeDimension | undefined => {
     // Priority 1: Use metric-level default time dimension if defined in yml
     if (metric.defaultTimeDimension) {
-        return metric.defaultTimeDimension;
+        return {
+            field: metric.defaultTimeDimension.field,
+            interval:
+                metric.defaultTimeDimension.interval ??
+                DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+        };
     }
 
     // Priority 2: Use model-level default time dimension if defined in yml
     if (table?.defaultTimeDimension) {
-        return table.defaultTimeDimension;
+        return {
+            field: table.defaultTimeDimension.field,
+            interval:
+                table.defaultTimeDimension.interval ??
+                DEFAULT_METRICS_EXPLORER_TIME_INTERVAL,
+        };
     }
 
     // Priority 3: Use the only time dimension if there's exactly one
