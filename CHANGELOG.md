@@ -1,3 +1,10 @@
+# [0.2443.0](https://github.com/lightdash/lightdash/compare/0.2442.0...0.2443.0) (2026-02-09)
+
+
+### Features
+
+* introduce getMetricsTree and replace current fetch ([#20093](https://github.com/lightdash/lightdash/issues/20093)) ([e6139a5](https://github.com/lightdash/lightdash/commit/e6139a59d967a66a5fb0d4677f78f04af9f2073e))
+
 # [0.2442.0](https://github.com/lightdash/lightdash/compare/0.2441.1...0.2442.0) (2026-02-09)
 
 
