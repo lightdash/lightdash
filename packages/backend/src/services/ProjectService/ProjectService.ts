@@ -2391,6 +2391,7 @@ export class ProjectService extends BaseService {
             parameterDefinitions: availableParameterDefinitions,
             pivotConfiguration,
             continueOnError,
+            originalExplore: dateZoom ? explore : undefined,
         });
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
