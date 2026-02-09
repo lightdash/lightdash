@@ -1,4 +1,4 @@
-import { Portal, Tooltip, type TooltipProps } from '@mantine/core';
+import { Portal, Tooltip, type TooltipProps } from '@mantine-8/core';
 import { type FC } from 'react';
 
 type CellTooltipProps = Omit<TooltipProps, 'children'> & {

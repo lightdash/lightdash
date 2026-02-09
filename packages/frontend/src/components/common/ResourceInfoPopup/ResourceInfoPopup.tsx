@@ -1,9 +1,10 @@
-import { Group, HoverCard, Stack, Text, Tooltip } from '@mantine/core';
+import { Group, HoverCard, Stack, Text, Tooltip } from '@mantine-8/core';
 import { IconEye, IconInfoCircle } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import MantineIcon from '../MantineIcon';
 import { DashboardList } from './DashboardList';
+import styles from './ResourceInfoPopup.module.css';
 
 type Props = {
     resourceUuid: string;
@@ -32,21 +33,15 @@ export const ResourceInfoPopup: FC<Props> = ({
     if (!viewStats && !description && !withChartData) return null;
 
     return (
-        <HoverCard
-            offset={-1}
-            position="bottom"
-            withArrow
-            shadow="md"
-            withinPortal
-        >
+        <HoverCard offset={-1} position="bottom" shadow="md" withinPortal>
             <HoverCard.Target>
                 <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
             </HoverCard.Target>
             <HoverCard.Dropdown maw={300}>
-                <Stack spacing="xs">
+                <Stack gap="xs">
                     {viewStats && viewStats > 0 ? (
-                        <Stack spacing="two">
-                            <Text fz="xs" fw={600} color="ldGray.6">
+                        <Stack gap="two">
+                            <Text fz="xs" fw={600} c="ldGray.6">
                                 Views:
                             </Text>
                             <Tooltip
@@ -54,7 +49,7 @@ export const ResourceInfoPopup: FC<Props> = ({
                                 label={label}
                                 disabled={!viewStats || !firstViewedAt}
                             >
-                                <Group spacing="two">
+                                <Group gap="two">
                                     <MantineIcon size={12} icon={IconEye} />
                                     <Text fz="xs">{viewStats || '0'}</Text>
                                 </Group>
@@ -63,11 +58,11 @@ export const ResourceInfoPopup: FC<Props> = ({
                     ) : null}
 
                     {description && (
-                        <Stack spacing="two">
-                            <Text fz="xs" fw={600} color="ldGray.6">
+                        <Stack gap="two">
+                            <Text fz="xs" fw={600} c="ldGray.6">
                                 Description:{' '}
                             </Text>
-                            <Text fz="xs" style={{ whiteSpace: 'pre-line' }}>
+                            <Text fz="xs" className={styles.preLineText}>
                                 {description}
                             </Text>
                         </Stack>
