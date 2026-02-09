@@ -11,6 +11,7 @@ services:
             - MINIO_ROOT_USER=minioadmin
             - MINIO_ROOT_PASSWORD=minioadmin
             - MINIO_DEFAULT_BUCKETS=default
+            - MINIO_EXPIRATION_DAYS=${MINIO_EXPIRATION_DAYS:-1}
     lightdash:
         platform: linux/amd64
         image: lightdash/lightdash:latest
