@@ -1,3 +1,10 @@
+## [0.2443.2](https://github.com/lightdash/lightdash/compare/0.2443.1...0.2443.2) (2026-02-09)
+
+
+### Bug Fixes
+
+* filter on raw date column even when zoom is applied ([#20105](https://github.com/lightdash/lightdash/issues/20105)) ([7cf1d99](https://github.com/lightdash/lightdash/commit/7cf1d990cae9c678c7715be537751a860fa223d6))
+
 ## [0.2443.1](https://github.com/lightdash/lightdash/compare/0.2443.0...0.2443.1) (2026-02-09)
 
 
