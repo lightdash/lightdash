@@ -433,6 +433,9 @@ importers:
       prom-client:
         specifier: ^15.1.2
         version: 15.1.2
+      qs:
+        specifier: ^6.14.1
+        version: 6.14.1
       redoc-express:
         specifier: ^1.0.0
         version: 1.0.0
@@ -539,6 +542,9 @@ importers:
       '@types/pg':
         specifier: ^8.10.7
         version: 8.11.10
+      '@types/qs':
+        specifier: ^6.14.0
+        version: 6.14.0
       '@types/uuid':
         specifier: ^8.3.4
         version: 8.3.4
@@ -6547,8 +6553,8 @@ packages:
   '@types/promise.allsettled@1.0.3':
     resolution: {integrity: sha512-b/IFHHTkYkTqu41IH9UtpICwqrpKj2oNlb4KHPzFQDMiz+h1BgAeATeO0/XTph4+UkH9W2U0E4B4j64KWOovag==}
 
-  '@types/qs@6.9.6':
-    resolution: {integrity: sha512-0/HnwIfW4ki2D8L8c9GVcG5I72s9jP5GSLVF0VIXDW00kmIpA6O33G7a8n59Tmh7Nz0WUC3rSb7PTY/sdW2JzA==}
+  '@types/qs@6.14.0':
+    resolution: {integrity: sha512-eOunJqu0K1923aExK6y8p6fsihYEn/BYuQ4g0CxAAgFc4b/ZLN4CrsRZ55srTdqoiLzU2B2evC+apEIxprEzkQ==}
 
   '@types/raf@3.4.3':
     resolution: {integrity: sha512-c4YAvMedbPZ5tEyxzQdMoOhhJ4RD3rngZIdwC2/qDN3d7JpEhB6fiBRKVY1lg5B7Wk+uPBjn5f39j1/2MY1oOw==}
@@ -20444,7 +20450,7 @@ snapshots:
       async: 3.2.6
       chalk: 3.0.0
       dayjs: 1.8.36
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       eventemitter2: 5.0.1
       fast-json-patch: 3.1.1
       fclone: 1.0.11
@@ -20463,7 +20469,7 @@ snapshots:
   '@pm2/io@6.1.0':
     dependencies:
       async: 2.6.4
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       eventemitter2: 6.4.7
       require-in-the-middle: 5.2.0
       semver: 7.5.4
@@ -20476,7 +20482,7 @@ snapshots:
   '@pm2/js-api@0.8.0':
     dependencies:
       async: 2.6.4
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       eventemitter2: 6.4.7
       extrareqp2: 1.0.0(debug@4.3.7)
       ws: 7.5.10
@@ -22587,7 +22593,7 @@ snapshots:
   '@types/express-serve-static-core@4.17.22':
     dependencies:
       '@types/node': 22.13.1
-      '@types/qs': 6.9.6
+      '@types/qs': 6.14.0
       '@types/range-parser': 1.2.3
 
   '@types/express-session@1.17.4':
@@ -22598,7 +22604,7 @@ snapshots:
     dependencies:
       '@types/body-parser': 1.19.0
       '@types/express-serve-static-core': 4.17.22
-      '@types/qs': 6.9.6
+      '@types/qs': 6.14.0
       '@types/serve-static': 1.13.9
 
   '@types/fs-extra@9.0.13':
@@ -22866,7 +22872,7 @@ snapshots:
 
   '@types/promise.allsettled@1.0.3': {}
 
-  '@types/qs@6.9.6': {}
+  '@types/qs@6.14.0': {}
 
   '@types/raf@3.4.3':
     optional: true
@@ -23002,7 +23008,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/type-utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.5.4)
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       eslint: 8.57.1
       graphemer: 1.4.0
       ignore: 5.2.0
@@ -23036,7 +23042,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
       '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.5.4)
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       eslint: 8.57.1
     optionalDependencies:
       typescript: 5.5.4
@@ -26819,7 +26825,7 @@ snapshots:
 
   follow-redirects@1.15.9(debug@4.3.7):
     optionalDependencies:
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
 
   for-each@0.3.3:
     dependencies:
@@ -30032,7 +30038,7 @@ snapshots:
 
   nock@13.5.1:
     dependencies:
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
       json-stringify-safe: 5.0.1
       propagate: 2.0.1
     transitivePeerDependencies:
@@ -32304,7 +32310,7 @@ snapshots:
     dependencies:
       '@kwsites/file-exists': 1.1.1
       '@kwsites/promise-deferred': 1.1.1
-      debug: 4.3.7(supports-color@5.5.0)
+      debug: 4.3.7(supports-color@9.1.0)
     transitivePeerDependencies:
       - supports-color
 
