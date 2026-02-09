@@ -358,11 +358,11 @@ export class SearchModel {
             .whereIn('dashboard_uuid', dashboardUuids)
             .whereNull('deleted_at');
 
-        const tileChartsQuery = this.database('dashboards')
-            .whereNull('dashboards.deleted_at')
+        const tileChartsQuery = this.database(DashboardsTableName)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
             .join(
                 'dashboard_versions',
-                'dashboards.dashboard_id',
+                `${DashboardsTableName}.dashboard_id`,
                 'dashboard_versions.dashboard_id',
             )
             .join(
@@ -389,7 +389,7 @@ export class SearchModel {
                 ).andOnNull(`${SavedChartsTableName}.deleted_at`);
             })
             .select(
-                'dashboards.dashboard_uuid',
+                `${DashboardsTableName}.dashboard_uuid`,
                 { uuid: `${SavedChartsTableName}.saved_query_uuid` },
                 `${SavedChartsTableName}.name`,
                 `${SavedChartsTableName}.description`,
@@ -398,12 +398,12 @@ export class SearchModel {
                 },
                 `${SavedChartsTableName}.views_count`,
             )
-            .whereIn('dashboards.dashboard_uuid', dashboardUuids)
+            .whereIn(`${DashboardsTableName}.dashboard_uuid`, dashboardUuids)
             .whereRaw(
                 `dashboard_versions.dashboard_version_id = (
                         SELECT MAX(dashboard_version_id)
                         FROM dashboard_versions dv2
-                        WHERE dv2.dashboard_id = dashboards.dashboard_id
+                        WHERE dv2.dashboard_id = ${DashboardsTableName}.dashboard_id
                     )`,
             );
 
@@ -1039,7 +1039,9 @@ export class SearchModel {
             }>()
             .from(savedChartsSubquery.as('saved_charts'))
             .unionAll(
-                this.database.select().from(savedSqlSubquery.as('saved_sql')),
+                this.database
+                    .select()
+                    .from(savedSqlSubquery.as(SavedSqlTableName)),
             );
 
         const results = await this.database

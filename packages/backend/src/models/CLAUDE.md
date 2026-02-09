@@ -82,19 +82,22 @@ The `saved_queries` table supports soft delete. When `SOFT_DELETE_ENABLED=true`,
 Any query that touches `saved_queries` must filter out soft-deleted records:
 
 **Direct Knex query:**
+
 ```typescript
-const charts = await this.database('saved_queries')
-    .whereNull('deleted_at')  // ADD THIS
+const charts = await this.database(SavedChartsTableName)
+    .whereNull('deleted_at') // ADD THIS
     .where('project_uuid', projectUuid);
 ```
 
 **Knex join (simple):**
+
 ```typescript
 .leftJoin(SavedChartsTableName, ...)
 .whereNull(`${SavedChartsTableName}.deleted_at`)  // ADD THIS
 ```
 
 **Knex join (function syntax - for join conditions):**
+
 ```typescript
 .leftJoin(SavedChartsTableName, function () {
     this.on('column1', '=', 'column2')
@@ -103,12 +106,14 @@ const charts = await this.database('saved_queries')
 ```
 
 **Raw SQL join:**
+
 ```sql
 -- Add to join condition:
-left join saved_queries sq on sq.saved_query_uuid = ... AND sq.deleted_at IS NULL
+left join ${SavedChartsTableName} sq on sq.saved_query_uuid = ... AND sq.deleted_at IS NULL
 ```
 
 **Raw SQL WHERE clause:**
+
 ```sql
 WHERE ... AND sq.deleted_at IS NULL
 ```

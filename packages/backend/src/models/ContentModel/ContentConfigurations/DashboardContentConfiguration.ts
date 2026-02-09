@@ -147,7 +147,7 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                         `last_version.dashboard_version_id`,
                         knex.raw(`(select dashboard_version_id
                                            from dashboard_versions
-                                           where dashboard_id = dashboards.dashboard_id
+                                           where dashboard_id = ${DashboardsTableName}.dashboard_id
                                            order by dashboard_versions.created_at desc
                                            limit 1)`),
                     );
@@ -155,7 +155,7 @@ export const dashboardContentConfiguration: ContentConfiguration<SummaryContentR
                         `first_version.dashboard_version_id`,
                         knex.raw(`(select dashboard_version_id
                                             from dashboard_versions
-                                            where dashboard_id = dashboards.dashboard_id
+                                            where dashboard_id = ${DashboardsTableName}.dashboard_id
                                             order by dashboard_versions.created_at asc
                                             limit 1)`),
                     );

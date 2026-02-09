@@ -4,11 +4,18 @@ import { customAlphabet as createCustomNanoid } from 'nanoid';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
+import { SavedSqlTableName } from '../database/entities/savedSql';
 import { SpaceTableName } from '../database/entities/spaces';
+
+type SlugTables =
+    | typeof SavedChartsTableName
+    | typeof SavedSqlTableName
+    | typeof DashboardsTableName
+    | typeof SpaceTableName;
 
 export const generateUniqueSlug = async (
     trx: Knex,
-    tableName: 'saved_queries' | 'saved_sql' | 'dashboards' | 'spaces',
+    tableName: SlugTables,
     name: string,
 ) => {
     const baseSlug = generateSlug(name);
@@ -53,13 +60,13 @@ export const generateUniqueSpaceSlug = async (
 export const generateUniqueSlugScopedToProject = async (
     trx: Knex,
     projectUuid: string,
-    tableName: 'saved_queries' | 'saved_sql' | 'dashboards' | 'spaces',
+    tableName: SlugTables,
     name: string,
 ) => {
     const baseSlug = generateSlug(name);
     let matchingSlugs: string[];
     switch (tableName) {
-        case 'saved_queries':
+        case SavedChartsTableName:
             // NOTE: no `deleted_at IS NULL` filter here because
             // we need to check for soft deleted charts as well
             matchingSlugs = await trx(SavedChartsTableName)
@@ -89,7 +96,7 @@ export const generateUniqueSlugScopedToProject = async (
                 .where(`${SavedChartsTableName}.slug`, 'like', `${baseSlug}%`)
                 .pluck(`${SavedChartsTableName}.slug`);
             break;
-        case 'dashboards':
+        case DashboardsTableName:
             matchingSlugs = await trx(DashboardsTableName)
                 .innerJoin(
                     SpaceTableName,
@@ -106,8 +113,8 @@ export const generateUniqueSlugScopedToProject = async (
                 .where(`${DashboardsTableName}.slug`, 'like', `${baseSlug}%`)
                 .pluck(`${DashboardsTableName}.slug`);
             break;
-        case 'saved_sql':
-        case 'spaces':
+        case SavedSqlTableName:
+        case SpaceTableName:
             throw new Error('Not implemented');
         default:
             return assertUnreachable(

@@ -36,16 +36,9 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { DatabaseError } from 'pg';
-import {
-    DashboardsTableName,
-    DbDashboard,
-} from '../../database/entities/dashboards';
-import { OrganizationTableName } from '../../database/entities/organizations';
+import { DashboardsTableName } from '../../database/entities/dashboards';
 import { ProjectTableName } from '../../database/entities/projects';
-import {
-    DbSavedChart,
-    SavedChartsTableName,
-} from '../../database/entities/savedCharts';
+import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import {
     SchedulerDb,
     SchedulerEmailTargetDb,
@@ -59,7 +52,7 @@ import {
     SchedulerTableName,
 } from '../../database/entities/scheduler';
 import { SpaceTableName } from '../../database/entities/spaces';
-import { DbUser, UserTableName } from '../../database/entities/users';
+import { UserTableName } from '../../database/entities/users';
 import KnexPaginate from '../../database/pagination';
 import { getColumnMatchRegexQuery } from '../SearchModel/utils/search';
 

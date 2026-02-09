@@ -14,6 +14,7 @@ import {
     DashboardVersionsTableName,
     DashboardsTableName,
 } from '../../database/entities/dashboards';
+import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { DbUser, UserTableName } from '../../database/entities/users';
 
 type CommentModelArguments = {
@@ -126,12 +127,12 @@ export class CommentModel {
                 'dashboard_tile_charts.dashboard_tile_uuid',
                 'dashboard_tiles.dashboard_tile_uuid',
             )
-            .leftJoin('saved_queries', function nonDeletedChartJoin() {
+            .leftJoin(SavedChartsTableName, function nonDeletedChartJoin() {
                 this.on(
-                    'saved_queries.saved_query_id',
+                    `${SavedChartsTableName}.saved_query_id`,
                     '=',
                     'dashboard_tile_charts.saved_chart_id',
-                ).andOnNull('saved_queries.deleted_at');
+                ).andOnNull(`${SavedChartsTableName}.deleted_at`);
             })
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .andWhere(
@@ -140,7 +141,7 @@ export class CommentModel {
             )
             .select(
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
-                `saved_queries.saved_query_uuid`,
+                `${SavedChartsTableName}.saved_query_uuid`,
             )
             .first();
 

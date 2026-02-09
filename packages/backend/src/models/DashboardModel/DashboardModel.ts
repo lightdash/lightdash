@@ -556,8 +556,8 @@ export class DashboardModel {
                 .with(cteName, (qb) => {
                     void qb
                         .select({
-                            dashboard_uuid: 'dashboards.dashboard_uuid',
-                            name: 'dashboards.name',
+                            dashboard_uuid: `${DashboardsTableName}.dashboard_uuid`,
+                            name: `${DashboardsTableName}.name`,
                             dashboard_version_id: this.database.raw(
                                 'MAX(dashboard_versions.dashboard_version_id)',
                             ),
@@ -565,7 +565,7 @@ export class DashboardModel {
                         .from(DashboardsTableName)
                         .leftJoin(
                             SpaceTableName,
-                            'dashboards.space_id',
+                            `${DashboardsTableName}.space_id`,
                             `${SpaceTableName}.space_id`,
                         )
                         .leftJoin(
@@ -581,8 +581,8 @@ export class DashboardModel {
                         .where('projects.project_uuid', projectUuid)
                         .whereNull(`${DashboardsTableName}.deleted_at`)
                         .groupBy(
-                            'dashboards.dashboard_uuid',
-                            'dashboards.name',
+                            `${DashboardsTableName}.dashboard_uuid`,
+                            `${DashboardsTableName}.name`,
                         );
                 })
                 .select({
@@ -591,7 +591,7 @@ export class DashboardModel {
                     filters: `${DashboardViewsTableName}.filters`,
                     parameters: `${DashboardViewsTableName}.parameters`,
                     chartUuids: this.database.raw(
-                        "COALESCE(ARRAY_AGG(DISTINCT saved_queries.saved_query_uuid) FILTER (WHERE saved_queries.saved_query_uuid IS NOT NULL), '{}')",
+                        `COALESCE(ARRAY_AGG(DISTINCT ${SavedChartsTableName}.saved_query_uuid) FILTER (WHERE ${SavedChartsTableName}.saved_query_uuid IS NOT NULL), '{}')`,
                     ),
                 })
                 .from(cteName)
@@ -1503,7 +1503,7 @@ export class DashboardModel {
                 firstName: `${UserTableName}.first_name`,
                 lastName: `${UserTableName}.last_name`,
                 chartUuids: this.database.raw(
-                    'ARRAY_AGG(DISTINCT saved_queries.saved_query_uuid) FILTER (WHERE saved_queries.saved_query_uuid IS NOT NULL)',
+                    `ARRAY_AGG(DISTINCT ${SavedChartsTableName}.saved_query_uuid) FILTER (WHERE ${SavedChartsTableName}.saved_query_uuid IS NOT NULL)`,
                 ),
             })
             .orderBy([
