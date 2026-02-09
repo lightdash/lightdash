@@ -23,7 +23,7 @@ import {
 import { type ProjectUserWithRoleV2 } from '../../hooks/useProjectUsersWithRolesV2';
 import {
     getAccessWarning,
-    systemRolesOrder,
+    getEffectiveRole,
     type UserGroupAccess,
 } from '../../utils/roleAccessWarnings';
 import MantineIcon from '../common/MantineIcon';
@@ -133,24 +133,23 @@ const ProjectAccessRowV2: FC<Props> = ({
     const isLoading = upsertMutation.isLoading || deleteMutation.isLoading;
     const isMember = user.role === OrganizationMemberRole.MEMBER;
 
-    const { highestRole, highestRoleType } = useMemo(() => {
-        // start with organization role as baseline
-        let bestRole = organizationRole || 'member';
-        let bestSource: string = 'Organization';
-
-        userGroupAccesses.forEach((uga) => {
-            const roleId = uga.access.roleId;
-            if (
-                systemRolesOrder.indexOf(roleId) >
-                systemRolesOrder.indexOf(bestRole)
-            ) {
-                bestRole = roleId;
-                bestSource = `Group ${uga.group.name}`;
-            }
+    // Compute the effective role considering org, group, and project roles
+    const effectiveRoleInfo = useMemo(() => {
+        return getEffectiveRole({
+            organizationRole,
+            projectRole: user.projectRole,
+            userGroupAccesses,
         });
+    }, [organizationRole, user.projectRole, userGroupAccesses]);
 
-        return { highestRole: bestRole, highestRoleType: bestSource };
-    }, [userGroupAccesses, organizationRole]);
+    // For backwards compatibility, keep highestRole and highestRoleType
+    const highestRole = effectiveRoleInfo.role;
+    const highestRoleType =
+        effectiveRoleInfo.source === 'organization'
+            ? 'Organization'
+            : effectiveRoleInfo.source === 'group'
+              ? `Group ${effectiveRoleInfo.sourceName}`
+              : 'Project';
 
     // Helper function to get role name from roleId
     const getRoleName = useCallback(
@@ -172,15 +171,36 @@ const ProjectAccessRowV2: FC<Props> = ({
 
     const userRoleSummary = useMemo(() => {
         return (
-            <Stack>
-                <Text fw={300}>
-                    Organization role:{' '}
+            <Stack gap="xs">
+                <Text fw={600} size="sm">
+                    Effective role:{' '}
+                    <Text span c="blue">
+                        {getRoleName(effectiveRoleInfo.role)}
+                    </Text>
+                    {effectiveRoleInfo.isInherited && (
+                        <Text span size="xs" c="dimmed">
+                            {' '}
+                            (inherited from{' '}
+                            {effectiveRoleInfo.source === 'organization'
+                                ? 'organization'
+                                : effectiveRoleInfo.source === 'group'
+                                  ? `group "${effectiveRoleInfo.sourceName}"`
+                                  : 'project'}
+                            )
+                        </Text>
+                    )}
+                </Text>
+                <Text size="xs" c="dimmed">
+                    Role breakdown:
+                </Text>
+                <Text fw={300} size="sm">
+                    Organization:{' '}
                     <Text fw={600} span>
-                        {getRoleName(organizationRole || '')}
+                        {getRoleName(organizationRole || 'member')}
                     </Text>
                 </Text>
                 {(userGroupAccesses || []).map((uga) => (
-                    <Text key={uga.group.uuid} fw={300}>
+                    <Text key={uga.group.uuid} fw={300} size="sm">
                         Group{' '}
                         <Text fw={600} span>
                             {uga.group.name}
@@ -192,12 +212,17 @@ const ProjectAccessRowV2: FC<Props> = ({
                     </Text>
                 ))}
                 {hasProjectRole ? (
-                    <Text fw={300}>
-                        {' '}
-                        Project role:{' '}
+                    <Text fw={300} size="sm">
+                        Project:{' '}
                         <Text fw={600} span>
                             {user.projectRole}
                         </Text>
+                        {effectiveRoleInfo.isInherited && (
+                            <Text span size="xs" c="dimmed">
+                                {' '}
+                                (overridden)
+                            </Text>
+                        )}
                     </Text>
                 ) : null}
             </Stack>
@@ -208,6 +233,7 @@ const ProjectAccessRowV2: FC<Props> = ({
         userGroupAccesses,
         hasProjectRole,
         getRoleName,
+        effectiveRoleInfo,
     ]);
 
     return (
@@ -215,7 +241,7 @@ const ProjectAccessRowV2: FC<Props> = ({
             <tr>
                 <td width="30%">
                     <Tooltip label={userRoleSummary}>
-                        <Stack spacing="xs" align="flex-start">
+                        <Stack gap="xs" align="flex-start">
                             {user.firstName && (
                                 <Text fw={700}>
                                     {user.firstName} {user.lastName}
@@ -230,16 +256,32 @@ const ProjectAccessRowV2: FC<Props> = ({
                     </Tooltip>
                 </td>
                 <td width="70%">
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <Tooltip
-                            disabled={hasProjectRole}
+                            disabled={hasProjectRole && !effectiveRoleInfo.isInherited}
                             label={
-                                <Text>
-                                    User inherits this role from{' '}
-                                    <Text span fw={600}>
-                                        {highestRoleType}
+                                effectiveRoleInfo.isInherited ? (
+                                    <Text>
+                                        Effective role is{' '}
+                                        <Text span fw={600}>
+                                            {getRoleName(effectiveRoleInfo.role)}
+                                        </Text>{' '}
+                                        inherited from{' '}
+                                        <Text span fw={600}>
+                                            {highestRoleType}
+                                        </Text>
+                                        .{' '}
+                                        {hasProjectRole &&
+                                            'The assigned project role has no additional effect.'}
                                     </Text>
-                                </Text>
+                                ) : (
+                                    <Text>
+                                        User inherits this role from{' '}
+                                        <Text span fw={600}>
+                                            {highestRoleType}
+                                        </Text>
+                                    </Text>
+                                )
                             }
                         >
                             <Select
@@ -263,6 +305,24 @@ const ProjectAccessRowV2: FC<Props> = ({
                                 onChange={handleRoleChange}
                             />
                         </Tooltip>
+                        {effectiveRoleInfo.isInherited && hasProjectRole && (
+                            <Tooltip
+                                label={
+                                    <Text>
+                                        This project role is overridden by a
+                                        higher role from {highestRoleType}
+                                    </Text>
+                                }
+                            >
+                                <Badge
+                                    size="xs"
+                                    variant="light"
+                                    color="orange"
+                                >
+                                    Overridden
+                                </Badge>
+                            </Tooltip>
+                        )}
                         {accessWarning && (
                             <Tooltip label={accessWarning}>
                                 <MantineIcon
@@ -278,8 +338,8 @@ const ProjectAccessRowV2: FC<Props> = ({
                         position="top"
                         label={
                             hasProjectRole
-                                ? 'Revoke project access'
-                                : 'Cannot revoke inherited access from Organization'
+                                ? 'Revoke direct project role assignment'
+                                : `Cannot revoke access - user has no direct project role. Access is inherited from ${highestRoleType}.`
                         }
                     >
                         <div>
