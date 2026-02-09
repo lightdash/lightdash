@@ -77,7 +77,7 @@ export const ExpectedInTheCurrentFilterSQL: Record<UnitOfTime, string> = {
     [UnitOfTime.minutes]: `((customers.created) >= ('2020-04-04 06:12:00') AND (customers.created) <= ('2020-04-04 06:12:59'))`,
     [UnitOfTime.hours]: `((customers.created) >= ('2020-04-04 06:00:00') AND (customers.created) <= ('2020-04-04 06:59:59'))`,
     [UnitOfTime.days]: `((customers.created) >= ('2020-04-04 00:00:00') AND (customers.created) <= ('2020-04-04 23:59:59'))`,
-    [UnitOfTime.weeks]: `((customers.created) >= ('2020-03-29 00:00:00') AND (customers.created) <= ('2020-04-04 23:59:59'))`,
+    [UnitOfTime.weeks]: `((customers.created) >= ('2020-03-30 00:00:00') AND (customers.created) <= ('2020-04-05 23:59:59'))`,
     [UnitOfTime.months]: `((customers.created) >= ('2020-04-01 00:00:00') AND (customers.created) <= ('2020-04-30 23:59:59'))`,
     [UnitOfTime.quarters]: `((customers.created) >= ('2020-04-01 00:00:00') AND (customers.created) <= ('2020-06-30 23:59:59'))`,
     [UnitOfTime.years]: `((customers.created) >= ('2020-01-01 00:00:00') AND (customers.created) <= ('2020-12-31 23:59:59'))`,
@@ -89,7 +89,7 @@ export const TrinoExpectedInTheCurrentFilterSQL: Record<UnitOfTime, string> = {
     [UnitOfTime.minutes]: `((customers.created) >= CAST('2020-04-04 06:12:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:59' AS timestamp))`,
     [UnitOfTime.hours]: `((customers.created) >= CAST('2020-04-04 06:00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:59:59' AS timestamp))`,
     [UnitOfTime.days]: `((customers.created) >= CAST('2020-04-04 00:00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 23:59:59' AS timestamp))`,
-    [UnitOfTime.weeks]: `((customers.created) >= CAST('2020-03-29 00:00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 23:59:59' AS timestamp))`,
+    [UnitOfTime.weeks]: `((customers.created) >= CAST('2020-03-30 00:00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-05 23:59:59' AS timestamp))`,
     [UnitOfTime.months]: `((customers.created) >= CAST('2020-04-01 00:00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-30 23:59:59' AS timestamp))`,
     [UnitOfTime.quarters]: `((customers.created) >= CAST('2020-04-01 00:00:00' AS timestamp) AND (customers.created) <= CAST('2020-06-30 23:59:59' AS timestamp))`,
     [UnitOfTime.years]: `((customers.created) >= CAST('2020-01-01 00:00:00' AS timestamp) AND (customers.created) <= CAST('2020-12-31 23:59:59' AS timestamp))`,
@@ -138,7 +138,7 @@ export const ExpectedInTheNextCompleteFilterSQL: Record<UnitOfTime, string> = {
     [UnitOfTime.minutes]: `((customers.created) >= ('2020-04-04 06:13:00') AND (customers.created) < ('2020-04-04 06:14:00'))`,
     [UnitOfTime.hours]: `((customers.created) >= ('2020-04-04 07:00:00') AND (customers.created) < ('2020-04-04 08:00:00'))`,
     [UnitOfTime.days]: `((customers.created) >= ('2020-04-05 00:00:00') AND (customers.created) < ('2020-04-06 00:00:00'))`,
-    [UnitOfTime.weeks]: `((customers.created) >= ('2020-04-05 00:00:00') AND (customers.created) < ('2020-04-12 00:00:00'))`,
+    [UnitOfTime.weeks]: `((customers.created) >= ('2020-04-06 00:00:00') AND (customers.created) < ('2020-04-13 00:00:00'))`,
     [UnitOfTime.months]: `((customers.created) >= ('2020-05-01 00:00:00') AND (customers.created) < ('2020-06-01 00:00:00'))`,
     [UnitOfTime.quarters]: `((customers.created) >= ('2020-07-01 00:00:00') AND (customers.created) < ('2020-10-01 00:00:00'))`,
     [UnitOfTime.years]: `((customers.created) >= ('2021-01-01 00:00:00') AND (customers.created) < ('2022-01-01 00:00:00'))`,
@@ -153,7 +153,7 @@ export const TrinoExpectedInTheNextCompleteFilterSQL: Record<
     [UnitOfTime.minutes]: `((customers.created) >= CAST('2020-04-04 06:13:00' AS timestamp) AND (customers.created) < CAST('2020-04-04 06:14:00' AS timestamp))`,
     [UnitOfTime.hours]: `((customers.created) >= CAST('2020-04-04 07:00:00' AS timestamp) AND (customers.created) < CAST('2020-04-04 08:00:00' AS timestamp))`,
     [UnitOfTime.days]: `((customers.created) >= CAST('2020-04-05 00:00:00' AS timestamp) AND (customers.created) < CAST('2020-04-06 00:00:00' AS timestamp))`,
-    [UnitOfTime.weeks]: `((customers.created) >= CAST('2020-04-05 00:00:00' AS timestamp) AND (customers.created) < CAST('2020-04-12 00:00:00' AS timestamp))`,
+    [UnitOfTime.weeks]: `((customers.created) >= CAST('2020-04-06 00:00:00' AS timestamp) AND (customers.created) < CAST('2020-04-13 00:00:00' AS timestamp))`,
     [UnitOfTime.months]: `((customers.created) >= CAST('2020-05-01 00:00:00' AS timestamp) AND (customers.created) < CAST('2020-06-01 00:00:00' AS timestamp))`,
     [UnitOfTime.quarters]: `((customers.created) >= CAST('2020-07-01 00:00:00' AS timestamp) AND (customers.created) < CAST('2020-10-01 00:00:00' AS timestamp))`,
     [UnitOfTime.years]: `((customers.created) >= CAST('2021-01-01 00:00:00' AS timestamp) AND (customers.created) < CAST('2022-01-01 00:00:00' AS timestamp))`,
@@ -266,9 +266,9 @@ export const InTheLast1CompletedWeekFilter = {
     },
 };
 
-export const InTheLast1CompletedWeekFilterSQL = `((customers.created) >= ('2020-03-22') AND (customers.created) < ('2020-03-29'))`;
+export const InTheLast1CompletedWeekFilterSQL = `((customers.created) >= ('2020-03-23') AND (customers.created) < ('2020-03-30'))`;
 
-export const TrinoInTheLast1CompletedWeekFilterSQL = `((customers.created) >= CAST('2020-03-22' AS timestamp) AND (customers.created) < CAST('2020-03-29' AS timestamp))`;
+export const TrinoInTheLast1CompletedWeekFilterSQL = `((customers.created) >= CAST('2020-03-23' AS timestamp) AND (customers.created) < CAST('2020-03-30' AS timestamp))`;
 
 export const InTheLast1MonthFilter = {
     ...InTheLast1WeekFilter,
