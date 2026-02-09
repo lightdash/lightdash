@@ -166,6 +166,13 @@ export type ApiGetMetricsTree = {
     };
 };
 
+export type ApiGetAllMetricsTreeEdges = {
+    status: 'ok';
+    results: {
+        edges: CatalogMetricsTreeEdge[];
+    };
+};
+
 export type ApiMetricsTreeEdgePayload = {
     sourceCatalogSearchUuid: string;
     targetCatalogSearchUuid: string;

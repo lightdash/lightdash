@@ -10,6 +10,7 @@ import {
     CatalogOwner,
     getItemId,
     type ApiFilterDimensionsResponse,
+    type ApiGetAllMetricsTreeEdges,
     type ApiGetMetricsTree,
     type ApiGetMetricsTreePayload,
     type ApiMetricsTreeEdgePayload,
@@ -240,6 +241,30 @@ export class CatalogController extends BaseController {
                 },
                 sortArgs,
             );
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get all edges in the metrics tree for a project
+     * @summary Get all metrics tree edges
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/tree/edges')
+    @OperationId('getAllMetricsTreeEdges')
+    async getAllMetricsTreeEdges(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetAllMetricsTreeEdges> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getAllMetricsTreeEdges(req.user!, projectUuid);
 
         return {
             status: 'ok',
