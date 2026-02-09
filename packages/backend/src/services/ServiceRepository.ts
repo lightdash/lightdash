@@ -856,7 +856,7 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     tagsModel: this.models.getTagsModel(),
                     changesetModel: this.models.getChangesetModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }
