@@ -1566,7 +1566,7 @@ export const parseConfig = (): LightdashConfig => {
                     'LIGHTDASH_QUERY_MAX_PAGE_SIZE',
                 ) || 2500, // Defaults to default limit * 5
             useSqlPivotResults: process.env.USE_SQL_PIVOT_RESULTS
-                ? process.env.USE_SQL_PIVOT_RESULTS === 'true'
+                ? process.env.USE_SQL_PIVOT_RESULTS !== 'false'
                 : undefined,
             showExecutionTime: process.env.SHOW_EXECUTION_TIME
                 ? process.env.SHOW_EXECUTION_TIME === 'true'
