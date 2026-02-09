@@ -6,7 +6,6 @@ import {
     ChartSourceType,
     ContentActionMove,
     ContentType,
-    FeatureFlags,
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -21,7 +20,6 @@ import {
     ContentArgs,
     ContentFilters,
 } from '../../models/ContentModel/ContentModelTypes';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { wrapSentryTransaction } from '../../utils';
@@ -29,10 +27,8 @@ import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SavedSqlService } from '../SavedSqlService/SavedSqlService';
-import {
-    hasViewAccessToSpace,
-    SpaceService,
-} from '../SpaceService/SpaceService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import { SpaceService } from '../SpaceService/SpaceService';
 
 type ContentServiceArguments = {
     analytics: LightdashAnalytics;
@@ -43,7 +39,7 @@ type ContentServiceArguments = {
     dashboardService: DashboardService;
     savedChartService: SavedChartService;
     savedSqlService: SavedSqlService;
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class ContentService extends BaseService {
@@ -63,7 +59,7 @@ export class ContentService extends BaseService {
 
     savedSqlService: SavedSqlService;
 
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 
     constructor(args: ContentServiceArguments) {
         super();
@@ -77,7 +73,7 @@ export class ContentService extends BaseService {
         this.dashboardService = args.dashboardService;
         this.savedChartService = args.savedChartService;
         this.savedSqlService = args.savedSqlService;
-        this.featureFlagModel = args.featureFlagModel;
+        this.spacePermissionService = args.spacePermissionService;
     }
 
     async find(
@@ -120,30 +116,12 @@ export class ContentService extends BaseService {
         });
         const spaceUuids = spaces.map((p) => p.uuid);
 
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-                organizationName: user.organizationName,
-            },
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaceUuids,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
-
-        const allowedSpaceUuids = spaces
-            .filter((space) =>
-                hasViewAccessToSpace(
-                    user,
-                    space,
-                    spacesAccess[space.uuid] ?? [],
-                ),
-            )
-            .map((space) => space.uuid);
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaceUuids,
+            );
 
         return this.contentModel.findSummaryContents(
             {
