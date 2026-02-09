@@ -58,7 +58,8 @@ export class EmbedModel {
 
         const charts = await this.database('saved_queries')
             .select()
-            .whereIn('saved_query_uuid', embed.chart_uuids);
+            .whereIn('saved_query_uuid', embed.chart_uuids)
+            .whereNull('deleted_at');
 
         const validChartUuids = charts.map((chart) => chart.saved_query_uuid);
 
