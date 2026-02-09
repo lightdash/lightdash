@@ -617,6 +617,7 @@ export class TableCalculationFunctionCompiler {
                     break;
                 }
                 default:
+                    // Not implemented yet
                     break;
             }
         }
