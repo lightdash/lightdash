@@ -583,14 +583,16 @@ export class TableCalculationFunctionCompiler {
                 // Current column
                 arrayElements.push(expression);
             } else {
-                // Use LAG or LEAD for other columns
+                // Use LAG or LEAD for other columns, with adjacency guard
                 const windowFunction = offset < 0 ? 'LAG' : 'LEAD';
                 const offsetValue = Math.abs(offset);
-                const windowClause = `OVER (PARTITION BY ${q}column_index${q} ORDER BY ${q}row_index${q})`;
+                const windowClause = `OVER (PARTITION BY ${q}row_index${q} ORDER BY ${q}column_index${q})`;
 
-                // Add the window function to get value at the offset
+                // Guard: only return the value if the column_index at the offset position
+                // is exactly the expected column_index away, otherwise return NULL.
+                // This prevents skipping over missing columns (e.g., jumping from column 2 to column 5).
                 arrayElements.push(
-                    `${windowFunction}(${expression}, ${offsetValue}) ${windowClause}`,
+                    `CASE WHEN ${windowFunction}(${q}column_index${q}, ${offsetValue}) ${windowClause} = ${q}column_index${q} + (${offset}) THEN ${windowFunction}(${expression}, ${offsetValue}) ${windowClause} ELSE NULL END`,
                 );
             }
         }

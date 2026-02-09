@@ -532,13 +532,13 @@ describe('tableCalculationFunctions', () => {
             });
 
             describe('pivot_offset_list compilation', () => {
-                it('should compile pivot_offset_list to PostgreSQL array', () => {
+                it('should compile pivot_offset_list to PostgreSQL array with adjacency guards', () => {
                     const sql = 'pivot_offset_list(revenue, -2, 3)';
                     const functions = parseTableCalculationFunctions(sql);
                     const compiled = compiler.compileFunctions(sql, functions);
-                    // Returns PostgreSQL array with LAG and current values
+                    // Returns PostgreSQL array with LAG and current values, with adjacency guards
                     const expectedSql =
-                        'ARRAY[LAG(revenue, 2) OVER (PARTITION BY "column_index" ORDER BY "row_index"), LAG(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index"), revenue]';
+                        'ARRAY[CASE WHEN LAG("column_index", 2) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (-2) THEN LAG(revenue, 2) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END, CASE WHEN LAG("column_index", 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END, revenue]';
                     expect(compiled).toBe(expectedSql);
                 });
 
@@ -547,9 +547,9 @@ describe('tableCalculationFunctions', () => {
                     const functions = parseTableCalculationFunctions(sql);
                     const compiled = compiler.compileFunctions(sql, functions);
 
-                    // Returns array starting from current column and going forward
+                    // Returns array starting from current column and going forward, with adjacency guards
                     const expectedSql =
-                        'ARRAY[orders, LEAD(orders, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index"), LEAD(orders, 2) OVER (PARTITION BY "column_index" ORDER BY "row_index")]';
+                        'ARRAY[orders, CASE WHEN LEAD("column_index", 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (1) THEN LEAD(orders, 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END, CASE WHEN LEAD("column_index", 2) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (2) THEN LEAD(orders, 2) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END]';
                     expect(compiled).toBe(expectedSql);
                 });
 
@@ -558,10 +558,50 @@ describe('tableCalculationFunctions', () => {
                     const functions = parseTableCalculationFunctions(sql);
                     const compiled = compiler.compileFunctions(sql, functions);
 
-                    // Returns array from previous to next column
+                    // Returns array from previous to next column, with adjacency guards
                     const expectedSql =
-                        'ARRAY[LAG(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index"), revenue, LEAD(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index")]';
+                        'ARRAY[CASE WHEN LAG("column_index", 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END, revenue, CASE WHEN LEAD("column_index", 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (1) THEN LEAD(revenue, 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END]';
                     expect(compiled).toBe(expectedSql);
+                });
+
+                it('should compile single-value forward offset with adjacency guard', () => {
+                    // pivot_offset_list(metric, 1, 1) should return NULL when the next
+                    // column_index is not consecutive (e.g., column 2 -> column 5 with gap)
+                    const sql = 'pivot_offset_list(metric, 1, 1)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'ARRAY[CASE WHEN LEAD("column_index", 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (1) THEN LEAD(metric, 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END]';
+                    expect(compiled).toBe(expectedSql);
+
+                    // The CASE WHEN guard ensures that if column_index jumps
+                    // (e.g., from 2 to 5), the result is NULL instead of the
+                    // value from column 5
+                    expect(compiled).toContain('CASE WHEN');
+                    expect(compiled).toContain('= "column_index" + (1)');
+                    expect(compiled).toContain('ELSE NULL END');
+                });
+
+                it('should compile single-value backward offset with adjacency guard', () => {
+                    const sql = 'pivot_offset_list(metric, -1, 1)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql =
+                        'ARRAY[CASE WHEN LAG("column_index", 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (-1) THEN LAG(metric, 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END]';
+                    expect(compiled).toBe(expectedSql);
+                });
+
+                it('should not add adjacency guard for zero offset element', () => {
+                    // offset 0 refers to the current column, no guard needed
+                    const sql = 'pivot_offset_list(metric, 0, 1)';
+                    const functions = parseTableCalculationFunctions(sql);
+                    const compiled = compiler.compileFunctions(sql, functions);
+
+                    const expectedSql = 'ARRAY[metric]';
+                    expect(compiled).toBe(expectedSql);
+                    expect(compiled).not.toContain('CASE WHEN');
                 });
             });
 
