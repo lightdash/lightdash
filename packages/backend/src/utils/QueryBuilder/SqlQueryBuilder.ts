@@ -12,8 +12,12 @@ import {
 import { safeReplaceParameters } from './parameters';
 import {
     extractOuterLimitOffsetFromSQL,
+    injectRowNumber,
+    normalizeOrderByOrdinals,
+    processOuterOrderBy,
     removeCommentsAndOuterLimitOffset,
     removeTrailingSemicolon,
+    ROW_NUMBER_COLUMN_NAME,
     type LimitOffsetClause,
 } from './utils';
 
@@ -35,6 +39,14 @@ export class SqlQueryBuilder {
     private readonly parameters?: ParametersValuesMap;
 
     private readonly limit: number | undefined;
+
+    // Lazily computed: ORDER BY text + sanitized FROM SQL (single processing pass)
+    private cachedProcessedFrom:
+        | {
+              sanitizedSql: string;
+              rawOrderByText: string | undefined;
+          }
+        | undefined;
 
     constructor(
         args: {
@@ -90,11 +102,49 @@ export class SqlQueryBuilder {
         return `SELECT\n${selectSQL}`;
     }
 
+    /**
+     * Processes the FROM SQL once:
+     *   1. Strips comments + LIMIT/OFFSET
+     *   2. Extracts + strips ORDER BY (returns raw text)
+     *   3. If ORDER BY found, injects ROW_NUMBER() OVER (ORDER BY ...) into the SQL
+     * Caches the result so both fromToSql() and orderByToSql() reuse it.
+     */
+    private getProcessedFrom(): {
+        sanitizedSql: string;
+        rawOrderByText: string | undefined;
+    } {
+        if (!this.cachedProcessedFrom) {
+            let withoutLimitOffset = removeCommentsAndOuterLimitOffset(
+                this.from.sql!,
+            );
+            withoutLimitOffset = removeTrailingSemicolon(withoutLimitOffset);
+            const { rawOrderByText, sqlWithoutOrderBy } =
+                processOuterOrderBy(withoutLimitOffset);
+
+            let sanitizedSql = sqlWithoutOrderBy;
+            if (rawOrderByText) {
+                const normalizedOrderByText = normalizeOrderByOrdinals(
+                    rawOrderByText,
+                    sqlWithoutOrderBy,
+                );
+                sanitizedSql = injectRowNumber(
+                    sqlWithoutOrderBy,
+                    normalizedOrderByText,
+                    this.config.fieldQuoteChar,
+                );
+            }
+
+            this.cachedProcessedFrom = {
+                sanitizedSql,
+                rawOrderByText,
+            };
+        }
+        return this.cachedProcessedFrom;
+    }
+
     private fromToSql(): string {
         if (this.from.sql) {
-            // strip any trailing semicolons, comments and outer limit/offset
-            let sanitizedSql = removeCommentsAndOuterLimitOffset(this.from.sql);
-            sanitizedSql = removeTrailingSemicolon(sanitizedSql);
+            const { sanitizedSql } = this.getProcessedFrom();
             return `FROM (\n${sanitizedSql}\n) AS ${this.quotedName(
                 this.from.name,
             )}`;
@@ -155,6 +205,22 @@ export class SqlQueryBuilder {
         return undefined;
     }
 
+    /**
+     * Returns ORDER BY for the __lightdash_row_number__ column when ROW_NUMBER was injected.
+     */
+    private orderByToSql(): string | undefined {
+        if (!this.from.sql) {
+            return undefined;
+        }
+
+        const { rawOrderByText } = this.getProcessedFrom();
+        if (!rawOrderByText) {
+            return undefined;
+        }
+
+        return `ORDER BY ${this.quotedName(ROW_NUMBER_COLUMN_NAME)}`;
+    }
+
     private limitToSql() {
         if (!this.limit) {
             return undefined;
@@ -195,6 +261,7 @@ export class SqlQueryBuilder {
             this.selectsToSql(),
             this.fromToSql(),
             this.filtersToSql(),
+            this.orderByToSql(),
             this.limitToSql(),
         ]
             .filter((l) => l !== undefined)

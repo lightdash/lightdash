@@ -296,6 +296,276 @@ describe('SqlQueryBuilder class', () => {
         });
     });
 
+    describe('ORDER BY handling with ROW_NUMBER injection', () => {
+        it('should inject ROW_NUMBER and order by it when subquery has ORDER BY', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: {
+                        test_field: {
+                            type: DimensionType.STRING,
+                            sql: '"test_field"',
+                        },
+                    },
+                    select: ['test_field'],
+                    from: {
+                        name: 'subquery',
+                        sql: 'SELECT test_field FROM source_table ORDER BY test_field DESC',
+                    },
+                    limit: undefined,
+                },
+                DEFAULT_CONFIG,
+            );
+            const result = queryBuilder.toSql();
+            // The subquery should contain ROW_NUMBER
+            expect(result).toContain(
+                'ROW_NUMBER() OVER (ORDER BY test_field DESC)',
+            );
+            expect(result).toContain('"__lightdash_row_number__"');
+            // Outer query should ORDER BY the row number column
+            expect(result).toContain('ORDER BY "__lightdash_row_number__"');
+            // The subquery should NOT contain a standalone ORDER BY clause
+            const fromMatch = result.match(
+                /FROM \(\n([\s\S]*?)\n\) AS "subquery"/,
+            );
+            // The inner SQL should not have ORDER BY outside the OVER clause
+            const innerSql = fromMatch?.[1] ?? '';
+            const withoutOver = innerSql.replace(/OVER\s*\([^)]*\)/g, '');
+            expect(withoutOver).not.toContain('ORDER BY');
+        });
+
+        it('should inject ROW_NUMBER with ORDER BY and LIMIT from subquery', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: {
+                        test_field: {
+                            type: DimensionType.STRING,
+                            sql: '"test_field"',
+                        },
+                    },
+                    select: ['test_field'],
+                    from: {
+                        name: 'subquery',
+                        sql: 'SELECT test_field FROM source_table ORDER BY test_field ASC LIMIT 100',
+                    },
+                    limit: 50,
+                },
+                DEFAULT_CONFIG,
+            );
+            const result = queryBuilder.toSql();
+            // Should have ROW_NUMBER in subquery
+            expect(result).toContain(
+                'ROW_NUMBER() OVER (ORDER BY test_field ASC)',
+            );
+            // ORDER BY should be at outer level
+            expect(result).toContain('ORDER BY "__lightdash_row_number__"');
+            // LIMIT should also be at the outer level
+            expect(result).toContain('LIMIT 50');
+            // The subquery should have neither standalone ORDER BY nor LIMIT
+            const fromMatch = result.match(
+                /FROM \(\n([\s\S]*?)\n\) AS "subquery"/,
+            );
+            const innerSql = fromMatch?.[1] ?? '';
+            expect(innerSql).not.toContain('LIMIT');
+        });
+
+        it('should not add ORDER BY when subquery has no ORDER BY', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: {
+                        test_field: {
+                            type: DimensionType.STRING,
+                            sql: '"test_field"',
+                        },
+                    },
+                    select: ['test_field'],
+                    from: {
+                        name: 'subquery',
+                        sql: 'SELECT test_field FROM source_table WHERE test_field IS NOT NULL',
+                    },
+                    limit: undefined,
+                },
+                DEFAULT_CONFIG,
+            );
+            const result = queryBuilder.toSql();
+            expect(result).not.toContain('ORDER BY');
+            expect(result).not.toContain('ROW_NUMBER');
+        });
+
+        it('should not add ORDER BY when FROM is a table name (no sql)', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: SIMPLE_REFERENCE_MAP,
+                    select: ['test_field'],
+                    from: { name: 'test_table' },
+                    limit: undefined,
+                },
+                DEFAULT_CONFIG,
+            );
+            const result = queryBuilder.toSql();
+            expect(result).not.toContain('ORDER BY');
+            expect(result).not.toContain('ROW_NUMBER');
+        });
+
+        it('should handle complex ORDER BY expressions like CASE', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: {
+                        date: {
+                            type: DimensionType.STRING,
+                            sql: '"date"',
+                        },
+                        revenue: {
+                            type: DimensionType.NUMBER,
+                            sql: '"revenue"',
+                        },
+                    },
+                    select: ['date', 'revenue'],
+                    from: {
+                        name: 'sql_query',
+                        sql: 'SELECT date, revenue FROM sales ORDER BY CASE WHEN revenue > 100 THEN 1 ELSE 2 END',
+                    },
+                    limit: 50,
+                },
+                DEFAULT_CONFIG,
+            );
+            const result = queryBuilder.toSql();
+            expect(result).toContain(
+                'ROW_NUMBER() OVER (ORDER BY CASE WHEN revenue > 100 THEN 1 ELSE 2 END)',
+            );
+            expect(result).toContain('ORDER BY "__lightdash_row_number__"');
+        });
+
+        it('should handle ORDER BY with column not in SELECT', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: {
+                        date: {
+                            type: DimensionType.STRING,
+                            sql: '"date"',
+                        },
+                    },
+                    select: ['date'],
+                    from: {
+                        name: 'sql_query',
+                        sql: 'SELECT date FROM sales ORDER BY revenue DESC',
+                    },
+                    limit: 50,
+                },
+                DEFAULT_CONFIG,
+            );
+            const result = queryBuilder.toSql();
+            // ROW_NUMBER can reference revenue even though it's not in SELECT
+            expect(result).toContain(
+                'ROW_NUMBER() OVER (ORDER BY revenue DESC)',
+            );
+            expect(result).toContain('ORDER BY "__lightdash_row_number__"');
+        });
+
+        it('should handle ORDER BY with dashboard filters', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: {
+                        date: {
+                            type: DimensionType.STRING,
+                            sql: '"date"',
+                        },
+                        revenue: {
+                            type: DimensionType.NUMBER,
+                            sql: '"revenue"',
+                        },
+                    },
+                    select: ['date', 'revenue'],
+                    from: {
+                        name: 'sql_query',
+                        sql: 'SELECT date, revenue FROM sales ORDER BY revenue DESC',
+                    },
+                    filters: {
+                        id: 'filter_group_1',
+                        and: [
+                            {
+                                id: 'filter1',
+                                target: { fieldId: 'date' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-01-01'],
+                                settings: {},
+                                disabled: false,
+                            } as DashboardFilterRule,
+                        ],
+                    },
+                    limit: 50,
+                },
+                DEFAULT_CONFIG,
+            );
+            const result = queryBuilder.toSql();
+            // Should have WHERE, ORDER BY, and LIMIT in correct order
+            expect(result).toContain('WHERE');
+            expect(result).toContain('ORDER BY "__lightdash_row_number__"');
+            expect(result).toContain('LIMIT 50');
+            // WHERE should come before the outer ORDER BY (the one with __lightdash_row_number__)
+            const whereIdx = result.indexOf('WHERE');
+            const outerOrderByIdx = result.indexOf(
+                'ORDER BY "__lightdash_row_number__"',
+            );
+            const limitIdx = result.indexOf('LIMIT');
+            expect(whereIdx).toBeLessThan(outerOrderByIdx);
+            expect(outerOrderByIdx).toBeLessThan(limitIdx);
+        });
+
+        it('should normalize ORDER BY ordinal positions', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: {
+                        date: {
+                            type: DimensionType.STRING,
+                            sql: '"date"',
+                        },
+                        revenue: {
+                            type: DimensionType.NUMBER,
+                            sql: '"revenue"',
+                        },
+                    },
+                    select: ['date', 'revenue'],
+                    from: {
+                        name: 'sql_query',
+                        sql: 'SELECT date, revenue FROM sales ORDER BY 2 DESC',
+                    },
+                    limit: 50,
+                },
+                DEFAULT_CONFIG,
+            );
+            const result = queryBuilder.toSql();
+            expect(result).toContain(
+                'ROW_NUMBER() OVER (ORDER BY (revenue) DESC)',
+            );
+            expect(result).toContain('ORDER BY "__lightdash_row_number__"');
+        });
+
+        it('should normalize ORDER BY ordinals that reference aliased expressions', () => {
+            const queryBuilder = new SqlQueryBuilder(
+                {
+                    referenceMap: {
+                        doubled: {
+                            type: DimensionType.NUMBER,
+                            sql: '"doubled"',
+                        },
+                    },
+                    select: ['doubled'],
+                    from: {
+                        name: 'sql_query',
+                        sql: 'SELECT amount * 2 AS doubled FROM sales ORDER BY 1 DESC',
+                    },
+                    limit: 50,
+                },
+                DEFAULT_CONFIG,
+            );
+            const result = queryBuilder.toSql();
+            expect(result).toContain(
+                'ROW_NUMBER() OVER (ORDER BY (amount * 2) DESC)',
+            );
+            expect(result).toContain('ORDER BY "__lightdash_row_number__"');
+        });
+    });
+
     describe('error handling', () => {
         it('should throw an error for unknown reference', () => {
             const queryBuilder = new SqlQueryBuilder(
