@@ -59,10 +59,24 @@ export class AdminNotificationService extends BaseService {
         this.userModel = userModel;
     }
 
-    private async isFeatureEnabled(organizationUuid: string): Promise<boolean> {
+    private async isFeatureEnabled(
+        organizationUuid: string,
+        account?: Account,
+    ): Promise<boolean> {
         try {
+            const registeredUser =
+                account?.user?.type === 'registered' ? account.user : undefined;
+
             const flag = await this.featureFlagModel.get({
                 featureFlagId: FeatureFlags.AdminChangeNotifications,
+                user: registeredUser
+                    ? {
+                          userUuid: registeredUser.userUuid,
+                          organizationUuid,
+                          organizationName:
+                              account?.organization?.name ?? undefined,
+                      }
+                    : undefined,
             });
             return flag.enabled;
         } catch {
@@ -150,7 +164,10 @@ export class AdminNotificationService extends BaseService {
         previousRole: OrganizationMemberRole | undefined,
         newRole: OrganizationMemberRole,
     ): Promise<void> {
-        const isEnabled = await this.isFeatureEnabled(organizationUuid);
+        const isEnabled = await this.isFeatureEnabled(
+            organizationUuid,
+            account,
+        );
         if (!isEnabled) {
             this.logger.debug('Admin change notifications disabled');
             return;
@@ -248,7 +265,10 @@ export class AdminNotificationService extends BaseService {
             previousRole,
             newRole,
         } = params;
-        const isEnabled = await this.isFeatureEnabled(organizationUuid);
+        const isEnabled = await this.isFeatureEnabled(
+            organizationUuid,
+            account,
+        );
         if (!isEnabled) {
             this.logger.debug('Admin change notifications disabled');
             return;
@@ -336,7 +356,12 @@ export class AdminNotificationService extends BaseService {
         projectName: string;
         changedBy: Account;
     }): Promise<void> {
-        if (!(await this.isFeatureEnabled(params.organizationUuid))) {
+        if (
+            !(await this.isFeatureEnabled(
+                params.organizationUuid,
+                params.changedBy,
+            ))
+        ) {
             this.logger.debug('Admin change notifications disabled', {
                 organizationUuid: params.organizationUuid,
             });
