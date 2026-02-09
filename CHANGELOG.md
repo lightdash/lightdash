@@ -1,3 +1,20 @@
+# [0.2440.0](https://github.com/lightdash/lightdash/compare/0.2439.3...0.2440.0) (2026-02-09)
+
+
+### Bug Fixes
+
+* make Slack artifact action IDs unique with UUID ([#20092](https://github.com/lightdash/lightdash/issues/20092)) ([757de9c](https://github.com/lightdash/lightdash/commit/757de9c423d48fe02060218af5b2d8f28d3aa799))
+* tiles and page header styles ([#20091](https://github.com/lightdash/lightdash/issues/20091)) ([1e7d527](https://github.com/lightdash/lightdash/commit/1e7d52713f525f65fcd5e745589763d644a10f73))
+* use theme color for dashboard grid lines ([#20095](https://github.com/lightdash/lightdash/issues/20095)) ([08882bc](https://github.com/lightdash/lightdash/commit/08882bc18aea9a1d66bd7a2e450f70501ffe473b))
+
+
+### Features
+
+* add pivot_where table calculation function ([#19991](https://github.com/lightdash/lightdash/issues/19991)) ([c3eaa73](https://github.com/lightdash/lightdash/commit/c3eaa7342e1c32a0fcad7ed4b543d4484138fb7a))
+* dotted variant for Paper and Card components ([#20072](https://github.com/lightdash/lightdash/issues/20072)) ([0e7eef5](https://github.com/lightdash/lightdash/commit/0e7eef562faa536ba72699fe9a1ac45d78e19256))
+* improve dark color contrast ([#20070](https://github.com/lightdash/lightdash/issues/20070)) ([9b80347](https://github.com/lightdash/lightdash/commit/9b803472100ed1dd0c4f0b2242119f71c1472ee3))
+* show grid lines during drag/resize and prevent text selection ([#20086](https://github.com/lightdash/lightdash/issues/20086)) ([3ebc539](https://github.com/lightdash/lightdash/commit/3ebc5394f8a5795c4bd9f82b11b333cc289cde13))
+
 ## [0.2439.3](https://github.com/lightdash/lightdash/compare/0.2439.2...0.2439.3) (2026-02-09)
 
 
