@@ -139,6 +139,53 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
     }
 };
 
+export const optionalAuthentication: RequestHandler = (req, res, next) => {
+    if (req.isAuthenticated()) {
+        next();
+        return;
+    }
+
+    const hasAuthHeader = !!req.headers.authorization;
+    if (!hasAuthHeader) {
+        next();
+        return;
+    }
+
+    const authenticateWithPat = () => {
+        if (req.isAuthenticated()) {
+            next();
+            return;
+        }
+        if (!lightdashConfig.auth.pat.enabled) {
+            next();
+            return;
+        }
+        passport.authenticate(
+            'headerapikey',
+            { session: false },
+            (err: Error | null, user: Express.User | false) => {
+                if (err) {
+                    next(err);
+                    return;
+                }
+                if (user) {
+                    req.user = user;
+                    req.account = fromApiKey(
+                        user,
+                        req.headers.authorization || '',
+                    );
+                }
+                next();
+            },
+        )(req, res, next);
+    };
+    try {
+        authenticateServiceAccount(req, res, authenticateWithPat);
+    } catch (e) {
+        authenticateWithPat();
+    }
+};
+
 export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
     const { redirect, inviteCode, isPopup } = req.query;
     req.session.oauth = {};
