@@ -1,20 +1,18 @@
 import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
     ForbiddenError,
     PinnedItems,
     SessionUser,
     UpdatePinnedItemOrder,
 } from '@lightdash/common';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ResourceViewItemModel } from '../../models/ResourceViewItemModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type PinningServiceArguments = {
     dashboardModel: DashboardModel;
@@ -26,7 +24,7 @@ type PinningServiceArguments = {
     pinnedListModel: PinnedListModel;
     resourceViewItemModel: ResourceViewItemModel;
     projectModel: ProjectModel;
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class PinningService extends BaseService {
@@ -42,7 +40,7 @@ export class PinningService extends BaseService {
 
     projectModel: ProjectModel;
 
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 
     constructor({
         dashboardModel,
@@ -51,7 +49,7 @@ export class PinningService extends BaseService {
         pinnedListModel,
         resourceViewItemModel,
         projectModel,
-        featureFlagModel,
+        spacePermissionService,
     }: PinningServiceArguments) {
         super();
         this.dashboardModel = dashboardModel;
@@ -60,7 +58,7 @@ export class PinningService extends BaseService {
         this.pinnedListModel = pinnedListModel;
         this.resourceViewItemModel = resourceViewItemModel;
         this.projectModel = projectModel;
-        this.featureFlagModel = featureFlagModel;
+        this.spacePermissionService = spacePermissionService;
     }
 
     async getPinnedItems(
@@ -75,35 +73,17 @@ export class PinningService extends BaseService {
 
         const spaces = await this.spaceModel.find({ projectUuid });
         const spaceUuids = spaces.map((s) => s.uuid);
-
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-                organizationName: user.organizationName,
-            },
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaceUuids,
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
-
-        const allowedSpaceUuids = spaces
-            .filter((space, index) =>
-                hasViewAccessToSpace(
-                    user,
-                    space,
-                    spacesAccess[space.uuid] ?? [],
-                ),
-            )
-            .map((s) => s.uuid);
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaceUuids,
+            );
 
         if (allowedSpaceUuids.length === 0) {
             return [];
         }
+
         const allPinnedSpaces =
             await this.resourceViewItemModel.getAllSpacesByPinnedListUuid(
                 projectUuid,

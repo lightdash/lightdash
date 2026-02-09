@@ -527,7 +527,7 @@ export class ServiceRepository
                     resourceViewItemModel:
                         this.models.getResourceViewItemModel(),
                     projectModel: this.models.getProjectModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }
