@@ -191,6 +191,19 @@ export class SnowflakeSqlBuilder extends WarehouseBaseSqlBuilder {
         // Snowflake uses DATEDIFF function
         return `DATEDIFF('second', ${startTimestampSql}, ${endTimestampSql})`;
     }
+
+    buildArray(elements: string[]): string {
+        // Snowflake array construction syntax
+        return `ARRAY_CONSTRUCT(${elements.join(', ')})`;
+    }
+
+    buildArrayAgg(expression: string, orderBy?: string): string {
+        // Snowflake uses ARRAY_AGG function with WITHIN GROUP clause for ordering
+        if (orderBy) {
+            return `ARRAY_AGG(${expression}) WITHIN GROUP (ORDER BY ${orderBy})`;
+        }
+        return `ARRAY_AGG(${expression})`;
+    }
 }
 
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
