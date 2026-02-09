@@ -1,3 +1,15 @@
+# [0.2444.0](https://github.com/lightdash/lightdash/compare/0.2443.2...0.2444.0) (2026-02-09)
+
+
+### Bug Fixes
+
+* increase query string array limit from 20 to 100 ([#20107](https://github.com/lightdash/lightdash/issues/20107)) ([1939435](https://github.com/lightdash/lightdash/commit/193943514e1915ed888f2a0e3eeee72f512d8638))
+
+
+### Features
+
+* implement row-based table calculation functions ([#20102](https://github.com/lightdash/lightdash/issues/20102)) ([11c8b5b](https://github.com/lightdash/lightdash/commit/11c8b5b7344a5dfeda952f7c35c735570c6aa0f9))
+
 ## [0.2443.2](https://github.com/lightdash/lightdash/compare/0.2443.1...0.2443.2) (2026-02-09)
 
 
