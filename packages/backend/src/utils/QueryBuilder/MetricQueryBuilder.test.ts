@@ -2949,8 +2949,9 @@ describe('Query Structure Tests', () => {
 
         // Should return normal SQL for table calculations without pivot functions
         expect(result.query).toContain('"table1_metric1" * 2 AS "normal_calc"');
+        // Row functions should be compiled to SQL window functions
         expect(result.query).toContain(
-            'offset("table1_metric1", -1) AS "row_calc"',
+            'LAG("table1_metric1", 1) OVER (ORDER BY "table1_metric1" DESC) AS "row_calc"',
         );
 
         // Verify that the pivot function SQL is not in the query

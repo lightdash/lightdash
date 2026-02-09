@@ -335,8 +335,90 @@ export function parseTableCalculationFunctions(
         match = indexRegex.exec(sql);
     }
 
-    // Additional function parsers will be added as they are implemented
-    // For now, we're focusing on the main structure
+    // Parse offset_list function calls (but not pivot_offset_list)
+    const offsetListRegex =
+        /\boffset_list\s*\(\s*([^,()]+(?:\([^)]*\))?[^,()]*)\s*,\s*(-?\d+)\s*,\s*(\d+)\s*\)/gi;
+    match = offsetListRegex.exec(sql);
+    while (match !== null) {
+        const startIdx = match.index;
+        const beforeMatch = sql.slice(Math.max(0, startIdx - 6), startIdx);
+        if (!beforeMatch.endsWith('pivot_')) {
+            functions.push({
+                type: TableCalculationFunctionType.OFFSET_LIST,
+                column: match[1].trim(),
+                rowOffset: parseInt(match[2], 10),
+                numValues: parseInt(match[3], 10),
+                rawSql: match[0],
+            });
+        }
+        match = offsetListRegex.exec(sql);
+    }
+
+    // Parse list function calls (but not offset_list)
+    // Use balanced parenthesis matching since list() has variable arity
+    const listStartRegex = /\blist\s*\(/gi;
+    let listMatch = listStartRegex.exec(sql);
+    while (listMatch !== null) {
+        // Check this isn't offset_list
+        const startIdx = listMatch.index;
+        const beforeMatch = sql.slice(Math.max(0, startIdx - 7), startIdx);
+        if (!beforeMatch.endsWith('offset_')) {
+            const argsStart = startIdx + listMatch[0].length;
+            let parenCount = 1;
+            let endIdx = -1;
+
+            for (let i = argsStart; i < sql.length; i += 1) {
+                if (sql[i] === '(') {
+                    parenCount += 1;
+                } else if (sql[i] === ')') {
+                    parenCount -= 1;
+                    if (parenCount === 0) {
+                        endIdx = i;
+                        break;
+                    }
+                }
+            }
+
+            if (endIdx !== -1) {
+                const argsStr = sql.slice(argsStart, endIdx);
+                // Split by commas at top level (not inside nested parens)
+                const values: string[] = [];
+                let depth = 0;
+                let lastSplit = 0;
+                for (let i = 0; i < argsStr.length; i += 1) {
+                    if (argsStr[i] === '(') depth += 1;
+                    else if (argsStr[i] === ')') depth -= 1;
+                    else if (argsStr[i] === ',' && depth === 0) {
+                        values.push(argsStr.slice(lastSplit, i).trim());
+                        lastSplit = i + 1;
+                    }
+                }
+                values.push(argsStr.slice(lastSplit).trim());
+
+                functions.push({
+                    type: TableCalculationFunctionType.LIST,
+                    values: values.filter((v) => v.length > 0),
+                    rawSql: sql.slice(startIdx, endIdx + 1),
+                });
+            }
+        }
+        listMatch = listStartRegex.exec(sql);
+    }
+
+    // Parse lookup function calls
+    const lookupRegex =
+        /\blookup\s*\(\s*([^,()]+(?:\([^)]*\))?[^,()]*)\s*,\s*([^,()]+(?:\([^)]*\))?[^,()]*)\s*,\s*([^,()]+(?:\([^)]*\))?[^,()]*)\s*\)/gi;
+    match = lookupRegex.exec(sql);
+    while (match !== null) {
+        functions.push({
+            type: TableCalculationFunctionType.LOOKUP,
+            value: match[1].trim(),
+            lookupColumn: match[2].trim(),
+            resultColumn: match[3].trim(),
+            rawSql: match[0],
+        });
+        match = lookupRegex.exec(sql);
+    }
 
     // Sort functions by their position in the SQL from last to first (reverse order)
     functions.sort((a, b) => {
@@ -408,11 +490,13 @@ export class TableCalculationFunctionCompiler {
      * Compiles all functions in a SQL expression.
      * @param sql - The SQL expression containing pivot functions
      * @param functions - Array of parsed table calculation functions
+     * @param orderByClause - Optional ORDER BY clause content for row functions (e.g. '"date" ASC, "revenue" DESC')
      * @returns SQL with functions compiled to their SQL equivalents
      */
     compileFunctions(
         sql: string,
         functions: TableCalculationFunctionCall[],
+        orderByClause?: string,
     ): string {
         let processedSql = sql;
 
@@ -469,8 +553,65 @@ export class TableCalculationFunctionCompiler {
                     processedSql = processedSql.replace(func.rawSql, compiled);
                     break;
                 }
+                case TableCalculationFunctionType.ROW: {
+                    const compiled =
+                        TableCalculationFunctionCompiler.compileRow(
+                            orderByClause,
+                        );
+                    processedSql = processedSql.replace(func.rawSql, compiled);
+                    break;
+                }
+                case TableCalculationFunctionType.OFFSET: {
+                    const offsetFunc = func as OffsetFunctionCall;
+                    const compiled =
+                        TableCalculationFunctionCompiler.compileOffset(
+                            offsetFunc.column,
+                            offsetFunc.rowOffset,
+                            orderByClause,
+                        );
+                    processedSql = processedSql.replace(func.rawSql, compiled);
+                    break;
+                }
+                case TableCalculationFunctionType.INDEX: {
+                    const indexFunc = func as IndexFunctionCall;
+                    const compiled =
+                        TableCalculationFunctionCompiler.compileIndex(
+                            indexFunc.expression,
+                            indexFunc.rowIndex,
+                            orderByClause,
+                        );
+                    processedSql = processedSql.replace(func.rawSql, compiled);
+                    break;
+                }
+                case TableCalculationFunctionType.OFFSET_LIST: {
+                    const offsetListFunc = func as OffsetListFunctionCall;
+                    const compiled = this.compileOffsetList(
+                        offsetListFunc.column,
+                        offsetListFunc.rowOffset,
+                        offsetListFunc.numValues,
+                        orderByClause,
+                    );
+                    processedSql = processedSql.replace(func.rawSql, compiled);
+                    break;
+                }
+                case TableCalculationFunctionType.LIST: {
+                    const listFunc = func as ListFunctionCall;
+                    const compiled = this.compileList(listFunc.values);
+                    processedSql = processedSql.replace(func.rawSql, compiled);
+                    break;
+                }
+                case TableCalculationFunctionType.LOOKUP: {
+                    const lookupFunc = func as LookupFunctionCall;
+                    const compiled =
+                        TableCalculationFunctionCompiler.compileLookup(
+                            lookupFunc.value,
+                            lookupFunc.lookupColumn,
+                            lookupFunc.resultColumn,
+                        );
+                    processedSql = processedSql.replace(func.rawSql, compiled);
+                    break;
+                }
                 default:
-                    // Not implemented yet
                     break;
             }
         }
@@ -614,5 +755,79 @@ export class TableCalculationFunctionCompiler {
         // We need to use the base array aggregation without ordering and put ORDER BY in the window clause
         const baseAgg = this.warehouseSqlBuilder.buildArrayAgg(expression);
         return `${baseAgg} OVER (PARTITION BY ${q}row_index${q} ORDER BY ${q}column_index${q} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)`;
+    }
+
+    // ========================================================================
+    // Row function compilation methods
+    // ========================================================================
+
+    private static buildOrderByWindow(orderByClause?: string): string {
+        return orderByClause ? `OVER (ORDER BY ${orderByClause})` : 'OVER ()';
+    }
+
+    private static compileRow(orderByClause?: string): string {
+        return `ROW_NUMBER() ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`;
+    }
+
+    private static compileOffset(
+        column: string,
+        rowOffset: number,
+        orderByClause?: string,
+    ): string {
+        if (rowOffset === 0) {
+            return column;
+        }
+
+        const windowFunction = rowOffset < 0 ? 'LAG' : 'LEAD';
+        const offsetValue = Math.abs(rowOffset);
+        return `${windowFunction}(${column}, ${offsetValue}) ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`;
+    }
+
+    private static compileIndex(
+        expression: string,
+        rowIndex: number,
+        orderByClause?: string,
+    ): string {
+        const window = orderByClause
+            ? `OVER (ORDER BY ${orderByClause} ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)`
+            : 'OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)';
+        return `NTH_VALUE(${expression}, ${rowIndex}) ${window}`;
+    }
+
+    private compileOffsetList(
+        column: string,
+        rowOffset: number,
+        numValues: number,
+        orderByClause?: string,
+    ): string {
+        const arrayElements: string[] = [];
+
+        for (let i = 0; i < numValues; i += 1) {
+            const offset = rowOffset + i;
+
+            if (offset === 0) {
+                arrayElements.push(column);
+            } else {
+                const windowFunction = offset < 0 ? 'LAG' : 'LEAD';
+                const offsetValue = Math.abs(offset);
+                arrayElements.push(
+                    `${windowFunction}(${column}, ${offsetValue}) ${TableCalculationFunctionCompiler.buildOrderByWindow(orderByClause)}`,
+                );
+            }
+        }
+
+        return this.warehouseSqlBuilder.buildArray(arrayElements);
+    }
+
+    private compileList(values: string[]): string {
+        return this.warehouseSqlBuilder.buildArray(values);
+    }
+
+    private static compileLookup(
+        value: string,
+        lookupColumn: string,
+        resultColumn: string,
+    ): string {
+        return `MAX(CASE WHEN ${lookupColumn} = ${value} THEN ${resultColumn} ELSE NULL END) OVER ()`;
     }
 }

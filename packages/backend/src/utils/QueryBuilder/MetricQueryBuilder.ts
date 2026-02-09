@@ -23,6 +23,7 @@ import {
     getPopComparisonConfigKey,
     hashPopComparisonConfigKeyToSuffix,
     hasPivotFunctions,
+    hasRowFunctions,
     IntrinsicUserAttributes,
     isAndFilterGroup,
     isCompiledCustomSqlDimension,
@@ -45,6 +46,7 @@ import {
     snakeCaseName,
     SortField,
     SupportedDbtAdapter,
+    TableCalculationFunctionCompiler,
     TimeFrames,
     UserAttributeValueMap,
     type ParameterDefinitions,
@@ -801,17 +803,31 @@ export class MetricQueryBuilder {
     ): string[] {
         const { warehouseSqlBuilder } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const orderByClause = this.buildWindowOrderByClause();
+
         return simpleTableCalcs.map((tableCalculation) => {
             const alias = tableCalculation.name;
 
-            // Check if table calculation contains pivot functions
             const functions = parseTableCalculationFunctions(
                 tableCalculation.compiledSql,
             );
-            // Return NULL for table calculations with pivot functions
-            const tablCalcSql = hasPivotFunctions(functions)
-                ? null
-                : tableCalculation.compiledSql;
+
+            let tablCalcSql: string | null;
+            if (hasPivotFunctions(functions)) {
+                tablCalcSql = null;
+            } else if (hasRowFunctions(functions)) {
+                const compiler = new TableCalculationFunctionCompiler(
+                    warehouseSqlBuilder,
+                );
+                tablCalcSql = compiler.compileFunctions(
+                    tableCalculation.compiledSql,
+                    functions,
+                    orderByClause,
+                );
+            } else {
+                tablCalcSql = tableCalculation.compiledSql;
+            }
+
             return `  ${tablCalcSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`;
         });
     }
@@ -1118,6 +1134,16 @@ export class MetricQueryBuilder {
             sqlOrderBy,
             requiresQueryInCTE,
         };
+    }
+
+    private buildWindowOrderByClause(): string | undefined {
+        const { compiledMetricQuery, warehouseSqlBuilder } = this.args;
+        const { sorts } = compiledMetricQuery;
+        const q = warehouseSqlBuilder.getFieldQuoteChar();
+        if (sorts.length === 0) return undefined;
+        return sorts
+            .map((s) => `${q}${s.fieldId}${q}${s.descending ? ' DESC' : ''}`)
+            .join(', ');
     }
 
     private getLimitSQL() {
@@ -2161,6 +2187,7 @@ export class MetricQueryBuilder {
     ) {
         const { warehouseSqlBuilder } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
+        const orderByClause = this.buildWindowOrderByClause();
 
         // Sort table calculations in dependency order
         const sortedTableCalcs = this.sortTableCalcsByDependencies(
@@ -2172,11 +2199,24 @@ export class MetricQueryBuilder {
         for (const tc of sortedTableCalcs) {
             const cteName = `tc_${tc.name}`;
 
+            let { compiledSql } = tc;
+            const functions = parseTableCalculationFunctions(compiledSql);
+            if (hasRowFunctions(functions)) {
+                const compiler = new TableCalculationFunctionCompiler(
+                    warehouseSqlBuilder,
+                );
+                compiledSql = compiler.compileFunctions(
+                    compiledSql,
+                    functions,
+                    orderByClause,
+                );
+            }
+
             const parts = [
                 'SELECT',
                 [
                     '  *',
-                    `  ${tc.compiledSql} AS ${fieldQuoteChar}${tc.name}${fieldQuoteChar}`,
+                    `  ${compiledSql} AS ${fieldQuoteChar}${tc.name}${fieldQuoteChar}`,
                 ].join(',\n'),
                 `FROM ${lastCteName}`,
             ];
