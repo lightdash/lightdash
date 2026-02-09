@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     DashboardSearchResult,
     DashboardTabResult,
-    FeatureFlags,
     FieldSearchResult,
     ForbiddenError,
     isTableErrorSearchResult,
@@ -15,13 +14,12 @@ import {
     TableSearchResult,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { BaseService } from '../BaseService';
-import { hasViewAccessToSpace } from '../SpaceService/SpaceService';
+import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { hasUserAttributes } from '../UserAttributesService/UserAttributeUtils';
 
 type SearchServiceArguments = {
@@ -30,7 +28,7 @@ type SearchServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     userAttributesModel: UserAttributesModel;
-    featureFlagModel: FeatureFlagModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class SearchService extends BaseService {
@@ -44,7 +42,7 @@ export class SearchService extends BaseService {
 
     private readonly userAttributesModel: UserAttributesModel;
 
-    private readonly featureFlagModel: FeatureFlagModel;
+    private readonly spacePermissionService: SpacePermissionService;
 
     constructor(args: SearchServiceArguments) {
         super();
@@ -53,7 +51,7 @@ export class SearchService extends BaseService {
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.userAttributesModel = args.userAttributesModel;
-        this.featureFlagModel = args.featureFlagModel;
+        this.spacePermissionService = args.spacePermissionService;
     }
 
     async getSearchResults(
@@ -103,21 +101,6 @@ export class SearchService extends BaseService {
             ),
         );
 
-        const nestedPermissionsFlag = await this.featureFlagModel.get({
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
-                organizationName: user.organizationName,
-            },
-            featureFlagId: FeatureFlags.NestedSpacesPermissions,
-        });
-
-        const spacesAccess = await this.spaceModel.getUserSpacesAccess(
-            user.userUuid,
-            spaces.map((s) => s.uuid),
-            { useInheritedAccess: nestedPermissionsFlag.enabled },
-        );
-
         const filterItem = async (
             item:
                 | DashboardSearchResult
@@ -127,15 +110,7 @@ export class SearchService extends BaseService {
         ) => {
             const spaceUuid: string =
                 'spaceUuid' in item ? item.spaceUuid : item.uuid;
-            const itemSpace = spaces.find((s) => s.uuid === spaceUuid);
-            return (
-                itemSpace &&
-                hasViewAccessToSpace(
-                    user,
-                    itemSpace,
-                    spacesAccess[spaceUuid] ?? [],
-                )
-            );
+            return this.spacePermissionService.can('view', user, spaceUuid);
         };
 
         const hasExploreAccess = user.ability.can(
