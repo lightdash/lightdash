@@ -1,3 +1,10 @@
+## [0.2441.1](https://github.com/lightdash/lightdash/compare/0.2441.0...0.2441.1) (2026-02-09)
+
+
+### Bug Fixes
+
+* add correct `startOfWeek` default values per adapter ([#20099](https://github.com/lightdash/lightdash/issues/20099)) ([6600e69](https://github.com/lightdash/lightdash/commit/6600e691038eaa14529ee0d007427326d17df983))
+
 # [0.2441.0](https://github.com/lightdash/lightdash/compare/0.2440.1...0.2441.0) (2026-02-09)
 
 
