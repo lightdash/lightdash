@@ -15,8 +15,8 @@ import { useState, type ReactNode } from 'react';
 import rehypeExternalLinks from 'rehype-external-links';
 import MantineIcon from '../../components/common/MantineIcon';
 import ApiErrorDisplay from './ApiErrorDisplay';
-import { type NotificationData } from './types';
 import styles from './MultipleToastBody.module.css';
+import { type NotificationData } from './types';
 
 const MultipleToastBody = ({
     toastsData,
@@ -31,12 +31,9 @@ const MultipleToastBody = ({
     const [listCollapsed, setListCollapsed] = useState(true);
 
     return (
-        <Stack gap="xs" align="stretch">
+        <Stack gap={listCollapsed ? 'two' : 'xs'} align="stretch">
             <Group>
-                <Title
-                    className={styles.errorsTitle}
-                    order={6}
-                >
+                <Title className={styles.errorsTitle} order={6}>
                     Errors
                 </Title>
                 <Button
@@ -74,13 +71,17 @@ const MultipleToastBody = ({
                                 {toastData.apiError ? (
                                     <ApiErrorDisplay
                                         apiError={toastData.apiError}
-                                        onClose={() => onCloseError?.(toastData)}
+                                        onClose={() =>
+                                            onCloseError?.(toastData)
+                                        }
                                     />
                                 ) : (
                                     <>
                                         {toastData.title && (
                                             <Title
-                                                className={styles.errorItemTitle}
+                                                className={
+                                                    styles.errorItemTitle
+                                                }
                                                 order={6}
                                             >
                                                 {toastData.title}
@@ -88,7 +89,9 @@ const MultipleToastBody = ({
                                         )}
                                         {toastData.subtitle && (
                                             <MarkdownPreview
-                                                className={styles.markdownPreview}
+                                                className={
+                                                    styles.markdownPreview
+                                                }
                                                 source={toastData.subtitle.toString()}
                                                 rehypePlugins={[
                                                     [

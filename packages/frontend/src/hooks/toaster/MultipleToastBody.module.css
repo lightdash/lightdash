@@ -11,12 +11,17 @@
     border: 1px solid var(--mantine-color-red-2);
 
     @mixin dark {
-        background-color: color-mix(in srgb, var(--mantine-color-red-9) 40%, black);
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-red-9) 40%,
+            black
+        );
         border-color: var(--mantine-color-red-9);
     }
 }
 
 .toggleButtonText {
+    font-size: var(--mantine-font-size-xs);
     color: var(--mantine-color-red-9);
 
     @mixin dark {
@@ -34,13 +39,17 @@
 .errorItem {
     width: 100%;
     border: 1px solid var(--mantine-color-red-2);
-    border-radius: 4px;
+    border-radius: var(--mantine-radius-md);
     padding: var(--mantine-spacing-xs);
     background-color: var(--mantine-color-red-0);
 
     @mixin dark {
         border-color: var(--mantine-color-red-9);
-        background-color: color-mix(in srgb, var(--mantine-color-red-9) 30%, black);
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-red-9) 30%,
+            black
+        );
     }
 }
 
