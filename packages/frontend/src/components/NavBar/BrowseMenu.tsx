@@ -62,7 +62,7 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                     size="xs"
                     fz="sm"
                     leftSection={
-                        <MantineIcon color="ldGray.5" icon={IconCategory} />
+                        <MantineIcon color="ldGray.6" icon={IconCategory} />
                     }
                 >
                     Browse

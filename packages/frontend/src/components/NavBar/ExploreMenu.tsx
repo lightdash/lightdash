@@ -57,7 +57,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             fz="sm"
                             leftSection={
                                 <MantineIcon
-                                    color="ldGray.5"
+                                    color="ldGray.6"
                                     icon={IconSquareRoundedPlus}
                                 />
                             }
