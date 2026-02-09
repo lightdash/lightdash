@@ -263,10 +263,24 @@ export const renderDateFilterSql = (
 
     switch (filter.operator) {
         case FilterOperator.EQUALS:
+            // Support multiple discrete date values using IN operator
+            if (filter.values && filter.values.length > 1) {
+                const formattedValues = filter.values
+                    .map((v) => castValue(dateFormatter(v)))
+                    .join(',');
+                return `(${dimensionSql}) IN (${formattedValues})`;
+            }
             return `(${dimensionSql}) = ${castValue(
                 dateFormatter(filter.values?.[0]),
             )}`;
         case FilterOperator.NOT_EQUALS:
+            // Support multiple discrete date values using NOT IN operator
+            if (filter.values && filter.values.length > 1) {
+                const formattedValues = filter.values
+                    .map((v) => castValue(dateFormatter(v)))
+                    .join(',');
+                return `((${dimensionSql}) NOT IN (${formattedValues}) OR (${dimensionSql}) IS NULL)`;
+            }
             return `((${dimensionSql}) != ${castValue(
                 dateFormatter(filter.values?.[0]),
             )} OR (${dimensionSql}) IS NULL)`;
