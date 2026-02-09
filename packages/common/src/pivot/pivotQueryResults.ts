@@ -67,6 +67,49 @@ const parseNumericValue = (value: ResultValue | null): number => {
     return Number.isNaN(parsedVal) ? 0 : parsedVal;
 };
 
+/**
+ * Compares two pivot values for sorting purposes.
+ * Handles different data types (strings, numbers, dates, booleans) appropriately.
+ * @param a First value to compare
+ * @param b Second value to compare
+ * @returns Negative if a < b, positive if a > b, 0 if equal
+ */
+const comparePivotValues = (a: unknown, b: unknown): number => {
+    // Handle null/undefined cases
+    if (a === b) return 0;
+    if (a === null || a === undefined) return 1;
+    if (b === null || b === undefined) return -1;
+
+    // Number comparison
+    if (typeof a === 'number' && typeof b === 'number') {
+        return a - b;
+    }
+
+    // Boolean comparison
+    if (typeof a === 'boolean' && typeof b === 'boolean') {
+        return a === b ? 0 : a ? 1 : -1;
+    }
+
+    // Date comparison
+    if (a instanceof Date && b instanceof Date) {
+        return a.getTime() - b.getTime();
+    }
+
+    // Try to parse as dates if they're strings that look like dates
+    if (typeof a === 'string' && typeof b === 'string') {
+        const dateA = new Date(a);
+        const dateB = new Date(b);
+        if (!Number.isNaN(dateA.getTime()) && !Number.isNaN(dateB.getTime())) {
+            return dateA.getTime() - dateB.getTime();
+        }
+        // String comparison (locale-aware)
+        return a.localeCompare(b);
+    }
+
+    // Generic comparison as strings
+    return String(a).localeCompare(String(b));
+};
+
 const setIndexByKey = (
     obj: RecursiveRecord<number>,
     keys: string[],
@@ -865,6 +908,91 @@ export const pivotQueryResults = ({
 };
 
 /**
+ * Sorts pivot values columns according to ORDER BY semantics from sortBy configuration.
+ * This ensures new pivot values appear in the correct order based on the sort configuration,
+ * not just appended at the end based on column_index.
+ */
+const sortPivotValuesColumns = <T extends { pivotValues: { referenceField: string; value: unknown }[]; columnIndex?: number; referenceField: string }>(
+    columns: T[],
+    sortBy: NonNullable<ReadyQueryResultsPage['pivotDetails']>['sortBy'],
+    groupByColumns: NonNullable<ReadyQueryResultsPage['pivotDetails']>['groupByColumns'],
+    columnOrder: string[],
+): T[] => {
+    return [...columns].sort((a, b) => {
+        // First, try to sort by the ORDER BY configuration from groupBy columns
+        if (groupByColumns && groupByColumns.length > 0) {
+            // For each groupBy column, check if there's a sortBy configuration
+            for (const groupByCol of groupByColumns) {
+                const sortConfig = sortBy?.find(
+                    (s) => s.reference === groupByCol.reference,
+                );
+
+                if (sortConfig) {
+                    // Find the pivot values for this groupBy column
+                    const aPivotValue = a.pivotValues.find(
+                        (pv) => pv.referenceField === groupByCol.reference,
+                    );
+                    const bPivotValue = b.pivotValues.find(
+                        (pv) => pv.referenceField === groupByCol.reference,
+                    );
+
+                    if (
+                        aPivotValue?.value !== undefined &&
+                        bPivotValue?.value !== undefined
+                    ) {
+                        const comparison = comparePivotValues(
+                            aPivotValue.value,
+                            bPivotValue.value,
+                        );
+
+                        if (comparison !== 0) {
+                            // Apply sort direction
+                            const result =
+                                sortConfig.direction === 'DESC'
+                                    ? -comparison
+                                    : comparison;
+
+                            // Handle nullsFirst if specified
+                            if (sortConfig.nullsFirst !== undefined) {
+                                const aIsNull =
+                                    aPivotValue.value === null ||
+                                    aPivotValue.value === undefined;
+                                const bIsNull =
+                                    bPivotValue.value === null ||
+                                    bPivotValue.value === undefined;
+
+                                if (aIsNull && !bIsNull) {
+                                    return sortConfig.nullsFirst ? -1 : 1;
+                                }
+                                if (!aIsNull && bIsNull) {
+                                    return sortConfig.nullsFirst ? 1 : -1;
+                                }
+                            }
+
+                            return result;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Second, fall back to columnOrder for metrics
+        const columnOrderSort =
+            columnOrder.indexOf(a.referenceField) -
+            columnOrder.indexOf(b.referenceField);
+
+        if (columnOrderSort !== 0) {
+            return columnOrderSort;
+        }
+
+        // Finally, fall back to columnIndex for stability when no other sort applies
+        const columnIndexSort =
+            Number(a.columnIndex ?? 0) - Number(b.columnIndex ?? 0);
+        return columnIndexSort;
+    });
+};
+
+/**
  * Converts SQL-pivoted results to PivotData format
  * This handles results that are already pivoted at the SQL level (e.g., payments_total_revenue_any_bank_transfer)
  * and transforms them into the same PivotData structure as pivotQueryResults
@@ -914,8 +1042,13 @@ export const convertSqlPivotedRowsToPivotData = ({
         indexColumns = [];
     }
 
-    const filteredValuesColumns = pivotDetails.valuesColumns.filter(
-        ({ referenceField }) => !hiddenMetricFieldIds.includes(referenceField),
+    const filteredValuesColumns = sortPivotValuesColumns(
+        pivotDetails.valuesColumns.filter(
+            ({ referenceField }) => !hiddenMetricFieldIds.includes(referenceField),
+        ),
+        pivotDetails.sortBy,
+        pivotDetails.groupByColumns,
+        columnOrder,
     );
 
     // Get unique base metrics from valuesColumns, preserving order
@@ -1024,20 +1157,10 @@ export const convertSqlPivotedRowsToPivotData = ({
     // Add metric labels for columns if not metrics as rows
     if (!pivotConfig.metricsAsRows && baseMetricsArray.length > 0) {
         headerValues.push(
-            filteredValuesColumns
-                .sort((a, b) => {
-                    const columnIndexSort =
-                        Number(a.columnIndex) - Number(b.columnIndex);
-                    const columnOrderSort =
-                        columnOrder.indexOf(a.referenceField) -
-                        columnOrder.indexOf(b.referenceField);
-
-                    return columnIndexSort || columnOrderSort;
-                })
-                .map(({ referenceField }) => ({
-                    type: 'label' as const,
-                    fieldId: referenceField,
-                })),
+            filteredValuesColumns.map(({ referenceField }) => ({
+                type: 'label' as const,
+                fieldId: referenceField,
+            })),
         );
     }
 
