@@ -31,6 +31,7 @@ import { NotificationsService } from './NotificationsService/NotificationsServic
 import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { PermissionsService } from './PermissionsService/PermissionsService';
+import { PersistentDownloadFileService } from './PersistentDownloadFileService/PersistentDownloadFileService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
 import { PinningService } from './PinningService/PinningService';
 import { PivotTableService } from './PivotTableService/PivotTableService';
@@ -77,6 +78,7 @@ interface ServiceManifest {
     oauthService: OAuthService;
 
     organizationService: OrganizationService;
+    persistentDownloadFileService: PersistentDownloadFileService;
     personalAccessTokenService: PersonalAccessTokenService;
     pinningService: PinningService;
     pivotTableService: PivotTableService;
@@ -498,6 +500,19 @@ export class ServiceRepository
             () =>
                 new PermissionsService({
                     dashboardModel: this.models.getDashboardModel(),
+                }),
+        );
+    }
+
+    public getPersistentDownloadFileService(): PersistentDownloadFileService {
+        return this.getService(
+            'persistentDownloadFileService',
+            () =>
+                new PersistentDownloadFileService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    persistentDownloadFileModel:
+                        this.models.getPersistentDownloadFileModel(),
+                    s3Client: this.clients.getS3Client(),
                 }),
         );
     }
