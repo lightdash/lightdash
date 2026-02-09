@@ -42,6 +42,7 @@ import {
     warehouseClientMock,
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { metricQueryWithLimit } from '../../utils/csvLimitUtils';
+import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { UserService } from '../UserService';
 import { ProjectService } from './ProjectService';
 import {
@@ -165,6 +166,9 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         organizationWarehouseCredentialsModel:
             {} as unknown as OrganizationWarehouseCredentialsModel,
         projectCompileLogModel: {} as ProjectCompileLogModel,
+        adminNotificationService: {
+            notifyConnectionSettingsChange: jest.fn(async () => undefined),
+        } as unknown as AdminNotificationService,
     });
 
 const account = buildAccount({

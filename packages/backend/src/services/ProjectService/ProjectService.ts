@@ -83,6 +83,7 @@ import {
     getSubtotalKey,
     getTimezoneLabel,
     GroupByColumn,
+    hasConnectionChanges,
     hasIntersection,
     hasWarehouseCredentials,
     IntrinsicUserAttributes,
@@ -242,6 +243,7 @@ import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
+import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
 import {
     hasDirectAccessToSpace,
@@ -285,6 +287,7 @@ export type ProjectServiceArguments = {
     projectParametersModel: ProjectParametersModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     projectCompileLogModel: ProjectCompileLogModel;
+    adminNotificationService: AdminNotificationService;
 };
 
 export class ProjectService extends BaseService {
@@ -348,6 +351,8 @@ export class ProjectService extends BaseService {
 
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
 
+    adminNotificationService: AdminNotificationService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -378,6 +383,7 @@ export class ProjectService extends BaseService {
         projectParametersModel,
         projectCompileLogModel,
         organizationWarehouseCredentialsModel,
+        adminNotificationService,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -411,6 +417,7 @@ export class ProjectService extends BaseService {
         this.projectCompileLogModel = projectCompileLogModel;
         this.organizationWarehouseCredentialsModel =
             organizationWarehouseCredentialsModel;
+        this.adminNotificationService = adminNotificationService;
     }
 
     static getMetricQueryExecutionProperties({
@@ -1838,17 +1845,15 @@ export class ProjectService extends BaseService {
 
     async updateAndScheduleAsyncWork(
         projectUuid: string,
-        user: SessionUser,
+        account: Account,
         data: UpdateProject,
         method: RequestMethod,
     ): Promise<{ jobUuid: string }> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+        assertIsAccountWithOrg(account);
         const savedProject =
             await this.projectModel.getWithSensitiveFields(projectUuid);
         if (
-            user.ability.cannot(
+            account.user.ability.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: savedProject.organizationUuid,
@@ -1864,7 +1869,7 @@ export class ProjectService extends BaseService {
             jobType: JobType.COMPILE_PROJECT,
             jobStatus: JobStatusType.STARTED,
             projectUuid: undefined,
-            userUuid: user.userUuid,
+            userUuid: account.user.id,
             steps: [
                 { stepType: JobStepType.TESTING_ADAPTOR },
                 ...(savedProject.dbtConnection.type === DbtProjectType.NONE
@@ -1874,7 +1879,7 @@ export class ProjectService extends BaseService {
         };
         const createProject = await this._resolveWarehouseClientCredentials(
             data,
-            user.userUuid,
+            account.user.id,
             savedProject.organizationUuid,
         );
         const updatedProject = ProjectModel.mergeMissingProjectConfigSecrets(
@@ -1885,17 +1890,48 @@ export class ProjectService extends BaseService {
         this.validateConfigSecrets(updatedProject);
 
         await this.projectModel.update(projectUuid, updatedProject);
+
+        if (
+            hasConnectionChanges(
+                {
+                    warehouseConnection: savedProject.warehouseConnection,
+                    dbtConnection: savedProject.dbtConnection,
+                },
+                {
+                    warehouseConnection: updatedProject.warehouseConnection,
+                    dbtConnection: updatedProject.dbtConnection,
+                },
+            )
+        ) {
+            this.adminNotificationService
+                .notifyConnectionSettingsChange({
+                    organizationUuid: savedProject.organizationUuid,
+                    projectUuid,
+                    projectName: savedProject.name,
+                    changedBy: account,
+                })
+                .catch((error) => {
+                    this.logger.error(
+                        'Failed to send connection settings change notification',
+                        {
+                            error,
+                            projectUuid,
+                        },
+                    );
+                });
+        }
+
         await this.jobModel.create(job);
 
         if (updatedProject.dbtConnection.type !== DbtProjectType.NONE) {
             await this.schedulerClient.testAndCompileProject({
-                organizationUuid: user.organizationUuid,
-                createdByUserUuid: user.userUuid,
+                organizationUuid: account.organization.organizationUuid,
+                createdByUserUuid: account.user.id,
                 projectUuid,
                 requestMethod: method,
                 jobUuid: job.jobUuid,
                 isPreview: savedProject.type === ProjectType.PREVIEW,
-                userUuid: user.userUuid,
+                userUuid: account.user.id,
             });
         } else {
             // Nothing to test and compile, just update the job status
