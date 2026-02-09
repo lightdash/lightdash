@@ -51,19 +51,7 @@ type EmailClientArguments = {
 
 type EmailTemplate = {
     template: string;
-    context: Record<
-        string,
-        | string
-        | boolean
-        | number
-        | null
-        | undefined
-        | AttachmentUrl[]
-        | PartialFailure[]
-        | { chartName: string; error: string }[]
-        | AdminNotificationPayload['changedBy']
-        | AdminNotificationPayload['targetUser']
-    >;
+    context: Record<string, unknown>;
     attachments?: (Mail.Attachment | AttachmentUrl)[] | undefined;
 };
 
@@ -792,7 +780,9 @@ export default class EmailClient {
             ? `${payload.projectName} - ${payload.organizationName}`
             : payload.organizationName;
 
-        const isRemoval = payload.type.includes('removed');
+        const isRemoval =
+            payload.type === AdminNotificationType.ORG_ADMIN_REMOVED ||
+            payload.type === AdminNotificationType.PROJECT_ADMIN_REMOVED;
         const isConnectionChange =
             payload.type === AdminNotificationType.CONNECTION_SETTINGS_CHANGE;
 
