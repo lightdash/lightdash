@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AbilityAction,
     BulkActionable,
+    ConflictError,
     CreateDashboard,
     CreateDashboardWithCharts,
     CreateSavedChart,
@@ -716,6 +717,21 @@ export class DashboardService
         }
 
         if (isDashboardVersionedFields(dashboard)) {
+            // Check for version conflicts to prevent concurrent editing issues
+            if (
+                dashboard.expectedVersionId !== undefined &&
+                existingDashboardDao.dashboardVersionId !==
+                    dashboard.expectedVersionId
+            ) {
+                throw new ConflictError(
+                    'Dashboard has been modified by another user. Please refresh and try again.',
+                    {
+                        currentVersionId: existingDashboardDao.dashboardVersionId,
+                        expectedVersionId: dashboard.expectedVersionId,
+                    },
+                );
+            }
+
             const dashboardTileTypes = Array.from(
                 new Set(dashboard.tiles.map((t) => t.type)),
             );

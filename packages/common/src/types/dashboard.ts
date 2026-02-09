@@ -249,10 +249,13 @@ export type DashboardVersionedFields = Pick<
 
 export type UpdateDashboardDetails = Pick<Dashboard, 'name' | 'description'>;
 
-export type UpdateDashboard =
+export type UpdateDashboard = (
     | DashboardUnversionedFields
     | DashboardVersionedFields
-    | (DashboardUnversionedFields & DashboardVersionedFields);
+    | (DashboardUnversionedFields & DashboardVersionedFields)
+) & {
+    expectedVersionId?: number;
+};
 
 export type UpdateMultipleDashboards = Pick<
     Dashboard,

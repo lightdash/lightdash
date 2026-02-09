@@ -575,6 +575,19 @@ const Dashboard: FC = () => {
     }
 
     const handleSaveDashboard = () => {
+        // Validate that we're saving to the correct dashboard
+        if (dashboard.uuid !== dashboardUuid) {
+            showToastError({
+                title: 'Error saving dashboard',
+                subtitle:
+                    'Dashboard ID mismatch. Please refresh the page and try again.',
+            });
+            captureException(
+                `Dashboard UUID mismatch: expected ${dashboardUuid}, got ${dashboard.uuid}`,
+            );
+            return;
+        }
+
         const dimensionFilters = [
             ...dashboardFilters.dimensions,
             ...dashboardTemporaryFilters.dimensions,
@@ -611,6 +624,7 @@ const Dashboard: FC = () => {
                 pinnedParameters,
             },
             parameters: dashboardParameters,
+            expectedVersionId: dashboard.dashboardVersionId,
         });
     };
 
