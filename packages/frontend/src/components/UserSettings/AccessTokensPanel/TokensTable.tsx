@@ -58,7 +58,9 @@ const TokenItem: FC<{
         <>
             <Table.Tr>
                 <Table.Td>
-                    <Text fw={500}>{description}</Text>
+                    <Text fw={500} size="sm">
+                        {description}
+                    </Text>
                 </Table.Td>
                 <Table.Td>
                     <Group align="center" justify="flex-start" gap="xs">
