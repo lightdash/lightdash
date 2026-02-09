@@ -17,7 +17,7 @@
         "@databricks/sql": "1.8.4",
         "@google-cloud/bigquery": "^7.9.2",
         "@lightdash/common": "workspace:*",
-        "lodash": "^4.17.21",
+        "lodash": "^4.17.23",
         "pg": "^8.13.1",
         "pg-cursor": "^2.10.0",
         "node-fetch": "^2.7.0",
