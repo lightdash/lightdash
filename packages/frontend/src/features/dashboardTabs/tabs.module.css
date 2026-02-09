@@ -93,6 +93,42 @@
     }
 }
 
+.gridInteracting {
+    user-select: none;
+}
+
+.gridLines {
+    & :global(.react-grid-layout) {
+        background-image:
+            linear-gradient(
+                to right,
+                light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.08)) 1px,
+                transparent 1px
+            ),
+            linear-gradient(
+                to right,
+                light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.08)) 1px,
+                transparent 1px
+            ),
+            linear-gradient(
+                to bottom,
+                light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.08)) 1px,
+                transparent 1px
+            ),
+            linear-gradient(
+                to bottom,
+                light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.08)) 1px,
+                transparent 1px
+            );
+        background-size: var(--grid-cell-w) var(--grid-cell-h);
+        background-position:
+            var(--grid-pad-x) var(--grid-pad-y),
+            calc(var(--grid-pad-x) + var(--grid-col-w)) var(--grid-pad-y),
+            var(--grid-pad-x) var(--grid-pad-y),
+            var(--grid-pad-x) calc(var(--grid-pad-y) + var(--grid-row-h));
+    }
+}
+
 .filtersBar {
     padding: var(--mantine-spacing-xs) 0;
     @mixin dark {

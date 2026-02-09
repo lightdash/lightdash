@@ -2,10 +2,16 @@ import { type DashboardTile } from '@lightdash/common';
 import { type Layout } from 'react-grid-layout';
 
 const DEFAULT_COLS = 36;
+
+export const GRID_BREAKPOINTS = { lg: 1200, md: 996, sm: 768 };
+export const GRID_COLS = { lg: DEFAULT_COLS, md: 30, sm: 18 };
 /**
  * Row height: fontSize * lineHeight + padding + borders
  */
 export const DEFAULT_ROW_HEIGHT = 14 * 1.5 + 16 * 2 + 2;
+
+export const GRID_MARGIN: [number, number] = [10, 10];
+export const GRID_CONTAINER_PADDING: [number, number] = [10, 0];
 
 /**
  * Converts layout positions from the current breakpoint's coordinate system
@@ -39,6 +45,7 @@ export type ResponsiveGridLayoutProps = {
     breakpoints: { lg: number; md: number; sm: number };
     cols: { lg: number; md: number; sm: number };
     rowHeight: number;
+    margin: [number, number];
 };
 
 export const getReactGridLayoutConfig = (
@@ -78,11 +85,11 @@ export const getResponsiveGridLayoutProps = ({
     draggableCancel: '.non-draggable',
     useCSSTransforms: enableAnimation,
     measureBeforeMount: !enableAnimation,
-    breakpoints: { lg: 1200, md: 996, sm: 768 },
+    breakpoints: GRID_BREAKPOINTS,
     cols: {
-        lg: DEFAULT_COLS,
-        md: 30,
-        sm: stackVerticallyOnSmallestBreakpoint ? 1 : 18,
+        ...GRID_COLS,
+        sm: stackVerticallyOnSmallestBreakpoint ? 1 : GRID_COLS.sm,
     },
     rowHeight: DEFAULT_ROW_HEIGHT,
+    margin: GRID_MARGIN,
 });
